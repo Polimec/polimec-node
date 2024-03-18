@@ -279,22 +279,30 @@ mod testing_helpers {
 				decimals: ASSET_DECIMALS,
 			},
 			mainnet_token_max_supply: 8_000_000 * ASSET_UNIT,
-			total_allocation_size: (50_000 * ASSET_UNIT, 50_000 * ASSET_UNIT),
-			minimum_price: FixedU128::from_float(1.0),
-			ticket_size: TicketSize { minimum: Some(1), maximum: None },
-			participants_size: ParticipantsSize { minimum: Some(2), maximum: None },
-			funding_thresholds: Default::default(),
-			conversion_rate: 0,
-			participation_currencies: AcceptedFundingAsset::USDT,
+			total_allocation_size: 1_000_000 * ASSET_UNIT,
+			auction_round_allocation_percentage: Percent::from_percent(50u8),
+			minimum_price: PriceOf::<polimec_parachain_runtime::Runtime>::from_float(10.0),
+			bidding_ticket_sizes: BiddingTicketSizes {
+				professional: TicketSize::new(Some(5000 * US_DOLLAR), None),
+				institutional: TicketSize::new(Some(5000 * US_DOLLAR), None),
+				phantom: Default::default(),
+			},
+			contributing_ticket_sizes: ContributingTicketSizes {
+				retail: TicketSize::new(None, None),
+				professional: TicketSize::new(None, None),
+				institutional: TicketSize::new(None, None),
+				phantom: Default::default(),
+			},
+			participation_currencies: vec![AcceptedFundingAsset::USDT].try_into().unwrap(),
 			funding_destination_account: issuer,
 			offchain_information_hash: Some(metadata_hash(nonce)),
 		}
 	}
 	pub fn default_evaluations() -> Vec<UserToUSDBalance<polimec_parachain_runtime::Runtime>> {
 		vec![
-			UserToUSDBalance::new(EVAL_1.into(), 50_000 * PLMC),
-			UserToUSDBalance::new(EVAL_2.into(), 25_000 * PLMC),
-			UserToUSDBalance::new(EVAL_3.into(), 32_000 * PLMC),
+			UserToUSDBalance::new(EVAL_1.into(), 500_000 * PLMC),
+			UserToUSDBalance::new(EVAL_2.into(), 250_000 * PLMC),
+			UserToUSDBalance::new(EVAL_3.into(), 320_000 * PLMC),
 		]
 	}
 	pub fn default_bidders() -> Vec<AccountId> {
@@ -343,52 +351,37 @@ fn testing_genesis(
 	use testing_helpers::*;
 
 	// only used to generate some values, and not for chain interactions
-	let funding_percent = 93u64;
 	let default_project_metadata = project_metadata(ISSUER.into(), 0u32);
 	let min_price = default_project_metadata.minimum_price;
-	let twenty_percent_funding_usd = Perquintill::from_percent(funding_percent) *
-		(default_project_metadata
-			.minimum_price
-			.checked_mul_int(
-				default_project_metadata.total_allocation_size.0 + default_project_metadata.total_allocation_size.1,
-			)
-			.unwrap());
+	let usdt_funding_amount =
+		default_project_metadata.minimum_price.checked_mul_int(default_project_metadata.total_allocation_size).unwrap();
 	let evaluations = default_evaluations();
 	let bids = GenesisInstantiator::generate_bids_from_total_usd(
-		Percent::from_percent(50u8) * twenty_percent_funding_usd,
+		Percent::from_percent(40u8) * usdt_funding_amount,
 		min_price,
 		default_weights(),
 		default_bidders(),
 		default_bidder_multipliers(),
 	);
 	let community_contributions = GenesisInstantiator::generate_contributions_from_total_usd(
-		Percent::from_percent(30u8) * twenty_percent_funding_usd,
+		Percent::from_percent(50u8) * usdt_funding_amount,
 		min_price,
 		default_weights(),
 		default_community_contributors(),
 		default_community_contributor_multipliers(),
 	);
 	let remainder_contributions = GenesisInstantiator::generate_contributions_from_total_usd(
-		Percent::from_percent(20u8) * twenty_percent_funding_usd,
+		Percent::from_percent(5u8) * usdt_funding_amount,
 		min_price,
 		default_weights(),
 		default_remainder_contributors(),
 		default_remainder_contributor_multipliers(),
 	);
-	let max_bids = (0..<Runtime as pallet_funding::Config>::MaxBidsPerProject::get())
-		.map(|i| {
-			instantiator::BidParams::<Runtime>::new(
-				get_account_id_from_seed::<sr25519::Public>(format!("bidder_{}", i).as_str()),
-				(10u128 * ASSET_UNIT).into(),
-				1u8,
-				pallet_funding::AcceptedFundingAsset::USDT,
-			)
-		})
-		.collect_vec();
 
 	let accounts = endowed_accounts.iter().map(|(account, _)| account.clone()).collect::<Vec<_>>();
 	endowed_accounts
 		.push((<Runtime as pallet_funding::Config>::PalletId::get().into_account_truncating(), EXISTENTIAL_DEPOSIT));
+	endowed_accounts.push((<Runtime as pallet_funding::Config>::ContributionTreasury::get(), EXISTENTIAL_DEPOSIT));
 	RuntimeGenesisConfig {
 		system: SystemConfig { code: wasm_binary.to_vec(), ..Default::default() },
 		oracle_providers_membership: OracleProvidersMembershipConfig {
@@ -433,7 +426,7 @@ fn testing_genesis(
 					metadata: project_metadata(ISSUER.into(), 3u32),
 					issuer: ISSUER.into(),
 					evaluations: evaluations.clone(),
-					bids: max_bids,
+					bids: vec![],
 					community_contributions: vec![],
 					remainder_contributions: vec![],
 				},

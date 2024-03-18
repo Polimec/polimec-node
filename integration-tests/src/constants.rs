@@ -318,8 +318,9 @@ pub mod asset_hub {
 // Polimec
 pub mod polimec {
 	use super::*;
-	use crate::{Polimec, PolkadotNet};
+	use crate::{Polimec, PolkadotNet, PolimecRuntime};
 	use pallet_funding::AcceptedFundingAsset;
+	use sp_runtime::traits::AccountIdConversion;
 	use xcm::v3::Parent;
 
 	pub const PARA_ID: u32 = 3344;
@@ -346,6 +347,8 @@ pub mod polimec {
 				),
 				INITIAL_DEPOSIT,
 			),
+			(<PolimecRuntime as pallet_funding::Config>::ContributionTreasury::get(), INITIAL_DEPOSIT),
+			(<PolimecRuntime as pallet_funding::Config>::PalletId::get().into_account_truncating(), INITIAL_DEPOSIT),
 		];
 		let alice_account = <Polimec<PolkadotNet>>::account_id_of(accounts::ALICE);
 		let bob_account: AccountId = <Polimec<PolkadotNet>>::account_id_of(accounts::BOB);
@@ -513,6 +516,7 @@ pub mod polimec_base {
 	use super::*;
 	use crate::{PolimecBase, PolkadotNet};
 	use pallet_funding::AcceptedFundingAsset;
+	use polimec_base_runtime::PayMaster;
 	use xcm::v3::Parent;
 
 	pub const PARA_ID: u32 = 3344;
@@ -550,6 +554,7 @@ pub mod polimec_base {
 		funded_accounts.extend(accounts::init_balances().iter().cloned().map(|k| (k, INITIAL_DEPOSIT)));
 		funded_accounts.extend(collators::initial_authorities().iter().cloned().map(|(acc, _)| (acc, 20_005 * PLMC)));
 		funded_accounts.push((get_account_id_from_seed::<sr25519::Public>("TREASURY_STASH"), 20_005 * PLMC));
+		funded_accounts.push((PayMaster::get(), 20_005 * PLMC));
 
 		let genesis_config = polimec_base_runtime::RuntimeGenesisConfig {
 			system: Default::default(),

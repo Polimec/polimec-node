@@ -29,7 +29,7 @@ use frame_support::{
 };
 use frame_system as system;
 use frame_system::EnsureRoot;
-use polimec_common::credentials::{EnsureInvestor, Institutional, Professional, Retail};
+use polimec_common::credentials::{EnsureInvestor};
 use sp_arithmetic::Percent;
 use sp_core::H256;
 use sp_runtime::{
@@ -317,8 +317,8 @@ parameter_types! {
 	];
 	pub EarlyEvaluationThreshold: Percent = Percent::from_percent(10);
 	pub EvaluatorSlash: Percent = Percent::from_percent(20);
-	pub TreasuryAccount: AccountId = AccountId::from(69u32);
-
+	pub ProtocolGrowthTreasuryAccount: AccountId = AccountId::from(696969u32);
+	pub ContributionTreasury: AccountId = AccountId::from(4204204206u32);
 }
 
 parameter_types! {
@@ -386,7 +386,7 @@ impl Config for TestRuntime {
 	type CandleAuctionDuration = CandleAuctionDuration;
 	type CommunityFundingDuration = CommunityRoundDuration;
 	type ContributionTokenCurrency = LocalAssets;
-	type ContributionVesting = ConstU32<4>;
+	type ContributionTreasury = ContributionTreasury;
 	type DaysToBlocks = DaysToBlocks;
 	type EnglishAuctionDuration = EnglishAuctionDuration;
 	type EvaluationDuration = EvaluationDuration;
@@ -394,7 +394,7 @@ impl Config for TestRuntime {
 	type EvaluatorSlash = EvaluatorSlash;
 	type FeeBrackets = FeeBrackets;
 	type FundingCurrency = ForeignAssets;
-	type InstitutionalOrigin = EnsureInvestor<TestRuntime, (), Institutional>;
+	type InvestorOrigin = EnsureInvestor<TestRuntime>;
 	type ManualAcceptanceDuration = ManualAcceptanceDuration;
 	type MaxBidsPerProject = ConstU32<1024>;
 	type MaxBidsPerUser = ConstU32<4>;
@@ -412,12 +412,11 @@ impl Config for TestRuntime {
 	type PreImageLimit = ConstU32<1024>;
 	type Price = FixedU128;
 	type PriceProvider = ConstPriceProvider<AssetId, FixedU128, PriceMap>;
-	type ProfessionalOrigin = EnsureInvestor<TestRuntime, (), Professional>;
+	type ProtocolGrowthTreasury = ProtocolGrowthTreasuryAccount;
 	type Randomness = RandomnessCollectiveFlip;
 	type RemainderFundingDuration = RemainderFundingDuration;
 	type RequiredMaxCapacity = RequiredMaxCapacity;
 	type RequiredMaxMessageSize = RequiredMaxMessageSize;
-	type RetailOrigin = EnsureInvestor<TestRuntime, (), Retail>;
 	type RuntimeCall = RuntimeCall;
 	type RuntimeEvent = RuntimeEvent;
 	type RuntimeHoldReason = RuntimeHoldReason;
@@ -426,7 +425,6 @@ impl Config for TestRuntime {
 	type SetPrices = ();
 	type StringLimit = ConstU32<64>;
 	type SuccessToSettlementTime = SuccessToSettlementTime;
-	type TreasuryAccount = TreasuryAccount;
 	type VerifierPublicKey = VerifierPublicKey;
 	type Vesting = Vesting;
 	type WeightInfo = weights::SubstrateWeight<TestRuntime>;
@@ -451,21 +449,36 @@ construct_runtime!(
 // Build genesis storage according to the mock runtime.
 pub fn new_test_ext() -> sp_io::TestExternalities {
 	let mut t = frame_system::GenesisConfig::<TestRuntime>::default().build_storage().unwrap();
-
+	let ed = <TestRuntime as pallet_balances::Config>::ExistentialDeposit::get();
 	RuntimeGenesisConfig {
 		balances: BalancesConfig {
-			balances: vec![(
-				<TestRuntime as Config>::PalletId::get().into_account_truncating(),
-				<TestRuntime as pallet_balances::Config>::ExistentialDeposit::get(),
-			)],
+			balances: vec![
+				(<TestRuntime as Config>::PalletId::get().into_account_truncating(), ed),
+				(<TestRuntime as Config>::ContributionTreasury::get(), ed),
+				(<TestRuntime as Config>::ProtocolGrowthTreasury::get(), ed),
+			],
 		},
 		foreign_assets: ForeignAssetsConfig {
-			assets: vec![(
-				AcceptedFundingAsset::USDT.to_assethub_id(),
-				<TestRuntime as Config>::PalletId::get().into_account_truncating(),
-				false,
-				10,
-			)],
+			assets: vec![
+				(
+					AcceptedFundingAsset::USDT.to_assethub_id(),
+					<TestRuntime as Config>::PalletId::get().into_account_truncating(),
+					false,
+					10,
+				),
+				(
+					AcceptedFundingAsset::USDC.to_assethub_id(),
+					<TestRuntime as Config>::PalletId::get().into_account_truncating(),
+					false,
+					10,
+				),
+				(
+					AcceptedFundingAsset::DOT.to_assethub_id(),
+					<TestRuntime as Config>::PalletId::get().into_account_truncating(),
+					false,
+					10,
+				),
+			],
 			metadata: vec![],
 			accounts: vec![],
 		},

@@ -20,7 +20,7 @@ use itertools::Itertools;
 use macros::generate_accounts;
 use pallet_funding::*;
 use polimec_parachain_runtime::{PolimecFunding, US_DOLLAR};
-use sp_arithmetic::{FixedPointNumber, Perquintill};
+use sp_arithmetic::{FixedPointNumber, Percent, Perquintill};
 use sp_runtime::{traits::CheckedSub, FixedU128};
 
 type UserToCTBalance = Vec<(AccountId, BalanceOf<PolimecRuntime>, ProjectId)>;
@@ -29,10 +29,10 @@ generate_accounts!(
 	LINA, MIA, ALEXEY, PAUL, MARIA, GEORGE, CLARA, RAMONA, PASCAL, EMMA, BIBI, AHMED, HERBERT, LENI, XI, TOM, ADAMS,
 	POLK, MARKUS, ELLA, SKR, ARTHUR, MILA, LINCOLN, MONROE, ARBRESHA, ELDIN, HARDING, SOFIA, DOMINIK, NOLAND, HANNAH,
 	HOOVER, GIGI, JEFFERSON, LINDI, KEVIN, ANIS, RETO, HAALAND, XENIA, EVA, SKARA, ROOSEVELT, DRACULA, DURIM, HARRISON,
-	DRIN, PARI, TUTI, BENITO, VANESSA, ENES, RUDOLF, CERTO, TIESTO, DAVID, ATAKAN, YANN, ENIS, ALFREDO, QENDRIM,
-	LEONARDO, KEN, LUCA, FLAVIO, FREDI, ALI, DILARA, DAMIAN, KAYA, IAZI, CHRIGI, VALENTINA, ALMA, ALENA, PATRICK,
-	ONTARIO, RAKIA, HUBERT, UTUS, TOME, ZUBER, ADAM, STANI, BETI, HALIT, DRAGAN, LEA, LUIS, TATI, WEST, MIRIJAM,
-	LIONEL, GIOVANNI, JOEL, POLKA, MALIK, ALEXANDER, SOLOMUN, JOHNNY, GRINGO, JONAS, BUNDI, FELIX,
+	PARI, TUTI, BENITO, VANESSA, ENES, RUDOLF, CERTO, TIESTO, DAVID, ATAKAN, YANN, ENIS, ALFREDO, QENDRIM, LEONARDO,
+	KEN, LUCA, FLAVIO, FREDI, ALI, DILARA, DAMIAN, KAYA, IAZI, CHRIGI, VALENTINA, ALMA, ALENA, PATRICK, ONTARIO, RAKIA,
+	HUBERT, UTUS, TOME, ZUBER, ADAM, STANI, BETI, HALIT, DRAGAN, LEA, LUIS, TATI, WEST, MIRIJAM, LIONEL, GIOVANNI,
+	JOEL, POLKA, MALIK, ALEXANDER, SOLOMUN, JOHNNY, GRINGO, JONAS, BUNDI, FELIX,
 );
 
 pub fn excel_project(nonce: u64) -> ProjectMetadataOf<PolimecRuntime> {
@@ -41,16 +41,25 @@ pub fn excel_project(nonce: u64) -> ProjectMetadataOf<PolimecRuntime> {
 	let metadata_hash = hashed(format!("{}-{}", METADATA, nonce));
 	ProjectMetadata {
 		token_information: CurrencyMetadata { name: bounded_name, symbol: bounded_symbol, decimals: 10 },
-		mainnet_token_max_supply: 1_000_000_0_000_000_000, // Made up, not in the Sheet.
+		mainnet_token_max_supply: 10_000_000_0_000_000_000, // Made up, not in the Sheet.
 		// Total Allocation of Contribution Tokens Available for the Funding Round
-		total_allocation_size: (50_000_0_000_000_000, 50_000_0_000_000_000),
+		total_allocation_size: 100_000_0_000_000_000,
+		auction_round_allocation_percentage: Percent::from_percent(50u8),
+
 		// Minimum Price per Contribution Token (in USDT)
 		minimum_price: PriceOf::<PolimecRuntime>::from(10),
-		ticket_size: TicketSize { minimum: Some(1), maximum: None },
-		participants_size: ParticipantsSize { minimum: Some(2), maximum: None },
-		funding_thresholds: Default::default(),
-		conversion_rate: 1,
-		participation_currencies: AcceptedFundingAsset::USDT,
+		bidding_ticket_sizes: BiddingTicketSizes {
+			professional: TicketSize::new(Some(5000 * US_DOLLAR), None),
+			institutional: TicketSize::new(Some(5000 * US_DOLLAR), None),
+			phantom: Default::default(),
+		},
+		contributing_ticket_sizes: ContributingTicketSizes {
+			retail: TicketSize::new(None, None),
+			professional: TicketSize::new(None, None),
+			institutional: TicketSize::new(None, None),
+			phantom: Default::default(),
+		},
+		participation_currencies: vec![AcceptedFundingAsset::USDT].try_into().unwrap(),
 		funding_destination_account: ISSUER.into(),
 		offchain_information_hash: Some(metadata_hash),
 	}
@@ -58,133 +67,130 @@ pub fn excel_project(nonce: u64) -> ProjectMetadataOf<PolimecRuntime> {
 
 fn excel_evaluators() -> Vec<UserToUSDBalance<PolimecRuntime>> {
 	vec![
-		UserToUSDBalance::new(LINA.into(), 93754 * US_DOLLAR),
-		UserToUSDBalance::new(MIA.into(), 162 * US_DOLLAR),
-		UserToUSDBalance::new(ALEXEY.into(), 7454 * US_DOLLAR),
-		UserToUSDBalance::new(PAUL.into(), 8192 * US_DOLLAR),
-		UserToUSDBalance::new(MARIA.into(), 11131 * US_DOLLAR),
-		UserToUSDBalance::new(GEORGE.into(), 4765 * US_DOLLAR),
-		UserToUSDBalance::new(CLARA.into(), 4363 * US_DOLLAR),
-		UserToUSDBalance::new(RAMONA.into(), 4120 * US_DOLLAR),
-		UserToUSDBalance::new(PASCAL.into(), 1626 * US_DOLLAR),
-		UserToUSDBalance::new(EMMA.into(), 3996 * US_DOLLAR),
-		UserToUSDBalance::new(BIBI.into(), 3441 * US_DOLLAR),
-		UserToUSDBalance::new(AHMED.into(), 8048 * US_DOLLAR),
-		UserToUSDBalance::new(HERBERT.into(), 2538 * US_DOLLAR),
-		UserToUSDBalance::new(LENI.into(), 5803 * US_DOLLAR),
-		UserToUSDBalance::new(XI.into(), 1669 * US_DOLLAR),
-		UserToUSDBalance::new(TOM.into(), 6526 * US_DOLLAR),
+		(LINA.into(), 93754 * US_DOLLAR).into(),
+		(MIA.into(), 162 * US_DOLLAR).into(),
+		(ALEXEY.into(), 7454 * US_DOLLAR).into(),
+		(PAUL.into(), 8192 * US_DOLLAR).into(),
+		(MARIA.into(), 11131 * US_DOLLAR).into(),
+		(GEORGE.into(), 4765 * US_DOLLAR).into(),
+		(CLARA.into(), 4363 * US_DOLLAR).into(),
+		(RAMONA.into(), 4120 * US_DOLLAR).into(),
+		(PASCAL.into(), 1626 * US_DOLLAR).into(),
+		(EMMA.into(), 3996 * US_DOLLAR).into(),
+		(BIBI.into(), 3441 * US_DOLLAR).into(),
+		(AHMED.into(), 8048 * US_DOLLAR).into(),
+		(HERBERT.into(), 2538 * US_DOLLAR).into(),
+		(LENI.into(), 5803 * US_DOLLAR).into(),
+		(XI.into(), 1669 * US_DOLLAR).into(),
+		(TOM.into(), 6526 * US_DOLLAR).into(),
 	]
 }
 
 fn excel_bidders() -> Vec<BidParams<PolimecRuntime>> {
 	vec![
-		BidParams::new_with_defaults(ADAMS.into(), 700 * ASSET_UNIT),
-		BidParams::new_with_defaults(POLK.into(), 4000 * ASSET_UNIT),
-		BidParams::new_with_defaults(MARKUS.into(), 3000 * ASSET_UNIT),
-		BidParams::new_with_defaults(ELLA.into(), 700 * ASSET_UNIT),
-		BidParams::new_with_defaults(SKR.into(), 3400 * ASSET_UNIT),
-		BidParams::new_with_defaults(ARTHUR.into(), 1000 * ASSET_UNIT),
-		BidParams::new_with_defaults(MILA.into(), 8400 * ASSET_UNIT),
-		BidParams::new_with_defaults(LINCOLN.into(), 800 * ASSET_UNIT),
-		BidParams::new_with_defaults(MONROE.into(), 1300 * ASSET_UNIT),
-		BidParams::new_with_defaults(ARBRESHA.into(), 5000 * ASSET_UNIT),
-		BidParams::new_with_defaults(ELDIN.into(), 600 * ASSET_UNIT),
-		BidParams::new_with_defaults(HARDING.into(), 800 * ASSET_UNIT),
-		BidParams::new_with_defaults(SOFIA.into(), 3000 * ASSET_UNIT),
-		BidParams::new_with_defaults(DOMINIK.into(), 8000 * ASSET_UNIT),
-		BidParams::new_with_defaults(NOLAND.into(), 900 * ASSET_UNIT),
-		BidParams::new_with_defaults(LINA.into(), 8400 * ASSET_UNIT),
-		BidParams::new_with_defaults(LINA.into(), 1000 * ASSET_UNIT),
-		BidParams::new_with_defaults(HANNAH.into(), 400 * ASSET_UNIT),
-		BidParams::new_with_defaults(HOOVER.into(), 2000 * ASSET_UNIT),
-		BidParams::new_with_defaults(GIGI.into(), 600 * ASSET_UNIT),
-		BidParams::new_with_defaults(JEFFERSON.into(), 1000 * ASSET_UNIT),
-		BidParams::new_with_defaults(JEFFERSON.into(), 2000 * ASSET_UNIT),
+		(ADAMS.into(), 700 * ASSET_UNIT).into(),
+		(POLK.into(), 4000 * ASSET_UNIT).into(),
+		(MARKUS.into(), 3000 * ASSET_UNIT).into(),
+		(ELLA.into(), 700 * ASSET_UNIT).into(),
+		(SKR.into(), 3400 * ASSET_UNIT).into(),
+		(ARTHUR.into(), 1000 * ASSET_UNIT).into(),
+		(MILA.into(), 8400 * ASSET_UNIT).into(),
+		(LINCOLN.into(), 800 * ASSET_UNIT).into(),
+		(MONROE.into(), 1300 * ASSET_UNIT).into(),
+		(ARBRESHA.into(), 5000 * ASSET_UNIT).into(),
+		(ELDIN.into(), 600 * ASSET_UNIT).into(),
+		(HARDING.into(), 800 * ASSET_UNIT).into(),
+		(SOFIA.into(), 3000 * ASSET_UNIT).into(),
+		(DOMINIK.into(), 8000 * ASSET_UNIT).into(),
+		(NOLAND.into(), 900 * ASSET_UNIT).into(),
+		(LINA.into(), 8400 * ASSET_UNIT).into(),
+		(LINA.into(), 1000 * ASSET_UNIT).into(),
+		(HANNAH.into(), 500 * ASSET_UNIT).into(),
+		(HOOVER.into(), 1900 * ASSET_UNIT).into(),
+		(GIGI.into(), 600 * ASSET_UNIT).into(),
+		(JEFFERSON.into(), 1000 * ASSET_UNIT).into(),
+		(JEFFERSON.into(), 2000 * ASSET_UNIT).into(),
 	]
 }
 
 fn excel_contributions() -> Vec<ContributionParams<PolimecRuntime>> {
 	vec![
-		ContributionParams::new_with_defaults(DRIN.into(), 692 * US_DOLLAR),
-		ContributionParams::new_with_defaults(PARI.into(), 236 * US_DOLLAR),
-		ContributionParams::new_with_defaults(TUTI.into(), 24 * US_DOLLAR),
-		ContributionParams::new_with_defaults(BENITO.into(), 688 * US_DOLLAR),
-		ContributionParams::new_with_defaults(VANESSA.into(), 33 * US_DOLLAR),
-		ContributionParams::new_with_defaults(ENES.into(), 1148 * US_DOLLAR),
-		ContributionParams::new_with_defaults(RUDOLF.into(), 35 * US_DOLLAR),
-		ContributionParams::new_with_defaults(CERTO.into(), 840 * US_DOLLAR),
-		ContributionParams::new_with_defaults(TIESTO.into(), 132 * US_DOLLAR),
-		ContributionParams::new_with_defaults(DAVID.into(), 21 * US_DOLLAR),
-		ContributionParams::new_with_defaults(ATAKAN.into(), 59 * US_DOLLAR),
-		ContributionParams::new_with_defaults(YANN.into(), 89 * US_DOLLAR),
-		ContributionParams::new_with_defaults(ENIS.into(), 332 * US_DOLLAR),
-		ContributionParams::new_with_defaults(ALFREDO.into(), 8110 * US_DOLLAR),
-		ContributionParams::new_with_defaults(QENDRIM.into(), 394 * US_DOLLAR),
-		ContributionParams::new_with_defaults(LEONARDO.into(), 840 * US_DOLLAR),
-		ContributionParams::new_with_defaults(KEN.into(), 352 * US_DOLLAR),
-		ContributionParams::new_with_defaults(LUCA.into(), 640 * US_DOLLAR),
-		// TODO: XI is a partipant in the Community Round AND an Evaluator. At the moment, this returns `InsufficientBalance` because it seems we don't mint to him enough USDT.
-		// To be addressed and tested in a separate PR.
-		//ContributionParams::from(XI, 588 * US_DOLLAR),
-		ContributionParams::new_with_defaults(FLAVIO.into(), 792 * US_DOLLAR),
-		ContributionParams::new_with_defaults(FREDI.into(), 993 * US_DOLLAR),
-		ContributionParams::new_with_defaults(ALI.into(), 794 * US_DOLLAR),
-		ContributionParams::new_with_defaults(DILARA.into(), 256 * US_DOLLAR),
-		ContributionParams::new_with_defaults(DAMIAN.into(), 431 * US_DOLLAR),
-		ContributionParams::new_with_defaults(KAYA.into(), 935 * US_DOLLAR),
-		ContributionParams::new_with_defaults(IAZI.into(), 174 * US_DOLLAR),
-		ContributionParams::new_with_defaults(CHRIGI.into(), 877 * US_DOLLAR),
-		ContributionParams::new_with_defaults(VALENTINA.into(), 961 * US_DOLLAR),
-		ContributionParams::new_with_defaults(ALMA.into(), 394 * US_DOLLAR),
-		ContributionParams::new_with_defaults(ALENA.into(), 442 * US_DOLLAR),
-		ContributionParams::new_with_defaults(PATRICK.into(), 486 * US_DOLLAR),
-		ContributionParams::new_with_defaults(ONTARIO.into(), 17 * US_DOLLAR),
-		ContributionParams::new_with_defaults(RAKIA.into(), 9424 * US_DOLLAR),
-		ContributionParams::new_with_defaults(HUBERT.into(), 14 * US_DOLLAR),
-		ContributionParams::new_with_defaults(UTUS.into(), 4906 * US_DOLLAR),
-		ContributionParams::new_with_defaults(TOME.into(), 68 * US_DOLLAR),
-		ContributionParams::new_with_defaults(ZUBER.into(), 9037 * US_DOLLAR),
-		ContributionParams::new_with_defaults(ADAM.into(), 442 * US_DOLLAR),
-		ContributionParams::new_with_defaults(STANI.into(), 40 * US_DOLLAR),
-		ContributionParams::new_with_defaults(BETI.into(), 68 * US_DOLLAR),
-		ContributionParams::new_with_defaults(HALIT.into(), 68 * US_DOLLAR),
-		ContributionParams::new_with_defaults(DRAGAN.into(), 98 * US_DOLLAR),
-		ContributionParams::new_with_defaults(LEA.into(), 17 * US_DOLLAR),
-		ContributionParams::new_with_defaults(LUIS.into(), 422 * US_DOLLAR),
+		(XI.into(), 692 * ASSET_UNIT).into(),
+		(PARI.into(), 236 * ASSET_UNIT).into(),
+		(TUTI.into(), 24 * ASSET_UNIT).into(),
+		(BENITO.into(), 688 * ASSET_UNIT).into(),
+		(VANESSA.into(), 33 * ASSET_UNIT).into(),
+		(ENES.into(), 1148 * ASSET_UNIT).into(),
+		(RUDOLF.into(), 35 * ASSET_UNIT).into(),
+		(CERTO.into(), 840 * ASSET_UNIT).into(),
+		(TIESTO.into(), 132 * ASSET_UNIT).into(),
+		(DAVID.into(), 21 * ASSET_UNIT).into(),
+		(ATAKAN.into(), 59 * ASSET_UNIT).into(),
+		(YANN.into(), 89 * ASSET_UNIT).into(),
+		(ENIS.into(), 332 * ASSET_UNIT).into(),
+		(ALFREDO.into(), 8110 * ASSET_UNIT).into(),
+		(QENDRIM.into(), 394 * ASSET_UNIT).into(),
+		(LEONARDO.into(), 840 * ASSET_UNIT).into(),
+		(KEN.into(), 352 * ASSET_UNIT).into(),
+		(LUCA.into(), 640 * ASSET_UNIT).into(),
+		(FLAVIO.into(), 792 * ASSET_UNIT).into(),
+		(FREDI.into(), 993 * ASSET_UNIT).into(),
+		(ALI.into(), 794 * ASSET_UNIT).into(),
+		(DILARA.into(), 256 * ASSET_UNIT).into(),
+		(DAMIAN.into(), 431 * ASSET_UNIT).into(),
+		(KAYA.into(), 935 * ASSET_UNIT).into(),
+		(IAZI.into(), 174 * ASSET_UNIT).into(),
+		(CHRIGI.into(), 877 * ASSET_UNIT).into(),
+		(VALENTINA.into(), 961 * ASSET_UNIT).into(),
+		(ALMA.into(), 394 * ASSET_UNIT).into(),
+		(ALENA.into(), 442 * ASSET_UNIT).into(),
+		(PATRICK.into(), 486 * ASSET_UNIT).into(),
+		(ONTARIO.into(), 17 * ASSET_UNIT).into(),
+		(RAKIA.into(), 9424 * ASSET_UNIT).into(),
+		(HUBERT.into(), 14 * ASSET_UNIT).into(),
+		(UTUS.into(), 4906 * ASSET_UNIT).into(),
+		(TOME.into(), 68 * ASSET_UNIT).into(),
+		(ZUBER.into(), 9037 * ASSET_UNIT).into(),
+		(ADAM.into(), 442 * ASSET_UNIT).into(),
+		(STANI.into(), 40 * ASSET_UNIT).into(),
+		(BETI.into(), 68 * ASSET_UNIT).into(),
+		(HALIT.into(), 68 * ASSET_UNIT).into(),
+		(DRAGAN.into(), 98 * ASSET_UNIT).into(),
+		(LEA.into(), 17 * ASSET_UNIT).into(),
+		(LUIS.into(), 422 * ASSET_UNIT).into(),
 	]
 }
 
 fn excel_remainders() -> Vec<ContributionParams<PolimecRuntime>> {
 	vec![
-		ContributionParams::new_with_defaults(JOEL.into(), 692 * US_DOLLAR),
-		ContributionParams::new_with_defaults(POLK.into(), 236 * US_DOLLAR),
-		ContributionParams::new_with_defaults(MALIK.into(), 24 * US_DOLLAR),
-		ContributionParams::new_with_defaults(LEA.into(), 688 * US_DOLLAR),
-		ContributionParams::new_with_defaults(RAMONA.into(), 35 * US_DOLLAR),
-		ContributionParams::new_with_defaults(SOLOMUN.into(), 840 * US_DOLLAR),
-		ContributionParams::new_with_defaults(JONAS.into(), 59 * US_DOLLAR),
+		(JOEL.into(), 692 * ASSET_UNIT).into(),
+		(POLK.into(), 236 * ASSET_UNIT).into(),
+		(MALIK.into(), 24 * ASSET_UNIT).into(),
+		(LEA.into(), 688 * ASSET_UNIT).into(),
+		(RAMONA.into(), 35 * ASSET_UNIT).into(),
+		(SOLOMUN.into(), 840 * ASSET_UNIT).into(),
+		(JONAS.into(), 59 * ASSET_UNIT).into(),
 	]
 }
 
 fn excel_ct_amounts() -> UserToCTBalance {
 	vec![
-		(LINA.into(), 42916134112336, 0),
-		(MIA.into(), 32685685157, 0),
-		(ALEXEY.into(), 1422329504123, 0),
-		(PAUL.into(), 1164821313204, 0),
-		(MARIA.into(), 1582718022129, 0),
-		(GEORGE.into(), 677535834646, 0),
-		(CLARA.into(), 620375413759, 0),
-		(RAMONA.into(), 935823219043, 0),
-		(PASCAL.into(), 231201105380, 0),
-		(EMMA.into(), 568191646431, 0),
-		(BIBI.into(), 489276139982, 0),
-		(AHMED.into(), 1144345938558, 0),
-		(HERBERT.into(), 360878478139, 0),
-		(LENI.into(), 825129160220, 0),
-		(XI.into(), 237315279753, 0),
-		(TOM.into(), 927932603756, 0),
+		(LINA.into(), 4292_3_120_710_000, 0),
+		(MIA.into(), 3_2_697_757_490, 0),
+		(ALEXEY.into(), 142_2_854_836_000, 0),
+		(PAUL.into(), 116_5_251_535_000, 0),
+		(MARIA.into(), 158_3_302_593_000, 0),
+		(GEORGE.into(), 67_7_786_079_900, 0),
+		(CLARA.into(), 62_0_604_547_000, 0),
+		(RAMONA.into(), 93_6_039_590_600, 0),
+		(PASCAL.into(), 23_1_286_498_600, 0),
+		(EMMA.into(), 56_8_401_505_800, 0),
+		(BIBI.into(), 48_9_456_852_200, 0),
+		(AHMED.into(), 114_4_768_598_000, 0),
+		(HERBERT.into(), 36_1_011_767_200, 0),
+		(LENI.into(), 82_5_433_918_500, 0),
+		(XI.into(), 715_7_402_931_000, 0),
+		(TOM.into(), 92_8_275_332_100, 0),
 		(ADAMS.into(), 700 * ASSET_UNIT, 0),
 		(POLK.into(), 4236 * ASSET_UNIT, 0),
 		(MARKUS.into(), 3000 * ASSET_UNIT, 0),
@@ -200,11 +206,10 @@ fn excel_ct_amounts() -> UserToCTBalance {
 		(SOFIA.into(), 3000 * ASSET_UNIT, 0),
 		(DOMINIK.into(), 8000 * ASSET_UNIT, 0),
 		(NOLAND.into(), 900 * ASSET_UNIT, 0),
-		(HANNAH.into(), 400 * ASSET_UNIT, 0),
-		(HOOVER.into(), 2000 * ASSET_UNIT, 0),
+		(HANNAH.into(), 500 * ASSET_UNIT, 0),
+		(HOOVER.into(), 1900 * ASSET_UNIT, 0),
 		(GIGI.into(), 600 * ASSET_UNIT, 0),
 		(JEFFERSON.into(), 3000 * ASSET_UNIT, 0),
-		(DRIN.into(), 692 * ASSET_UNIT, 0),
 		(PARI.into(), 236 * ASSET_UNIT, 0),
 		(TUTI.into(), 24 * ASSET_UNIT, 0),
 		(BENITO.into(), 688 * ASSET_UNIT, 0),
@@ -254,6 +259,10 @@ fn excel_ct_amounts() -> UserToCTBalance {
 	]
 }
 
+fn excel_weighted_average_price() -> PriceOf<PolimecRuntime> {
+	PriceOf::<PolimecRuntime>::from_float(10.1827469400)
+}
+
 #[test]
 fn evaluation_round_completed() {
 	let mut inst = IntegrationInstantiator::new(None);
@@ -277,7 +286,7 @@ fn auction_round_completed() {
 	let bids = excel_bidders();
 
 	PoliNet::execute_with(|| {
-		//let filtered_bids = MockInstantiator::filter_bids_after_auction(bids.clone(), project.total_allocation_size.0);
+
 		let project_id = inst.create_community_contributing_project(project, issuer, evaluations, bids);
 		let wavgp_from_excel = 10.202357561;
 		// Convert the float to a FixedU128
@@ -324,15 +333,6 @@ fn community_round_completed() {
 				contributions.clone().into_iter().fold(0, |acc, bid| acc + bid.funding_asset_amount);
 			let total_contribution_as_fixed = FixedU128::from_rational(total_contribution, PLMC);
 			dbg!(total_contribution_as_fixed);
-			// In USD
-			// let total_ct_amount = contributions.clone().into_iter().fold(0, |acc, bid| acc + bid.ct_amount);
-			// let total_contribution_from_excel = 46821.0;
-			// dbg!(total_contribution_from_excel);
-			// let res = total_contribution_as_fixed - FixedU128::from_float(total_contribution_from_excel);
-			// // We are more precise than Excel. From the 11th decimal onwards, the difference should be less than 0.001.
-			// assert!(res < FixedU128::from_float(0.001));
-			// let total_ct_sold_from_excel = 46821;
-			// assert_eq!(total_ct_amount / PLMC, total_ct_sold_from_excel);
 		})
 	});
 }
@@ -352,8 +352,6 @@ fn remainder_round_completed() {
 		);
 
 		let price = inst.get_project_details(project_id).weighted_average_price.unwrap();
-		let price_as_u128 = price.checked_mul_int(1_0_000_000_000u128).unwrap();
-		dbg!(price_as_u128);
 		let funding_necessary_1 =
 			IntegrationInstantiator::calculate_contributed_funding_asset_spent(excel_contributions(), price);
 		let funding_necessary_2 =
@@ -365,20 +363,14 @@ fn remainder_round_completed() {
 		for item in funding_necessary_2 {
 			total += item.asset_amount;
 		}
-		dbg!(total);
 		let contributions = Contributions::<PolimecRuntime>::iter_prefix_values((0,))
 			.sorted_by_key(|contribution| contribution.contributor.clone())
 			.collect_vec();
-		let total_contributions =
+		let total_stored =
 			contributions.into_iter().fold(0, |acc, contribution| acc + contribution.funding_asset_amount);
-		let total_contributions_as_fixed = FixedU128::from_rational(total_contributions, PLMC);
-		dbg!(total_contributions_as_fixed);
-		let total_from_excel = 503945.4517;
-		let total_to_substrate = FixedU128::from_float(total_from_excel);
-		dbg!(total_to_substrate);
-		let res = total_contributions_as_fixed.checked_sub(&total_to_substrate).unwrap();
-		// We are more precise than Excel. From the 11th decimal onwards, the difference should be less than 0.0001.
-		assert!(res < FixedU128::from_float(0.001));
+		let total_from_excel = 503_945_4_517_000_000u128;
+
+		assert_close_enough!(total_stored, total_from_excel, Perquintill::from_float(0.999));
 	});
 }
 
@@ -398,14 +390,10 @@ fn funds_raised() {
 
 		inst.execute(|| {
 			let project_specific_account: AccountId = PolimecFunding::fund_account_id(project_id);
-			let funding =
+			let stored_usdt_funded =
 				PolimecForeignAssets::balance(AcceptedFundingAsset::USDT.to_assethub_id(), project_specific_account);
-			let fund_raised_from_excel = 1005361.955;
-			let fund_raised_to_substrate = FixedU128::from_float(fund_raised_from_excel);
-			let fund_raised_as_fixed = FixedU128::from_rational(funding, ASSET_UNIT);
-			let res = fund_raised_to_substrate.checked_sub(&fund_raised_as_fixed).unwrap();
-			// We are more precise than Excel. From the 11th decimal onwards, the difference should be less than 0.0003.
-			assert!(res < FixedU128::from_float(0.001));
+			let excel_usdt_funded = 1_004_256_0_140_000_000;
+			assert_close_enough!(stored_usdt_funded, excel_usdt_funded, Perquintill::from_float(0.99));
 		})
 	});
 }
@@ -430,7 +418,7 @@ fn ct_minted() {
 		for (contributor, expected_amount, project_id) in excel_ct_amounts() {
 			let minted = inst
 				.execute(|| <PolimecRuntime as Config>::ContributionTokenCurrency::balance(project_id, &contributor));
-			assert_close_enough!(minted, expected_amount, Perquintill::from_parts(10_000_000_000u64));
+			assert_close_enough!(minted, expected_amount, Perquintill::from_float(0.99));
 		}
 	});
 }
@@ -455,7 +443,7 @@ fn ct_migrated() {
 		for (contributor, expected_amount, project_id) in excel_ct_amounts() {
 			let minted = inst
 				.execute(|| <PolimecRuntime as Config>::ContributionTokenCurrency::balance(project_id, &contributor));
-			assert_close_enough!(minted, expected_amount, Perquintill::from_parts(10_000_000_000u64));
+			assert_close_enough!(minted, expected_amount, Perquintill::from_float(0.99));
 		}
 
 		project_id
@@ -466,8 +454,8 @@ fn ct_migrated() {
 
 	// Mock HRMP establishment
 	PoliNet::execute_with(|| {
-		assert_ok!(PolimecFunding::do_set_para_id_for_project(&ISSUER.into(), project_id, ParaId::from(6969u32)));
-
+		let account_id: PolimecAccountId = ISSUER.into();
+		assert_ok!(PolimecFunding::do_set_para_id_for_project(&ISSUER.into(), project_id, ParaId::from(6969u32),));
 		let open_channel_message = xcm::v3::opaque::Instruction::HrmpNewChannelOpenRequest {
 			sender: 6969,
 			max_message_size: 102_300,
@@ -531,8 +519,8 @@ fn ct_migrated() {
 		assert_close_enough!(
 			data.free,
 			item.1,
-			Perquintill::from_parts(10_000_000_000u64),
-			"Participant balances should be transfered to each account after ct migration, but be frozen"
+			Perquintill::from_float(0.99),
+			"Participant balances should be transfered to each account after ct migration"
 		);
 	});
 }

@@ -88,61 +88,6 @@
 //! * [`Evaluations`]: Double map linking a project-user to the PLMC they bonded in the evaluation round.
 //! * [`Contributions`]: Double map linking a project-user to the contribution tokens they bought in the Community or Remainder round.
 //!
-//! ## Usage
-//! You can circumvent the extrinsics by calling the do_* functions that they call directly.
-//! This is useful if you need to make use of this pallet's functionalities in a pallet of your own, and you don't want to pay the transaction fees twice.
-//! ### Example: A retail user buying tokens for a project in the community round
-//! ```
-//! #[frame_support::pallet(dev_mode)]
-//! pub mod pallet {
-//!     use super::*;
-//!     use frame_support::pallet_prelude::*;
-//!     use frame_system::pallet_prelude::*;
-//!    	use pallet_funding::{AcceptedFundingAsset, MultiplierOf};
-//!
-//!     #[pallet::pallet]
-//!     pub struct Pallet<T>(_);
-//!
-//!     #[pallet::config]
-//!     pub trait Config: frame_system::Config + pallet_funding::Config {}
-//!
-//!     #[pallet::call]
-//!     impl<T: Config> Pallet<T> {
-//! 		/// Buy tokens for a project in the community round if it achieved at least 500k USDT funding
-//! 		#[pallet::weight(0)]
-//! 		pub fn buy_if_popular(
-//! 			origin: OriginFor<T>,
-//! 			project_id: pallet_funding::ProjectId,
-//! 			amount: <T as pallet_funding::Config>::Balance
-//! 		) -> DispatchResultWithPostInfo {
-//! 			let retail_user = ensure_signed(origin)?;
-//! 			// Check project is in the community round
-//! 			let project_details = pallet_funding::Pallet::<T>::project_details(project_id).ok_or(Error::<T>::ProjectNotFound)?;
-//! 			ensure!(project_details.status == pallet_funding::ProjectStatus::CommunityRound, "Project is not in the community round");
-//!
-//! 			// Calculate how much funding was done already
-//! 			let project_contributions: <T as pallet_funding::Config>::Balance = pallet_funding::Contributions::<T>::iter_prefix_values((project_id,))
-//! 				.fold(
-//! 					0u64.into(),
-//! 					|total_tokens_bought, contribution| {
-//! 						total_tokens_bought + contribution.usd_contribution_amount
-//! 					}
-//! 				);
-//!
-//! 			ensure!(project_contributions >= 500_000_0_000_000_000u64.into(), "Project did not achieve at least 500k USDT funding");
-//!    			let multiplier: MultiplierOf<T> = 1u8.try_into().map_err(|_| Error::<T>::ProjectNotFound)?;
-//!    			// Buy tokens with the default multiplier
-//!    			pallet_funding::Pallet::<T>::do_community_contribute(&retail_user, project_id, amount, multiplier, AcceptedFundingAsset::USDT)
-//! 		}
-//! 	}
-//!
-//! 	#[pallet::error]
-//! 	pub enum Error<T> {
-//! 		ProjectNotFound,
-//! 	}
-//! }
-//! ```
-//!
 //! ## Credentials
 //! The pallet will only allow users with certain credential types, to execute certain extrinsics.:
 //!
@@ -180,17 +125,22 @@ use frame_support::{
 };
 use frame_system::pallet_prelude::BlockNumberFor;
 pub use pallet::*;
+use pallet_xcm::ensure_response;
 use polimec_common::{
-	credentials::{EnsureOriginWithCredentials, UntrustedToken},
+	credentials::{Did, EnsureOriginWithCredentials, InvestorType, UntrustedToken},
 	migration_types::*,
 };
 use polkadot_parachain_primitives::primitives::Id as ParaId;
 use sp_arithmetic::traits::{One, Saturating};
-use sp_runtime::{traits::AccountIdConversion, FixedPointNumber, FixedPointOperand, FixedU128};
+use sp_runtime::{
+	traits::{AccountIdConversion},
+	FixedPointNumber, FixedPointOperand, FixedU128,
+};
 use sp_std::{marker::PhantomData, prelude::*};
 use traits::DoRemainingOperation;
 pub use types::*;
 use xcm::v3::{opaque::Instruction, prelude::*, SendXcm};
+
 pub mod functions;
 
 #[cfg(test)]
@@ -221,10 +171,11 @@ pub type AssetIdOf<T> =
 pub type RewardInfoOf<T> = RewardInfo<BalanceOf<T>>;
 pub type EvaluatorsOutcomeOf<T> = EvaluatorsOutcome<BalanceOf<T>>;
 
+pub type TicketSizeOf<T> = TicketSize<BalanceOf<T>>;
 pub type ProjectMetadataOf<T> =
 	ProjectMetadata<BoundedVec<u8, StringLimitOf<T>>, BalanceOf<T>, PriceOf<T>, AccountIdOf<T>, HashOf<T>>;
 pub type ProjectDetailsOf<T> =
-	ProjectDetails<AccountIdOf<T>, BlockNumberFor<T>, PriceOf<T>, BalanceOf<T>, EvaluationRoundInfoOf<T>>;
+	ProjectDetails<AccountIdOf<T>, Did, BlockNumberFor<T>, PriceOf<T>, BalanceOf<T>, EvaluationRoundInfoOf<T>>;
 pub type EvaluationRoundInfoOf<T> = EvaluationRoundInfo<BalanceOf<T>>;
 pub type VestingInfoOf<T> = VestingInfo<BlockNumberFor<T>, BalanceOf<T>>;
 pub type EvaluationInfoOf<T> = EvaluationInfo<u32, ProjectId, AccountIdOf<T>, BalanceOf<T>, BlockNumberFor<T>>;
@@ -240,6 +191,7 @@ pub type BucketOf<T> = Bucket<BalanceOf<T>, PriceOf<T>>;
 pub type WeightInfoOf<T> = <T as Config>::WeightInfo;
 
 pub const PLMC_FOREIGN_ID: u32 = 2069;
+pub const US_DOLLAR: u128 = 1_0_000_000_000;
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -277,62 +229,36 @@ pub mod pallet {
 	pub trait Config:
 		frame_system::Config + pallet_balances::Config<Balance = BalanceOf<Self>> + pallet_xcm::Config
 	{
-		#[cfg(any(feature = "runtime-benchmarks", feature = "std"))]
-		type SetPrices: SetPrices;
+		/// A way to convert from and to the account type used in CT migrations
+		type AccountId32Conversion: ConvertBack<Self::AccountId, [u8; 32]>;
 
+		/// Type used for testing and benchmarks
+		#[cfg(any(test, feature = "runtime-benchmarks", feature = "std"))]
 		type AllPalletsWithoutSystem: OnFinalize<BlockNumberFor<Self>>
 			+ OnIdle<BlockNumberFor<Self>>
 			+ OnInitialize<BlockNumberFor<Self>>;
 
-		type RuntimeEvent: From<Event<Self>>
-			+ TryInto<Event<Self>>
-			+ IsType<<Self as frame_system::Config>::RuntimeEvent>
-			+ Parameter
-			+ Member;
-
-		// TODO: our local BlockNumber should be removed once we move onto using Moment for time tracking
-		type BlockNumber: IsType<BlockNumberFor<Self>> + Into<u64>;
-
-		type AccountId32Conversion: ConvertBack<Self::AccountId, [u8; 32]>;
-
-		type RuntimeOrigin: IsType<<Self as frame_system::Config>::RuntimeOrigin>
-			+ Into<Result<pallet_xcm::Origin, <Self as Config>::RuntimeOrigin>>;
-
-		type RuntimeCall: Parameter + IsType<<Self as pallet_xcm::Config>::RuntimeCall> + From<Call<Self>>;
-
-		/// Multiplier that decides how much PLMC needs to be bonded for a token buy/bid
-		type Multiplier: Parameter
-			+ BondingRequirementCalculation
-			+ VestingDurationCalculation
-			+ Default
-			+ Copy
-			+ TryFrom<u8>
-			+ MaxEncodedLen
-			+ MaybeSerializeDeserialize;
+		/// The time window (expressed in number of blocks) that an issuer has to start the auction round.
+		#[pallet::constant]
+		type AuctionInitializePeriodDuration: Get<BlockNumberFor<Self>>;
 
 		/// The inner balance type we will use for all of our outer currency types. (e.g native, funding, CTs)
 		type Balance: Balance + From<u64> + FixedPointOperand + MaybeSerializeDeserialize + Into<u128>;
 
-		/// Represents the value of something in USD
-		type Price: FixedPointNumber + Parameter + Copy + MaxEncodedLen + MaybeSerializeDeserialize;
+		// TODO: our local BlockNumber should be removed once we move onto using Moment for time tracking
+		/// BlockNumber used for PLMC vesting durations on this chain, and CT vesting durations on funded chains.
+		type BlockNumber: IsType<BlockNumberFor<Self>> + Into<u64>;
 
-		type RuntimeHoldReason: From<HoldReason>;
+		/// The length (expressed in number of blocks) of the Auction Round, Candle period.
+		type BlockNumberToBalance: Convert<BlockNumberFor<Self>, BalanceOf<Self>>;
 
-		/// The chains native currency
-		type NativeCurrency: fungible::InspectHold<AccountIdOf<Self>, Balance = BalanceOf<Self>>
-			+ fungible::MutateHold<
-				AccountIdOf<Self>,
-				Balance = BalanceOf<Self>,
-				Reason = <Self as Config>::RuntimeHoldReason,
-			> + fungible::BalancedHold<AccountIdOf<Self>, Balance = BalanceOf<Self>>
-			+ fungible::Mutate<AccountIdOf<Self>, Balance = BalanceOf<Self>>;
+		/// The length (expressed in number of blocks) of the Auction Round, Candle period.
+		#[pallet::constant]
+		type CandleAuctionDuration: Get<BlockNumberFor<Self>>;
 
-		/// The currency used for funding projects in bids and contributions
-		// type FundingCurrency: ReservableCurrency<AccountIdOf<Self, Balance = BalanceOf<Self>>;
-		type FundingCurrency: fungibles::InspectEnumerable<AccountIdOf<Self>, Balance = BalanceOf<Self>, AssetId = u32>
-			+ fungibles::metadata::Inspect<AccountIdOf<Self>, AssetId = u32>
-			+ fungibles::metadata::Mutate<AccountIdOf<Self>, AssetId = u32>
-			+ fungibles::Mutate<AccountIdOf<Self>, Balance = BalanceOf<Self>>;
+		/// The length (expressed in number of blocks) of the Community Round.
+		#[pallet::constant]
+		type CommunityFundingDuration: Get<BlockNumberFor<Self>>;
 
 		/// The currency used for minting contribution tokens as fungible assets (i.e pallet-assets)
 		type ContributionTokenCurrency: fungibles::Create<AccountIdOf<Self>, AssetId = ProjectId, Balance = BalanceOf<Self>>
@@ -346,113 +272,123 @@ pub mod pallet {
 			+ AccountTouch<ProjectId, AccountIdOf<Self>, Balance = BalanceOf<Self>>
 			+ ContainsPair<ProjectId, AccountIdOf<Self>>;
 
-		type PriceProvider: ProvideAssetPrice<AssetId = u32, Price = Self::Price>;
-
-		/// Something that provides randomness in the runtime.
-		type Randomness: Randomness<Self::Hash, BlockNumberFor<Self>>;
-
-		/// The maximum length of data stored on-chain.
-		#[pallet::constant]
-		type StringLimit: Get<u32>;
-
-		/// The maximum size of a preimage allowed, expressed in bytes.
-		#[pallet::constant]
-		type PreImageLimit: Get<u32>;
-
-		/// The length (expressed in number of blocks) of the evaluation period.
-		#[pallet::constant]
-		type EvaluationDuration: Get<BlockNumberFor<Self>>;
-
-		/// The time window (expressed in number of blocks) that an issuer has to start the auction round.
-		#[pallet::constant]
-		type AuctionInitializePeriodDuration: Get<BlockNumberFor<Self>>;
+		/// Convert 24 hours as FixedU128, to the corresponding amount of blocks in the same type as frame_system
+		type DaysToBlocks: Convert<FixedU128, BlockNumberFor<Self>>;
 
 		/// The length (expressed in number of blocks) of the Auction Round, English period.
 		#[pallet::constant]
 		type EnglishAuctionDuration: Get<BlockNumberFor<Self>>;
 
-		/// The length (expressed in number of blocks) of the Auction Round, Candle period.
+		/// The length (expressed in number of blocks) of the evaluation period.
 		#[pallet::constant]
-		type CandleAuctionDuration: Get<BlockNumberFor<Self>>;
+		type EvaluationDuration: Get<BlockNumberFor<Self>>;
 
-		/// The length (expressed in number of blocks) of the Community Round.
-		#[pallet::constant]
-		type CommunityFundingDuration: Get<BlockNumberFor<Self>>;
-
-		/// The length (expressed in number of blocks) of the Remainder Round.
-		#[pallet::constant]
-		type RemainderFundingDuration: Get<BlockNumberFor<Self>>;
-
-		/// `PalletId` for the funding pallet. An appropriate value could be
-		/// `PalletId(*b"py/cfund")`
-		#[pallet::constant]
-		type PalletId: Get<PalletId>;
-
-		/// How many projects should we update in on_initialize each block
-		#[pallet::constant]
-		type MaxProjectsToUpdatePerBlock: Get<u32>;
-
-		/// How many distinct evaluations per user per project
-		#[pallet::constant]
-		type MaxEvaluationsPerUser: Get<u32>;
-
-		/// The maximum number of bids per user per project
-		#[pallet::constant]
-		type MaxBidsPerUser: Get<u32>;
-
-		/// The maximum number of bids per user per project
-		#[pallet::constant]
-		type MaxContributionsPerUser: Get<u32>;
-
-		/// The maximum number of bids per user
-		#[pallet::constant]
-		type ContributionVesting: Get<u32>;
-
-		/// Weight information for extrinsics in this pallet.
-		type WeightInfo: weights::WeightInfo;
-
-		#[pallet::constant]
-		type FeeBrackets: Get<Vec<(Percent, <Self as Config>::Balance)>>;
-
+		/// What percentage of the target funding amount is required to be reached in the evaluation, for it to continue to the funding round.
 		#[pallet::constant]
 		type EvaluationSuccessThreshold: Get<Percent>;
 
-		type Vesting: polimec_common::ReleaseSchedule<
-			AccountIdOf<Self>,
-			<Self as Config>::RuntimeHoldReason,
-			Currency = Self::NativeCurrency,
-			Moment = BlockNumberFor<Self>,
-		>;
-
-		/// For now we expect 3 days until the project is automatically accepted. Timeline decided by MiCA regulations.
-		#[pallet::constant]
-		type ManualAcceptanceDuration: Get<BlockNumberFor<Self>>;
-
-		/// For now we expect 4 days from acceptance to settlement due to MiCA regulations.
-		#[pallet::constant]
-		type SuccessToSettlementTime: Get<BlockNumberFor<Self>>;
-
+		/// How much an evaluation should be slashed if it the project doesn't reach a certain theshold of funding.
 		#[pallet::constant]
 		type EvaluatorSlash: Get<Percent>;
 
+		/// The fee brackets for the project's funding
 		#[pallet::constant]
-		type TreasuryAccount: Get<AccountIdOf<Self>>;
+		type FeeBrackets: Get<Vec<(Percent, <Self as Config>::Balance)>>;
 
-		/// Convert 24 hours as FixedU128, to the corresponding amount of blocks in the same type as frame_system
-		type DaysToBlocks: Convert<FixedU128, BlockNumberFor<Self>>;
+		/// The currency used for funding projects in bids and contributions
+		type FundingCurrency: fungibles::InspectEnumerable<AccountIdOf<Self>, Balance = BalanceOf<Self>, AssetId = u32>
+			+ fungibles::metadata::Inspect<AccountIdOf<Self>, AssetId = u32>
+			+ fungibles::metadata::Mutate<AccountIdOf<Self>, AssetId = u32>
+			+ fungibles::Mutate<AccountIdOf<Self>, Balance = BalanceOf<Self>>;
 
-		type BlockNumberToBalance: Convert<BlockNumberFor<Self>, BalanceOf<Self>>;
+		/// Credentialized investor Origin, ensures users are of investing type Retail, or Professional, or Institutional.
+		type InvestorOrigin: EnsureOriginWithCredentials<
+			<Self as frame_system::Config>::RuntimeOrigin,
+			Success = (AccountIdOf<Self>, Did, InvestorType),
+		>;
 
+		/// How long an issuer has to accept or reject the funding of a project if the funding is between two thresholds.
 		#[pallet::constant]
-		type PolimecReceiverInfo: Get<PalletInfo>;
+		type ManualAcceptanceDuration: Get<BlockNumberFor<Self>>;
+
+		/// Max individual bids per project. Used to estimate worst case weight for price calculation
+		#[pallet::constant]
+		type MaxBidsPerProject: Get<u32>;
+
+		/// Max individual bids per project. Used to estimate worst case weight for price calculation
+		#[pallet::constant]
+		type MaxBidsPerUser: Get<u32>;
+
+		/// Range of max_capacity_thresholds values for the hrmp config where we accept the incoming channel request
+		#[pallet::constant]
+		type MaxCapacityThresholds: Get<(u32, u32)>;
+
+		/// Max individual contributions per project per user. Used to estimate worst case weight for price calculation
+		#[pallet::constant]
+		type MaxContributionsPerUser: Get<u32>;
+
+		/// Max individual evaluations per project. Used to estimate worst case weight for price calculation
+		#[pallet::constant]
+		type MaxEvaluationsPerProject: Get<u32>;
+
+		/// How many distinct evaluations per user per project
+		type MaxEvaluationsPerUser: Get<u32>;
 
 		/// Range of max_message_size values for the hrmp config where we accept the incoming channel request
 		#[pallet::constant]
 		type MaxMessageSizeThresholds: Get<(u32, u32)>;
 
-		/// Range of max_capacity_thresholds values for the hrmp config where we accept the incoming channel request
+		/// max iterations for trying to insert a project on the projects_to_update storage
 		#[pallet::constant]
-		type MaxCapacityThresholds: Get<(u32, u32)>;
+		type MaxProjectsToUpdateInsertionAttempts: Get<u32>;
+
+		/// How many projects should we update in on_initialize each block. Likely one to reduce complexity
+		#[pallet::constant]
+		type MaxProjectsToUpdatePerBlock: Get<u32>;
+
+		/// Multiplier type that decides how much PLMC needs to be bonded for a token buy/bid
+		type Multiplier: Parameter
+			+ BondingRequirementCalculation
+			+ VestingDurationCalculation
+			+ Default
+			+ Copy
+			+ TryFrom<u8>
+			+ MaxEncodedLen
+			+ MaybeSerializeDeserialize;
+
+		/// The chains native currency
+		type NativeCurrency: fungible::InspectHold<AccountIdOf<Self>, Balance = BalanceOf<Self>>
+			+ fungible::MutateHold<
+				AccountIdOf<Self>,
+				Balance = BalanceOf<Self>,
+				Reason = <Self as Config>::RuntimeHoldReason,
+			> + fungible::BalancedHold<AccountIdOf<Self>, Balance = BalanceOf<Self>>
+			+ fungible::Mutate<AccountIdOf<Self>, Balance = BalanceOf<Self>>;
+
+		/// System account for the funding pallet. Used to derive project escrow accounts.
+		#[pallet::constant]
+		type PalletId: Get<PalletId>;
+
+		/// Pallet info of the polimec receiver pallet. Used for CT migrations
+		#[pallet::constant]
+		type PolimecReceiverInfo: Get<PalletInfo>;
+
+		/// The maximum size of a preimage allowed, expressed in bytes.
+		#[pallet::constant]
+		type PreImageLimit: Get<u32>;
+
+		/// Type that represents the value of something in USD
+		type Price: FixedPointNumber + Parameter + Copy + MaxEncodedLen + MaybeSerializeDeserialize;
+
+		/// Method to get the price of an asset like USDT or PLMC. Likely to come from an oracle
+		type PriceProvider: ProvideAssetPrice<AssetId = u32, Price = Self::Price>;
+
+		/// Something that provides randomness in the runtime.
+		type Randomness: Randomness<Self::Hash, BlockNumberFor<Self>>;
+
+		/// The length (expressed in number of blocks) of the Remainder Round.
+		#[pallet::constant]
+		type RemainderFundingDuration: Get<BlockNumberFor<Self>>;
 
 		/// max_capacity config required for the channel from polimec to the project
 		#[pallet::constant]
@@ -462,56 +398,70 @@ pub mod pallet {
 		#[pallet::constant]
 		type RequiredMaxMessageSize: Get<u32>;
 
-		/// max iterations for trying to insert a project on the projects_to_update storage
-		#[pallet::constant]
-		type MaxProjectsToUpdateInsertionAttempts: Get<u32>;
+		/// The runtime enum constructed by the construct_runtime macro
+		type RuntimeCall: Parameter + IsType<<Self as pallet_xcm::Config>::RuntimeCall> + From<Call<Self>>;
 
-		/// max individual bids per project. Used to estimate worst case weight for price calculation
-		#[pallet::constant]
-		type MaxBidsPerProject: Get<u32>;
+		/// The event enum constructed by the construct_runtime macro
+		type RuntimeEvent: From<Event<Self>>
+			+ TryInto<Event<Self>>
+			+ IsType<<Self as frame_system::Config>::RuntimeEvent>
+			+ Parameter
+			+ Member;
 
-		#[pallet::constant]
-		type MaxEvaluationsPerProject: Get<u32>;
+		/// The hold reason enum constructed by the construct_runtime macro
+		type RuntimeHoldReason: From<HoldReason>;
 
-		/// The Ed25519 Verifier Public Key
+		/// The origin enum constructed by the construct_runtime macro
+		type RuntimeOrigin: IsType<<Self as frame_system::Config>::RuntimeOrigin>
+			+ Into<Result<pallet_xcm::Origin, <Self as Config>::RuntimeOrigin>>;
+
+		/// test and benchmarking helper to set the prices of assets
+		#[cfg(any(feature = "runtime-benchmarks", feature = "std"))]
+		type SetPrices: SetPrices;
+
+		/// The maximum length of data stored on-chain.
 		#[pallet::constant]
+		type StringLimit: Get<u32>;
+
+		/// How long a project has to wait after it gets successfully funded, for the settlement to start.
+		#[pallet::constant]
+		type SuccessToSettlementTime: Get<BlockNumberFor<Self>>;
+
+		/// Treasury account holding PLMC at TGE.
+		#[pallet::constant]
+		type ProtocolGrowthTreasury: Get<AccountIdOf<Self>>;
+
+		/// Treasury account holding the CT fees charged to issuers.
+		#[pallet::constant]
+		type ContributionTreasury: Get<AccountIdOf<Self>>;
+
+		/// The Ed25519 Verifier Public Key of credential JWTs
 		type VerifierPublicKey: Get<[u8; 32]>;
 
-		/// Retail Origin, ensures users are of investing type Retail.
-		type RetailOrigin: EnsureOriginWithCredentials<
-			<Self as frame_system::Config>::RuntimeOrigin,
-			Success = AccountIdOf<Self>,
+		/// The type used for vesting
+		type Vesting: polimec_common::ReleaseSchedule<
+			AccountIdOf<Self>,
+			<Self as Config>::RuntimeHoldReason,
+			Currency = Self::NativeCurrency,
+			Moment = BlockNumberFor<Self>,
 		>;
 
-		/// Institutional Origin, ensures users are of investing type Institutional.
-		type InstitutionalOrigin: EnsureOriginWithCredentials<
-			<Self as frame_system::Config>::RuntimeOrigin,
-			Success = AccountIdOf<Self>,
-		>;
-
-		/// Professional Origin, ensures users are of investing type Professional.
-		type ProfessionalOrigin: EnsureOriginWithCredentials<
-			<Self as frame_system::Config>::RuntimeOrigin,
-			Success = AccountIdOf<Self>,
-		>;
+		/// Struct holding information about extrinsic weights
+		type WeightInfo: weights::WeightInfo;
 	}
 
 	#[pallet::storage]
-	#[pallet::getter(fn next_project_id)]
 	/// A global counter for indexing the projects
 	/// OnEmpty in this case is GetDefault, so 0.
 	pub type NextProjectId<T: Config> = StorageValue<_, ProjectId, ValueQuery>;
 
 	#[pallet::storage]
-	#[pallet::getter(fn next_evaluation_id)]
 	pub type NextEvaluationId<T: Config> = StorageValue<_, u32, ValueQuery>;
 
 	#[pallet::storage]
-	#[pallet::getter(fn next_bid_id)]
 	pub type NextBidId<T: Config> = StorageValue<_, u32, ValueQuery>;
 
 	#[pallet::storage]
-	#[pallet::getter(fn next_contribution_id)]
 	pub type NextContributionId<T: Config> = StorageValue<_, u32, ValueQuery>;
 
 	#[pallet::storage]
@@ -521,19 +471,16 @@ pub mod pallet {
 	pub type EvaluationCounts<T: Config> = StorageMap<_, Blake2_128Concat, ProjectId, u32, ValueQuery>;
 
 	#[pallet::storage]
-	#[pallet::getter(fn nonce)]
 	/// A global counter used in the randomness generation
 	// TODO: PLMC-155. Remove it after using the Randomness from BABE's VRF: https://github.com/PureStake/moonbeam/issues/1391
 	// 	Or use the randomness from Moonbeam.
 	pub type Nonce<T: Config> = StorageValue<_, u32, ValueQuery>;
 
 	#[pallet::storage]
-	#[pallet::getter(fn images)]
 	/// A StorageMap containing all the hashes of the project metadata uploaded by the users.
 	pub type Images<T: Config> = StorageMap<_, Blake2_128Concat, T::Hash, AccountIdOf<T>>;
 
 	#[pallet::storage]
-	#[pallet::getter(fn projects_metadata)]
 	/// A StorageMap containing the primary project information of projects
 	pub type ProjectsMetadata<T: Config> = StorageMap<_, Blake2_128Concat, ProjectId, ProjectMetadataOf<T>>;
 
@@ -542,12 +489,10 @@ pub mod pallet {
 	pub type Buckets<T: Config> = StorageMap<_, Blake2_128Concat, ProjectId, BucketOf<T>>;
 
 	#[pallet::storage]
-	#[pallet::getter(fn project_details)]
 	/// StorageMap containing additional information for the projects, relevant for correctness of the protocol
 	pub type ProjectsDetails<T: Config> = StorageMap<_, Blake2_128Concat, ProjectId, ProjectDetailsOf<T>>;
 
 	#[pallet::storage]
-	#[pallet::getter(fn projects_to_update)]
 	/// A map to know in which block to update which active projects using on_initialize.
 	pub type ProjectsToUpdate<T: Config> = StorageMap<
 		_,
@@ -558,7 +503,6 @@ pub mod pallet {
 	>;
 
 	#[pallet::storage]
-	#[pallet::getter(fn evaluations)]
 	/// Keep track of the PLMC bonds made to each project by each evaluator
 	pub type Evaluations<T: Config> = StorageNMap<
 		_,
@@ -571,7 +515,6 @@ pub mod pallet {
 	>;
 
 	#[pallet::storage]
-	#[pallet::getter(fn bids)]
 	/// StorageMap containing the bids for each project and user
 	pub type Bids<T: Config> = StorageNMap<
 		_,
@@ -584,7 +527,6 @@ pub mod pallet {
 	>;
 
 	#[pallet::storage]
-	#[pallet::getter(fn contributions)]
 	/// Contributions made during the Community and Remainder round. i.e token buys
 	pub type Contributions<T: Config> = StorageNMap<
 		_,
@@ -594,6 +536,22 @@ pub mod pallet {
 			NMapKey<Blake2_128Concat, u32>,
 		),
 		ContributionInfoOf<T>,
+	>;
+
+	#[pallet::storage]
+	pub type AuctionBoughtUSD<T: Config> = StorageNMap<
+		_,
+		(NMapKey<Blake2_128Concat, ProjectId>, NMapKey<Blake2_128Concat, Did>),
+		BalanceOf<T>,
+		ValueQuery,
+	>;
+
+	#[pallet::storage]
+	pub type ContributionBoughtUSD<T: Config> = StorageNMap<
+		_,
+		(NMapKey<Blake2_128Concat, ProjectId>, NMapKey<Blake2_128Concat, Did>),
+		BalanceOf<T>,
+		ValueQuery,
 	>;
 
 	#[pallet::storage]
@@ -903,14 +861,16 @@ pub mod pallet {
 		ParticipantsSizeError,
 		/// The ticket size provided in the `create` call is too low
 		TicketSizeError,
+		/// The participation currencies specified are invalid
+		ParticipationCurrenciesError,
 		/// The specified project does not exist
 		ProjectNotFound,
 		/// The Evaluation Round of the project has not started yet
 		EvaluationNotStarted,
 		/// The Evaluation Round of the project has ended without reaching the minimum threshold
 		EvaluationFailed,
-		/// The issuer cannot contribute to their own project during the Funding Round
-		ContributionToThemselves,
+		/// The issuer cannot participate to their own project
+		ParticipationToThemselves,
 		/// Only the issuer can start the Evaluation Round
 		NotAllowed,
 		/// The Metadata Hash of the project was not found
@@ -921,6 +881,8 @@ pub mod pallet {
 		Frozen,
 		/// The bid is too low
 		BidTooLow,
+		/// Bid above the ticket size limit
+		BidTooHigh,
 		/// The Funding Round of the project has not ended yet
 		CannotClaimYet,
 		/// No bids were made for the project at the time of the auction close
@@ -992,6 +954,8 @@ pub mod pallet {
 		NotEnoughFundsForEscrowCreation,
 		/// The issuer doesn't have enough funds to pay for the metadata of their contribution token
 		NotEnoughFundsForCTMetadata,
+		/// The issuer doesn't have enough funds to pay for the deposit of their contribution token
+		NotEnoughFundsForCTDeposit,
 		/// Too many attempts to insert project in to ProjectsToUpdate storage
 		TooManyInsertionAttempts,
 		/// Reached bid limit for this user on this project
@@ -1014,9 +978,11 @@ pub mod pallet {
 		#[pallet::call_index(0)]
 		#[pallet::weight(WeightInfoOf::<T>::create())]
 		pub fn create(origin: OriginFor<T>, jwt: UntrustedToken, project: ProjectMetadataOf<T>) -> DispatchResult {
-			let issuer = T::InstitutionalOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get())?;
+			let (account, did, investor_type) =
+				T::InvestorOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get())?;
+			ensure!(investor_type == InvestorType::Institutional, Error::<T>::NotAllowed);
 			log::trace!(target: "pallet_funding::test", "in create");
-			Self::do_create(&issuer, project)
+			Self::do_create(&account, project, did)
 		}
 
 		/// Change the metadata hash of a project
@@ -1028,8 +994,10 @@ pub mod pallet {
 			project_id: ProjectId,
 			project_metadata_hash: T::Hash,
 		) -> DispatchResult {
-			let issuer = T::InstitutionalOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get())?;
-			Self::do_edit_metadata(issuer, project_id, project_metadata_hash)
+			let (account, _did, investor_type) =
+				T::InvestorOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get())?;
+			ensure!(investor_type == InvestorType::Institutional, Error::<T>::NotAllowed);
+			Self::do_edit_metadata(account, project_id, project_metadata_hash)
 		}
 
 		/// Starts the evaluation round of a project. It needs to be called by the project issuer.
@@ -1040,8 +1008,10 @@ pub mod pallet {
 			jwt: UntrustedToken,
 			project_id: ProjectId,
 		) -> DispatchResultWithPostInfo {
-			let issuer = T::InstitutionalOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get())?;
-			Self::do_start_evaluation(issuer, project_id)
+			let (account, _did, investor_type) =
+				T::InvestorOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get())?;
+			ensure!(investor_type == InvestorType::Institutional, Error::<T>::NotAllowed);
+			Self::do_start_evaluation(account, project_id)
 		}
 
 		/// Starts the auction round for a project. From the next block forward, any professional or
@@ -1054,8 +1024,10 @@ pub mod pallet {
 			jwt: UntrustedToken,
 			project_id: ProjectId,
 		) -> DispatchResultWithPostInfo {
-			let issuer = T::InstitutionalOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get())?;
-			Self::do_english_auction(issuer, project_id)
+			let (account, _did, investor_type) =
+				T::InvestorOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get())?;
+			ensure!(investor_type == InvestorType::Institutional, Error::<T>::NotAllowed);
+			Self::do_english_auction(account, project_id)
 		}
 
 		/// Bond PLMC for a project in the evaluation stage
@@ -1071,10 +1043,9 @@ pub mod pallet {
 			project_id: ProjectId,
 			#[pallet::compact] usd_amount: BalanceOf<T>,
 		) -> DispatchResultWithPostInfo {
-			let evaluator = T::InstitutionalOrigin::try_origin(origin, &jwt, T::VerifierPublicKey::get())
-				.or_else(|origin| T::ProfessionalOrigin::try_origin(origin, &jwt, T::VerifierPublicKey::get()))
-				.or_else(|origin| T::RetailOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get()))?;
-			Self::do_evaluate(&evaluator, project_id, usd_amount)
+			let (account, did, _investor_type) =
+				T::InvestorOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get())?;
+			Self::do_evaluate(&account, project_id, usd_amount, did)
 		}
 
 		/// Bid for a project in the Auction round
@@ -1096,9 +1067,9 @@ pub mod pallet {
 			multiplier: T::Multiplier,
 			asset: AcceptedFundingAsset,
 		) -> DispatchResultWithPostInfo {
-			let bidder = T::InstitutionalOrigin::try_origin(origin, &jwt, T::VerifierPublicKey::get())
-				.or_else(|origin| T::ProfessionalOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get()))?;
-			Self::do_bid(&bidder, project_id, amount, multiplier, asset)
+			let (account, did, investor_type) =
+				T::InvestorOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get())?;
+			Self::do_bid(&account, project_id, amount, multiplier, asset, did, investor_type)
 		}
 
 		/// Buy tokens in the Community or Remainder round at the price set in the Auction Round
@@ -1114,15 +1085,15 @@ pub mod pallet {
 		)]
 		pub fn community_contribute(
 			origin: OriginFor<T>,
+			jwt: UntrustedToken,
 			project_id: ProjectId,
 			#[pallet::compact] amount: BalanceOf<T>,
 			multiplier: MultiplierOf<T>,
 			asset: AcceptedFundingAsset,
 		) -> DispatchResultWithPostInfo {
-			// TODO: Add JWT verification after splitting contribute into two extrinsics for
-			// community and remainder round.
-			let contributor = ensure_signed(origin)?;
-			Self::do_community_contribute(&contributor, project_id, amount, multiplier, asset)
+			let (account, did, investor_type) =
+				T::InvestorOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get())?;
+			Self::do_community_contribute(&account, project_id, amount, multiplier, asset, did, investor_type)
 		}
 
 		/// Buy tokens in the Community or Remainder round at the price set in the Auction Round
@@ -1138,13 +1109,15 @@ pub mod pallet {
 		)]
 		pub fn remaining_contribute(
 			origin: OriginFor<T>,
+			jwt: UntrustedToken,
 			project_id: ProjectId,
 			#[pallet::compact] amount: BalanceOf<T>,
 			multiplier: MultiplierOf<T>,
 			asset: AcceptedFundingAsset,
 		) -> DispatchResultWithPostInfo {
-			let contributor = ensure_signed(origin)?;
-			Self::do_remaining_contribute(&contributor, project_id, amount, multiplier, asset)
+			let (account, did, investor_type) =
+				T::InvestorOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get())?;
+			Self::do_remaining_contribute(&account, project_id, amount, multiplier, asset, did, investor_type)
 		}
 
 		/// Release evaluation-bonded PLMC when a project finishes its funding round.
@@ -1334,8 +1307,11 @@ pub mod pallet {
 			project_id: ProjectId,
 			para_id: ParaId,
 		) -> DispatchResult {
-			let issuer = T::InstitutionalOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get())?;
-			Self::do_set_para_id_for_project(&issuer, project_id, para_id)
+			let (account, _did, investor_type) =
+				T::InvestorOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get())?;
+			ensure!(investor_type == InvestorType::Institutional, Error::<T>::NotAllowed);
+
+			Self::do_set_para_id_for_project(&account, project_id, para_id)
 		}
 
 		#[pallet::call_index(23)]
@@ -1345,8 +1321,10 @@ pub mod pallet {
 			jwt: UntrustedToken,
 			project_id: ProjectId,
 		) -> DispatchResult {
-			let issuer = T::InstitutionalOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get())?;
-			Self::do_start_migration_readiness_check(&issuer, project_id)
+			let (account, _did, investor_type) =
+				T::InvestorOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get())?;
+			ensure!(investor_type == InvestorType::Institutional, Error::<T>::NotAllowed);
+			Self::do_start_migration_readiness_check(&account, project_id)
 		}
 
 		/// Called only by other chains through a query response xcm message
@@ -1365,8 +1343,10 @@ pub mod pallet {
 		#[pallet::call_index(25)]
 		#[pallet::weight(Weight::from_parts(1000, 0))]
 		pub fn start_migration(origin: OriginFor<T>, jwt: UntrustedToken, project_id: ProjectId) -> DispatchResult {
-			let issuer = T::InstitutionalOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get())?;
-			Self::do_start_migration(&issuer, project_id)
+			let (account, _did, investor_type) =
+				T::InvestorOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get())?;
+			ensure!(investor_type == InvestorType::Institutional, Error::<T>::NotAllowed);
+			Self::do_start_migration(&account, project_id)
 		}
 
 		#[pallet::call_index(26)]
@@ -1386,6 +1366,93 @@ pub mod pallet {
 			let location = ensure_response(<T as Config>::RuntimeOrigin::from(origin))?;
 
 			Self::do_confirm_migrations(location, query_id, response)
+		}
+
+		#[pallet::call_index(28)]
+		#[pallet::weight(WeightInfoOf::<T>::end_evaluation_success(
+			<T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1,
+		))]
+		pub fn root_do_evaluation_end(origin: OriginFor<T>, project_id: ProjectId) -> DispatchResultWithPostInfo {
+			ensure_root(origin)?;
+			Self::do_evaluation_end(project_id)
+		}
+
+		#[pallet::call_index(29)]
+		#[pallet::weight(WeightInfoOf::<T>::start_candle_phase(
+			<T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1,
+		))]
+		pub fn root_do_candle_auction(origin: OriginFor<T>, project_id: ProjectId) -> DispatchResultWithPostInfo {
+			ensure_root(origin)?;
+			Self::do_candle_auction(project_id)
+		}
+
+		#[pallet::call_index(30)]
+		#[pallet::weight(WeightInfoOf::<T>::start_community_funding_success(
+			<T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1,
+			<T as Config>::MaxBidsPerProject::get() / 2,
+			<T as Config>::MaxBidsPerProject::get() / 2,
+		)
+		.max(WeightInfoOf::<T>::start_community_funding_success(
+			<T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1,
+			<T as Config>::MaxBidsPerProject::get(),
+			0u32,
+		))
+		.max(WeightInfoOf::<T>::start_community_funding_success(
+			<T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1,
+			0u32,
+			<T as Config>::MaxBidsPerProject::get(),
+		)))]
+		pub fn root_do_community_funding(origin: OriginFor<T>, project_id: ProjectId) -> DispatchResultWithPostInfo {
+			ensure_root(origin)?;
+			Self::do_community_funding(project_id)
+		}
+
+		#[pallet::call_index(31)]
+		#[pallet::weight(WeightInfoOf::<T>::start_remainder_funding(
+			<T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1,
+		))]
+		pub fn root_do_remainder_funding(origin: OriginFor<T>, project_id: ProjectId) -> DispatchResultWithPostInfo {
+			ensure_root(origin)?;
+			Self::do_remainder_funding(project_id)
+		}
+
+		#[pallet::call_index(32)]
+		#[pallet::weight(WeightInfoOf::<T>::end_funding_automatically_rejected_evaluators_slashed(
+			<T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1,
+			)
+		.max(WeightInfoOf::<T>::end_funding_awaiting_decision_evaluators_slashed(
+			<T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1,
+			))
+		.max(WeightInfoOf::<T>::end_funding_awaiting_decision_evaluators_unchanged(
+			<T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1,
+			))
+		.max(WeightInfoOf::<T>::end_funding_automatically_accepted_evaluators_rewarded(
+			<T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1,
+			<T as Config>::MaxEvaluationsPerProject::get(),
+		)))]
+		pub fn root_do_end_funding(origin: OriginFor<T>, project_id: ProjectId) -> DispatchResultWithPostInfo {
+			ensure_root(origin)?;
+			Self::do_end_funding(project_id)
+		}
+
+		#[pallet::call_index(33)]
+		#[pallet::weight(WeightInfoOf::<T>::project_decision_accept_funding()
+		.max(WeightInfoOf::<T>::project_decision_reject_funding()))]
+		pub fn root_do_project_decision(
+			origin: OriginFor<T>,
+			project_id: ProjectId,
+			decision: FundingOutcomeDecision,
+		) -> DispatchResultWithPostInfo {
+			ensure_root(origin)?;
+			Self::do_project_decision(project_id, decision)
+		}
+
+		#[pallet::call_index(34)]
+		#[pallet::weight(WeightInfoOf::<T>::start_settlement_funding_success()
+		.max(WeightInfoOf::<T>::start_settlement_funding_failure()))]
+		pub fn root_do_start_settlement(origin: OriginFor<T>, project_id: ProjectId) -> DispatchResultWithPostInfo {
+			ensure_root(origin)?;
+			Self::do_start_settlement(project_id)
 		}
 	}
 
@@ -1416,7 +1483,7 @@ pub mod pallet {
 					UpdateType::EnglishAuctionStart => {
 						used_weight = used_weight.saturating_add(
 							unwrap_result_or_skip!(
-								Self::do_english_auction(T::PalletId::get().into_account_truncating(), project_id),
+								Self::do_english_auction(T::PalletId::get().into_account_truncating(), project_id,),
 								project_id,
 								|e: DispatchErrorWithPostInfo<PostDispatchInfo>| { e.error }
 							)
@@ -1595,16 +1662,12 @@ pub mod pallet {
 			max_weight.saturating_sub(remaining_weight)
 		}
 	}
-	use pallet_xcm::ensure_response;
 
 	#[pallet::genesis_config]
 	#[derive(Clone, PartialEq, Eq, Debug, Encode, Decode)]
 	pub struct GenesisConfig<T: Config>
 	where
 		T: Config + pallet_balances::Config<Balance = BalanceOf<T>>,
-		<T as Config>::AllPalletsWithoutSystem:
-			OnFinalize<BlockNumberFor<T>> + OnIdle<BlockNumberFor<T>> + OnInitialize<BlockNumberFor<T>>,
-		<T as Config>::RuntimeEvent: From<Event<T>> + TryInto<Event<T>> + Parameter + Member,
 		<T as pallet_balances::Config>::Balance: Into<BalanceOf<T>>,
 	{
 		#[cfg(feature = "std")]
@@ -1615,9 +1678,6 @@ pub mod pallet {
 	impl<T: Config> Default for GenesisConfig<T>
 	where
 		T: Config + pallet_balances::Config<Balance = BalanceOf<T>>,
-		<T as Config>::AllPalletsWithoutSystem:
-			OnFinalize<BlockNumberFor<T>> + OnIdle<BlockNumberFor<T>> + OnInitialize<BlockNumberFor<T>>,
-		<T as Config>::RuntimeEvent: From<Event<T>> + TryInto<Event<T>> + Parameter + Member,
 		<T as pallet_balances::Config>::Balance: Into<BalanceOf<T>>,
 	{
 		fn default() -> Self {
@@ -1633,9 +1693,6 @@ pub mod pallet {
 	impl<T: Config> BuildGenesisConfig for GenesisConfig<T>
 	where
 		T: Config + pallet_balances::Config<Balance = BalanceOf<T>>,
-		<T as Config>::AllPalletsWithoutSystem:
-			OnFinalize<BlockNumberFor<T>> + OnIdle<BlockNumberFor<T>> + OnInitialize<BlockNumberFor<T>>,
-		<T as Config>::RuntimeEvent: From<Event<T>> + TryInto<Event<T>> + Parameter + Member,
 		<T as pallet_balances::Config>::Balance: Into<BalanceOf<T>>,
 	{
 		fn build(&self) {

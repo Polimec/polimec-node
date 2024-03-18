@@ -32,7 +32,7 @@ pub mod pallet {
 	use frame_support::pallet_prelude::*;
 	use frame_system::pallet_prelude::*;
 	use funding::AcceptedFundingAsset;
-	use pallet_funding::MultiplierOf;
+	use pallet_funding::{MultiplierOf, ProjectsDetails};
 
 	#[pallet::pallet]
 	pub struct Pallet<T>(_);
@@ -49,11 +49,13 @@ pub mod pallet {
 			project_id: ProjectId,
 			amount: <T as funding::Config>::Balance,
 			asset_id: AcceptedFundingAsset,
+			did: polimec_common::credentials::Did,
+			investor_type: polimec_common::credentials::InvestorType,
 		) -> DispatchResultWithPostInfo {
 			let retail_user = ensure_signed(origin)?;
 			let project_id: ProjectId = project_id;
 			// Check project is in the community round
-			let project_info = funding::Pallet::<T>::project_details(project_id).ok_or(Error::<T>::ProjectNotFound)?;
+			let project_info = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
 			ensure!(
 				project_info.status == funding::ProjectStatus::CommunityRound,
 				"Project is not in the community round"
@@ -73,7 +75,15 @@ pub mod pallet {
 
 			let multiplier: MultiplierOf<T> = 1u8.try_into().map_err(|_| Error::<T>::ProjectNotFound)?;
 			// Buy tokens with the default multiplier
-			<funding::Pallet<T>>::do_community_contribute(&retail_user, project_id, amount, multiplier, asset_id)
+			<funding::Pallet<T>>::do_community_contribute(
+				&retail_user,
+				project_id,
+				amount,
+				multiplier,
+				asset_id,
+				did,
+				investor_type,
+			)
 		}
 	}
 

@@ -17,15 +17,16 @@ use crate::PolimecRuntime;
 use frame_support::BoundedVec;
 pub use pallet_funding::instantiator::{BidParams, ContributionParams, UserToPLMCBalance, UserToUSDBalance};
 use pallet_funding::{
-	AcceptedFundingAsset, CurrencyMetadata, ParticipantsSize, ProjectMetadata, ProjectMetadataOf, TicketSize,
+	AcceptedFundingAsset, BiddingTicketSizes, ContributingTicketSizes, CurrencyMetadata, ProjectMetadata,
+	ProjectMetadataOf, TicketSize,
 };
+use sp_arithmetic::{FixedPointNumber, Percent};
 use sp_core::H256;
 
 use macros::generate_accounts;
 use polimec_parachain_runtime::AccountId;
 use sp_runtime::{traits::ConstU32, Perquintill};
 
-// //42555945525f3300000000000000000000000000000000000000000000000000
 pub const METADATA: &str = r#"METADATA
         {
             "whitepaper":"ipfs_url",
@@ -37,6 +38,8 @@ pub const METADATA: &str = r#"METADATA
 pub const ASSET_DECIMALS: u8 = 10;
 pub const ASSET_UNIT: u128 = 10_u128.pow(10 as u32);
 pub const PLMC: u128 = 10u128.pow(10);
+pub const US_DOLLAR: u128 = 1_0_000_000_000;
+
 pub type IntegrationInstantiator = pallet_funding::instantiator::Instantiator<
 	PolimecRuntime,
 	<PolimecRuntime as pallet_funding::Config>::AllPalletsWithoutSystem,
@@ -70,7 +73,10 @@ pub fn default_contributor_multipliers() -> Vec<u8> {
 	vec![1u8, 2u8, 1u8, 4u8, 1u8]
 }
 
-pub fn default_project(issuer: AccountId, nonce: u32) -> ProjectMetadataOf<PolimecRuntime> {
+pub fn default_project_metadata(
+	nonce: u32,
+	issuer: AccountId,
+) -> ProjectMetadataOf<polimec_parachain_runtime::Runtime> {
 	ProjectMetadata {
 		token_information: CurrencyMetadata {
 			name: bounded_name(),
@@ -78,22 +84,30 @@ pub fn default_project(issuer: AccountId, nonce: u32) -> ProjectMetadataOf<Polim
 			decimals: ASSET_DECIMALS,
 		},
 		mainnet_token_max_supply: 8_000_000 * ASSET_UNIT,
-		total_allocation_size: (50_000 * ASSET_UNIT, 50_000 * ASSET_UNIT),
-		minimum_price: sp_runtime::FixedU128::from_float(1.0),
-		ticket_size: TicketSize { minimum: Some(1), maximum: None },
-		participants_size: ParticipantsSize { minimum: Some(2), maximum: None },
-		funding_thresholds: Default::default(),
-		conversion_rate: 0,
-		participation_currencies: AcceptedFundingAsset::USDT,
+		total_allocation_size: 1_000_000 * ASSET_UNIT,
+		auction_round_allocation_percentage: Percent::from_percent(50u8),
+		minimum_price: sp_runtime::FixedU128::from_float(10.0),
+		bidding_ticket_sizes: BiddingTicketSizes {
+			professional: TicketSize::new(Some(5000 * US_DOLLAR), None),
+			institutional: TicketSize::new(Some(5000 * US_DOLLAR), None),
+			phantom: Default::default(),
+		},
+		contributing_ticket_sizes: ContributingTicketSizes {
+			retail: TicketSize::new(None, None),
+			professional: TicketSize::new(None, None),
+			institutional: TicketSize::new(None, None),
+			phantom: Default::default(),
+		},
+		participation_currencies: vec![AcceptedFundingAsset::USDT].try_into().unwrap(),
 		funding_destination_account: issuer,
 		offchain_information_hash: Some(metadata_hash(nonce)),
 	}
 }
 pub fn default_evaluations() -> Vec<UserToUSDBalance<PolimecRuntime>> {
 	vec![
-		UserToUSDBalance::new(EVAL_1.into(), 50_000 * PLMC),
-		UserToUSDBalance::new(EVAL_2.into(), 25_000 * PLMC),
-		UserToUSDBalance::new(EVAL_3.into(), 32_000 * PLMC),
+		UserToUSDBalance::new(EVAL_1.into(), 500_000 * PLMC),
+		UserToUSDBalance::new(EVAL_2.into(), 250_000 * PLMC),
+		UserToUSDBalance::new(EVAL_3.into(), 320_000 * PLMC),
 	]
 }
 pub fn default_bidders() -> Vec<AccountId> {
@@ -101,11 +115,15 @@ pub fn default_bidders() -> Vec<AccountId> {
 }
 
 pub fn default_bids() -> Vec<BidParams<PolimecRuntime>> {
-	let forty_percent_funding_usd = Perquintill::from_percent(40) * 100_000 * ASSET_UNIT;
+	let default_metadata = default_project_metadata(0u32, ISSUER.into());
+	let auction_allocation =
+		default_metadata.auction_round_allocation_percentage * default_metadata.total_allocation_size;
+	let auction_90_percent = Perquintill::from_percent(90) * auction_allocation;
+	let auction_usd_funding = default_metadata.minimum_price.saturating_mul_int(auction_90_percent);
 
 	IntegrationInstantiator::generate_bids_from_total_usd(
-		forty_percent_funding_usd,
-		sp_runtime::FixedU128::from_float(1.0),
+		auction_usd_funding,
+		default_metadata.minimum_price,
 		default_weights(),
 		default_bidders(),
 		default_bidder_multipliers(),
@@ -113,11 +131,18 @@ pub fn default_bids() -> Vec<BidParams<PolimecRuntime>> {
 }
 
 pub fn default_community_contributions() -> Vec<ContributionParams<PolimecRuntime>> {
-	let fifty_percent_funding_usd = Perquintill::from_percent(50) * 100_000 * ASSET_UNIT;
+	let default_metadata = default_project_metadata(0u32, ISSUER.into());
+
+	let auction_allocation =
+		default_metadata.auction_round_allocation_percentage * default_metadata.total_allocation_size;
+	let contribution_allocation = default_metadata.total_allocation_size - auction_allocation;
+
+	let eighty_percent_funding_ct = Perquintill::from_percent(80) * contribution_allocation;
+	let eighty_percent_funding_usd = default_metadata.minimum_price.saturating_mul_int(eighty_percent_funding_ct);
 
 	IntegrationInstantiator::generate_contributions_from_total_usd(
-		fifty_percent_funding_usd,
-		sp_runtime::FixedU128::from_float(1.0),
+		eighty_percent_funding_usd,
+		default_metadata.minimum_price,
 		default_weights(),
 		default_community_contributors(),
 		default_contributor_multipliers(),
@@ -125,11 +150,20 @@ pub fn default_community_contributions() -> Vec<ContributionParams<PolimecRuntim
 }
 
 pub fn default_remainder_contributions() -> Vec<ContributionParams<PolimecRuntime>> {
-	let fifty_percent_funding_usd = Perquintill::from_percent(5) * 100_000 * ASSET_UNIT;
+	let default_metadata = default_project_metadata(0u32, ISSUER.into());
+
+	let auction_allocation =
+		default_metadata.auction_round_allocation_percentage * default_metadata.total_allocation_size;
+	let contribution_allocation = default_metadata.total_allocation_size - auction_allocation;
+
+	let ten_percent_auction = Perquintill::from_percent(10) * auction_allocation;
+	let ten_percent_auction_usd = default_metadata.minimum_price.saturating_mul_int(ten_percent_auction);
+	let ten_percent_contribution = Perquintill::from_percent(10) * contribution_allocation;
+	let ten_percent_contribution_usd = default_metadata.minimum_price.saturating_mul_int(ten_percent_contribution);
 
 	IntegrationInstantiator::generate_contributions_from_total_usd(
-		fifty_percent_funding_usd,
-		sp_runtime::FixedU128::from_float(1.0),
+		ten_percent_auction_usd + ten_percent_contribution_usd,
+		default_metadata.minimum_price,
 		vec![20u8, 15u8, 10u8, 25u8, 23u8, 7u8],
 		default_remainder_contributors(),
 		vec![1u8, 2u8, 12u8, 1u8, 3u8, 10u8],

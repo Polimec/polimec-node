@@ -16,8 +16,9 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
+use frame_support::{sp_runtime::app_crypto::sp_core::bytes::to_hex, traits::ConstU32, BoundedVec, Parameter};
 use jwt_compact::{alg::Ed25519, AlgorithmExt, Header};
-use polimec_common::credentials::{InvestorType, SampleClaims, UntrustedToken};
+use polimec_common::credentials::{Did, InvestorType, SampleClaims, UntrustedToken};
 
 /// Fetches a JWT from a dummy Polimec JWT producer that will return a JWT with the specified investor type
 #[cfg(feature = "std")]
@@ -41,6 +42,7 @@ pub fn get_test_jwt<AccountId: core::fmt::Display>(
 pub fn get_mock_jwt<AccountId: frame_support::Serialize>(
 	account_id: AccountId,
 	investor_type: InvestorType,
+	did: BoundedVec<u8, ConstU32<57>>,
 ) -> UntrustedToken {
 	use chrono::{TimeZone, Utc};
 	use jwt_compact::{alg::SigningKey, Claims};
@@ -63,8 +65,9 @@ pub fn get_mock_jwt<AccountId: frame_support::Serialize>(
 
 	// Create the custom part of the `Claims` struct.
 	let custom_claims: SampleClaims<AccountId> =
-		SampleClaims { subject: account_id, investor_type, issuer: "verifier".to_string() };
-	// Wrap the `SampleClaims` struct in the `Claims` struct.
+		SampleClaims { subject: account_id, investor_type, issuer: "verifier".to_string(), did };
+
+	// Wrap the SampleClaims` struct in the `Claims` struct.
 	let mut claims = Claims::new(custom_claims);
 	// Set the expiration date to 2030-01-01.
 	// We need to unwrap the `Utc::with_ymd_and_hms` because it returns a `LocalResult<DateTime<Utc>>` but we ned a `DateTime<Utc>.
@@ -95,4 +98,39 @@ pub fn get_fake_jwt<AccountId: core::fmt::Display>(
 	.expect("Failed to get the response body (jwt) from the specified endpoint");
 	let res = UntrustedToken::new(&jwt).expect("Failed to parse the JWT");
 	res
+}
+
+pub fn generate_did_from_account(account_id: impl Parameter) -> Did {
+	let mut hex_account = to_hex(&account_id.encode(), true);
+	if hex_account.len() > 57 {
+		#[allow(unused_imports)]
+		use parity_scale_codec::alloc::string::ToString;
+		hex_account = hex_account[0..57].to_string();
+	}
+	hex_account.into_bytes().try_into().unwrap()
+}
+
+#[cfg(test)]
+mod tests {
+	use crate::{generate_did_from_account, get_mock_jwt};
+	use jwt_compact::{
+		alg::{Ed25519, VerifyingKey},
+		AlgorithmExt,
+	};
+	use polimec_common::credentials::{InvestorType, SampleClaims};
+
+	#[test]
+	fn test_get_test_jwt() {
+		let verifying_key = VerifyingKey::from_slice(
+			[
+				32, 118, 30, 171, 58, 212, 197, 27, 146, 122, 255, 243, 34, 245, 90, 244, 221, 37, 253, 195, 18, 202,
+				111, 55, 39, 48, 123, 17, 101, 78, 215, 94,
+			]
+			.as_ref(),
+		)
+		.unwrap();
+		let token = get_mock_jwt("0x1234", InvestorType::Institutional, generate_did_from_account(40u64));
+		let res = Ed25519.validator::<SampleClaims<String>>(&verifying_key).validate(&token);
+		assert!(res.is_ok());
+	}
 }

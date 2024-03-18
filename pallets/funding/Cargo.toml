@@ -18,10 +18,11 @@ parity-scale-codec = { workspace = true, features = [
 scale-info = { workspace = true, default-features = false, features = [
 	"derive",
 ] }
-log.workspace = true
-itertools.workspace = true
 tokio = { version = "1", features = ["full"], optional = true }
 futures = { version = "0.3.29", optional = true }
+log.workspace = true
+itertools.workspace = true
+variant_count = "1.1.0"
 
 # Substrate dependencies
 frame-benchmarking = { workspace = true, optional = true }
@@ -49,8 +50,9 @@ pallet-insecure-randomness-collective-flip.workspace = true
 pallet-timestamp.workspace = true
 pallet-assets.workspace = true
 pallet-linear-release.workspace = true
-xcm-builder.workspace = true
+polimec-common-test-utils.workspace = true
 macros.workspace = true
+xcm-builder.workspace = true
 xcm-executor.workspace = true
 
 [features]
@@ -71,7 +73,8 @@ std = [
 	"pallet-xcm/std",
 	"parachains-common/std",
 	"parity-scale-codec/std",
-	"polimec-common-test-utils?/std",
+	"polimec-common-test-utils",
+	"polimec-common-test-utils/std",
 	"polimec-common/std",
 	"polimec-receiver/std",
 	"polimec-xcm-executor/std",
@@ -84,8 +87,8 @@ std = [
 	"sp-runtime/std",
 	"sp-std/std",
 	"tokio",
-	"xcm-builder/std",
 	"xcm-executor/std",
+	"xcm-builder/std",
 	"xcm/std",
 ]
 runtime-benchmarks = [
@@ -104,8 +107,8 @@ runtime-benchmarks = [
 	"polimec-xcm-executor/runtime-benchmarks",
 	"polkadot-parachain-primitives/runtime-benchmarks",
 	"sp-runtime/runtime-benchmarks",
-	"xcm-builder/runtime-benchmarks",
 	"xcm-executor/runtime-benchmarks",
+	"xcm-builder/runtime-benchmarks",
 ]
 try-runtime = [
 	"frame-support/try-runtime",

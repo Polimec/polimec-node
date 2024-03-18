@@ -35,6 +35,9 @@ use frame_support::{
 use frame_system::pallet_prelude::BlockNumberFor;
 use itertools::Itertools;
 use parity_scale_codec::Decode;
+use polimec_common::credentials::{InvestorType};
+#[cfg(any(test, feature = "std", feature = "runtime-benchmarks"))]
+use polimec_common_test_utils::generate_did_from_account;
 use sp_arithmetic::{
 	traits::{SaturatedConversion, Saturating, Zero},
 	FixedPointNumber, Percent, Perquintill,
@@ -328,11 +331,6 @@ impl<
 			let escrow_account = Pallet::<T>::fund_account_id(project_id);
 
 			assert_eq!(<T as Config>::ContributionTokenCurrency::admin(project_id).unwrap(), escrow_account);
-			assert_eq!(
-				<T as Config>::ContributionTokenCurrency::total_issuance(project_id),
-				0u32.into(),
-				"No CTs should have been minted at this point"
-			);
 		});
 	}
 
@@ -354,7 +352,8 @@ impl<
 		let metadata = self.get_project_metadata(project_id);
 		let details = self.get_project_details(project_id);
 		let expected_details = ProjectDetailsOf::<T> {
-			issuer: self.get_issuer(project_id),
+			issuer_account: self.get_issuer(project_id),
+			issuer_did: generate_did_from_account(self.get_issuer(project_id)),
 			is_frozen: false,
 			weighted_average_price: None,
 			status: ProjectStatus::Application,
@@ -364,7 +363,7 @@ impl<
 			},
 			fundraising_target: expected_metadata
 				.minimum_price
-				.checked_mul_int(expected_metadata.total_allocation_size.0 + expected_metadata.total_allocation_size.1)
+				.checked_mul_int(expected_metadata.total_allocation_size)
 				.unwrap(),
 			remaining_contribution_tokens: expected_metadata.total_allocation_size,
 			funding_amount_reached: BalanceOf::<T>::zero(),
@@ -433,8 +432,8 @@ impl<
 
 		// Remaining CTs are updated
 		assert_eq!(
-			project_details.remaining_contribution_tokens.0,
-			project_metadata.total_allocation_size.0 - expected_ct_sold,
+			project_details.remaining_contribution_tokens,
+			project_metadata.total_allocation_size - expected_ct_sold,
 			"Remaining CTs are incorrect"
 		);
 	}
@@ -548,7 +547,8 @@ impl<
 		grouped_by_price_bids.reverse();
 
 		let plmc_price = T::PriceProvider::get_price(PLMC_FOREIGN_ID).unwrap();
-		let mut remaining_cts = project_metadata.total_allocation_size.0;
+		let mut remaining_cts =
+			project_metadata.auction_round_allocation_percentage * project_metadata.total_allocation_size;
 
 		for (price_charged, bids) in grouped_by_price_bids {
 			for bid in bids {
@@ -653,7 +653,8 @@ impl<
 			.collect();
 		grouped_by_price_bids.reverse();
 
-		let mut remaining_cts = project_metadata.total_allocation_size.0;
+		let mut remaining_cts =
+			project_metadata.auction_round_allocation_percentage * project_metadata.total_allocation_size;
 
 		for (price_charged, bids) in grouped_by_price_bids {
 			for bid in bids {
@@ -883,6 +884,23 @@ impl<
 		output
 	}
 
+	pub fn generate_successful_evaluations(
+		project_metadata: ProjectMetadataOf<T>,
+		evaluators: Vec<AccountIdOf<T>>,
+		weights: Vec<u8>,
+	) -> Vec<UserToUSDBalance<T>> {
+		let funding_target = project_metadata.minimum_price.saturating_mul_int(project_metadata.total_allocation_size);
+		let evaluation_success_threshold = <T as Config>::EvaluationSuccessThreshold::get(); // if we use just the threshold, then for big usd targets we lose the evaluation due to PLMC conversion errors in `evaluation_end`
+		let usd_threshold = evaluation_success_threshold * funding_target * 2u32.into();
+
+		zip(evaluators, weights)
+			.map(|(evaluator, weight)| {
+				let ticket_size = Percent::from_percent(weight) * usd_threshold;
+				(evaluator, ticket_size).into()
+			})
+			.collect()
+	}
+
 	pub fn generate_bids_from_total_usd(
 		usd_amount: BalanceOf<T>,
 		min_price: PriceOf<T>,
@@ -902,6 +920,26 @@ impl<
 			.collect()
 	}
 
+	pub fn generate_bids_from_total_ct_percent(
+		project_metadata: ProjectMetadataOf<T>,
+		percent_funding: u8,
+		weights: Vec<u8>,
+		bidders: Vec<AccountIdOf<T>>,
+		multipliers: Vec<u8>,
+	) -> Vec<BidParams<T>> {
+		let total_allocation_size = project_metadata.total_allocation_size;
+		let total_ct_bid = Percent::from_percent(percent_funding) * total_allocation_size;
+
+		assert_eq!(weights.len(), bidders.len(), "Should have enough weights for all the bidders");
+
+		zip(zip(weights, bidders), multipliers)
+			.map(|((weight, bidder), multiplier)| {
+				let token_amount = Percent::from_percent(weight) * total_ct_bid;
+				BidParams::new(bidder, token_amount, multiplier, AcceptedFundingAsset::USDT)
+			})
+			.collect()
+	}
+
 	pub fn generate_contributions_from_total_usd(
 		usd_amount: BalanceOf<T>,
 		final_price: PriceOf<T>,
@@ -915,6 +953,26 @@ impl<
 				let token_amount = final_price.reciprocal().unwrap().saturating_mul_int(ticket_size);
 
 				ContributionParams::new(bidder, token_amount, multiplier, AcceptedFundingAsset::USDT)
+			})
+			.collect()
+	}
+
+	pub fn generate_contributions_from_total_ct_percent(
+		project_metadata: ProjectMetadataOf<T>,
+		percent_funding: u8,
+		weights: Vec<u8>,
+		contributors: Vec<AccountIdOf<T>>,
+		multipliers: Vec<u8>,
+	) -> Vec<ContributionParams<T>> {
+		let total_allocation_size = project_metadata.total_allocation_size;
+		let total_ct_bought = Percent::from_percent(percent_funding) * total_allocation_size;
+
+		assert_eq!(weights.len(), contributors.len(), "Should have enough weights for all the bidders");
+
+		zip(zip(weights, contributors), multipliers)
+			.map(|((weight, contributor), multiplier)| {
+				let token_amount = Percent::from_percent(weight) * total_ct_bought;
+				ContributionParams::new(contributor, token_amount, multiplier, AcceptedFundingAsset::USDT)
 			})
 			.collect()
 	}
@@ -952,7 +1010,7 @@ impl<
 	> Instantiator<T, AllPalletsWithoutSystem, RuntimeEvent>
 {
 	pub fn get_issuer(&mut self, project_id: ProjectId) -> AccountIdOf<T> {
-		self.execute(|| ProjectsDetails::<T>::get(project_id).unwrap().issuer)
+		self.execute(|| ProjectsDetails::<T>::get(project_id).unwrap().issuer_account)
 	}
 
 	pub fn get_project_metadata(&mut self, project_id: ProjectId) -> ProjectMetadataOf<T> {
@@ -980,14 +1038,16 @@ impl<
 			project_metadata.token_information.name.as_slice(),
 			project_metadata.token_information.symbol.as_slice(),
 		);
+		let ct_deposit = Self::get_ct_account_deposit();
 		// one ED for the issuer, one ED for the escrow account
 		self.mint_plmc_to(vec![UserToPLMCBalance::new(
 			issuer.clone(),
-			Self::get_ed() * 2u64.into() + metadata_deposit,
+			Self::get_ed() * 2u64.into() + metadata_deposit + ct_deposit,
 		)]);
 
 		self.execute(|| {
-			crate::Pallet::<T>::do_create(&issuer, project_metadata.clone()).unwrap();
+			crate::Pallet::<T>::do_create(&issuer, project_metadata.clone(), generate_did_from_account(issuer.clone()))
+				.unwrap();
 			let last_project_metadata = ProjectsMetadata::<T>::iter().last().unwrap();
 			log::trace!("Last project metadata: {:?}", last_project_metadata);
 		});
@@ -1021,7 +1081,14 @@ impl<
 		bonds: Vec<UserToUSDBalance<T>>,
 	) -> DispatchResultWithPostInfo {
 		for UserToUSDBalance { account, usd_amount } in bonds {
-			self.execute(|| crate::Pallet::<T>::do_evaluate(&account, project_id, usd_amount))?;
+			self.execute(|| {
+				crate::Pallet::<T>::do_evaluate(
+					&account.clone(),
+					project_id,
+					usd_amount,
+					generate_did_from_account(account),
+				)
+			})?;
 		}
 		Ok(().into())
 	}
@@ -1089,7 +1156,16 @@ impl<
 	pub fn bid_for_users(&mut self, project_id: ProjectId, bids: Vec<BidParams<T>>) -> DispatchResultWithPostInfo {
 		for bid in bids {
 			self.execute(|| {
-				crate::Pallet::<T>::do_bid(&bid.bidder, project_id, bid.amount, bid.multiplier, bid.asset)
+				let did = generate_did_from_account(bid.bidder.clone());
+				crate::Pallet::<T>::do_bid(
+					&bid.bidder,
+					project_id,
+					bid.amount,
+					bid.multiplier,
+					bid.asset,
+					did,
+					InvestorType::Institutional,
+				)
 			})?;
 		}
 		Ok(().into())
@@ -1214,6 +1290,8 @@ impl<
 		match self.get_project_details(project_id).status {
 			ProjectStatus::CommunityRound =>
 				for cont in contributions {
+					let did = generate_did_from_account(cont.contributor.clone());
+					let investor_type = InvestorType::Retail;
 					self.execute(|| {
 						crate::Pallet::<T>::do_community_contribute(
 							&cont.contributor,
@@ -1221,11 +1299,15 @@ impl<
 							cont.amount,
 							cont.multiplier,
 							cont.asset,
+							did,
+							investor_type,
 						)
 					})?;
 				},
 			ProjectStatus::RemainderRound =>
 				for cont in contributions {
+					let did = generate_did_from_account(cont.contributor.clone());
+					let investor_type = InvestorType::Professional;
 					self.execute(|| {
 						crate::Pallet::<T>::do_remaining_contribute(
 							&cont.contributor,
@@ -1233,6 +1315,8 @@ impl<
 							cont.amount,
 							cont.multiplier,
 							cont.asset,
+							did,
+							investor_type,
 						)
 					})?;
 				},
@@ -1245,8 +1329,7 @@ impl<
 	pub fn start_remainder_or_end_funding(&mut self, project_id: ProjectId) -> Result<(), DispatchError> {
 		let details = self.get_project_details(project_id);
 		assert_eq!(details.status, ProjectStatus::CommunityRound);
-		let remaining_tokens =
-			details.remaining_contribution_tokens.0.saturating_add(details.remaining_contribution_tokens.1);
+		let remaining_tokens = details.remaining_contribution_tokens;
 		let update_type =
 			if remaining_tokens > Zero::zero() { UpdateType::RemainderFundingStart } else { UpdateType::FundingEnd };
 		if let Some(transition_block) = self.get_update_block(project_id, &update_type) {
@@ -1317,12 +1400,13 @@ impl<
 		let prev_plmc_balances = self.get_free_plmc_balances_for(contributors.clone());
 		let prev_funding_asset_balances = self.get_free_foreign_asset_balances_for(asset_id, contributors.clone());
 
-		let plmc_evaluation_deposits = Self::calculate_evaluation_plmc_spent(evaluations);
+		let plmc_evaluation_deposits = Self::calculate_evaluation_plmc_spent(evaluations.clone());
 		let plmc_bid_deposits = Self::calculate_auction_plmc_spent_post_wap(&bids, project_metadata.clone(), ct_price);
 		let plmc_contribution_deposits = Self::calculate_contributed_plmc_spent(contributions.clone(), ct_price);
 
+		let reducible_evaluator_balances = Self::slash_evaluator_balances(plmc_evaluation_deposits.clone());
 		let necessary_plmc_mint = Self::generic_map_operation(
-			vec![plmc_contribution_deposits.clone(), plmc_evaluation_deposits],
+			vec![plmc_contribution_deposits.clone(), reducible_evaluator_balances],
 			MergeOperation::Subtract,
 		);
 		let total_plmc_participation_locked =
@@ -1468,19 +1552,20 @@ impl<
 		if self.get_project_details(project_id).status == ProjectStatus::FundingSuccessful {
 			// Check that remaining CTs are updated
 			let project_details = self.get_project_details(project_id);
+			// if our bids were creating an oversubscription, then just take the total allocation size
 			let auction_bought_tokens = bids
 				.iter()
 				.map(|bid| bid.amount)
 				.fold(Zero::zero(), |acc, item| item + acc)
-				.min(project_metadata.total_allocation_size.0);
+				.min(project_metadata.auction_round_allocation_percentage * project_metadata.total_allocation_size);
 			let community_bought_tokens =
 				community_contributions.iter().map(|cont| cont.amount).fold(Zero::zero(), |acc, item| item + acc);
 			let remainder_bought_tokens =
 				remainder_contributions.iter().map(|cont| cont.amount).fold(Zero::zero(), |acc, item| item + acc);
 
 			assert_eq!(
-				project_details.remaining_contribution_tokens.0 + project_details.remaining_contribution_tokens.1,
-				project_metadata.total_allocation_size.0 + project_metadata.total_allocation_size.1 -
+				project_details.remaining_contribution_tokens,
+				project_metadata.total_allocation_size -
 					auction_bought_tokens -
 					community_bought_tokens -
 					remainder_bought_tokens,
@@ -1677,13 +1762,20 @@ pub mod async_features {
 			project_metadata.token_information.name.as_slice(),
 			project_metadata.token_information.symbol.as_slice(),
 		);
+		let ct_deposit = Instantiator::<T, AllPalletsWithoutSystem, RuntimeEvent>::get_ct_account_deposit();
 		// One ED for the issuer, one for the escrow account
 		inst.mint_plmc_to(vec![UserToPLMCBalance::new(
 			issuer.clone(),
-			Instantiator::<T, AllPalletsWithoutSystem, RuntimeEvent>::get_ed() * 2u64.into() + metadata_deposit,
+			Instantiator::<T, AllPalletsWithoutSystem, RuntimeEvent>::get_ed() * 2u64.into() +
+				metadata_deposit + ct_deposit,
 		)]);
 		inst.execute(|| {
-			crate::Pallet::<T>::do_create(&issuer, project_metadata.clone()).unwrap();
+			crate::Pallet::<T>::do_create(
+				&issuer.clone(),
+				project_metadata.clone(),
+				generate_did_from_account(issuer.clone()),
+			)
+			.unwrap();
 			let last_project_metadata = ProjectsMetadata::<T>::iter().last().unwrap();
 			log::trace!("Last project metadata: {:?}", last_project_metadata);
 		});
@@ -1739,7 +1831,7 @@ pub mod async_features {
 
 		assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::AuctionInitializePeriod);
 
-		inst.execute(|| crate::Pallet::<T>::do_english_auction(caller, project_id).unwrap());
+		inst.execute(|| crate::Pallet::<T>::do_english_auction(caller.clone(), project_id).unwrap());
 
 		assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::AuctionRound(AuctionPhase::English));
 
@@ -1803,16 +1895,18 @@ pub mod async_features {
 
 		inst = instantiator.lock().await;
 		let plmc_for_bids =
-			Instantiator::<T, AllPalletsWithoutSystem, RuntimeEvent>::calculate_auction_plmc_charged_with_given_price(
+			Instantiator::<T, AllPalletsWithoutSystem, RuntimeEvent>::calculate_auction_plmc_charged_from_all_bids_made_or_with_bucket(
 				&bids,
-				project_metadata.minimum_price,
+				project_metadata.clone(),
+				None
 			);
 		let plmc_existential_deposits: Vec<UserToPLMCBalance<T>> = bids.accounts().existential_deposits();
 		let plmc_ct_account_deposits: Vec<UserToPLMCBalance<T>> = bids.accounts().ct_account_deposits();
 		let usdt_for_bids =
-			Instantiator::<T, AllPalletsWithoutSystem, RuntimeEvent>::calculate_auction_funding_asset_charged_with_given_price(
+			Instantiator::<T, AllPalletsWithoutSystem, RuntimeEvent>::calculate_auction_funding_asset_charged_from_all_bids_made_or_with_bucket(
 				&bids,
-				project_metadata.minimum_price,
+				project_metadata,
+				None
 			);
 
 		inst.mint_plmc_to(plmc_for_bids.clone());
@@ -1821,6 +1915,7 @@ pub mod async_features {
 		inst.mint_foreign_asset_to(usdt_for_bids.clone());
 
 		inst.bid_for_users(project_id, bids).unwrap();
+		drop(inst);
 
 		project_id
 	}
@@ -1972,7 +2067,7 @@ pub mod async_features {
 		let _weighted_price = inst.get_project_details(project_id).weighted_average_price.unwrap();
 		let accepted_bids = Instantiator::<T, AllPalletsWithoutSystem, RuntimeEvent>::filter_bids_after_auction(
 			bids,
-			project_metadata.total_allocation_size.0,
+			project_metadata.auction_round_allocation_percentage * project_metadata.total_allocation_size,
 		);
 		let bid_expectations = accepted_bids
 			.iter()
@@ -2192,7 +2287,7 @@ pub mod async_features {
 
 		let total_ct_sold =
 			total_ct_sold_in_bids + total_ct_sold_in_community_contributions + total_ct_sold_in_remainder_contributions;
-		let total_ct_available = project_metadata.total_allocation_size.0 + project_metadata.total_allocation_size.1;
+		let total_ct_available = project_metadata.total_allocation_size;
 		assert!(
 			total_ct_sold <= total_ct_available,
 			"Some CT buys are getting less than expected due to running out of CTs. This is ok in the runtime, but likely unexpected from the parameters of this instantiation"
@@ -2201,7 +2296,8 @@ pub mod async_features {
 		match inst.get_project_details(project_id).status {
 			ProjectStatus::FundingSuccessful => return project_id,
 			ProjectStatus::RemainderRound if remainder_contributions.is_empty() => {
-				inst.finish_funding(project_id).unwrap();
+				drop(inst);
+				async_finish_funding(instantiator.clone(), block_orchestrator.clone(), project_id).await.unwrap();
 				return project_id;
 			},
 			_ => {},
@@ -2309,8 +2405,8 @@ pub mod async_features {
 				remainder_contributions.iter().map(|cont| cont.amount).fold(Zero::zero(), |acc, item| item + acc);
 
 			assert_eq!(
-				project_details.remaining_contribution_tokens.0 + project_details.remaining_contribution_tokens.1,
-				project_metadata.total_allocation_size.0 + project_metadata.total_allocation_size.1 -
+				project_details.remaining_contribution_tokens,
+				project_metadata.total_allocation_size -
 					auction_bought_tokens -
 					community_bought_tokens -
 					remainder_bought_tokens,
@@ -2718,6 +2814,11 @@ impl<T: Config> From<(AccountIdOf<T>, BalanceOf<T>, AssetIdOf<T>)> for UserToFor
 		UserToForeignAssets::<T>::new(account, asset_amount, asset_id)
 	}
 }
+impl<T: Config> From<(AccountIdOf<T>, BalanceOf<T>)> for UserToForeignAssets<T> {
+	fn from((account, asset_amount): (AccountIdOf<T>, BalanceOf<T>)) -> Self {
+		UserToForeignAssets::<T>::new(account, asset_amount, AcceptedFundingAsset::USDT.to_assethub_id())
+	}
+}
 impl<T: Config> Accounts for Vec<UserToForeignAssets<T>> {
 	type Account = AccountIdOf<T>;
 
@@ -2987,43 +3088,34 @@ pub mod testing_macros {
 	///
 	/// let real = 98u64;
 	/// let desired = 100u64;
-	/// assert_close_enough!(real, desired, Perquintill::from_float(0.02));
+	/// assert_close_enough!(real, desired, Perquintill::from_float(0.98));
 	/// // This would fail
-	/// // assert_close_enough!(real, desired, Perquintill::from_float(0.01));
+	/// // assert_close_enough!(real, desired, Perquintill::from_float(0.99));
 	/// ```
-	///
-	/// - Use this macro when you deal with operations with lots of decimals, and you are ok with the real value being an approximation of the desired one.
-	/// - The max_approximation should be an upper bound such that 1-real/desired <= approximation in the case where the desired is smaller than the real,
-	/// and 1-desired/real <= approximation in the case where the real is bigger than the desired.
-	/// - You probably should define the max_approximation from a float number or a percentage, like in the example.
 	macro_rules! assert_close_enough {
 		// Match when a message is provided
-		($real:expr, $desired:expr, $max_approximation:expr, $msg:expr) => {
-			let real_parts;
+		($real:expr, $desired:expr, $min_percentage:expr, $msg:expr) => {
+			let actual_percentage;
 			if $real <= $desired {
-				real_parts = Perquintill::from_rational($real, $desired);
+				actual_percentage = Perquintill::from_rational($real, $desired);
 			} else {
-				real_parts = Perquintill::from_rational($desired, $real);
+				actual_percentage = Perquintill::from_rational($desired, $real);
 			}
-			let one = Perquintill::from_percent(100u64);
-			let real_approximation = one - real_parts;
-			assert!(real_approximation <= $max_approximation, $msg);
+			assert!(actual_percentage >= $min_percentage, $msg);
 		};
 		// Match when no message is provided
-		($real:expr, $desired:expr, $max_approximation:expr) => {
-			let real_parts;
+		($real:expr, $desired:expr, $min_percentage:expr) => {
+			let actual_percentage;
 			if $real <= $desired {
-				real_parts = Perquintill::from_rational($real, $desired);
+				actual_percentage = Perquintill::from_rational($real, $desired);
 			} else {
-				real_parts = Perquintill::from_rational($desired, $real);
+				actual_percentage = Perquintill::from_rational($desired, $real);
 			}
-			let one = Perquintill::from_percent(100u64);
-			let real_approximation = one - real_parts;
 			assert!(
-				real_approximation <= $max_approximation,
-				"Approximation is too big: {:?} > {:?} for {:?} and {:?}",
-				real_approximation,
-				$max_approximation,
+				actual_percentage >= $min_percentage,
+				"Actual percentage too low for the set minimum: {:?} < {:?} for {:?} and {:?}",
+				actual_percentage,
+				$min_percentage,
 				$real,
 				$desired
 			);
