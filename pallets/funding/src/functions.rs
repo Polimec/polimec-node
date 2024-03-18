@@ -74,7 +74,7 @@ impl<T: Config> Pallet<T> {
 	/// # Next step
 	/// The issuer will call an extrinsic to start the evaluation round of the project.
 	/// [`do_start_evaluation`](Self::do_start_evaluation) will be executed.
-	pub fn do_create(issuer: &AccountIdOf<T>, initial_metadata: ProjectMetadataOf<T>) -> DispatchResult {
+	pub fn do_create(issuer: &AccountIdOf<T>, initial_metadata: ProjectMetadataOf<T>, did: Did) -> DispatchResult {
 		// * Get variables *
 		let project_id = NextProjectId::<T>::get();
 
@@ -97,7 +97,8 @@ impl<T: Config> Pallet<T> {
 			initial_metadata.minimum_price.checked_mul_int(total_allocation_size).ok_or(Error::<T>::BadMath)?;
 		let now = <frame_system::Pallet<T>>::block_number();
 		let project_details = ProjectDetails {
-			issuer: issuer.clone(),
+			issuer_account: issuer.clone(),
+			issuer_did: did,
 			is_frozen: false,
 			weighted_average_price: None,
 			fundraising_target,
@@ -196,7 +197,7 @@ impl<T: Config> Pallet<T> {
 		let now = <frame_system::Pallet<T>>::block_number();
 
 		// * Validity checks *
-		ensure!(project_details.issuer == caller, Error::<T>::NotAllowed);
+		ensure!(project_details.issuer_account == caller, Error::<T>::NotAllowed);
 		ensure!(project_details.status == ProjectStatus::Application, Error::<T>::ProjectNotInApplicationRound);
 		ensure!(!project_details.is_frozen, Error::<T>::ProjectAlreadyFrozen);
 		ensure!(project_metadata.offchain_information_hash.is_some(), Error::<T>::MetadataNotProvided);
@@ -375,7 +376,7 @@ impl<T: Config> Pallet<T> {
 
 		// * Validity checks *
 		ensure!(
-			caller == T::PalletId::get().into_account_truncating() || caller == project_details.issuer,
+			caller == T::PalletId::get().into_account_truncating() || caller == project_details.issuer_account,
 			Error::<T>::NotAllowed
 		);
 
@@ -928,7 +929,7 @@ impl<T: Config> Pallet<T> {
 		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 
 		// * Validity checks *
-		ensure!(project_details.issuer == issuer, Error::<T>::NotAllowed);
+		ensure!(project_details.issuer_account == issuer, Error::<T>::NotAllowed);
 		ensure!(!project_details.is_frozen, Error::<T>::Frozen);
 		ensure!(!Images::<T>::contains_key(project_metadata_hash), Error::<T>::MetadataAlreadyExists);
 
@@ -949,6 +950,7 @@ impl<T: Config> Pallet<T> {
 		evaluator: &AccountIdOf<T>,
 		project_id: ProjectId,
 		usd_amount: BalanceOf<T>,
+		did: Did,
 	) -> DispatchResultWithPostInfo {
 		// * Get variables *
 		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
@@ -964,7 +966,7 @@ impl<T: Config> Pallet<T> {
 		let evaluations_count = EvaluationCounts::<T>::get(project_id);
 
 		// * Validity Checks *
-		ensure!(evaluator.clone() != project_details.issuer, Error::<T>::ContributionToThemselves);
+		ensure!(project_details.issuer_did != did, Error::<T>::ParticipationToThemselves);
 		ensure!(project_details.status == ProjectStatus::EvaluationRound, Error::<T>::EvaluationNotStarted);
 		ensure!(evaluations_count < T::MaxEvaluationsPerProject::get(), Error::<T>::TooManyEvaluationsForProject);
 
@@ -1106,7 +1108,7 @@ impl<T: Config> Pallet<T> {
 
 		ensure!(ct_amount > Zero::zero(), Error::<T>::BidTooLow);
 		ensure!(bid_count < T::MaxBidsPerProject::get(), Error::<T>::TooManyBidsForProject);
-		ensure!(bidder.clone() != project_details.issuer, Error::<T>::ContributionToThemselves);
+		ensure!(did != project_details.issuer_did, Error::<T>::ParticipationToThemselves);
 		ensure!(matches!(project_details.status, ProjectStatus::AuctionRound(_)), Error::<T>::AuctionNotStarted);
 		ensure!(
 			project_metadata.participation_currencies.contains(&funding_asset),
@@ -1364,7 +1366,7 @@ impl<T: Config> Pallet<T> {
 			project_metadata.participation_currencies.contains(&funding_asset),
 			Error::<T>::FundingAssetNotAccepted
 		);
-		ensure!(contributor.clone() != project_details.issuer, Error::<T>::ContributionToThemselves);
+		ensure!(did.clone() != project_details.issuer_did, Error::<T>::ParticipationToThemselves);
 		ensure!(
 			caller_existing_contributions.len() < T::MaxContributionsPerUser::get() as usize,
 			Error::<T>::TooManyContributionsForUser
@@ -1462,7 +1464,7 @@ impl<T: Config> Pallet<T> {
 		let now = <frame_system::Pallet<T>>::block_number();
 
 		// * Validity checks *
-		ensure!(project_details.issuer == issuer, Error::<T>::NotAllowed);
+		ensure!(project_details.issuer_account == issuer, Error::<T>::NotAllowed);
 		ensure!(project_details.status == ProjectStatus::AwaitingProjectDecision, Error::<T>::NotAllowed);
 
 		// * Update storage *
@@ -2075,7 +2077,7 @@ impl<T: Config> Pallet<T> {
 		);
 
 		// * Calculate variables *
-		let issuer = project_details.issuer;
+		let issuer = project_details.issuer_account;
 		let project_pot = Self::fund_account_id(project_id);
 		let payout_amount = bid.funding_asset_amount_locked;
 		let payout_asset = bid.funding_asset;
@@ -2118,7 +2120,7 @@ impl<T: Config> Pallet<T> {
 		ensure!(project_details.status == ProjectStatus::FundingSuccessful, Error::<T>::NotAllowed);
 
 		// * Calculate variables *
-		let issuer = project_details.issuer;
+		let issuer = project_details.issuer_account;
 		let project_pot = Self::fund_account_id(project_id);
 		let payout_amount = contribution.funding_asset_amount;
 		let payout_asset = contribution.funding_asset;
@@ -2188,7 +2190,7 @@ impl<T: Config> Pallet<T> {
 		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 
 		// * Validity checks *
-		ensure!(&(project_details.issuer) == caller, Error::<T>::NotAllowed);
+		ensure!(&(project_details.issuer_account) == caller, Error::<T>::NotAllowed);
 
 		// * Update storage *
 		project_details.parachain_id = Some(para_id);
@@ -2358,7 +2360,7 @@ impl<T: Config> Pallet<T> {
 				..
 			})
 		) {
-			ensure!(caller == &project_details.issuer, Error::<T>::NotAllowed);
+			ensure!(caller == &project_details.issuer_account, Error::<T>::NotAllowed);
 		}
 
 		// * Update storage *
@@ -2503,7 +2505,7 @@ impl<T: Config> Pallet<T> {
 		let migration_readiness_check = project_details.migration_readiness_check.ok_or(Error::<T>::NotAllowed)?;
 
 		// * Validity Checks *
-		ensure!(caller.clone() == project_details.issuer, Error::<T>::NotAllowed);
+		ensure!(caller.clone() == project_details.issuer_account, Error::<T>::NotAllowed);
 
 		ensure!(migration_readiness_check.is_ready(), Error::<T>::NotAllowed);
 

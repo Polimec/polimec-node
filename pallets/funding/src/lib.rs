@@ -127,7 +127,7 @@ use frame_system::pallet_prelude::BlockNumberFor;
 pub use pallet::*;
 use pallet_xcm::ensure_response;
 use polimec_common::{
-	credentials::{Did, EnsureOriginWithCredentials, InvestorType, UntrustedToken},
+	credentials::{EnsureOriginWithCredentials, UntrustedToken, Did, InvestorType},
 	migration_types::*,
 };
 use polkadot_parachain::primitives::Id as ParaId;
@@ -141,6 +141,7 @@ use sp_std::{marker::PhantomData, prelude::*};
 use traits::DoRemainingOperation;
 pub use types::*;
 use xcm::v3::{opaque::Instruction, prelude::*, SendXcm};
+
 pub mod functions;
 
 #[cfg(test)]
@@ -175,7 +176,7 @@ pub type TicketSizeOf<T> = TicketSize<BalanceOf<T>>;
 pub type ProjectMetadataOf<T> =
 	ProjectMetadata<BoundedVec<u8, StringLimitOf<T>>, BalanceOf<T>, PriceOf<T>, AccountIdOf<T>, HashOf<T>>;
 pub type ProjectDetailsOf<T> =
-	ProjectDetails<AccountIdOf<T>, BlockNumberFor<T>, PriceOf<T>, BalanceOf<T>, EvaluationRoundInfoOf<T>>;
+	ProjectDetails<AccountIdOf<T>, Did, BlockNumberFor<T>, PriceOf<T>, BalanceOf<T>, EvaluationRoundInfoOf<T>>;
 pub type EvaluationRoundInfoOf<T> = EvaluationRoundInfo<BalanceOf<T>>;
 pub type VestingInfoOf<T> = VestingInfo<BlockNumberFor<T>, BalanceOf<T>>;
 pub type EvaluationInfoOf<T> = EvaluationInfo<u32, ProjectId, AccountIdOf<T>, BalanceOf<T>, BlockNumberFor<T>>;
@@ -869,8 +870,8 @@ pub mod pallet {
 		EvaluationNotStarted,
 		/// The Evaluation Round of the project has ended without reaching the minimum threshold
 		EvaluationFailed,
-		/// The issuer cannot contribute to their own project during the Funding Round
-		ContributionToThemselves,
+		/// The issuer cannot participate to their own project
+		ParticipationToThemselves,
 		/// Only the issuer can start the Evaluation Round
 		NotAllowed,
 		/// The Metadata Hash of the project was not found
@@ -982,7 +983,7 @@ pub mod pallet {
 				T::InvestorOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get())?;
 			ensure!(investor_type == InvestorType::Institutional, Error::<T>::NotAllowed);
 			log::trace!(target: "pallet_funding::test", "in create");
-			Self::do_create(&account, project)
+			Self::do_create(&account, project, did)
 		}
 
 		/// Change the metadata hash of a project
@@ -1045,7 +1046,7 @@ pub mod pallet {
 		) -> DispatchResultWithPostInfo {
 			let (account, _did, _investor_type) =
 				T::InvestorOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get())?;
-			Self::do_evaluate(&account, project_id, usd_amount)
+			Self::do_evaluate(&account, project_id, usd_amount, did)
 		}
 
 		/// Bid for a project in the Auction round

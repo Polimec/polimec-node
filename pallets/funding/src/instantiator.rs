@@ -353,7 +353,8 @@ impl<
 		let metadata = self.get_project_metadata(project_id);
 		let details = self.get_project_details(project_id);
 		let expected_details = ProjectDetailsOf::<T> {
-			issuer: self.get_issuer(project_id),
+			issuer_account: self.get_issuer(project_id),
+			issuer_did: generate_did_from_account(self.get_issuer(project_id)),
 			is_frozen: false,
 			weighted_average_price: None,
 			status: ProjectStatus::Application,
@@ -1010,7 +1011,7 @@ impl<
 	> Instantiator<T, AllPalletsWithoutSystem, RuntimeEvent>
 {
 	pub fn get_issuer(&mut self, project_id: ProjectId) -> AccountIdOf<T> {
-		self.execute(|| ProjectsDetails::<T>::get(project_id).unwrap().issuer)
+		self.execute(|| ProjectsDetails::<T>::get(project_id).unwrap().issuer_account)
 	}
 
 	pub fn get_project_metadata(&mut self, project_id: ProjectId) -> ProjectMetadataOf<T> {
@@ -1046,7 +1047,8 @@ impl<
 		)]);
 
 		self.execute(|| {
-			crate::Pallet::<T>::do_create(&issuer, project_metadata.clone()).unwrap();
+			crate::Pallet::<T>::do_create(&issuer, project_metadata.clone(), generate_did_from_account(issuer.clone()))
+				.unwrap();
 			let last_project_metadata = ProjectsMetadata::<T>::iter().last().unwrap();
 			log::trace!("Last project metadata: {:?}", last_project_metadata);
 		});
@@ -1080,7 +1082,14 @@ impl<
 		bonds: Vec<UserToUSDBalance<T>>,
 	) -> DispatchResultWithPostInfo {
 		for UserToUSDBalance { account, usd_amount } in bonds {
-			self.execute(|| crate::Pallet::<T>::do_evaluate(&account, project_id, usd_amount))?;
+			self.execute(|| {
+				crate::Pallet::<T>::do_evaluate(
+					&account.clone(),
+					project_id,
+					usd_amount,
+					generate_did_from_account(account),
+				)
+			})?;
 		}
 		Ok(().into())
 	}
@@ -1763,7 +1772,12 @@ pub mod async_features {
 				metadata_deposit + ct_deposit,
 		)]);
 		inst.execute(|| {
-			crate::Pallet::<T>::do_create(&issuer, project_metadata.clone()).unwrap();
+			crate::Pallet::<T>::do_create(
+				&issuer.clone(),
+				project_metadata.clone(),
+				generate_did_from_account(issuer.clone()),
+			)
+			.unwrap();
 			let last_project_metadata = ProjectsMetadata::<T>::iter().last().unwrap();
 			log::trace!("Last project metadata: {:?}", last_project_metadata);
 		});
