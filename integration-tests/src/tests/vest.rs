@@ -23,7 +23,7 @@ use frame_support::traits::fungible::Mutate;
 use macros::generate_accounts;
 use pallet_funding::assert_close_enough;
 use pallet_vesting::VestingInfo;
-use polimec_runtime::{Balances, ParachainStaking, RuntimeOrigin, Vesting};
+use polimec_runtime::{Balances, ParachainStaking, RuntimeOrigin, Vesting, PayMaster};
 use sp_runtime::Perquintill;
 use tests::defaults::*;
 use xcm_emulator::get_account_id_from_seed;
@@ -142,5 +142,42 @@ fn base_can_withdraw_when_free_is_below_frozen_with_hold() {
 		assert_eq!(Balances::usable_balance(&CARLOS.into()), 0);
 		assert_eq!(Balances::free_balance(&CARLOS.into()), ED);
 		assert_eq!(Balances::reserved_balance(&CARLOS.into()), 2_000 * PLMC);
+	})
+}
+
+// Tests the behavior of transferring the dust to the Blockchain Operation Treasury.
+// When an account's balance falls below the Existential Deposit (ED) threshold following a transfer,
+// the account is killed and the dust is sent to the treasury.
+#[test]
+fn dust_to_treasury() {
+	Polimec::execute_with(|| {
+		// Create two new accounts: a sender and a receiver.
+		let sender = get_account_id_from_seed::<sr25519::Public>("SENDER");
+		let receiver = get_account_id_from_seed::<sr25519::Public>("RECEIVER");
+
+		// Set the sender's initial balance to 1 PLMC.
+		let initial_sender_balance = 1 * PLMC;
+		Balances::set_balance(&sender, initial_sender_balance);
+
+		// Get the total issuance and Treasury balance before the transfer.
+		let initial_total_issuance = Balances::total_issuance();
+		let initial_treasury_balance = Balances::free_balance(PayMaster::get());
+
+		// Transfer funds from sender to receiver, designed to deplete the sender's balance below the ED.
+		// The sender account will be killed and the dust will be sent to the treasury.
+		// This happens because at the end of the transfer, the user has free_balance < ED.
+		assert_ok!(Balances::transfer_allow_death(
+			RuntimeOrigin::signed(sender),
+			sp_runtime::MultiAddress::Id(receiver),
+			initial_sender_balance - ED + 1
+		));
+
+		// Confirm the total issuance remains unchanged post-transfer.
+		let post_total_issuance = Balances::total_issuance();
+		assert_eq!(initial_total_issuance, post_total_issuance);
+
+		// Verify the Treasury has received the dust from the sender's account.
+		let final_treasury_balance = Balances::free_balance(PayMaster::get());
+		assert_eq!(initial_treasury_balance + ED - 1, final_treasury_balance);
 	})
 }

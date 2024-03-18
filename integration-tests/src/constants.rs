@@ -470,6 +470,7 @@ pub mod polimec {
 	use super::*;
 	use crate::Polimec;
 	use pallet_funding::AcceptedFundingAsset;
+	use polimec_base_runtime::PayMaster;
 	use xcm::{prelude::Parachain, v3::Parent};
 
 	pub const PARA_ID: u32 = 3344;
@@ -497,6 +498,7 @@ pub mod polimec {
 		funded_accounts.extend(accounts::init_balances().iter().cloned().map(|k| (k, INITIAL_DEPOSIT)));
 		funded_accounts.extend(collators::initial_authorities().iter().cloned().map(|(acc, _)| (acc, 20_005 * PLMC)));
 		funded_accounts.push((get_account_id_from_seed::<sr25519::Public>("TREASURY_STASH"), 20_005 * PLMC));
+		funded_accounts.push((PayMaster::get(), 20_005 * PLMC));
 
 		let genesis_config = polimec_runtime::RuntimeGenesisConfig {
 			system: polimec_runtime::SystemConfig {
