@@ -71,7 +71,7 @@ pub fn get_base_session_keys(keys: AuthorityId) -> base_runtime::SessionKeys {
 	base_runtime::SessionKeys { aura: keys }
 }
 
-pub fn get_local_base_chain_spec() -> Result<ChainSpec, String> {
+pub fn get_local_chain_spec() -> Result<ChainSpec, String> {
 	let properties = get_properties("PLMC", 10, 41);
 	let wasm = base_runtime::WASM_BINARY.ok_or("No WASM")?;
 	// This account is derived from PalletId("plmc/stk") in the pallet-parachain-staking runtime config.
@@ -166,7 +166,7 @@ pub fn get_polkadot_base_chain_spec() -> Result<ChainSpec, String> {
 	))
 }
 
-pub fn get_rococo_base_chain_spec() -> Result<ChainSpec, String> {
+pub fn get_rococo_chain_spec() -> Result<ChainSpec, String> {
 	let properties = get_properties("RLMC", 10, 41);
 	let wasm = base_runtime::WASM_BINARY.ok_or("No WASM")?;
 

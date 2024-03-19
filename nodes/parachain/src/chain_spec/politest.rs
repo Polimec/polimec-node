@@ -72,7 +72,7 @@ pub fn get_testnet_session_keys(keys: AuthorityId) -> politest_runtime::SessionK
 }
 
 #[cfg(feature = "std")]
-pub fn get_chain_spec_testing() -> Result<ChainSpec, String> {
+pub fn get_populated_chain_spec() -> Result<ChainSpec, String> {
 	let properties = get_properties("PLMC", 10, 41);
 	let wasm = politest_runtime::WASM_BINARY.ok_or("No WASM")?;
 
@@ -81,7 +81,7 @@ pub fn get_chain_spec_testing() -> Result<ChainSpec, String> {
 		"polimec",
 		ChainType::Local,
 		move || {
-			testing_genesis(
+			populated_genesis(
 				wasm,
 				vec![
 					(get_account_id_from_seed::<sr25519::Public>("Alice"), None, 2 * MinCandidateStk::get()),
@@ -113,16 +113,16 @@ pub fn get_chain_spec_testing() -> Result<ChainSpec, String> {
 	))
 }
 
-pub fn get_chain_spec_dev() -> Result<ChainSpec, String> {
-	let properties = get_properties("RLMC", 10, 41);
+pub fn get_local_chain_spec() -> Result<ChainSpec, String> {
+	let properties = get_properties("PLMC", 10, 41);
 	let wasm = politest_runtime::WASM_BINARY.ok_or("No WASM")?;
 
 	Ok(ChainSpec::from_genesis(
-		"Rolimec Develop",
+		"Politest",
 		"polimec",
 		ChainType::Local,
 		move || {
-			testnet_genesis(
+			local_genesis(
 				wasm,
 				vec![
 					(get_account_id_from_seed::<sr25519::Public>("Alice"), None, 2 * MinCandidateStk::get()),
@@ -155,7 +155,7 @@ pub fn get_chain_spec_dev() -> Result<ChainSpec, String> {
 }
 
 #[allow(clippy::too_many_arguments)]
-fn testnet_genesis(
+fn local_genesis(
 	wasm_binary: &[u8],
 	stakers: Vec<(AccountId, Option<AccountId>, Balance)>,
 	inflation_config: InflationInfo<Balance>,
@@ -341,7 +341,7 @@ mod testing_helpers {
 
 #[cfg(feature = "std")]
 #[allow(clippy::too_many_arguments)]
-fn testing_genesis(
+fn populated_genesis(
 	wasm_binary: &[u8],
 	stakers: Vec<(AccountId, Option<AccountId>, Balance)>,
 	inflation_config: InflationInfo<Balance>,
