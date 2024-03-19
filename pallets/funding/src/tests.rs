@@ -156,22 +156,41 @@ pub mod defaults {
 
 	pub fn default_plmc_balances() -> Vec<UserToPLMCBalance<TestRuntime>> {
 		vec![
-			UserToPLMCBalance::new(ISSUER, 20_000 * PLMC),
-			UserToPLMCBalance::new(EVALUATOR_1, 35_000 * PLMC),
-			UserToPLMCBalance::new(EVALUATOR_2, 60_000 * PLMC),
-			UserToPLMCBalance::new(EVALUATOR_3, 100_000 * PLMC),
-			UserToPLMCBalance::new(BIDDER_1, 500_000 * PLMC),
-			UserToPLMCBalance::new(BIDDER_2, 300_000 * PLMC),
-			UserToPLMCBalance::new(BUYER_1, 30_000 * PLMC),
-			UserToPLMCBalance::new(BUYER_2, 30_000 * PLMC),
+			UserToPLMCBalance::new(ISSUER, 10_000_000 * PLMC),
+			UserToPLMCBalance::new(EVALUATOR_1, 10_000_000 * PLMC),
+			UserToPLMCBalance::new(EVALUATOR_2, 10_000_000 * PLMC),
+			UserToPLMCBalance::new(EVALUATOR_3, 10_000_000 * PLMC),
+			UserToPLMCBalance::new(BIDDER_1, 10_000_000 * PLMC),
+			UserToPLMCBalance::new(BIDDER_2, 10_000_000 * PLMC),
+			UserToPLMCBalance::new(BUYER_1, 10_000_000 * PLMC),
+			UserToPLMCBalance::new(BUYER_2, 10_000_000 * PLMC),
+			UserToPLMCBalance::new(BUYER_3, 10_000_000 * PLMC),
+			UserToPLMCBalance::new(BUYER_4, 10_000_000 * PLMC),
+			UserToPLMCBalance::new(BUYER_5, 10_000_000 * PLMC),
+		]
+	}
+
+	pub fn default_usdt_balances() -> Vec<UserToForeignAssets<TestRuntime>> {
+		vec![
+			(ISSUER, 10_000_000 * ASSET_UNIT).into(),
+			(EVALUATOR_1, 10_000_000 * ASSET_UNIT).into(),
+			(EVALUATOR_2, 10_000_000 * ASSET_UNIT).into(),
+			(EVALUATOR_3, 10_000_000 * ASSET_UNIT).into(),
+			(BIDDER_1, 10_000_000 * ASSET_UNIT).into(),
+			(BIDDER_2, 10_000_000 * ASSET_UNIT).into(),
+			(BUYER_1, 10_000_000 * ASSET_UNIT).into(),
+			(BUYER_2, 10_000_000 * ASSET_UNIT).into(),
+			(BUYER_3, 10_000_000 * ASSET_UNIT).into(),
+			(BUYER_4, 10_000_000 * ASSET_UNIT).into(),
+			(BUYER_5, 10_000_000 * ASSET_UNIT).into(),
 		]
 	}
 
 	pub fn default_evaluations() -> Vec<UserToUSDBalance<TestRuntime>> {
 		vec![
-			UserToUSDBalance::new(EVALUATOR_1, 500_000 * PLMC),
-			UserToUSDBalance::new(EVALUATOR_2, 250_000 * PLMC),
-			UserToUSDBalance::new(EVALUATOR_3, 320_000 * PLMC),
+			UserToUSDBalance::new(EVALUATOR_1, 500_000 * US_DOLLAR),
+			UserToUSDBalance::new(EVALUATOR_2, 250_000 * US_DOLLAR),
+			UserToUSDBalance::new(EVALUATOR_3, 320_000 * US_DOLLAR),
 		]
 	}
 
@@ -329,7 +348,6 @@ mod creation {
 	use super::*;
 	use polimec_common::credentials::InvestorType;
 	use polimec_common_test_utils::{generate_did_from_account, get_mock_jwt};
-	use std::{rc::Rc, sync::Mutex};
 
 	#[test]
 	fn create_extrinsic() {
@@ -623,8 +641,6 @@ mod creation {
 
 	#[test]
 	fn issuer_cannot_have_multiple_active_projects() {
-		use std::borrow::BorrowMut;
-
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		let issuer: AccountId = ISSUER;
 		let mut counter: u8 = 0u8;
@@ -640,7 +656,10 @@ mod creation {
 		let jwt: UntrustedToken = get_mock_jwt(ISSUER, InvestorType::Institutional, did);
 		let project_metadata: ProjectMetadataOf<TestRuntime> = default_project_metadata(1, issuer);
 
+		let failing_bids = vec![(BIDDER_1, 1000 * ASSET_UNIT).into(), (BIDDER_2, 1000 * ASSET_UNIT).into()];
+
 		inst.mint_plmc_to(default_plmc_balances());
+		inst.mint_foreign_asset_to(default_usdt_balances());
 
 		// Cannot create 2 projects consecutively
 		inst.execute(|| {
@@ -698,6 +717,7 @@ mod creation {
 			);
 		});
 		inst.start_community_funding(1).unwrap_err();
+		inst.advance_time(1).unwrap();
 		assert_eq!(inst.get_project_details(1).status, ProjectStatus::FundingFailed);
 		inst.execute(|| {
 			assert_ok!(Pallet::<TestRuntime>::create(
@@ -711,7 +731,7 @@ mod creation {
 		inst.start_evaluation(2, ISSUER).unwrap();
 		inst.evaluate_for_users(2, default_evaluations()).unwrap();
 		inst.start_auction(2, ISSUER).unwrap();
-		inst.bid_for_users(2, default_bids()).unwrap();
+		inst.bid_for_users(2, failing_bids).unwrap();
 		inst.start_community_funding(2).unwrap();
 		inst.execute(|| {
 			assert_noop!(
@@ -736,7 +756,6 @@ mod creation {
 		// A project is "inactive" after the funding succeeds
 		inst.start_evaluation(3, ISSUER).unwrap();
 		inst.evaluate_for_users(3, default_evaluations()).unwrap();
-		inst.advance_time(<TestRuntime as Config>::EvaluationDuration::get() + 1).unwrap();
 		inst.start_auction(3, ISSUER).unwrap();
 		inst.bid_for_users(3, default_bids()).unwrap();
 		inst.start_community_funding(3).unwrap();
@@ -3788,6 +3807,11 @@ mod remainder_contribution {
 // only functionalities that happen after the REMAINDER FUNDING period of a project, and before the CT Migration
 mod funding_end {
 	use super::*;
+
+	#[test]
+	fn failed_auction_is_settled() {
+		todo!()
+	}
 
 	#[test]
 	fn automatic_fail_less_eq_33_percent() {

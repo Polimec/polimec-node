@@ -1194,7 +1194,7 @@ impl<
 		// run on_initialize
 		self.advance_time(1u32.into()).unwrap();
 
-		assert_eq!(self.get_project_details(project_id).status, ProjectStatus::CommunityRound);
+		ensure!(self.get_project_details(project_id).status == ProjectStatus::CommunityRound, DispatchError::from("Auction failed"));
 
 		Ok(())
 	}

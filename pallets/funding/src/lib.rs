@@ -973,6 +973,7 @@ pub mod pallet {
 		RoundTransitionAlreadyHappened,
 		/// The issuer tried to create a new project but already has an active one
 		IssuerHasActiveProjectAlready,
+		NotEnoughFunds,
 	}
 
 	#[pallet::call]

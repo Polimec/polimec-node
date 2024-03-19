@@ -334,7 +334,9 @@ impl<T: Config> Pallet<T> {
 			// * Update storage *
 			project_details.status = ProjectStatus::EvaluationFailed;
 			project_details.cleanup = Cleaner::Failure(CleanerState::Initialized(PhantomData::<Failure>));
-			ProjectsDetails::<T>::insert(project_id, project_details);
+			ProjectsDetails::<T>::insert(project_id, project_details.clone());
+			let issuer_did = project_details.issuer_did.clone();
+			DidWithActiveProjects::<T>::set(issuer_did, None);
 
 			// * Emit events *
 			Self::deposit_event(Event::EvaluationFailed { project_id });
@@ -546,7 +548,6 @@ impl<T: Config> Pallet<T> {
 		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 		match calculation_result {
 			Err(pallet_error) if pallet_error == Error::<T>::NoBidsFound.into() => {
-				project_details.status = ProjectStatus::FundingFailed;
 				ProjectsDetails::<T>::insert(project_id, project_details);
 				let insertion_iterations = match Self::add_to_update_store(
 					<frame_system::Pallet<T>>::block_number() + 1u32.into(),
@@ -700,11 +701,15 @@ impl<T: Config> Pallet<T> {
 		let remaining_cts = project_details.remaining_contribution_tokens;
 		let remainder_end_block = project_details.phase_transition_points.remainder.end();
 		let now = <frame_system::Pallet<T>>::block_number();
+		let issuer_did = project_details.issuer_did.clone();
 
 		// * Validity checks *
 		ensure!(
+			// Can end due to running out of CTs
 			remaining_cts == Zero::zero() ||
-				project_details.status == ProjectStatus::FundingFailed ||
+				// or the auction being empty
+				project_details.status == ProjectStatus::AuctionRound(AuctionPhase::Candle) ||
+				// or the last funding round ending
 				matches!(remainder_end_block, Some(end_block) if now > end_block),
 			Error::<T>::TooEarlyForFundingEnd
 		);
@@ -729,6 +734,7 @@ impl<T: Config> Pallet<T> {
 		let funding_ratio = Perquintill::from_rational(funding_reached, funding_target);
 
 		// * Update Storage *
+		DidWithActiveProjects::<T>::set(issuer_did, None);
 		if funding_ratio <= Perquintill::from_percent(33u64) {
 			project_details.evaluation_round_info.evaluators_outcome = EvaluatorsOutcome::Slashed;
 			let insertion_iterations = Self::make_project_funding_fail(
@@ -2989,7 +2995,7 @@ impl<T: Config> Pallet<T> {
 		// the min_balance of funding assets (e.g USDT) are low enough so we don't expect users to care about their balance being dusted.
 		// We do think the UX would be bad if they cannot use all of their available tokens.
 		// Specially since a new funding asset account can be easily created by increasing the provider reference
-		T::FundingCurrency::transfer(asset_id, who, &fund_account, amount, Preservation::Expendable)?;
+		T::FundingCurrency::transfer(asset_id, who, &fund_account, amount, Preservation::Expendable).map_err(|_|Error::<T>::NotEnoughFunds)?;
 
 		Ok(())
 	}
