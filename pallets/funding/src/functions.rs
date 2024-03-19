@@ -2995,7 +2995,8 @@ impl<T: Config> Pallet<T> {
 		// the min_balance of funding assets (e.g USDT) are low enough so we don't expect users to care about their balance being dusted.
 		// We do think the UX would be bad if they cannot use all of their available tokens.
 		// Specially since a new funding asset account can be easily created by increasing the provider reference
-		T::FundingCurrency::transfer(asset_id, who, &fund_account, amount, Preservation::Expendable).map_err(|_|Error::<T>::NotEnoughFunds)?;
+		T::FundingCurrency::transfer(asset_id, who, &fund_account, amount, Preservation::Expendable)
+			.map_err(|_| Error::<T>::NotEnoughFunds)?;
 
 		Ok(())
 	}

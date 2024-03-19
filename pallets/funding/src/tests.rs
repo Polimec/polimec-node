@@ -3812,18 +3812,17 @@ mod funding_end {
 	fn failed_auction_is_settled() {
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		let project_metadata = default_project_metadata(0, ISSUER);
-		let project_id = inst.create_auctioning_project(
-			project_metadata.clone(),
-			ISSUER,
-			default_evaluations(),
-		);
+		let project_id = inst.create_auctioning_project(project_metadata.clone(), ISSUER, default_evaluations());
 		inst.start_community_funding(project_id).unwrap_err();
 		// execute `do_end_funding`
 		inst.advance_time(1).unwrap();
 		assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::FundingFailed);
 		// execute `do_start_settlement`
 		inst.advance_time(1).unwrap();
-		assert_eq!(inst.get_project_details(project_id).cleanup, Cleaner::Failure(CleanerState::Initialized(PhantomData)));
+		assert_eq!(
+			inst.get_project_details(project_id).cleanup,
+			Cleaner::Failure(CleanerState::Initialized(PhantomData))
+		);
 		// run settlement machine a.k.a cleaner
 		inst.advance_time(1).unwrap();
 		assert_eq!(inst.get_project_details(project_id).cleanup, Cleaner::Failure(CleanerState::Finished(PhantomData)));
