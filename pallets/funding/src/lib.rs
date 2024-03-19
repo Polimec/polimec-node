@@ -552,6 +552,11 @@ pub mod pallet {
 	>;
 
 	#[pallet::storage]
+	// After 25 participations, the retail user has access to the max multiplier of 10x, so no need to keep tracking it
+	pub type RetailParticipations<T: Config> =
+		StorageMap<_, Blake2_128Concat, Did, BoundedVec<ProjectId, ConstU32<25>>>;
+
+	#[pallet::storage]
 	/// Migrations sent and awaiting for confirmation
 	pub type UnconfirmedMigrations<T: Config> = StorageMap<_, Blake2_128Concat, QueryId, ProjectMigrationOriginsOf<T>>;
 
