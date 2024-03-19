@@ -18,9 +18,7 @@
 use crate::*;
 
 // Substrate
-use frame_support::{
-	traits::{GetStorageVersion, PalletInfoAccess, StorageVersion},
-};
+use frame_support::traits::{GetStorageVersion, PalletInfoAccess, StorageVersion};
 
 #[cfg(feature = "try-runtime")]
 use frame_support::dispatch::DispatchError;
