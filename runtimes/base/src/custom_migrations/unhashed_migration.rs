@@ -18,11 +18,7 @@
 use crate::*;
 
 // Substrate
-use frame_support::{
-	log,
-	storage::unhashed,
-	traits::{tokens::Precision::Exact, GetStorageVersion, PalletInfoAccess, StorageVersion},
-};
+use frame_support::{log, storage::unhashed};
 use sp_runtime::AccountId32;
 
 #[cfg(feature = "try-runtime")]
@@ -30,35 +26,6 @@ use sp_core::crypto::Ss58Codec;
 
 #[cfg(feature = "try-runtime")]
 use pallet_vesting::Vesting;
-
-#[cfg(feature = "try-runtime")]
-use frame_support::dispatch::DispatchError;
-
-pub struct InitializePallet<Pallet: GetStorageVersion<CurrentStorageVersion = StorageVersion> + PalletInfoAccess>(
-	sp_std::marker::PhantomData<Pallet>,
-);
-impl<Pallet: GetStorageVersion<CurrentStorageVersion = StorageVersion> + PalletInfoAccess>
-	frame_support::traits::OnRuntimeUpgrade for InitializePallet<Pallet>
-{
-	#[cfg(feature = "try-runtime")]
-	fn pre_upgrade() -> Result<Vec<u8>, DispatchError> {
-		log::info!("{} migrating from {:#?}", Pallet::name(), Pallet::on_chain_storage_version());
-		Ok(Vec::new())
-	}
-
-	#[cfg(feature = "try-runtime")]
-	fn post_upgrade(_state: Vec<u8>) -> Result<(), DispatchError> {
-		log::info!("{} migrated to {:#?}", Pallet::name(), Pallet::on_chain_storage_version());
-		Ok(())
-	}
-
-	fn on_runtime_upgrade() -> frame_support::weights::Weight {
-		if Pallet::on_chain_storage_version() == StorageVersion::new(0) {
-			Pallet::current_storage_version().put::<Pallet>();
-		}
-		<Runtime as frame_system::Config>::DbWeight::get().reads_writes(1, 1)
-	}
-}
 
 // The `VestingInfo` fields from `pallet_vesting` are private, so we need to define them here.
 #[derive(parity_scale_codec::Encode, parity_scale_codec::Decode, sp_runtime::RuntimeDebug, Eq, PartialEq)]
@@ -85,8 +52,6 @@ impl frame_support::traits::OnRuntimeUpgrade for UnhashedMigration {
 	fn post_upgrade(_state: Vec<u8>) -> Result<(), sp_runtime::DispatchError> {
 		log::info!("Post-upgrade");
 		check_balances();
-		let total_issuance = Balances::total_issuance();
-		assert_eq!(total_issuance, 100_000_000 * PLMC);
 		Ok(())
 	}
 
@@ -114,26 +79,7 @@ impl frame_support::traits::OnRuntimeUpgrade for UnhashedMigration {
 			}
 		}
 
-		// +1 R
-		let total_issuance = Balances::total_issuance();
-
-		// Idempotent check.
-		if total_issuance != 100_000_000 * PLMC {
-			log::info!("⚠️ Correcting total issuance from {} to {}", total_issuance, 100_000_000 * PLMC);
-			// +1 R
-			let treasury_account = PayMaster::get();
-			// +1 W
-			// The values are coming from these `DustLost` events:
-			// - https://polkadot.js.org/apps/?rpc=wss%3A%2F%2Frpc.polimec.org#/explorer/query/0x6fec4ce782f42afae1437f53e3382d9e6804692de868a28908ed6b9104bdd536
-			// - https://polkadot.js.org/apps/?rpc=wss%3A%2F%2Frpc.polimec.org#/explorer/query/0x390d04247334df9d9eb02e1dc7c6d01910c950d99a5d8d17441eb202cd751f42
-			let _ = <Balances as tokens::fungible::Balanced<AccountId>>::deposit(
-				&treasury_account,
-				39988334 + 70094167,
-				Exact,
-			);
-		}
-
-		<Runtime as frame_system::Config>::DbWeight::get().reads_writes(3, 2)
+		<Runtime as frame_system::Config>::DbWeight::get().reads_writes(1, 1)
 	}
 }
 

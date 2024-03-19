@@ -49,7 +49,6 @@ use sp_runtime::{
 };
 use sp_std::{cmp::Ordering, prelude::*};
 use sp_version::RuntimeVersion;
-use crate::custom_migrations::UnhashedMigration;
 
 // XCM Imports
 use polimec_xcm_executor::XcmExecutor;
@@ -138,9 +137,10 @@ pub type Migrations = migrations::Unreleased;
 pub mod migrations {
 	// Not warn for unused imports in this module.
 
-	use super::*;
+	use crate::custom_migrations::{deposit_dust::DepositDust, unhashed_migration::UnhashedMigration};
+
 	/// Unreleased migrations. Add new ones here:
-	pub type Unreleased = UnhashedMigration;
+	pub type Unreleased = (UnhashedMigration, DepositDust);
 }
 
 /// Executive: handles dispatch to the various modules.
