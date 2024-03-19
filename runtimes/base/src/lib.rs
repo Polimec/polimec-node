@@ -49,6 +49,7 @@ use sp_runtime::{
 };
 use sp_std::{cmp::Ordering, prelude::*};
 use sp_version::RuntimeVersion;
+use crate::custom_migrations::UnhashedMigration;
 
 // XCM Imports
 use polimec_xcm_executor::XcmExecutor;
@@ -136,16 +137,10 @@ pub type Migrations = migrations::Unreleased;
 #[allow(missing_docs)]
 pub mod migrations {
 	// Not warn for unused imports in this module.
-	#![allow(unused_imports)]
-	use frame_support::migrations::RemovePallet;
-
-	parameter_types! {
-		pub const Sudo: &'static str = "Sudo";
-	}
 
 	use super::*;
 	/// Unreleased migrations. Add new ones here:
-	pub type Unreleased = (RemovePallet<Sudo, ParityDbWeight>,);
+	pub type Unreleased = UnhashedMigration;
 }
 
 /// Executive: handles dispatch to the various modules.
@@ -195,7 +190,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("polimec-mainnet"),
 	impl_name: create_runtime_str!("polimec-mainnet"),
 	authoring_version: 1,
-	spec_version: 0_005_006,
+	spec_version: 0_005_007,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
