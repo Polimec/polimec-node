@@ -35,10 +35,6 @@ struct VestingInfo {
 	starting_block: BlockNumber,
 }
 
-// The vesting.Vesting(5Ag8zhuoZjKzc3YzmkWFrrmU5GvxdHLtpAN425RW9ZgWS5V7) encoded storage key.
-const ENCODED_STORAGE_KEY: &str =
-	"0x5f27b51b5ec208ee9cb25b55d87282435f27b51b5ec208ee9cb25b55d872824334f5503ce555ea3ee18396f4bde1b40bc28dbf096b5acf3c0d87dd8ef8cabea0794cc72200a2368751a0fe470d5f9f69";
-
 pub struct UnhashedMigration;
 impl frame_support::traits::OnRuntimeUpgrade for UnhashedMigration {
 	#[cfg(feature = "try-runtime")]
@@ -57,8 +53,13 @@ impl frame_support::traits::OnRuntimeUpgrade for UnhashedMigration {
 
 	fn on_runtime_upgrade() -> frame_support::weights::Weight {
 		// This account received a wrong vesting schedule.
+		// Hex encoded representation of 5Ag8zhuoZjKzc3YzmkWFrrmU5GvxdHLtpAN425RW9ZgWS5V7.
 		let acct: AccountId32 =
 			hex_literal::hex!["c28dbf096b5acf3c0d87dd8ef8cabea0794cc72200a2368751a0fe470d5f9f69"].into();
+
+		// The vesting.Vesting(5Ag8zhuoZjKzc3YzmkWFrrmU5GvxdHLtpAN425RW9ZgWS5V7) encoded storage key.
+		const ENCODED_STORAGE_KEY: &str =
+"0x5f27b51b5ec208ee9cb25b55d87282435f27b51b5ec208ee9cb25b55d872824334f5503ce555ea3ee18396f4bde1b40bc28dbf096b5acf3c0d87dd8ef8cabea0794cc72200a2368751a0fe470d5f9f69";
 
 		if let Ok(k) = array_bytes::hex2bytes(ENCODED_STORAGE_KEY) {
 			// If `is_some` which means it has a vesting schedule, that we could potentially have to correct.
