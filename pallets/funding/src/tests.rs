@@ -865,7 +865,8 @@ mod evaluation {
 				&(&ISSUER + 1),
 				project_id,
 				500 * US_DOLLAR,
-				generate_did_from_account(ISSUER)
+				generate_did_from_account(ISSUER),
+				InvestorType::Institutional
 			)),
 			Error::<TestRuntime>::ParticipationToThemselves
 		);
@@ -2052,6 +2053,9 @@ mod auction {
 			Error::<TestRuntime>::ParticipationToThemselves
 		);
 	}
+
+	// #[test]
+	// fn multipliers_
 }
 
 // only functionalities that happen in the COMMUNITY FUNDING period of a project

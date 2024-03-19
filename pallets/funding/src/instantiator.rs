@@ -1087,6 +1087,7 @@ impl<
 					project_id,
 					usd_amount,
 					generate_did_from_account(account),
+					InvestorType::Professional,
 				)
 			})?;
 		}

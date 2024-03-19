@@ -45,6 +45,7 @@ use sp_arithmetic::{
 use sp_runtime::traits::{Convert, ConvertBack};
 use sp_std::marker::PhantomData;
 use xcm::v3::MaxDispatchErrorLen;
+use sp_std::ops::Not;
 
 use super::*;
 use crate::traits::{BondingRequirementCalculation, ProvideAssetPrice, VestingDurationCalculation};
@@ -951,6 +952,7 @@ impl<T: Config> Pallet<T> {
 		project_id: ProjectId,
 		usd_amount: BalanceOf<T>,
 		did: Did,
+		investor_type: InvestorType,
 	) -> DispatchResultWithPostInfo {
 		// * Get variables *
 		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
@@ -970,13 +972,21 @@ impl<T: Config> Pallet<T> {
 		ensure!(project_details.status == ProjectStatus::EvaluationRound, Error::<T>::EvaluationNotStarted);
 		ensure!(evaluations_count < T::MaxEvaluationsPerProject::get(), Error::<T>::TooManyEvaluationsForProject);
 
+
 		// * Calculate new variables *
+		if investor_type == InvestorType::Retail {
+			RetailParticipations::<T>::mutate(&did, |project_participations| {
+				if project_participations.contains(&project_id).not() {
+					// We don't care if it fails, since it means the user already has access to the max multiplier
+					let _ = project_participations.try_push(project_id);
+				}
+			});
+		}
 		let plmc_bond = plmc_usd_price
 			.reciprocal()
 			.ok_or(Error::<T>::BadMath)?
 			.checked_mul_int(usd_amount)
 			.ok_or(Error::<T>::BadMath)?;
-
 		let previous_total_evaluation_bonded_usd = evaluation_round_info.total_bonded_usd;
 
 		let remaining_bond_to_reach_threshold =
@@ -1099,6 +1109,20 @@ impl<T: Config> Pallet<T> {
 			InvestorType::Professional => project_metadata.bidding_ticket_sizes.professional,
 			_ => return Err(Error::<T>::NotAllowed.into()),
 		};
+		let max_multiplier =  match investor_type {
+			InvestorType::Retail => {
+				RetailParticipations::<T>::mutate(&did, |project_participations| {
+					if project_participations.contains(&project_id).not() {
+						// We don't care if it fails, since it means the user already has access to the max multiplier
+						let _ = project_participations.try_push(project_id);
+					}
+					retail_max_multiplier_for_participations(project_participations.len() as u8)
+				})
+			},
+
+			InvestorType::Professional => PROFESSIONAL_MAX_MULTIPLIER,
+			InvestorType::Institutional => INSTITUTIONAL_MAX_MULTIPLIER,
+		};
 
 		// * Validity checks *
 		ensure!(
@@ -1119,6 +1143,7 @@ impl<T: Config> Pallet<T> {
 			metadata_bidder_ticket_size_bounds.usd_ticket_above_minimum_per_participation(min_total_ticket_size),
 			Error::<T>::BidTooLow
 		);
+		ensure!(multiplier.into() <= max_multiplier, Error::<T>::MultiplierAboveLimit);
 
 		// Note: We limit the CT Amount to the auction allocation size, to avoid long running loops.
 		ensure!(
@@ -1360,7 +1385,20 @@ impl<T: Config> Pallet<T> {
 			InvestorType::Professional => project_metadata.contributing_ticket_sizes.professional,
 			InvestorType::Retail => project_metadata.contributing_ticket_sizes.retail,
 		};
+		let max_multiplier =  match investor_type {
+			InvestorType::Retail => {
+				RetailParticipations::<T>::mutate(&did, |project_participations| {
+					if project_participations.contains(&project_id).not() {
+						// We don't care if it fails, since it means the user already has access to the max multiplier
+						let _ = project_participations.try_push(project_id);
+					}
+					retail_max_multiplier_for_participations(project_participations.len() as u8)
+				})
+			},
 
+			InvestorType::Professional => PROFESSIONAL_MAX_MULTIPLIER,
+			InvestorType::Institutional => INSTITUTIONAL_MAX_MULTIPLIER,
+		};
 		// * Validity checks *
 		ensure!(
 			project_metadata.participation_currencies.contains(&funding_asset),
@@ -1379,6 +1417,7 @@ impl<T: Config> Pallet<T> {
 			contributor_ticket_size.usd_ticket_below_maximum_per_did(total_usd_bought_by_did + ticket_size),
 			Error::<T>::ContributionTooHigh
 		);
+		ensure!(multiplier.into() <= max_multiplier, Error::<T>::MultiplierAboveLimit);
 
 		let plmc_bond = Self::calculate_plmc_bond(ticket_size, multiplier, plmc_usd_price)?;
 		let funding_asset_amount =
