@@ -132,10 +132,7 @@ use polimec_common::{
 };
 use polkadot_parachain::primitives::Id as ParaId;
 use sp_arithmetic::traits::{One, Saturating};
-use sp_runtime::{
-	traits::{AccountIdConversion},
-	FixedPointNumber, FixedPointOperand, FixedU128,
-};
+use sp_runtime::{traits::AccountIdConversion, FixedPointNumber, FixedPointOperand, FixedU128};
 use sp_std::{marker::PhantomData, prelude::*};
 use traits::DoRemainingOperation;
 pub use types::*;
@@ -555,6 +552,10 @@ pub mod pallet {
 	>;
 
 	#[pallet::storage]
+	/// A map to keep track of what issuer's did has an active project. It prevents one issuer having multiple active projects
+	pub type DidWithActiveProjects<T: Config> = StorageMap<_, Blake2_128Concat, Did, ProjectId, OptionQuery>;
+
+	#[pallet::storage]
 	/// Migrations sent and awaiting for confirmation
 	pub type UnconfirmedMigrations<T: Config> = StorageMap<_, Blake2_128Concat, QueryId, ProjectMigrationOriginsOf<T>>;
 
@@ -970,6 +971,8 @@ pub mod pallet {
 		UserHasWinningBids,
 		// Round transition already happened.
 		RoundTransitionAlreadyHappened,
+		/// The issuer tried to create a new project but already has an active one
+		IssuerHasActiveProjectAlready,
 	}
 
 	#[pallet::call]

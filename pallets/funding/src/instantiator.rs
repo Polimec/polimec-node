@@ -35,7 +35,7 @@ use frame_support::{
 use frame_system::pallet_prelude::BlockNumberFor;
 use itertools::Itertools;
 use parity_scale_codec::Decode;
-use polimec_common::credentials::{InvestorType};
+use polimec_common::credentials::InvestorType;
 #[cfg(any(test, feature = "std", feature = "runtime-benchmarks"))]
 use polimec_common_test_utils::generate_did_from_account;
 use sp_arithmetic::{
@@ -1075,7 +1075,7 @@ impl<
 		project_id
 	}
 
-	pub fn bond_for_users(
+	pub fn evaluate_for_users(
 		&mut self,
 		project_id: ProjectId,
 		bonds: Vec<UserToUSDBalance<T>>,
@@ -1137,7 +1137,7 @@ impl<
 		self.mint_plmc_to(plmc_existential_deposits.clone());
 		self.mint_plmc_to(plmc_ct_account_deposits.clone());
 
-		self.bond_for_users(project_id, evaluations).unwrap();
+		self.evaluate_for_users(project_id, evaluations).unwrap();
 
 		let expected_evaluator_balances = Self::sum_balance_mappings(vec![
 			plmc_eval_deposits.clone(),
@@ -1876,7 +1876,7 @@ pub mod async_features {
 		inst.mint_plmc_to(plmc_existential_deposits.clone());
 		inst.mint_plmc_to(plmc_ct_account_deposits.clone());
 
-		inst.bond_for_users(project_id, evaluations).unwrap();
+		inst.evaluate_for_users(project_id, evaluations).unwrap();
 
 		let expected_evaluator_balances =
 			Instantiator::<T, AllPalletsWithoutSystem, RuntimeEvent>::sum_balance_mappings(vec![

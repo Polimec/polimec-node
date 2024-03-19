@@ -539,7 +539,7 @@ mod benchmarks {
 		inst.mint_plmc_to(plmc_for_evaluating);
 
 		inst.advance_time(One::one()).unwrap();
-		inst.bond_for_users(project_id, evaluations).expect("All evaluations are accepted");
+		inst.evaluate_for_users(project_id, evaluations).expect("All evaluations are accepted");
 
 		run_blocks_to_execute_next_transition(project_id, UpdateType::EvaluationEnd, &mut inst);
 		inst.advance_time(1u32.into()).unwrap();
@@ -615,7 +615,7 @@ mod benchmarks {
 		inst.advance_time(One::one()).unwrap();
 
 		// do "x" evaluations for this user
-		inst.bond_for_users(test_project_id, existing_evaluations).expect("All evaluations are accepted");
+		inst.evaluate_for_users(test_project_id, existing_evaluations).expect("All evaluations are accepted");
 
 		let extrinsic_plmc_bonded = plmc_for_extrinsic_evaluation[0].plmc_amount;
 		let mut total_expected_plmc_bonded = BenchInstantiator::<T>::sum_balance_mappings(vec![
@@ -2653,7 +2653,7 @@ mod benchmarks {
 		inst.mint_plmc_to(plmc_for_evaluating);
 
 		inst.advance_time(One::one()).unwrap();
-		inst.bond_for_users(project_id, evaluations).expect("All evaluations are accepted");
+		inst.evaluate_for_users(project_id, evaluations).expect("All evaluations are accepted");
 
 		let evaluation_end_block =
 			inst.get_project_details(project_id).phase_transition_points.evaluation.end().unwrap();
@@ -2716,7 +2716,7 @@ mod benchmarks {
 		inst.mint_plmc_to(plmc_for_evaluating);
 
 		inst.advance_time(One::one()).unwrap();
-		inst.bond_for_users(project_id, evaluations).expect("All evaluations are accepted");
+		inst.evaluate_for_users(project_id, evaluations).expect("All evaluations are accepted");
 
 		let evaluation_end_block =
 			inst.get_project_details(project_id).phase_transition_points.evaluation.end().unwrap();

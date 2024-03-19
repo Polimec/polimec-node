@@ -77,11 +77,13 @@ impl<T: Config> Pallet<T> {
 	pub fn do_create(issuer: &AccountIdOf<T>, initial_metadata: ProjectMetadataOf<T>, did: Did) -> DispatchResult {
 		// * Get variables *
 		let project_id = NextProjectId::<T>::get();
+		let maybe_active_project = DidWithActiveProjects::<T>::get(did.clone());
 
 		// * Validity checks *
 		if let Some(metadata) = initial_metadata.offchain_information_hash {
 			ensure!(!Images::<T>::contains_key(metadata), Error::<T>::MetadataAlreadyExists);
 		}
+		ensure!(maybe_active_project == None, Error::<T>::IssuerHasActiveProjectAlready);
 
 		if let Err(error) = initial_metadata.is_valid() {
 			return match error {
@@ -98,7 +100,7 @@ impl<T: Config> Pallet<T> {
 		let now = <frame_system::Pallet<T>>::block_number();
 		let project_details = ProjectDetails {
 			issuer_account: issuer.clone(),
-			issuer_did: did,
+			issuer_did: did.clone(),
 			is_frozen: false,
 			weighted_average_price: None,
 			fundraising_target,
@@ -166,6 +168,7 @@ impl<T: Config> Pallet<T> {
 		if let Some(metadata) = initial_metadata.offchain_information_hash {
 			Images::<T>::insert(metadata, issuer);
 		}
+		DidWithActiveProjects::<T>::set(did, Some(project_id));
 
 		// * Emit events *
 		Self::deposit_event(Event::ProjectCreated { project_id, issuer: issuer.clone() });

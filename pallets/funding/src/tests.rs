@@ -329,6 +329,7 @@ mod creation {
 	use super::*;
 	use polimec_common::credentials::InvestorType;
 	use polimec_common_test_utils::{generate_did_from_account, get_mock_jwt};
+	use std::{rc::Rc, sync::Mutex};
 
 	#[test]
 	fn create_extrinsic() {
@@ -619,6 +620,137 @@ mod creation {
 			assert_eq!(project_err, Error::<TestRuntime>::ParticipationCurrenciesError.into());
 		}
 	}
+
+	#[test]
+	fn issuer_cannot_have_multiple_active_projects() {
+		use std::borrow::BorrowMut;
+
+		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+		let issuer: AccountId = ISSUER;
+		let mut counter: u8 = 0u8;
+		let mut with_different_hash = |mut project: ProjectMetadataOf<TestRuntime>| {
+			let mut binding = project.offchain_information_hash.unwrap();
+			let h256_bytes = binding.as_fixed_bytes_mut();
+			h256_bytes[0] = counter;
+			counter += 1u8;
+			project.offchain_information_hash = Some(binding);
+			project
+		};
+		let did: Did = BoundedVec::new();
+		let jwt: UntrustedToken = get_mock_jwt(ISSUER, InvestorType::Institutional, did);
+		let project_metadata: ProjectMetadataOf<TestRuntime> = default_project_metadata(1, issuer);
+
+		inst.mint_plmc_to(default_plmc_balances());
+
+		// Cannot create 2 projects consecutively
+		inst.execute(|| {
+			assert_ok!(Pallet::<TestRuntime>::create(
+				RuntimeOrigin::signed(ISSUER),
+				jwt.clone(),
+				with_different_hash(project_metadata.clone())
+			));
+		});
+		inst.execute(|| {
+			assert_noop!(
+				Pallet::<TestRuntime>::create(
+					RuntimeOrigin::signed(ISSUER),
+					jwt.clone(),
+					with_different_hash(project_metadata.clone())
+				),
+				Error::<TestRuntime>::IssuerHasActiveProjectAlready
+			);
+		});
+
+		// A Project is "inactive" after the evaluation fails
+		inst.start_evaluation(0, ISSUER).unwrap();
+		inst.execute(|| {
+			assert_noop!(
+				Pallet::<TestRuntime>::create(
+					RuntimeOrigin::signed(ISSUER),
+					jwt.clone(),
+					with_different_hash(project_metadata.clone())
+				),
+				Error::<TestRuntime>::IssuerHasActiveProjectAlready
+			);
+		});
+		inst.advance_time(<TestRuntime as Config>::EvaluationDuration::get() + 1).unwrap();
+		assert_eq!(inst.get_project_details(0).status, ProjectStatus::EvaluationFailed);
+		inst.execute(|| {
+			assert_ok!(Pallet::<TestRuntime>::create(
+				RuntimeOrigin::signed(ISSUER),
+				jwt.clone(),
+				with_different_hash(project_metadata.clone())
+			));
+		});
+
+		// A Project is "inactive" after the auction fails
+		inst.start_evaluation(1, ISSUER).unwrap();
+		inst.evaluate_for_users(1, default_evaluations()).unwrap();
+		inst.start_auction(1, ISSUER).unwrap();
+		inst.execute(|| {
+			assert_noop!(
+				Pallet::<TestRuntime>::create(
+					RuntimeOrigin::signed(ISSUER),
+					jwt.clone(),
+					with_different_hash(project_metadata.clone())
+				),
+				Error::<TestRuntime>::IssuerHasActiveProjectAlready
+			);
+		});
+		inst.start_community_funding(1).unwrap_err();
+		assert_eq!(inst.get_project_details(1).status, ProjectStatus::FundingFailed);
+		inst.execute(|| {
+			assert_ok!(Pallet::<TestRuntime>::create(
+				RuntimeOrigin::signed(ISSUER),
+				jwt.clone(),
+				with_different_hash(project_metadata.clone())
+			));
+		});
+
+		// A Project is "inactive" after the funding fails
+		inst.start_evaluation(2, ISSUER).unwrap();
+		inst.evaluate_for_users(2, default_evaluations()).unwrap();
+		inst.start_auction(2, ISSUER).unwrap();
+		inst.bid_for_users(2, default_bids()).unwrap();
+		inst.start_community_funding(2).unwrap();
+		inst.execute(|| {
+			assert_noop!(
+				Pallet::<TestRuntime>::create(
+					RuntimeOrigin::signed(ISSUER),
+					jwt.clone(),
+					with_different_hash(project_metadata.clone())
+				),
+				Error::<TestRuntime>::IssuerHasActiveProjectAlready
+			);
+		});
+		inst.finish_funding(2).unwrap();
+		assert_eq!(inst.get_project_details(2).status, ProjectStatus::FundingFailed);
+		inst.execute(|| {
+			assert_ok!(Pallet::<TestRuntime>::create(
+				RuntimeOrigin::signed(ISSUER),
+				jwt.clone(),
+				with_different_hash(project_metadata.clone())
+			));
+		});
+
+		// A project is "inactive" after the funding succeeds
+		inst.start_evaluation(3, ISSUER).unwrap();
+		inst.evaluate_for_users(3, default_evaluations()).unwrap();
+		inst.advance_time(<TestRuntime as Config>::EvaluationDuration::get() + 1).unwrap();
+		inst.start_auction(3, ISSUER).unwrap();
+		inst.bid_for_users(3, default_bids()).unwrap();
+		inst.start_community_funding(3).unwrap();
+		inst.contribute_for_users(3, default_community_buys()).unwrap();
+		inst.start_remainder_or_end_funding(3).unwrap();
+		inst.contribute_for_users(3, default_remainder_buys()).unwrap();
+		inst.finish_funding(3).unwrap();
+		assert_eq!(inst.get_project_details(3).status, ProjectStatus::FundingSuccessful);
+		assert_ok!(inst.execute(|| crate::Pallet::<TestRuntime>::create(
+			RuntimeOrigin::signed(ISSUER),
+			jwt.clone(),
+			with_different_hash(project_metadata.clone())
+		)));
+	}
 }
 
 // only functionalities that happen in the EVALUATION period of a project
@@ -714,7 +846,7 @@ mod evaluation {
 			.end
 			.expect("Evaluation round end block should be set");
 
-		inst.bond_for_users(project_id, default_failing_evaluations()).expect("Bonding should work");
+		inst.evaluate_for_users(project_id, default_failing_evaluations()).expect("Bonding should work");
 
 		inst.do_free_plmc_assertions(plmc_existential_deposits);
 		inst.do_reserved_plmc_assertions(plmc_eval_deposits, HoldReason::Evaluation(project_id).into());
@@ -746,7 +878,7 @@ mod evaluation {
 
 		let project_id = inst.create_evaluating_project(project_metadata, issuer);
 
-		let dispatch_error = inst.bond_for_users(project_id, evaluations);
+		let dispatch_error = inst.evaluate_for_users(project_id, evaluations);
 		assert_err!(dispatch_error, TokenError::FundsUnavailable)
 	}
 
@@ -788,7 +920,7 @@ mod evaluation {
 		inst.mint_plmc_to(plmc_existential_deposits.clone());
 		inst.mint_plmc_to(plmc_ct_account_deposits.clone());
 
-		let _ = inst.bond_for_users(project_id, evaluations);
+		let _ = inst.evaluate_for_users(project_id, evaluations);
 
 		inst.do_free_plmc_assertions(vec![
 			(EVALUATOR_1, MockInstantiator::get_ed()).into(),
@@ -838,7 +970,7 @@ mod evaluation {
 		inst.mint_plmc_to(plmc_existential_deposits.clone());
 		inst.mint_plmc_to(plmc_ct_account_deposits.clone());
 
-		inst.bond_for_users(project_id, evaluations.clone()).unwrap();
+		inst.evaluate_for_users(project_id, evaluations.clone()).unwrap();
 
 		let plmc_for_failing_evaluating =
 			MockInstantiator::calculate_evaluation_plmc_spent(vec![failing_evaluation.clone()]);
@@ -850,7 +982,7 @@ mod evaluation {
 		inst.mint_plmc_to(plmc_ct_account_deposits.clone());
 
 		assert_err!(
-			inst.bond_for_users(project_id, vec![failing_evaluation]),
+			inst.evaluate_for_users(project_id, vec![failing_evaluation]),
 			Error::<TestRuntime>::TooManyEvaluationsForProject
 		);
 	}
@@ -1164,7 +1296,7 @@ mod auction {
 		inst.mint_plmc_to(required_plmc);
 		inst.mint_plmc_to(ed_plmc);
 		inst.mint_plmc_to(ct_acount_deposits);
-		inst.bond_for_users(project_id, evaluations).unwrap();
+		inst.evaluate_for_users(project_id, evaluations).unwrap();
 		inst.advance_time(<TestRuntime as Config>::EvaluationDuration::get() + 1).unwrap();
 		assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::AuctionInitializePeriod);
 		inst.advance_time(<TestRuntime as Config>::AuctionInitializePeriodDuration::get() + 2).unwrap();
@@ -1182,7 +1314,7 @@ mod auction {
 		inst.mint_plmc_to(required_plmc);
 		inst.mint_plmc_to(ed_plmc);
 		inst.mint_plmc_to(ct_acount_deposits);
-		inst.bond_for_users(project_id, evaluations).unwrap();
+		inst.evaluate_for_users(project_id, evaluations).unwrap();
 		inst.advance_time(<TestRuntime as Config>::EvaluationDuration::get() + 1).unwrap();
 		assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::AuctionInitializePeriod);
 		inst.advance_time(1).unwrap();
@@ -1201,7 +1333,7 @@ mod auction {
 		inst.mint_plmc_to(required_plmc);
 		inst.mint_plmc_to(ed_plmc);
 		inst.mint_plmc_to(ct_acount_deposits);
-		inst.bond_for_users(project_id, evaluations).unwrap();
+		inst.evaluate_for_users(project_id, evaluations).unwrap();
 		inst.advance_time(<TestRuntime as Config>::EvaluationDuration::get() + 1).unwrap();
 		assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::AuctionInitializePeriod);
 		inst.advance_time(1).unwrap();
