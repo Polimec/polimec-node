@@ -14,11 +14,11 @@ version.workspace = true
 substrate-wasm-builder.workspace = true
 
 [dependencies]
-parity-scale-codec = { workspace= true,  default-features = false, features = [
+parity-scale-codec = { workspace = true, default-features = false, features = [
 	"derive",
 ] }
 log.workspace = true
-scale-info = { workspace= true, default-features = false, features = [
+scale-info = { workspace = true, default-features = false, features = [
 	"derive",
 ] }
 
@@ -92,6 +92,10 @@ parachains-common.workspace = true
 
 # ORML
 orml-oracle.workspace = true
+
+# Migration utilities
+hex-literal = { workspace = true }
+array-bytes = { workspace = true, default-features = false }
 
 [features]
 default = [ "std" ]
