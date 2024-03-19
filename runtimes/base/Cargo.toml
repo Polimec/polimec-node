@@ -14,11 +14,11 @@ version.workspace = true
 substrate-wasm-builder.workspace = true
 
 [dependencies]
-parity-scale-codec = { workspace= true,  default-features = false, features = [
+parity-scale-codec = { workspace = true, default-features = false, features = [
 	"derive",
 ] }
 log.workspace = true
-scale-info = { workspace= true, default-features = false, features = [
+scale-info = { workspace = true, default-features = false, features = [
 	"derive",
 ] }
 
@@ -92,6 +92,10 @@ parachains-common.workspace = true
 
 # ORML
 orml-oracle.workspace = true
+
+# Migration utilities
+hex-literal = { workspace = true, optional = true }
+array-bytes = { workspace = true, optional = true }
 
 [features]
 default = [ "std" ]
@@ -201,6 +205,7 @@ runtime-benchmarks = [
 ]
 
 try-runtime = [
+	"array-bytes",
 	"cumulus-pallet-aura-ext/try-runtime",
 	"cumulus-pallet-dmp-queue/try-runtime",
 	"cumulus-pallet-parachain-system/try-runtime",
@@ -210,6 +215,7 @@ try-runtime = [
 	"frame-support/try-runtime",
 	"frame-system/try-runtime",
 	"frame-try-runtime/try-runtime",
+	"hex-literal",
 	"orml-oracle/try-runtime",
 	"pallet-assets/try-runtime",
 	"pallet-aura/try-runtime",
