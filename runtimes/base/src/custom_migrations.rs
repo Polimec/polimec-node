@@ -19,16 +19,20 @@ use crate::*;
 
 // Substrate
 use frame_support::{
-	dispatch::DispatchError,
 	log,
 	storage::unhashed,
 	traits::{tokens::Precision::Exact, GetStorageVersion, PalletInfoAccess, StorageVersion},
 };
-use pallet_vesting::Vesting;
 use sp_runtime::AccountId32;
 
 #[cfg(feature = "try-runtime")]
 use sp_core::crypto::Ss58Codec;
+
+#[cfg(feature = "try-runtime")]
+use pallet_vesting::Vesting;
+
+#[cfg(feature = "try-runtime")]
+use frame_support::dispatch::DispatchError;
 
 pub struct InitializePallet<Pallet: GetStorageVersion<CurrentStorageVersion = StorageVersion> + PalletInfoAccess>(
 	sp_std::marker::PhantomData<Pallet>,
@@ -64,6 +68,7 @@ struct VestingInfo {
 	starting_block: BlockNumber,
 }
 
+// The vesting.Vesting(5Ag8zhuoZjKzc3YzmkWFrrmU5GvxdHLtpAN425RW9ZgWS5V7) encoded storage key.
 const ENCODED_STORAGE_KEY: &str =
 	"0x5f27b51b5ec208ee9cb25b55d87282435f27b51b5ec208ee9cb25b55d872824334f5503ce555ea3ee18396f4bde1b40bc28dbf096b5acf3c0d87dd8ef8cabea0794cc72200a2368751a0fe470d5f9f69";
 
@@ -91,14 +96,14 @@ impl frame_support::traits::OnRuntimeUpgrade for UnhashedMigration {
 			hex_literal::hex!["c28dbf096b5acf3c0d87dd8ef8cabea0794cc72200a2368751a0fe470d5f9f69"].into();
 
 		if let Ok(k) = array_bytes::hex2bytes(ENCODED_STORAGE_KEY) {
-			// If `is_some` which means it hasn't been migrated yet.
-			// But actually, without this correction, the account migration will fail.
+			// If `is_some` which means it has a vesting schedule, that we could potentially have to correct.
 			// +1 R
 			if let Some(value) = unhashed::get::<Vec<VestingInfo>>(&k) {
 				let v = vec![
 					VestingInfo { locked: 119574300000000, per_block: 182000456, starting_block: 249000 },
 					VestingInfo { locked: 6485400000000, per_block: 9870000, starting_block: 249000 },
 				];
+				// Idempotent check.
 				if value != v {
 					log::info!("⚠️ Correcting storage for {:?}", acct.encode());
 					// +1 W
@@ -112,11 +117,15 @@ impl frame_support::traits::OnRuntimeUpgrade for UnhashedMigration {
 		// +1 R
 		let total_issuance = Balances::total_issuance();
 
+		// Idempotent check.
 		if total_issuance != 100_000_000 * PLMC {
 			log::info!("⚠️ Correcting total issuance from {} to 100_000_000", total_issuance);
 			// +1 R
 			let treasury_account = PayMaster::get();
 			// +1 W
+			// The values are coming from these `DustLost` events:
+			// - https://polkadot.js.org/apps/?rpc=wss%3A%2F%2Frpc.polimec.org#/explorer/query/0x6fec4ce782f42afae1437f53e3382d9e6804692de868a28908ed6b9104bdd536
+			// - https://polkadot.js.org/apps/?rpc=wss%3A%2F%2Frpc.polimec.org#/explorer/query/0x390d04247334df9d9eb02e1dc7c6d01910c950d99a5d8d17441eb202cd751f42
 			let _ = <Balances as tokens::fungible::Balanced<AccountId>>::deposit(
 				&treasury_account,
 				39988334 + 70094167,
