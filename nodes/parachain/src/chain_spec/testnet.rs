@@ -24,8 +24,7 @@ use polimec_parachain_runtime::{
 		inflation::{perbill_annual_to_perbill_round, BLOCKS_PER_YEAR},
 		InflationInfo, Range,
 	},
-	AccountId, AuraId as AuthorityId, Balance, MinCandidateStk,
-	OracleProvidersMembershipConfig, Runtime,
+	AccountId, AuraId as AuthorityId, Balance, MinCandidateStk, OracleProvidersMembershipConfig, Runtime,
 	RuntimeGenesisConfig, EXISTENTIAL_DEPOSIT, PLMC,
 };
 use sc_service::ChainType;
@@ -114,7 +113,7 @@ pub fn get_chain_spec_testing() -> Result<ChainSpec, String> {
 
 pub fn get_chain_spec_dev() -> GenericChainSpec {
 	let properties = get_properties("RLMC", 10, 41);
-	
+
 	GenericChainSpec::builder(
 		polimec_parachain_runtime::WASM_BINARY.expect("WASM binary was not built, please build it!"),
 		Extensions { relay_chain: "rococo-local".into(), para_id: DEFAULT_PARA_ID.into() },
@@ -324,12 +323,11 @@ fn testing_genesis(
 	sudo_account: AccountId,
 	id: ParaId,
 ) -> RuntimeGenesisConfig {
-	use testing_helpers::*;
 	use polimec_parachain_runtime::{
-		BalancesConfig, CouncilConfig, ForeignAssetsConfig,
-		ParachainInfoConfig, ParachainStakingConfig, PolkadotXcmConfig, 
-		SessionConfig, SudoConfig, TechnicalCommitteeConfig,
+		BalancesConfig, CouncilConfig, ForeignAssetsConfig, ParachainInfoConfig, ParachainStakingConfig,
+		PolkadotXcmConfig, SessionConfig, SudoConfig, TechnicalCommitteeConfig,
 	};
+	use testing_helpers::*;
 
 	// only used to generate some values, and not for chain interactions
 	let default_project_metadata = project_metadata(ISSUER.into(), 0u32);
