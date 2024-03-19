@@ -119,7 +119,7 @@ impl frame_support::traits::OnRuntimeUpgrade for UnhashedMigration {
 
 		// Idempotent check.
 		if total_issuance != 100_000_000 * PLMC {
-			log::info!("⚠️ Correcting total issuance from {} to 100_000_000", total_issuance);
+			log::info!("⚠️ Correcting total issuance from {} to {}", total_issuance, 100_000_000 * PLMC);
 			// +1 R
 			let treasury_account = PayMaster::get();
 			// +1 W
