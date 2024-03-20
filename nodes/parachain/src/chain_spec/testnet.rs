@@ -154,8 +154,12 @@ fn testnet_genesis(
 	id: ParaId,
 ) -> serde_json::Value {
 	let accounts = endowed_accounts.iter().map(|(account, _)| account.clone()).collect::<Vec<_>>();
-	endowed_accounts
-		.push((<Runtime as pallet_funding::Config>::PalletId::get().into_account_truncating(), EXISTENTIAL_DEPOSIT));
+
+	let mut funding_accounts = vec![
+		(<Runtime as pallet_funding::Config>::PalletId::get().into_account_truncating(), EXISTENTIAL_DEPOSIT),
+		(polimec_parachain_runtime::TreasuryAccount::get(), EXISTENTIAL_DEPOSIT),
+	];
+	endowed_accounts.append(&mut funding_accounts.clone());
 
 	serde_json::json!({
 		"balances": { "balances": endowed_accounts.clone() },

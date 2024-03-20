@@ -406,10 +406,10 @@ mod benchmarks {
 			project_metadata.token_information.name.as_slice(),
 			project_metadata.token_information.symbol.as_slice(),
 		);
-		let ct_account_deposit = T::ContributionTokenCurrency::deposit_required(0);
+		let ct_treasury_account_deposit = T::ContributionTokenCurrency::deposit_required(0);
 		inst.mint_plmc_to(vec![UserToPLMCBalance::new(
 			issuer.clone(),
-			ed * 2u64.into() + metadata_deposit + ct_account_deposit,
+			ed * 2u64.into() + metadata_deposit + ct_treasury_account_deposit,
 		)]);
 		let jwt = get_mock_jwt(issuer.clone(), InvestorType::Institutional, generate_did_from_account(issuer.clone()));
 
@@ -2893,9 +2893,11 @@ mod benchmarks {
 		// automatic transition to candle
 		inst.advance_time(1u32.into()).unwrap();
 
-		// testing always produced this random ending
-		let random_ending: BlockNumberFor<T> = 9176u32.into();
-		frame_system::Pallet::<T>::set_block_number(random_ending + 2u32.into());
+		let project_details = inst.get_project_details(project_id);
+		let candle_block_end = project_details.phase_transition_points.candle_auction.end().unwrap();
+		// probably the last block will always be after random end
+		let random_ending: BlockNumberFor<T> = candle_block_end;
+		frame_system::Pallet::<T>::set_block_number(random_ending);
 
 		inst.bid_for_users(project_id, rejected_bids).unwrap();
 
@@ -2920,7 +2922,7 @@ mod benchmarks {
 		// Storage
 		let stored_details = ProjectsDetails::<T>::get(project_id).unwrap();
 		assert_eq!(stored_details.status, ProjectStatus::CommunityRound);
-
+		assert!(stored_details.phase_transition_points.random_candle_ending.unwrap() < stored_details.phase_transition_points.candle_auction.end().unwrap());
 		let accepted_bids_count =
 			Bids::<T>::iter_prefix_values((project_id,)).filter(|b| matches!(b.status, BidStatus::Accepted)).count();
 		let rejected_bids_count =
@@ -3690,7 +3692,7 @@ mod benchmarks {
 		#[test]
 		fn bench_start_community_funding_failure() {
 			new_test_ext().execute_with(|| {
-				assert_ok!(PalletFunding::<TestRuntime>::test_start_community_funding_success());
+				assert_ok!(PalletFunding::<TestRuntime>::test_start_community_funding_failure());
 			});
 		}
 

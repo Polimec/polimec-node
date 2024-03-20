@@ -1693,14 +1693,16 @@ pub mod pallet {
 		<T as pallet_balances::Config>::Balance: Into<BalanceOf<T>>,
 	{
 		fn build(&self) {
+			#[cfg(any(feature="std", feature="runtime-benchmarks"))]
+			{
+				<T as Config>::SetPrices::set_prices();
+			}
 			#[cfg(feature = "std")]
 			{
 				type GenesisInstantiator<T> =
 					instantiator::Instantiator<T, <T as Config>::AllPalletsWithoutSystem, <T as Config>::RuntimeEvent>;
 				let inst = GenesisInstantiator::<T>::new(None);
-				<T as Config>::SetPrices::set_prices();
 				instantiator::async_features::create_multiple_projects_at(inst, self.starting_projects.clone());
-
 				frame_system::Pallet::<T>::set_block_number(0u32.into());
 			}
 		}
