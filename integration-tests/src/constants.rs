@@ -465,7 +465,7 @@ pub mod penpal {
 	}
 }
 
-// Polimec Base Runtime
+// Polimec Runtime
 pub mod polimec {
 	use super::*;
 	use crate::Polimec;
