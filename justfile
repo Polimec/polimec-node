@@ -23,7 +23,7 @@ test-integration:
 # Benchmark a specific pallet on the "Base" Runtime
 benchmark-runtime pallet="pallet-elections-phragmen" features="runtime-benchmarks":
     cargo run --features {{ features }} --release -p polimec-parachain-node benchmark pallet \
-      --chain=base-polkadot \
+      --chain=base-rococo \
       --steps=50 \
       --repeat=20 \
       --pallet={{ pallet }} \
@@ -36,7 +36,7 @@ benchmark-runtime pallet="pallet-elections-phragmen" features="runtime-benchmark
 # Run the Runtime benchmarks for a specific pallet
 benchmark-pallet pallet="pallet-elections-phragmen" features="runtime-benchmarks":
     cargo run --features {{ features }} --release -p polimec-parachain-node benchmark pallet \
-      --chain=base-polkadot \
+      --chain=base-rococo \
       --steps=50 \
       --repeat=20 \
       --pallet={{ pallet }}  \
