@@ -8297,6 +8297,7 @@ checksum = "626dec3cac7cc0e1577a2ec3fc496277ec2baa084bebad95bb6fdbfae235f84c"
 name = "polimec-base-runtime"
 version = "0.5.1"
 dependencies = [
+ "array-bytes 4.2.0",
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-dmp-queue",
  "cumulus-pallet-parachain-system",
@@ -8313,6 +8314,7 @@ dependencies = [
  "frame-system-benchmarking",
  "frame-system-rpc-runtime-api",
  "frame-try-runtime",
+ "hex-literal 0.3.4",
  "log",
  "orml-oracle",
  "pallet-assets",

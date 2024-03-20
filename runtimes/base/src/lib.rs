@@ -145,20 +145,11 @@ pub type Migrations = migrations::Unreleased;
 /// The runtime migrations per release.
 #[allow(missing_docs)]
 pub mod migrations {
-	// Not warn for unused imports in this module.
-	#![allow(unused_imports)]
-	use frame_support::migrations::RemovePallet;
-
-	parameter_types! {
-		pub const Sudo: &'static str = "Sudo";
-	}
-
-	use super::*;
+	use crate::Runtime;
 	/// Unreleased migrations. Add new ones here:
 	pub type Unreleased = (
 		cumulus_pallet_xcmp_queue::migration::v4::MigrationToV4<Runtime>,
 		pallet_identity::migration::versioned::V0ToV1<Runtime, 1000>,
-		RemovePallet<Sudo, ParityDbWeight>,
 	);
 }
 
@@ -209,7 +200,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("polimec-mainnet"),
 	impl_name: create_runtime_str!("polimec-mainnet"),
 	authoring_version: 1,
-	spec_version: 0_005_006,
+	spec_version: 0_005_007,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,

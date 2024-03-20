@@ -17,15 +17,8 @@
 #[allow(unused_imports)]
 use crate::*;
 
-// Substrate
-#[allow(unused_imports)]
-use frame_support::{
-	migration,
-	storage::unhashed,
-	traits::{GetStorageVersion, PalletInfoAccess, StorageVersion},
-};
-#[cfg(feature = "try-runtime")]
-use log;
+use frame_support::traits::{GetStorageVersion, PalletInfoAccess, StorageVersion};
+
 #[cfg(feature = "try-runtime")]
 use sp_runtime::DispatchError;
 

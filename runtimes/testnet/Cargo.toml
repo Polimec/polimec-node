@@ -170,6 +170,7 @@ std = [
 	"sp-block-builder/std",
 	"sp-consensus-aura/std",
 	"sp-core/std",
+	"sp-debug-derive/std",
 	"sp-inherents/std",
 	"sp-io/std",
 	"sp-offchain/std",
@@ -181,7 +182,6 @@ std = [
 	"xcm-builder/std",
 	"xcm-executor/std",
 	"xcm/std",
-	"sp-debug-derive/std"
 ]
 
 runtime-benchmarks = [
