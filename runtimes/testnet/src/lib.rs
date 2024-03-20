@@ -24,8 +24,9 @@ extern crate frame_benchmarking;
 use cumulus_pallet_parachain_system::RelayNumberStrictlyIncreases;
 use cumulus_primitives_core::{AggregateMessageOrigin, ParaId};
 use frame_support::{
+	construct_runtime,
 	genesis_builder_helper::{build_config, create_default_config},
-	construct_runtime, ord_parameter_types, parameter_types,
+	ord_parameter_types, parameter_types,
 	traits::{
 		fungible::{Credit, HoldConsideration, Inspect},
 		tokens::{self, PayFromAccount, UnityAssetBalanceConversion},

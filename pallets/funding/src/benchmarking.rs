@@ -2922,7 +2922,10 @@ mod benchmarks {
 		// Storage
 		let stored_details = ProjectsDetails::<T>::get(project_id).unwrap();
 		assert_eq!(stored_details.status, ProjectStatus::CommunityRound);
-		assert!(stored_details.phase_transition_points.random_candle_ending.unwrap() < stored_details.phase_transition_points.candle_auction.end().unwrap());
+		assert!(
+			stored_details.phase_transition_points.random_candle_ending.unwrap() <
+				stored_details.phase_transition_points.candle_auction.end().unwrap()
+		);
 		let accepted_bids_count =
 			Bids::<T>::iter_prefix_values((project_id,)).filter(|b| matches!(b.status, BidStatus::Accepted)).count();
 		let rejected_bids_count =

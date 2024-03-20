@@ -1693,7 +1693,7 @@ pub mod pallet {
 		<T as pallet_balances::Config>::Balance: Into<BalanceOf<T>>,
 	{
 		fn build(&self) {
-			#[cfg(any(feature="std", feature="runtime-benchmarks"))]
+			#[cfg(any(feature = "std", feature = "runtime-benchmarks"))]
 			{
 				<T as Config>::SetPrices::set_prices();
 			}
