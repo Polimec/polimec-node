@@ -159,7 +159,7 @@ fn testnet_genesis(
 
 	serde_json::json!({
 		"balances": { "balances": endowed_accounts.clone() },
-		"foreign_assets":  {
+		"foreignAssets":  {
 			"assets": vec![(
 				pallet_funding::types::AcceptedFundingAsset::USDT.to_assethub_id(),
 				&AccountIdConversion::<AccountId>::into_account_truncating(&<Runtime as pallet_funding::Config>::PalletId::get()),
@@ -167,14 +167,14 @@ fn testnet_genesis(
 				10,
 			)],
 		},
-		"parachain_info":  { "parachain_id": id },
-		"parachain_staking":  {
+		"parachainInfo":  { "parachainId": id },
+		"parachainStaking":  {
 			"candidates": stakers.iter().map(|(accunt, _, balance)| (accunt.clone(), *balance)).collect::<Vec<_>>(),
-			"inflation_config": inflation_config,
-			"collator_commission": COLLATOR_COMMISSION,
-			"parachain_bond_reserve_percent": PARACHAIN_BOND_RESERVE_PERCENT,
-			"blocks_per_round": BLOCKS_PER_ROUND,
-			"num_selected_candidates": NUM_SELECTED_CANDIDATES,
+			"inflationConfig": inflation_config,
+			"collatorCommission": COLLATOR_COMMISSION,
+			"parachainBondReservePercent": PARACHAIN_BOND_RESERVE_PERCENT,
+			"blocksPerRound": BLOCKS_PER_ROUND,
+			"numSelectedCandidates": NUM_SELECTED_CANDIDATES,
 		},
 		"session":  {
 			"keys": initial_authorities
@@ -188,13 +188,13 @@ fn testnet_genesis(
 				})
 				.collect::<Vec<_>>(),
 		},
-		"polkadot_xcm":  { "safe_xcm_version": Some(SAFE_XCM_VERSION) },
+		"polkadotXcm":  { "safeXcmVersion": Some(SAFE_XCM_VERSION) },
 		"sudo":  { "key": Some(sudo_account) },
 		"council":  { "members": accounts.clone() },
-		"technical_committee":  {
+		"technicalCommittee":  {
 			"members": accounts.clone().into_iter().take(5).collect::<Vec<AccountId>>(),
 		},
-		"oracle_providers_membership": OracleProvidersMembershipConfig {
+		"oracleProvidersMembership": OracleProvidersMembershipConfig {
 			members: bounded_vec![
 				get_account_id_from_seed::<sr25519::Public>("Alice"),
 				get_account_id_from_seed::<sr25519::Public>("Bob"),
