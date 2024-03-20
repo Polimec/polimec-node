@@ -18,10 +18,6 @@
 // `construct_runtime!` does a lot of recursion and requires us to increase the limit to 256.
 #![recursion_limit = "256"]
 
-#[cfg(feature = "runtime-benchmarks")]
-#[macro_use]
-extern crate frame_benchmarking;
-
 use cumulus_pallet_parachain_system::RelayNumberStrictlyIncreases;
 use cumulus_primitives_core::{AggregateMessageOrigin, ParaId};
 use frame_support::{
@@ -62,7 +58,10 @@ use sp_std::{cmp::Ordering, prelude::*};
 use sp_version::RuntimeVersion;
 
 // XCM Imports
-use xcm_config::{XcmConfig, XcmOriginToTransactDispatchOrigin};
+use xcm_config::XcmOriginToTransactDispatchOrigin;
+
+#[cfg(not(feature = "runtime-benchmarks"))]
+use xcm_config::XcmConfig;
 
 pub use pallet_parachain_staking;
 // Polimec Shared Imports
@@ -1174,6 +1173,7 @@ impl_runtime_apis! {
 			use frame_benchmarking::{Benchmarking, BenchmarkList};
 			use frame_support::traits::StorageInfoTrait;
 			use frame_system_benchmarking::Pallet as SystemBench;
+			use pallet_xcm::benchmarking::Pallet as PalletXcmExtrinsiscsBenchmark;
 			use cumulus_pallet_session_benchmarking::Pallet as SessionBench;
 
 			let mut list = Vec::<BenchmarkList>::new();
