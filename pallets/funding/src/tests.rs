@@ -3844,7 +3844,7 @@ mod funding_end {
 		);
 
 		let slashed_evaluation_locked_plmc = MockInstantiator::slash_evaluator_balances(old_evaluation_locked_plmc);
-		let mut expected_evaluator_free_balances = MockInstantiator::generic_map_operation(
+		let expected_evaluator_free_balances = MockInstantiator::generic_map_operation(
 			vec![slashed_evaluation_locked_plmc, old_participation_locked_plmc, old_free_plmc],
 			MergeOperation::Add,
 		);
@@ -3878,7 +3878,7 @@ mod funding_end {
 		);
 
 		let slashed_evaluation_locked_plmc = MockInstantiator::slash_evaluator_balances(old_evaluation_locked_plmc);
-		let mut expected_evaluator_free_balances = MockInstantiator::generic_map_operation(
+		let expected_evaluator_free_balances = MockInstantiator::generic_map_operation(
 			vec![slashed_evaluation_locked_plmc, old_participation_locked_plmc, old_free_plmc],
 			MergeOperation::Add,
 		);
