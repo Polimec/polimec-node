@@ -579,7 +579,7 @@ pub type ForeignAssetsInstance = pallet_assets::Instance2;
 
 impl pallet_assets::Config<ContributionTokensInstance> for Runtime {
 	type ApprovalDeposit = ExistentialDeposit;
-	type AssetAccountDeposit = ZeroAssetAccountDeposit;
+	type AssetAccountDeposit = ZeroDeposit;
 	type AssetDeposit = AssetDeposit;
 	type AssetId = AssetId;
 	type AssetIdParameter = parity_scale_codec::Compact<AssetId>;
@@ -592,8 +592,8 @@ impl pallet_assets::Config<ContributionTokensInstance> for Runtime {
 	type Extra = ();
 	type ForceOrigin = EnsureRoot<AccountId>;
 	type Freezer = ();
-	type MetadataDepositBase = MetadataDepositBase;
-	type MetadataDepositPerByte = MetadataDepositPerByte;
+	type MetadataDepositBase = ZeroDeposit;
+	type MetadataDepositPerByte = ZeroDeposit;
 	type RemoveItemsLimit = frame_support::traits::ConstU32<1000>;
 	type RuntimeEvent = RuntimeEvent;
 	type StringLimit = AssetsStringLimit;

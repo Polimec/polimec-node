@@ -1024,14 +1024,10 @@ impl<
 
 	pub fn create_new_project(&mut self, project_metadata: ProjectMetadataOf<T>, issuer: AccountIdOf<T>) -> ProjectId {
 		let now = self.current_block();
-		let metadata_deposit = T::ContributionTokenCurrency::calc_metadata_deposit(
-			project_metadata.token_information.name.as_slice(),
-			project_metadata.token_information.symbol.as_slice(),
-		);
 		// one ED for the issuer, one ED for the escrow account
 		self.mint_plmc_to(vec![UserToPLMCBalance::new(
 			issuer.clone(),
-			Self::get_ed() * 2u64.into() + metadata_deposit,
+			Self::get_ed() * 2u64.into(),
 		)]);
 
 		self.execute(|| {
@@ -1711,16 +1707,10 @@ pub mod async_features {
 		let mut inst = instantiator.lock().await;
 
 		let now = inst.current_block();
-		let metadata_deposit = T::ContributionTokenCurrency::calc_metadata_deposit(
-			project_metadata.token_information.name.as_slice(),
-			project_metadata.token_information.symbol.as_slice(),
-		);
-		let ct_deposit = Instantiator::<T, AllPalletsWithoutSystem, RuntimeEvent>::get_ct_account_deposit();
 		// One ED for the issuer, one for the escrow account
 		inst.mint_plmc_to(vec![UserToPLMCBalance::new(
 			issuer.clone(),
-			Instantiator::<T, AllPalletsWithoutSystem, RuntimeEvent>::get_ed() * 2u64.into() +
-				metadata_deposit + ct_deposit,
+			Instantiator::<T, AllPalletsWithoutSystem, RuntimeEvent>::get_ed() * 2u64.into()
 		)]);
 		inst.execute(|| {
 			crate::Pallet::<T>::do_create(

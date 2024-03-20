@@ -135,15 +135,6 @@ impl<T: Config> Pallet<T> {
 		)
 		.map_err(|_| Error::<T>::NotEnoughFundsForEscrowCreation)?;
 
-		// Each project needs a new token type to be created (i.e contribution token).
-		// This creation is done automatically in the project transition on success, but someone needs to pay for the storage
-		// of the metadata associated with it.
-		let metadata_deposit = T::ContributionTokenCurrency::calc_metadata_deposit(
-			initial_metadata.token_information.name.as_slice(),
-			initial_metadata.token_information.symbol.as_slice(),
-		);
-		T::NativeCurrency::transfer(&issuer, &escrow_account, metadata_deposit, Preservation::Preserve)
-			.map_err(|_| Error::<T>::NotEnoughFundsForCTMetadata)?;
 
 		// * Update storage *
 		ProjectsMetadata::<T>::insert(project_id, &initial_metadata);

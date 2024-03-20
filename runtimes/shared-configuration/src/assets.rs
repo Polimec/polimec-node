@@ -32,7 +32,7 @@ parameter_types! {
 	pub const MetadataDepositBase: Balance = deposit(1, 68);
 	pub const MetadataDepositPerByte: Balance = deposit(0, 1);
 	pub const AssetAccountDeposit: Balance = deposit(1, 18);
-	pub const ZeroAssetAccountDeposit: Balance = 0;
+	pub const ZeroDeposit: Balance = 0;
 }
 
 pub struct OraclePriceProvider<AssetId, Price, Oracle>(PhantomData<(AssetId, Price, Oracle)>);

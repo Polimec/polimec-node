@@ -3848,14 +3848,6 @@ mod funding_end {
 			vec![slashed_evaluation_locked_plmc, old_participation_locked_plmc, old_free_plmc],
 			MergeOperation::Add,
 		);
-		let ct_deposit_required = <<TestRuntime as Config>::ContributionTokenCurrency as AccountTouch<
-			ProjectId,
-			AccountIdOf<TestRuntime>,
-		>>::deposit_required(project_id);
-		expected_evaluator_free_balances
-			.iter_mut()
-			.for_each(|UserToPLMCBalance { plmc_amount, .. }| *plmc_amount += ct_deposit_required);
-
 		let actual_evaluator_free_balances = inst.get_free_plmc_balances_for(evaluators.clone());
 
 		assert_eq!(actual_evaluator_free_balances, expected_evaluator_free_balances);
@@ -3890,13 +3882,6 @@ mod funding_end {
 			vec![slashed_evaluation_locked_plmc, old_participation_locked_plmc, old_free_plmc],
 			MergeOperation::Add,
 		);
-		let ct_deposit_required = <<TestRuntime as Config>::ContributionTokenCurrency as AccountTouch<
-			ProjectId,
-			AccountIdOf<TestRuntime>,
-		>>::deposit_required(project_id);
-		expected_evaluator_free_balances
-			.iter_mut()
-			.for_each(|UserToPLMCBalance { plmc_amount, .. }| *plmc_amount += ct_deposit_required);
 
 		let actual_evaluator_free_balances = inst.get_free_plmc_balances_for(evaluators.clone());
 

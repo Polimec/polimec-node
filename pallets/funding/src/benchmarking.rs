@@ -393,14 +393,10 @@ mod benchmarks {
 		whitelist_account!(issuer);
 		let project_metadata = default_project::<T>(inst.get_new_nonce(), issuer.clone());
 
-		let metadata_deposit = T::ContributionTokenCurrency::calc_metadata_deposit(
-			project_metadata.token_information.name.as_slice(),
-			project_metadata.token_information.symbol.as_slice(),
-		);
-		let ct_account_deposit = T::ContributionTokenCurrency::deposit_required(0);
+	
 		inst.mint_plmc_to(vec![UserToPLMCBalance::new(
 			issuer.clone(),
-			ed * 2u64.into() + metadata_deposit + ct_account_deposit,
+			ed * 2u64.into()
 		)]);
 		let jwt = get_mock_jwt(issuer.clone(), InvestorType::Institutional, generate_did_from_account(issuer.clone()));
 
@@ -557,11 +553,8 @@ mod benchmarks {
 	}
 
 	// possible branches:
-	// - pays ct account deposit
-	//      - we know this happens only if param x = 0, but we cannot fit it in the linear regression
+	// - is under max evals per user, and needs to bond the evaluation
 	// - is over max evals per user, and needs to unbond the lowest evaluation
-	// 		- this case, we know they paid already for ct account deposit
-
 	fn evaluation_setup<T>(x: u32) -> (BenchInstantiator<T>, ProjectId, UserToUSDBalance<T>, BalanceOf<T>, BalanceOf<T>)
 	where
 		T: Config,
