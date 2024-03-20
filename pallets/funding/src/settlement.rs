@@ -127,7 +127,7 @@ impl<T: Config> Pallet<T> {
         Ok(())
     }
 
-    pub fn do_setllement_failure_contributor(contribution: ContributionInfoOf<T>, project_id: ProjectId) -> DispatchResult {
+    pub fn do_settlement_failure_contributor(contribution: ContributionInfoOf<T>, project_id: ProjectId) -> DispatchResult {
         let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
         ensure!(
 			matches!(project_details.status, ProjectStatus::FundingFailed),

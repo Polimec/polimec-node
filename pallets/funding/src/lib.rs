@@ -1625,19 +1625,71 @@ pub mod pallet {
 
 			// We want at least 5% of max block weight
 			let at_least = MAXIMUM_BLOCK_WEIGHT.saturating_div(20);
-			if remaining_weight.all_gt(at_least)  {
+			if !remaining_weight.any_lt(at_least)  {
 				return Weight::zero();
 			};
 
 			if let Some(project_id) = ProjectSettlementQueue::<T>::get() { 
 				if let Some(project_details) = ProjectsDetails::<T>::get(project_id) {
-					let eval_iter = Evaluations::<T>::iter_key_prefix((project_id,));
-					while remaining_weight.any_gt(at_least) {
-						
-						match project_details.status {
-							ProjectStatus::FundingSuccessful => 
+					let mut eval_iter = Evaluations::<T>::iter_prefix((project_id,));
+					
+					while let Some((_, evaluation)) = eval_iter.next() {
+						if remaining_weight.any_lt(at_least) {
+							return Weight::zero();
 						}
+						let _ = match project_details.status {
+							ProjectStatus::FundingSuccessful => {
+								Self::do_settlement_success_evaluator(evaluation, project_id)
+							},
+							ProjectStatus::FundingFailed | ProjectStatus::EvaluationFailed => {
+								Self::do_settlement_failure_evaluator(evaluation, project_id)
+							},
+							_ => {
+								log::error!("Project status not allowed for settlement: {:?}", project_details.status);
+								Ok(())
+							}
+						};
 					}
+
+					let mut bid_iter = Bids::<T>::iter_prefix((project_id,));
+					
+					while let Some((_, bid)) = bid_iter.next() {
+						if remaining_weight.any_lt(at_least) {
+							return Weight::zero();
+						}
+						let _ = match project_details.status {
+							ProjectStatus::FundingSuccessful => {
+								Self::do_settlement_success_bidder(bid, project_id)
+							},
+							ProjectStatus::FundingFailed => {
+								Self::do_settlement_failure_bidder(bid, project_id)
+							},
+							_ => {
+								log::error!("Project status not allowed for settlement: {:?}", project_details.status);
+								Ok(())
+							}
+						};
+					}
+
+					let mut contribution_iter = Contributions::<T>::iter_prefix((project_id,));
+					
+					while let Some((_, contribution)) = contribution_iter.next() {
+						if remaining_weight.any_lt(at_least) {
+							return Weight::zero();
+						}
+						let _ = match project_details.status {
+							ProjectStatus::FundingSuccessful => {
+								Self::do_settlement_success_contributor(contribution, project_id)
+							},
+							ProjectStatus::FundingFailed => {
+								Self::do_settlement_failure_contributor(contribution, project_id)
+							},
+							_ => {
+								log::error!("Project status not allowed for settlement: {:?}", project_details.status);
+								Ok(())
+							}
+						};
+					};
 					
 
 				} else {
