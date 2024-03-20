@@ -1237,9 +1237,10 @@ mod auction {
 		inst.start_remainder_or_end_funding(project_id).unwrap();
 		inst.finish_funding(project_id).unwrap();
 
-		inst.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get() + 1).unwrap();
-		let details = inst.get_project_details(project_id);
-		assert_eq!(details.cleanup, Cleaner::Success(CleanerState::Finished(PhantomData)));
+		inst.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get()).unwrap();
+		assert_eq!(inst.get_first_settlement_queue_item(), Some(project_id));
+		inst.advance_time(10u64).unwrap();
+		assert_eq!(inst.get_first_settlement_queue_item(), None);
 
 		let plmc_locked_for_accepted_bid =
 			MockInstantiator::calculate_auction_plmc_charged_with_given_price(&accepted_bid, final_price);
@@ -1257,15 +1258,13 @@ mod auction {
 		assert_close_enough!(schedule.unwrap(), accepted_plmc_amount, Perquintill::from_float(0.99));
 
 		let UserToPLMCBalance { account: rejected_user, .. } = plmc_locked_for_rejected_bid[0];
-		let schedule_exists = inst
+		assert!(inst
 			.execute(|| {
 				<TestRuntime as Config>::Vesting::total_scheduled_amount(
 					&rejected_user,
 					HoldReason::Participation(project_id).into(),
 				)
-			})
-			.is_some();
-		assert!(!schedule_exists);
+			}).is_none());
 	}
 
 	// We use the already tested instantiator functions to calculate the correct post-wap returns
@@ -5679,7 +5678,6 @@ mod ct_migration {
 
 		inst.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get() + 20u64).unwrap();
 		let project_details = inst.get_project_details(project_id);
-		assert_eq!(project_details.cleanup, Cleaner::Success(CleanerState::Finished(PhantomData)));
 
 		inst.execute(|| {
 			assert_ok!(crate::Pallet::<TestRuntime>::do_set_para_id_for_project(
@@ -5704,8 +5702,6 @@ mod ct_migration {
 			default_remainder_buys(),
 		);
 		inst.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get() + 20u64).unwrap();
-		let project_details = inst.get_project_details(project_id);
-		assert_eq!(project_details.cleanup, Cleaner::Success(CleanerState::Finished(PhantomData)));
 
 		inst.execute(|| {
 			assert_err!(
