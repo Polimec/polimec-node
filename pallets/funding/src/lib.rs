@@ -1627,65 +1627,7 @@ pub mod pallet {
 			let project_ids: BoundedVec<ProjectId, T::MaxProjectsToSettle> = ProjectSettlementQueue::<T>::get();
 			if let Some(&project_id) = project_ids.first()  { 
 				if let Some(project_details) = ProjectsDetails::<T>::get(project_id) {
-					let mut eval_iter = Evaluations::<T>::iter_prefix((project_id,));
-					
-					while let Some((_, evaluation)) = eval_iter.next() {
-						if remaining_weight.any_lt(at_least) {
-							return Weight::zero();
-						}
-						let _ = match project_details.status {
-							ProjectStatus::FundingSuccessful => {
-								Self::do_settlement_success_evaluator(evaluation, project_id)
-							},
-							ProjectStatus::FundingFailed | ProjectStatus::EvaluationFailed => {
-								Self::do_settlement_failure_evaluator(evaluation, project_id)
-							},
-							_ => {
-								log::error!("Project status not allowed for settlement: {:?}", project_details.status);
-								Ok(())
-							}
-						};
-					}
-
-					let mut bid_iter = Bids::<T>::iter_prefix((project_id,));
-					
-					while let Some((_, bid)) = bid_iter.next() {
-						if remaining_weight.any_lt(at_least) {
-							return Weight::zero();
-						}
-						let _ = match project_details.status {
-							ProjectStatus::FundingSuccessful => {
-								Self::do_settlement_success_bidder(bid, project_id)
-							},
-							ProjectStatus::FundingFailed => {
-								Self::do_settlement_failure_bidder(bid, project_id)
-							},
-							_ => {
-								log::error!("Project status not allowed for settlement: {:?}", project_details.status);
-								Ok(())
-							}
-						};
-					}
-
-					let mut contribution_iter = Contributions::<T>::iter_prefix((project_id,));
-					
-					while let Some((_, contribution)) = contribution_iter.next() {
-						if remaining_weight.any_lt(at_least) {
-							return Weight::zero();
-						}
-						let _ = match project_details.status {
-							ProjectStatus::FundingSuccessful => {
-								Self::do_settlement_success_contributor(contribution, project_id)
-							},
-							ProjectStatus::FundingFailed => {
-								Self::do_settlement_failure_contributor(contribution, project_id)
-							},
-							_ => {
-								log::error!("Project status not allowed for settlement: {:?}", project_details.status);
-								Ok(())
-							}
-						};
-					};
+	
 					
 					ProjectSettlementQueue::<T>::mutate(|queue| {
 						queue.remove(0);
