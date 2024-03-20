@@ -26,7 +26,7 @@ use frame_support::{
 	construct_runtime, ord_parameter_types, parameter_types,
 	traits::{
 		fungible::{Credit, Inspect},
-		tokens, AsEnsureOriginWithArg, ConstU32, Currency, EitherOfDiverse, Everything, PrivilegeCmp, WithdrawReasons,
+		tokens, AsEnsureOriginWithArg, ConstU32, Contains, Currency, EitherOfDiverse, PrivilegeCmp, WithdrawReasons,
 	},
 	weights::{ConstantMultiplier, Weight},
 };
@@ -190,15 +190,24 @@ parameter_types! {
 	pub const SS58Prefix: u8 = 41;
 }
 
-// Configure FRAME pallets to include in runtime.
+pub struct BaseCallFilter;
+impl Contains<RuntimeCall> for BaseCallFilter {
+	fn contains(c: &RuntimeCall) -> bool {
+		match *c {
+			RuntimeCall::ContributionTokens(_) => false,
+			_ => true,
+		}
+	}
+}
 
+// Configure FRAME pallets to include in runtime.
 impl frame_system::Config for Runtime {
 	/// The data to be stored in an account.
 	type AccountData = pallet_balances::AccountData<Balance>;
 	/// The identifier used to distinguish between accounts.
 	type AccountId = AccountId;
 	/// The basic call filter to use in dispatchable.
-	type BaseCallFilter = Everything;
+	type BaseCallFilter = BaseCallFilter;
 	/// The block type.
 	type Block = Block;
 	/// Maximum number of block number to block hash mappings to keep (oldest pruned first).
@@ -896,7 +905,7 @@ construct_runtime!(
 		Balances: pallet_balances::{Pallet, Call, Storage, Config<T>, Event<T>} = 10,
 		TransactionPayment: pallet_transaction_payment::{Pallet, Storage, Event<T>} = 11,
 		AssetTxPayment: pallet_asset_tx_payment::{Pallet, Storage, Event<T>} = 12,
-		ContributionTokens: pallet_assets::<Instance1>::{Pallet, Storage, Event<T>} = 13,
+		ContributionTokens: pallet_assets::<Instance1>::{Pallet, Call, Storage, Event<T>} = 13,
 		ForeignAssets: pallet_assets::<Instance2>::{Pallet, Call, Config<T>, Storage, Event<T>} = 14,
 
 
