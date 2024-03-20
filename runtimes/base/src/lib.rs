@@ -856,7 +856,7 @@ construct_runtime!(
 		Balances: pallet_balances = 10,
 		TransactionPayment: pallet_transaction_payment = 11,
 		Vesting: pallet_vesting = 12,
-		// Leave room for LocalAssets = 13
+		// Leave room for ContributionTokens = 13
 		ForeignAssets: pallet_assets::<Instance2> = 14,
 
 		// Collator support. the order of these 5 are important and shall not change.

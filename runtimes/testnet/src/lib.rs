@@ -565,12 +565,12 @@ impl pallet_identity::Config for Runtime {
 	type WeightInfo = pallet_identity::weights::SubstrateWeight<Runtime>;
 }
 
-pub type LocalAssetsInstance = pallet_assets::Instance1;
+pub type ContributionTokensInstance = pallet_assets::Instance1;
 pub type ForeignAssetsInstance = pallet_assets::Instance2;
 
-impl pallet_assets::Config<LocalAssetsInstance> for Runtime {
+impl pallet_assets::Config<ContributionTokensInstance> for Runtime {
 	type ApprovalDeposit = ExistentialDeposit;
-	type AssetAccountDeposit = AssetAccountDeposit;
+	type AssetAccountDeposit = ZeroAssetAccountDeposit;
 	type AssetDeposit = AssetDeposit;
 	type AssetId = AssetId;
 	type AssetIdParameter = parity_scale_codec::Compact<AssetId>;
@@ -643,14 +643,14 @@ impl pallet_funding::Config for Runtime {
 	type AccountId32Conversion = ConvertSelf;
 	#[cfg(any(test, feature = "runtime-benchmarks", feature = "std"))]
 	type AllPalletsWithoutSystem =
-		(Balances, LocalAssets, ForeignAssets, Oracle, PolimecFunding, LinearRelease, Random);
+		(Balances, ContributionTokens, ForeignAssets, Oracle, PolimecFunding, LinearRelease, Random);
 	type AuctionInitializePeriodDuration = AuctionInitializePeriodDuration;
 	type Balance = Balance;
 	type BlockNumber = BlockNumber;
 	type BlockNumberToBalance = ConvertInto;
 	type CandleAuctionDuration = CandleAuctionDuration;
 	type CommunityFundingDuration = CommunityFundingDuration;
-	type ContributionTokenCurrency = LocalAssets;
+	type ContributionTokenCurrency = ContributionTokens;
 	type ContributionTreasury = TreasuryAccount;
 	type DaysToBlocks = DaysToBlocks;
 	type EnglishAuctionDuration = EnglishAuctionDuration;
@@ -896,7 +896,7 @@ construct_runtime!(
 		Balances: pallet_balances::{Pallet, Call, Storage, Config<T>, Event<T>} = 10,
 		TransactionPayment: pallet_transaction_payment::{Pallet, Storage, Event<T>} = 11,
 		AssetTxPayment: pallet_asset_tx_payment::{Pallet, Storage, Event<T>} = 12,
-		LocalAssets: pallet_assets::<Instance1>::{Pallet, Storage, Event<T>} = 13,
+		ContributionTokens: pallet_assets::<Instance1>::{Pallet, Storage, Event<T>} = 13,
 		ForeignAssets: pallet_assets::<Instance2>::{Pallet, Call, Config<T>, Storage, Event<T>} = 14,
 
 
