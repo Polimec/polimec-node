@@ -157,12 +157,12 @@ pub mod config_types {
 }
 
 pub mod storage_types {
+	use super::*;
 	use crate::US_DOLLAR;
 	use sp_arithmetic::{
 		traits::{One, Saturating, Zero},
 		Percent,
 	};
-	use super::*;
 
 	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
 	#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]

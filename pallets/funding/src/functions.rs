@@ -1357,7 +1357,6 @@ impl<T: Config> Pallet<T> {
 			ct_migration_status: MigrationStatus::NotStarted,
 		};
 
-
 		// Try adding the new contribution to the system
 		Self::try_plmc_participation_lock(contributor, project_id, plmc_bond)?;
 		Self::try_funding_asset_hold(contributor, project_id, funding_asset_amount, asset_id)?;

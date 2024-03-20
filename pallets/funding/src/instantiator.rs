@@ -35,7 +35,7 @@ use frame_support::{
 use frame_system::pallet_prelude::BlockNumberFor;
 use itertools::Itertools;
 use parity_scale_codec::Decode;
-use polimec_common::credentials::{InvestorType};
+use polimec_common::credentials::InvestorType;
 #[cfg(any(test, feature = "std", feature = "runtime-benchmarks"))]
 use polimec_common_test_utils::generate_did_from_account;
 use sp_arithmetic::{
@@ -1126,10 +1126,8 @@ impl<
 
 		self.bond_for_users(project_id, evaluations).unwrap();
 
-		let expected_evaluator_balances = Self::sum_balance_mappings(vec![
-			plmc_eval_deposits.clone(),
-			plmc_existential_deposits.clone(),
-		]);
+		let expected_evaluator_balances =
+			Self::sum_balance_mappings(vec![plmc_eval_deposits.clone(), plmc_existential_deposits.clone()]);
 
 		let expected_total_supply = prev_supply + expected_evaluator_balances;
 
@@ -1227,10 +1225,8 @@ impl<
 			None,
 		);
 
-		let bidder_balances = Self::sum_balance_mappings(vec![
-			necessary_plmc_mint.clone(),
-			plmc_existential_deposits.clone(),
-		]);
+		let bidder_balances =
+			Self::sum_balance_mappings(vec![necessary_plmc_mint.clone(), plmc_existential_deposits.clone()]);
 
 		let expected_free_plmc_balances = Self::generic_map_operation(
 			vec![prev_plmc_balances, plmc_existential_deposits.clone()],
@@ -1390,10 +1386,8 @@ impl<
 		let plmc_existential_deposits = contributors.existential_deposits();
 
 		let funding_asset_deposits = Self::calculate_contributed_funding_asset_spent(contributions.clone(), ct_price);
-		let contributor_balances = Self::sum_balance_mappings(vec![
-			necessary_plmc_mint.clone(),
-			plmc_existential_deposits.clone(),
-		]);
+		let contributor_balances =
+			Self::sum_balance_mappings(vec![necessary_plmc_mint.clone(), plmc_existential_deposits.clone()]);
 
 		let expected_free_plmc_balances = Self::generic_map_operation(
 			vec![prev_plmc_balances, plmc_existential_deposits.clone()],
@@ -1476,10 +1470,8 @@ impl<
 		let funding_asset_deposits =
 			Self::calculate_contributed_funding_asset_spent(remainder_contributions.clone(), ct_price);
 
-		let contributor_balances = Self::sum_balance_mappings(vec![
-			necessary_plmc_mint.clone(),
-			plmc_existential_deposits.clone(),
-		]);
+		let contributor_balances =
+			Self::sum_balance_mappings(vec![necessary_plmc_mint.clone(), plmc_existential_deposits.clone()]);
 
 		let expected_free_plmc_balances = Self::generic_map_operation(
 			vec![prev_plmc_balances, plmc_existential_deposits.clone()],
