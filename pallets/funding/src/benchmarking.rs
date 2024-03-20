@@ -393,11 +393,7 @@ mod benchmarks {
 		whitelist_account!(issuer);
 		let project_metadata = default_project::<T>(inst.get_new_nonce(), issuer.clone());
 
-	
-		inst.mint_plmc_to(vec![UserToPLMCBalance::new(
-			issuer.clone(),
-			ed * 2u64.into()
-		)]);
+		inst.mint_plmc_to(vec![UserToPLMCBalance::new(issuer.clone(), ed * 2u64.into())]);
 		let jwt = get_mock_jwt(issuer.clone(), InvestorType::Institutional, generate_did_from_account(issuer.clone()));
 
 		#[extrinsic_call]

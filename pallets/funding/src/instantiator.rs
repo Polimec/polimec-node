@@ -23,9 +23,8 @@ use frame_support::{
 	traits::{
 		fungible::{Inspect as FungibleInspect, InspectHold as FungibleInspectHold, Mutate as FungibleMutate},
 		fungibles::{
-			metadata::{Inspect as MetadataInspect, MetadataDeposit},
-			roles::Inspect as RolesInspect,
-			Inspect as FungiblesInspect, Mutate as FungiblesMutate,
+			metadata::Inspect as MetadataInspect, roles::Inspect as RolesInspect, Inspect as FungiblesInspect,
+			Mutate as FungiblesMutate,
 		},
 		AccountTouch, Get, OnFinalize, OnIdle, OnInitialize,
 	},
@@ -1025,10 +1024,7 @@ impl<
 	pub fn create_new_project(&mut self, project_metadata: ProjectMetadataOf<T>, issuer: AccountIdOf<T>) -> ProjectId {
 		let now = self.current_block();
 		// one ED for the issuer, one ED for the escrow account
-		self.mint_plmc_to(vec![UserToPLMCBalance::new(
-			issuer.clone(),
-			Self::get_ed() * 2u64.into(),
-		)]);
+		self.mint_plmc_to(vec![UserToPLMCBalance::new(issuer.clone(), Self::get_ed() * 2u64.into())]);
 
 		self.execute(|| {
 			crate::Pallet::<T>::do_create(&issuer, project_metadata.clone(), generate_did_from_account(issuer.clone()))
@@ -1710,7 +1706,7 @@ pub mod async_features {
 		// One ED for the issuer, one for the escrow account
 		inst.mint_plmc_to(vec![UserToPLMCBalance::new(
 			issuer.clone(),
-			Instantiator::<T, AllPalletsWithoutSystem, RuntimeEvent>::get_ed() * 2u64.into()
+			Instantiator::<T, AllPalletsWithoutSystem, RuntimeEvent>::get_ed() * 2u64.into(),
 		)]);
 		inst.execute(|| {
 			crate::Pallet::<T>::do_create(

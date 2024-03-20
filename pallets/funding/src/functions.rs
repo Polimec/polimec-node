@@ -24,10 +24,7 @@ use frame_support::{
 	pallet_prelude::*,
 	traits::{
 		fungible::{Mutate, MutateHold as FungibleMutateHold},
-		fungibles::{
-			metadata::{MetadataDeposit, Mutate as MetadataMutate},
-			Create, Inspect, Mutate as FungiblesMutate,
-		},
+		fungibles::{metadata::Mutate as MetadataMutate, Create, Inspect, Mutate as FungiblesMutate},
 		tokens::{Fortitude, Precision, Preservation, Restriction},
 		Get,
 	},
@@ -134,7 +131,6 @@ impl<T: Config> Pallet<T> {
 			Preservation::Preserve,
 		)
 		.map_err(|_| Error::<T>::NotEnoughFundsForEscrowCreation)?;
-
 
 		// * Update storage *
 		ProjectsMetadata::<T>::insert(project_id, &initial_metadata);
