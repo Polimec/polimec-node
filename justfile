@@ -21,9 +21,10 @@ test-integration:
 
 # src: https://github.com/polkadot-fellows/runtimes/blob/48ccfae6141d2924f579d81e8b1877efd208693f/system-parachains/asset-hubs/asset-hub-polkadot/src/weights/cumulus_pallet_xcmp_queue.rs
 # Benchmark a specific pallet on the "Base" Runtime
-benchmark-runtime pallet="pallet-elections-phragmen" features="runtime-benchmarks":
+# TODO: Adjust the `--chain` flag to match the chain you are benchmarking
+benchmark-runtime chain="base-rococo" pallet="pallet-elections-phragmen" features="runtime-benchmarks":
     cargo run --features {{ features }} --release -p polimec-parachain-node benchmark pallet \
-      --chain=base-rococo \
+      --chain={{ chain }} \
       --steps=50 \
       --repeat=20 \
       --pallet={{ pallet }} \
@@ -34,9 +35,10 @@ benchmark-runtime pallet="pallet-elections-phragmen" features="runtime-benchmark
 
 # src: https://github.com/paritytech/polkadot-sdk/blob/bc2e5e1fe26e2c2c8ee766ff9fe7be7e212a0c62/substrate/frame/nfts/src/weights.rs
 # Run the Runtime benchmarks for a specific pallet
-benchmark-pallet pallet="pallet-elections-phragmen" features="runtime-benchmarks":
+# TODO: Adjust the `--chain` flag to match the chain you are benchmarking
+benchmark-pallet chain="base-rococo"  pallet="pallet-elections-phragmen" features="runtime-benchmarks":
     cargo run --features {{ features }} --release -p polimec-parachain-node benchmark pallet \
-      --chain=base-rococo \
+      --chain={{ chain }} \
       --steps=50 \
       --repeat=20 \
       --pallet={{ pallet }}  \
