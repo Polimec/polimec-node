@@ -1,17 +1,13 @@
 use super::*;
-use crate::{
-	traits::{BondingRequirementCalculation, ProvideAssetPrice, VestingDurationCalculation},
-	ProjectStatus::FundingSuccessful,
-};
+
 use frame_support::{
-	dispatch::{DispatchErrorWithPostInfo, DispatchResult, DispatchResultWithPostInfo, PostDispatchInfo},
+	dispatch::{ DispatchResult},
 	ensure,
 	pallet_prelude::*,
 	traits::{
-		fungible::{InspectHold, Mutate, MutateHold as FungibleMutateHold},
+		fungible::{InspectHold, MutateHold as FungibleMutateHold},
 		fungibles::{
-			metadata::{MetadataDeposit, Mutate as MetadataMutate},
-			Create, Inspect, Mutate as FungiblesMutate,
+            Inspect, Mutate as FungiblesMutate,
 		},
 		tokens::{Fortitude, Precision, Preservation, Restriction},
 		Get,
@@ -165,7 +161,7 @@ impl<T: Config> Pallet<T> {
         // 3. Not slashed or Rewarded.
         let bond = match project_details.evaluation_round_info.evaluators_outcome {
             EvaluatorsOutcome::Slashed => Self::slash_evaluator(project_id, &evaluation)?,
-            EvaluatorsOutcome::Rewarded(info) => Self::reward_evaluator(project_id, &evaluation, info)?,
+            EvaluatorsOutcome::Rewarded(info) => Self::reward_evaluator(project_id, &evaluation, &info)?,
             EvaluatorsOutcome::Unchanged => evaluation.current_plmc_bond,
         };
 
@@ -284,10 +280,17 @@ impl<T: Config> Pallet<T> {
         Ok(evaluation.current_plmc_bond.saturating_sub(slashed_amount))
     }
 
-    fn reward_evaluator(project_id: ProjectId, evaluation: &EvaluationInfoOf<T>, info: RewardInfoOf<T>) -> Result<BalanceOf<T>, DispatchError> {
+    fn reward_evaluator(project_id: ProjectId, evaluation: &EvaluationInfoOf<T>, info: &RewardInfoOf<T>) -> Result<BalanceOf<T>, DispatchError> {
         
-        // * Calculate variables *
-		let early_reward_weight = Perquintill::from_rational(
+
+        let reward = Self::calculate_evaluator_reward(evaluation, &info);
+        Self::mint_ct_tokens(project_id, &evaluation.evaluator, reward)?;
+
+        Ok(evaluation.current_plmc_bond)
+    }
+
+    pub fn calculate_evaluator_reward(evaluation: &EvaluationInfoOf<T>, info: &RewardInfoOf<T>) -> BalanceOf<T> {
+        let early_reward_weight = Perquintill::from_rational(
             evaluation.early_usd_amount, 
             info.early_evaluator_total_bonded_usd
         );
@@ -298,9 +301,6 @@ impl<T: Config> Pallet<T> {
         let early_evaluators_rewards = early_reward_weight * info.early_evaluator_reward_pot;
         let normal_evaluators_rewards = normal_reward_weight * info.normal_evaluator_reward_pot;
         let total_reward_amount = early_evaluators_rewards.saturating_add(normal_evaluators_rewards);
-
-        Self::mint_ct_tokens(project_id, &evaluation.evaluator, total_reward_amount)?;
-
-        Ok(evaluation.current_plmc_bond)
+        total_reward_amount
     }
 }

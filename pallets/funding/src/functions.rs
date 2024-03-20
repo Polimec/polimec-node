@@ -332,6 +332,7 @@ impl<T: Config> Pallet<T> {
 			project_details.status = ProjectStatus::EvaluationFailed;
 			project_details.cleanup = Cleaner::Failure(CleanerState::Initialized(PhantomData::<Failure>));
 			ProjectsDetails::<T>::insert(project_id, project_details);
+			ProjectSettlementQueue::<T>::try_append(project_id).map_err(|_| Error::<T>::TooManyProjectsInSettlementQueue)?;
 
 			// * Emit events *
 			Self::deposit_event(Event::EvaluationFailed { project_id });
@@ -892,11 +893,14 @@ impl<T: Config> Pallet<T> {
 				liquidity_pools_ct_amount,
 			)?;
 
+			ProjectSettlementQueue::<T>::try_append(project_id).map_err(|_| Error::<T>::TooManyProjectsInSettlementQueue)?;
+
 			Ok(PostDispatchInfo {
 				actual_weight: Some(WeightInfoOf::<T>::start_settlement_funding_success()),
 				pays_fee: Pays::Yes,
 			})
 		} else {
+			ProjectSettlementQueue::<T>::try_append(project_id).map_err(|_| Error::<T>::TooManyProjectsInSettlementQueue)?;
 			Ok(PostDispatchInfo {
 				actual_weight: Some(WeightInfoOf::<T>::start_settlement_funding_failure()),
 				pays_fee: Pays::Yes,
