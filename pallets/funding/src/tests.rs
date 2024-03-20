@@ -3908,12 +3908,11 @@ mod funding_end {
 		);
 		let details = inst.get_project_details(project_id);
 		assert_eq!(details.status, ProjectStatus::FundingSuccessful);
-		assert_eq!(details.cleanup, Cleaner::NotReady);
-		inst.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get()).unwrap();
 
-		inst.advance_time(10u64).unwrap();
-		let details = inst.get_project_details(project_id);
-		assert_eq!(details.cleanup, Cleaner::Success(CleanerState::Finished(PhantomData)));
+		let reward_info = match details.evaluation_round_info.evaluators_outcome {
+			EvaluatorsOutcome::Rewarded(reward_info) => Some(reward_info),
+			_ => None,
+		};
 
 		let evaluators = evaluations.accounts();
 		let evaluator_ct_amounts = evaluators
@@ -3922,17 +3921,17 @@ mod funding_end {
 				let evaluations = inst.execute(|| {
 					Evaluations::<TestRuntime>::iter_prefix_values((project_id, account.clone())).collect::<Vec<_>>()
 				});
-				let total_evaluator_ct_rewarded = evaluations
-					.iter()
-					.map(|evaluation| evaluation.rewarded_or_slashed)
-					.map(|reward_or_slash| {
-						if let Some(RewardOrSlash::Reward(balance)) = reward_or_slash {
-							balance
-						} else {
-							Zero::zero()
-						}
-					})
-					.sum::<u128>();
+				let total_evaluator_ct_rewarded = match reward_info.clone() {
+					Some(info) => {
+						evaluations
+							.iter()
+							.map(|evaluation| {
+								Pallet::<TestRuntime>::calculate_evaluator_reward(evaluation, &info)
+							})
+							.sum::<u128>()
+					},
+					None => Zero::zero()
+				};
 
 				(account, total_evaluator_ct_rewarded)
 			})
@@ -3972,6 +3971,10 @@ mod funding_end {
 			Zero::zero(),
 			|item, accumulator| accumulator + item.1,
 		);
+
+		inst.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get()).unwrap();
+		assert_eq!(inst.execute(|| {ProjectSettlementQueue::<TestRuntime>::get().len()}), 1);
+		inst.advance_time(10u64).unwrap();
 
 		for (account, amount) in all_ct_expectations {
 			let minted =

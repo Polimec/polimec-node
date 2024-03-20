@@ -334,6 +334,10 @@ pub mod pallet {
 		#[pallet::constant]
 		type MaxMessageSizeThresholds: Get<(u32, u32)>;
 
+		/// Max Projects to add to settlement queue.
+		#[pallet::constant]
+		type MaxProjectsToSettle: Get<u32>;
+
 		/// max iterations for trying to insert a project on the projects_to_update storage
 		#[pallet::constant]
 		type MaxProjectsToUpdateInsertionAttempts: Get<u32>;
@@ -551,7 +555,7 @@ pub mod pallet {
 	>;
 
 	#[pallet::storage]
-	pub type ProjectSettlementQueue<T: Config> = StorageValue<_, ProjectId>;
+	pub type ProjectSettlementQueue<T: Config> = StorageValue<_, BoundedVec<ProjectId, T::MaxProjectsToSettle>, ValueQuery>;
 
 	#[pallet::storage]
 	/// Migrations sent and awaiting for confirmation
@@ -963,6 +967,8 @@ pub mod pallet {
 		TooManyEvaluationsForProject,
 		/// Reached contribution limit for this user on this project
 		TooManyContributionsForUser,
+		/// Reached the settlement queue limit.
+		TooManyProjectsInSettlementQueue,
 		// Participant tried to do a community contribution but it already had a winning bid on the auction round.
 		UserHasWinningBids,
 		// Round transition already happened.
@@ -1615,11 +1621,11 @@ pub mod pallet {
 
 			// We want at least 5% of max block weight
 			let at_least = MAXIMUM_BLOCK_WEIGHT.saturating_div(20);
-			if !remaining_weight.any_lt(at_least)  {
+			if remaining_weight.any_lt(at_least)  {
 				return Weight::zero();
 			};
-
-			if let Some(project_id) = ProjectSettlementQueue::<T>::get() { 
+			let project_ids: BoundedVec<ProjectId, T::MaxProjectsToSettle> = ProjectSettlementQueue::<T>::get();
+			if let Some(&project_id) = project_ids.first()  { 
 				if let Some(project_details) = ProjectsDetails::<T>::get(project_id) {
 					let mut eval_iter = Evaluations::<T>::iter_prefix((project_id,));
 					
@@ -1681,6 +1687,9 @@ pub mod pallet {
 						};
 					};
 					
+					ProjectSettlementQueue::<T>::mutate(|queue| {
+						queue.remove(0);
+					});
 
 				} else {
 					log::error!("Project details not found for project_id: {:?} in ProjectSettlementQueue", project_id);
