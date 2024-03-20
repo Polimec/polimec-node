@@ -18,7 +18,7 @@
 use crate::*;
 
 // Substrate
-use frame_support::{traits::tokens::Precision::Exact};
+use frame_support::traits::tokens::Precision::Exact;
 #[cfg(feature = "try-runtime")]
 use log;
 

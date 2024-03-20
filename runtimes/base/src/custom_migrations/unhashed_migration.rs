@@ -18,7 +18,7 @@
 use crate::*;
 
 // Substrate
-use frame_support::{storage::unhashed};
+use frame_support::storage::unhashed;
 use sp_runtime::AccountId32;
 
 #[cfg(feature = "try-runtime")]
