@@ -1021,6 +1021,15 @@ impl<
 		self.execute(|| ProjectsDetails::<T>::get(project_id).expect("Project details exists"))
 	}
 
+	pub fn get_first_settlement_queue_item(&mut self) -> Option<ProjectId>{
+		self.execute(|| {
+			match ProjectSettlementQueue::<T>::get().first() {
+				Some(project_id) => Some(*project_id),
+				None => None,
+			}
+		})
+	}
+
 	pub fn get_update_block(&mut self, project_id: ProjectId, update_type: &UpdateType) -> Option<BlockNumberFor<T>> {
 		self.execute(|| {
 			ProjectsToUpdate::<T>::iter().find_map(|(block, update_vec)| {
