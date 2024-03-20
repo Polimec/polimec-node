@@ -77,6 +77,7 @@ sp-session.workspace = true
 sp-std.workspace = true
 sp-transaction-pool.workspace = true
 sp-version.workspace = true
+sp-genesis-builder.workspace = true
 
 # Polkadot
 pallet-xcm.workspace = true
@@ -171,6 +172,7 @@ std = [
 	"sp-consensus-aura/std",
 	"sp-core/std",
 	"sp-debug-derive/std",
+	"sp-genesis-builder/std",
 	"sp-inherents/std",
 	"sp-io/std",
 	"sp-offchain/std",

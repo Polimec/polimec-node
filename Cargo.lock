@@ -8495,6 +8495,7 @@ dependencies = [
  "sp-consensus-aura",
  "sp-core",
  "sp-debug-derive",
+ "sp-genesis-builder",
  "sp-inherents",
  "sp-io",
  "sp-offchain",
