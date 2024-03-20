@@ -29,7 +29,7 @@ use frame_support::{
 };
 use frame_system as system;
 use frame_system::EnsureRoot;
-use polimec_common::credentials::{EnsureInvestor, Institutional, Professional, Retail};
+use polimec_common::credentials::EnsureInvestor;
 use sp_arithmetic::Percent;
 use sp_core::H256;
 use sp_runtime::{
@@ -53,7 +53,7 @@ pub const EXISTENTIAL_DEPOSIT: Balance = 10 * MILLI_PLMC;
 
 const US_DOLLAR: u128 = 1_0_000_000_000u128;
 
-pub type LocalAssetsInstance = pallet_assets::Instance1;
+pub type ContributionTokensInstance = pallet_assets::Instance1;
 pub type ForeignAssetsInstance = pallet_assets::Instance2;
 
 pub type AssetId = u32;
@@ -146,6 +146,7 @@ impl pallet_xcm::Config for TestRuntime {
 parameter_types! {
 	pub const AssetDeposit: Balance = PLMC; // 1 UNIT deposit to create asset
 	pub const AssetAccountDeposit: Balance = deposit(1, 16);
+	pub const ZeroAssetAccountDeposit: Balance = free_deposit();
 	pub const AssetsStringLimit: u32 = 50;
 	// https://github.com/paritytech/substrate/blob/069917b/frame/assets/src/lib.rs#L257L271
 	pub const MetadataDepositBase: Balance = free_deposit();
@@ -153,9 +154,9 @@ parameter_types! {
 	pub const ApprovalDeposit: Balance = EXISTENTIAL_DEPOSIT;
 
 }
-impl pallet_assets::Config<LocalAssetsInstance> for TestRuntime {
+impl pallet_assets::Config<ContributionTokensInstance> for TestRuntime {
 	type ApprovalDeposit = ApprovalDeposit;
-	type AssetAccountDeposit = AssetAccountDeposit;
+	type AssetAccountDeposit = ZeroAssetAccountDeposit;
 	type AssetDeposit = AssetDeposit;
 	type AssetId = AssetId;
 	type AssetIdParameter = parity_scale_codec::Compact<AssetId>;
@@ -344,14 +345,14 @@ impl ConvertBack<AccountId, [u8; 32]> for DummyConverter {
 impl Config for TestRuntime {
 	type AccountId32Conversion = DummyConverter;
 	type AllPalletsWithoutSystem =
-		(Balances, LocalAssets, ForeignAssets, PolimecFunding, Vesting, RandomnessCollectiveFlip);
+		(Balances, ContributionTokens, ForeignAssets, PolimecFunding, Vesting, RandomnessCollectiveFlip);
 	type AuctionInitializePeriodDuration = AuctionInitializePeriodDuration;
 	type Balance = Balance;
 	type BlockNumber = BlockNumber;
 	type BlockNumberToBalance = ConvertInto;
 	type CandleAuctionDuration = CandleAuctionDuration;
 	type CommunityFundingDuration = CommunityRoundDuration;
-	type ContributionTokenCurrency = LocalAssets;
+	type ContributionTokenCurrency = ContributionTokens;
 	type ContributionTreasury = ContributionTreasury;
 	type DaysToBlocks = DaysToBlocks;
 	type EnglishAuctionDuration = EnglishAuctionDuration;
@@ -405,7 +406,7 @@ construct_runtime!(
 		RandomnessCollectiveFlip: pallet_insecure_randomness_collective_flip,
 		Balances: pallet_balances,
 		Vesting: pallet_linear_release,
-		LocalAssets: pallet_assets::<Instance1>::{Pallet, Call, Storage, Event<T>},
+		ContributionTokens: pallet_assets::<Instance1>::{Pallet, Call, Storage, Event<T>},
 		ForeignAssets: pallet_assets::<Instance2>::{Pallet, Call, Storage, Event<T>, Config<T>},
 		PolkadotXcm: pallet_xcm,
 		PolimecFunding: pallet_funding::{Pallet, Call, Storage, Event<T>, Config<T>, HoldReason}  = 52,
