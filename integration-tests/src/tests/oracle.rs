@@ -39,16 +39,16 @@ fn values(
 fn members_can_feed_data() {
 	let mut inst = IntegrationInstantiator::new(None);
 
-	PoliNet::execute_with(|| {
+	PolitestNet::execute_with(|| {
 		// pallet_funding genesis builder already inputs prices, so we need to advance one block to feed new values.
 		inst.advance_time(1u32).unwrap();
-		let alice = PoliNet::account_id_of(ALICE);
+		let alice = PolitestNet::account_id_of(ALICE);
 		assert_ok!(Oracle::feed_values(RuntimeOrigin::signed(alice.clone()), values([4.84, 1.0, 1.0, 0.4])));
 
-		let bob = PoliNet::account_id_of(BOB);
+		let bob = PolitestNet::account_id_of(BOB);
 		assert_ok!(Oracle::feed_values(RuntimeOrigin::signed(bob.clone()), values([4.84, 1.0, 1.0, 0.4])));
 
-		let charlie = PoliNet::account_id_of(CHARLIE);
+		let charlie = PolitestNet::account_id_of(CHARLIE);
 		assert_ok!(Oracle::feed_values(RuntimeOrigin::signed(charlie.clone()), values([4.84, 1.0, 1.0, 0.4])));
 
 		let expected_values = HashMap::from([
@@ -67,8 +67,8 @@ fn members_can_feed_data() {
 
 #[test]
 fn non_members_cannot_feed_data() {
-	PoliNet::execute_with(|| {
-		let dave = PoliNet::account_id_of(DAVE);
+	PolitestNet::execute_with(|| {
+		let dave = PolitestNet::account_id_of(DAVE);
 		assert_noop!(
 			Oracle::feed_values(RuntimeOrigin::signed(dave.clone()), values([4.84, 1.0, 1.0, 0.4])),
 			orml_oracle::Error::<politest_runtime::Runtime, ()>::NoPermission
@@ -79,17 +79,17 @@ fn non_members_cannot_feed_data() {
 #[test]
 fn data_is_correctly_combined() {
 	let mut inst = IntegrationInstantiator::new(None);
-	PoliNet::execute_with(|| {
+	PolitestNet::execute_with(|| {
 		// pallet_funding genesis builder already inputs prices, so we need to advance one block to feed new values.
 		inst.advance_time(1u32).unwrap();
 
-		let alice = PoliNet::account_id_of(ALICE);
+		let alice = PolitestNet::account_id_of(ALICE);
 		assert_ok!(Oracle::feed_values(RuntimeOrigin::signed(alice.clone()), values([1.0, 1.5, 1.1, 0.11111])));
 
-		let bob = PoliNet::account_id_of(BOB);
+		let bob = PolitestNet::account_id_of(BOB);
 		assert_ok!(Oracle::feed_values(RuntimeOrigin::signed(bob.clone()), values([2.0, 1.0, 1.2, 0.22222])));
 
-		let charlie = PoliNet::account_id_of(CHARLIE);
+		let charlie = PolitestNet::account_id_of(CHARLIE);
 		assert_ok!(Oracle::feed_values(RuntimeOrigin::signed(charlie.clone()), values([3.0, 0.8, 1.1, 0.33333])));
 
 		// Default CombineData implementation is the median value
@@ -111,17 +111,17 @@ fn data_is_correctly_combined() {
 fn pallet_funding_works() {
 	let mut inst = IntegrationInstantiator::new(None);
 
-	PoliNet::execute_with(|| {
+	PolitestNet::execute_with(|| {
 		// pallet_funding genesis builder already inputs prices, so we need to advance one block to feed new values.
 		inst.advance_time(1u32).unwrap();
 
-		let alice = PoliNet::account_id_of(ALICE);
+		let alice = PolitestNet::account_id_of(ALICE);
 		assert_ok!(Oracle::feed_values(RuntimeOrigin::signed(alice.clone()), values([4.84, 1.0, 1.0, 0.4])));
 
-		let bob = PoliNet::account_id_of(BOB);
+		let bob = PolitestNet::account_id_of(BOB);
 		assert_ok!(Oracle::feed_values(RuntimeOrigin::signed(bob.clone()), values([4.84, 1.0, 1.0, 0.4])));
 
-		let charlie = PoliNet::account_id_of(CHARLIE);
+		let charlie = PolitestNet::account_id_of(CHARLIE);
 		assert_ok!(Oracle::feed_values(RuntimeOrigin::signed(charlie.clone()), values([4.84, 1.0, 1.0, 0.4])));
 
 		let _project_id = inst.create_finished_project(

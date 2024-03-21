@@ -13,7 +13,7 @@
 
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
-use crate::PolimecRuntime;
+use crate::PolitestRuntime;
 use frame_support::BoundedVec;
 pub use pallet_funding::instantiator::{BidParams, ContributionParams, UserToPLMCBalance, UserToUSDBalance};
 use pallet_funding::{
@@ -100,7 +100,7 @@ pub fn default_project_metadata(nonce: u32, issuer: AccountId) -> ProjectMetadat
 		offchain_information_hash: Some(metadata_hash(nonce)),
 	}
 }
-pub fn default_evaluations() -> Vec<UserToUSDBalance<PolimecRuntime>> {
+pub fn default_evaluations() -> Vec<UserToUSDBalance<PolitestRuntime>> {
 	vec![
 		UserToUSDBalance::new(EVAL_1.into(), 500_000 * PLMC),
 		UserToUSDBalance::new(EVAL_2.into(), 250_000 * PLMC),

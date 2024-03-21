@@ -27,14 +27,15 @@ use politest_runtime::PolimecFunding;
 use sp_runtime::{traits::Convert, FixedPointNumber, Perquintill};
 use std::collections::HashMap;
 use tests::defaults::*;
+
 fn execute_cleaner(inst: &mut IntegrationInstantiator) {
-	PoliNet::execute_with(|| {
-		dbg!(<PolimecRuntime as pallet_funding::Config>::SuccessToSettlementTime::get() + 25u32);
-		inst.advance_time(<PolimecRuntime as pallet_funding::Config>::SuccessToSettlementTime::get() + 25u32).unwrap();
+	PolitestNet::execute_with(|| {
+		dbg!(<PolitestRuntime as pallet_funding::Config>::SuccessToSettlementTime::get() + 25u32);
+		inst.advance_time(<PolitestRuntime as pallet_funding::Config>::SuccessToSettlementTime::get() + 25u32).unwrap();
 	});
 }
 fn mock_hrmp_establishment(project_id: u32) {
-	PoliNet::execute_with(|| {
+	PolitestNet::execute_with(|| {
 		assert_ok!(PolimecFunding::do_set_para_id_for_project(&ISSUER.into(), project_id, ParaId::from(6969u32)));
 
 		let open_channel_message = xcm::v3::opaque::Instruction::HrmpNewChannelOpenRequest {
@@ -55,15 +56,15 @@ fn mock_hrmp_establishment(project_id: u32) {
 }
 
 fn assert_migration_is_ready(project_id: u32) {
-	PoliNet::execute_with(|| {
-		let project_details = pallet_funding::ProjectsDetails::<PolimecRuntime>::get(project_id).unwrap();
+	PolitestNet::execute_with(|| {
+		let project_details = pallet_funding::ProjectsDetails::<PolitestRuntime>::get(project_id).unwrap();
 		assert!(project_details.migration_readiness_check.unwrap().is_ready())
 	});
 }
 
 fn send_migrations(project_id: ProjectId, accounts: Vec<AccountId>) -> HashMap<AccountId, Migrations> {
 	let mut output = HashMap::new();
-	PoliNet::execute_with(|| {
+	PolitestNet::execute_with(|| {
 		for account in accounts {
 			assert_ok!(PolimecFunding::migrate_one_participant(
 				PolitestOrigin::signed(account.clone()),
@@ -196,9 +197,9 @@ fn migrations_are_confirmed(project_id: u32, grouped_migrations: Vec<Migrations>
 			origins
 		})
 		.collect::<Vec<_>>();
-	PoliNet::execute_with(|| {
+	PolitestNet::execute_with(|| {
 		assert_expected_events!(
-			PoliNet,
+			PolitestNet,
 			vec![
 				PolitestEvent::PolimecFunding(pallet_funding::Event::MigrationsConfirmed{project_id, migration_origins}) => {
 					project_id: project_id == project_id,
@@ -277,7 +278,7 @@ fn migrations_are_vested(grouped_migrations: Vec<Migrations>) {
 #[test]
 fn migration_check() {
 	let mut inst = IntegrationInstantiator::new(None);
-	let project_id = PoliNet::execute_with(|| {
+	let project_id = PolitestNet::execute_with(|| {
 		let project_id = inst.create_finished_project(
 			default_project_metadata(0, ISSUER.into()),
 			ISSUER.into(),
@@ -304,7 +305,7 @@ fn migration_is_sent() {
 			.into_iter()
 			.map(|x| AccountId::from(x))
 			.collect::<Vec<_>>();
-	let project_id = PoliNet::execute_with(|| {
+	let project_id = PolitestNet::execute_with(|| {
 		inst.create_finished_project(
 			default_project_metadata(0, ISSUER.into()),
 			ISSUER.into(),
@@ -315,9 +316,9 @@ fn migration_is_sent() {
 		)
 	});
 
-	PoliNet::execute_with(|| {
+	PolitestNet::execute_with(|| {
 		dbg!(PolimecSystem::block_number());
-		dbg!(ProjectsToUpdate::<PolimecRuntime>::iter().collect::<Vec<_>>());
+		dbg!(ProjectsToUpdate::<PolitestRuntime>::iter().collect::<Vec<_>>());
 	});
 
 	execute_cleaner(&mut inst);
@@ -337,7 +338,7 @@ fn migration_is_executed_on_project_and_confirmed_on_polimec() {
 			.into_iter()
 			.map(|x| AccountId::from(x))
 			.collect::<Vec<_>>();
-	let project_id = PoliNet::execute_with(|| {
+	let project_id = PolitestNet::execute_with(|| {
 		inst.create_finished_project(
 			default_project_metadata(0, ISSUER.into()),
 			ISSUER.into(),
@@ -373,7 +374,7 @@ fn vesting_over_several_blocks_on_project() {
 	let community_contributions = default_community_contributions();
 	let remainder_contributions = default_remainder_contributions();
 
-	let project_id = PoliNet::execute_with(|| {
+	let project_id = PolitestNet::execute_with(|| {
 		inst.create_finished_project(
 			default_project_metadata(0, ISSUER.into()),
 			ISSUER.into(),
@@ -406,7 +407,7 @@ fn vesting_over_several_blocks_on_project() {
 fn disallow_duplicated_migrations_on_receiver_pallet() {
 	let mut inst = IntegrationInstantiator::new(None);
 
-	let project_id = PoliNet::execute_with(|| {
+	let project_id = PolitestNet::execute_with(|| {
 		inst.create_finished_project(
 			default_project_metadata(0, ISSUER.into()),
 			ISSUER.into(),
@@ -417,7 +418,7 @@ fn disallow_duplicated_migrations_on_receiver_pallet() {
 		)
 	});
 
-	let project_details = PoliNet::execute_with(|| inst.get_project_details(project_id));
+	let project_details = PolitestNet::execute_with(|| inst.get_project_details(project_id));
 	if let EvaluatorsOutcome::Rewarded(info) = project_details.evaluation_round_info.evaluators_outcome {
 		println!("rewarded: {:?}", info);
 	} else {
@@ -460,15 +461,15 @@ fn disallow_duplicated_migrations_on_receiver_pallet() {
 			let max_weight = Weight::from_parts(700_000_000, 10_000);
 			let mut instructions = xcm.into_inner();
 			instructions.push(ReportTransactStatus(QueryResponseInfo {
-				destination: ParentThen(X1(Parachain(PoliNet::para_id().into()))).into(),
+				destination: ParentThen(X1(Parachain(PolitestNet::para_id().into()))).into(),
 				query_id: 69,
 				max_weight,
 			}));
 			let xcm = Xcm(instructions);
 			let project_multilocation = MultiLocation { parents: 1, interior: X1(Parachain(PenNet::para_id().into())) };
 
-			PoliNet::execute_with(|| {
-				PolimecXcmPallet::send_xcm(Here, project_multilocation, xcm).unwrap();
+			PolitestNet::execute_with(|| {
+				PolitestXcmPallet::send_xcm(Here, project_multilocation, xcm).unwrap();
 			});
 		}
 	}

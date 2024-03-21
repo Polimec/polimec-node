@@ -271,7 +271,7 @@ fn evaluation_round_completed() {
 	let project = excel_project(inst.get_new_nonce());
 	let evaluations = excel_evaluators();
 
-	PoliNet::execute_with(|| {
+	PolitestNet::execute_with(|| {
 		inst.create_auctioning_project(project, issuer, evaluations);
 	});
 }
@@ -285,7 +285,7 @@ fn auction_round_completed() {
 	let evaluations = excel_evaluators();
 	let bids = excel_bidders();
 
-	PoliNet::execute_with(|| {
+	PolitestNet::execute_with(|| {
 		let project_id = inst.create_community_contributing_project(project, issuer, evaluations, bids);
 		let wavgp_from_excel = 10.202357561;
 		// Convert the float to a FixedU128
@@ -315,7 +315,7 @@ fn auction_round_completed() {
 fn community_round_completed() {
 	let mut inst = IntegrationInstantiator::new(None);
 
-	PoliNet::execute_with(|| {
+	PolitestNet::execute_with(|| {
 		let _ = inst.create_remainder_contributing_project(
 			excel_project(0),
 			ISSUER.into(),
@@ -340,7 +340,7 @@ fn community_round_completed() {
 fn remainder_round_completed() {
 	let mut inst = IntegrationInstantiator::new(None);
 
-	PoliNet::execute_with(|| {
+	PolitestNet::execute_with(|| {
 		let project_id = inst.create_finished_project(
 			excel_project(0),
 			ISSUER.into(),
@@ -377,7 +377,7 @@ fn remainder_round_completed() {
 fn funds_raised() {
 	let mut inst = IntegrationInstantiator::new(None);
 
-	PoliNet::execute_with(|| {
+	PolitestNet::execute_with(|| {
 		let project_id = inst.create_finished_project(
 			excel_project(0),
 			ISSUER.into(),
@@ -390,7 +390,7 @@ fn funds_raised() {
 		inst.execute(|| {
 			let project_specific_account: AccountId = PolitestFundingPallet::fund_account_id(project_id);
 			let stored_usdt_funded =
-				PolimecForeignAssets::balance(AcceptedFundingAsset::USDT.to_assethub_id(), project_specific_account);
+				PolitestForeignAssets::balance(AcceptedFundingAsset::USDT.to_assethub_id(), project_specific_account);
 			let excel_usdt_funded = 1_004_256_0_140_000_000;
 			assert_close_enough!(stored_usdt_funded, excel_usdt_funded, Perquintill::from_float(0.99));
 		})
@@ -401,7 +401,7 @@ fn funds_raised() {
 fn ct_minted() {
 	let mut inst = IntegrationInstantiator::new(None);
 
-	PoliNet::execute_with(|| {
+	PolitestNet::execute_with(|| {
 		let _ = inst.create_finished_project(
 			excel_project(0),
 			ISSUER.into(),
@@ -426,7 +426,7 @@ fn ct_minted() {
 fn ct_migrated() {
 	let mut inst = IntegrationInstantiator::new(None);
 
-	let project_id = PoliNet::execute_with(|| {
+	let project_id = PolitestNet::execute_with(|| {
 		let project_id = inst.create_finished_project(
 			excel_project(0),
 			ISSUER.into(),
@@ -448,13 +448,13 @@ fn ct_migrated() {
 		project_id
 	});
 
-	let project_details = PoliNet::execute_with(|| inst.get_project_details(project_id));
+	let project_details = PolitestNet::execute_with(|| inst.get_project_details(project_id));
 	assert!(matches!(project_details.evaluation_round_info.evaluators_outcome, EvaluatorsOutcome::Rewarded(_)));
 
 	// Mock HRMP establishment
-	PoliNet::execute_with(|| {
-		let account_id: PolimecAccountId = ISSUER.into();
-		assert_ok!(PolimecFunding::do_set_para_id_for_project(&ISSUER.into(), project_id, ParaId::from(6969u32),));
+	PolitestNet::execute_with(|| {
+		let account_id: PolitestAccountId = ISSUER.into();
+		assert_ok!(PolitestFundingPallet::do_set_para_id_for_project(&ISSUER.into(), project_id, ParaId::from(6969u32),));
 		let open_channel_message = xcm::v3::opaque::Instruction::HrmpNewChannelOpenRequest {
 			sender: 6969,
 			max_message_size: 102_300,
@@ -472,8 +472,8 @@ fn ct_migrated() {
 	});
 
 	// Migration is ready
-	PoliNet::execute_with(|| {
-		let project_details = pallet_funding::ProjectsDetails::<PolimecRuntime>::get(project_id).unwrap();
+	PolitestNet::execute_with(|| {
+		let project_details = pallet_funding::ProjectsDetails::<PolitestRuntime>::get(project_id).unwrap();
 		assert!(project_details.migration_readiness_check.unwrap().is_ready())
 	});
 
@@ -493,9 +493,9 @@ fn ct_migrated() {
 	let names = names();
 
 	for account in accounts {
-		PoliNet::execute_with(|| {
-			assert_ok!(PolimecFunding::migrate_one_participant(
-				PolimecOrigin::signed(account.clone()),
+		PolitestNet::execute_with(|| {
+			assert_ok!(PolitestFundingPallet::migrate_one_participant(
+				PolitestOrigin::signed(account.clone()),
 				project_id,
 				account.clone()
 			));

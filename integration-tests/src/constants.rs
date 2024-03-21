@@ -318,7 +318,7 @@ pub mod asset_hub {
 // Polimec
 pub mod politest {
 	use super::*;
-	use crate::{Polimec, PolimecRuntime, PolkadotNet};
+	use crate::{Polimec, PolitestRuntime, PolkadotNet};
 	use pallet_funding::AcceptedFundingAsset;
 	use sp_runtime::traits::AccountIdConversion;
 	use xcm::v3::Parent;
@@ -347,8 +347,8 @@ pub mod politest {
 				),
 				INITIAL_DEPOSIT,
 			),
-			(<PolimecRuntime as pallet_funding::Config>::ContributionTreasury::get(), INITIAL_DEPOSIT),
-			(<PolimecRuntime as pallet_funding::Config>::PalletId::get().into_account_truncating(), INITIAL_DEPOSIT),
+			(<PolitestRuntime as pallet_funding::Config>::ContributionTreasury::get(), INITIAL_DEPOSIT),
+			(<PolitestRuntime as pallet_funding::Config>::PalletId::get().into_account_truncating(), INITIAL_DEPOSIT),
 		];
 		let alice_account = <Polimec<PolkadotNet>>::account_id_of(accounts::ALICE);
 		let bob_account: AccountId = <Polimec<PolkadotNet>>::account_id_of(accounts::BOB);
@@ -512,7 +512,7 @@ pub mod penpal {
 // Polimec Runtime
 pub mod polimec {
 	use super::*;
-	use crate::{PolimecBase, PolkadotNet};
+	use crate::PolimecNet;
 	use pallet_funding::AcceptedFundingAsset;
 	use polimec_runtime::PayMaster;
 	use xcm::v3::Parent;
@@ -531,23 +531,19 @@ pub mod polimec {
 		let usdc_asset_id = AcceptedFundingAsset::USDC.to_assethub_id();
 		let mut funded_accounts = vec![
 			(
-				<PolimecBase<PolkadotNet>>::sovereign_account_id_of(
-					(Parent, xcm::prelude::Parachain(penpal::PARA_ID)).into(),
-				),
+				PolimecNet::sovereign_account_id_of((Parent, xcm::prelude::Parachain(penpal::PARA_ID)).into()),
 				INITIAL_DEPOSIT,
 			),
 			(
-				<PolimecBase<PolkadotNet>>::sovereign_account_id_of(
-					(Parent, xcm::prelude::Parachain(asset_hub::PARA_ID)).into(),
-				),
+				PolimecNet::sovereign_account_id_of((Parent, xcm::prelude::Parachain(asset_hub::PARA_ID)).into()),
 				INITIAL_DEPOSIT,
 			),
 		];
-		let alice_account = <PolimecBase<PolkadotNet>>::account_id_of(accounts::ALICE);
-		let bob_account: AccountId = <PolimecBase<PolkadotNet>>::account_id_of(accounts::BOB);
-		let charlie_account: AccountId = <PolimecBase<PolkadotNet>>::account_id_of(accounts::CHARLIE);
-		let dave_account: AccountId = <PolimecBase<PolkadotNet>>::account_id_of(accounts::DAVE);
-		let eve_account: AccountId = <PolimecBase<PolkadotNet>>::account_id_of(accounts::EVE);
+		let alice_account = PolimecNet::account_id_of(accounts::ALICE);
+		let bob_account: AccountId = PolimecNet::account_id_of(accounts::BOB);
+		let charlie_account: AccountId = PolimecNet::account_id_of(accounts::CHARLIE);
+		let dave_account: AccountId = PolimecNet::account_id_of(accounts::DAVE);
+		let eve_account: AccountId = PolimecNet::account_id_of(accounts::EVE);
 
 		funded_accounts.extend(accounts::init_balances().iter().cloned().map(|k| (k, INITIAL_DEPOSIT)));
 		funded_accounts.extend(collators::initial_authorities().iter().cloned().map(|(acc, _)| (acc, 20_005 * PLMC)));

@@ -32,8 +32,8 @@ generate_accounts!(PEPE, CARLOS,);
 
 #[test]
 fn base_vested_can_stake() {
-	BaseNet::execute_with(|| {
-		let alice = BaseNet::account_id_of(ALICE);
+	PolimecNet::execute_with(|| {
+		let alice = PolimecNet::account_id_of(ALICE);
 		let coll_1 = get_account_id_from_seed::<sr25519::Public>("COLL_1");
 		let new_account = get_account_id_from_seed::<sr25519::Public>("NEW_ACCOUNT");
 
@@ -82,7 +82,7 @@ fn base_vested_can_stake() {
 // total balance, so if the user had 20 free, 2000 frozen, 2000 held, then the user could only withdraw any amount over 2000.
 #[test]
 fn base_can_withdraw_when_free_is_below_frozen_with_hold() {
-	BaseNet::execute_with(|| {
+	PolimecNet::execute_with(|| {
 		let coll_1 = get_account_id_from_seed::<sr25519::Public>("COLL_1");
 		Balances::set_balance(&PEPE.into(), 2_020 * PLMC + ED * 2);
 		Balances::set_balance(&CARLOS.into(), 0);
@@ -93,7 +93,7 @@ fn base_can_withdraw_when_free_is_below_frozen_with_hold() {
 		assert_eq!(Balances::free_balance(&CARLOS.into()), 0);
 		// We need some free balance at the time of the vested transfer
 		// Otherwise the user will never have free balance to pay for the "vest" extrinsic
-		BaseSystem::set_block_number(1u32);
+		PolimecSystem::set_block_number(1u32);
 
 		// The actual vested transfer
 		assert_ok!(Vesting::vested_transfer(
@@ -150,7 +150,7 @@ fn base_can_withdraw_when_free_is_below_frozen_with_hold() {
 // the account is killed and the dust is sent to the treasury.
 #[test]
 fn dust_to_treasury() {
-	BaseNet::execute_with(|| {
+	PolimecNet::execute_with(|| {
 		// Create two new accounts: a sender and a receiver.
 		let sender = get_account_id_from_seed::<sr25519::Public>("SENDER");
 		let receiver = get_account_id_from_seed::<sr25519::Public>("RECEIVER");

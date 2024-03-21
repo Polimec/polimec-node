@@ -61,11 +61,11 @@ fn mint_asset_on_asset_hub_to(asset_id: u32, recipient: &AssetHubAccountId, amou
 }
 
 fn get_polimec_balances(asset_id: u32, user_account: AccountId) -> (u128, u128, u128, u128) {
-	BaseNet::execute_with(|| {
+	PolimecNet::execute_with(|| {
 		(
-			PolimecForeignAssets::balance(asset_id, user_account.clone()),
+			PolitestForeignAssets::balance(asset_id, user_account.clone()),
 			PolimecBalances::balance(&user_account.clone()),
-			PolimecForeignAssets::total_issuance(asset_id),
+			PolitestForeignAssets::total_issuance(asset_id),
 			PolimecBalances::total_issuance(),
 		)
 	})
@@ -98,9 +98,9 @@ fn test_reserve_to_polimec(asset_id: u32) {
 		_ => (PalletInstance(AssetHubAssets::index() as u8), GeneralIndex(asset_id as u128)).into(),
 	};
 
-	let alice_account = BaseNet::account_id_of(ALICE);
+	let alice_account = PolimecNet::account_id_of(ALICE);
 	let polimec_sibling_account =
-		AssetNet::sovereign_account_id_of((Parent, Parachain(BaseNet::para_id().into())).into());
+		AssetNet::sovereign_account_id_of((Parent, Parachain(PolimecNet::para_id().into())).into());
 	let max_weight = Weight::from_parts(MAX_REF_TIME, MAX_PROOF_SIZE);
 
 	mint_asset_on_asset_hub_to(asset_id, &alice_account, 100_0_000_000_000);
@@ -119,7 +119,7 @@ fn test_reserve_to_polimec(asset_id: u32) {
 	AssetNet::execute_with(|| {
 		let asset_transfer: MultiAsset = (asset_hub_asset_id, RESERVE_TRANSFER_AMOUNT).into();
 		let origin = AssetHubOrigin::signed(alice_account.clone());
-		let dest: VersionedMultiLocation = ParentThen(X1(Parachain(BaseNet::para_id().into()))).into();
+		let dest: VersionedMultiLocation = ParentThen(X1(Parachain(PolimecNet::para_id().into()))).into();
 
 		let beneficiary: VersionedMultiLocation =
 			AccountId32 { network: None, id: alice_account.clone().into() }.into();
@@ -139,11 +139,11 @@ fn test_reserve_to_polimec(asset_id: u32) {
 	});
 
 	// check the transfer was not blocked by our our xcm configured
-	BaseNet::execute_with(|| {
+	PolimecNet::execute_with(|| {
 		assert_expected_events!(
-			BaseNet,
+			PolimecNet,
 			vec![
-				BaseEvent::MessageQueue(pallet_message_queue::Event::Processed {success: true, ..}) => {},
+				PolimecEvent::MessageQueue(pallet_message_queue::Event::Processed {success: true, ..}) => {},
 			]
 		);
 	});
@@ -220,15 +220,15 @@ fn test_polimec_to_reserve(asset_id: u32) {
 		.into(),
 	};
 
-	let alice_account = BaseNet::account_id_of(ALICE);
+	let alice_account = PolimecNet::account_id_of(ALICE);
 	let polimec_sibling_account =
-		AssetNet::sovereign_account_id_of((Parent, Parachain(BaseNet::para_id().into())).into());
+		AssetNet::sovereign_account_id_of((Parent, Parachain(PolimecNet::para_id().into())).into());
 	let max_weight = Weight::from_parts(MAX_REF_TIME, MAX_PROOF_SIZE);
 
 	mint_asset_on_asset_hub_to(asset_id, &polimec_sibling_account, RESERVE_TRANSFER_AMOUNT + 1_0_000_000_000);
 
-	BaseNet::execute_with(|| {
-		assert_ok!(BaseForeignAssets::mint_into(asset_id, &alice_account, RESERVE_TRANSFER_AMOUNT + 1_0_000_000_000));
+	PolimecNet::execute_with(|| {
+		assert_ok!(PolimecForeignAssets::mint_into(asset_id, &alice_account, RESERVE_TRANSFER_AMOUNT + 1_0_000_000_000));
 	});
 
 	let (
@@ -242,9 +242,9 @@ fn test_polimec_to_reserve(asset_id: u32) {
 	let (asset_hub_prev_alice_asset_balance, asset_hub_prev_polimec_asset_balance, asset_hub_prev_asset_issuance) =
 		get_asset_hub_balances(asset_id, alice_account.clone(), polimec_sibling_account.clone());
 
-	BaseNet::execute_with(|| {
+	PolimecNet::execute_with(|| {
 		let asset_transfer: MultiAsset = (asset_hub_asset_id, RESERVE_TRANSFER_AMOUNT + 1_0_000_000_000).into();
-		let origin = BaseOrigin::signed(alice_account.clone());
+		let origin = PolimecOrigin::signed(alice_account.clone());
 		let dest: VersionedMultiLocation = ParentThen(X1(Parachain(AssetNet::para_id().into()))).into();
 
 		let beneficiary: VersionedMultiLocation =
@@ -253,7 +253,7 @@ fn test_polimec_to_reserve(asset_id: u32) {
 		let fee_asset_item = 0;
 		let weight_limit = Unlimited;
 
-		let call = BaseXcmPallet::limited_reserve_transfer_assets(
+		let call = PolimecXcmPallet::limited_reserve_transfer_assets(
 			origin,
 			bx!(dest),
 			bx!(beneficiary),
@@ -380,7 +380,7 @@ fn polimec_dot_to_reserve() {
 
 #[test]
 fn test_user_cannot_create_foreign_asset_on_polimec() {
-	BaseNet::execute_with(|| {
+	PolimecNet::execute_with(|| {
 		let admin = AssetNet::account_id_of(ALICE);
 		assert_noop!(
 			PolimecForeignAssets::create(

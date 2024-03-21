@@ -16,9 +16,10 @@
 
 pub mod constants;
 
+#[cfg(test)]
 mod tests;
 
-pub use constants::{accounts::*, asset_hub, penpal, polimec, polimec_base, polkadot};
+pub use constants::{accounts::*, asset_hub, penpal, polimec, politest, polkadot};
 pub use frame_support::{assert_noop, assert_ok, pallet_prelude::Weight, parameter_types, traits::Hooks};
 pub use parachains_common::{AccountId, AssetHubPolkadotAuraId, AuraId, Balance, BlockNumber};
 pub use sp_core::{sr25519, storage::Storage, Encode, Get};
@@ -65,8 +66,8 @@ decl_test_parachains! {
 			ParachainInfo: penpal_runtime::ParachainInfo,
 		}
 	},
-	pub struct Polimec {
-		genesis = polimec::genesis(),
+	pub struct Politest {
+		genesis = politest::genesis(),
 		on_init = politest_runtime::AuraExt::on_initialize(1),
 		runtime = politest_runtime,
 		core = {
@@ -79,7 +80,7 @@ decl_test_parachains! {
 			Balances: politest_runtime::Balances,
 			ParachainSystem: politest_runtime::ParachainSystem,
 			PolkadotXcm: politest_runtime::PolkadotXcm,
-			LocalAssets: politest_runtime::LocalAssets,
+			LocalAssets: politest_runtime::ContributionTokensInstance,
 			ForeignAssets: politest_runtime::ForeignAssets,
 			FundingPallet: politest_runtime::PolimecFunding,
 		}
@@ -102,8 +103,8 @@ decl_test_parachains! {
 			LocalAssets: asset_hub_polkadot_runtime::Assets,
 		}
 	},
-	pub struct PolimecBase {
-		genesis = polimec_base::genesis(),
+	pub struct Polimec {
+		genesis = polimec::genesis(),
 		on_init = polimec_runtime::AuraExt::on_initialize(1),
 		runtime = polimec_runtime,
 		core = {
@@ -137,70 +138,70 @@ decl_test_networks! {
 /// Shortcuts to reduce boilerplate on runtime types
 pub mod shortcuts {
 	use super::{
-		AssetHub, AssetHubParaPallet, Chain, Penpal, PenpalParaPallet, Polimec, PolimecBase, PolimecBaseParaPallet,
+		AssetHub, AssetHubParaPallet, Chain, Penpal, PenpalParaPallet, Polimec, Politest, PolitestParaPallet,
 		PolimecParaPallet, PolkadotNet, PolkadotRelay as Polkadot, PolkadotRelayRelayPallet,
 	};
 
 	pub type PolkaNet = Polkadot<PolkadotNet>;
-	pub type PoliNet = Polimec<PolkadotNet>;
+	pub type PolimecNet = Polimec<PolkadotNet>;
 	pub type PenNet = Penpal<PolkadotNet>;
 	pub type AssetNet = AssetHub<PolkadotNet>;
-	pub type BaseNet = PolimecBase<PolkadotNet>;
+	pub type PolitestNet = Politest<PolkadotNet>;
 
-	pub type PolimecFundingPallet = <Polimec<PolkadotNet> as PolimecParaPallet>::FundingPallet;
+	pub type PolitestFundingPallet = <Politest<PolkadotNet> as PolitestParaPallet>::FundingPallet;
 
 	pub type PolkadotRuntime = <PolkaNet as Chain>::Runtime;
-	pub type PolimecRuntime = <PoliNet as Chain>::Runtime;
+	pub type PolitestRuntime = <PolitestNet as Chain>::Runtime;
 	pub type PenpalRuntime = <PenNet as Chain>::Runtime;
 	pub type AssetHubRuntime = <AssetNet as Chain>::Runtime;
-	pub type BaseRuntime = <BaseNet as Chain>::Runtime;
+	pub type PolimecRuntime = <PolimecNet as Chain>::Runtime;
 
 	pub type PolkadotXcmPallet = <PolkaNet as PolkadotRelayRelayPallet>::XcmPallet;
-	pub type PolimecXcmPallet = <PoliNet as PolimecParaPallet>::PolkadotXcm;
+	pub type PolitestXcmPallet = <PolitestNet as PolitestParaPallet>::PolkadotXcm;
 	pub type PenpalXcmPallet = <PenNet as PenpalParaPallet>::PolkadotXcm;
 	pub type AssetHubXcmPallet = <AssetNet as AssetHubParaPallet>::PolkadotXcm;
-	pub type BaseXcmPallet = <BaseNet as PolimecBaseParaPallet>::PolkadotXcm;
+	pub type PolimecXcmPallet = <PolimecNet as PolimecParaPallet>::PolkadotXcm;
 
 	pub type PolkadotBalances = <PolkaNet as PolkadotRelayRelayPallet>::Balances;
-	pub type PolimecBalances = <PoliNet as PolimecParaPallet>::Balances;
+	pub type PolitestBalances = <PolitestNet as PolitestParaPallet>::Balances;
 	pub type PenpalBalances = <PenNet as PenpalParaPallet>::Balances;
 	pub type AssetHubBalances = <AssetNet as AssetHubParaPallet>::Balances;
-	pub type BaseBalances = <BaseNet as PolimecBaseParaPallet>::Balances;
+	pub type PolimecBalances = <PolimecNet as PolimecParaPallet>::Balances;
 
-	pub type PolimecLocalAssets = <PoliNet as PolimecParaPallet>::LocalAssets;
-	pub type PolimecForeignAssets = <PoliNet as PolimecParaPallet>::ForeignAssets;
+	pub type PolitestLocalAssets = <PolitestNet as PolitestParaPallet>::LocalAssets;
+	pub type PolitestForeignAssets = <PolitestNet as PolitestParaPallet>::ForeignAssets;
 	pub type PenpalAssets = <PenNet as PenpalParaPallet>::Assets;
 	pub type AssetHubAssets = <AssetNet as AssetHubParaPallet>::LocalAssets;
-	pub type BaseForeignAssets = <BaseNet as PolimecBaseParaPallet>::ForeignAssets;
+	pub type PolimecForeignAssets = <PolimecNet as PolimecParaPallet>::ForeignAssets;
 
 	pub type PolkadotOrigin = <PolkaNet as Chain>::RuntimeOrigin;
-	pub type PolimecOrigin = <PoliNet as Chain>::RuntimeOrigin;
+	pub type PolitestOrigin = <PolitestNet as Chain>::RuntimeOrigin;
 	pub type PenpalOrigin = <PenNet as Chain>::RuntimeOrigin;
 	pub type AssetHubOrigin = <AssetNet as Chain>::RuntimeOrigin;
-	pub type BaseOrigin = <BaseNet as Chain>::RuntimeOrigin;
+	pub type PolimecOrigin = <PolimecNet as Chain>::RuntimeOrigin;
 
 	pub type PolkadotCall = <PolkaNet as Chain>::RuntimeCall;
-	pub type PolimecCall = <PoliNet as Chain>::RuntimeCall;
+	pub type PolitestCall = <PolitestNet as Chain>::RuntimeCall;
 	pub type PenpalCall = <PenNet as Chain>::RuntimeCall;
 	pub type AssetHubCall = <AssetNet as Chain>::RuntimeCall;
-	pub type BaseCall = <BaseNet as Chain>::RuntimeCall;
+	pub type PolimecCall = <PolimecNet as Chain>::RuntimeCall;
 
 	pub type PolkadotAccountId = <PolkadotRuntime as frame_system::Config>::AccountId;
 	pub type PolitestAccountId = <PolitestRuntime as frame_system::Config>::AccountId;
 	pub type PenpalAccountId = <PenpalRuntime as frame_system::Config>::AccountId;
 	pub type AssetHubAccountId = <AssetHubRuntime as frame_system::Config>::AccountId;
-	pub type BaseAccountId = <BaseNet as frame_system::Config>::AccountId;
+	pub type PolimecAccountId = <PolimecRuntime as frame_system::Config>::AccountId;
 
 	pub type PolkadotEvent = <PolkaNet as Chain>::RuntimeEvent;
-	pub type PolimecEvent = <PoliNet as Chain>::RuntimeEvent;
+	pub type PolitestEvent = <PolitestNet as Chain>::RuntimeEvent;
 	pub type PenpalEvent = <PenNet as Chain>::RuntimeEvent;
 	pub type AssetHubEvent = <AssetNet as Chain>::RuntimeEvent;
-	pub type BaseEvent = <BaseNet as Chain>::RuntimeEvent;
+	pub type PolimecEvent = <PolimecNet as Chain>::RuntimeEvent;
 
 	pub type PolkadotSystem = <PolkaNet as Chain>::System;
-	pub type PolimecSystem = <PoliNet as Chain>::System;
+	pub type PolitestSystem = <PolitestNet as Chain>::System;
 	pub type PenpalSystem = <PenNet as Chain>::System;
 	pub type AssetHubSystem = <AssetNet as Chain>::System;
-	pub type BaseSystem = <BaseNet as Chain>::System;
+	pub type PolimecSystem = <PolimecNet as Chain>::System;
 }
 pub use shortcuts::*;
