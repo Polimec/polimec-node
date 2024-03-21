@@ -98,9 +98,11 @@ instant-mode = [
 	"politest-runtime/instant-mode",
 ]
 runtime-benchmarks = [
+	"cumulus-primitives-core/runtime-benchmarks",
 	"frame-benchmarking-cli/runtime-benchmarks",
 	"frame-benchmarking/runtime-benchmarks",
 	"pallet-funding/runtime-benchmarks",
+	"parachains-common/runtime-benchmarks",
 	"polimec-runtime/runtime-benchmarks",
 	"politest-runtime/runtime-benchmarks",
 	"polkadot-cli/runtime-benchmarks",

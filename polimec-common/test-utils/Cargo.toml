@@ -33,5 +33,8 @@ std = [
 	"polimec-common/std",
 	"reqwest",
 ]
-try-runtime = []
-runtime-benchmarks = []
+try-runtime = [ "frame-support/try-runtime", "polimec-common/try-runtime" ]
+runtime-benchmarks = [
+	"frame-support/runtime-benchmarks",
+	"polimec-common/runtime-benchmarks",
+]

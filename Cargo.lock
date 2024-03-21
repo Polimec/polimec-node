@@ -502,7 +502,7 @@ dependencies = [
  "staging-xcm",
  "staging-xcm-builder",
  "staging-xcm-executor",
- "substrate-wasm-builder 17.0.0",
+ "substrate-wasm-builder",
  "system-parachains-constants",
 ]
 
@@ -528,7 +528,7 @@ dependencies = [
  "staging-xcm",
  "staging-xcm-builder",
  "staging-xcm-executor",
- "substrate-wasm-builder 17.0.0",
+ "substrate-wasm-builder",
 ]
 
 [[package]]
@@ -2113,7 +2113,7 @@ dependencies = [
  "sc-client-api",
  "sc-consensus",
  "sp-consensus",
- "sp-maybe-compressed-blob 11.0.0",
+ "sp-maybe-compressed-blob",
  "sp-runtime",
  "tracing",
 ]
@@ -4546,7 +4546,7 @@ dependencies = [
  "staging-xcm",
  "staging-xcm-builder",
  "staging-xcm-executor",
- "substrate-wasm-builder 5.0.0-dev",
+ "substrate-wasm-builder",
  "system-parachains-constants",
  "xcm-emulator",
 ]
@@ -7864,7 +7864,7 @@ dependencies = [
  "staging-xcm",
  "staging-xcm-builder",
  "staging-xcm-executor",
- "substrate-wasm-builder 17.0.0",
+ "substrate-wasm-builder",
  "westend-runtime-constants",
 ]
 
@@ -8117,7 +8117,7 @@ dependencies = [
  "staging-xcm",
  "staging-xcm-builder",
  "staging-xcm-executor",
- "substrate-wasm-builder 5.0.0-dev",
+ "substrate-wasm-builder",
 ]
 
 [[package]]
@@ -8448,7 +8448,7 @@ dependencies = [
  "staging-parachain-info",
  "staging-xcm",
  "staging-xcm-builder",
- "substrate-wasm-builder 5.0.0-dev",
+ "substrate-wasm-builder",
 ]
 
 [[package]]
@@ -8550,7 +8550,7 @@ dependencies = [
  "staging-xcm",
  "staging-xcm-builder",
  "staging-xcm-executor",
- "substrate-wasm-builder 5.0.0-dev",
+ "substrate-wasm-builder",
 ]
 
 [[package]]
@@ -8662,7 +8662,7 @@ dependencies = [
  "sp-core",
  "sp-io",
  "sp-keyring",
- "sp-maybe-compressed-blob 11.0.0",
+ "sp-maybe-compressed-blob",
  "substrate-build-script-utils",
  "thiserror",
  "try-runtime-cli",
@@ -8805,7 +8805,7 @@ dependencies = [
  "polkadot-node-subsystem-util",
  "polkadot-primitives",
  "sp-core",
- "sp-maybe-compressed-blob 11.0.0",
+ "sp-maybe-compressed-blob",
  "thiserror",
  "tracing-gum",
 ]
@@ -8921,7 +8921,7 @@ dependencies = [
  "polkadot-overseer",
  "polkadot-parachain-primitives",
  "polkadot-primitives",
- "sp-maybe-compressed-blob 11.0.0",
+ "sp-maybe-compressed-blob",
  "tracing-gum",
 ]
 
@@ -9058,7 +9058,7 @@ dependencies = [
  "rand",
  "slotmap",
  "sp-core",
- "sp-maybe-compressed-blob 11.0.0",
+ "sp-maybe-compressed-blob",
  "sp-wasm-interface",
  "tempfile",
  "thiserror",
@@ -9207,7 +9207,7 @@ dependencies = [
  "sp-consensus-babe",
  "sp-core",
  "sp-keystore",
- "sp-maybe-compressed-blob 11.0.0",
+ "sp-maybe-compressed-blob",
  "sp-runtime",
  "thiserror",
  "zstd 0.12.4",
@@ -9481,7 +9481,7 @@ dependencies = [
  "staging-xcm",
  "staging-xcm-builder",
  "staging-xcm-executor",
- "substrate-wasm-builder 17.0.0",
+ "substrate-wasm-builder",
 ]
 
 [[package]]
@@ -10623,7 +10623,7 @@ dependencies = [
  "staging-xcm-builder",
  "staging-xcm-executor",
  "static_assertions",
- "substrate-wasm-builder 17.0.0",
+ "substrate-wasm-builder",
 ]
 
 [[package]]
@@ -11400,7 +11400,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0285a4a14c0d2c1d04380ff83cddd79181ded510c605d36804cb9c6eb3bbf2ae"
 dependencies = [
  "sc-allocator",
- "sp-maybe-compressed-blob 11.0.0",
+ "sp-maybe-compressed-blob",
  "sp-wasm-interface",
  "thiserror",
  "wasm-instrument",
@@ -13116,15 +13116,6 @@ dependencies = [
 
 [[package]]
 name = "sp-maybe-compressed-blob"
-version = "4.1.0-dev"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.6.0#61801ce324f18eacb9c29e2f674f0d262a00bd4d"
-dependencies = [
- "thiserror",
- "zstd 0.12.4",
-]
-
-[[package]]
-name = "sp-maybe-compressed-blob"
 version = "11.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f0c768c11afbe698a090386876911da4236af199cd38a5866748df4d8628aeff"
@@ -13856,24 +13847,6 @@ dependencies = [
 
 [[package]]
 name = "substrate-wasm-builder"
-version = "5.0.0-dev"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.6.0#61801ce324f18eacb9c29e2f674f0d262a00bd4d"
-dependencies = [
- "ansi_term",
- "build-helper",
- "cargo_metadata",
- "filetime",
- "parity-wasm",
- "sp-maybe-compressed-blob 4.1.0-dev",
- "strum 0.24.1",
- "tempfile",
- "toml 0.8.12",
- "walkdir",
- "wasm-opt",
-]
-
-[[package]]
-name = "substrate-wasm-builder"
 version = "17.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ac08d23ff4da66fe6cb0300f249be010d78e5abeafef0390cae39736a374e6cd"
@@ -13883,7 +13856,7 @@ dependencies = [
  "cargo_metadata",
  "filetime",
  "parity-wasm",
- "sp-maybe-compressed-blob 11.0.0",
+ "sp-maybe-compressed-blob",
  "strum 0.24.1",
  "tempfile",
  "toml 0.8.12",
@@ -15355,7 +15328,7 @@ dependencies = [
  "staging-xcm",
  "staging-xcm-builder",
  "staging-xcm-executor",
- "substrate-wasm-builder 17.0.0",
+ "substrate-wasm-builder",
  "westend-runtime-constants",
 ]
 
