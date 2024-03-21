@@ -364,9 +364,9 @@ impl Config for TestRuntime {
 	type InvestorOrigin = EnsureInvestor<TestRuntime>;
 	type ManualAcceptanceDuration = ManualAcceptanceDuration;
 	type MaxBidsPerProject = ConstU32<1024>;
-	type MaxBidsPerUser = ConstU32<4>;
+	type MaxBidsPerUser = ConstU32<150>;
 	type MaxCapacityThresholds = MaxCapacityThresholds;
-	type MaxContributionsPerUser = ConstU32<4>;
+	type MaxContributionsPerUser = ConstU32<50>;
 	type MaxEvaluationsPerProject = ConstU32<1024>;
 	type MaxEvaluationsPerUser = ConstU32<4>;
 	type MaxMessageSizeThresholds = MaxMessageSizeThresholds;

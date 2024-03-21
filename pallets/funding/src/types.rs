@@ -74,6 +74,10 @@ pub mod config_types {
 				Err(())
 			}
 		}
+
+		pub const fn force_new(x: u8) -> Self {
+			Self(x)
+		}
 	}
 
 	impl BondingRequirementCalculation for Multiplier {

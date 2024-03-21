@@ -2122,12 +2122,150 @@ mod auction {
 		);
 	}
 
-	// #[test]
-	// fn multipliers_
+	#[test]
+	fn multiplier_limits() {
+		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+		let project_metadata = ProjectMetadata {
+			token_information: default_token_information(),
+			mainnet_token_max_supply: 80_000_000 * ASSET_UNIT,
+			total_allocation_size: 10_000_000 * ASSET_UNIT,
+			auction_round_allocation_percentage: Percent::from_percent(50u8),
+			minimum_price: PriceOf::<TestRuntime>::from_float(10.0),
+			bidding_ticket_sizes: BiddingTicketSizes {
+				professional: TicketSize::new(Some(5000 * US_DOLLAR), None),
+				institutional: TicketSize::new(Some(5000 * US_DOLLAR), None),
+				phantom: Default::default(),
+			},
+			contributing_ticket_sizes: ContributingTicketSizes {
+				retail: TicketSize::new(None, None),
+				professional: TicketSize::new(None, None),
+				institutional: TicketSize::new(None, None),
+				phantom: Default::default(),
+			},
+			participation_currencies: vec![AcceptedFundingAsset::USDT].try_into().unwrap(),
+			funding_destination_account: ISSUER_1,
+			offchain_information_hash: Some(hashed(METADATA)),
+		};
+		let evaluations = MockInstantiator::generate_successful_evaluations(
+			project_metadata.clone(),
+			default_evaluators(),
+			default_weights(),
+		);
+		let project_id = inst.create_auctioning_project(project_metadata.clone(), ISSUER_1, evaluations);
+
+		// Professional bids: 1 - 10x multiplier should work
+		for multiplier in 1..=10u8 {
+			let jwt = get_mock_jwt(BIDDER_1, InvestorType::Professional, generate_did_from_account(BIDDER_1));
+			let bidder_plmc = MockInstantiator::calculate_auction_plmc_charged_with_given_price(
+				&vec![(BIDDER_1, 1_000 * ASSET_UNIT, Multiplier::force_new(multiplier)).into()],
+				project_metadata.minimum_price,
+			);
+			let bidder_usdt = MockInstantiator::calculate_auction_funding_asset_charged_with_given_price(
+				&vec![(BIDDER_1, 1_000 * ASSET_UNIT, Multiplier::force_new(multiplier)).into()],
+				project_metadata.minimum_price,
+			);
+			let ed = MockInstantiator::get_ed();
+			inst.mint_plmc_to(vec![(BIDDER_1, ed).into()]);
+			inst.mint_plmc_to(bidder_plmc);
+			inst.mint_foreign_asset_to(bidder_usdt);
+			assert_ok!(inst.execute(|| Pallet::<TestRuntime>::bid(
+				RuntimeOrigin::signed(BIDDER_1),
+				jwt,
+				project_id,
+				1000 * ASSET_UNIT,
+				Multiplier::force_new(multiplier),
+				AcceptedFundingAsset::USDT
+			)));
+		}
+		// Professional bids: >=11x multiplier should fail
+		for multiplier in 11..=50u8 {
+			let jwt = get_mock_jwt(BIDDER_1, InvestorType::Professional, generate_did_from_account(BIDDER_1));
+			let bidder_plmc = MockInstantiator::calculate_auction_plmc_charged_with_given_price(
+				&vec![(BIDDER_1, 1_000 * ASSET_UNIT, Multiplier::force_new(multiplier)).into()],
+				project_metadata.minimum_price,
+			);
+			let bidder_usdt = MockInstantiator::calculate_auction_funding_asset_charged_with_given_price(
+				&vec![(BIDDER_1, 1_000 * ASSET_UNIT, Multiplier::force_new(multiplier)).into()],
+				project_metadata.minimum_price,
+			);
+			let ed = MockInstantiator::get_ed();
+			inst.mint_plmc_to(vec![(BIDDER_1, ed).into()]);
+			inst.mint_plmc_to(bidder_plmc);
+			inst.mint_foreign_asset_to(bidder_usdt);
+			inst.execute(|| {
+				assert_noop!(
+					Pallet::<TestRuntime>::bid(
+						RuntimeOrigin::signed(BIDDER_1),
+						jwt,
+						project_id,
+						1000 * ASSET_UNIT,
+						Multiplier::force_new(multiplier),
+						AcceptedFundingAsset::USDT
+					),
+					Error::<TestRuntime>::MultiplierAboveLimit
+				);
+			});
+		}
+
+		// Institutional bids: 1 - 25x multiplier should work
+		for multiplier in 1..=25u8 {
+			let jwt = get_mock_jwt(BIDDER_2, InvestorType::Institutional, generate_did_from_account(BIDDER_2));
+			let bidder_plmc = MockInstantiator::calculate_auction_plmc_charged_with_given_price(
+				&vec![(BIDDER_2, 1_000 * ASSET_UNIT, Multiplier::force_new(multiplier)).into()],
+				project_metadata.minimum_price,
+			);
+			let bidder_usdt = MockInstantiator::calculate_auction_funding_asset_charged_with_given_price(
+				&vec![(BIDDER_2, 1_000 * ASSET_UNIT, Multiplier::force_new(multiplier)).into()],
+				project_metadata.minimum_price,
+			);
+			let ed = MockInstantiator::get_ed();
+			inst.mint_plmc_to(vec![(BIDDER_2, ed).into()]);
+			inst.mint_plmc_to(bidder_plmc);
+			inst.mint_foreign_asset_to(bidder_usdt);
+			assert_ok!(inst.execute(|| Pallet::<TestRuntime>::bid(
+				RuntimeOrigin::signed(BIDDER_2),
+				jwt,
+				project_id,
+				1000 * ASSET_UNIT,
+				multiplier.try_into().unwrap(),
+				AcceptedFundingAsset::USDT
+			)));
+		}
+		// Institutional bids: >=26x multiplier should fail
+		for multiplier in 26..=50u8 {
+			let jwt = get_mock_jwt(BIDDER_2, InvestorType::Institutional, generate_did_from_account(BIDDER_2));
+			let bidder_plmc = MockInstantiator::calculate_auction_plmc_charged_with_given_price(
+				&vec![(BIDDER_2, 1_000 * ASSET_UNIT, Multiplier::force_new(multiplier)).into()],
+				project_metadata.minimum_price,
+			);
+			let bidder_usdt = MockInstantiator::calculate_auction_funding_asset_charged_with_given_price(
+				&vec![(BIDDER_2, 1_000 * ASSET_UNIT, Multiplier::force_new(multiplier)).into()],
+				project_metadata.minimum_price,
+			);
+			let ed = MockInstantiator::get_ed();
+			inst.mint_plmc_to(vec![(BIDDER_2, ed).into()]);
+			inst.mint_plmc_to(bidder_plmc);
+			inst.mint_foreign_asset_to(bidder_usdt);
+			inst.execute(|| {
+				assert_noop!(
+					Pallet::<TestRuntime>::bid(
+						RuntimeOrigin::signed(BIDDER_2),
+						jwt,
+						project_id,
+						1000 * ASSET_UNIT,
+						Multiplier::force_new(multiplier),
+						AcceptedFundingAsset::USDT
+					),
+					Error::<TestRuntime>::MultiplierAboveLimit
+				);
+			});
+		}
+	}
 }
 
 // only functionalities that happen in the COMMUNITY FUNDING period of a project
 mod community_contribution {
+	use std::collections::HashMap;
 	use super::*;
 	pub const HOURS: BlockNumber = 300u64;
 
@@ -3099,6 +3237,226 @@ mod community_contribution {
 				AcceptedFundingAsset::USDT,
 			));
 		});
+	}
+
+	#[test]
+	fn non_retail_multiplier_limits() {
+		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+		let project_metadata = ProjectMetadata {
+			token_information: default_token_information(),
+			mainnet_token_max_supply: 80_000_000 * ASSET_UNIT,
+			total_allocation_size: 10_000_000 * ASSET_UNIT,
+			auction_round_allocation_percentage: Percent::from_percent(50u8),
+			minimum_price: PriceOf::<TestRuntime>::from_float(10.0),
+			bidding_ticket_sizes: BiddingTicketSizes {
+				professional: TicketSize::new(Some(5000 * US_DOLLAR), None),
+				institutional: TicketSize::new(Some(5000 * US_DOLLAR), None),
+				phantom: Default::default(),
+			},
+			contributing_ticket_sizes: ContributingTicketSizes {
+				retail: TicketSize::new(None, None),
+				professional: TicketSize::new(None, None),
+				institutional: TicketSize::new(None, None),
+				phantom: Default::default(),
+			},
+			participation_currencies: vec![AcceptedFundingAsset::USDT].try_into().unwrap(),
+			funding_destination_account: ISSUER_1,
+			offchain_information_hash: Some(hashed(METADATA)),
+		};
+		let evaluations = MockInstantiator::generate_successful_evaluations(
+			project_metadata.clone(),
+			default_evaluators(),
+			default_weights(),
+		);
+		let bids = MockInstantiator::generate_bids_from_total_ct_percent(
+			project_metadata.clone(),
+			50,
+			default_weights(),
+			default_bidders(),
+			default_multipliers(),
+		);
+		let project_id =
+			inst.create_community_contributing_project(project_metadata.clone(), ISSUER_1, evaluations, bids);
+		let wap = inst.get_project_details(project_id).weighted_average_price.unwrap();
+		// Professional bids: 1 - 10x multiplier should work
+		for multiplier in 1..=10u8 {
+			let jwt = get_mock_jwt(BUYER_1, InvestorType::Professional, generate_did_from_account(BUYER_1));
+			let bidder_plmc = MockInstantiator::calculate_contributed_plmc_spent(
+				vec![(BUYER_1, 1_000 * ASSET_UNIT, Multiplier::force_new(multiplier)).into()],
+				wap,
+			);
+			let bidder_usdt = MockInstantiator::calculate_contributed_funding_asset_spent(
+				vec![(BUYER_1, 1_000 * ASSET_UNIT, Multiplier::force_new(multiplier)).into()],
+				wap,
+			);
+			let ed = MockInstantiator::get_ed();
+			inst.mint_plmc_to(vec![(BUYER_1, ed).into()]);
+			inst.mint_plmc_to(bidder_plmc);
+			inst.mint_foreign_asset_to(bidder_usdt);
+			assert_ok!(inst.execute(|| Pallet::<TestRuntime>::community_contribute(
+				RuntimeOrigin::signed(BUYER_1),
+				jwt,
+				project_id,
+				1000 * ASSET_UNIT,
+				Multiplier::force_new(multiplier),
+				AcceptedFundingAsset::USDT
+			)));
+		}
+		// Professional bids: >=11x multiplier should fail
+		for multiplier in 11..=50u8 {
+			let jwt = get_mock_jwt(BUYER_1, InvestorType::Professional, generate_did_from_account(BUYER_1));
+			let bidder_plmc = MockInstantiator::calculate_contributed_plmc_spent(
+				vec![(BUYER_1, 1_000 * ASSET_UNIT, Multiplier::force_new(multiplier)).into()],
+				wap,
+			);
+			let bidder_usdt = MockInstantiator::calculate_contributed_funding_asset_spent(
+				vec![(BUYER_1, 1_000 * ASSET_UNIT, Multiplier::force_new(multiplier)).into()],
+				wap,
+			);
+			let ed = MockInstantiator::get_ed();
+			inst.mint_plmc_to(vec![(BUYER_1, ed).into()]);
+			inst.mint_plmc_to(bidder_plmc);
+			inst.mint_foreign_asset_to(bidder_usdt);
+			inst.execute(|| {
+				assert_noop!(
+					Pallet::<TestRuntime>::community_contribute(
+						RuntimeOrigin::signed(BUYER_1),
+						jwt,
+						project_id,
+						1000 * ASSET_UNIT,
+						Multiplier::force_new(multiplier),
+						AcceptedFundingAsset::USDT
+					),
+					Error::<TestRuntime>::MultiplierAboveLimit
+				);
+			});
+		}
+
+		// Institutional bids: 1 - 25x multiplier should work
+		for multiplier in 1..=25u8 {
+			let jwt = get_mock_jwt(BUYER_2, InvestorType::Institutional, generate_did_from_account(BUYER_2));
+			let bidder_plmc = MockInstantiator::calculate_contributed_plmc_spent(
+				vec![(BUYER_2, 1_000 * ASSET_UNIT, Multiplier::force_new(multiplier)).into()],
+				wap,
+			);
+			let bidder_usdt = MockInstantiator::calculate_contributed_funding_asset_spent(
+				vec![(BUYER_2, 1_000 * ASSET_UNIT, Multiplier::force_new(multiplier)).into()],
+				wap,
+			);
+			let ed = MockInstantiator::get_ed();
+			inst.mint_plmc_to(vec![(BUYER_2, ed).into()]);
+			inst.mint_plmc_to(bidder_plmc);
+			inst.mint_foreign_asset_to(bidder_usdt);
+			assert_ok!(inst.execute(|| Pallet::<TestRuntime>::community_contribute(
+				RuntimeOrigin::signed(BUYER_2),
+				jwt,
+				project_id,
+				1000 * ASSET_UNIT,
+				multiplier.try_into().unwrap(),
+				AcceptedFundingAsset::USDT
+			)));
+		}
+		// Institutional bids: >=26x multiplier should fail
+		for multiplier in 26..=50u8 {
+			let jwt = get_mock_jwt(BUYER_2, InvestorType::Institutional, generate_did_from_account(BUYER_2));
+			let bidder_plmc = MockInstantiator::calculate_contributed_plmc_spent(
+				vec![(BUYER_2, 1_000 * ASSET_UNIT, Multiplier::force_new(multiplier)).into()],
+				wap,
+			);
+			let bidder_usdt = MockInstantiator::calculate_contributed_funding_asset_spent(
+				vec![(BUYER_2, 1_000 * ASSET_UNIT, Multiplier::force_new(multiplier)).into()],
+				wap,
+			);
+			let ed = MockInstantiator::get_ed();
+			inst.mint_plmc_to(vec![(BUYER_2, ed).into()]);
+			inst.mint_plmc_to(bidder_plmc);
+			inst.mint_foreign_asset_to(bidder_usdt);
+			inst.execute(|| {
+				assert_noop!(
+					Pallet::<TestRuntime>::community_contribute(
+						RuntimeOrigin::signed(BUYER_2),
+						jwt,
+						project_id,
+						1000 * ASSET_UNIT,
+						Multiplier::force_new(multiplier),
+						AcceptedFundingAsset::USDT
+					),
+					Error::<TestRuntime>::MultiplierAboveLimit
+				);
+			});
+		}
+	}
+
+	#[test]
+	fn retail_multiplier_limits() {
+		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+		let mut issuer: AccountId = 6969420;
+
+		let mut create_project = |inst: &mut MockInstantiator| {
+			issuer += 1;
+			inst.create_community_contributing_project(
+				default_project_metadata(issuer as u64, issuer),
+				issuer,
+				default_evaluations(),
+				default_bids(),
+			)
+		};
+		let mut contribute = |inst: &mut MockInstantiator, project_id, contributor, multiplier| {
+			let wap = inst.get_project_details(project_id).weighted_average_price.unwrap();
+			let jwt = get_mock_jwt(contributor, InvestorType::Retail, generate_did_from_account(contributor));
+			let contributor_plmc = MockInstantiator::calculate_contributed_plmc_spent(
+				vec![(contributor, 1_000 * ASSET_UNIT, Multiplier::force_new(multiplier)).into()],
+				wap,
+			);
+			let bidder_usdt = MockInstantiator::calculate_contributed_funding_asset_spent(
+				vec![(contributor, 1_000 * ASSET_UNIT, Multiplier::force_new(multiplier)).into()],
+				wap,
+			);
+			let ed = MockInstantiator::get_ed();
+			inst.mint_plmc_to(vec![(contributor, ed).into()]);
+			inst.mint_plmc_to(contributor_plmc);
+			inst.mint_foreign_asset_to(bidder_usdt);
+			inst.execute(|| Pallet::<TestRuntime>::community_contribute(
+				RuntimeOrigin::signed(contributor),
+				jwt,
+				project_id,
+				1000 * ASSET_UNIT,
+				Multiplier::force_new(multiplier),
+				AcceptedFundingAsset::USDT
+			))
+		};
+
+		let max_allowed_multipliers_map = vec![
+			(2, 1),
+			(4, 2),
+			(9, 4),
+			(24, 7),
+			(25, 10),
+		];
+
+		for (projects_participated_amount, max_allowed_multiplier) in max_allowed_multipliers_map {
+			let mut contributor = BUYER_1;
+			(0..projects_participated_amount-1).for_each(|_|{
+				let project_id = create_project(&mut inst);
+				assert_ok!(contribute(&mut inst, project_id, contributor, 1));
+			});
+
+			let project_id = create_project(&mut inst);
+
+			// Multipliers that should work
+			for multiplier in 1..=max_allowed_multiplier {
+				assert_ok!(contribute(&mut inst, project_id, contributor, multiplier));
+			}
+
+			// Multipliers that should NOT work
+			for multiplier in max_allowed_multiplier+1..=50 {
+				dbg!(projects_participated_amount);
+				dbg!(max_allowed_multiplier);
+				dbg!(multiplier);
+				assert_err!(contribute(&mut inst, project_id, contributor, multiplier), Error::<TestRuntime>::MultiplierAboveLimit);
+			}
+			contributor += 1
+		}
 	}
 }
 
