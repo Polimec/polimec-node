@@ -277,13 +277,13 @@ pub mod defaults {
 		vec![1u8, 1u8, 1u8, 1u8, 1u8]
 	}
 	pub fn default_bidder_multipliers() -> Vec<u8> {
-		vec![20u8, 3u8, 15u8, 13u8, 9u8]
+		vec![10u8, 3u8, 8u8, 1u8, 4u8]
 	}
 	pub fn default_community_contributor_multipliers() -> Vec<u8> {
-		vec![1u8, 5u8, 3u8, 1u8, 2u8]
+		vec![1u8, 1u8, 1u8, 1u8, 1u8]
 	}
 	pub fn default_remainder_contributor_multipliers() -> Vec<u8> {
-		vec![1u8, 10u8, 3u8, 2u8, 4u8]
+		vec![1u8, 11u8, 1u8, 1u8, 1u8]
 	}
 
 	pub fn default_community_contributors() -> Vec<AccountId> {

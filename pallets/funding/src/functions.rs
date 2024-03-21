@@ -946,7 +946,6 @@ impl<T: Config> Pallet<T> {
 		ensure!(project_details.status == ProjectStatus::EvaluationRound, Error::<T>::EvaluationNotStarted);
 		ensure!(evaluations_count < T::MaxEvaluationsPerProject::get(), Error::<T>::TooManyEvaluationsForProject);
 
-
 		// * Calculate new variables *
 		if investor_type == InvestorType::Retail {
 			RetailParticipations::<T>::mutate(&did, |project_participations| {
@@ -1073,7 +1072,7 @@ impl<T: Config> Pallet<T> {
 			InvestorType::Professional => project_metadata.bidding_ticket_sizes.professional,
 			_ => return Err(Error::<T>::NotAllowed.into()),
 		};
-		let max_multiplier =  match investor_type {
+		let max_multiplier = match investor_type {
 			InvestorType::Retail => {
 				RetailParticipations::<T>::mutate(&did, |project_participations| {
 					if project_participations.contains(&project_id).not() {
@@ -1333,7 +1332,7 @@ impl<T: Config> Pallet<T> {
 			InvestorType::Professional => project_metadata.contributing_ticket_sizes.professional,
 			InvestorType::Retail => project_metadata.contributing_ticket_sizes.retail,
 		};
-		let max_multiplier =  match investor_type {
+		let max_multiplier = match investor_type {
 			InvestorType::Retail => {
 				RetailParticipations::<T>::mutate(&did, |project_participations| {
 					if project_participations.contains(&project_id).not() {

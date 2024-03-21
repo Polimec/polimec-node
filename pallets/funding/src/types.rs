@@ -115,7 +115,6 @@ pub mod config_types {
 		fn into(self) -> u8 {
 			self.0
 		}
-
 	}
 
 	/// Enum used to identify PLMC holds.
@@ -175,8 +174,6 @@ pub mod config_types {
 	pub const RETAIL_MAX_MULTIPLIER: u8 = 10u8;
 	pub const PROFESSIONAL_MAX_MULTIPLIER: u8 = 10u8;
 	pub const INSTITUTIONAL_MAX_MULTIPLIER: u8 = 25u8;
-
-
 }
 
 pub mod storage_types {
