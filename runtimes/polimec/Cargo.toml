@@ -1,5 +1,5 @@
 [package]
-name = "polimec-base-runtime"
+name = "polimec-runtime"
 description = "Base runtime for Polimec on Polkadot."
 authors.workspace = true
 documentation.workspace = true
@@ -14,13 +14,17 @@ version.workspace = true
 substrate-wasm-builder.workspace = true
 
 [dependencies]
-parity-scale-codec = { workspace = true, default-features = false, features = [
+parity-scale-codec = { workspace= true,  default-features = false, features = [
 	"derive",
 ] }
 log.workspace = true
-scale-info = { workspace = true, default-features = false, features = [
+scale-info = { workspace= true, default-features = false, features = [
 	"derive",
 ] }
+
+# Uncomment this to see variables instead of <wasm:stripped> in the console output
+sp-debug-derive = { workspace = true, features = ["force-debug"]}
+
 
 # Local
 pallet-parachain-staking.workspace = true
@@ -157,6 +161,7 @@ std = [
 	"sp-block-builder/std",
 	"sp-consensus-aura/std",
 	"sp-core/std",
+	"sp-debug-derive/std",
 	"sp-inherents/std",
 	"sp-offchain/std",
 	"sp-runtime/std",

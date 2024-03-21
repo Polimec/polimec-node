@@ -1,5 +1,5 @@
 [package]
-name = "polimec-parachain-runtime"
+name = "politest-runtime"
 description = "Parachain runtime for Polimec Mainnet on Polkadot."
 authors.workspace = true
 documentation.workspace = true
@@ -14,12 +14,13 @@ version.workspace = true
 substrate-wasm-builder.workspace = true
 
 [dependencies]
-parity-scale-codec = { workspace = true, features = ["derive"] }
-log = { workspace = true }
-scale-info = { workspace = true, features = ["derive"] }
-hex-literal = { workspace = true, optional = true }
-serde = { workspace = true, features = ["derive"] }
-smallvec.workspace = true
+parity-scale-codec = { workspace = true, default-features = false, features = [
+	"derive",
+] }
+log.workspace = true
+scale-info = { workspace = true, default-features = false, features = [
+	"derive",
+] }
 
 # Uncomment this to see variables instead of <wasm:stripped> in the console output
 sp-debug-derive = { workspace = true, features = ["force-debug"]}
@@ -103,6 +104,10 @@ polkadot-primitives.workspace = true
 # ORML
 orml-oracle.workspace = true
 
+# Migration utilities
+hex-literal = { workspace = true }
+array-bytes = { workspace = true, default-features = false }
+
 [features]
 default = [ "std" ]
 fast-mode = [ "shared-configuration/fast-mode" ]
@@ -162,13 +167,11 @@ std = [
 	"polkadot-primitives/std",
 	"polkadot-runtime-common/std",
 	"scale-info/std",
-	"serde/std",
 	"shared-configuration/std",
 	"sp-api/std",
 	"sp-block-builder/std",
 	"sp-consensus-aura/std",
 	"sp-core/std",
-	"sp-debug-derive/std",
 	"sp-inherents/std",
 	"sp-io/std",
 	"sp-offchain/std",
@@ -180,6 +183,7 @@ std = [
 	"xcm-builder/std",
 	"xcm-executor/std",
 	"xcm/std",
+	"sp-debug-derive/std"
 ]
 
 runtime-benchmarks = [
@@ -190,7 +194,6 @@ runtime-benchmarks = [
 	"frame-support/runtime-benchmarks",
 	"frame-system-benchmarking/runtime-benchmarks",
 	"frame-system/runtime-benchmarks",
-	"hex-literal",
 	"pallet-asset-tx-payment/runtime-benchmarks",
 	"pallet-assets/runtime-benchmarks",
 	"pallet-balances/runtime-benchmarks",
@@ -268,3 +271,8 @@ try-runtime = [
 	"shared-configuration/try-runtime",
 	"sp-runtime/try-runtime",
 ]
+
+# A feature that should be enabled when the runtime should be built for on-chain
+# deployment. This will disable stuff that shouldn't be part of the on-chain wasm
+# to make it smaller, like logging for example.
+on-chain-release-build = [ "sp-api/disable-logging" ]

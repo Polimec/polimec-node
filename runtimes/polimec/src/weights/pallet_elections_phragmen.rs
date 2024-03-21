@@ -8,7 +8,7 @@
 //! EXECUTION: ``, WASM-EXECUTION: `Compiled`, CHAIN: `Some("base-polkadot")`, DB CACHE: 1024
 
 // Executed Command:
-// target/release/polimec-parachain-node
+// target/release/polimec-node
 // benchmark
 // pallet
 // --chain=base-polkadot

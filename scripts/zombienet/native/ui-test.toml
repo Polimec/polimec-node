@@ -32,6 +32,6 @@ id = 3344
 chain = "polimec-testing"
 [[parachains.collators]]
 name = "polimec-testing"
-command = "./target/release/polimec-parachain-node"
+command = "./target/release/polimec-node"
 args = ["-lerror", "-lxcm::process_instruction=trace", "-lxcm::execute_xcm_in_credit=trace", "-lxcm::barriers=trace", "-lpallet_funding::hrmp=trace", "-lpallet_funding::test=trace", "--execution=native", ]
 ws_port = 8888

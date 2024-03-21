@@ -28,7 +28,7 @@ fn dmp() {
 		remark: "Hello from Polkadot!".as_bytes().to_vec(),
 	});
 	let sudo_origin = PolkadotOrigin::root();
-	let para_id = Polimec::para_id();
+	let para_id = Politest::para_id();
 	let xcm = VersionedXcm::from(Xcm(vec![
 		UnpaidExecution { weight_limit: Unlimited, check_origin: None },
 		Transact {
@@ -49,11 +49,11 @@ fn dmp() {
 		);
 	});
 
-	Polimec::execute_with(|| {
+	Politest::execute_with(|| {
 		assert_expected_events!(
-			Polimec,
+			Politest,
 			vec![
-				PolimecEvent::System(frame_system::Event::Remarked { sender: _, hash: _ }) => {},
+				PolitestEvent::System(frame_system::Event::Remarked { sender: _, hash: _ }) => {},
 			]
 		);
 	});
@@ -69,7 +69,7 @@ fn ump() {
 
 	let here_asset: MultiAsset = (MultiLocation::here(), 1_0_000_000_000u128).into();
 
-	Polimec::execute_with(|| {
+	Politest::execute_with(|| {
 		assert_ok!(PolimecXcmPallet::force_default_xcm_version(PolimecOrigin::root(), Some(3)));
 
 		assert_ok!(PolimecXcmPallet::send_xcm(
@@ -118,7 +118,7 @@ fn xcmp() {
 	Penpal::execute_with(|| {
 		assert_ok!(PenpalXcmPallet::send_xcm(
 			Here,
-			MultiLocation::new(1, X1(Parachain(Polimec::para_id().into()))),
+			MultiLocation::new(1, X1(Parachain(Politest::para_id().into()))),
 			Xcm(vec![
 				WithdrawAsset(vec![here_asset.clone()].into()),
 				BuyExecution { fees: here_asset.clone(), weight_limit: Unlimited },
@@ -131,16 +131,16 @@ fn xcmp() {
 		));
 	});
 
-	let penpal_account = Polimec::sovereign_account_id_of((Parent, Parachain(Penpal::para_id().into())).into());
-	let penpal_balance = Polimec::account_data_of(penpal_account.clone()).free;
+	let penpal_account = Politest::sovereign_account_id_of((Parent, Parachain(Penpal::para_id().into())).into());
+	let penpal_balance = Politest::account_data_of(penpal_account.clone()).free;
 	dbg!(penpal_account.clone());
 	dbg!(penpal_balance);
 
-	Polimec::execute_with(|| {
+	Politest::execute_with(|| {
 		assert_expected_events!(
-			Polimec,
+			Politest,
 			vec![
-				PolimecEvent::XcmpQueue(cumulus_pallet_xcmp_queue::Event::Success { .. }) => {},
+				PolitestEvent::XcmpQueue(cumulus_pallet_xcmp_queue::Event::Success { .. }) => {},
 			]
 		);
 	});

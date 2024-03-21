@@ -36,9 +36,9 @@ Polimec is a blockchain platform built on Substrate, designed for robustness and
 1. **Clone the Polimec Repository**: 
    `git clone <Polimec Repository URL>`
 2. **Compile the source**: 
-   `cargo build --release --package polimec-parachain-node`
+   `cargo build --release --package polimec-node`
 3. **Add the Polimec node binary to your PATH**: 
-   `cp target/release/polimec-parachain-node ~/.local/bin/polimec`
+   `cp target/release/polimec-node ~/.local/bin/polimec`
 
 ### Running the Network
 
@@ -59,7 +59,7 @@ Polimec is a blockchain platform built on Substrate, designed for robustness and
  authorizeUpgrade : 0xe8d26589c2c5257c3f52e21ba420eb0c6fd25fa5cee0878bc183ca0256dee9bc
  IPFS             : Qmbi9ymmCdJVJCLsBAmYKWGYgYjGuHJLRdCPj9fvXQ3X9U
  BLAKE2_256       : 0x7ac6016ddf9179bb2d6d0284df4d60323519f20016647ba887057756d131b51e
- Wasm             : runtimes/testnet/target/srtool/release/wbuild/polimec-parachain-runtime/polimec_parachain_runtime.compact.wasm
+ Wasm             : runtimes/testnet/target/srtool/release/wbuild/politest-runtime/politest_runtime.compact.wasm
 
 == Compressed
  Version          : polimec-mainnet-2 (polimec-mainnet-0.tx1.au1)
@@ -70,7 +70,7 @@ Polimec is a blockchain platform built on Substrate, designed for robustness and
  authorizeUpgrade : 0x8dcd2827b4c86be23da13a93a8d63a38ad4952c1450738ed8471982bcb4fc714
  IPFS             : QmPFr7QRFKM5jSuYfBNAg21dfiKEpvMxXMydLDZuW9yLFH
  BLAKE2_256       : 0x7341cc921de52eaea99af5865c3e36562cf49158dcb961daef3c2e06f531ae00
- Wasm             : runtimes/testnet/target/srtool/release/wbuild/polimec-parachain-runtime/polimec_parachain_runtime.compact.compressed.wasm
+ Wasm             : runtimes/testnet/target/srtool/release/wbuild/politest-runtime/politest_runtime.compact.compressed.wasm
 ```
 - **Utility Scripts**: Check the `scripts` directory for useful scripts. Use [just](https://github.com/casey/just) for executing scripts, e.g., `$ just build-parachain-node`.
 
@@ -87,7 +87,7 @@ Available recipes:
   build-parachain-srtool    # Build the "Testnet" Runtime using srtool
   create-chainspec-base     # Create the "Base" Runtime Chainspec
   default                   # Help information
-  docker-build tag="latest" package="polimec-parachain-node" # Build the Node Docker Image
+  docker-build tag="latest" package="polimec-node" # Build the Node Docker Image
   run-node                  # Run the "Standalone" node in --dev mode
   test-runtime-features     # Test the runtimes features
   zombienet path_to_file="scripts/zombienet/native/base-rococo-local.toml" # Use zombienet to spawn rococo + polimec testnet
