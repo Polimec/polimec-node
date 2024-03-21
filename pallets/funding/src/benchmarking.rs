@@ -2837,7 +2837,7 @@ mod benchmarks {
 
 		let community_end_block = now + T::CommunityFundingDuration::get();
 
-		let insertion_block_number = community_end_block + One::one();
+		let insertion_block_number = community_end_block + 1u32.into();
 		fill_projects_to_update::<T>(x, insertion_block_number);
 
 		#[block]
@@ -2845,13 +2845,21 @@ mod benchmarks {
 			Pallet::<T>::do_community_funding(project_id).unwrap();
 		}
 
-		// * validity checks *
-		// Storage
+		frame_system::Pallet::<T>::assert_last_event(Event::<T>::AuctionFailed { project_id }.into());
+
+		// execute do_funding_end automatically
+		inst.advance_time(1u32.into());
+
 		let stored_details = ProjectsDetails::<T>::get(project_id).unwrap();
 		assert_eq!(stored_details.status, ProjectStatus::FundingFailed);
 
-		// Events
-		frame_system::Pallet::<T>::assert_last_event(Event::<T>::AuctionFailed { project_id }.into());
+		frame_system::Pallet::<T>::assert_last_event(
+			Event::<T>::FundingEnded {
+				project_id: 0,
+				outcome: FundingOutcome::Failure(FailureReason::TargetNotReached),
+			}
+			.into(),
+		);
 	}
 
 	// do_remainder_funding
@@ -3550,7 +3558,7 @@ mod benchmarks {
 		#[test]
 		fn bench_start_community_funding_failure() {
 			new_test_ext().execute_with(|| {
-				assert_ok!(PalletFunding::<TestRuntime>::test_start_community_funding_success());
+				assert_ok!(PalletFunding::<TestRuntime>::test_start_community_funding_failure());
 			});
 		}
 

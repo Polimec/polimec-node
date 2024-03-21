@@ -7276,7 +7276,7 @@ dependencies = [
  "frame-system-benchmarking",
  "frame-system-rpc-runtime-api",
  "frame-try-runtime",
- "hex-literal 0.4.1",
+ "hex-literal 0.3.4",
  "log",
  "pallet-asset-tx-payment",
  "pallet-assets",
@@ -7648,6 +7648,7 @@ dependencies = [
  "sp-block-builder",
  "sp-consensus-aura",
  "sp-core",
+ "sp-debug-derive",
  "sp-inherents",
  "sp-offchain",
  "sp-runtime",
@@ -7684,6 +7685,7 @@ dependencies = [
 name = "politest-runtime"
 version = "0.5.1"
 dependencies = [
+ "array-bytes",
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-dmp-queue",
  "cumulus-pallet-parachain-system",
@@ -7739,9 +7741,7 @@ dependencies = [
  "polkadot-primitives",
  "polkadot-runtime-common",
  "scale-info",
- "serde",
  "shared-configuration",
- "smallvec",
  "sp-api",
  "sp-block-builder",
  "sp-consensus-aura",

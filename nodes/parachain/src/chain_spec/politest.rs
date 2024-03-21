@@ -233,15 +233,16 @@ fn local_genesis(
 #[cfg(feature = "std")]
 mod testing_helpers {
 	use super::*;
-	pub use instantiator::TestProjectParams;
-	pub use itertools::Itertools;
 	pub use macros::generate_accounts;
-	pub use pallet_funding::{instantiator, instantiator::UserToUSDBalance, AuctionPhase, ProjectStatus, *};
+	pub use pallet_funding::{
+		instantiator::{TestProjectParams, UserToUSDBalance},
+		AuctionPhase, ProjectStatus, *,
+	};
 	pub use politest_runtime::AccountId;
 	pub use sp_core::H256;
 	pub use sp_runtime::{
 		traits::{ConstU32, Get, PhantomData},
-		BoundedVec, FixedPointNumber, FixedU128, Perquintill,
+		BoundedVec, FixedPointNumber,
 	};
 
 	pub const METADATA: &str = r#"METADATA

@@ -22,6 +22,10 @@ scale-info = { workspace= true, default-features = false, features = [
 	"derive",
 ] }
 
+# Uncomment this to see variables instead of <wasm:stripped> in the console output
+sp-debug-derive = { workspace = true, features = ["force-debug"]}
+
+
 # Local
 pallet-parachain-staking.workspace = true
 pallet-oracle-ocw.workspace = true
@@ -92,6 +96,10 @@ parachains-common.workspace = true
 
 # ORML
 orml-oracle.workspace = true
+
+# Migration utilities
+hex-literal = { workspace = true }
+array-bytes = { workspace = true, default-features = false }
 
 [features]
 default = [ "std" ]
