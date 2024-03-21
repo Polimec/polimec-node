@@ -283,7 +283,7 @@ pub mod defaults {
 		vec![1u8, 1u8, 1u8, 1u8, 1u8]
 	}
 	pub fn default_remainder_contributor_multipliers() -> Vec<u8> {
-		vec![1u8, 11u8, 1u8, 1u8, 1u8]
+		vec![1u8, 1u8, 1u8, 1u8, 1u8]
 	}
 
 	pub fn default_community_contributors() -> Vec<AccountId> {
@@ -2649,47 +2649,48 @@ mod community_contribution {
 		]);
 
 		// contribution below 1 CT (10 USD) should fail for retail
+		let jwt = get_mock_jwt(BUYER_1, InvestorType::Retail, generate_did_from_account(BUYER_1));
 		inst.execute(|| {
 			assert_noop!(
-				Pallet::<TestRuntime>::do_community_contribute(
-					&BUYER_1,
+				Pallet::<TestRuntime>::community_contribute(
+					RuntimeOrigin::signed(BUYER_1),
+					jwt,
 					project_id,
 					ASSET_UNIT / 2,
 					1u8.try_into().unwrap(),
 					AcceptedFundingAsset::USDT,
-					generate_did_from_account(BUYER_1),
-					InvestorType::Retail
 				),
 				Error::<TestRuntime>::ContributionTooLow
 			);
 		});
 		// contribution below 10_000 CT (100k USD) should fail for professionals
+		let jwt = get_mock_jwt(BUYER_2, InvestorType::Professional, generate_did_from_account(BUYER_2));
 		inst.execute(|| {
 			assert_noop!(
-				Pallet::<TestRuntime>::do_community_contribute(
-					&BUYER_2,
+				Pallet::<TestRuntime>::community_contribute(
+					RuntimeOrigin::signed(BUYER_2),
+					jwt,
 					project_id,
 					9_999,
 					1u8.try_into().unwrap(),
 					AcceptedFundingAsset::USDT,
-					generate_did_from_account(BUYER_2),
-					InvestorType::Professional
 				),
 				Error::<TestRuntime>::ContributionTooLow
 			);
 		});
 
-		// contribution below 20_000 CT (200k USD) should fail for professionals
+		// contribution below 20_000 CT (200k USD) should fail for institutionals
+		let jwt = get_mock_jwt(BUYER_3, InvestorType::Professional, generate_did_from_account(BUYER_3));
+
 		inst.execute(|| {
 			assert_noop!(
-				Pallet::<TestRuntime>::do_community_contribute(
-					&BUYER_2,
+				Pallet::<TestRuntime>::community_contribute(
+					RuntimeOrigin::signed(BUYER_3),
+					jwt,
 					project_id,
 					19_999,
 					1u8.try_into().unwrap(),
 					AcceptedFundingAsset::USDT,
-					generate_did_from_account(BUYER_2),
-					InvestorType::Institutional
 				),
 				Error::<TestRuntime>::ContributionTooLow
 			);
@@ -3370,47 +3371,47 @@ mod remainder_contribution {
 		]);
 
 		// contribution below 1 CT (10 USD) should fail for retail
+		let jwt = get_mock_jwt(BUYER_4, InvestorType::Retail, generate_did_from_account(BUYER_4));
 		inst.execute(|| {
 			assert_noop!(
-				Pallet::<TestRuntime>::do_remaining_contribute(
-					&BUYER_4,
+				Pallet::<TestRuntime>::remaining_contribute(
+					RuntimeOrigin::signed(BUYER_4),
+					jwt,
 					project_id,
 					ASSET_UNIT / 2,
 					1u8.try_into().unwrap(),
 					AcceptedFundingAsset::USDT,
-					generate_did_from_account(BUYER_4),
-					InvestorType::Retail
 				),
 				Error::<TestRuntime>::ContributionTooLow
 			);
 		});
 		// contribution below 10_000 CT (100k USD) should fail for professionals
+		let jwt = get_mock_jwt(BUYER_5, InvestorType::Professional, generate_did_from_account(BUYER_5));
 		inst.execute(|| {
 			assert_noop!(
-				Pallet::<TestRuntime>::do_remaining_contribute(
-					&BUYER_5,
+				Pallet::<TestRuntime>::remaining_contribute(
+					RuntimeOrigin::signed(BUYER_5),
+					jwt,
 					project_id,
 					9_999,
 					1u8.try_into().unwrap(),
 					AcceptedFundingAsset::USDT,
-					generate_did_from_account(BUYER_5),
-					InvestorType::Professional
 				),
 				Error::<TestRuntime>::ContributionTooLow
 			);
 		});
 
-		// contribution below 20_000 CT (200k USD) should fail for professionals
+		// contribution below 20_000 CT (200k USD) should fail for institutionals
+		let jwt = get_mock_jwt(BUYER_6, InvestorType::Institutional, generate_did_from_account(BUYER_6));
 		inst.execute(|| {
 			assert_noop!(
-				Pallet::<TestRuntime>::do_remaining_contribute(
-					&BUYER_6,
+				Pallet::<TestRuntime>::remaining_contribute(
+					RuntimeOrigin::signed(BUYER_6),
+					jwt,
 					project_id,
 					19_999,
 					1u8.try_into().unwrap(),
 					AcceptedFundingAsset::USDT,
-					generate_did_from_account(BUYER_6),
-					InvestorType::Institutional
 				),
 				Error::<TestRuntime>::ContributionTooLow
 			);

@@ -465,7 +465,7 @@ pub mod polimec {
 	use super::*;
 	use crate::Polimec;
 	use pallet_funding::AcceptedFundingAsset;
-	use polimec_base_runtime::PayMaster;
+	use polimec_runtime::PayMaster;
 	use xcm::{prelude::Parachain, v3::Parent};
 
 	pub const PARA_ID: u32 = 3344;

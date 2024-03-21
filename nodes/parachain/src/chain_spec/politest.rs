@@ -257,8 +257,9 @@ mod testing_helpers {
 	pub const ASSET_UNIT: u128 = 10_u128.pow(10 as u32);
 
 	generate_accounts!(
-		ALICE, BOB, CHARLIE, ISSUER, EVAL_1, EVAL_2, EVAL_3, EVAL_4, BIDDER_1, BIDDER_2, BIDDER_3, BIDDER_4, BIDDER_5,
-		BIDDER_6, BUYER_1, BUYER_2, BUYER_3, BUYER_4, BUYER_5, BUYER_6,
+		ALICE, BOB, CHARLIE, ISSUER_1, ISSUER_2, ISSUER_3, ISSUER_4, ISSUER_5, ISSUER_6, ISSUER_7, ISSUER_8, EVAL_1,
+		EVAL_2, EVAL_3, EVAL_4, BIDDER_1, BIDDER_2, BIDDER_3, BIDDER_4, BIDDER_5, BIDDER_6, BUYER_1, BUYER_2, BUYER_3,
+		BUYER_4, BUYER_5, BUYER_6,
 	);
 
 	pub fn bounded_name() -> BoundedVec<u8, ConstU32<64>> {
@@ -312,13 +313,13 @@ mod testing_helpers {
 		vec![BIDDER_1.into(), BIDDER_2.into(), BIDDER_3.into(), BIDDER_4.into(), BIDDER_5.into()]
 	}
 	pub fn default_bidder_multipliers() -> Vec<u8> {
-		vec![20u8, 3u8, 15u8, 13u8, 9u8]
+		vec![10u8, 3u8, 2u8, 7u8, 5u8]
 	}
 	pub fn default_community_contributor_multipliers() -> Vec<u8> {
-		vec![1u8, 5u8, 3u8, 1u8, 2u8]
+		vec![1u8, 1u8, 1u8, 1u8, 1u8]
 	}
 	pub fn default_remainder_contributor_multipliers() -> Vec<u8> {
-		vec![1u8, 10u8, 3u8, 2u8, 4u8]
+		vec![1u8, 1u8, 1u8, 1u8, 1u8]
 	}
 
 	pub fn default_community_contributors() -> Vec<AccountId> {
@@ -354,7 +355,7 @@ fn populated_genesis(
 	use testing_helpers::*;
 
 	// only used to generate some values, and not for chain interactions
-	let default_project_metadata = project_metadata(ISSUER.into(), 0u32);
+	let default_project_metadata = project_metadata(ISSUER_1.into(), 0u32);
 	let min_price = default_project_metadata.minimum_price;
 	let usdt_funding_amount =
 		default_project_metadata.minimum_price.checked_mul_int(default_project_metadata.total_allocation_size).unwrap();
@@ -399,8 +400,8 @@ fn populated_genesis(
 			starting_projects: vec![
 				TestProjectParams::<Runtime> {
 					expected_state: ProjectStatus::FundingSuccessful,
-					metadata: project_metadata(ISSUER.into(), 0u32),
-					issuer: ISSUER.into(),
+					metadata: project_metadata(ISSUER_1.into(), 0u32),
+					issuer: ISSUER_1.into(),
 					evaluations: evaluations.clone(),
 					bids: bids.clone(),
 					community_contributions: community_contributions.clone(),
@@ -408,8 +409,8 @@ fn populated_genesis(
 				},
 				TestProjectParams::<Runtime> {
 					expected_state: ProjectStatus::RemainderRound,
-					metadata: project_metadata(ISSUER.into(), 1u32),
-					issuer: ISSUER.into(),
+					metadata: project_metadata(ISSUER_2.into(), 1u32),
+					issuer: ISSUER_2.into(),
 					evaluations: evaluations.clone(),
 					bids: bids.clone(),
 					community_contributions: community_contributions.clone(),
@@ -417,8 +418,8 @@ fn populated_genesis(
 				},
 				TestProjectParams::<Runtime> {
 					expected_state: ProjectStatus::CommunityRound,
-					metadata: project_metadata(ISSUER.into(), 2u32),
-					issuer: ISSUER.into(),
+					metadata: project_metadata(ISSUER_3.into(), 2u32),
+					issuer: ISSUER_3.into(),
 					evaluations: evaluations.clone(),
 					bids: bids.clone(),
 					community_contributions: vec![],
@@ -426,8 +427,8 @@ fn populated_genesis(
 				},
 				TestProjectParams::<Runtime> {
 					expected_state: ProjectStatus::AuctionRound(AuctionPhase::English),
-					metadata: project_metadata(ISSUER.into(), 3u32),
-					issuer: ISSUER.into(),
+					metadata: project_metadata(ISSUER_4.into(), 3u32),
+					issuer: ISSUER_4.into(),
 					evaluations: evaluations.clone(),
 					bids: vec![],
 					community_contributions: vec![],
@@ -435,8 +436,8 @@ fn populated_genesis(
 				},
 				TestProjectParams::<Runtime> {
 					expected_state: ProjectStatus::EvaluationRound,
-					metadata: project_metadata(ISSUER.into(), 4u32),
-					issuer: ISSUER.into(),
+					metadata: project_metadata(ISSUER_5.into(), 4u32),
+					issuer: ISSUER_5.into(),
 					evaluations: vec![],
 					bids: vec![],
 					community_contributions: vec![],
@@ -444,8 +445,8 @@ fn populated_genesis(
 				},
 				TestProjectParams::<Runtime> {
 					expected_state: ProjectStatus::Application,
-					metadata: project_metadata(ISSUER.into(), 5u32),
-					issuer: ISSUER.into(),
+					metadata: project_metadata(ISSUER_6.into(), 5u32),
+					issuer: ISSUER_6.into(),
 					evaluations: vec![],
 					bids: vec![],
 					community_contributions: vec![],

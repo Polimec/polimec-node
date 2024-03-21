@@ -67,10 +67,10 @@ pub fn default_weights() -> Vec<u8> {
 	vec![20u8, 15u8, 10u8, 25u8, 30u8]
 }
 pub fn default_bidder_multipliers() -> Vec<u8> {
-	vec![1u8, 6u8, 20u8, 12u8, 3u8]
+	vec![1u8, 6u8, 10u8, 2u8, 5u8]
 }
 pub fn default_contributor_multipliers() -> Vec<u8> {
-	vec![1u8, 2u8, 1u8, 4u8, 1u8]
+	vec![1u8, 1u8, 1u8, 1u8, 1u8]
 }
 
 pub fn default_project_metadata(nonce: u32, issuer: AccountId) -> ProjectMetadataOf<politest_runtime::Runtime> {
@@ -161,9 +161,9 @@ pub fn default_remainder_contributions() -> Vec<ContributionParams<PolitestRunti
 	IntegrationInstantiator::generate_contributions_from_total_usd(
 		ten_percent_auction_usd + ten_percent_contribution_usd,
 		default_metadata.minimum_price,
-		vec![20u8, 15u8, 10u8, 25u8, 23u8, 7u8],
+		default_weights(),
 		default_remainder_contributors(),
-		vec![1u8, 2u8, 12u8, 1u8, 3u8, 10u8],
+		default_contributor_multipliers(),
 	)
 }
 pub fn default_community_contributors() -> Vec<AccountId> {
