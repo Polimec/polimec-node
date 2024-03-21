@@ -960,7 +960,6 @@ impl<T: Config> Pallet<T> {
 			early_usd_amount,
 			late_usd_amount,
 			when: now,
-			rewarded_or_slashed: None,
 			ct_migration_status: MigrationStatus::NotStarted,
 		};
 
@@ -1170,10 +1169,7 @@ impl<T: Config> Pallet<T> {
 			funding_asset_amount_locked,
 			multiplier,
 			plmc_bond,
-			plmc_vesting_info: None,
 			when: now,
-			funds_released: false,
-			ct_minted: false,
 			ct_migration_status: MigrationStatus::NotStarted,
 		};
 
@@ -1333,9 +1329,6 @@ impl<T: Config> Pallet<T> {
 			funding_asset,
 			funding_asset_amount,
 			plmc_bond,
-			plmc_vesting_info: None,
-			funds_released: false,
-			ct_minted: false,
 			ct_migration_status: MigrationStatus::NotStarted,
 		};
 

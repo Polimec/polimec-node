@@ -632,13 +632,11 @@ mod benchmarks {
 				evaluator,
 				original_plmc_bond,
 				current_plmc_bond,
-				rewarded_or_slashed,
 				..
 			} if project_id == project_id &&
 				evaluator == evaluation.account.clone() &&
 				original_plmc_bond == extrinsic_plmc_bonded &&
 				current_plmc_bond == extrinsic_plmc_bonded &&
-				rewarded_or_slashed.is_none() => {},
 			_ => assert!(false, "Evaluation is not stored correctly"),
 		}
 
@@ -921,10 +919,7 @@ mod benchmarks {
 				funding_asset_amount_locked: None,
 				multiplier: Some(bid_params.multiplier),
 				plmc_bond: None,
-				plmc_vesting_info: Some(None),
 				when: None,
-				funds_released: Some(false),
-				ct_minted: Some(false),
 			};
 			Bids::<T>::iter_prefix_values((project_id, bidder.clone()))
 				.find(|stored_bid| bid_filter.matches_bid(stored_bid))
