@@ -450,7 +450,11 @@ fn ct_migrated() {
 	// Mock HRMP establishment
 	PolitestNet::execute_with(|| {
 		let _account_id: PolitestAccountId = ISSUER.into();
-		assert_ok!(PolitestFundingPallet::do_set_para_id_for_project(&ISSUER.into(), project_id, ParaId::from(6969u32),));
+		assert_ok!(PolitestFundingPallet::do_set_para_id_for_project(
+			&ISSUER.into(),
+			project_id,
+			ParaId::from(6969u32),
+		));
 		let open_channel_message = xcm::v3::opaque::Instruction::HrmpNewChannelOpenRequest {
 			sender: 6969,
 			max_message_size: 102_300,

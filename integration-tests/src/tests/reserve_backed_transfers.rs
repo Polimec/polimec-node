@@ -228,7 +228,11 @@ fn test_polimec_to_reserve(asset_id: u32) {
 	mint_asset_on_asset_hub_to(asset_id, &polimec_sibling_account, RESERVE_TRANSFER_AMOUNT + 1_0_000_000_000);
 
 	PolimecNet::execute_with(|| {
-		assert_ok!(PolimecForeignAssets::mint_into(asset_id, &alice_account, RESERVE_TRANSFER_AMOUNT + 1_0_000_000_000));
+		assert_ok!(PolimecForeignAssets::mint_into(
+			asset_id,
+			&alice_account,
+			RESERVE_TRANSFER_AMOUNT + 1_0_000_000_000
+		));
 	});
 
 	let (

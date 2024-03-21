@@ -138,8 +138,8 @@ decl_test_networks! {
 /// Shortcuts to reduce boilerplate on runtime types
 pub mod shortcuts {
 	use super::{
-		AssetHub, AssetHubParaPallet, Chain, Penpal, PenpalParaPallet, Polimec, Politest, PolitestParaPallet,
-		PolimecParaPallet, PolkadotNet, PolkadotRelay as Polkadot, PolkadotRelayRelayPallet,
+		AssetHub, AssetHubParaPallet, Chain, Penpal, PenpalParaPallet, Polimec, PolimecParaPallet, Politest,
+		PolitestParaPallet, PolkadotNet, PolkadotRelay as Polkadot, PolkadotRelayRelayPallet,
 	};
 
 	pub type PolkaNet = Polkadot<PolkadotNet>;
