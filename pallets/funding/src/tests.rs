@@ -845,16 +845,14 @@ mod evaluation {
 		let plmc_eval_deposits: Vec<UserToPLMCBalance<_>> =
 			MockInstantiator::calculate_evaluation_plmc_spent(evaluations);
 		let plmc_existential_deposits = plmc_eval_deposits.accounts().existential_deposits();
-		let ct_account_deposits = plmc_eval_deposits.accounts().ct_account_deposits();
 
 		let expected_evaluator_balances = MockInstantiator::generic_map_operation(
-			vec![plmc_eval_deposits.clone(), plmc_existential_deposits.clone(), ct_account_deposits.clone()],
+			vec![plmc_eval_deposits.clone(), plmc_existential_deposits.clone()],
 			MergeOperation::Add,
 		);
 
 		inst.mint_plmc_to(plmc_eval_deposits.clone());
 		inst.mint_plmc_to(plmc_existential_deposits.clone());
-		inst.mint_plmc_to(ct_account_deposits.clone());
 
 		let project_id = inst.create_evaluating_project(project_metadata, issuer);
 
@@ -902,75 +900,6 @@ mod evaluation {
 	}
 
 	#[test]
-	fn evaluation_ct_account_deposits_are_returned_on_evaluation_failed() {
-		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
-		let project_metadata = default_project_metadata(0, ISSUER);
-		let project_id = inst.create_evaluating_project(project_metadata.clone(), ISSUER);
-		let evaluation_success_threshold = <TestRuntime as Config>::EvaluationSuccessThreshold::get();
-		let evaluation_min_success_amount = evaluation_success_threshold *
-			project_metadata.minimum_price.saturating_mul_int(project_metadata.total_allocation_size);
-		let evaluation_fail_amount = evaluation_min_success_amount - 100 * ASSET_UNIT;
-		let evaluator_bond = evaluation_fail_amount / 4;
-		let evaluations = vec![
-			(EVALUATOR_1, evaluator_bond).into(),
-			(EVALUATOR_1, evaluator_bond).into(),
-			(EVALUATOR_2, evaluator_bond).into(),
-			(EVALUATOR_3, evaluator_bond).into(),
-		];
-		let deposit_required = <<TestRuntime as Config>::ContributionTokenCurrency as AccountTouch<
-			ProjectId,
-			AccountIdOf<TestRuntime>,
-		>>::deposit_required(project_id);
-		inst.do_free_plmc_assertions(vec![
-			(EVALUATOR_1, 0u128).into(),
-			(EVALUATOR_2, 0u128).into(),
-			(EVALUATOR_3, 0u128).into(),
-		]);
-		inst.do_reserved_plmc_assertions(
-			vec![(EVALUATOR_1, 0u128).into(), (EVALUATOR_2, 0u128).into(), (EVALUATOR_3, 0u128).into()],
-			HoldReason::FutureDeposit(project_id).into(),
-		);
-
-		let required_plmc_bonds = MockInstantiator::calculate_evaluation_plmc_spent(evaluations.clone());
-		let plmc_existential_deposits = required_plmc_bonds.accounts().existential_deposits();
-		let plmc_ct_account_deposits = required_plmc_bonds.accounts().ct_account_deposits();
-
-		inst.mint_plmc_to(required_plmc_bonds.clone());
-		inst.mint_plmc_to(plmc_existential_deposits.clone());
-		inst.mint_plmc_to(plmc_ct_account_deposits.clone());
-
-		let _ = inst.evaluate_for_users(project_id, evaluations);
-
-		inst.do_free_plmc_assertions(vec![
-			(EVALUATOR_1, MockInstantiator::get_ed()).into(),
-			(EVALUATOR_2, MockInstantiator::get_ed()).into(),
-			(EVALUATOR_3, MockInstantiator::get_ed()).into(),
-		]);
-		inst.do_reserved_plmc_assertions(
-			vec![
-				(EVALUATOR_1, deposit_required).into(),
-				(EVALUATOR_2, deposit_required).into(),
-				(EVALUATOR_3, deposit_required).into(),
-			],
-			HoldReason::FutureDeposit(project_id).into(),
-		);
-
-		inst.advance_time(<TestRuntime as Config>::EvaluationDuration::get() + 1).unwrap();
-		inst.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get() + 1).unwrap();
-		assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::EvaluationFailed);
-
-		let final_plmc_amounts = MockInstantiator::generic_map_operation(
-			vec![required_plmc_bonds, plmc_existential_deposits, plmc_ct_account_deposits],
-			MergeOperation::Add,
-		);
-		inst.do_free_plmc_assertions(final_plmc_amounts);
-		inst.do_reserved_plmc_assertions(
-			vec![(EVALUATOR_1, 0u128).into(), (EVALUATOR_2, 0u128).into(), (EVALUATOR_3, 0u128).into()],
-			HoldReason::FutureDeposit(project_id).into(),
-		);
-	}
-
-	#[test]
 	fn cannot_evaluate_more_than_project_limit() {
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		let project_metadata = default_project_metadata(0, ISSUER);
@@ -983,22 +912,18 @@ mod evaluation {
 
 		let plmc_for_evaluating = MockInstantiator::calculate_evaluation_plmc_spent(evaluations.clone());
 		let plmc_existential_deposits = evaluations.accounts().existential_deposits();
-		let plmc_ct_account_deposits = evaluations.accounts().ct_account_deposits();
 
 		inst.mint_plmc_to(plmc_for_evaluating.clone());
 		inst.mint_plmc_to(plmc_existential_deposits.clone());
-		inst.mint_plmc_to(plmc_ct_account_deposits.clone());
 
 		inst.evaluate_for_users(project_id, evaluations.clone()).unwrap();
 
 		let plmc_for_failing_evaluating =
 			MockInstantiator::calculate_evaluation_plmc_spent(vec![failing_evaluation.clone()]);
 		let plmc_existential_deposits = plmc_for_failing_evaluating.accounts().existential_deposits();
-		let plmc_ct_account_deposits = plmc_for_failing_evaluating.accounts().ct_account_deposits();
 
 		inst.mint_plmc_to(plmc_for_failing_evaluating.clone());
 		inst.mint_plmc_to(plmc_existential_deposits.clone());
-		inst.mint_plmc_to(plmc_ct_account_deposits.clone());
 
 		assert_err!(
 			inst.evaluate_for_users(project_id, vec![failing_evaluation]),
@@ -1236,7 +1161,6 @@ mod auction {
 			assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::AuctionRound(AuctionPhase::Candle));
 			inst.mint_plmc_to(vec![UserToPLMCBalance::new(bidding_account, plmc_necessary_funding * 10)]);
 			inst.mint_plmc_to(vec![bidding_account].existential_deposits());
-			inst.mint_plmc_to(vec![bidding_account].ct_account_deposits());
 
 			inst.mint_foreign_asset_to(vec![UserToForeignAssets::new(
 				bidding_account,
@@ -1311,10 +1235,9 @@ mod auction {
 		let evaluations = default_evaluations();
 		let required_plmc = MockInstantiator::calculate_evaluation_plmc_spent(evaluations.clone());
 		let ed_plmc = required_plmc.accounts().existential_deposits();
-		let ct_acount_deposits = required_plmc.accounts().ct_account_deposits();
+
 		inst.mint_plmc_to(required_plmc);
 		inst.mint_plmc_to(ed_plmc);
-		inst.mint_plmc_to(ct_acount_deposits);
 		inst.evaluate_for_users(project_id, evaluations).unwrap();
 		inst.advance_time(<TestRuntime as Config>::EvaluationDuration::get() + 1).unwrap();
 		assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::AuctionInitializePeriod);
@@ -1329,10 +1252,8 @@ mod auction {
 		let evaluations = default_evaluations();
 		let required_plmc = MockInstantiator::calculate_evaluation_plmc_spent(evaluations.clone());
 		let ed_plmc = required_plmc.accounts().existential_deposits();
-		let ct_acount_deposits = required_plmc.accounts().ct_account_deposits();
 		inst.mint_plmc_to(required_plmc);
 		inst.mint_plmc_to(ed_plmc);
-		inst.mint_plmc_to(ct_acount_deposits);
 		inst.evaluate_for_users(project_id, evaluations).unwrap();
 		inst.advance_time(<TestRuntime as Config>::EvaluationDuration::get() + 1).unwrap();
 		assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::AuctionInitializePeriod);
@@ -1348,10 +1269,8 @@ mod auction {
 		let evaluations = default_evaluations();
 		let required_plmc = MockInstantiator::calculate_evaluation_plmc_spent(evaluations.clone());
 		let ed_plmc = required_plmc.accounts().existential_deposits();
-		let ct_acount_deposits = required_plmc.accounts().ct_account_deposits();
 		inst.mint_plmc_to(required_plmc);
 		inst.mint_plmc_to(ed_plmc);
-		inst.mint_plmc_to(ct_acount_deposits);
 		inst.evaluate_for_users(project_id, evaluations).unwrap();
 		inst.advance_time(<TestRuntime as Config>::EvaluationDuration::get() + 1).unwrap();
 		assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::AuctionInitializePeriod);
@@ -1439,10 +1358,8 @@ mod auction {
 			None,
 		);
 		let bidders_existential_deposits = bidders_plmc.accounts().existential_deposits();
-		let bidders_ct_account_deposits = bidders_plmc.accounts().ct_account_deposits();
 		inst.mint_plmc_to(bidders_plmc.clone());
 		inst.mint_plmc_to(bidders_existential_deposits);
-		inst.mint_plmc_to(bidders_ct_account_deposits);
 
 		let bidders_funding_assets =
 			MockInstantiator::calculate_auction_funding_asset_charged_from_all_bids_made_or_with_bucket(
@@ -1460,10 +1377,8 @@ mod auction {
 		let contributors_plmc =
 			MockInstantiator::calculate_contributed_plmc_spent(community_contributions.clone(), final_price);
 		let contributors_existential_deposits = contributors_plmc.accounts().existential_deposits();
-		let contributors_ct_account_deposits = contributors_plmc.accounts().ct_account_deposits();
 		inst.mint_plmc_to(contributors_plmc.clone());
 		inst.mint_plmc_to(contributors_existential_deposits);
-		inst.mint_plmc_to(contributors_ct_account_deposits);
 
 		let contributors_funding_assets =
 			MockInstantiator::calculate_contributed_funding_asset_spent(community_contributions.clone(), final_price);
@@ -1539,11 +1454,9 @@ mod auction {
 		);
 
 		let plmc_existential_amounts = plmc_fundings.accounts().existential_deposits();
-		let plmc_ct_account_deposits = plmc_fundings.accounts().ct_account_deposits();
 
 		inst.mint_plmc_to(plmc_fundings.clone());
 		inst.mint_plmc_to(plmc_existential_amounts.clone());
-		inst.mint_plmc_to(plmc_ct_account_deposits.clone());
 		inst.mint_foreign_asset_to(usdt_fundings.clone());
 
 		inst.bid_for_users(project_id, bids.clone()).unwrap();
@@ -1659,7 +1572,6 @@ mod auction {
 			project_metadata.minimum_price,
 		);
 		let plmc_existential_deposits = bids.accounts().existential_deposits();
-		let plmc_ct_account_deposits = bids.accounts().ct_account_deposits();
 		let usdt_for_bidding = MockInstantiator::calculate_auction_funding_asset_charged_with_given_price(
 			&bids.clone(),
 			project_metadata.minimum_price,
@@ -1667,7 +1579,6 @@ mod auction {
 
 		inst.mint_plmc_to(plmc_for_bidding.clone());
 		inst.mint_plmc_to(plmc_existential_deposits.clone());
-		inst.mint_plmc_to(plmc_ct_account_deposits.clone());
 		inst.mint_foreign_asset_to(usdt_for_bidding.clone());
 
 		inst.bid_for_users(project_id, bids.clone()).unwrap();
@@ -1677,7 +1588,6 @@ mod auction {
 			project_metadata.minimum_price,
 		);
 		let plmc_existential_deposits = plmc_for_failing_bid.accounts().existential_deposits();
-		let plmc_ct_account_deposits = plmc_for_failing_bid.accounts().ct_account_deposits();
 		let usdt_for_bidding = MockInstantiator::calculate_auction_funding_asset_charged_with_given_price(
 			&vec![failing_bid.clone()],
 			project_metadata.minimum_price,
@@ -1685,7 +1595,6 @@ mod auction {
 
 		inst.mint_plmc_to(plmc_for_failing_bid.clone());
 		inst.mint_plmc_to(plmc_existential_deposits.clone());
-		inst.mint_plmc_to(plmc_ct_account_deposits.clone());
 		inst.mint_foreign_asset_to(usdt_for_bidding.clone());
 
 		assert_err!(inst.bid_for_users(project_id, vec![failing_bid]), Error::<TestRuntime>::TooManyBidsForProject);
@@ -1772,7 +1681,6 @@ mod auction {
 			project_metadata.minimum_price,
 		);
 		let plmc_existential_amounts = plmc_fundings.accounts().existential_deposits();
-		let plmc_ct_account_deposits = plmc_fundings.accounts().ct_account_deposits();
 
 		let usdt_fundings = MockInstantiator::calculate_auction_funding_asset_charged_with_given_price(
 			&vec![bid_in.clone(), bid_out.clone()],
@@ -1781,7 +1689,6 @@ mod auction {
 
 		inst.mint_plmc_to(plmc_fundings.clone());
 		inst.mint_plmc_to(plmc_existential_amounts.clone());
-		inst.mint_plmc_to(plmc_ct_account_deposits.clone());
 		inst.mint_foreign_asset_to(usdt_fundings.clone());
 
 		inst.bid_for_users(project_id, vec![bid_in]).unwrap();
@@ -2134,10 +2041,9 @@ mod auction {
 			project_metadata_all.minimum_price,
 		);
 		let plmc_existential_deposits = plmc_fundings.accounts().existential_deposits();
-		let plmc_ct_account_deposits = plmc_fundings.accounts().ct_account_deposits();
 
 		let plmc_all_mints = MockInstantiator::generic_map_operation(
-			vec![plmc_fundings, plmc_existential_deposits, plmc_ct_account_deposits],
+			vec![plmc_fundings, plmc_existential_deposits],
 			MergeOperation::Add,
 		);
 		inst.mint_plmc_to(plmc_all_mints.clone());
@@ -2276,13 +2182,11 @@ mod community_contribution {
 
 		let plmc_funding = MockInstantiator::calculate_contributed_plmc_spent(contributions.clone(), token_price);
 		let plmc_existential_deposit = plmc_funding.accounts().existential_deposits();
-		let plmc_ct_account_deposits = plmc_funding.accounts().ct_account_deposits();
 		let foreign_funding =
 			MockInstantiator::calculate_contributed_funding_asset_spent(contributions.clone(), token_price);
 
 		inst.mint_plmc_to(plmc_funding);
 		inst.mint_plmc_to(plmc_existential_deposit);
-		inst.mint_plmc_to(plmc_ct_account_deposits);
 		inst.mint_foreign_asset_to(foreign_funding);
 
 		inst.contribute_for_users(project_id, vec![contributions[0].clone()])
@@ -2325,13 +2229,11 @@ mod community_contribution {
 		let contributions = vec![ContributionParams::new(BOB, remaining_ct, 1u8, AcceptedFundingAsset::USDT)];
 		let plmc_fundings = MockInstantiator::calculate_contributed_plmc_spent(contributions.clone(), ct_price);
 		let plmc_existential_deposits = plmc_fundings.accounts().existential_deposits();
-		let plmc_ct_account_deposits = plmc_fundings.accounts().ct_account_deposits();
 		let foreign_asset_fundings =
 			MockInstantiator::calculate_contributed_funding_asset_spent(contributions.clone(), ct_price);
 
 		inst.mint_plmc_to(plmc_fundings.clone());
 		inst.mint_plmc_to(plmc_existential_deposits.clone());
-		inst.mint_plmc_to(plmc_ct_account_deposits.clone());
 		inst.mint_foreign_asset_to(foreign_asset_fundings.clone());
 
 		// Buy remaining CTs
@@ -2380,13 +2282,11 @@ mod community_contribution {
 		let contributions = vec![ContributionParams::new(BOB, remaining_ct, 1u8, AcceptedFundingAsset::USDT)];
 		let mut plmc_fundings = MockInstantiator::calculate_contributed_plmc_spent(contributions.clone(), ct_price);
 		let plmc_existential_deposits = plmc_fundings.accounts().existential_deposits();
-		let plmc_ct_account_deposits = plmc_fundings.accounts().ct_account_deposits();
 		let mut foreign_asset_fundings =
 			MockInstantiator::calculate_contributed_funding_asset_spent(contributions.clone(), ct_price);
 
 		inst.mint_plmc_to(plmc_fundings.clone());
 		inst.mint_plmc_to(plmc_existential_deposits.clone());
-		inst.mint_plmc_to(plmc_ct_account_deposits.clone());
 		inst.mint_foreign_asset_to(foreign_asset_fundings.clone());
 
 		// Buy remaining CTs
@@ -2455,14 +2355,12 @@ mod community_contribution {
 
 		let plmc_funding = MockInstantiator::calculate_contributed_plmc_spent(contributions.clone(), token_price);
 		let plmc_existential_deposits = plmc_funding.accounts().existential_deposits();
-		let plmc_ct_account_deposits = plmc_funding.accounts().ct_account_deposits();
 
 		let foreign_funding =
 			MockInstantiator::calculate_contributed_funding_asset_spent(contributions.clone(), token_price);
 
 		inst.mint_plmc_to(plmc_funding.clone());
 		inst.mint_plmc_to(plmc_existential_deposits.clone());
-		inst.mint_plmc_to(plmc_ct_account_deposits.clone());
 
 		inst.mint_foreign_asset_to(foreign_funding.clone());
 
@@ -2677,10 +2575,8 @@ mod community_contribution {
 			project_details.weighted_average_price.unwrap(),
 		);
 		let plmc_existential_deposits = plmc_contribution_funding.accounts().existential_deposits();
-		let plmc_ct_account_deposits = plmc_contribution_funding.accounts().ct_account_deposits();
 		inst.mint_plmc_to(plmc_contribution_funding.clone());
 		inst.mint_plmc_to(plmc_existential_deposits.clone());
-		inst.mint_plmc_to(plmc_ct_account_deposits.clone());
 
 		let foreign_asset_contribution_funding = MockInstantiator::calculate_contributed_funding_asset_spent(
 			contributions.clone(),
@@ -3050,10 +2946,9 @@ mod community_contribution {
 			wap,
 		);
 		let plmc_existential_deposits = plmc_fundings.accounts().existential_deposits();
-		let plmc_ct_account_deposits = plmc_fundings.accounts().ct_account_deposits();
 
 		let plmc_all_mints = MockInstantiator::generic_map_operation(
-			vec![plmc_fundings, plmc_existential_deposits, plmc_ct_account_deposits],
+			vec![plmc_fundings, plmc_existential_deposits],
 			MergeOperation::Add,
 		);
 		inst.mint_plmc_to(plmc_all_mints.clone());
@@ -3209,13 +3104,11 @@ mod remainder_contribution {
 		let contributions = vec![ContributionParams::new(BOB, remaining_ct, 1u8, AcceptedFundingAsset::USDT)];
 		let plmc_fundings = MockInstantiator::calculate_contributed_plmc_spent(contributions.clone(), ct_price);
 		let plmc_existential_deposits = contributions.accounts().existential_deposits();
-		let plmc_ct_account_deposits = contributions.accounts().ct_account_deposits();
 		let foreign_asset_fundings =
 			MockInstantiator::calculate_contributed_funding_asset_spent(contributions.clone(), ct_price);
 
 		inst.mint_plmc_to(plmc_fundings.clone());
 		inst.mint_plmc_to(plmc_existential_deposits.clone());
-		inst.mint_plmc_to(plmc_ct_account_deposits.clone());
 		inst.mint_foreign_asset_to(foreign_asset_fundings.clone());
 
 		// Buy remaining CTs
@@ -3262,13 +3155,11 @@ mod remainder_contribution {
 		let contributions = vec![ContributionParams::new(BOB, remaining_ct, 1u8, AcceptedFundingAsset::USDT)];
 		let mut plmc_fundings = MockInstantiator::calculate_contributed_plmc_spent(contributions.clone(), ct_price);
 		let plmc_existential_deposits = contributions.accounts().existential_deposits();
-		let plmc_ct_account_deposits = contributions.accounts().ct_account_deposits();
 		let mut foreign_asset_fundings =
 			MockInstantiator::calculate_contributed_funding_asset_spent(contributions.clone(), ct_price);
 
 		inst.mint_plmc_to(plmc_fundings.clone());
 		inst.mint_plmc_to(plmc_existential_deposits.clone());
-		inst.mint_plmc_to(plmc_ct_account_deposits.clone());
 		inst.mint_foreign_asset_to(foreign_asset_fundings.clone());
 
 		// Buy remaining CTs
@@ -3342,10 +3233,8 @@ mod remainder_contribution {
 			project_details.weighted_average_price.unwrap(),
 		);
 		let plmc_existential_deposits = plmc_contribution_funding.accounts().existential_deposits();
-		let plmc_ct_account_deposits = plmc_contribution_funding.accounts().ct_account_deposits();
 		inst.mint_plmc_to(plmc_contribution_funding.clone());
 		inst.mint_plmc_to(plmc_existential_deposits.clone());
-		inst.mint_plmc_to(plmc_ct_account_deposits.clone());
 
 		let foreign_asset_contribution_funding = MockInstantiator::calculate_contributed_funding_asset_spent(
 			contributions.clone(),
@@ -3724,10 +3613,9 @@ mod remainder_contribution {
 			wap,
 		);
 		let plmc_existential_deposits = plmc_fundings.accounts().existential_deposits();
-		let plmc_ct_account_deposits = plmc_fundings.accounts().ct_account_deposits();
 
 		let plmc_all_mints = MockInstantiator::generic_map_operation(
-			vec![plmc_fundings, plmc_existential_deposits, plmc_ct_account_deposits],
+			vec![plmc_fundings, plmc_existential_deposits],
 			MergeOperation::Add,
 		);
 		inst.mint_plmc_to(plmc_all_mints.clone());
@@ -4127,18 +4015,10 @@ mod funding_end {
 		);
 
 		let slashed_evaluation_locked_plmc = MockInstantiator::slash_evaluator_balances(old_evaluation_locked_plmc);
-		let mut expected_evaluator_free_balances = MockInstantiator::generic_map_operation(
+		let expected_evaluator_free_balances = MockInstantiator::generic_map_operation(
 			vec![slashed_evaluation_locked_plmc, old_participation_locked_plmc, old_free_plmc],
 			MergeOperation::Add,
 		);
-		let ct_deposit_required = <<TestRuntime as Config>::ContributionTokenCurrency as AccountTouch<
-			ProjectId,
-			AccountIdOf<TestRuntime>,
-		>>::deposit_required(project_id);
-		expected_evaluator_free_balances
-			.iter_mut()
-			.for_each(|UserToPLMCBalance { plmc_amount, .. }| *plmc_amount += ct_deposit_required);
-
 		let actual_evaluator_free_balances = inst.get_free_plmc_balances_for(evaluators.clone());
 
 		assert_eq!(actual_evaluator_free_balances, expected_evaluator_free_balances);
@@ -4169,17 +4049,10 @@ mod funding_end {
 		);
 
 		let slashed_evaluation_locked_plmc = MockInstantiator::slash_evaluator_balances(old_evaluation_locked_plmc);
-		let mut expected_evaluator_free_balances = MockInstantiator::generic_map_operation(
+		let expected_evaluator_free_balances = MockInstantiator::generic_map_operation(
 			vec![slashed_evaluation_locked_plmc, old_participation_locked_plmc, old_free_plmc],
 			MergeOperation::Add,
 		);
-		let ct_deposit_required = <<TestRuntime as Config>::ContributionTokenCurrency as AccountTouch<
-			ProjectId,
-			AccountIdOf<TestRuntime>,
-		>>::deposit_required(project_id);
-		expected_evaluator_free_balances
-			.iter_mut()
-			.for_each(|UserToPLMCBalance { plmc_amount, .. }| *plmc_amount += ct_deposit_required);
 
 		let actual_evaluator_free_balances = inst.get_free_plmc_balances_for(evaluators.clone());
 
@@ -5316,11 +5189,6 @@ mod funding_end {
 
 		let issuer_funding_delta = post_issuer_funding_balance - prev_issuer_funding_balance;
 
-		let participants = all_participants_plmc_deltas.accounts();
-		for participant in participants {
-			let future_deposit_reserved = inst.execute(||{<<TestRuntime as Config>::NativeCurrency as fungible::InspectHold<AccountIdOf<TestRuntime>>>::balance_on_hold(&HoldReason::FutureDeposit(project_id).into(), &participant)});
-			println!("participant {:?} has future deposit reserved {:?}", participant, future_deposit_reserved);
-		}
 		assert_eq!(issuer_funding_delta, 0);
 		assert_eq!(all_participants_plmc_deltas, all_expected_payouts);
 	}
@@ -5501,11 +5369,6 @@ mod funding_end {
 		);
 
 		let issuer_funding_delta = post_issuer_funding_balance - prev_issuer_funding_balance;
-		let participants = all_participants_plmc_deltas.accounts();
-		for participant in participants {
-			let future_deposit_reserved = inst.execute(||{<<TestRuntime as Config>::NativeCurrency as fungible::InspectHold<AccountIdOf<TestRuntime>>>::balance_on_hold(&HoldReason::FutureDeposit(project_id).into(), &participant)});
-			println!("participant {:?} has future deposit reserved {:?}", participant, future_deposit_reserved);
-		}
 		assert_eq!(
 			inst.get_project_details(project_id).cleanup,
 			Cleaner::Failure(CleanerState::Initialized(PhantomData))
@@ -5818,103 +5681,6 @@ mod funding_end {
 	}
 
 	#[test]
-	fn ct_account_deposits_are_returned() {
-		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
-		let project_metadata = default_project_metadata(0, ISSUER);
-		let automatic_fail_funding_percent = Percent::from_percent(30);
-		let deposit_required = <<TestRuntime as Config>::ContributionTokenCurrency as AccountTouch<
-			ProjectId,
-			AccountIdOf<TestRuntime>,
-		>>::deposit_required(0);
-
-		let _remainder_contributors = vec![EVALUATOR_1, BIDDER_3, BUYER_4, BUYER_6, BIDDER_6];
-
-		let funding_target = project_metadata.minimum_price.saturating_mul_int(project_metadata.total_allocation_size);
-
-		let bids = MockInstantiator::generate_bids_from_total_usd(
-			automatic_fail_funding_percent * funding_target / 3,
-			project_metadata.minimum_price,
-			default_weights(),
-			default_bidders(),
-			default_bidder_multipliers(),
-		);
-
-		let community_contributions = MockInstantiator::generate_contributions_from_total_usd(
-			automatic_fail_funding_percent * funding_target / 3,
-			project_metadata.minimum_price,
-			default_weights(),
-			default_community_contributors(),
-			default_community_contributor_multipliers(),
-		);
-
-		let remainder_contributions = MockInstantiator::generate_contributions_from_total_usd(
-			automatic_fail_funding_percent * funding_target / 3,
-			project_metadata.minimum_price,
-			default_weights(),
-			default_remainder_contributors(),
-			default_remainder_contributor_multipliers(),
-		);
-
-		let zero_balances = remainder_contributions
-			.clone()
-			.accounts()
-			.into_iter()
-			.map(|acc| UserToPLMCBalance::new(acc, 0u128))
-			.collect_vec();
-		inst.do_free_plmc_assertions(zero_balances.clone());
-		inst.do_reserved_plmc_assertions(zero_balances.clone(), HoldReason::FutureDeposit(0).into());
-
-		let project_id = inst.create_finished_project(
-			project_metadata,
-			ISSUER,
-			default_evaluations(),
-			bids.clone(),
-			community_contributions.clone(),
-			remainder_contributions.clone(),
-		);
-		let wap = inst.get_project_details(project_id).weighted_average_price.unwrap();
-
-		let bidder_plmc_bonds = MockInstantiator::calculate_auction_plmc_charged_with_given_price(&bids, wap);
-		let community_contributor_plmc_bonds =
-			MockInstantiator::calculate_contributed_plmc_spent(community_contributions.clone(), wap);
-		let evaluators_and_contributors_plmc_bonds =
-			MockInstantiator::calculate_total_plmc_locked_from_evaluations_and_remainder_contributions(
-				default_evaluations(),
-				remainder_contributions,
-				wap,
-				true,
-			);
-
-		let mut expected_final_plmc_balances = MockInstantiator::generic_map_operation(
-			vec![bidder_plmc_bonds, community_contributor_plmc_bonds, evaluators_and_contributors_plmc_bonds],
-			MergeOperation::Add,
-		);
-		expected_final_plmc_balances.iter_mut().for_each(|UserToPLMCBalance { account: _, plmc_amount }| {
-			*plmc_amount += deposit_required;
-		});
-
-		let prev_balances = inst.get_free_plmc_balances_for(expected_final_plmc_balances.accounts());
-		let ct_deposit_balances = expected_final_plmc_balances
-			.accounts()
-			.into_iter()
-			.map(|acc| UserToPLMCBalance::new(acc, deposit_required))
-			.collect_vec();
-		inst.do_reserved_plmc_assertions(ct_deposit_balances, HoldReason::FutureDeposit(project_id).into());
-
-		assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::FundingFailed);
-		inst.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get() + 1).unwrap();
-		assert_eq!(inst.get_project_details(project_id).cleanup, Cleaner::Failure(CleanerState::Finished(PhantomData)));
-
-		let post_balances = inst.get_free_plmc_balances_for(expected_final_plmc_balances.accounts());
-
-		let plmc_deltas =
-			MockInstantiator::generic_map_operation(vec![post_balances, prev_balances], MergeOperation::Subtract);
-
-		assert_eq!(plmc_deltas, expected_final_plmc_balances);
-		inst.do_reserved_plmc_assertions(zero_balances, HoldReason::FutureDeposit(project_id).into());
-	}
-
-	#[test]
 	fn ct_treasury_mints() {
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 
@@ -6049,7 +5815,7 @@ mod funding_end {
 		// we want to test ct mints on treasury of 1 over the consumer limit,
 		// and we already minted 3 contribution tokens on previous tests.
 		for i in 0..consumer_limit + 1u32 - 3u32 {
-			let project_98_percent = inst.create_finished_project(
+			let _project_98_percent = inst.create_finished_project(
 				with_different_metadata(project_metadata.clone()),
 				ISSUER + i + 1000,
 				default_evaluations(),
@@ -6392,7 +6158,6 @@ mod inner_functions {
 // test the parallel instantiation of projects
 mod async_tests {
 	use super::*;
-	use instantiator::async_features::*;
 
 	#[test]
 	fn prototype_2() {

@@ -136,16 +136,11 @@ pub type Migrations = migrations::Unreleased;
 #[allow(missing_docs)]
 pub mod migrations {
 	// Not warn for unused imports in this module.
-	#![allow(unused_imports)]
-	use frame_support::migrations::RemovePallet;
 
-	parameter_types! {
-		pub const Sudo: &'static str = "Sudo";
-	}
+	use crate::custom_migrations::{deposit_dust::DepositDust, unhashed_migration::UnhashedMigration};
 
-	use super::*;
 	/// Unreleased migrations. Add new ones here:
-	pub type Unreleased = (RemovePallet<Sudo, ParityDbWeight>,);
+	pub type Unreleased = (UnhashedMigration, DepositDust);
 }
 
 /// Executive: handles dispatch to the various modules.
@@ -195,7 +190,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("polimec-mainnet"),
 	impl_name: create_runtime_str!("polimec-mainnet"),
 	authoring_version: 1,
-	spec_version: 0_005_006,
+	spec_version: 0_005_007,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -861,7 +856,7 @@ construct_runtime!(
 		Balances: pallet_balances = 10,
 		TransactionPayment: pallet_transaction_payment = 11,
 		Vesting: pallet_vesting = 12,
-		// Leave room for LocalAssets = 13
+		// Leave room for ContributionTokens = 13
 		ForeignAssets: pallet_assets::<Instance2> = 14,
 
 		// Collator support. the order of these 5 are important and shall not change.

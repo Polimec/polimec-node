@@ -741,7 +741,6 @@ pub mod inner_types {
 		BidUnbonding(u64, PhantomData<T>),
 		ContributionFundingRelease(u64, PhantomData<T>),
 		ContributionUnbonding(u64, PhantomData<T>),
-		FutureDepositRelease(u64, PhantomData<T>),
 		// Merge
 		// Success or Failure
 		Finished(PhantomData<T>),

@@ -23,11 +23,8 @@ use frame_support::{
 	ensure,
 	pallet_prelude::*,
 	traits::{
-		fungible::{InspectHold, Mutate, MutateHold as FungibleMutateHold},
-		fungibles::{
-			metadata::{MetadataDeposit, Mutate as MetadataMutate},
-			Create, Inspect, Mutate as FungiblesMutate,
-		},
+		fungible::{Mutate, MutateHold as FungibleMutateHold},
+		fungibles::{metadata::Mutate as MetadataMutate, Create, Inspect, Mutate as FungiblesMutate},
 		tokens::{Fortitude, Precision, Preservation, Restriction},
 		Get,
 	},
@@ -136,29 +133,6 @@ impl<T: Config> Pallet<T> {
 			Preservation::Preserve,
 		)
 		.map_err(|_| Error::<T>::NotEnoughFundsForEscrowCreation)?;
-
-		// Each project's contribution token requires a deposit on the account that stores the tokens.
-		// We make the issuer pay that deposit for the contribution token treasury account.
-		let contribution_token_treasury_account = <T as Config>::ContributionTreasury::get();
-		let deposit = T::ContributionTokenCurrency::deposit_required(project_id);
-		T::NativeCurrency::transfer(issuer, &contribution_token_treasury_account, deposit, Preservation::Preserve)
-			.map_err(|_| Error::<T>::NotEnoughFundsForCTDeposit)?;
-		T::NativeCurrency::hold(
-			&HoldReason::FutureDeposit(project_id).into(),
-			&contribution_token_treasury_account,
-			deposit,
-		)
-		.map_err(|_| Error::<T>::NotEnoughFundsForCTDeposit)?;
-
-		// Each project needs a new token type to be created (i.e contribution token).
-		// This creation is done automatically in the project transition on success, but someone needs to pay for the storage
-		// of the metadata associated with it.
-		let metadata_deposit = T::ContributionTokenCurrency::calc_metadata_deposit(
-			initial_metadata.token_information.name.as_slice(),
-			initial_metadata.token_information.symbol.as_slice(),
-		);
-		T::NativeCurrency::transfer(&issuer, &escrow_account, metadata_deposit, Preservation::Preserve)
-			.map_err(|_| Error::<T>::NotEnoughFundsForCTMetadata)?;
 
 		// * Update storage *
 		ProjectsMetadata::<T>::insert(project_id, &initial_metadata);
@@ -874,13 +848,6 @@ impl<T: Config> Pallet<T> {
 			)?;
 
 			let contribution_token_treasury_account = T::ContributionTreasury::get();
-			let deposit = T::ContributionTokenCurrency::deposit_required(project_id);
-			T::NativeCurrency::release(
-				&HoldReason::FutureDeposit(project_id).into(),
-				&contribution_token_treasury_account,
-				deposit,
-				Precision::BestEffort,
-			)?;
 			T::ContributionTokenCurrency::touch(
 				project_id,
 				contribution_token_treasury_account.clone(),
@@ -971,7 +938,6 @@ impl<T: Config> Pallet<T> {
 		let early_evaluation_reward_threshold_usd =
 			T::EvaluationSuccessThreshold::get() * project_details.fundraising_target;
 		let evaluation_round_info = &mut project_details.evaluation_round_info;
-		let ct_deposit = T::ContributionTokenCurrency::deposit_required(project_id);
 		let evaluations_count = EvaluationCounts::<T>::get(project_id);
 
 		// * Validity Checks *
@@ -1012,12 +978,6 @@ impl<T: Config> Pallet<T> {
 			ct_migration_status: MigrationStatus::NotStarted,
 		};
 
-		// * Update Storage *
-		// Reserve plmc deposit to create a contribution token account for this project
-		if T::NativeCurrency::balance_on_hold(&HoldReason::FutureDeposit(project_id).into(), evaluator) < ct_deposit {
-			T::NativeCurrency::hold(&HoldReason::FutureDeposit(project_id).into(), evaluator, ct_deposit)?;
-		}
-
 		if caller_existing_evaluations.len() < T::MaxEvaluationsPerUser::get() as usize {
 			T::NativeCurrency::hold(&HoldReason::Evaluation(project_id).into(), evaluator, plmc_bond)?;
 		} else {
@@ -1056,10 +1016,8 @@ impl<T: Config> Pallet<T> {
 		Self::deposit_event(Event::FundsBonded { project_id, amount: plmc_bond, bonder: evaluator.clone() });
 
 		let existing_evaluations_count = caller_existing_evaluations.len() as u32;
-		let actual_weight = if existing_evaluations_count.is_zero() {
-			WeightInfoOf::<T>::first_evaluation()
-		} else if existing_evaluations_count < T::MaxEvaluationsPerUser::get() {
-			WeightInfoOf::<T>::second_to_limit_evaluation(existing_evaluations_count)
+		let actual_weight = if existing_evaluations_count < T::MaxEvaluationsPerUser::get() {
+			WeightInfoOf::<T>::evaluation_to_limit(existing_evaluations_count)
 		} else {
 			WeightInfoOf::<T>::evaluation_over_limit()
 		};
@@ -1093,7 +1051,6 @@ impl<T: Config> Pallet<T> {
 		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 		let project_metadata = ProjectsMetadata::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
 		let plmc_usd_price = T::PriceProvider::get_price(PLMC_FOREIGN_ID).ok_or(Error::<T>::PriceNotFound)?;
-		let ct_deposit = T::ContributionTokenCurrency::deposit_required(project_id);
 		let existing_bids = Bids::<T>::iter_prefix_values((project_id, bidder)).collect::<Vec<_>>();
 		let bid_count = BidCounts::<T>::get(project_id);
 		// User will spend at least this amount of USD for his bid(s). More if the bid gets split into different buckets
@@ -1101,7 +1058,6 @@ impl<T: Config> Pallet<T> {
 			project_metadata.minimum_price.checked_mul_int(ct_amount).ok_or(Error::<T>::BadMath)?;
 		// weight return variables
 		let mut perform_bid_calls = 0;
-		let mut ct_deposit_required = false;
 		let existing_bids_amount = existing_bids.len() as u32;
 		let metadata_bidder_ticket_size_bounds = match investor_type {
 			InvestorType::Institutional => project_metadata.bidding_ticket_sizes.institutional,
@@ -1135,12 +1091,6 @@ impl<T: Config> Pallet<T> {
 			Error::<T>::NotAllowed
 		);
 		ensure!(existing_bids.len() < T::MaxBidsPerUser::get() as usize, Error::<T>::TooManyBidsForUser);
-
-		// Reserve plmc deposit to create a contribution token account for this project
-		if T::NativeCurrency::balance_on_hold(&HoldReason::FutureDeposit(project_id).into(), &bidder) < ct_deposit {
-			T::NativeCurrency::hold(&HoldReason::FutureDeposit(project_id).into(), &bidder, ct_deposit)?;
-			ct_deposit_required = true
-		}
 
 		// Fetch current bucket details and other required info
 		let mut current_bucket = Buckets::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
@@ -1182,18 +1132,10 @@ impl<T: Config> Pallet<T> {
 		// Note: If the bucket has been exhausted, the 'update' function has already made the 'current_bucket' point to the next one.
 		Buckets::<T>::insert(project_id, current_bucket);
 
-		// if ct deposit was required, we already know it can only be the first bid, so existing_bids_amount == 0
-		if ct_deposit_required {
-			Ok(PostDispatchInfo {
-				actual_weight: Some(WeightInfoOf::<T>::bid_with_ct_deposit(perform_bid_calls)),
-				pays_fee: Pays::Yes,
-			})
-		} else {
-			Ok(PostDispatchInfo {
-				actual_weight: Some(WeightInfoOf::<T>::bid_no_ct_deposit(existing_bids_amount, perform_bid_calls)),
-				pays_fee: Pays::Yes,
-			})
-		}
+		Ok(PostDispatchInfo {
+			actual_weight: Some(WeightInfoOf::<T>::bid(existing_bids_amount, perform_bid_calls)),
+			pays_fee: Pays::Yes,
+		})
 	}
 
 	fn perform_do_bid(
@@ -1411,14 +1353,6 @@ impl<T: Config> Pallet<T> {
 			ct_migration_status: MigrationStatus::NotStarted,
 		};
 
-		// * Update storage *
-		let ct_deposit = T::ContributionTokenCurrency::deposit_required(project_id);
-		// Reserve plmc deposit to create a contribution token account for this project
-		if T::NativeCurrency::balance_on_hold(&HoldReason::FutureDeposit(project_id).into(), &contributor) < ct_deposit
-		{
-			T::NativeCurrency::hold(&HoldReason::FutureDeposit(project_id).into(), &contributor, ct_deposit)?;
-		}
-
 		// Try adding the new contribution to the system
 		Self::try_plmc_participation_lock(contributor, project_id, plmc_bond)?;
 		Self::try_funding_asset_hold(contributor, project_id, funding_asset_amount, asset_id)?;
@@ -1524,12 +1458,6 @@ impl<T: Config> Pallet<T> {
 		// * Update storage *
 		if !T::ContributionTokenCurrency::contains(&project_id, &bid.bidder) {
 			ct_account_created = true;
-			T::NativeCurrency::release(
-				&HoldReason::FutureDeposit(project_id).into(),
-				&bid.bidder,
-				T::ContributionTokenCurrency::deposit_required(project_id),
-				Precision::Exact,
-			)?;
 			T::ContributionTokenCurrency::touch(project_id, bid.bidder.clone(), bid.bidder.clone())?;
 		}
 		T::ContributionTokenCurrency::mint_into(project_id, &bid.bidder, ct_amount)?;
@@ -1579,12 +1507,6 @@ impl<T: Config> Pallet<T> {
 		// * Update storage *
 		if !T::ContributionTokenCurrency::contains(&project_id, &contribution.contributor) {
 			ct_account_created = true;
-			T::NativeCurrency::release(
-				&HoldReason::FutureDeposit(project_id).into(),
-				&contribution.contributor,
-				T::ContributionTokenCurrency::deposit_required(project_id),
-				Precision::Exact,
-			)?;
 			T::ContributionTokenCurrency::touch(
 				project_id,
 				contribution.contributor.clone(),
@@ -1701,12 +1623,6 @@ impl<T: Config> Pallet<T> {
 		// * Update storage *
 		if !T::ContributionTokenCurrency::contains(&project_id, &evaluation.evaluator) {
 			ct_account_created = true;
-			T::NativeCurrency::release(
-				&HoldReason::FutureDeposit(project_id).into(),
-				&evaluation.evaluator,
-				T::ContributionTokenCurrency::deposit_required(project_id),
-				Precision::Exact,
-			)?;
 			T::ContributionTokenCurrency::touch(
 				project_id,
 				evaluation.evaluator.clone(),
@@ -2151,39 +2067,6 @@ impl<T: Config> Pallet<T> {
 			contributor: contributor.clone(),
 			id: contribution_id,
 			amount: payout_amount,
-			caller: caller.clone(),
-		});
-
-		Ok(())
-	}
-
-	pub fn do_release_future_ct_deposit_for(
-		caller: &AccountIdOf<T>,
-		project_id: ProjectId,
-		participant: &AccountIdOf<T>,
-	) -> DispatchResult {
-		// * Get variables *
-		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
-		let held_plmc = T::NativeCurrency::balance_on_hold(&HoldReason::FutureDeposit(project_id).into(), participant);
-		// * Validity checks *
-		ensure!(
-			matches!(project_details.status, ProjectStatus::EvaluationFailed | ProjectStatus::FundingFailed),
-			Error::<T>::NotAllowed
-		);
-		ensure!(held_plmc > Zero::zero(), Error::<T>::NoFutureDepositHeld);
-
-		// * Update storage *
-		T::NativeCurrency::release(
-			&HoldReason::FutureDeposit(project_id).into(),
-			participant,
-			T::ContributionTokenCurrency::deposit_required(project_id),
-			Precision::Exact,
-		)?;
-
-		// * Emit events *
-		Self::deposit_event(Event::FutureCTDepositReleased {
-			project_id,
-			participant: participant.clone(),
 			caller: caller.clone(),
 		});
 
