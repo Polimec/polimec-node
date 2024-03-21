@@ -1056,7 +1056,7 @@ impl<
 		project_id
 	}
 
-	pub fn bond_for_users(
+	pub fn evaluate_for_users(
 		&mut self,
 		project_id: ProjectId,
 		bonds: Vec<UserToUSDBalance<T>>,
@@ -1116,7 +1116,7 @@ impl<
 		self.mint_plmc_to(plmc_eval_deposits.clone());
 		self.mint_plmc_to(plmc_existential_deposits.clone());
 
-		self.bond_for_users(project_id, evaluations).unwrap();
+		self.evaluate_for_users(project_id, evaluations).unwrap();
 
 		let expected_evaluator_balances =
 			Self::sum_balance_mappings(vec![plmc_eval_deposits.clone(), plmc_existential_deposits.clone()]);
@@ -1170,7 +1170,10 @@ impl<
 		// run on_initialize
 		self.advance_time(1u32.into()).unwrap();
 
-		assert_eq!(self.get_project_details(project_id).status, ProjectStatus::CommunityRound);
+		ensure!(
+			self.get_project_details(project_id).status == ProjectStatus::CommunityRound,
+			DispatchError::from("Auction failed")
+		);
 
 		Ok(())
 	}
@@ -1813,7 +1816,7 @@ pub mod async_features {
 		inst.mint_plmc_to(plmc_eval_deposits.clone());
 		inst.mint_plmc_to(plmc_existential_deposits.clone());
 
-		inst.bond_for_users(project_id, evaluations).unwrap();
+		inst.evaluate_for_users(project_id, evaluations).unwrap();
 
 		let expected_evaluator_balances =
 			Instantiator::<T, AllPalletsWithoutSystem, RuntimeEvent>::sum_balance_mappings(vec![

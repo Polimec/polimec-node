@@ -557,6 +557,10 @@ pub mod pallet {
 	>;
 
 	#[pallet::storage]
+	/// A map to keep track of what issuer's did has an active project. It prevents one issuer having multiple active projects
+	pub type DidWithActiveProjects<T: Config> = StorageMap<_, Blake2_128Concat, Did, ProjectId, OptionQuery>;
+
+	#[pallet::storage]
 	pub type DidWithWinningBids<T: Config> =
 		StorageDoubleMap<_, Blake2_128Concat, ProjectId, Blake2_128Concat, Did, bool, ValueQuery>;
 
@@ -974,6 +978,9 @@ pub mod pallet {
 		UserHasWinningBids,
 		// Round transition already happened.
 		RoundTransitionAlreadyHappened,
+		/// The issuer tried to create a new project but already has an active one
+		IssuerHasActiveProjectAlready,
+		NotEnoughFunds,
 	}
 
 	#[pallet::call]
