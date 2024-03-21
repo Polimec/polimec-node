@@ -20,7 +20,7 @@ use itertools::Itertools;
 use macros::generate_accounts;
 use pallet_funding::*;
 use politest_runtime::US_DOLLAR;
-use sp_arithmetic::{FixedPointNumber, Percent, Perquintill};
+use sp_arithmetic::{Percent, Perquintill};
 use sp_runtime::{traits::CheckedSub, FixedU128};
 
 type UserToCTBalance = Vec<(AccountId, BalanceOf<PolitestRuntime>, ProjectId)>;
@@ -259,10 +259,6 @@ fn excel_ct_amounts() -> UserToCTBalance {
 	]
 }
 
-fn excel_weighted_average_price() -> PriceOf<PolitestRuntime> {
-	PriceOf::<PolitestRuntime>::from_float(10.1827469400)
-}
-
 #[test]
 fn evaluation_round_completed() {
 	let mut inst = IntegrationInstantiator::new(None);
@@ -354,7 +350,7 @@ fn remainder_round_completed() {
 		let funding_necessary_1 =
 			IntegrationInstantiator::calculate_contributed_funding_asset_spent(excel_contributions(), price);
 		let funding_necessary_2 =
-			IntegrationInstantiator::calculate_contributed_funding_asset_spent(excel_remainders(), price);
+			IntegrationInstantiator::calculate_contributed_funding_asset_spent(excel_remainders(), price);)]
 		let mut total = 0u128;
 		for item in funding_necessary_1 {
 			total += item.asset_amount;
@@ -453,7 +449,7 @@ fn ct_migrated() {
 
 	// Mock HRMP establishment
 	PolitestNet::execute_with(|| {
-		let account_id: PolitestAccountId = ISSUER.into();
+		let _account_id: PolitestAccountId = ISSUER.into();
 		assert_ok!(PolitestFundingPallet::do_set_para_id_for_project(&ISSUER.into(), project_id, ParaId::from(6969u32),));
 		let open_channel_message = xcm::v3::opaque::Instruction::HrmpNewChannelOpenRequest {
 			sender: 6969,

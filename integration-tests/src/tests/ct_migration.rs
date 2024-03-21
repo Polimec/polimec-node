@@ -16,11 +16,10 @@
 
 use crate::*;
 use pallet_funding::{
-	assert_close_enough, traits::VestingDurationCalculation, AcceptedFundingAsset, BidStatus, EvaluatorsOutcome,
-	MigrationStatus, Multiplier, MultiplierOf, ProjectId, ProjectsToUpdate, RewardOrSlash,
+	assert_close_enough, traits::VestingDurationCalculation, BidStatus, EvaluatorsOutcome,
+	MigrationStatus, Multiplier, ProjectId, ProjectsToUpdate, RewardOrSlash,
 };
 use polimec_common::{
-	credentials::InvestorType,
 	migration_types::{Migration, MigrationInfo, MigrationOrigin, Migrations, ParticipationType},
 };
 use politest_runtime::PolimecFunding;
