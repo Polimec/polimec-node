@@ -1339,38 +1339,38 @@ impl<
 		let details = self.get_project_details(project_id);
 		self.execute(||{
 			match details.status {
-				ProjectStatus::FundingSuccessful => Self::settle_successfull_project(project_id),
+				ProjectStatus::FundingSuccessful => Self::settle_successful_project(project_id),
 				ProjectStatus::FundingFailed | ProjectStatus::EvaluationFailed => Self::settle_failed_project(project_id, details.status),
 				_ => panic!("Project should be in FundingSuccessful, FundingFailed or EvaluationFailed status"),
 			}
 		})
 	}
 
-	fn settle_successfull_project(project_id: ProjectId) -> Result<(), DispatchError> {
+	fn settle_successful_project(project_id: ProjectId) -> Result<(), DispatchError> {
 		Evaluations::<T>::iter_prefix((project_id,)).try_for_each(|(_, evaluation)| {
-			Pallet::<T>::do_settlement_success_evaluator(evaluation, project_id)
+			Pallet::<T>::do_settle_successful_evaluation(evaluation, project_id)
 		})?;
 
 		Bids::<T>::iter_prefix((project_id,)).try_for_each(|(_, bid)| {
-			Pallet::<T>::do_settlement_success_bidder(bid, project_id)
+			Pallet::<T>::do_settle_successful_bid(bid, project_id)
 		})?;
 
 		Contributions::<T>::iter_prefix((project_id,)).try_for_each(|(_, contribution)| {
-			Pallet::<T>::do_settlement_success_contributor(contribution, project_id)
+			Pallet::<T>::do_settle_successful_contribution(contribution, project_id)
 		})
 	}
 
 	fn settle_failed_project(project_id: ProjectId, status: ProjectStatus) -> Result<(), DispatchError> {
 		Evaluations::<T>::iter_prefix((project_id,)).try_for_each(|(_, evaluation)| {
-			Pallet::<T>::do_settlement_failure_evaluator(evaluation, project_id)
+			Pallet::<T>::do_settle_failed_evaluation(evaluation, project_id)
 		})?;
 		if status == ProjectStatus::FundingFailed {
 			Bids::<T>::iter_prefix((project_id,)).try_for_each(|(_, bid)| {
-				Pallet::<T>::do_settlement_failure_bidder(bid, project_id)
+				Pallet::<T>::do_settle_failed_bid(bid, project_id)
 			})?;
 	
 			Contributions::<T>::iter_prefix((project_id,)).try_for_each(|(_, contribution)| {
-				Pallet::<T>::do_settlement_failure_contributor(contribution, project_id)
+				Pallet::<T>::do_settle_failed_contribution(contribution, project_id)
 			})?;
 		}
 		Ok(())

@@ -201,7 +201,8 @@ pub mod pallet {
 	};
 	use frame_system::pallet_prelude::*;
 	use local_macros::*;
-	use sp_arithmetic::Percent;
+	use pallet_xcm::Origin;
+use sp_arithmetic::Percent;
 	use sp_runtime::{
 		traits::{Convert, ConvertBack, Get}, 
 		DispatchErrorWithPostInfo
@@ -1133,125 +1134,7 @@ pub mod pallet {
 			Self::do_remaining_contribute(&account, project_id, amount, multiplier, asset, did, investor_type)
 		}
 
-		/// Release evaluation-bonded PLMC when a project finishes its funding round.
 		#[pallet::call_index(8)]
-		#[pallet::weight(WeightInfoOf::<T>::evaluation_unbond_for())]
-		pub fn evaluation_unbond_for(
-			origin: OriginFor<T>,
-			project_id: ProjectId,
-			evaluator: AccountIdOf<T>,
-			bond_id: u32,
-		) -> DispatchResult {
-			let releaser = ensure_signed(origin)?;
-			Self::do_evaluation_unbond_for(&releaser, project_id, &evaluator, bond_id)
-		}
-
-		#[pallet::call_index(9)]
-		#[pallet::weight(WeightInfoOf::<T>::evaluation_slash_for())]
-		pub fn evaluation_slash_for(
-			origin: OriginFor<T>,
-			project_id: ProjectId,
-			evaluator: AccountIdOf<T>,
-			bond_id: u32,
-		) -> DispatchResult {
-			let caller = ensure_signed(origin)?;
-			Self::do_evaluation_slash_for(&caller, project_id, &evaluator, bond_id)
-		}
-
-		#[pallet::call_index(10)]
-		#[pallet::weight(
-			WeightInfoOf::<T>::evaluation_reward_payout_for_with_ct_account_creation()
-			.max(WeightInfoOf::<T>::evaluation_reward_payout_for_no_ct_account_creation())
-		)]
-		pub fn evaluation_reward_payout_for(
-			origin: OriginFor<T>,
-			project_id: ProjectId,
-			evaluator: AccountIdOf<T>,
-			bond_id: u32,
-		) -> DispatchResultWithPostInfo {
-			let caller = ensure_signed(origin)?;
-			Self::do_evaluation_reward_payout_for(&caller, project_id, &evaluator, bond_id)
-		}
-
-		#[pallet::call_index(11)]
-		#[pallet::weight(
-			WeightInfoOf::<T>::bid_ct_mint_for_with_ct_account_creation()
-			.max(WeightInfoOf::<T>::bid_ct_mint_for_no_ct_account_creation())
-		)]
-		pub fn bid_ct_mint_for(
-			origin: OriginFor<T>,
-			project_id: ProjectId,
-			bidder: AccountIdOf<T>,
-			bid_id: u32,
-		) -> DispatchResultWithPostInfo {
-			let caller = ensure_signed(origin)?;
-			Self::do_bid_ct_mint_for(&caller, project_id, &bidder, bid_id)
-		}
-
-		#[pallet::call_index(12)]
-		#[pallet::weight(
-			WeightInfoOf::<T>::contribution_ct_mint_for_with_ct_account_creation()
-			.max(WeightInfoOf::<T>::contribution_ct_mint_for_no_ct_account_creation())
-		)]
-		pub fn contribution_ct_mint_for(
-			origin: OriginFor<T>,
-			project_id: ProjectId,
-			contributor: AccountIdOf<T>,
-			contribution_id: u32,
-		) -> DispatchResultWithPostInfo {
-			let caller = ensure_signed(origin)?;
-			Self::do_contribution_ct_mint_for(&caller, project_id, &contributor, contribution_id)
-		}
-
-		#[pallet::call_index(13)]
-		#[pallet::weight(WeightInfoOf::<T>::start_bid_vesting_schedule_for())]
-		pub fn start_bid_vesting_schedule_for(
-			origin: OriginFor<T>,
-			project_id: ProjectId,
-			bidder: AccountIdOf<T>,
-			bid_id: u32,
-		) -> DispatchResult {
-			let caller = ensure_signed(origin)?;
-			Self::do_start_bid_vesting_schedule_for(&caller, project_id, &bidder, bid_id)
-		}
-
-		#[pallet::call_index(14)]
-		#[pallet::weight(WeightInfoOf::<T>::start_contribution_vesting_schedule_for())]
-		pub fn start_contribution_vesting_schedule_for(
-			origin: OriginFor<T>,
-			project_id: ProjectId,
-			contributor: AccountIdOf<T>,
-			contribution_id: u32,
-		) -> DispatchResult {
-			let caller = ensure_signed(origin)?;
-			Self::do_start_contribution_vesting_schedule_for(&caller, project_id, &contributor, contribution_id)
-		}
-
-		#[pallet::call_index(15)]
-		#[pallet::weight(WeightInfoOf::<T>::payout_bid_funds_for())]
-		pub fn payout_bid_funds_for(
-			origin: OriginFor<T>,
-			project_id: ProjectId,
-			bidder: AccountIdOf<T>,
-			bid_id: u32,
-		) -> DispatchResult {
-			let caller = ensure_signed(origin)?;
-			Self::do_payout_bid_funds_for(&caller, project_id, &bidder, bid_id)
-		}
-
-		#[pallet::call_index(16)]
-		#[pallet::weight(WeightInfoOf::<T>::payout_contribution_funds_for())]
-		pub fn payout_contribution_funds_for(
-			origin: OriginFor<T>,
-			project_id: ProjectId,
-			contributor: AccountIdOf<T>,
-			contribution_id: u32,
-		) -> DispatchResult {
-			let caller = ensure_signed(origin)?;
-			Self::do_payout_contribution_funds_for(&caller, project_id, &contributor, contribution_id)
-		}
-
-		#[pallet::call_index(17)]
 		#[pallet::weight(WeightInfoOf::<T>::decide_project_outcome(
 			<T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1
 		))]
@@ -1264,53 +1147,84 @@ pub mod pallet {
 			Self::do_decide_project_outcome(caller, project_id, outcome)
 		}
 
-		#[pallet::call_index(18)]
-		#[pallet::weight(WeightInfoOf::<T>::release_bid_funds_for())]
-		pub fn release_bid_funds_for(
+		#[pallet::call_index(9)]
+		#[pallet::weight(Weight::from_parts(0, 0))]
+		pub fn settle_successful_evaluation(
+			origin: OriginFor<T>,
+			project_id: ProjectId,
+			evaluator: AccountIdOf<T>,
+			evaluation_id: u32,
+		) -> DispatchResult {
+			let _caller = ensure_signed(origin)?;
+			let bid = Evaluations::<T>::get((project_id, evaluator, evaluation_id)).ok_or(Error::<T>::BidNotFound)?;
+			Self::do_settle_successful_evaluation(bid, project_id)
+		}
+
+		#[pallet::call_index(10)]
+		#[pallet::weight(Weight::from_parts(0, 0))]
+		pub fn settle_successful_bid (
 			origin: OriginFor<T>,
 			project_id: ProjectId,
 			bidder: AccountIdOf<T>,
 			bid_id: u32,
 		) -> DispatchResult {
-			let caller = ensure_signed(origin)?;
-			Self::do_release_bid_funds_for(&caller, project_id, &bidder, bid_id)
+			let _caller = ensure_signed(origin)?;
+			let bid = Bids::<T>::get((project_id, bidder, bid_id)).ok_or(Error::<T>::BidNotFound)?;
+			Self::do_settle_successful_bid(bid, project_id)
 		}
 
-		#[pallet::call_index(19)]
-		#[pallet::weight(WeightInfoOf::<T>::bid_unbond_for())]
-		pub fn bid_unbond_for(
+		#[pallet::call_index(11)]
+		#[pallet::weight(Weight::from_parts(0, 0))]
+		pub fn settle_successful_contribution(
+			origin: OriginFor<T>,
+			project_id: ProjectId,
+			contributor: AccountIdOf<T>,
+			contribution_id: u32,
+		) -> DispatchResult {
+			let _caller = ensure_signed(origin)?;
+			let bid = Contributions::<T>::get((project_id, contributor, contribution_id)).ok_or(Error::<T>::BidNotFound)?;
+			Self::do_settle_successful_contribution(bid, project_id)
+		}
+
+		#[pallet::call_index(12)]
+		#[pallet::weight(Weight::from_parts(0, 0))]
+		pub fn settle_failed_evaluation(
+			origin: OriginFor<T>,
+			project_id: ProjectId,
+			evaluator: AccountIdOf<T>,
+			evaluation_id: u32,
+		) -> DispatchResult {
+			let _caller = ensure_signed(origin)?;
+			let bid = Evaluations::<T>::get((project_id, evaluator, evaluation_id)).ok_or(Error::<T>::BidNotFound)?;
+			Self::do_settle_failed_evaluation(bid, project_id)
+		}
+
+		#[pallet::call_index(13)]
+		#[pallet::weight(Weight::from_parts(0, 0))]
+		pub fn settle_failed_bid (
 			origin: OriginFor<T>,
 			project_id: ProjectId,
 			bidder: AccountIdOf<T>,
 			bid_id: u32,
 		) -> DispatchResult {
-			let caller = ensure_signed(origin)?;
-			Self::do_bid_unbond_for(&caller, project_id, &bidder, bid_id)
+			let _caller = ensure_signed(origin)?;
+			let bid = Bids::<T>::get((project_id, bidder, bid_id)).ok_or(Error::<T>::BidNotFound)?;
+			Self::do_settle_failed_bid(bid, project_id)
 		}
 
-		#[pallet::call_index(20)]
-		#[pallet::weight(WeightInfoOf::<T>::release_contribution_funds_for())]
-		pub fn release_contribution_funds_for(
+		#[pallet::call_index(14)]
+		#[pallet::weight(Weight::from_parts(0, 0))]
+		pub fn settle_failed_contribution(
 			origin: OriginFor<T>,
 			project_id: ProjectId,
 			contributor: AccountIdOf<T>,
 			contribution_id: u32,
 		) -> DispatchResult {
-			let caller = ensure_signed(origin)?;
-			Self::do_release_contribution_funds_for(&caller, project_id, &contributor, contribution_id)
+			let _caller = ensure_signed(origin)?;
+			let bid = Contributions::<T>::get((project_id, contributor, contribution_id)).ok_or(Error::<T>::BidNotFound)?;
+			Self::do_settle_failed_contribution(bid, project_id)
 		}
 
-		#[pallet::call_index(21)]
-		#[pallet::weight(WeightInfoOf::<T>::contribution_unbond_for())]
-		pub fn contribution_unbond_for(
-			origin: OriginFor<T>,
-			project_id: ProjectId,
-			contributor: AccountIdOf<T>,
-			contribution_id: u32,
-		) -> DispatchResult {
-			let caller = ensure_signed(origin)?;
-			Self::do_contribution_unbond_for(&caller, project_id, &contributor, contribution_id)
-		}
 
 		#[pallet::call_index(22)]
 		#[pallet::weight(Weight::from_parts(1000, 0))]

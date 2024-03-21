@@ -20,7 +20,72 @@ use polimec_common::{
 };
 
 impl<T: Config> Pallet<T> {
-    pub fn do_settlement_success_bidder(bid: BidInfoOf<T>, project_id: ProjectId) -> DispatchResult {
+    pub fn do_settle_successful_evaluation(evaluation: EvaluationInfoOf<T>, project_id: ProjectId) -> DispatchResult {
+        let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
+        ensure!(matches!(project_details.status, ProjectStatus::FundingSuccessful), Error::<T>::NotAllowed);
+
+        // Based on the results of the funding round, the evaluator is either:
+        // 1. Slashed
+        // 2. Rewarded with CT tokens
+        // 3. Not slashed or Rewarded.
+        let (bond, reward): (BalanceOf<T>, BalanceOf<T>) = match project_details.evaluation_round_info.evaluators_outcome {
+            EvaluatorsOutcome::Slashed => (Self::slash_evaluator(project_id, &evaluation)?, Zero::zero()),
+            EvaluatorsOutcome::Rewarded(info) => Self::reward_evaluator(project_id, &evaluation, &info)?,
+            EvaluatorsOutcome::Unchanged => (evaluation.current_plmc_bond, Zero::zero()),
+        };
+
+        // Release the held PLMC bond
+        T::NativeCurrency::release(
+            &HoldReason::Evaluation(project_id).into(),
+            &evaluation.evaluator,
+            bond,
+            Precision::Exact,
+        )?;
+
+        // Create Migration
+        if reward > Zero::zero() {
+            let multiplier = MultiplierOf::<T>::try_from(1u8).map_err(|_| Error::<T>::BadMath)?;
+            let duration = multiplier.calculate_vesting_duration::<T>();
+            Self::create_migration(project_id, &evaluation.evaluator, evaluation.id, ParticipationType::Evaluation, reward, duration)?;
+        }
+        Evaluations::<T>::remove((project_id, evaluation.evaluator, evaluation.id));
+
+        // TODO: Emit an event
+
+        Ok(())
+    }
+
+    pub fn do_settle_failed_evaluation(evaluation: EvaluationInfoOf<T>, project_id: ProjectId) -> DispatchResult {
+        let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
+        ensure!(
+			matches!(project_details.status, ProjectStatus::FundingFailed | ProjectStatus::EvaluationFailed),
+			Error::<T>::NotAllowed
+		);
+
+        let bond;
+        if matches!(project_details.evaluation_round_info.evaluators_outcome, EvaluatorsOutcome::Slashed) {
+            bond = Self::slash_evaluator(project_id, &evaluation)?;
+        } else {
+            bond = evaluation.current_plmc_bond;
+        }
+        
+
+        // Release the held PLMC bond
+        T::NativeCurrency::release(
+			&HoldReason::Evaluation(project_id).into(),
+			&evaluation.evaluator,
+			bond,
+			Precision::Exact,
+		)?;
+
+        Evaluations::<T>::remove((project_id, evaluation.evaluator, evaluation.id));
+
+        // TODO: Emit an event
+
+        Ok(())
+    }
+
+    pub fn do_settle_successful_bid(bid: BidInfoOf<T>, project_id: ProjectId) -> DispatchResult {
         
         let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 		// Ensure that:
@@ -62,7 +127,7 @@ impl<T: Config> Pallet<T> {
 		Ok(())
     }
 
-    pub fn do_settlement_failure_bidder(bid: BidInfoOf<T>, project_id: ProjectId) -> DispatchResult  {
+    pub fn do_settle_failed_bid(bid: BidInfoOf<T>, project_id: ProjectId) -> DispatchResult  {
         let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
         ensure!(
 			matches!(project_details.status, ProjectStatus::FundingFailed),
@@ -88,7 +153,7 @@ impl<T: Config> Pallet<T> {
         Ok(())
     }
 
-    pub fn do_settlement_success_contributor(contribution: ContributionInfoOf<T>, project_id: ProjectId) -> DispatchResult {
+    pub fn do_settle_successful_contribution(contribution: ContributionInfoOf<T>, project_id: ProjectId) -> DispatchResult {
         let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 		// Ensure that:
         // 1. The project is in the FundingSuccessful state
@@ -125,7 +190,7 @@ impl<T: Config> Pallet<T> {
         Ok(())
     }
 
-    pub fn do_settlement_failure_contributor(contribution: ContributionInfoOf<T>, project_id: ProjectId) -> DispatchResult {
+    pub fn do_settle_failed_contribution(contribution: ContributionInfoOf<T>, project_id: ProjectId) -> DispatchResult {
         let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
         ensure!(
 			matches!(project_details.status, ProjectStatus::FundingFailed),
@@ -151,70 +216,6 @@ impl<T: Config> Pallet<T> {
          Ok(())
     }
 
-    pub fn do_settlement_success_evaluator(evaluation: EvaluationInfoOf<T>, project_id: ProjectId) -> DispatchResult {
-        let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
-        ensure!(matches!(project_details.status, ProjectStatus::FundingSuccessful), Error::<T>::NotAllowed);
-
-        // Based on the results of the funding round, the evaluator is either:
-        // 1. Slashed
-        // 2. Rewarded with CT tokens
-        // 3. Not slashed or Rewarded.
-        let (bond, reward): (BalanceOf<T>, BalanceOf<T>) = match project_details.evaluation_round_info.evaluators_outcome {
-            EvaluatorsOutcome::Slashed => (Self::slash_evaluator(project_id, &evaluation)?, Zero::zero()),
-            EvaluatorsOutcome::Rewarded(info) => Self::reward_evaluator(project_id, &evaluation, &info)?,
-            EvaluatorsOutcome::Unchanged => (evaluation.current_plmc_bond, Zero::zero()),
-        };
-
-        // Release the held PLMC bond
-        T::NativeCurrency::release(
-            &HoldReason::Evaluation(project_id).into(),
-            &evaluation.evaluator,
-            bond,
-            Precision::Exact,
-        )?;
-
-        // Create Migration
-        if reward > Zero::zero() {
-            let multiplier = MultiplierOf::<T>::try_from(1u8).map_err(|_| Error::<T>::BadMath)?;
-            let duration = multiplier.calculate_vesting_duration::<T>();
-            Self::create_migration(project_id, &evaluation.evaluator, evaluation.id, ParticipationType::Evaluation, reward, duration)?;
-        }
-        Evaluations::<T>::remove((project_id, evaluation.evaluator, evaluation.id));
-
-        // TODO: Emit an event
-
-        Ok(())
-    }
-
-    pub fn do_settlement_failure_evaluator(evaluation: EvaluationInfoOf<T>, project_id: ProjectId) -> DispatchResult {
-        let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
-        ensure!(
-			matches!(project_details.status, ProjectStatus::FundingFailed | ProjectStatus::EvaluationFailed),
-			Error::<T>::NotAllowed
-		);
-
-        let bond;
-        if matches!(project_details.evaluation_round_info.evaluators_outcome, EvaluatorsOutcome::Slashed) {
-            bond = Self::slash_evaluator(project_id, &evaluation)?;
-        } else {
-            bond = evaluation.current_plmc_bond;
-        }
-        
-
-        // Release the held PLMC bond
-        T::NativeCurrency::release(
-			&HoldReason::Evaluation(project_id).into(),
-			&evaluation.evaluator,
-			bond,
-			Precision::Exact,
-		)?;
-
-        Evaluations::<T>::remove((project_id, evaluation.evaluator, evaluation.id));
-
-        // TODO: Emit an event
-
-        Ok(())
-    }
 
     fn mint_ct_tokens(project_id: ProjectId, participant: &AccountIdOf<T>, amount: BalanceOf<T>) -> DispatchResult {
         if !T::ContributionTokenCurrency::contains(&project_id, participant) {

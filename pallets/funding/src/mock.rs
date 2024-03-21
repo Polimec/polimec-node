@@ -331,7 +331,7 @@ pub struct DummyConverter;
 impl sp_runtime::traits::Convert<AccountId, [u8; 32]> for DummyConverter {
 	fn convert(a: AccountId) -> [u8; 32] {
 		let mut account: [u8; 32] = [0u8; 32];
-		account[0..7].copy_from_slice(a.to_le_bytes().as_slice());
+		account[0..4].copy_from_slice(a.to_le_bytes().as_slice());
 		account
 	}
 }
