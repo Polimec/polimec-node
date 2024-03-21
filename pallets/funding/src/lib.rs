@@ -176,8 +176,16 @@ pub type ProjectDetailsOf<T> =
 pub type EvaluationRoundInfoOf<T> = EvaluationRoundInfo<BalanceOf<T>>;
 pub type VestingInfoOf<T> = VestingInfo<BlockNumberFor<T>, BalanceOf<T>>;
 pub type EvaluationInfoOf<T> = EvaluationInfo<u32, ProjectId, AccountIdOf<T>, BalanceOf<T>, BlockNumberFor<T>>;
-pub type BidInfoOf<T> =
-	BidInfo<ProjectId, BalanceOf<T>, PriceOf<T>, AccountIdOf<T>, BlockNumberFor<T>, MultiplierOf<T>, VestingInfoOf<T>>;
+pub type BidInfoOf<T> = BidInfo<
+	ProjectId,
+	Did,
+	BalanceOf<T>,
+	PriceOf<T>,
+	AccountIdOf<T>,
+	BlockNumberFor<T>,
+	MultiplierOf<T>,
+	VestingInfoOf<T>,
+>;
 pub type ContributionInfoOf<T> =
 	ContributionInfo<u32, ProjectId, AccountIdOf<T>, BalanceOf<T>, MultiplierOf<T>, VestingInfoOf<T>>;
 
@@ -547,6 +555,10 @@ pub mod pallet {
 		BalanceOf<T>,
 		ValueQuery,
 	>;
+
+	#[pallet::storage]
+	pub type DidWithWinningBids<T: Config> =
+		StorageDoubleMap<_, Blake2_128Concat, ProjectId, Blake2_128Concat, Did, bool, ValueQuery>;
 
 	#[pallet::storage]
 	/// Migrations sent and awaiting for confirmation

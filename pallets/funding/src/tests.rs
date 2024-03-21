@@ -2871,6 +2871,68 @@ mod community_contribution {
 			Error::<TestRuntime>::ParticipationToThemselves
 		);
 	}
+
+	#[test]
+	fn did_with_winning_bid_cannot_contribute() {
+		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+		let project_metadata = default_project_metadata(0, ISSUER);
+		let bids = vec![
+			BidParams::new(BIDDER_1, 400_000 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
+			BidParams::new(BIDDER_2, 50_000 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
+		];
+
+		let project_id =
+			inst.create_community_contributing_project(project_metadata.clone(), ISSUER, default_evaluations(), bids);
+
+		let bidder_2_jwt = get_mock_jwt(BIDDER_2, InvestorType::Retail, generate_did_from_account(BIDDER_2));
+		let bidder_3_jwt_same_did = get_mock_jwt(BIDDER_3, InvestorType::Retail, generate_did_from_account(BIDDER_2));
+		let bidder_3_jwt_different_did =
+			get_mock_jwt(BIDDER_3, InvestorType::Retail, generate_did_from_account(BIDDER_3));
+
+		let plmc_mints = vec![(BIDDER_2, 420 * PLMC).into(), (BIDDER_3, 420 * PLMC).into()];
+		inst.mint_plmc_to(plmc_mints);
+		let usdt_mints = vec![(BIDDER_2, 420 * ASSET_UNIT).into(), (BIDDER_3, 420 * ASSET_UNIT).into()];
+		inst.mint_foreign_asset_to(usdt_mints);
+
+		inst.execute(|| {
+			assert_noop!(
+				Pallet::<TestRuntime>::community_contribute(
+					RuntimeOrigin::signed(BIDDER_2),
+					bidder_2_jwt,
+					project_id,
+					10 * ASSET_UNIT,
+					1u8.try_into().unwrap(),
+					AcceptedFundingAsset::USDT,
+				),
+				Error::<TestRuntime>::UserHasWinningBids
+			);
+		});
+
+		inst.execute(|| {
+			assert_noop!(
+				Pallet::<TestRuntime>::community_contribute(
+					RuntimeOrigin::signed(BIDDER_3),
+					bidder_3_jwt_same_did,
+					project_id,
+					10 * ASSET_UNIT,
+					1u8.try_into().unwrap(),
+					AcceptedFundingAsset::USDT,
+				),
+				Error::<TestRuntime>::UserHasWinningBids
+			);
+		});
+
+		inst.execute(|| {
+			assert_ok!(Pallet::<TestRuntime>::community_contribute(
+				RuntimeOrigin::signed(BIDDER_3),
+				bidder_3_jwt_different_did,
+				project_id,
+				10 * ASSET_UNIT,
+				1u8.try_into().unwrap(),
+				AcceptedFundingAsset::USDT,
+			));
+		});
+	}
 }
 
 // only functionalities that happen in the REMAINDER FUNDING period of a project

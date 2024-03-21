@@ -40,7 +40,7 @@ use sp_arithmetic::{
 	Percent, Perquintill,
 };
 use sp_runtime::traits::{Convert, ConvertBack};
-use sp_std::marker::PhantomData;
+use sp_std::{marker::PhantomData, ops::Not};
 use xcm::v3::MaxDispatchErrorLen;
 
 use super::*;
@@ -1166,6 +1166,7 @@ impl<T: Config> Pallet<T> {
 			id: bid_id,
 			project_id,
 			bidder: bidder.clone(),
+			did: did.clone(),
 			status: BidStatus::YetUnknown,
 			original_ct_amount: ct_amount,
 			original_ct_usd_price: ct_usd_price,
@@ -1214,13 +1215,10 @@ impl<T: Config> Pallet<T> {
 		investor_type: InvestorType,
 	) -> DispatchResultWithPostInfo {
 		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
+		let did_has_winning_bid = DidWithWinningBids::<T>::get(project_id, did.clone());
+
 		ensure!(project_details.status == ProjectStatus::CommunityRound, Error::<T>::AuctionNotStarted);
-
-		let user_winning_bids = Bids::<T>::iter_prefix_values((project_id, contributor))
-			.filter(|bid| matches!(bid.status, BidStatus::Accepted | BidStatus::PartiallyAccepted(..)))
-			.next();
-
-		ensure!(user_winning_bids.is_none(), Error::<T>::UserHasWinningBids);
+		ensure!(did_has_winning_bid.not(), Error::<T>::UserHasWinningBids);
 
 		let buyable_tokens = token_amount.min(project_details.remaining_contribution_tokens);
 		project_details.remaining_contribution_tokens.saturating_reduce(buyable_tokens);
@@ -1304,6 +1302,23 @@ impl<T: Config> Pallet<T> {
 		};
 
 		// * Validity checks *
+		ensure!(
+			project_metadata.participation_currencies.contains(&funding_asset),
+			Error::<T>::FundingAssetNotAccepted
+		);
+		ensure!(did.clone() != project_details.issuer_did, Error::<T>::ParticipationToThemselves);
+		ensure!(
+			caller_existing_contributions.len() < T::MaxContributionsPerUser::get() as usize,
+			Error::<T>::TooManyContributionsForUser
+		);
+		ensure!(
+			contributor_ticket_size.usd_ticket_above_minimum_per_participation(ticket_size),
+			Error::<T>::ContributionTooLow
+		);
+		ensure!(
+			contributor_ticket_size.usd_ticket_below_maximum_per_did(total_usd_bought_by_did + ticket_size),
+			Error::<T>::ContributionTooHigh
+		);
 		ensure!(
 			project_metadata.participation_currencies.contains(&funding_asset),
 			Error::<T>::FundingAssetNotAccepted
@@ -2614,12 +2629,18 @@ impl<T: Config> Pallet<T> {
 					bid_token_amount_sum.saturating_accrue(bid.original_ct_amount);
 					bid_usd_value_sum.saturating_accrue(ticket_size);
 					bid.status = BidStatus::Accepted;
+					DidWithWinningBids::<T>::mutate(project_id, bid.did.clone(), |flag| {
+						*flag = true;
+					});
 				} else {
 					accepted_bids_count += 1;
 					let ticket_size = bid.original_ct_usd_price.saturating_mul_int(buyable_amount);
 					bid_usd_value_sum.saturating_accrue(ticket_size);
 					bid_token_amount_sum.saturating_accrue(buyable_amount);
 					bid.status = BidStatus::PartiallyAccepted(buyable_amount, RejectionReason::NoTokensLeft);
+					DidWithWinningBids::<T>::mutate(project_id, bid.did.clone(), |flag| {
+						*flag = true;
+					});
 					bid.final_ct_amount = buyable_amount;
 
 					let funding_asset_price = T::PriceProvider::get_price(bid.funding_asset.to_assethub_id())
