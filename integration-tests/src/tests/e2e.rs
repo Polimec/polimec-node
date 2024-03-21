@@ -19,11 +19,11 @@ use frame_support::BoundedVec;
 use itertools::Itertools;
 use macros::generate_accounts;
 use pallet_funding::*;
-use polimec_parachain_runtime::{PolimecFunding, US_DOLLAR};
+use politest_runtime::US_DOLLAR;
 use sp_arithmetic::{FixedPointNumber, Percent, Perquintill};
 use sp_runtime::{traits::CheckedSub, FixedU128};
 
-type UserToCTBalance = Vec<(AccountId, BalanceOf<PolimecRuntime>, ProjectId)>;
+type UserToCTBalance = Vec<(AccountId, BalanceOf<PolitestRuntime>, ProjectId)>;
 
 generate_accounts!(
 	LINA, MIA, ALEXEY, PAUL, MARIA, GEORGE, CLARA, RAMONA, PASCAL, EMMA, BIBI, AHMED, HERBERT, LENI, XI, TOM, ADAMS,
@@ -35,7 +35,7 @@ generate_accounts!(
 	JOEL, POLKA, MALIK, ALEXANDER, SOLOMUN, JOHNNY, GRINGO, JONAS, BUNDI, FELIX,
 );
 
-pub fn excel_project(nonce: u64) -> ProjectMetadataOf<PolimecRuntime> {
+pub fn excel_project(nonce: u64) -> ProjectMetadataOf<PolitestRuntime> {
 	let bounded_name = BoundedVec::try_from("Polimec".as_bytes().to_vec()).unwrap();
 	let bounded_symbol = BoundedVec::try_from("PLMC".as_bytes().to_vec()).unwrap();
 	let metadata_hash = hashed(format!("{}-{}", METADATA, nonce));
@@ -47,7 +47,7 @@ pub fn excel_project(nonce: u64) -> ProjectMetadataOf<PolimecRuntime> {
 		auction_round_allocation_percentage: Percent::from_percent(50u8),
 
 		// Minimum Price per Contribution Token (in USDT)
-		minimum_price: PriceOf::<PolimecRuntime>::from(10),
+		minimum_price: PriceOf::<PolitestRuntime>::from(10),
 		bidding_ticket_sizes: BiddingTicketSizes {
 			professional: TicketSize::new(Some(5000 * US_DOLLAR), None),
 			institutional: TicketSize::new(Some(5000 * US_DOLLAR), None),
@@ -65,7 +65,7 @@ pub fn excel_project(nonce: u64) -> ProjectMetadataOf<PolimecRuntime> {
 	}
 }
 
-fn excel_evaluators() -> Vec<UserToUSDBalance<PolimecRuntime>> {
+fn excel_evaluators() -> Vec<UserToUSDBalance<PolitestRuntime>> {
 	vec![
 		(LINA.into(), 93754 * US_DOLLAR).into(),
 		(MIA.into(), 162 * US_DOLLAR).into(),
@@ -86,7 +86,7 @@ fn excel_evaluators() -> Vec<UserToUSDBalance<PolimecRuntime>> {
 	]
 }
 
-fn excel_bidders() -> Vec<BidParams<PolimecRuntime>> {
+fn excel_bidders() -> Vec<BidParams<PolitestRuntime>> {
 	vec![
 		(ADAMS.into(), 700 * ASSET_UNIT).into(),
 		(POLK.into(), 4000 * ASSET_UNIT).into(),
@@ -113,7 +113,7 @@ fn excel_bidders() -> Vec<BidParams<PolimecRuntime>> {
 	]
 }
 
-fn excel_contributions() -> Vec<ContributionParams<PolimecRuntime>> {
+fn excel_contributions() -> Vec<ContributionParams<PolitestRuntime>> {
 	vec![
 		(XI.into(), 692 * ASSET_UNIT).into(),
 		(PARI.into(), 236 * ASSET_UNIT).into(),
@@ -161,7 +161,7 @@ fn excel_contributions() -> Vec<ContributionParams<PolimecRuntime>> {
 	]
 }
 
-fn excel_remainders() -> Vec<ContributionParams<PolimecRuntime>> {
+fn excel_remainders() -> Vec<ContributionParams<PolitestRuntime>> {
 	vec![
 		(JOEL.into(), 692 * ASSET_UNIT).into(),
 		(POLK.into(), 236 * ASSET_UNIT).into(),
@@ -259,8 +259,8 @@ fn excel_ct_amounts() -> UserToCTBalance {
 	]
 }
 
-fn excel_weighted_average_price() -> PriceOf<PolimecRuntime> {
-	PriceOf::<PolimecRuntime>::from_float(10.1827469400)
+fn excel_weighted_average_price() -> PriceOf<PolitestRuntime> {
+	PriceOf::<PolitestRuntime>::from_float(10.1827469400)
 }
 
 #[test]
@@ -299,7 +299,7 @@ fn auction_round_completed() {
 		let names = names();
 		inst.execute(|| {
 			let bids =
-				Bids::<PolimecRuntime>::iter_prefix_values((0,)).sorted_by_key(|bid| bid.bidder.clone()).collect_vec();
+				Bids::<PolitestRuntime>::iter_prefix_values((0,)).sorted_by_key(|bid| bid.bidder.clone()).collect_vec();
 
 			for bid in bids.clone() {
 				let key: [u8; 32] = bid.bidder.clone().into();
@@ -325,7 +325,7 @@ fn community_round_completed() {
 		);
 
 		inst.execute(|| {
-			let contributions = Contributions::<PolimecRuntime>::iter_prefix_values((0,))
+			let contributions = Contributions::<PolitestRuntime>::iter_prefix_values((0,))
 				.sorted_by_key(|bid| bid.contributor.clone())
 				.collect_vec();
 			let total_contribution =
@@ -362,7 +362,7 @@ fn remainder_round_completed() {
 		for item in funding_necessary_2 {
 			total += item.asset_amount;
 		}
-		let contributions = Contributions::<PolimecRuntime>::iter_prefix_values((0,))
+		let contributions = Contributions::<PolitestRuntime>::iter_prefix_values((0,))
 			.sorted_by_key(|contribution| contribution.contributor.clone())
 			.collect_vec();
 		let total_stored =
@@ -388,7 +388,7 @@ fn funds_raised() {
 		);
 
 		inst.execute(|| {
-			let project_specific_account: AccountId = PolimecFunding::fund_account_id(project_id);
+			let project_specific_account: AccountId = PolitestFundingPallet::fund_account_id(project_id);
 			let stored_usdt_funded =
 				PolimecForeignAssets::balance(AcceptedFundingAsset::USDT.to_assethub_id(), project_specific_account);
 			let excel_usdt_funded = 1_004_256_0_140_000_000;
@@ -410,13 +410,13 @@ fn ct_minted() {
 			excel_contributions(),
 			excel_remainders(),
 		);
-		inst.advance_time(<PolimecRuntime as Config>::SuccessToSettlementTime::get()).unwrap();
+		inst.advance_time(<PolitestRuntime as Config>::SuccessToSettlementTime::get()).unwrap();
 
 		inst.advance_time(10).unwrap();
 
 		for (contributor, expected_amount, project_id) in excel_ct_amounts() {
 			let minted = inst
-				.execute(|| <PolimecRuntime as Config>::ContributionTokenCurrency::balance(project_id, &contributor));
+				.execute(|| <PolitestRuntime as Config>::ContributionTokenCurrency::balance(project_id, &contributor));
 			assert_close_enough!(minted, expected_amount, Perquintill::from_float(0.99));
 		}
 	});
@@ -435,13 +435,13 @@ fn ct_migrated() {
 			excel_contributions(),
 			excel_remainders(),
 		);
-		inst.advance_time(<PolimecRuntime as Config>::SuccessToSettlementTime::get()).unwrap();
+		inst.advance_time(<PolitestRuntime as Config>::SuccessToSettlementTime::get()).unwrap();
 
 		inst.advance_time(10).unwrap();
 
 		for (contributor, expected_amount, project_id) in excel_ct_amounts() {
 			let minted = inst
-				.execute(|| <PolimecRuntime as Config>::ContributionTokenCurrency::balance(project_id, &contributor));
+				.execute(|| <PolitestRuntime as Config>::ContributionTokenCurrency::balance(project_id, &contributor));
 			assert_close_enough!(minted, expected_amount, Perquintill::from_float(0.99));
 		}
 
@@ -460,10 +460,10 @@ fn ct_migrated() {
 			max_message_size: 102_300,
 			max_capacity: 1000,
 		};
-		assert_ok!(PolimecFunding::do_handle_channel_open_request(open_channel_message));
+		assert_ok!(PolitestFundingPallet::do_handle_channel_open_request(open_channel_message));
 
 		let channel_accepted_message = xcm::v3::opaque::Instruction::HrmpChannelAccepted { recipient: 6969u32 };
-		assert_ok!(PolimecFunding::do_handle_channel_accepted(channel_accepted_message));
+		assert_ok!(PolitestFundingPallet::do_handle_channel_accepted(channel_accepted_message));
 	});
 
 	PenNet::execute_with(|| {

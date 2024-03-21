@@ -53,7 +53,7 @@ fn dmp() {
 		assert_expected_events!(
 			PoliNet,
 			vec![
-				PolimecEvent::System(frame_system::Event::Remarked { sender: _, hash: _ }) => {},
+				PolitestEvent::System(frame_system::Event::Remarked { sender: _, hash: _ }) => {},
 			]
 		);
 	});

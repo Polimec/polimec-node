@@ -235,5 +235,5 @@ substrate-build-script-utils = {version = '11.0.0'}
 cumulus-pallet-session-benchmarking = {version = '9.0.0', default-features = false}
 
 # Runtimes
-polimec-parachain-runtime = { path = "runtimes/testnet"}
-polimec-base-runtime = { path = "runtimes/base" }
+politest-runtime = { path = "runtimes/politest" }
+polimec-runtime = { path = "runtimes/polimec" }

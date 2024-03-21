@@ -23,7 +23,7 @@ use polimec_common::{
 	credentials::InvestorType,
 	migration_types::{Migration, MigrationInfo, MigrationOrigin, Migrations, ParticipationType},
 };
-use polimec_parachain_runtime::PolimecFunding;
+use politest_runtime::PolimecFunding;
 use sp_runtime::{traits::Convert, FixedPointNumber, Perquintill};
 use std::collections::HashMap;
 use tests::defaults::*;
@@ -66,20 +66,20 @@ fn send_migrations(project_id: ProjectId, accounts: Vec<AccountId>) -> HashMap<A
 	PoliNet::execute_with(|| {
 		for account in accounts {
 			assert_ok!(PolimecFunding::migrate_one_participant(
-				PolimecOrigin::signed(account.clone()),
+				PolitestOrigin::signed(account.clone()),
 				project_id,
 				account.clone()
 			));
 
 			let user_evaluations =
-				pallet_funding::Evaluations::<PolimecRuntime>::iter_prefix_values((project_id, account.clone()));
-			let user_bids = pallet_funding::Bids::<PolimecRuntime>::iter_prefix_values((project_id, account.clone()))
+				pallet_funding::Evaluations::<PolitestRuntime>::iter_prefix_values((project_id, account.clone()));
+			let user_bids = pallet_funding::Bids::<PolitestRuntime>::iter_prefix_values((project_id, account.clone()))
 				.filter(|bid| matches!(bid.status, BidStatus::Accepted | BidStatus::PartiallyAccepted(..)));
 			let user_contributions =
-				pallet_funding::Contributions::<PolimecRuntime>::iter_prefix_values((project_id, account.clone()));
+				pallet_funding::Contributions::<PolitestRuntime>::iter_prefix_values((project_id, account.clone()));
 
 			let evaluation_migrations = user_evaluations.map(|evaluation| {
-				let evaluator_bytes = <PolimecRuntime as pallet_funding::Config>::AccountId32Conversion::convert(
+				let evaluator_bytes = <PolitestRuntime as pallet_funding::Config>::AccountId32Conversion::convert(
 					evaluation.evaluator.clone(),
 				);
 				assert!(
@@ -94,7 +94,7 @@ fn send_migrations(project_id: ProjectId, accounts: Vec<AccountId>) -> HashMap<A
 							contribution_token_amount: amount,
 							vesting_time: Multiplier::new(1u8)
 								.unwrap()
-								.calculate_vesting_duration::<PolimecRuntime>()
+								.calculate_vesting_duration::<PolitestRuntime>()
 								.into(),
 						},
 						origin: MigrationOrigin {
@@ -112,7 +112,7 @@ fn send_migrations(project_id: ProjectId, accounts: Vec<AccountId>) -> HashMap<A
 				Migration {
 					info: MigrationInfo {
 						contribution_token_amount: bid.final_ct_amount,
-						vesting_time: bid.multiplier.calculate_vesting_duration::<PolimecRuntime>().into(),
+						vesting_time: bid.multiplier.calculate_vesting_duration::<PolitestRuntime>().into(),
 					},
 					origin: MigrationOrigin {
 						user: account.clone().into(),
@@ -126,7 +126,7 @@ fn send_migrations(project_id: ProjectId, accounts: Vec<AccountId>) -> HashMap<A
 				Migration {
 					info: MigrationInfo {
 						contribution_token_amount: contribution.ct_amount,
-						vesting_time: contribution.multiplier.calculate_vesting_duration::<PolimecRuntime>().into(),
+						vesting_time: contribution.multiplier.calculate_vesting_duration::<PolitestRuntime>().into(),
 					},
 					origin: MigrationOrigin {
 						user: account.clone().into(),
@@ -200,7 +200,7 @@ fn migrations_are_confirmed(project_id: u32, grouped_migrations: Vec<Migrations>
 		assert_expected_events!(
 			PoliNet,
 			vec![
-				PolimecEvent::PolimecFunding(pallet_funding::Event::MigrationsConfirmed{project_id, migration_origins}) => {
+				PolitestEvent::PolimecFunding(pallet_funding::Event::MigrationsConfirmed{project_id, migration_origins}) => {
 					project_id: project_id == project_id,
 					migration_origins: {
 						let mut migration_origins = migration_origins.to_vec();
@@ -215,7 +215,7 @@ fn migrations_are_confirmed(project_id: u32, grouped_migrations: Vec<Migrations>
 		for migration_origin in all_migration_origins {
 			match migration_origin.participation_type {
 				ParticipationType::Evaluation => {
-					let evaluation = pallet_funding::Evaluations::<PolimecRuntime>::get((
+					let evaluation = pallet_funding::Evaluations::<PolitestRuntime>::get((
 						project_id,
 						AccountId::from(migration_origin.user),
 						migration_origin.id,
@@ -224,7 +224,7 @@ fn migrations_are_confirmed(project_id: u32, grouped_migrations: Vec<Migrations>
 					assert_eq!(evaluation.ct_migration_status, MigrationStatus::Confirmed);
 				},
 				ParticipationType::Bid => {
-					let bid = pallet_funding::Bids::<PolimecRuntime>::get((
+					let bid = pallet_funding::Bids::<PolitestRuntime>::get((
 						project_id,
 						AccountId::from(migration_origin.user),
 						migration_origin.id,
@@ -233,7 +233,7 @@ fn migrations_are_confirmed(project_id: u32, grouped_migrations: Vec<Migrations>
 					assert_eq!(bid.ct_migration_status, MigrationStatus::Confirmed);
 				},
 				ParticipationType::Contribution => {
-					let contribution = pallet_funding::Contributions::<PolimecRuntime>::get((
+					let contribution = pallet_funding::Contributions::<PolitestRuntime>::get((
 						project_id,
 						AccountId::from(migration_origin.user),
 						migration_origin.id,
@@ -287,7 +287,7 @@ fn migration_check() {
 			vec![],
 		);
 
-		inst.advance_time(<PolimecRuntime as pallet_funding::Config>::SuccessToSettlementTime::get() + 1u32).unwrap();
+		inst.advance_time(<PolitestRuntime as pallet_funding::Config>::SuccessToSettlementTime::get() + 1u32).unwrap();
 		project_id
 	});
 
@@ -452,8 +452,8 @@ fn disallow_duplicated_migrations_on_receiver_pallet() {
 
 	// just any number that lets us execute our xcm's
 	for migrations in grouped_migrations.clone() {
-		for (_, xcm) in PolimecFundingPallet::construct_migration_xcm_messages(migrations) {
-			let _call: <PolimecRuntime as pallet_funding::Config>::RuntimeCall =
+		for (_, xcm) in PolitestFundingPallet::construct_migration_xcm_messages(migrations) {
+			let _call: <PolitestRuntime as pallet_funding::Config>::RuntimeCall =
 				pallet_funding::Call::confirm_migrations { query_id: Default::default(), response: Default::default() }
 					.into();
 

@@ -62,13 +62,13 @@ pub enum Subcommand {
 
 const AFTER_HELP_EXAMPLE: &str = color_print::cstr!(
 	r#"<bold><underline>Examples:</></>
-   <bold>polimec-parachain-node build-spec --disable-default-bootnode > plain-parachain-chainspec.json</>
+   <bold>polimec-node build-spec --disable-default-bootnode > plain-parachain-chainspec.json</>
            Export a chainspec for a local testnet in json format.
-   <bold>polimec-parachain-node --chain plain-parachain-chainspec.json --tmp -- --chain rococo-local</>
+   <bold>polimec-node --chain plain-parachain-chainspec.json --tmp -- --chain rococo-local</>
            Launch a full node with chain specification loaded from plain-parachain-chainspec.json.
-   <bold>polimec-parachain-node</>
+   <bold>polimec-node</>
            Launch a full node with default parachain <italic>local-testnet</> and relay chain <italic>rococo-local</>.
-   <bold>polimec-parachain-node --collator</>
+   <bold>polimec-node --collator</>
            Launch a collator with default parachain <italic>local-testnet</> and relay chain <italic>rococo-local</>.
  "#
 );

@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use crate::{polimec_base::ED, *};
+use crate::{polimec::ED, *};
 /// Tests for the oracle pallet integration.
 /// Alice, Bob, Charlie are members of the OracleProvidersMembers.
 /// Only members should be able to feed data into the oracle.
@@ -23,7 +23,7 @@ use frame_support::traits::fungible::Mutate;
 use macros::generate_accounts;
 use pallet_funding::assert_close_enough;
 use pallet_vesting::VestingInfo;
-use polimec_base_runtime::{Balances, ParachainStaking, PayMaster, RuntimeOrigin, Vesting};
+use polimec_runtime::{Balances, ParachainStaking, PayMaster, RuntimeOrigin, Vesting};
 use sp_runtime::Perquintill;
 use tests::defaults::*;
 use xcm_emulator::helpers::get_account_id_from_seed;
@@ -43,7 +43,7 @@ fn base_vested_can_stake() {
 		// Stake 60 PLMC from "new_account" to "COLL_1", it should fail since the account has no PLMC
 		assert_noop!(
 			ParachainStaking::delegate(RuntimeOrigin::signed(new_account.clone()), coll_1.clone(), 60 * PLMC, 0, 0),
-			pallet_parachain_staking::Error::<polimec_parachain_runtime::Runtime>::InsufficientBalance
+			pallet_parachain_staking::Error::<politest_runtime::Runtime>::InsufficientBalance
 		);
 
 		// Create a vesting schedule for 60 PLMC + ED over 60 blocks (~1 PLMC per block) to NEW_ACCOUNT

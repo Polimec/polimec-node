@@ -16,7 +16,7 @@
 
 use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
 pub use parachains_common::{AccountId, AssetHubPolkadotAuraId, AuraId, Balance, BlockNumber};
-use polimec_parachain_runtime::{
+use politest_runtime::{
 	pallet_parachain_staking::{
 		inflation::{perbill_annual_to_perbill_round, BLOCKS_PER_YEAR},
 		Range,
@@ -43,7 +43,7 @@ pub const PROOF_SIZE_THRESHOLD: u64 = 33;
 pub const INITIAL_DEPOSIT: u128 = 420_0_000_000_000;
 const BLOCKS_PER_ROUND: u32 = 6 * 100;
 
-fn polimec_inflation_config() -> polimec_parachain_runtime::pallet_parachain_staking::InflationInfo<Balance> {
+fn polimec_inflation_config() -> politest_runtime::pallet_parachain_staking::InflationInfo<Balance> {
 	fn to_round_inflation(annual: Range<Perbill>) -> Range<Perbill> {
 		perbill_annual_to_perbill_round(
 			annual,
@@ -55,7 +55,7 @@ fn polimec_inflation_config() -> polimec_parachain_runtime::pallet_parachain_sta
 	let annual =
 		Range { min: Perbill::from_percent(2), ideal: Perbill::from_percent(3), max: Perbill::from_percent(3) };
 
-	polimec_parachain_runtime::pallet_parachain_staking::InflationInfo {
+	politest_runtime::pallet_parachain_staking::InflationInfo {
 		// staking expectations
 		expect: Range { min: 100_000 * PLMC, ideal: 200_000 * PLMC, max: 500_000 * PLMC },
 		// annual inflation
@@ -316,7 +316,7 @@ pub mod asset_hub {
 }
 
 // Polimec
-pub mod polimec {
+pub mod politest {
 	use super::*;
 	use crate::{Polimec, PolimecRuntime, PolkadotNet};
 	use pallet_funding::AcceptedFundingAsset;
@@ -324,7 +324,7 @@ pub mod polimec {
 	use xcm::v3::Parent;
 
 	pub const PARA_ID: u32 = 3344;
-	pub const ED: Balance = polimec_parachain_runtime::EXISTENTIAL_DEPOSIT;
+	pub const ED: Balance = politest_runtime::EXISTENTIAL_DEPOSIT;
 
 	const GENESIS_BLOCKS_PER_ROUND: BlockNumber = 1800;
 	const GENESIS_COLLATOR_COMMISSION: Perbill = Perbill::from_percent(10);
@@ -367,14 +367,14 @@ pub mod polimec {
 				parachain_id: PARA_ID.into(),
 				..Default::default()
 			},
-			session: polimec_parachain_runtime::SessionConfig {
+			session: politest_runtime::SessionConfig {
 				keys: collators::invulnerables()
 					.into_iter()
 					.map(|(acc, aura)| {
 						(
-							acc.clone(),                                     // account id
-							acc,                                             // validator id
-							polimec_parachain_runtime::SessionKeys { aura }, // session keys
+							acc.clone(),                            // account id
+							acc,                                    // validator id
+							politest_runtime::SessionKeys { aura }, // session keys
 						)
 					})
 					.collect(),
@@ -382,17 +382,15 @@ pub mod polimec {
 			aura: Default::default(),
 			aura_ext: Default::default(),
 			parachain_system: Default::default(),
-			polkadot_xcm: polimec_parachain_runtime::PolkadotXcmConfig {
+			polkadot_xcm: politest_runtime::PolkadotXcmConfig {
 				safe_xcm_version: Some(SAFE_XCM_VERSION),
 				..Default::default()
 			},
-			sudo: polimec_parachain_runtime::SudoConfig {
-				key: Some(get_account_id_from_seed::<sr25519::Public>("Alice")),
-			},
+			sudo: politest_runtime::SudoConfig { key: Some(get_account_id_from_seed::<sr25519::Public>("Alice")) },
 			council: Default::default(),
 			democracy: Default::default(),
 			treasury: Default::default(),
-			technical_committee: polimec_parachain_runtime::TechnicalCommitteeConfig {
+			technical_committee: politest_runtime::TechnicalCommitteeConfig {
 				members: vec![
 					alice_account.clone(),
 					bob_account.clone(),
@@ -402,7 +400,7 @@ pub mod polimec {
 				],
 				..Default::default()
 			},
-			elections: polimec_parachain_runtime::ElectionsConfig {
+			elections: politest_runtime::ElectionsConfig {
 				members: vec![
 					(alice_account.clone(), 0),
 					(bob_account.clone(), 0),
@@ -412,11 +410,11 @@ pub mod polimec {
 				],
 				..Default::default()
 			},
-			oracle_providers_membership: polimec_parachain_runtime::OracleProvidersMembershipConfig {
+			oracle_providers_membership: politest_runtime::OracleProvidersMembershipConfig {
 				members: bounded_vec![alice_account.clone(), bob_account, charlie_account],
 				..Default::default()
 			},
-			parachain_staking: polimec_parachain_runtime::ParachainStakingConfig {
+			parachain_staking: politest_runtime::ParachainStakingConfig {
 				candidates: collators::initial_authorities()
 					.iter()
 					.map(|(acc, _)| (acc.clone(), 20_000 * PLMC))
@@ -428,7 +426,7 @@ pub mod polimec {
 				blocks_per_round: GENESIS_BLOCKS_PER_ROUND,
 				num_selected_candidates: GENESIS_NUM_SELECTED_CANDIDATES,
 			},
-			foreign_assets: polimec_parachain_runtime::ForeignAssetsConfig {
+			foreign_assets: politest_runtime::ForeignAssetsConfig {
 				assets: vec![
 					(dot_asset_id, alice_account.clone(), true, 0_0_010_000_000u128),
 					(usdt_asset_id, alice_account.clone(), true, 0_0_010_000_000u128),
@@ -511,8 +509,8 @@ pub mod penpal {
 	}
 }
 
-// Polimec Base Runtime
-pub mod polimec_base {
+// Polimec Runtime
+pub mod polimec {
 	use super::*;
 	use crate::{PolimecBase, PolkadotNet};
 	use pallet_funding::AcceptedFundingAsset;
@@ -520,7 +518,7 @@ pub mod polimec_base {
 	use xcm::v3::Parent;
 
 	pub const PARA_ID: u32 = 3344;
-	pub const ED: Balance = polimec_base_runtime::EXISTENTIAL_DEPOSIT;
+	pub const ED: Balance = polimec_runtime::EXISTENTIAL_DEPOSIT;
 
 	const GENESIS_BLOCKS_PER_ROUND: BlockNumber = 1800;
 	const GENESIS_COLLATOR_COMMISSION: Perbill = Perbill::from_percent(10);
@@ -572,18 +570,15 @@ pub mod polimec_base {
 				],
 				accounts: vec![],
 			},
-			parachain_info: polimec_base_runtime::ParachainInfoConfig {
-				parachain_id: PARA_ID.into(),
-				..Default::default()
-			},
-			session: polimec_base_runtime::SessionConfig {
+			parachain_info: polimec_runtime::ParachainInfoConfig { parachain_id: PARA_ID.into(), ..Default::default() },
+			session: polimec_runtime::SessionConfig {
 				keys: collators::invulnerables()
 					.into_iter()
 					.map(|(acc, aura)| {
 						(
-							acc.clone(),                                // account id
-							acc,                                        // validator id
-							polimec_base_runtime::SessionKeys { aura }, // session keys
+							acc.clone(),                           // account id
+							acc,                                   // validator id
+							polimec_runtime::SessionKeys { aura }, // session keys
 						)
 					})
 					.collect(),
@@ -591,7 +586,7 @@ pub mod polimec_base {
 			aura: Default::default(),
 			aura_ext: Default::default(),
 			council: Default::default(),
-			technical_committee: polimec_base_runtime::TechnicalCommitteeConfig {
+			technical_committee: polimec_runtime::TechnicalCommitteeConfig {
 				members: vec![
 					alice_account.clone(),
 					bob_account.clone(),
@@ -601,7 +596,7 @@ pub mod polimec_base {
 				],
 				..Default::default()
 			},
-			elections: polimec_base_runtime::ElectionsConfig {
+			elections: polimec_runtime::ElectionsConfig {
 				members: vec![
 					(alice_account.clone(), 0),
 					(bob_account.clone(), 0),
@@ -613,11 +608,11 @@ pub mod polimec_base {
 			},
 			democracy: Default::default(),
 			parachain_system: Default::default(),
-			polkadot_xcm: polimec_base_runtime::PolkadotXcmConfig {
+			polkadot_xcm: polimec_runtime::PolkadotXcmConfig {
 				safe_xcm_version: Some(SAFE_XCM_VERSION),
 				..Default::default()
 			},
-			parachain_staking: polimec_base_runtime::ParachainStakingConfig {
+			parachain_staking: polimec_runtime::ParachainStakingConfig {
 				candidates: collators::initial_authorities()
 					.iter()
 					.map(|(acc, _)| (acc.clone(), 20_000 * PLMC))
@@ -629,7 +624,7 @@ pub mod polimec_base {
 				blocks_per_round: GENESIS_BLOCKS_PER_ROUND,
 				num_selected_candidates: GENESIS_NUM_SELECTED_CANDIDATES,
 			},
-			oracle_providers_membership: polimec_base_runtime::OracleProvidersMembershipConfig {
+			oracle_providers_membership: polimec_runtime::OracleProvidersMembershipConfig {
 				members: bounded_vec![alice_account.clone(), bob_account, charlie_account],
 				..Default::default()
 			},

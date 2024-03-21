@@ -24,21 +24,21 @@ chain = "polimec-rococo-local"
 
 	[[parachains.collators]]
 	name = "collator1"
-	command = "./bin/polimec-parachain-node"
+	command = "./bin/polimec-node"
 	args = ["--offchain-worker when-authority --log ocw=trace"]
 	# ss58 key: 5Do5UoayFvDrHroGS1YMqxTVUysSkrhNwVMzmj1foVb3vzzb
 	keystore_key_types = ["aura", "plmc_sr"]
 
 	[[parachains.collators]]
 	name = "collator2"
-	command = "./bin/polimec-parachain-node"
+	command = "./bin/polimec-node"
 	args = ["--offchain-worker when-authority --log ocw=trace"]
 	# ss58 key: 5E5E37FNZD9KVHyGgSHt8pc2kq8e3VUS5rf8GmrxCa7ySs8s
 	keystore_key_types = ["aura", "plmc_sr"]
 
 	[[parachains.collators]]
 	name = "collator3"
-	command = "./bin/polimec-parachain-node"
+	command = "./bin/polimec-node"
 	args = ["--offchain-worker when-authority --log ocw=trace"]
 	# ss58 key: 5ELLzYckeuomgTnv4Pf1aT4itxu35cn1KWNCGcftzv5N2x7o
 	keystore_key_types = ["aura", "plmc_sr"]

@@ -19,7 +19,7 @@
 //! Polimec Shell chain specification
 
 use cumulus_primitives_core::ParaId;
-use polimec_base_runtime as base_runtime;
+use polimec_runtime as base_runtime;
 use sc_service::ChainType;
 use sp_core::{crypto::UncheckedInto, sr25519};
 use sp_runtime::{traits::ConstU32, BoundedVec, Perbill, Percent};

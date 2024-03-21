@@ -240,14 +240,14 @@ pub mod storage_types {
 	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
 	pub struct ProjectDetails<
 		AccountId,
-		DID,
+		Did,
 		BlockNumber,
 		Price: FixedPointNumber,
 		Balance: BalanceT,
 		EvaluationRoundInfo,
 	> {
 		pub issuer_account: AccountId,
-		pub issuer_did: DID,
+		pub issuer_did: Did,
 		/// Whether the project is frozen, so no `metadata` changes are allowed.
 		pub is_frozen: bool,
 		/// The price in USD per token decided after the Auction Round
@@ -307,6 +307,7 @@ pub mod storage_types {
 	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
 	pub struct BidInfo<
 		ProjectId,
+		Did,
 		Balance: BalanceT,
 		Price: FixedPointNumber,
 		AccountId,
@@ -317,6 +318,7 @@ pub mod storage_types {
 		pub id: u32,
 		pub project_id: ProjectId,
 		pub bidder: AccountId,
+		pub did: Did,
 		pub status: BidStatus<Balance>,
 		#[codec(compact)]
 		pub original_ct_amount: Balance,
@@ -336,13 +338,14 @@ pub mod storage_types {
 
 	impl<
 			ProjectId: Eq,
+			Did: Eq,
 			Balance: BalanceT + FixedPointOperand + Ord,
 			Price: FixedPointNumber,
 			AccountId: Eq,
 			BlockNumber: Eq + Ord,
 			Multiplier: Eq,
 			VestingInfo: Eq,
-		> Ord for BidInfo<ProjectId, Balance, Price, AccountId, BlockNumber, Multiplier, VestingInfo>
+		> Ord for BidInfo<ProjectId, Did, Balance, Price, AccountId, BlockNumber, Multiplier, VestingInfo>
 	{
 		fn cmp(&self, other: &Self) -> sp_std::cmp::Ordering {
 			match self.original_ct_usd_price.cmp(&other.original_ct_usd_price) {
@@ -354,13 +357,14 @@ pub mod storage_types {
 
 	impl<
 			ProjectId: Eq,
+			Did: Eq,
 			Balance: BalanceT + FixedPointOperand,
 			Price: FixedPointNumber,
 			AccountId: Eq,
 			BlockNumber: Eq + Ord,
 			Multiplier: Eq,
 			VestingInfo: Eq,
-		> PartialOrd for BidInfo<ProjectId, Balance, Price, AccountId, BlockNumber, Multiplier, VestingInfo>
+		> PartialOrd for BidInfo<ProjectId, Did, Balance, Price, AccountId, BlockNumber, Multiplier, VestingInfo>
 	{
 		fn partial_cmp(&self, other: &Self) -> Option<sp_std::cmp::Ordering> {
 			Some(self.cmp(other))
@@ -742,7 +746,6 @@ pub mod inner_types {
 		BidUnbonding(u64, PhantomData<T>),
 		ContributionFundingRelease(u64, PhantomData<T>),
 		ContributionUnbonding(u64, PhantomData<T>),
-		FutureDepositRelease(u64, PhantomData<T>),
 		// Merge
 		// Success or Failure
 		Finished(PhantomData<T>),

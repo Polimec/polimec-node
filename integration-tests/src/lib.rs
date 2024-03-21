@@ -125,10 +125,10 @@ decl_test_networks! {
 	pub struct PolkadotNet {
 		relay_chain = PolkadotRelay,
 		parachains = vec![
-			Polimec,
+			Politest,
 			Penpal,
 			AssetHub,
-			PolimecBase,
+			Polimec,
 		],
 		bridge = ()
 	}
@@ -186,7 +186,7 @@ pub mod shortcuts {
 	pub type BaseCall = <BaseNet as Chain>::RuntimeCall;
 
 	pub type PolkadotAccountId = <PolkadotRuntime as frame_system::Config>::AccountId;
-	pub type PolimecAccountId = <PolimecRuntime as frame_system::Config>::AccountId;
+	pub type PolitestAccountId = <PolitestRuntime as frame_system::Config>::AccountId;
 	pub type PenpalAccountId = <PenpalRuntime as frame_system::Config>::AccountId;
 	pub type AssetHubAccountId = <AssetHubRuntime as frame_system::Config>::AccountId;
 	pub type BaseAccountId = <BaseNet as frame_system::Config>::AccountId;

@@ -4519,11 +4519,11 @@ dependencies = [
  "parachains-common",
  "parity-scale-codec",
  "penpal-runtime",
- "polimec-base-runtime",
  "polimec-common",
  "polimec-common-test-utils",
- "polimec-parachain-runtime",
  "polimec-receiver",
+ "polimec-runtime",
+ "politest-runtime",
  "polkadot-core-primitives",
  "polkadot-parachain-primitives",
  "polkadot-primitives",
@@ -8076,7 +8076,7 @@ dependencies = [
  "frame-system-benchmarking",
  "frame-system-rpc-runtime-api",
  "frame-try-runtime",
- "hex-literal 0.4.1",
+ "hex-literal 0.3.4",
  "log",
  "pallet-asset-tx-payment",
  "pallet-assets",
@@ -8326,36 +8326,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "polimec-common"
-version = "0.1.0"
-dependencies = [
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "itertools 0.11.0",
- "jwt-compact",
- "pallet-timestamp",
- "parity-scale-codec",
- "scale-info",
- "serde",
- "sp-runtime",
- "sp-std",
-]
-
-[[package]]
-name = "polimec-common-test-utils"
-version = "0.1.0"
-dependencies = [
- "chrono",
- "frame-support",
- "jwt-compact",
- "parity-scale-codec",
- "polimec-common",
- "reqwest",
-]
-
-[[package]]
-name = "polimec-parachain-node"
+name = "polimec-xcm-executor"
 version = "0.5.1"
 dependencies = [
  "clap",
@@ -8373,16 +8344,9 @@ dependencies = [
  "cumulus-relay-chain-interface",
  "cumulus-relay-chain-minimal-node",
  "frame-benchmarking",
- "frame-benchmarking-cli",
- "futures",
- "hex-literal 0.3.4",
- "itertools 0.11.0",
- "jsonrpsee",
+ "frame-support",
+ "impl-trait-for-tuples",
  "log",
- "macros",
- "pallet-funding",
- "pallet-transaction-payment-rpc",
- "parachains-common",
  "parity-scale-codec",
  "polimec-base-runtime",
  "polimec-parachain-runtime",
@@ -8415,8 +8379,6 @@ dependencies = [
  "sp-consensus-aura",
  "sp-core",
  "sp-io",
- "sp-keystore",
- "sp-offchain",
  "sp-runtime",
  "sp-session",
  "sp-timestamp",
@@ -8429,9 +8391,10 @@ dependencies = [
 ]
 
 [[package]]
-name = "polimec-parachain-runtime"
+name = "politest-runtime"
 version = "0.5.1"
 dependencies = [
+ "array-bytes",
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-dmp-queue",
  "cumulus-pallet-parachain-system",
@@ -8487,9 +8450,7 @@ dependencies = [
  "polkadot-primitives",
  "polkadot-runtime-common",
  "scale-info",
- "serde",
  "shared-configuration",
- "smallvec",
  "sp-api",
  "sp-block-builder",
  "sp-consensus-aura",

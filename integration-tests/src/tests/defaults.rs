@@ -24,7 +24,7 @@ use sp_arithmetic::{FixedPointNumber, Percent};
 use sp_core::H256;
 
 use macros::generate_accounts;
-use polimec_parachain_runtime::AccountId;
+use politest_runtime::AccountId;
 use sp_runtime::{traits::ConstU32, Perquintill};
 
 pub const METADATA: &str = r#"METADATA
@@ -41,9 +41,9 @@ pub const PLMC: u128 = 10u128.pow(10);
 pub const US_DOLLAR: u128 = 1_0_000_000_000;
 
 pub type IntegrationInstantiator = pallet_funding::instantiator::Instantiator<
-	PolimecRuntime,
-	<PolimecRuntime as pallet_funding::Config>::AllPalletsWithoutSystem,
-	<PolimecRuntime as pallet_funding::Config>::RuntimeEvent,
+	PolitestRuntime,
+	<PolitestRuntime as pallet_funding::Config>::AllPalletsWithoutSystem,
+	<PolitestRuntime as pallet_funding::Config>::RuntimeEvent,
 >;
 pub fn hashed(data: impl AsRef<[u8]>) -> sp_core::H256 {
 	<sp_runtime::traits::BlakeTwo256 as sp_runtime::traits::Hash>::hash(data.as_ref())
@@ -73,10 +73,7 @@ pub fn default_contributor_multipliers() -> Vec<u8> {
 	vec![1u8, 2u8, 1u8, 4u8, 1u8]
 }
 
-pub fn default_project_metadata(
-	nonce: u32,
-	issuer: AccountId,
-) -> ProjectMetadataOf<polimec_parachain_runtime::Runtime> {
+pub fn default_project_metadata(nonce: u32, issuer: AccountId) -> ProjectMetadataOf<politest_runtime::Runtime> {
 	ProjectMetadata {
 		token_information: CurrencyMetadata {
 			name: bounded_name(),
@@ -114,7 +111,7 @@ pub fn default_bidders() -> Vec<AccountId> {
 	vec![BIDDER_1.into(), BIDDER_2.into(), BIDDER_3.into(), BIDDER_4.into(), BIDDER_5.into()]
 }
 
-pub fn default_bids() -> Vec<BidParams<PolimecRuntime>> {
+pub fn default_bids() -> Vec<BidParams<PolitestRuntime>> {
 	let default_metadata = default_project_metadata(0u32, ISSUER.into());
 	let auction_allocation =
 		default_metadata.auction_round_allocation_percentage * default_metadata.total_allocation_size;
@@ -130,7 +127,7 @@ pub fn default_bids() -> Vec<BidParams<PolimecRuntime>> {
 	)
 }
 
-pub fn default_community_contributions() -> Vec<ContributionParams<PolimecRuntime>> {
+pub fn default_community_contributions() -> Vec<ContributionParams<PolitestRuntime>> {
 	let default_metadata = default_project_metadata(0u32, ISSUER.into());
 
 	let auction_allocation =
@@ -149,7 +146,7 @@ pub fn default_community_contributions() -> Vec<ContributionParams<PolimecRuntim
 	)
 }
 
-pub fn default_remainder_contributions() -> Vec<ContributionParams<PolimecRuntime>> {
+pub fn default_remainder_contributions() -> Vec<ContributionParams<PolitestRuntime>> {
 	let default_metadata = default_project_metadata(0u32, ISSUER.into());
 
 	let auction_allocation =

@@ -19,13 +19,13 @@ use crate::*;
 /// Alice, Bob, Charlie are members of the OracleProvidersMembers.
 /// Only members should be able to feed data into the oracle.
 use parity_scale_codec::alloc::collections::HashMap;
-use polimec_parachain_runtime::{Oracle, RuntimeOrigin};
+use politest_runtime::{Oracle, RuntimeOrigin};
 use sp_runtime::{bounded_vec, BoundedVec, FixedU128};
 use tests::defaults::*;
 
 fn values(
 	values: [f64; 4],
-) -> BoundedVec<(u32, FixedU128), <polimec_parachain_runtime::Runtime as orml_oracle::Config<()>>::MaxFeedValues> {
+) -> BoundedVec<(u32, FixedU128), <politest_runtime::Runtime as orml_oracle::Config<()>>::MaxFeedValues> {
 	let [dot, usdc, usdt, plmc] = values;
 	bounded_vec![
 		(0u32, FixedU128::from_float(dot)),
@@ -71,7 +71,7 @@ fn non_members_cannot_feed_data() {
 		let dave = PoliNet::account_id_of(DAVE);
 		assert_noop!(
 			Oracle::feed_values(RuntimeOrigin::signed(dave.clone()), values([4.84, 1.0, 1.0, 0.4])),
-			orml_oracle::Error::<polimec_parachain_runtime::Runtime, ()>::NoPermission
+			orml_oracle::Error::<politest_runtime::Runtime, ()>::NoPermission
 		);
 	});
 }
