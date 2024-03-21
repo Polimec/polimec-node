@@ -350,7 +350,7 @@ fn remainder_round_completed() {
 		let funding_necessary_1 =
 			IntegrationInstantiator::calculate_contributed_funding_asset_spent(excel_contributions(), price);
 		let funding_necessary_2 =
-			IntegrationInstantiator::calculate_contributed_funding_asset_spent(excel_remainders(), price);)]
+			IntegrationInstantiator::calculate_contributed_funding_asset_spent(excel_remainders(), price);
 		let mut total = 0u128;
 		for item in funding_necessary_1 {
 			total += item.asset_amount;
