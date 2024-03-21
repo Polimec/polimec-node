@@ -20,7 +20,7 @@
 
 use crate::chain_spec::Extensions;
 use cumulus_primitives_core::ParaId;
-use polimec_base_runtime as base_runtime;
+use polimec_runtime as base_runtime;
 use sc_service::ChainType;
 use sp_core::{crypto::UncheckedInto, sr25519};
 use sp_runtime::{BoundedVec, Perbill, Percent};
@@ -71,7 +71,7 @@ pub fn get_base_session_keys(keys: AuthorityId) -> base_runtime::SessionKeys {
 	base_runtime::SessionKeys { aura: keys }
 }
 
-pub fn get_local_base_chain_spec() -> Result<ChainSpec, String> {
+pub fn get_local_chain_spec() -> Result<ChainSpec, String> {
 	let properties = get_properties("PLMC", 10, 41);
 	let wasm = base_runtime::WASM_BINARY.ok_or("No WASM")?;
 	// This account is derived from PalletId("plmc/stk") in the pallet-parachain-staking runtime config.
@@ -166,7 +166,7 @@ pub fn get_polkadot_base_chain_spec() -> Result<ChainSpec, String> {
 	))
 }
 
-pub fn get_rococo_base_chain_spec() -> Result<ChainSpec, String> {
+pub fn get_rococo_chain_spec() -> Result<ChainSpec, String> {
 	let properties = get_properties("RLMC", 10, 41);
 	let wasm = base_runtime::WASM_BINARY.ok_or("No WASM")?;
 
@@ -248,7 +248,7 @@ fn base_testnet_genesis(
 		},
 		polkadot_xcm: PolkadotXcmConfig { safe_xcm_version: Some(SAFE_XCM_VERSION), ..Default::default() },
 		transaction_payment: Default::default(),
-		oracle_providers_membership: polimec_base_runtime::OracleProvidersMembershipConfig {
+		oracle_providers_membership: polimec_runtime::OracleProvidersMembershipConfig {
 			members: BoundedVec::truncate_from(initial_authorities),
 			..Default::default()
 		},

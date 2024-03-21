@@ -19,7 +19,7 @@ use std::{net::SocketAddr, path::PathBuf};
 use cumulus_primitives_core::ParaId;
 use frame_benchmarking_cli::{BenchmarkCmd, SUBSTRATE_REFERENCE_HARDWARE};
 use log::{info, warn};
-use polimec_parachain_runtime::Block;
+use politest_runtime::Block;
 use sc_cli::{
 	ChainSpec, CliConfiguration, DefaultConfigurationValues, ImportParams, KeystoreParams, NetworkParams, Result,
 	SharedParams, SubstrateCli,
@@ -86,28 +86,32 @@ fn runtime(id: &str) -> Runtime {
 
 fn load_spec(id: &str) -> std::result::Result<Box<dyn ChainSpec>, String> {
 	log::info!("Load spec id: {}", id);
-	let generated_chain_spec = include_bytes!("../../../chain-specs/polimec-raw-chain-spec.json").to_vec();
+	let polimec_chain_spec = include_bytes!("../../../chain-specs/polimec-raw-chain-spec.json").to_vec();
+	let rolimec_chain_spec = include_bytes!("../../../chain-specs/rococo/rawlimec.json").to_vec();
 
 	Ok(match id {
 		// Base runtime
-		"base-rococo-local" => Box::new(chain_spec::base::get_local_base_chain_spec()?),
-		"base-rococo" => Box::new(chain_spec::base::get_rococo_base_chain_spec()?),
-		"polimec-polkadot" => Box::new(chain_spec::base::ChainSpec::from_json_bytes(generated_chain_spec)?),
-		"polimec-rococo-local" => Box::new(chain_spec::testnet::get_chain_spec_dev()?),
+		"polimec" => Box::new(chain_spec::polimec::ChainSpec::from_json_bytes(polimec_chain_spec)?),
+		"rolimec" => Box::new(chain_spec::polimec::ChainSpec::from_json_bytes(rolimec_chain_spec)?),
+		// TODO: add politest live
+		// "politest" => Box::new(chain_spec::politest::get_()?),
+		"polimec-local" => Box::new(chain_spec::polimec::get_local_chain_spec()?),
+		"rolimec-local" => Box::new(chain_spec::polimec::get_rococo_chain_spec()?),
+		"politest-local" => Box::new(chain_spec::politest::get_local_chain_spec()?),
 		#[cfg(feature = "std")]
-		"polimec-testing" => Box::new(chain_spec::testnet::get_chain_spec_testing()?),
+		"politest-populated" => Box::new(chain_spec::politest::get_populated_chain_spec()?),
 		// -- Fallback (generic chainspec)
 		"" => {
 			log::warn!("No ChainSpec.id specified, so using default one, based on polimec-rococo-local");
-			Box::new(chain_spec::testnet::get_chain_spec_dev()?)
+			Box::new(chain_spec::politest::get_local_chain_spec()?)
 		},
 		// A custom chainspec path
 		path => {
 			let path: PathBuf = path.into();
 			log::info!("Got path: {}", path.display());
 			match path.runtime() {
-				Runtime::Testnet => Box::new(chain_spec::testnet::ChainSpec::from_json_file(path)?),
-				Runtime::Base => Box::new(chain_spec::base::ChainSpec::from_json_file(path)?),
+				Runtime::Testnet => Box::new(chain_spec::politest::ChainSpec::from_json_file(path)?),
+				Runtime::Base => Box::new(chain_spec::polimec::ChainSpec::from_json_file(path)?),
 			}
 		},
 	})

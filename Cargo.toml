@@ -87,6 +87,7 @@ serde = { version = "1.0.188", default-features = false }
 smallvec = "1.11.0"
 log = { version = "0.4.17", default-features = false }
 itertools = { version = "0.11.0", default-features = false, features = ["use_alloc"] }
+array-bytes = { version = "*", default-features = false }
 
 # Emulations
 xcm-emulator = { git = "https://github.com/paritytech/cumulus", default-features = false, branch = "release-v1.0.0" }
@@ -229,5 +230,5 @@ substrate-test-utils = { git = "https://github.com/paritytech/substrate", branch
 cumulus-pallet-session-benchmarking = { git = "https://github.com/paritytech/cumulus", default-features = false, branch = "release-v1.0.0" }
 
 # Runtimes
-polimec-parachain-runtime = { path = "runtimes/testnet"}
-polimec-base-runtime = { path = "runtimes/base" }
+politest-runtime = { path = "runtimes/politest" }
+polimec-runtime = { path = "runtimes/polimec" }

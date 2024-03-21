@@ -1,6 +1,6 @@
 [package]
-name = "polimec-parachain-runtime"
-description = "Parachain runtime for Polimec Mainnet on Polkadot."
+name = "polimec-runtime"
+description = "Base runtime for Polimec on Polkadot."
 authors.workspace = true
 documentation.workspace = true
 edition.workspace = true
@@ -14,24 +14,25 @@ version.workspace = true
 substrate-wasm-builder.workspace = true
 
 [dependencies]
-parity-scale-codec = { workspace = true, features = ["derive"] }
-log = { workspace = true }
-scale-info = { workspace = true, features = ["derive"] }
-hex-literal = { workspace = true, optional = true }
-serde = { workspace = true, features = ["derive"] }
-smallvec.workspace = true
+parity-scale-codec = { workspace= true,  default-features = false, features = [
+	"derive",
+] }
+log.workspace = true
+scale-info = { workspace= true, default-features = false, features = [
+	"derive",
+] }
 
 # Uncomment this to see variables instead of <wasm:stripped> in the console output
 sp-debug-derive = { workspace = true, features = ["force-debug"]}
 
-# Polimec specific
-pallet-funding.workspace = true
+
+# Local
+pallet-parachain-staking.workspace = true
 pallet-oracle-ocw.workspace = true
-pallet-linear-release.workspace = true
 shared-configuration.workspace = true
 polimec-common.workspace = true
 
-# FRAME
+# Substrate
 frame-benchmarking = { workspace = true, optional = true }
 frame-executive.workspace = true
 frame-support.workspace = true
@@ -40,7 +41,6 @@ frame-system-benchmarking = { workspace = true, optional = true }
 frame-system-rpc-runtime-api.workspace = true
 frame-try-runtime = { workspace = true, optional = true }
 pallet-assets.workspace = true
-pallet-asset-tx-payment.workspace = true
 pallet-aura.workspace = true
 pallet-authorship.workspace = true
 pallet-balances.workspace = true
@@ -49,6 +49,9 @@ pallet-democracy.workspace = true
 pallet-elections-phragmen.workspace = true
 pallet-identity.workspace = true
 pallet-membership.workspace = true
+pallet-multisig.workspace = true
+pallet-preimage.workspace = true
+pallet-proxy.workspace = true
 pallet-scheduler.workspace = true
 pallet-session.workspace = true
 pallet-sudo.workspace = true
@@ -57,19 +60,12 @@ pallet-transaction-payment.workspace = true
 pallet-transaction-payment-rpc-runtime-api.workspace = true
 pallet-treasury.workspace = true
 pallet-utility.workspace = true
-pallet-multisig.workspace = true
-pallet-preimage.workspace = true
-pallet-insecure-randomness-collective-flip.workspace = true
 pallet-vesting.workspace = true
-pallet-parachain-staking.workspace = true
-
-# Substrate
 sp-api.workspace = true
 sp-block-builder.workspace = true
 sp-consensus-aura.workspace = true
 sp-core.workspace = true
 sp-inherents.workspace = true
-sp-io.workspace = true
 sp-offchain.workspace = true
 sp-runtime.workspace = true
 sp-session.workspace = true
@@ -83,9 +79,7 @@ polkadot-parachain.workspace = true
 polkadot-runtime-common.workspace = true
 xcm.workspace = true
 xcm-builder.workspace = true
-xcm-executor.workspace = true
 polimec-xcm-executor.workspace = true
-parachains-common.workspace = true
 
 # Cumulus
 cumulus-pallet-aura-ext.workspace = true
@@ -98,10 +92,14 @@ cumulus-primitives-core.workspace = true
 cumulus-primitives-timestamp.workspace = true
 cumulus-primitives-utility.workspace = true
 parachain-info.workspace = true
-polkadot-primitives.workspace = true
+parachains-common.workspace = true
 
 # ORML
 orml-oracle.workspace = true
+
+# Migration utilities
+hex-literal = { workspace = true }
+array-bytes = { workspace = true, default-features = false }
 
 [features]
 default = [ "std" ]
@@ -126,7 +124,6 @@ std = [
 	"frame-try-runtime?/std",
 	"log/std",
 	"orml-oracle/std",
-	"pallet-asset-tx-payment/std",
 	"pallet-assets/std",
 	"pallet-aura/std",
 	"pallet-authorship/std",
@@ -134,15 +131,13 @@ std = [
 	"pallet-collective/std",
 	"pallet-democracy/std",
 	"pallet-elections-phragmen/std",
-	"pallet-funding/std",
 	"pallet-identity/std",
-	"pallet-insecure-randomness-collective-flip/std",
-	"pallet-linear-release/std",
 	"pallet-membership/std",
 	"pallet-multisig/std",
 	"pallet-oracle-ocw/std",
 	"pallet-parachain-staking/std",
 	"pallet-preimage/std",
+	"pallet-proxy/std",
 	"pallet-scheduler/std",
 	"pallet-session/std",
 	"pallet-sudo/std",
@@ -159,17 +154,15 @@ std = [
 	"polimec-common/std",
 	"polimec-xcm-executor/std",
 	"polkadot-parachain/std",
-	"polkadot-primitives/std",
 	"polkadot-runtime-common/std",
 	"scale-info/std",
-	"serde/std",
 	"shared-configuration/std",
 	"sp-api/std",
 	"sp-block-builder/std",
 	"sp-consensus-aura/std",
 	"sp-core/std",
+	"sp-debug-derive/std",
 	"sp-inherents/std",
-	"sp-io/std",
 	"sp-offchain/std",
 	"sp-runtime/std",
 	"sp-session/std",
@@ -177,9 +170,7 @@ std = [
 	"sp-transaction-pool/std",
 	"sp-version/std",
 	"xcm-builder/std",
-	"xcm-executor/std",
 	"xcm/std",
-	"sp-debug-derive/std"
 ]
 
 runtime-benchmarks = [
@@ -190,21 +181,18 @@ runtime-benchmarks = [
 	"frame-support/runtime-benchmarks",
 	"frame-system-benchmarking/runtime-benchmarks",
 	"frame-system/runtime-benchmarks",
-	"hex-literal",
-	"pallet-asset-tx-payment/runtime-benchmarks",
 	"pallet-assets/runtime-benchmarks",
 	"pallet-balances/runtime-benchmarks",
 	"pallet-collective/runtime-benchmarks",
 	"pallet-democracy/runtime-benchmarks",
 	"pallet-elections-phragmen/runtime-benchmarks",
-	"pallet-funding/runtime-benchmarks",
 	"pallet-identity/runtime-benchmarks",
-	"pallet-linear-release/runtime-benchmarks",
 	"pallet-membership/runtime-benchmarks",
 	"pallet-multisig/runtime-benchmarks",
 	"pallet-oracle-ocw/runtime-benchmarks",
 	"pallet-parachain-staking/runtime-benchmarks",
 	"pallet-preimage/runtime-benchmarks",
+	"pallet-proxy/runtime-benchmarks",
 	"pallet-scheduler/runtime-benchmarks",
 	"pallet-sudo/runtime-benchmarks",
 	"pallet-timestamp/runtime-benchmarks",
@@ -215,12 +203,10 @@ runtime-benchmarks = [
 	"polimec-common/runtime-benchmarks",
 	"polimec-xcm-executor/runtime-benchmarks",
 	"polkadot-parachain/runtime-benchmarks",
-	"polkadot-primitives/runtime-benchmarks",
 	"polkadot-runtime-common/runtime-benchmarks",
 	"shared-configuration/runtime-benchmarks",
 	"sp-runtime/runtime-benchmarks",
 	"xcm-builder/runtime-benchmarks",
-	"xcm-executor/runtime-benchmarks",
 ]
 
 try-runtime = [
@@ -232,10 +218,8 @@ try-runtime = [
 	"frame-executive/try-runtime",
 	"frame-support/try-runtime",
 	"frame-system/try-runtime",
-	"frame-try-runtime",
-	"frame-try-runtime?/try-runtime",
+	"frame-try-runtime/try-runtime",
 	"orml-oracle/try-runtime",
-	"pallet-asset-tx-payment/try-runtime",
 	"pallet-assets/try-runtime",
 	"pallet-aura/try-runtime",
 	"pallet-authorship/try-runtime",
@@ -243,15 +227,13 @@ try-runtime = [
 	"pallet-collective/try-runtime",
 	"pallet-democracy/try-runtime",
 	"pallet-elections-phragmen/try-runtime",
-	"pallet-funding/try-runtime",
 	"pallet-identity/try-runtime",
-	"pallet-insecure-randomness-collective-flip/try-runtime",
-	"pallet-linear-release/try-runtime",
 	"pallet-membership/try-runtime",
 	"pallet-multisig/try-runtime",
 	"pallet-oracle-ocw/try-runtime",
 	"pallet-parachain-staking/try-runtime",
 	"pallet-preimage/try-runtime",
+	"pallet-proxy/try-runtime",
 	"pallet-scheduler/try-runtime",
 	"pallet-session/try-runtime",
 	"pallet-sudo/try-runtime",
@@ -263,8 +245,12 @@ try-runtime = [
 	"pallet-xcm/try-runtime",
 	"parachain-info/try-runtime",
 	"polimec-common/try-runtime",
-	"polimec-xcm-executor/try-runtime",
 	"polkadot-runtime-common/try-runtime",
 	"shared-configuration/try-runtime",
 	"sp-runtime/try-runtime",
 ]
+
+# A feature that should be enabled when the runtime should be built for on-chain
+# deployment. This will disable stuff that shouldn't be part of the on-chain wasm
+# to make it smaller, like logging for example.
+on-chain-release-build = [ "sp-api/disable-logging" ]

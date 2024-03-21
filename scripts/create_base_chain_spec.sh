@@ -23,7 +23,7 @@ para_id=$2
 
 echo "Generating chain spec for runtime: $rt_path and para_id: $para_id"
 
-binary="./target/release/polimec-parachain-node"
+binary="./target/release/polimec-node"
 
 # Build the chain spec we'll manipulate
 $binary build-spec --chain base-polkadot > chain-spec-plain.json

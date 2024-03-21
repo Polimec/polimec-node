@@ -37,7 +37,7 @@ id = 2000
 chain = "dev"
 	[[parachains.collators]]
 	name = "polimec-collator"
-	command = "./polimec/target/release/polimec-parachain-node"
+	command = "./polimec/target/release/polimec-node"
 
 [[parachains]]
 id = 3000
