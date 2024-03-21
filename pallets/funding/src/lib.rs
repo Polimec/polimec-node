@@ -222,9 +222,6 @@ pub mod pallet {
 	pub enum HoldReason {
 		Evaluation(ProjectId),
 		Participation(ProjectId),
-		// We require a PLMC deposit to create an account for minting the CTs to this user.
-		// Here we make sure the user has this amount before letting him participate.
-		FutureDeposit(ProjectId),
 	}
 
 	#[pallet::pallet]
@@ -957,8 +954,6 @@ pub mod pallet {
 		XcmFailed,
 		// Tried to convert one type into another and failed. i.e try_into failed
 		BadConversion,
-		/// Tried to release the PLMC deposit held for a future CT mint, but there was nothing to release
-		NoFutureDepositHeld,
 		/// The issuer doesn't have enough funds (ExistentialDeposit), to create the escrow account
 		NotEnoughFundsForEscrowCreation,
 		/// The issuer doesn't have enough funds to pay for the metadata of their contribution token
@@ -1042,8 +1037,7 @@ pub mod pallet {
 		/// Bond PLMC for a project in the evaluation stage
 		#[pallet::call_index(4)]
 		#[pallet::weight(
-			WeightInfoOf::<T>::first_evaluation()
-			.max(WeightInfoOf::<T>::second_to_limit_evaluation(T::MaxEvaluationsPerUser::get() - 1))
+			WeightInfoOf::<T>::evaluation_to_limit(T::MaxEvaluationsPerUser::get() - 1)
 			.max(WeightInfoOf::<T>::evaluation_over_limit())
 		)]
 		pub fn evaluate(
@@ -1060,14 +1054,13 @@ pub mod pallet {
 		/// Bid for a project in the Auction round
 		#[pallet::call_index(5)]
 		#[pallet::weight(
-			WeightInfoOf::<T>::bid_no_ct_deposit(
+			WeightInfoOf::<T>::bid(
 				<T as Config>::MaxBidsPerUser::get() - 1,
 				// Assuming the current bucket is full, and has a price higher than the minimum.
 				// This user is buying 100% of the bid allocation.
 				// Since each bucket has 10% of the allocation, one bid can be split into a max of 10
 				10
-			)
-			.max(WeightInfoOf::<T>::bid_with_ct_deposit(10)))]
+		))]
 		pub fn bid(
 			origin: OriginFor<T>,
 			jwt: UntrustedToken,

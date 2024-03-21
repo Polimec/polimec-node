@@ -7472,6 +7472,7 @@ dependencies = [
 name = "polimec-base-runtime"
 version = "0.5.1"
 dependencies = [
+ "array-bytes",
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-dmp-queue",
  "cumulus-pallet-parachain-system",
@@ -7488,6 +7489,7 @@ dependencies = [
  "frame-system-benchmarking",
  "frame-system-rpc-runtime-api",
  "frame-try-runtime",
+ "hex-literal 0.3.4",
  "log",
  "orml-oracle",
  "pallet-assets",
