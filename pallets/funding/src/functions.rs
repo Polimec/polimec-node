@@ -1473,12 +1473,6 @@ impl<T: Config> Pallet<T> {
 		// * Update storage *
 		if !T::ContributionTokenCurrency::contains(&project_id, &bid.bidder) {
 			ct_account_created = true;
-			T::NativeCurrency::release(
-				&HoldReason::FutureDeposit(project_id).into(),
-				&bid.bidder,
-				T::ContributionTokenCurrency::deposit_required(project_id),
-				Precision::Exact,
-			)?;
 			T::ContributionTokenCurrency::touch(project_id, &bid.bidder, &bid.bidder)?;
 		}
 		T::ContributionTokenCurrency::mint_into(project_id, &bid.bidder, ct_amount)?;
@@ -1528,12 +1522,6 @@ impl<T: Config> Pallet<T> {
 		// * Update storage *
 		if !T::ContributionTokenCurrency::contains(&project_id, &contribution.contributor) {
 			ct_account_created = true;
-			T::NativeCurrency::release(
-				&HoldReason::FutureDeposit(project_id).into(),
-				&contribution.contributor,
-				T::ContributionTokenCurrency::deposit_required(project_id),
-				Precision::Exact,
-			)?;
 			T::ContributionTokenCurrency::touch(project_id, &contribution.contributor, &contribution.contributor)?;
 		}
 		T::ContributionTokenCurrency::mint_into(project_id, &contribution.contributor, ct_amount)?;
@@ -1646,12 +1634,6 @@ impl<T: Config> Pallet<T> {
 		// * Update storage *
 		if !T::ContributionTokenCurrency::contains(&project_id, &evaluation.evaluator) {
 			ct_account_created = true;
-			T::NativeCurrency::release(
-				&HoldReason::FutureDeposit(project_id).into(),
-				&evaluation.evaluator,
-				T::ContributionTokenCurrency::deposit_required(project_id),
-				Precision::Exact,
-			)?;
 			T::ContributionTokenCurrency::touch(project_id, &evaluation.evaluator, &evaluation.evaluator)?;
 		}
 		T::ContributionTokenCurrency::mint_into(project_id, &evaluation.evaluator, total_reward_amount)?;

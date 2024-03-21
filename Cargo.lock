@@ -8253,80 +8253,36 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "626dec3cac7cc0e1577a2ec3fc496277ec2baa084bebad95bb6fdbfae235f84c"
 
 [[package]]
-name = "polimec-base-runtime"
-version = "0.5.1"
+name = "polimec-common"
+version = "0.1.0"
 dependencies = [
- "array-bytes 6.2.2",
- "cumulus-pallet-aura-ext",
- "cumulus-pallet-dmp-queue",
- "cumulus-pallet-parachain-system",
- "cumulus-pallet-session-benchmarking",
- "cumulus-pallet-xcm",
- "cumulus-pallet-xcmp-queue",
- "cumulus-primitives-core",
- "cumulus-primitives-utility",
  "frame-benchmarking",
- "frame-executive",
  "frame-support",
  "frame-system",
- "frame-system-benchmarking",
- "frame-system-rpc-runtime-api",
- "frame-try-runtime",
- "hex-literal 0.3.4",
- "log",
- "orml-oracle",
- "pallet-assets",
- "pallet-aura",
- "pallet-authorship",
- "pallet-balances",
- "pallet-collective",
- "pallet-democracy 0.5.1",
- "pallet-elections-phragmen 0.5.1",
- "pallet-identity",
- "pallet-membership",
- "pallet-message-queue",
- "pallet-multisig",
- "pallet-oracle-ocw",
- "pallet-parachain-staking",
- "pallet-preimage",
- "pallet-proxy",
- "pallet-scheduler",
- "pallet-session",
+ "itertools 0.11.0",
+ "jwt-compact",
  "pallet-timestamp",
- "pallet-transaction-payment",
- "pallet-transaction-payment-rpc-runtime-api",
- "pallet-treasury",
- "pallet-utility",
- "pallet-vesting",
- "pallet-xcm",
- "parachains-common",
  "parity-scale-codec",
- "polimec-common",
- "polimec-xcm-executor",
- "polkadot-parachain-primitives",
- "polkadot-runtime-common",
  "scale-info",
- "shared-configuration",
- "sp-api",
- "sp-block-builder",
- "sp-consensus-aura",
- "sp-core",
- "sp-genesis-builder",
- "sp-inherents",
- "sp-offchain",
+ "serde",
  "sp-runtime",
- "sp-session",
  "sp-std",
- "sp-transaction-pool",
- "sp-version",
- "staging-parachain-info",
- "staging-xcm",
- "staging-xcm-builder",
- "substrate-wasm-builder 5.0.0-dev",
 ]
 
 [[package]]
-name = "polimec-xcm-executor"
+name = "polimec-common-test-utils"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "frame-support",
+ "jwt-compact",
+ "parity-scale-codec",
+ "polimec-common",
+ "reqwest",
+]
+
+[[package]]
+name = "polimec-node"
 version = "0.5.1"
 dependencies = [
  "clap",
@@ -8344,12 +8300,19 @@ dependencies = [
  "cumulus-relay-chain-interface",
  "cumulus-relay-chain-minimal-node",
  "frame-benchmarking",
- "frame-support",
- "impl-trait-for-tuples",
+ "frame-benchmarking-cli",
+ "futures",
+ "hex-literal 0.3.4",
+ "itertools 0.11.0",
+ "jsonrpsee",
  "log",
+ "macros",
+ "pallet-funding",
+ "pallet-transaction-payment-rpc",
+ "parachains-common",
  "parity-scale-codec",
- "polimec-base-runtime",
- "polimec-parachain-runtime",
+ "polimec-runtime",
+ "politest-runtime",
  "polkadot-cli",
  "polkadot-primitives",
  "polkadot-service",
@@ -8379,6 +8342,8 @@ dependencies = [
  "sp-consensus-aura",
  "sp-core",
  "sp-io",
+ "sp-keystore",
+ "sp-offchain",
  "sp-runtime",
  "sp-session",
  "sp-timestamp",
@@ -8391,10 +8356,29 @@ dependencies = [
 ]
 
 [[package]]
-name = "politest-runtime"
+name = "polimec-receiver"
+version = "0.1.0"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "parity-scale-codec",
+ "polimec-common",
+ "polkadot-parachain-primitives",
+ "polkadot-runtime-parachains",
+ "scale-info",
+ "serde",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
+name = "polimec-runtime"
 version = "0.5.1"
 dependencies = [
- "array-bytes",
+ "array-bytes 6.2.2",
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-dmp-queue",
  "cumulus-pallet-parachain-system",
@@ -8403,6 +8387,102 @@ dependencies = [
  "cumulus-pallet-xcmp-queue",
  "cumulus-primitives-core",
  "cumulus-primitives-timestamp",
+ "cumulus-primitives-utility",
+ "frame-benchmarking",
+ "frame-executive",
+ "frame-support",
+ "frame-system",
+ "frame-system-benchmarking",
+ "frame-system-rpc-runtime-api",
+ "frame-try-runtime",
+ "hex-literal 0.3.4",
+ "log",
+ "orml-oracle",
+ "pallet-assets",
+ "pallet-aura",
+ "pallet-authorship",
+ "pallet-balances",
+ "pallet-collective",
+ "pallet-democracy 0.5.1",
+ "pallet-elections-phragmen 0.5.1",
+ "pallet-identity",
+ "pallet-membership",
+ "pallet-message-queue",
+ "pallet-multisig",
+ "pallet-oracle-ocw",
+ "pallet-parachain-staking",
+ "pallet-preimage",
+ "pallet-proxy",
+ "pallet-scheduler",
+ "pallet-session",
+ "pallet-sudo",
+ "pallet-timestamp",
+ "pallet-transaction-payment",
+ "pallet-transaction-payment-rpc-runtime-api",
+ "pallet-treasury",
+ "pallet-utility",
+ "pallet-vesting",
+ "pallet-xcm",
+ "parachains-common",
+ "parity-scale-codec",
+ "polimec-common",
+ "polimec-xcm-executor",
+ "polkadot-parachain-primitives",
+ "polkadot-primitives",
+ "polkadot-runtime-common",
+ "scale-info",
+ "shared-configuration",
+ "sp-api",
+ "sp-block-builder",
+ "sp-consensus-aura",
+ "sp-core",
+ "sp-debug-derive",
+ "sp-genesis-builder",
+ "sp-inherents",
+ "sp-offchain",
+ "sp-runtime",
+ "sp-session",
+ "sp-std",
+ "sp-transaction-pool",
+ "sp-version",
+ "staging-parachain-info",
+ "staging-xcm",
+ "staging-xcm-builder",
+ "substrate-wasm-builder 5.0.0-dev",
+]
+
+[[package]]
+name = "polimec-xcm-executor"
+version = "0.5.1"
+dependencies = [
+ "environmental",
+ "frame-benchmarking",
+ "frame-support",
+ "impl-trait-for-tuples",
+ "log",
+ "parity-scale-codec",
+ "sp-arithmetic",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+ "sp-weights",
+ "staging-xcm",
+ "staging-xcm-executor",
+]
+
+[[package]]
+name = "politest-runtime"
+version = "0.5.1"
+dependencies = [
+ "array-bytes 6.2.2",
+ "cumulus-pallet-aura-ext",
+ "cumulus-pallet-dmp-queue",
+ "cumulus-pallet-parachain-system",
+ "cumulus-pallet-session-benchmarking",
+ "cumulus-pallet-xcm",
+ "cumulus-pallet-xcmp-queue",
+ "cumulus-primitives-core",
  "cumulus-primitives-utility",
  "frame-benchmarking",
  "frame-executive",
@@ -8432,6 +8512,7 @@ dependencies = [
  "pallet-oracle-ocw",
  "pallet-parachain-staking",
  "pallet-preimage",
+ "pallet-proxy",
  "pallet-scheduler",
  "pallet-session",
  "pallet-sudo",
@@ -8470,45 +8551,6 @@ dependencies = [
  "staging-xcm-builder",
  "staging-xcm-executor",
  "substrate-wasm-builder 5.0.0-dev",
-]
-
-[[package]]
-name = "polimec-receiver"
-version = "0.1.0"
-dependencies = [
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "parity-scale-codec",
- "polimec-common",
- "polkadot-parachain-primitives",
- "polkadot-runtime-parachains",
- "scale-info",
- "serde",
- "sp-core",
- "sp-io",
- "sp-runtime",
- "sp-std",
-]
-
-[[package]]
-name = "polimec-xcm-executor"
-version = "0.5.1"
-dependencies = [
- "environmental",
- "frame-benchmarking",
- "frame-support",
- "impl-trait-for-tuples",
- "log",
- "parity-scale-codec",
- "sp-arithmetic",
- "sp-core",
- "sp-io",
- "sp-runtime",
- "sp-std",
- "sp-weights",
- "staging-xcm",
- "staging-xcm-executor",
 ]
 
 [[package]]
@@ -12504,9 +12546,9 @@ dependencies = [
 
 [[package]]
 name = "smallvec"
-version = "1.13.1"
+version = "1.13.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e6ecd384b10a64542d77071bd64bd7b231f4ed5940fba55e98c3de13824cf3d7"
+checksum = "3c5e1a9a646d36c3599cd173a41282daf47c44583ad367b8e6837255952e5c67"
 
 [[package]]
 name = "smol"
@@ -14242,7 +14284,7 @@ dependencies = [
  "serde",
  "serde_spanned",
  "toml_datetime",
- "toml_edit 0.22.8",
+ "toml_edit 0.22.9",
 ]
 
 [[package]]
@@ -14289,9 +14331,9 @@ dependencies = [
 
 [[package]]
 name = "toml_edit"
-version = "0.22.8"
+version = "0.22.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c12219811e0c1ba077867254e5ad62ee2c9c190b0d957110750ac0cda1ae96cd"
+checksum = "8e40bb779c5187258fd7aad0eb68cb8706a0a81fa712fbea808ab43c4b8374c4"
 dependencies = [
  "indexmap 2.2.5",
  "serde",

@@ -19,7 +19,7 @@
 //! Polimec Testnet chain specification
 
 use cumulus_primitives_core::ParaId;
-use polimec_parachain_runtime::{
+use politest_runtime::{
 	pallet_parachain_staking::{
 		inflation::{perbill_annual_to_perbill_round, BLOCKS_PER_YEAR},
 		InflationInfo, Range,
@@ -65,7 +65,7 @@ pub fn polimec_inflation_config() -> InflationInfo<Balance> {
 	}
 }
 
-pub fn get_testnet_session_keys(keys: AuthorityId) -> politest_runtime::SessionKeys {
+pub fn get_politest_session_keys(keys: AuthorityId) -> politest_runtime::SessionKeys {
 	politest_runtime::SessionKeys { aura: keys }
 }
 
@@ -111,11 +111,11 @@ pub fn get_populated_chain_spec() -> Result<ChainSpec, String> {
 	))
 }
 
-pub fn get_chain_spec_dev() -> GenericChainSpec {
+pub fn get_local_chain_spec() -> GenericChainSpec {
 	let properties = get_properties("RLMC", 10, 41);
 
 	GenericChainSpec::builder(
-		polimec_parachain_runtime::WASM_BINARY.expect("WASM binary was not built, please build it!"),
+		politest_runtime::WASM_BINARY.expect("WASM binary was not built, please build it!"),
 		Extensions { relay_chain: "rococo-local".into(), para_id: DEFAULT_PARA_ID.into() },
 	)
 	.with_name("Rolimec Develop")
@@ -155,9 +155,9 @@ fn testnet_genesis(
 ) -> serde_json::Value {
 	let accounts = endowed_accounts.iter().map(|(account, _)| account.clone()).collect::<Vec<_>>();
 
-	let mut funding_accounts = vec![
+	let funding_accounts = vec![
 		(<Runtime as pallet_funding::Config>::PalletId::get().into_account_truncating(), EXISTENTIAL_DEPOSIT),
-		(polimec_parachain_runtime::TreasuryAccount::get(), EXISTENTIAL_DEPOSIT),
+		(politest_runtime::TreasuryAccount::get(), EXISTENTIAL_DEPOSIT),
 	];
 	endowed_accounts.append(&mut funding_accounts.clone());
 
@@ -187,7 +187,7 @@ fn testnet_genesis(
 					(
 						acc.clone(),
 						acc.clone(),
-						get_testnet_session_keys(Into::<[u8; 32]>::into(acc.clone()).unchecked_into()),
+						get_politest_session_keys(Into::<[u8; 32]>::into(acc.clone()).unchecked_into()),
 					)
 				})
 				.collect::<Vec<_>>(),
@@ -325,7 +325,7 @@ fn testing_genesis(
 	sudo_account: AccountId,
 	id: ParaId,
 ) -> RuntimeGenesisConfig {
-	use polimec_parachain_runtime::{
+	use politest_runtime::{
 		BalancesConfig, CouncilConfig, ForeignAssetsConfig, ParachainInfoConfig, ParachainStakingConfig,
 		PolkadotXcmConfig, SessionConfig, SudoConfig, TechnicalCommitteeConfig,
 	};
@@ -465,7 +465,7 @@ fn testing_genesis(
 					(
 						acc.clone(),
 						acc.clone(),
-						get_testnet_session_keys(Into::<[u8; 32]>::into(acc.clone()).unchecked_into()),
+						get_politest_session_keys(Into::<[u8; 32]>::into(acc.clone()).unchecked_into()),
 					)
 				})
 				.collect::<Vec<_>>(),

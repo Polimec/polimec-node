@@ -67,21 +67,21 @@ decl_test_parachains! {
 	},
 	pub struct Polimec {
 		genesis = polimec::genesis(),
-		on_init = polimec_parachain_runtime::AuraExt::on_initialize(1),
-		runtime = polimec_parachain_runtime,
+		on_init = politest_runtime::AuraExt::on_initialize(1),
+		runtime = politest_runtime,
 		core = {
-			XcmpMessageHandler: polimec_parachain_runtime::XcmpQueue,
-			LocationToAccountId: polimec_parachain_runtime::xcm_config::LocationToAccountId,
-			ParachainInfo: polimec_parachain_runtime::ParachainInfo,
+			XcmpMessageHandler: politest_runtime::XcmpQueue,
+			LocationToAccountId: politest_runtime::xcm_config::LocationToAccountId,
+			ParachainInfo: politest_runtime::ParachainInfo,
 			MessageOrigin: cumulus_primitives_core::AggregateMessageOrigin,
 		},
 		pallets = {
-			Balances: polimec_parachain_runtime::Balances,
-			ParachainSystem: polimec_parachain_runtime::ParachainSystem,
-			PolkadotXcm: polimec_parachain_runtime::PolkadotXcm,
-			LocalAssets: polimec_parachain_runtime::LocalAssets,
-			ForeignAssets: polimec_parachain_runtime::ForeignAssets,
-			FundingPallet: polimec_parachain_runtime::PolimecFunding,
+			Balances: politest_runtime::Balances,
+			ParachainSystem: politest_runtime::ParachainSystem,
+			PolkadotXcm: politest_runtime::PolkadotXcm,
+			LocalAssets: politest_runtime::LocalAssets,
+			ForeignAssets: politest_runtime::ForeignAssets,
+			FundingPallet: politest_runtime::PolimecFunding,
 		}
 	},
 	pub struct AssetHub {
@@ -104,19 +104,19 @@ decl_test_parachains! {
 	},
 	pub struct PolimecBase {
 		genesis = polimec_base::genesis(),
-		on_init = polimec_base_runtime::AuraExt::on_initialize(1),
-		runtime = polimec_base_runtime,
+		on_init = polimec_runtime::AuraExt::on_initialize(1),
+		runtime = polimec_runtime,
 		core = {
-			XcmpMessageHandler: polimec_base_runtime::XcmpQueue,
-			LocationToAccountId: polimec_base_runtime::xcm_config::LocationToAccountId,
-			ParachainInfo: polimec_base_runtime::ParachainInfo,
+			XcmpMessageHandler: polimec_runtime::XcmpQueue,
+			LocationToAccountId: polimec_runtime::xcm_config::LocationToAccountId,
+			ParachainInfo: polimec_runtime::ParachainInfo,
 			MessageOrigin: cumulus_primitives_core::AggregateMessageOrigin,
 		},
 		pallets = {
-			Balances: polimec_base_runtime::Balances,
-			ParachainSystem: polimec_base_runtime::ParachainSystem,
-			PolkadotXcm: polimec_base_runtime::PolkadotXcm,
-			ForeignAssets: polimec_base_runtime::ForeignAssets,
+			Balances: polimec_runtime::Balances,
+			ParachainSystem: polimec_runtime::ParachainSystem,
+			PolkadotXcm: polimec_runtime::PolkadotXcm,
+			ForeignAssets: polimec_runtime::ForeignAssets,
 		}
 	}
 }

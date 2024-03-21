@@ -92,10 +92,7 @@ substrate-build-script-utils.workspace = true
 
 [features]
 default = []
-fast-mode = [
-	"polimec-runtime/fast-mode",
-	"politest-runtime/fast-mode",
-]
+fast-mode = [ "polimec-runtime/fast-mode", "politest-runtime/fast-mode" ]
 instant-mode = [
 	"polimec-runtime/instant-mode",
 	"politest-runtime/instant-mode",
@@ -124,6 +121,7 @@ try-runtime = [
 ]
 std = [
 	"cumulus-primitives-core/std",
+	"cumulus-primitives-parachain-inherent/std",
 	"frame-benchmarking/std",
 	"itertools",
 	"log/std",
@@ -137,9 +135,12 @@ std = [
 	"sp-consensus-aura/std",
 	"sp-core/std",
 	"sp-io/std",
+	"sp-keystore/std",
 	"sp-offchain/std",
 	"sp-runtime/std",
 	"sp-session/std",
+	"sp-timestamp/std",
 	"sp-transaction-pool/std",
 	"xcm/std",
 ]
+on-chain-release-build = []

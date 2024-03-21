@@ -360,10 +360,10 @@ pub mod politest {
 		funded_accounts.extend(collators::initial_authorities().iter().cloned().map(|(acc, _)| (acc, 20_005 * PLMC)));
 		funded_accounts.push((get_account_id_from_seed::<sr25519::Public>("TREASURY_STASH"), 20_005 * PLMC));
 
-		let genesis_config = polimec_parachain_runtime::RuntimeGenesisConfig {
+		let genesis_config = politest_runtime::RuntimeGenesisConfig {
 			system: Default::default(),
-			balances: polimec_parachain_runtime::BalancesConfig { balances: funded_accounts },
-			parachain_info: polimec_parachain_runtime::ParachainInfoConfig {
+			balances: politest_runtime::BalancesConfig { balances: funded_accounts },
+			parachain_info: politest_runtime::ParachainInfoConfig {
 				parachain_id: PARA_ID.into(),
 				..Default::default()
 			},
@@ -514,7 +514,7 @@ pub mod polimec {
 	use super::*;
 	use crate::{PolimecBase, PolkadotNet};
 	use pallet_funding::AcceptedFundingAsset;
-	use polimec_base_runtime::PayMaster;
+	use polimec_runtime::PayMaster;
 	use xcm::v3::Parent;
 
 	pub const PARA_ID: u32 = 3344;
@@ -554,10 +554,10 @@ pub mod polimec {
 		funded_accounts.push((get_account_id_from_seed::<sr25519::Public>("TREASURY_STASH"), 20_005 * PLMC));
 		funded_accounts.push((PayMaster::get(), 20_005 * PLMC));
 
-		let genesis_config = polimec_base_runtime::RuntimeGenesisConfig {
+		let genesis_config = polimec_runtime::RuntimeGenesisConfig {
 			system: Default::default(),
-			balances: polimec_base_runtime::BalancesConfig { balances: funded_accounts },
-			foreign_assets: polimec_base_runtime::ForeignAssetsConfig {
+			balances: polimec_runtime::BalancesConfig { balances: funded_accounts },
+			foreign_assets: polimec_runtime::ForeignAssetsConfig {
 				assets: vec![
 					(dot_asset_id, alice_account.clone(), true, 0_0_010_000_000u128),
 					(usdt_asset_id, alice_account.clone(), true, 0_0_010_000_000u128),

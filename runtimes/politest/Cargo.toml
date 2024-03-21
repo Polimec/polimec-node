@@ -54,6 +54,7 @@ pallet-message-queue.workspace = true
 pallet-multisig.workspace = true
 pallet-preimage.workspace = true
 pallet-proxy.workspace = true
+pallet-sudo.workspace = true
 pallet-scheduler.workspace = true
 pallet-session.workspace = true
 pallet-timestamp.workspace = true
@@ -61,8 +62,6 @@ pallet-transaction-payment.workspace = true
 pallet-transaction-payment-rpc-runtime-api.workspace = true
 pallet-treasury.workspace = true
 pallet-utility.workspace = true
-pallet-multisig.workspace = true
-pallet-preimage.workspace = true
 pallet-insecure-randomness-collective-flip.workspace = true
 pallet-vesting.workspace = true
 pallet-parachain-staking.workspace = true
@@ -151,8 +150,10 @@ std = [
 	"pallet-oracle-ocw/std",
 	"pallet-parachain-staking/std",
 	"pallet-preimage/std",
+	"pallet-proxy/std",
 	"pallet-scheduler/std",
 	"pallet-session/std",
+	"pallet-sudo/std",
 	"pallet-timestamp/std",
 	"pallet-transaction-payment-rpc-runtime-api/std",
 	"pallet-transaction-payment/std",
@@ -166,6 +167,7 @@ std = [
 	"polimec-common/std",
 	"polimec-xcm-executor/std",
 	"polkadot-parachain-primitives/std",
+	"polkadot-primitives/std",
 	"polkadot-runtime-common/std",
 	"scale-info/std",
 	"shared-configuration/std",
@@ -173,6 +175,7 @@ std = [
 	"sp-block-builder/std",
 	"sp-consensus-aura/std",
 	"sp-core/std",
+	"sp-debug-derive/std",
 	"sp-genesis-builder/std",
 	"sp-inherents/std",
 	"sp-io/std",
@@ -185,7 +188,6 @@ std = [
 	"xcm-builder/std",
 	"xcm-executor/std",
 	"xcm/std",
-	"sp-debug-derive/std"
 ]
 
 runtime-benchmarks = [

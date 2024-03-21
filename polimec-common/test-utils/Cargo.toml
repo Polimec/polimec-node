@@ -33,3 +33,5 @@ std = [
 	"polimec-common/std",
 	"reqwest",
 ]
+try-runtime = []
+runtime-benchmarks = []

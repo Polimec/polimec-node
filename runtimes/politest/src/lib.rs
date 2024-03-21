@@ -30,7 +30,7 @@ use frame_support::{
 	traits::{
 		fungible::{Credit, HoldConsideration, Inspect},
 		tokens::{self, PayFromAccount, UnityAssetBalanceConversion},
-		AsEnsureOriginWithArg, ConstU32, Currency, EitherOfDiverse, Everything, LinearStoragePrice, PrivilegeCmp,
+		AsEnsureOriginWithArg, ConstU32, Contains, Currency, EitherOfDiverse, LinearStoragePrice, PrivilegeCmp,
 		TransformOrigin, WithdrawReasons,
 	},
 	weights::{ConstantMultiplier, Weight},

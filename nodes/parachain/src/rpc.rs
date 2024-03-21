@@ -20,7 +20,7 @@
 
 use std::sync::Arc;
 
-use polimec_base_runtime::{opaque::Block, AccountId, Balance, Nonce};
+use polimec_runtime::{opaque::Block, AccountId, Balance, Nonce};
 
 pub use sc_rpc::DenyUnsafe;
 use sc_transaction_pool_api::TransactionPool;

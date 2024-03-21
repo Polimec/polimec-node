@@ -19,13 +19,12 @@
 //! Polimec Shell chain specification
 
 use cumulus_primitives_core::ParaId;
-use polimec_runtime as base_runtime;
 use sc_service::ChainType;
 use sp_core::{crypto::UncheckedInto, sr25519};
 use sp_runtime::{traits::ConstU32, BoundedVec, Perbill, Percent};
 
 use crate::chain_spec::{get_account_id_from_seed, get_properties, Extensions, GenericChainSpec, DEFAULT_PARA_ID};
-use base_runtime::{
+use polimec_runtime::{
 	pallet_parachain_staking::{
 		inflation::{perbill_annual_to_perbill_round, BLOCKS_PER_YEAR},
 		InflationInfo, Range,
@@ -63,11 +62,11 @@ pub fn polimec_inflation_config() -> InflationInfo<Balance> {
 	}
 }
 
-pub fn get_base_session_keys(keys: AuthorityId) -> base_runtime::SessionKeys {
-	base_runtime::SessionKeys { aura: keys }
+pub fn get_polimec_session_keys(keys: AuthorityId) -> polimec_runtime::SessionKeys {
+	polimec_runtime::SessionKeys { aura: keys }
 }
 
-pub fn get_local_base_chain_spec() -> GenericChainSpec {
+pub fn get_local_chain_spec() -> GenericChainSpec {
 	let properties = get_properties("PLMC", 10, 41);
 	// This account is derived from PalletId("plmc/stk") in the pallet-parachain-staking runtime config.
 	// This operation can be done using https://www.shawntabrizi.com/substrate-js-utilities/
@@ -77,7 +76,7 @@ pub fn get_local_base_chain_spec() -> GenericChainSpec {
 		hex_literal::hex!["6d6f646c706c6d632f73746b0000000000000000000000000000000000000000"];
 
 	GenericChainSpec::builder(
-		base_runtime::WASM_BINARY.expect("WASM binary was not built, please build it!"),
+		polimec_runtime::WASM_BINARY.expect("WASM binary was not built, please build it!"),
 		Extensions { relay_chain: "rococo_local_testnet".into(), para_id: DEFAULT_PARA_ID.into() },
 	)
 	.with_name("Polimec Base Develop")
@@ -122,7 +121,7 @@ pub fn get_polkadot_base_chain_spec() -> GenericChainSpec {
 		hex_literal::hex!["ba48ab77461ef53f9ebfdc94a12c780b57354f986e31eb2504b9e3ed580fab51"];
 
 	GenericChainSpec::builder(
-		base_runtime::WASM_BINARY.expect("WASM binary was not built, please build it!"),
+		polimec_runtime::WASM_BINARY.expect("WASM binary was not built, please build it!"),
 		Extensions { relay_chain: "polkadot".into(), para_id: id },
 	)
 	.with_name("Polimec Polkadot")
@@ -147,7 +146,7 @@ pub fn get_polkadot_base_chain_spec() -> GenericChainSpec {
 	.build()
 }
 
-pub fn get_rococo_base_chain_spec() -> GenericChainSpec {
+pub fn get_rococo_chain_spec() -> GenericChainSpec {
 	let properties = get_properties("RLMC", 10, 41);
 	let id: u32 = 3344;
 
@@ -157,7 +156,7 @@ pub fn get_rococo_base_chain_spec() -> GenericChainSpec {
 		hex_literal::hex!["ba48ab77461ef53f9ebfdc94a12c780b57354f986e31eb2504b9e3ed580fab51"];
 
 	GenericChainSpec::builder(
-		base_runtime::WASM_BINARY.expect("WASM binary was not built, please build it!"),
+		polimec_runtime::WASM_BINARY.expect("WASM binary was not built, please build it!"),
 		Extensions { relay_chain: "rococo".into(), para_id: id },
 	)
 	.with_name("Rolimec Rococo")
@@ -209,7 +208,7 @@ fn base_testnet_genesis(
 				(
 					acc.clone(),
 					acc.clone(),
-					get_base_session_keys(Into::<[u8; 32]>::into(acc.clone()).unchecked_into())
+					get_polimec_session_keys(Into::<[u8; 32]>::into(acc.clone()).unchecked_into())
 				)
 			}).collect::<Vec<_>>()
 		},

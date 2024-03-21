@@ -163,7 +163,7 @@ fn democracy_works() {
 		run_gov_n_blocks(2);
 
 		assert_eq!(Democracy::referendum_info(0).unwrap(), ReferendumInfo::Finished { approved: true, end: 6u32 });
-		assert!(pallet_scheduler::Agenda::<polimec_base_runtime::Runtime>::get(8u32).len() == 1);
+		assert!(pallet_scheduler::Agenda::<polimec_runtime::Runtime>::get(8u32).len() == 1);
 
 		run_gov_n_blocks(2);
 
@@ -451,22 +451,22 @@ fn create_vested_account() -> AccountId {
 
 fn run_gov_n_blocks(n: usize) {
 	for _ in 0..n {
-		let block_number = polimec_base_runtime::System::block_number();
-		let header = polimec_base_runtime::System::finalize();
+		let block_number = polimec_runtime::System::block_number();
+		let header = polimec_runtime::System::finalize();
 
 		let pre_digest = Digest { logs: vec![] };
-		polimec_base_runtime::System::reset_events();
+		polimec_runtime::System::reset_events();
 
 		let next_block_number = block_number + 1u32;
-		polimec_base_runtime::Vesting::on_initialize(next_block_number);
-		polimec_base_runtime::Elections::on_initialize(next_block_number);
-		polimec_base_runtime::Council::on_initialize(next_block_number);
-		polimec_base_runtime::TechnicalCommittee::on_initialize(next_block_number);
-		polimec_base_runtime::Treasury::on_initialize(next_block_number);
-		polimec_base_runtime::Democracy::on_initialize(next_block_number);
-		polimec_base_runtime::Preimage::on_initialize(next_block_number);
-		polimec_base_runtime::Scheduler::on_initialize(next_block_number);
-		polimec_base_runtime::System::initialize(&next_block_number, &header.hash(), &pre_digest);
+		polimec_runtime::Vesting::on_initialize(next_block_number);
+		polimec_runtime::Elections::on_initialize(next_block_number);
+		polimec_runtime::Council::on_initialize(next_block_number);
+		polimec_runtime::TechnicalCommittee::on_initialize(next_block_number);
+		polimec_runtime::Treasury::on_initialize(next_block_number);
+		polimec_runtime::Democracy::on_initialize(next_block_number);
+		polimec_runtime::Preimage::on_initialize(next_block_number);
+		polimec_runtime::Scheduler::on_initialize(next_block_number);
+		polimec_runtime::System::initialize(&next_block_number, &header.hash(), &pre_digest);
 	}
 }
 
