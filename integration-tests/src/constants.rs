@@ -283,8 +283,7 @@ pub mod asset_hub {
 // Polimec
 pub mod politest {
 	use super::*;
-	use crate::PolitestRuntime;
-	use crate::{Politest};
+	use crate::{Politest, PolitestRuntime};
 	use pallet_funding::AcceptedFundingAsset;
 	use sp_runtime::traits::{AccountIdConversion, Get};
 	use xcm::{prelude::Parachain, v3::Parent};
@@ -318,9 +317,7 @@ pub mod politest {
 
 		let genesis_config = politest_runtime::RuntimeGenesisConfig {
 			system: politest_runtime::SystemConfig {
-				code: politest_runtime::WASM_BINARY
-					.expect("WASM binary was not build, please build it!")
-					.to_vec(),
+				code: politest_runtime::WASM_BINARY.expect("WASM binary was not build, please build it!").to_vec(),
 				..Default::default()
 			},
 			balances: politest_runtime::BalancesConfig { balances: funded_accounts },
@@ -333,8 +330,8 @@ pub mod politest {
 					.into_iter()
 					.map(|(acc, aura)| {
 						(
-							acc.clone(),                                     // account id
-							acc,                                             // validator id
+							acc.clone(),                            // account id
+							acc,                                    // validator id
 							politest_runtime::SessionKeys { aura }, // session keys
 						)
 					})
@@ -347,9 +344,7 @@ pub mod politest {
 				safe_xcm_version: Some(SAFE_XCM_VERSION),
 				..Default::default()
 			},
-			sudo: politest_runtime::SudoConfig {
-				key: Some(get_account_id_from_seed::<sr25519::Public>("Alice")),
-			},
+			sudo: politest_runtime::SudoConfig { key: Some(get_account_id_from_seed::<sr25519::Public>("Alice")) },
 			council: Default::default(),
 			democracy: Default::default(),
 			treasury: Default::default(),
@@ -519,17 +514,14 @@ pub mod polimec {
 				],
 				accounts: vec![],
 			},
-			parachain_info: polimec_runtime::ParachainInfoConfig {
-				parachain_id: PARA_ID.into(),
-				..Default::default()
-			},
+			parachain_info: polimec_runtime::ParachainInfoConfig { parachain_id: PARA_ID.into(), ..Default::default() },
 			session: polimec_runtime::SessionConfig {
 				keys: collators::invulnerables()
 					.into_iter()
 					.map(|(acc, aura)| {
 						(
-							acc.clone(),                                // account id
-							acc,                                        // validator id
+							acc.clone(),                           // account id
+							acc,                                   // validator id
 							polimec_runtime::SessionKeys { aura }, // session keys
 						)
 					})

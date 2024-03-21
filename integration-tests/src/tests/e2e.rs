@@ -19,7 +19,7 @@ use frame_support::BoundedVec;
 use itertools::Itertools;
 use macros::generate_accounts;
 use pallet_funding::*;
-use politest_runtime::{US_DOLLAR};
+use politest_runtime::US_DOLLAR;
 use sp_arithmetic::{FixedPointNumber, Percent, Perquintill};
 use sp_runtime::{traits::CheckedSub, FixedU128};
 
@@ -454,7 +454,11 @@ fn ct_migrated() {
 	// Mock HRMP establishment
 	Politest::execute_with(|| {
 		let account_id: PolimecAccountId = ISSUER.into();
-		assert_ok!(PolitestFundingPallet::do_set_para_id_for_project(&ISSUER.into(), project_id, ParaId::from(6969u32),));
+		assert_ok!(PolitestFundingPallet::do_set_para_id_for_project(
+			&ISSUER.into(),
+			project_id,
+			ParaId::from(6969u32),
+		));
 
 		let open_channel_message = xcm::v3::opaque::Instruction::HrmpNewChannelOpenRequest {
 			sender: 6969,
