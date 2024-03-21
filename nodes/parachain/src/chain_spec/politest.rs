@@ -329,6 +329,7 @@ fn testing_genesis(
 		BalancesConfig, CouncilConfig, ForeignAssetsConfig, ParachainInfoConfig, ParachainStakingConfig,
 		PolkadotXcmConfig, SessionConfig, SudoConfig, TechnicalCommitteeConfig,
 	};
+	use pallet_funding::instantiator::TestProjectParams;
 	use testing_helpers::*;
 
 	// only used to generate some values, and not for chain interactions

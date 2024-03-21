@@ -30,7 +30,7 @@ fn build_spec_testing_node() {
 
 	let output = std::process::Command::new("../target/release/polimec-node")
 		.arg("build-spec")
-		.arg("--chain=polimec-testing")
+		.arg("--chain=politest-populated")
 		.arg("--disable-default-bootnode")
 		.arg("--raw")
 		.output()
