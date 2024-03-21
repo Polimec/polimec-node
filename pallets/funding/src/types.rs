@@ -239,14 +239,14 @@ pub mod storage_types {
 	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
 	pub struct ProjectDetails<
 		AccountId,
-		DID,
+		Did,
 		BlockNumber,
 		Price: FixedPointNumber,
 		Balance: BalanceT,
 		EvaluationRoundInfo,
 	> {
 		pub issuer_account: AccountId,
-		pub issuer_did: DID,
+		pub issuer_did: Did,
 		/// Whether the project is frozen, so no `metadata` changes are allowed.
 		pub is_frozen: bool,
 		/// The price in USD per token decided after the Auction Round
@@ -306,7 +306,7 @@ pub mod storage_types {
 	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
 	pub struct BidInfo<
 		ProjectId,
-		DID,
+		Did,
 		Balance: BalanceT,
 		Price: FixedPointNumber,
 		AccountId,
@@ -317,7 +317,7 @@ pub mod storage_types {
 		pub id: u32,
 		pub project_id: ProjectId,
 		pub bidder: AccountId,
-		pub did: DID,
+		pub did: Did,
 		pub status: BidStatus<Balance>,
 		#[codec(compact)]
 		pub original_ct_amount: Balance,
