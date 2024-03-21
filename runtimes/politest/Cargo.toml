@@ -14,12 +14,13 @@ version.workspace = true
 substrate-wasm-builder.workspace = true
 
 [dependencies]
-parity-scale-codec = { workspace = true, features = ["derive"] }
-log = { workspace = true }
-scale-info = { workspace = true, features = ["derive"] }
-hex-literal = { workspace = true, optional = true }
-serde = { workspace = true, features = ["derive"] }
-smallvec.workspace = true
+parity-scale-codec = { workspace = true, default-features = false, features = [
+	"derive",
+] }
+log.workspace = true
+scale-info = { workspace = true, default-features = false, features = [
+	"derive",
+] }
 
 # Uncomment this to see variables instead of <wasm:stripped> in the console output
 sp-debug-derive = { workspace = true, features = ["force-debug"]}
@@ -102,6 +103,10 @@ polkadot-primitives.workspace = true
 
 # ORML
 orml-oracle.workspace = true
+
+# Migration utilities
+hex-literal = { workspace = true }
+array-bytes = { workspace = true, default-features = false }
 
 [features]
 default = [ "std" ]
@@ -268,3 +273,8 @@ try-runtime = [
 	"shared-configuration/try-runtime",
 	"sp-runtime/try-runtime",
 ]
+
+# A feature that should be enabled when the runtime should be built for on-chain
+# deployment. This will disable stuff that shouldn't be part of the on-chain wasm
+# to make it smaller, like logging for example.
+on-chain-release-build = [ "sp-api/disable-logging" ]

@@ -153,6 +153,7 @@ std = [
 	"sp-block-builder/std",
 	"sp-consensus-aura/std",
 	"sp-core/std",
+	"sp-debug-derive/std",
 	"sp-inherents/std",
 	"sp-offchain/std",
 	"sp-runtime/std",

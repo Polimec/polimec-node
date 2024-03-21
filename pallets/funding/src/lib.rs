@@ -176,8 +176,16 @@ pub type ProjectDetailsOf<T> =
 pub type EvaluationRoundInfoOf<T> = EvaluationRoundInfo<BalanceOf<T>>;
 pub type VestingInfoOf<T> = VestingInfo<BlockNumberFor<T>, BalanceOf<T>>;
 pub type EvaluationInfoOf<T> = EvaluationInfo<u32, ProjectId, AccountIdOf<T>, BalanceOf<T>, BlockNumberFor<T>>;
-pub type BidInfoOf<T> =
-	BidInfo<ProjectId, BalanceOf<T>, PriceOf<T>, AccountIdOf<T>, BlockNumberFor<T>, MultiplierOf<T>, VestingInfoOf<T>>;
+pub type BidInfoOf<T> = BidInfo<
+	ProjectId,
+	Did,
+	BalanceOf<T>,
+	PriceOf<T>,
+	AccountIdOf<T>,
+	BlockNumberFor<T>,
+	MultiplierOf<T>,
+	VestingInfoOf<T>,
+>;
 pub type ContributionInfoOf<T> =
 	ContributionInfo<u32, ProjectId, AccountIdOf<T>, BalanceOf<T>, MultiplierOf<T>, VestingInfoOf<T>>;
 
@@ -214,9 +222,6 @@ pub mod pallet {
 	pub enum HoldReason {
 		Evaluation(ProjectId),
 		Participation(ProjectId),
-		// We require a PLMC deposit to create an account for minting the CTs to this user.
-		// Here we make sure the user has this amount before letting him participate.
-		FutureDeposit(ProjectId),
 	}
 
 	#[pallet::pallet]
@@ -550,6 +555,14 @@ pub mod pallet {
 		BalanceOf<T>,
 		ValueQuery,
 	>;
+
+	#[pallet::storage]
+	/// A map to keep track of what issuer's did has an active project. It prevents one issuer having multiple active projects
+	pub type DidWithActiveProjects<T: Config> = StorageMap<_, Blake2_128Concat, Did, ProjectId, OptionQuery>;
+
+	#[pallet::storage]
+	pub type DidWithWinningBids<T: Config> =
+		StorageDoubleMap<_, Blake2_128Concat, ProjectId, Blake2_128Concat, Did, bool, ValueQuery>;
 
 	#[pallet::storage]
 	/// Migrations sent and awaiting for confirmation
@@ -945,8 +958,6 @@ pub mod pallet {
 		XcmFailed,
 		// Tried to convert one type into another and failed. i.e try_into failed
 		BadConversion,
-		/// Tried to release the PLMC deposit held for a future CT mint, but there was nothing to release
-		NoFutureDepositHeld,
 		/// The issuer doesn't have enough funds (ExistentialDeposit), to create the escrow account
 		NotEnoughFundsForEscrowCreation,
 		/// The issuer doesn't have enough funds to pay for the metadata of their contribution token
@@ -967,6 +978,9 @@ pub mod pallet {
 		UserHasWinningBids,
 		// Round transition already happened.
 		RoundTransitionAlreadyHappened,
+		/// The issuer tried to create a new project but already has an active one
+		IssuerHasActiveProjectAlready,
+		NotEnoughFunds,
 	}
 
 	#[pallet::call]
@@ -1030,8 +1044,7 @@ pub mod pallet {
 		/// Bond PLMC for a project in the evaluation stage
 		#[pallet::call_index(4)]
 		#[pallet::weight(
-			WeightInfoOf::<T>::first_evaluation()
-			.max(WeightInfoOf::<T>::second_to_limit_evaluation(T::MaxEvaluationsPerUser::get() - 1))
+			WeightInfoOf::<T>::evaluation_to_limit(T::MaxEvaluationsPerUser::get() - 1)
 			.max(WeightInfoOf::<T>::evaluation_over_limit())
 		)]
 		pub fn evaluate(
@@ -1048,14 +1061,13 @@ pub mod pallet {
 		/// Bid for a project in the Auction round
 		#[pallet::call_index(5)]
 		#[pallet::weight(
-			WeightInfoOf::<T>::bid_no_ct_deposit(
+			WeightInfoOf::<T>::bid(
 				<T as Config>::MaxBidsPerUser::get() - 1,
 				// Assuming the current bucket is full, and has a price higher than the minimum.
 				// This user is buying 100% of the bid allocation.
 				// Since each bucket has 10% of the allocation, one bid can be split into a max of 10
 				10
-			)
-			.max(WeightInfoOf::<T>::bid_with_ct_deposit(10)))]
+		))]
 		pub fn bid(
 			origin: OriginFor<T>,
 			jwt: UntrustedToken,

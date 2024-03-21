@@ -350,15 +350,6 @@ pub fn fill_projects_to_update<T: Config>(
 	}
 }
 
-// returns how much PLMC was minted and held to the user
-pub fn make_ct_deposit_for<T: Config>(user: AccountIdOf<T>, project_id: ProjectId) {
-	let ct_deposit = T::ContributionTokenCurrency::deposit_required(project_id);
-	// Reserve plmc deposit to create a contribution token account for this project
-	if T::NativeCurrency::balance_on_hold(&HoldReason::FutureDeposit(project_id).into(), &user) < ct_deposit {
-		T::NativeCurrency::hold(&HoldReason::FutureDeposit(project_id).into(), &user, ct_deposit).unwrap();
-	}
-}
-
 pub fn run_blocks_to_execute_next_transition<T: Config>(
 	project_id: ProjectId,
 	update_type: UpdateType,
@@ -402,15 +393,7 @@ mod benchmarks {
 		whitelist_account!(issuer);
 		let project_metadata = default_project::<T>(inst.get_new_nonce(), issuer.clone());
 
-		let metadata_deposit = T::ContributionTokenCurrency::calc_metadata_deposit(
-			project_metadata.token_information.name.as_slice(),
-			project_metadata.token_information.symbol.as_slice(),
-		);
-		let ct_account_deposit = T::ContributionTokenCurrency::deposit_required(0);
-		inst.mint_plmc_to(vec![UserToPLMCBalance::new(
-			issuer.clone(),
-			ed * 2u64.into() + metadata_deposit + ct_account_deposit,
-		)]);
+		inst.mint_plmc_to(vec![UserToPLMCBalance::new(issuer.clone(), ed * 2u64.into())]);
 		let jwt = get_mock_jwt(issuer.clone(), InvestorType::Institutional, generate_did_from_account(issuer.clone()));
 
 		#[extrinsic_call]
@@ -532,14 +515,12 @@ mod benchmarks {
 		let evaluations = default_evaluations();
 		let plmc_for_evaluating = BenchInstantiator::<T>::calculate_evaluation_plmc_spent(evaluations.clone());
 		let existential_plmc: Vec<UserToPLMCBalance<T>> = plmc_for_evaluating.accounts().existential_deposits();
-		let ct_account_deposits: Vec<UserToPLMCBalance<T>> = plmc_for_evaluating.accounts().ct_account_deposits();
 
 		inst.mint_plmc_to(existential_plmc);
-		inst.mint_plmc_to(ct_account_deposits);
 		inst.mint_plmc_to(plmc_for_evaluating);
 
 		inst.advance_time(One::one()).unwrap();
-		inst.bond_for_users(project_id, evaluations).expect("All evaluations are accepted");
+		inst.evaluate_for_users(project_id, evaluations).expect("All evaluations are accepted");
 
 		run_blocks_to_execute_next_transition(project_id, UpdateType::EvaluationEnd, &mut inst);
 		inst.advance_time(1u32.into()).unwrap();
@@ -568,11 +549,8 @@ mod benchmarks {
 	}
 
 	// possible branches:
-	// - pays ct account deposit
-	//      - we know this happens only if param x = 0, but we cannot fit it in the linear regression
+	// - is under max evals per user, and needs to bond the evaluation
 	// - is over max evals per user, and needs to unbond the lowest evaluation
-	// 		- this case, we know they paid already for ct account deposit
-
 	fn evaluation_setup<T>(x: u32) -> (BenchInstantiator<T>, ProjectId, UserToUSDBalance<T>, BalanceOf<T>, BalanceOf<T>)
 	where
 		T: Config,
@@ -604,18 +582,15 @@ mod benchmarks {
 			BenchInstantiator::<T>::calculate_evaluation_plmc_spent(vec![extrinsic_evaluation.clone()]);
 		let existential_plmc: Vec<UserToPLMCBalance<T>> =
 			plmc_for_extrinsic_evaluation.accounts().existential_deposits();
-		let ct_account_deposits: Vec<UserToPLMCBalance<T>> =
-			plmc_for_extrinsic_evaluation.accounts().ct_account_deposits();
 
 		inst.mint_plmc_to(existential_plmc);
-		inst.mint_plmc_to(ct_account_deposits);
 		inst.mint_plmc_to(plmc_for_existing_evaluations.clone());
 		inst.mint_plmc_to(plmc_for_extrinsic_evaluation.clone());
 
 		inst.advance_time(One::one()).unwrap();
 
 		// do "x" evaluations for this user
-		inst.bond_for_users(test_project_id, existing_evaluations).expect("All evaluations are accepted");
+		inst.evaluate_for_users(test_project_id, existing_evaluations).expect("All evaluations are accepted");
 
 		let extrinsic_plmc_bonded = plmc_for_extrinsic_evaluation[0].plmc_amount;
 		let mut total_expected_plmc_bonded = BenchInstantiator::<T>::sum_balance_mappings(vec![
@@ -682,45 +657,12 @@ mod benchmarks {
 		);
 	}
 
-	// - We know how many iterations it does in storage
-	// - We know that it requires a ct deposit
-	// - We know that it does not require to unbond the lowest evaluation
-	#[benchmark]
-	pub fn first_evaluation() {
-		// How many other evaluations the user did for that same project
-		let x = 0;
-		let (inst, project_id, extrinsic_evaluation, extrinsic_plmc_bonded, total_expected_plmc_bonded) =
-			evaluation_setup::<T>(x);
-
-		let jwt = get_mock_jwt(
-			extrinsic_evaluation.account.clone(),
-			InvestorType::Institutional,
-			generate_did_from_account(extrinsic_evaluation.account.clone()),
-		);
-		#[extrinsic_call]
-		evaluate(
-			RawOrigin::Signed(extrinsic_evaluation.account.clone()),
-			jwt,
-			project_id,
-			extrinsic_evaluation.usd_amount,
-		);
-
-		evaluation_verification::<T>(
-			inst,
-			project_id,
-			extrinsic_evaluation,
-			extrinsic_plmc_bonded,
-			total_expected_plmc_bonded,
-		);
-	}
-
-	// - We know that it does not require a ct deposit
 	// - We know that it does not require to unbond the lowest evaluation.
 	// - We don't know how many iterations it does in storage (i.e "x")
 	#[benchmark]
-	fn second_to_limit_evaluation(
+	fn evaluation_to_limit(
 		// How many other evaluations the user did for that same project
-		x: Linear<1, { T::MaxEvaluationsPerUser::get() - 1 }>,
+		x: Linear<0, { T::MaxEvaluationsPerUser::get() - 1 }>,
 	) {
 		let (inst, project_id, extrinsic_evaluation, extrinsic_plmc_bonded, total_expected_plmc_bonded) =
 			evaluation_setup::<T>(x);
@@ -748,7 +690,6 @@ mod benchmarks {
 	}
 
 	// - We know how many iterations it does in storage
-	// - We know that it does not require a ct deposit
 	// - We know that it requires to unbond the lowest evaluation
 	#[benchmark]
 	fn evaluation_over_limit() {
@@ -832,7 +773,6 @@ mod benchmarks {
 			);
 
 		let existential_deposits: Vec<UserToPLMCBalance<T>> = vec![bidder.clone()].existential_deposits();
-		let ct_account_deposits = vec![bidder.clone()].ct_account_deposits();
 
 		let usdt_for_existing_bids: Vec<UserToForeignAssets<T>> =
 			BenchInstantiator::<T>::calculate_auction_funding_asset_charged_from_all_bids_made_or_with_bucket(
@@ -846,7 +786,6 @@ mod benchmarks {
 
 		inst.mint_plmc_to(plmc_for_existing_bids.clone());
 		inst.mint_plmc_to(existential_deposits.clone());
-		inst.mint_plmc_to(ct_account_deposits.clone());
 		inst.mint_foreign_asset_to(usdt_for_existing_bids.clone());
 
 		// do "x" contributions for this user
@@ -874,7 +813,6 @@ mod benchmarks {
 				current_bucket.current_price,
 			);
 			let plmc_ed = plmc_for_new_bidder.accounts().existential_deposits();
-			let plmc_ct_deposit = plmc_for_new_bidder.accounts().ct_account_deposits();
 			let usdt_for_new_bidder = BenchInstantiator::<T>::calculate_auction_funding_asset_charged_with_given_price(
 				&vec![bid_params.clone()],
 				current_bucket.current_price,
@@ -882,7 +820,6 @@ mod benchmarks {
 
 			inst.mint_plmc_to(plmc_for_new_bidder);
 			inst.mint_plmc_to(plmc_ed);
-			inst.mint_plmc_to(plmc_ct_deposit);
 			inst.mint_foreign_asset_to(usdt_for_new_bidder.clone());
 
 			inst.bid_for_users(project_id, vec![bid_params]).unwrap();
@@ -1056,64 +993,12 @@ mod benchmarks {
 	}
 
 	#[benchmark]
-	fn bid_no_ct_deposit(
+	fn bid(
 		// amount of already made bids by the same user
 		x: Linear<0, { T::MaxBidsPerUser::get() - 1 }>,
 		// amount of times where `perform_bid` is called (i.e how many buckets)
 		y: Linear<0, 10>,
 	) {
-		let (
-			inst,
-			project_id,
-			project_metadata,
-			original_extrinsic_bid,
-			maybe_filler_bid,
-			extrinsic_bids_post_bucketing,
-			existing_bids_post_bucketing,
-			total_free_plmc,
-			total_plmc_bonded,
-			total_free_usdt,
-			total_usdt_locked,
-		) = bid_setup::<T>(x, y);
-
-		let _new_plmc_minted = make_ct_deposit_for::<T>(original_extrinsic_bid.bidder.clone(), project_id);
-
-		let jwt = get_mock_jwt(
-			original_extrinsic_bid.bidder.clone(),
-			InvestorType::Institutional,
-			generate_did_from_account(original_extrinsic_bid.bidder.clone()),
-		);
-		#[extrinsic_call]
-		bid(
-			RawOrigin::Signed(original_extrinsic_bid.bidder.clone()),
-			jwt,
-			project_id,
-			original_extrinsic_bid.amount,
-			original_extrinsic_bid.multiplier,
-			original_extrinsic_bid.asset,
-		);
-
-		bid_verification::<T>(
-			inst,
-			project_id,
-			project_metadata,
-			maybe_filler_bid,
-			extrinsic_bids_post_bucketing,
-			existing_bids_post_bucketing,
-			total_free_plmc,
-			total_plmc_bonded,
-			total_free_usdt,
-			total_usdt_locked,
-		);
-	}
-
-	#[benchmark]
-	fn bid_with_ct_deposit(
-		// amount of times where `perform_bid` is called (i.e how many buckets)
-		y: Linear<0, 10>,
-	) {
-		// if x were > 0, then the ct deposit would already be paid
-		let x = 0;
 		let (
 			inst,
 			project_id,
@@ -1231,8 +1116,6 @@ mod benchmarks {
 
 		let existential_deposits: Vec<UserToPLMCBalance<T>> =
 			plmc_for_extrinsic_contribution.accounts().existential_deposits();
-		let ct_account_deposits: Vec<UserToPLMCBalance<T>> =
-			plmc_for_extrinsic_contribution.accounts().ct_account_deposits();
 
 		let escrow_account = Pallet::<T>::fund_account_id(project_id);
 		let prev_total_usdt_locked = inst.get_free_foreign_asset_balances_for(usdt_id(), vec![escrow_account.clone()]);
@@ -1240,7 +1123,6 @@ mod benchmarks {
 		inst.mint_plmc_to(plmc_for_existing_contributions.clone());
 		inst.mint_plmc_to(plmc_for_extrinsic_contribution.clone());
 		inst.mint_plmc_to(existential_deposits.clone());
-		inst.mint_plmc_to(ct_account_deposits.clone());
 		inst.mint_foreign_asset_to(usdt_for_existing_contributions.clone());
 		inst.mint_foreign_asset_to(usdt_for_extrinsic_contribution.clone());
 
@@ -1329,8 +1211,8 @@ mod benchmarks {
 
 		let stored_project_details = ProjectsDetails::<T>::get(project_id).unwrap();
 
-		let bid_ct_sold = Bids::<T>::iter_prefix_values((project_id,))
-			.map(|bid| bid.final_ct_amount)
+		let bid_ct_sold = crate::Bids::<T>::iter_prefix_values((project_id,))
+			.map(|bid_in_project: BidInfoOf<T>| bid_in_project.final_ct_amount)
 			.fold(Zero::zero(), |acc, x| acc + x);
 
 		assert_eq!(
@@ -2646,14 +2528,12 @@ mod benchmarks {
 		let evaluations = default_evaluations();
 		let plmc_for_evaluating = BenchInstantiator::<T>::calculate_evaluation_plmc_spent(evaluations.clone());
 		let existential_plmc: Vec<UserToPLMCBalance<T>> = plmc_for_evaluating.accounts().existential_deposits();
-		let ct_account_deposits: Vec<UserToPLMCBalance<T>> = plmc_for_evaluating.accounts().ct_account_deposits();
 
 		inst.mint_plmc_to(existential_plmc);
-		inst.mint_plmc_to(ct_account_deposits);
 		inst.mint_plmc_to(plmc_for_evaluating);
 
 		inst.advance_time(One::one()).unwrap();
-		inst.bond_for_users(project_id, evaluations).expect("All evaluations are accepted");
+		inst.evaluate_for_users(project_id, evaluations).expect("All evaluations are accepted");
 
 		let evaluation_end_block =
 			inst.get_project_details(project_id).phase_transition_points.evaluation.end().unwrap();
@@ -2709,14 +2589,12 @@ mod benchmarks {
 		];
 		let plmc_for_evaluating = BenchInstantiator::<T>::calculate_evaluation_plmc_spent(evaluations.clone());
 		let existential_plmc: Vec<UserToPLMCBalance<T>> = plmc_for_evaluating.accounts().existential_deposits();
-		let ct_account_deposits: Vec<UserToPLMCBalance<T>> = plmc_for_evaluating.accounts().ct_account_deposits();
 
 		inst.mint_plmc_to(existential_plmc);
-		inst.mint_plmc_to(ct_account_deposits);
 		inst.mint_plmc_to(plmc_for_evaluating);
 
 		inst.advance_time(One::one()).unwrap();
-		inst.bond_for_users(project_id, evaluations).expect("All evaluations are accepted");
+		inst.evaluate_for_users(project_id, evaluations).expect("All evaluations are accepted");
 
 		let evaluation_end_block =
 			inst.get_project_details(project_id).phase_transition_points.evaluation.end().unwrap();
@@ -2873,7 +2751,6 @@ mod benchmarks {
 				None,
 			);
 		let plmc_ed = all_bids.accounts().existential_deposits();
-		let plmc_ct_account_deposit = all_bids.accounts().ct_account_deposits();
 		let funding_asset_needed_for_bids =
 			BenchInstantiator::<T>::calculate_auction_funding_asset_charged_from_all_bids_made_or_with_bucket(
 				&all_bids,
@@ -2883,7 +2760,6 @@ mod benchmarks {
 
 		inst.mint_plmc_to(plmc_needed_for_bids);
 		inst.mint_plmc_to(plmc_ed);
-		inst.mint_plmc_to(plmc_ct_account_deposit);
 		inst.mint_foreign_asset_to(funding_asset_needed_for_bids);
 
 		inst.bid_for_users(project_id, accepted_bids).unwrap();
@@ -3233,11 +3109,9 @@ mod benchmarks {
 
 		let plmc_needed_for_evaluating = BenchInstantiator::<T>::calculate_evaluation_plmc_spent(evaluations.clone());
 		let plmc_ed = evaluations.accounts().existential_deposits();
-		let plmc_ct_account_deposit = evaluations.accounts().ct_account_deposits();
 
 		inst.mint_plmc_to(plmc_needed_for_evaluating);
 		inst.mint_plmc_to(plmc_ed);
-		inst.mint_plmc_to(plmc_ct_account_deposit);
 
 		let bids: Vec<BidParams<T>> = BenchInstantiator::generate_bids_from_total_usd(
 			(automatically_rejected_threshold * target_funding_amount) / 2.into(),
@@ -3484,16 +3358,9 @@ mod benchmarks {
 		}
 
 		#[test]
-		fn bench_first_evaluation() {
+		fn bench_evaluation_to_limit() {
 			new_test_ext().execute_with(|| {
-				assert_ok!(PalletFunding::<TestRuntime>::test_first_evaluation());
-			});
-		}
-
-		#[test]
-		fn bench_second_to_limit_evaluation() {
-			new_test_ext().execute_with(|| {
-				assert_ok!(PalletFunding::<TestRuntime>::test_second_to_limit_evaluation());
+				assert_ok!(PalletFunding::<TestRuntime>::test_evaluation_to_limit());
 			});
 		}
 
@@ -3512,16 +3379,9 @@ mod benchmarks {
 		}
 
 		#[test]
-		fn bench_bid_with_ct_deposit() {
+		fn bench_bid() {
 			new_test_ext().execute_with(|| {
-				assert_ok!(PalletFunding::<TestRuntime>::test_bid_with_ct_deposit());
-			});
-		}
-
-		#[test]
-		fn bench_bid_no_ct_deposit() {
-			new_test_ext().execute_with(|| {
-				assert_ok!(PalletFunding::<TestRuntime>::test_bid_no_ct_deposit());
+				assert_ok!(PalletFunding::<TestRuntime>::test_bid());
 			});
 		}
 
