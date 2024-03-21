@@ -150,7 +150,6 @@ pub mod tests;
 
 #[cfg(feature = "runtime-benchmarks")]
 pub mod benchmarking;
-pub mod impls;
 #[cfg(any(feature = "runtime-benchmarks", feature = "std"))]
 pub mod instantiator;
 pub mod traits;

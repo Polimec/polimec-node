@@ -2531,7 +2531,7 @@ mod benchmarks {
 
 		// * validity checks *
 		let project_details = inst.get_project_details(project_id);
-		assert_eq!(project_details.cleanup, Cleaner::Success(CleanerState::Initialized(PhantomData)));
+		assert_eq!(project_details.status, ProjectStatus::FundingSuccessful);
 	}
 
 	#[benchmark]
@@ -2579,7 +2579,7 @@ mod benchmarks {
 
 		// * validity checks *
 		let project_details = inst.get_project_details(project_id);
-		assert_eq!(project_details.cleanup, Cleaner::Failure(CleanerState::Initialized(PhantomData)));
+		assert_eq!(project_details.status, ProjectStatus::FundingFailed);
 	}
 
 	#[cfg(test)]

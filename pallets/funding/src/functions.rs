@@ -102,7 +102,6 @@ impl<T: Config> Pallet<T> {
 			phase_transition_points: PhaseTransitionPoints::new(now),
 			remaining_contribution_tokens: initial_metadata.total_allocation_size,
 			funding_amount_reached: BalanceOf::<T>::zero(),
-			cleanup: Cleaner::NotReady,
 			evaluation_round_info: EvaluationRoundInfoOf::<T> {
 				total_bonded_usd: Zero::zero(),
 				total_bonded_plmc: Zero::zero(),
@@ -303,7 +302,6 @@ impl<T: Config> Pallet<T> {
 		} else {
 			// * Update storage *
 			project_details.status = ProjectStatus::EvaluationFailed;
-			project_details.cleanup = Cleaner::Failure(CleanerState::Initialized(PhantomData::<Failure>));
 			ProjectsDetails::<T>::insert(project_id, project_details);
 
 			// * Emit events *
@@ -819,8 +817,6 @@ impl<T: Config> Pallet<T> {
 		);
 
 		// * Calculate new variables *
-		project_details.cleanup =
-			Cleaner::try_from(project_details.status.clone()).map_err(|_| Error::<T>::NotAllowed)?;
 		project_details.funding_end_block = Some(now);
 
 		// * Update storage *
