@@ -134,10 +134,8 @@ use polkadot_parachain::primitives::Id as ParaId;
 use sp_arithmetic::traits::{One, Saturating};
 use sp_runtime::{traits::AccountIdConversion, FixedPointNumber, FixedPointOperand, FixedU128};
 use sp_std::{marker::PhantomData, prelude::*};
-use traits::DoRemainingOperation;
 pub use types::*;
 use xcm::v3::{opaque::Instruction, prelude::*, SendXcm};
-use parachains_common::MAXIMUM_BLOCK_WEIGHT;
 
 pub mod functions;
 pub mod settlement;
@@ -333,10 +331,6 @@ pub mod pallet {
 		/// Range of max_message_size values for the hrmp config where we accept the incoming channel request
 		#[pallet::constant]
 		type MaxMessageSizeThresholds: Get<(u32, u32)>;
-
-		/// Max Projects to add to settlement queue.
-		#[pallet::constant]
-		type MaxProjectsToSettle: Get<u32>;
 
 		/// max iterations for trying to insert a project on the projects_to_update storage
 		#[pallet::constant]
@@ -555,7 +549,23 @@ pub mod pallet {
 	>;
 
 	#[pallet::storage]
-	pub type ProjectSettlementQueue<T: Config> = StorageValue<_, BoundedVec<ProjectId, T::MaxProjectsToSettle>, ValueQuery>;
+	pub type MigrationQueue<T: Config> = StorageDoubleMap<
+		_,
+		Blake2_128Concat,
+		ProjectId,
+		Blake2_128Concat,
+		T::AccountId, 
+		BoundedVec<Migration, MaxParticipationsPerUser<T>>,
+		ValueQuery,
+	>;
+
+	
+	pub struct MaxParticipationsPerUser<T: Config>(PhantomData<T>);
+	impl<T: Config> Get<u32> for MaxParticipationsPerUser<T> {
+		fn get() -> u32 {
+			T::MaxContributionsPerUser::get() + T::MaxBidsPerUser::get() + T::MaxEvaluationsPerUser::get()
+		}
+	}
 
 	#[pallet::storage]
 	/// Migrations sent and awaiting for confirmation
@@ -967,8 +977,10 @@ pub mod pallet {
 		TooManyEvaluationsForProject,
 		/// Reached contribution limit for this user on this project
 		TooManyContributionsForUser,
-		/// Reached the settlement queue limit.
-		TooManyProjectsInSettlementQueue,
+		/// Reached the migration queue limit for a user.
+		TooManyMigrations,
+		/// User has no migrations to execute.
+		NoMigrationsFound,
 		// Participant tried to do a community contribution but it already had a winning bid on the auction round.
 		UserHasWinningBids,
 		// Round transition already happened.
@@ -1614,75 +1626,6 @@ pub mod pallet {
 			}
 
 			used_weight
-		}
-
-		fn on_idle(_now: BlockNumberFor<T>, max_weight: Weight) -> Weight {
-			let mut remaining_weight = max_weight;
-
-			// We want at least 5% of max block weight
-			let at_least = MAXIMUM_BLOCK_WEIGHT.saturating_div(20);
-			if remaining_weight.any_lt(at_least)  {
-				return Weight::zero();
-			};
-			let project_ids: BoundedVec<ProjectId, T::MaxProjectsToSettle> = ProjectSettlementQueue::<T>::get();
-			if let Some(&project_id) = project_ids.first()  { 
-				if let Some(project_details) = ProjectsDetails::<T>::get(project_id) {
-	
-					
-					ProjectSettlementQueue::<T>::mutate(|queue| {
-						queue.remove(0);
-					});
-
-				} else {
-					log::error!("Project details not found for project_id: {:?} in ProjectSettlementQueue", project_id);
-				}
-			};
-			
-			
-			remaining_weight
-
-			// let projects_needing_cleanup = ProjectsDetails::<T>::iter()
-			// 	.filter_map(|(project_id, info)| match info.cleanup {
-			// 		cleaner if <Cleaner as DoRemainingOperation<T>>::has_remaining_operations(&cleaner) =>
-			// 			Some((project_id, cleaner)),
-			// 		_ => None,
-			// 	})
-			// 	.collect::<Vec<_>>();
-
-			// let projects_amount = projects_needing_cleanup.len() as u64;
-			// if projects_amount == 0 {
-			// 	return max_weight;
-			// }
-
-			// let mut max_weight_per_project = remaining_weight.saturating_div(projects_amount);
-
-			// for (remaining_projects, (project_id, mut cleaner)) in
-			// 	projects_needing_cleanup.into_iter().enumerate().rev()
-			// {
-			// 	// TODO: Create this benchmark
-			// 	// let mut consumed_weight = WeightInfoOf::<T>::insert_cleaned_project();
-			// 	let mut consumed_weight = Weight::from_parts(6_034_000, 0);
-			// 	while !consumed_weight.any_gt(max_weight_per_project) {
-			// 		if let Ok(weight) = <Cleaner as DoRemainingOperation<T>>::do_one_operation(&mut cleaner, project_id)
-			// 		{
-			// 			consumed_weight.saturating_accrue(weight);
-			// 		} else {
-			// 			break;
-			// 		}
-			// 	}
-
-			// 	let mut details =
-			// 		if let Some(details) = ProjectsDetails::<T>::get(project_id) { details } else { continue };
-			// 	details.cleanup = cleaner;
-			// 	ProjectsDetails::<T>::insert(project_id, details);
-
-			// 	remaining_weight = remaining_weight.saturating_sub(consumed_weight);
-			// 	if remaining_projects > 0 {
-			// 		max_weight_per_project = remaining_weight.saturating_div(remaining_projects as u64);
-			// 	}
-			// }
-
-			// max_weight.saturating_sub(remaining_weight)
 		}
 	}
 

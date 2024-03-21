@@ -1,11 +1,11 @@
 use super::*;
-
+use crate::traits::VestingDurationCalculation;
 use frame_support::{
-	dispatch::{ DispatchResult},
+	dispatch::DispatchResult,
 	ensure,
 	pallet_prelude::*,
 	traits::{
-		fungible::{InspectHold, MutateHold as FungibleMutateHold},
+		fungible::{ MutateHold as FungibleMutateHold},
 		fungibles::{
             Inspect, Mutate as FungiblesMutate,
 		},
@@ -13,9 +13,9 @@ use frame_support::{
 		Get,
 	},
 };
-use sp_runtime::{traits::Zero, Perquintill};
+use sp_runtime::{Perquintill, traits::{Zero, Convert}};
 use polimec_common::{
-	migration_types::{MigrationInfo, MigrationOrigin, Migrations, ParticipationType},
+	migration_types::{MigrationInfo, MigrationOrigin, ParticipationType},
 	ReleaseSchedule,
 };
 
@@ -52,6 +52,7 @@ impl<T: Config> Pallet<T> {
         // Payout the bid funding asset amount to the project account
         Self::release_funding_asset(project_id, &project_details.issuer_account, bid.funding_asset_amount_locked, bid.funding_asset)?;
 
+        Self::create_migration(project_id, &bidder, bid.id, ParticipationType::Bid, bid.final_ct_amount, vest_info.duration.into())?;
         // TODO: Create MigrationInfo
 
         Bids::<T>::remove((project_id, bidder, bid.id));
@@ -70,8 +71,6 @@ impl<T: Config> Pallet<T> {
 
         let bidder = bid.bidder;
 		
-        // Release the held future ct deposit
-        Self::release_future_ct_deposit(project_id, &bidder)?;
 
         if matches!(bid.status, BidStatus::Accepted | BidStatus::PartiallyAccepted(..)) {
             // Return the funding assets to the bidder
@@ -118,6 +117,9 @@ impl<T: Config> Pallet<T> {
         // Payout the bid funding asset amount to the project account
         Self::release_funding_asset(project_id, &project_details.issuer_account, contribution.funding_asset_amount, contribution.funding_asset)?;
 
+        // Create Migration
+        Self::create_migration(project_id, &contributor, contribution.id, ParticipationType::Contribution, contribution.ct_amount, vest_info.duration.into())?;
+
         Contributions::<T>::remove((project_id, contributor, contribution.id));
 
         Ok(())
@@ -133,8 +135,6 @@ impl<T: Config> Pallet<T> {
         // Check if the bidder has a future deposit held
         let contributor = contribution.contributor;
 		
-        // Release the held future ct deposit
-        Self::release_future_ct_deposit(project_id, &contributor)?;
 
         // Return the funding assets to the contributor
         Self::release_funding_asset(project_id, &contributor, contribution.funding_asset_amount, contribution.funding_asset)?;
@@ -159,10 +159,10 @@ impl<T: Config> Pallet<T> {
         // 1. Slashed
         // 2. Rewarded with CT tokens
         // 3. Not slashed or Rewarded.
-        let bond = match project_details.evaluation_round_info.evaluators_outcome {
-            EvaluatorsOutcome::Slashed => Self::slash_evaluator(project_id, &evaluation)?,
+        let (bond, reward): (BalanceOf<T>, BalanceOf<T>) = match project_details.evaluation_round_info.evaluators_outcome {
+            EvaluatorsOutcome::Slashed => (Self::slash_evaluator(project_id, &evaluation)?, Zero::zero()),
             EvaluatorsOutcome::Rewarded(info) => Self::reward_evaluator(project_id, &evaluation, &info)?,
-            EvaluatorsOutcome::Unchanged => evaluation.current_plmc_bond,
+            EvaluatorsOutcome::Unchanged => (evaluation.current_plmc_bond, Zero::zero()),
         };
 
         // Release the held PLMC bond
@@ -173,6 +173,12 @@ impl<T: Config> Pallet<T> {
             Precision::Exact,
         )?;
 
+        // Create Migration
+        if reward > Zero::zero() {
+            let multiplier = MultiplierOf::<T>::try_from(1u8).map_err(|_| Error::<T>::BadMath)?;
+            let duration = multiplier.calculate_vesting_duration::<T>();
+            Self::create_migration(project_id, &evaluation.evaluator, evaluation.id, ParticipationType::Evaluation, reward, duration)?;
+        }
         Evaluations::<T>::remove((project_id, evaluation.evaluator, evaluation.id));
 
         // TODO: Emit an event
@@ -194,8 +200,6 @@ impl<T: Config> Pallet<T> {
             bond = evaluation.current_plmc_bond;
         }
         
-        // Release the held future ct deposit
-        Self::release_future_ct_deposit(project_id, &evaluation.evaluator)?;
 
         // Release the held PLMC bond
         T::NativeCurrency::release(
@@ -214,24 +218,9 @@ impl<T: Config> Pallet<T> {
 
     fn mint_ct_tokens(project_id: ProjectId, participant: &AccountIdOf<T>, amount: BalanceOf<T>) -> DispatchResult {
         if !T::ContributionTokenCurrency::contains(&project_id, participant) {
-            Self::release_future_ct_deposit(project_id, participant)?;
             T::ContributionTokenCurrency::touch(project_id, participant.clone(), participant.clone())?;
         }
         T::ContributionTokenCurrency::mint_into(project_id, participant, amount)?;
-        Ok(())
-    }
-
-    fn release_future_ct_deposit(project_id: ProjectId, participant: &AccountIdOf<T>) -> DispatchResult {
-        let held_plmc = T::NativeCurrency::balance_on_hold(&HoldReason::FutureDeposit(project_id).into(), participant);
-        ensure!(held_plmc > Zero::zero(), Error::<T>::NoFutureDepositHeld);
-
-        // Return the held deposit to the bidder
-        T::NativeCurrency::release(
-			&HoldReason::FutureDeposit(project_id).into(),
-			participant,
-			T::ContributionTokenCurrency::deposit_required(project_id),
-			Precision::Exact,
-		)?;
         Ok(())
     }
 
@@ -280,13 +269,13 @@ impl<T: Config> Pallet<T> {
         Ok(evaluation.current_plmc_bond.saturating_sub(slashed_amount))
     }
 
-    fn reward_evaluator(project_id: ProjectId, evaluation: &EvaluationInfoOf<T>, info: &RewardInfoOf<T>) -> Result<BalanceOf<T>, DispatchError> {
+    fn reward_evaluator(project_id: ProjectId, evaluation: &EvaluationInfoOf<T>, info: &RewardInfoOf<T>) -> Result<(BalanceOf<T>, BalanceOf<T>), DispatchError> {
         
 
         let reward = Self::calculate_evaluator_reward(evaluation, &info);
         Self::mint_ct_tokens(project_id, &evaluation.evaluator, reward)?;
 
-        Ok(evaluation.current_plmc_bond)
+        Ok((evaluation.current_plmc_bond, reward))
     }
 
     pub fn calculate_evaluator_reward(evaluation: &EvaluationInfoOf<T>, info: &RewardInfoOf<T>) -> BalanceOf<T> {
@@ -302,5 +291,29 @@ impl<T: Config> Pallet<T> {
         let normal_evaluators_rewards = normal_reward_weight * info.normal_evaluator_reward_pot;
         let total_reward_amount = early_evaluators_rewards.saturating_add(normal_evaluators_rewards);
         total_reward_amount
+    }
+
+    pub fn create_migration(
+        project_id: ProjectId,
+        origin: &AccountIdOf<T>,
+        id: u32,
+        participation_type: ParticipationType,
+        ct_amount: BalanceOf<T>,
+        vesting_time: BlockNumberFor<T>,
+    ) -> DispatchResult {
+        MigrationQueue::<T>::try_mutate(project_id, origin, |migrations| -> DispatchResult {
+            let migration_origin = MigrationOrigin {
+                user: T::AccountId32Conversion::convert(origin.clone()),
+                id: id,
+                participation_type,
+            };
+            let vesting_time: u64 = vesting_time.try_into().map_err(|_| Error::<T>::BadMath)?;
+            let migration_info: MigrationInfo = (ct_amount.into(), vesting_time.into()).into();
+            let migration = Migration::new(migration_origin, migration_info);
+            migrations.try_push(migration).map_err(|_| Error::<T>::TooManyMigrations)?;
+            Ok(())
+        })?;
+
+        Ok(())
     }
 }

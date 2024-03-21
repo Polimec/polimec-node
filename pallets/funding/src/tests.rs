@@ -664,7 +664,7 @@ mod evaluation {
 			inst.create_finished_project(project_metadata, ISSUER, evaluations, bids, contributions, vec![]);
 
 		inst.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get()).unwrap();
-		inst.advance_time(10).unwrap();
+		inst.settle_project(project_id).unwrap();
 
 		let actual_reward_balances = inst.execute(|| {
 			vec![
@@ -721,8 +721,7 @@ mod evaluation {
 
 		assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::EvaluationFailed);
 
-		// Check that on_idle has unlocked the failed bonds
-		inst.advance_time(10).unwrap();
+		inst.settle_project(project_id).unwrap();
 		inst.do_free_plmc_assertions(expected_evaluator_balances);
 	}
 
@@ -1062,18 +1061,7 @@ mod auction {
 		}
 
 		for bid in excluded_bids {
-			let mut stored_bids = inst.execute(|| Bids::<TestRuntime>::iter_prefix_values((project_id, bid.bidder)));
-			let desired_bid: BidInfoFilter<TestRuntime> = BidInfoFilter {
-				project_id: Some(project_id),
-				bidder: Some(bid.bidder),
-				original_ct_amount: Some(bid.amount),
-				status: Some(BidStatus::Rejected(RejectionReason::AfterCandleEnd)),
-				..Default::default()
-			};
-			assert!(
-				inst.execute(|| stored_bids.any(|bid| desired_bid.matches_bid(&bid))),
-				"Stored bid does not match the given filter"
-			);
+			assert!(inst.execute(|| Bids::<TestRuntime>::iter_prefix_values((project_id, bid.bidder)).count() == 0));
 		}
 	}
 
@@ -1238,9 +1226,7 @@ mod auction {
 		inst.finish_funding(project_id).unwrap();
 
 		inst.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get()).unwrap();
-		assert_eq!(inst.get_first_settlement_queue_item(), Some(project_id));
-		inst.advance_time(10u64).unwrap();
-		assert_eq!(inst.get_first_settlement_queue_item(), None);
+		inst.settle_project(project_id).unwrap();
 
 		let plmc_locked_for_accepted_bid =
 			MockInstantiator::calculate_auction_plmc_charged_with_given_price(&accepted_bid, final_price);
@@ -3758,17 +3744,9 @@ mod funding_end {
 		assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::FundingSuccessful);
 		inst.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get()).unwrap();
 
-		assert_matches!(
-			inst.get_project_details(project_id).cleanup,
-			Cleaner::Success(CleanerState::Initialized(PhantomData))
-		);
 		inst.test_ct_created_for(project_id);
 
-		inst.advance_time(10u64).unwrap();
-		assert_matches!(
-			inst.get_project_details(project_id).cleanup,
-			Cleaner::Success(CleanerState::Finished(PhantomData))
-		);
+		inst.settle_project(project_id).unwrap();
 	}
 
 	#[test]
@@ -3972,8 +3950,8 @@ mod funding_end {
 		);
 
 		inst.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get()).unwrap();
-		assert_eq!(inst.execute(|| {ProjectSettlementQueue::<TestRuntime>::get().len()}), 1);
-		inst.advance_time(10u64).unwrap();
+
+		inst.settle_project(project_id).unwrap();
 
 		for (account, amount) in all_ct_expectations {
 			let minted =

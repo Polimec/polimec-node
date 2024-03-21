@@ -1010,15 +1010,6 @@ impl<
 		self.execute(|| ProjectsDetails::<T>::get(project_id).expect("Project details exists"))
 	}
 
-	pub fn get_first_settlement_queue_item(&mut self) -> Option<ProjectId>{
-		self.execute(|| {
-			match ProjectSettlementQueue::<T>::get().first() {
-				Some(project_id) => Some(*project_id),
-				None => None,
-			}
-		})
-	}
-
 	pub fn get_update_block(&mut self, project_id: ProjectId, update_type: &UpdateType) -> Option<BlockNumberFor<T>> {
 		self.execute(|| {
 			ProjectsToUpdate::<T>::iter().find_map(|(block, update_vec)| {
@@ -1346,48 +1337,43 @@ impl<
 
 	pub fn settle_project(&mut self, project_id: ProjectId) -> Result<(), DispatchError> {
 		let details = self.get_project_details(project_id);
-		match details.status {
-			ProjectStatus::FundingSuccessful => self.settle_successfull_project(details),
-			ProjectStatus::FundingFailed | ProjectStatus::EvaluationFailed => self.settle_failed_project(details),
-			_ => panic!("Project should be in FundingSuccessful, FundingFailed or EvaluationFailed status"),
-		};
-		self.
+		self.execute(||{
+			match details.status {
+				ProjectStatus::FundingSuccessful => Self::settle_successfull_project(project_id),
+				ProjectStatus::FundingFailed | ProjectStatus::EvaluationFailed => Self::settle_failed_project(project_id, details.status),
+				_ => panic!("Project should be in FundingSuccessful, FundingFailed or EvaluationFailed status"),
+			}
+		})
 	}
 
-	pub fn assert_project_settled(&mut self, project_id: ProjectId) {
-		assert_eq!(Evaluations::<T>::iter_prefix_keys((project_id,)).count(), 0);
-		assert_eq!(Bids::<T>::iter_prefix_keys((project_id,)).count(), 0);
-		assert_eq!(Contributions::<T>::iter_prefix_keys((project_id,)).count(), 0);
+	fn settle_successfull_project(project_id: ProjectId) -> Result<(), DispatchError> {
+		Evaluations::<T>::iter_prefix((project_id,)).try_for_each(|(_, evaluation)| {
+			Pallet::<T>::do_settlement_success_evaluator(evaluation, project_id)
+		})?;
+
+		Bids::<T>::iter_prefix((project_id,)).try_for_each(|(_, bid)| {
+			Pallet::<T>::do_settlement_success_bidder(bid, project_id)
+		})?;
+
+		Contributions::<T>::iter_prefix((project_id,)).try_for_each(|(_, contribution)| {
+			Pallet::<T>::do_settlement_success_contributor(contribution, project_id)
+		})
 	}
 
-	fn settle_successfull_project(&mut self, project_id: ProjectId) -> Result<(), DispatchError> {
-		Evaluations::<T>::iter_prefix((project_id,)).for_each(|(_, evaluation)| {
-			Pallet::<T>::do_settlement_success_evaluator(evaluation, project_id);
-		});
-
-		Bids::<T>::iter_prefix((project_id,)).for_each(|(_, bid)| {
-			Pallet::<T>::do_settlement_success_bidder(bid, project_id);
-		});
-
-		Contributions::<T>::iter_prefix((project_id,)).for_each(|(_, contribution)| {
-			Pallet::<T>::do_settlement_success_contributor(contribution, project_id);
-		});
-	}
-
-	fn settle_failed_project(&mut self, details: ProjectDetailsOf<T>) -> Result<(), DispatchError> {
-		Evaluations::<T>::iter_prefix((project_id,)).for_each(|(_, evaluation)| {
+	fn settle_failed_project(project_id: ProjectId, status: ProjectStatus) -> Result<(), DispatchError> {
+		Evaluations::<T>::iter_prefix((project_id,)).try_for_each(|(_, evaluation)| {
 			Pallet::<T>::do_settlement_failure_evaluator(evaluation, project_id)
-		});
-
-		if details.status == ProjectStatus::FundingFailed {
-			Bids::<T>::iter_prefix((project_id,)).for_each(|(_, bid)| {
+		})?;
+		if status == ProjectStatus::FundingFailed {
+			Bids::<T>::iter_prefix((project_id,)).try_for_each(|(_, bid)| {
 				Pallet::<T>::do_settlement_failure_bidder(bid, project_id)
-			});
+			})?;
 	
-			Contributions::<T>::iter_prefix((project_id,)).for_each(|(_, contribution)| {
+			Contributions::<T>::iter_prefix((project_id,)).try_for_each(|(_, contribution)| {
 				Pallet::<T>::do_settlement_failure_contributor(contribution, project_id)
-			});
+			})?;
 		}
+		Ok(())
 	}
 
 	pub fn create_remainder_contributing_project(

@@ -30,7 +30,6 @@ use frame_support::{
 	},
 };
 use frame_system::pallet_prelude::BlockNumberFor;
-use itertools::Itertools;
 use polimec_common::{
 	credentials::{Did, InvestorType},
 	ReleaseSchedule,
@@ -306,7 +305,6 @@ impl<T: Config> Pallet<T> {
 			project_details.status = ProjectStatus::EvaluationFailed;
 			project_details.cleanup = Cleaner::Failure(CleanerState::Initialized(PhantomData::<Failure>));
 			ProjectsDetails::<T>::insert(project_id, project_details);
-			ProjectSettlementQueue::<T>::try_append(project_id).map_err(|_| Error::<T>::TooManyProjectsInSettlementQueue)?;
 
 			// * Emit events *
 			Self::deposit_event(Event::EvaluationFailed { project_id });
@@ -860,14 +858,11 @@ impl<T: Config> Pallet<T> {
 				liquidity_pools_ct_amount,
 			)?;
 
-			ProjectSettlementQueue::<T>::try_append(project_id).map_err(|_| Error::<T>::TooManyProjectsInSettlementQueue)?;
-
 			Ok(PostDispatchInfo {
 				actual_weight: Some(WeightInfoOf::<T>::start_settlement_funding_success()),
 				pays_fee: Pays::Yes,
 			})
 		} else {
-			ProjectSettlementQueue::<T>::try_append(project_id).map_err(|_| Error::<T>::TooManyProjectsInSettlementQueue)?;
 			Ok(PostDispatchInfo {
 				actual_weight: Some(WeightInfoOf::<T>::start_settlement_funding_failure()),
 				pays_fee: Pays::Yes,
@@ -2412,9 +2407,6 @@ impl<T: Config> Pallet<T> {
 		// * Get variables *
 		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 		let migration_readiness_check = project_details.migration_readiness_check.ok_or(Error::<T>::NotAllowed)?;
-		let user_evaluations = Evaluations::<T>::iter_prefix_values((project_id, participant.clone()));
-		let user_bids = Bids::<T>::iter_prefix_values((project_id, participant.clone()));
-		let user_contributions = Contributions::<T>::iter_prefix_values((project_id, participant.clone()));
 		let project_para_id = project_details.parachain_id.ok_or(Error::<T>::ImpossibleState)?;
 		let now = <frame_system::Pallet<T>>::block_number();
 
@@ -2422,16 +2414,9 @@ impl<T: Config> Pallet<T> {
 		ensure!(migration_readiness_check.is_ready(), Error::<T>::NotAllowed);
 
 		// * Process Data *
-		// u128 is a balance, u64 is now a BlockNumber, but will be a Moment/Timestamp in the future
-		let evaluation_migrations =
-			user_evaluations.filter_map(|evaluation| MigrationGenerator::<T>::evaluation_migration(evaluation));
-		let bid_migrations = user_bids.filter_map(|bid| MigrationGenerator::<T>::bid_migration(bid));
-		let contribution_migrations =
-			user_contributions.filter_map(|contribution| MigrationGenerator::<T>::contribution_migration(contribution));
 
-		let migrations = evaluation_migrations.chain(bid_migrations).chain(contribution_migrations).collect_vec();
-		let migrations = Migrations::from(migrations);
-
+		let migrations = MigrationQueue::<T>::get(project_id, participant.clone());
+		ensure!(!migrations.is_empty(), Error::<T>::NoMigrationsFound);
 		let constructed_migrations = Self::construct_migration_xcm_messages(migrations);
 		for (migrations, xcm) in constructed_migrations {
 			let project_multilocation = MultiLocation { parents: 1, interior: X1(Parachain(project_para_id.into())) };
@@ -2592,79 +2577,49 @@ impl<T: Config> Pallet<T> {
 		let project_account = Self::fund_account_id(project_id);
 		let plmc_price = T::PriceProvider::get_price(PLMC_FOREIGN_ID).ok_or(Error::<T>::PLMCPriceNotAvailable)?;
 
-		// Weight calculation variables
-		let mut accepted_bids_count = 0u32;
-		let mut rejected_bids_count = 0u32;
+	
 
 		// sort bids by price, and equal prices sorted by id
 		bids.sort_by(|a, b| b.cmp(a));
 		// accept only bids that were made before `end_block` i.e end of candle auction
-		let bids: Result<Vec<_>, DispatchError> = bids
+		let (accepted_bids, rejected_bids): (Vec<_>, Vec<_>) = bids
 			.into_iter()
 			.map(|mut bid| {
 				if bid.when > end_block {
-					rejected_bids_count += 1;
-					return Self::refund_bid(&mut bid, project_id, &project_account, RejectionReason::AfterCandleEnd)
-						.and(Ok(bid));
+					bid.status = BidStatus::Rejected(RejectionReason::AfterCandleEnd);
+					return bid;
 				}
 				let buyable_amount = auction_allocation_size.saturating_sub(bid_token_amount_sum);
 				if buyable_amount.is_zero() {
-					rejected_bids_count += 1;
-					return Self::refund_bid(&mut bid, project_id, &project_account, RejectionReason::NoTokensLeft)
-						.and(Ok(bid));
+					bid.status = BidStatus::Rejected(RejectionReason::NoTokensLeft);
 				} else if bid.original_ct_amount <= buyable_amount {
-					accepted_bids_count += 1;
 					let ticket_size = bid.original_ct_usd_price.saturating_mul_int(bid.original_ct_amount);
 					bid_token_amount_sum.saturating_accrue(bid.original_ct_amount);
 					bid_usd_value_sum.saturating_accrue(ticket_size);
+					bid.final_ct_amount = bid.original_ct_amount;
 					bid.status = BidStatus::Accepted;
 				} else {
-					accepted_bids_count += 1;
 					let ticket_size = bid.original_ct_usd_price.saturating_mul_int(buyable_amount);
 					bid_usd_value_sum.saturating_accrue(ticket_size);
 					bid_token_amount_sum.saturating_accrue(buyable_amount);
 					bid.status = BidStatus::PartiallyAccepted(buyable_amount, RejectionReason::NoTokensLeft);
 					bid.final_ct_amount = buyable_amount;
-
-					let funding_asset_price = T::PriceProvider::get_price(bid.funding_asset.to_assethub_id())
-						.ok_or(Error::<T>::PriceNotFound)?;
-					let funding_asset_amount_needed = funding_asset_price
-						.reciprocal()
-						.ok_or(Error::<T>::BadMath)?
-						.checked_mul_int(ticket_size)
-						.ok_or(Error::<T>::BadMath)?;
-					T::FundingCurrency::transfer(
-						bid.funding_asset.to_assethub_id(),
-						&project_account,
-						&bid.bidder,
-						bid.funding_asset_amount_locked.saturating_sub(funding_asset_amount_needed),
-						Preservation::Preserve,
-					)?;
-
-					let usd_bond_needed = bid
-						.multiplier
-						.calculate_bonding_requirement::<T>(ticket_size)
-						.map_err(|_| Error::<T>::BadMath)?;
-					let plmc_bond_needed = plmc_price
-						.reciprocal()
-						.ok_or(Error::<T>::BadMath)?
-						.checked_mul_int(usd_bond_needed)
-						.ok_or(Error::<T>::BadMath)?;
-					T::NativeCurrency::release(
-						&HoldReason::Participation(project_id.into()).into(),
-						&bid.bidder,
-						bid.plmc_bond.saturating_sub(plmc_bond_needed),
-						Precision::Exact,
-					)?;
-
-					bid.funding_asset_amount_locked = funding_asset_amount_needed;
-					bid.plmc_bond = plmc_bond_needed;
 				}
-
-				Ok(bid)
+				bid
 			})
-			.collect();
-		let bids = bids?;
+			.partition(|bid| matches!(bid.status, BidStatus::Accepted | BidStatus::PartiallyAccepted(..)));
+
+		// Weight calculation variables
+		let accepted_bids_count = accepted_bids.len() as u32;
+		let rejected_bids_count = rejected_bids.len() as u32;
+
+		// Refund rejected bids. We do it here, so we don't have to calculate all the project
+		// prices and then fail to refund the bids.
+		for bid in rejected_bids.into_iter() {
+			Self::refund_bid(&bid, project_id, &project_account)?;
+			Bids::<T>::remove((project_id, &bid.bidder, &bid.id));
+		}
+
 		// Calculate the weighted price of the token for the next funding rounds, using winning bids.
 		// for example: if there are 3 winning bids,
 		// A: 10K tokens @ USD15 per token = 150K USD value
@@ -2683,36 +2638,38 @@ impl<T: Config> Pallet<T> {
 
 		// lastly, sum all the weighted prices to get the final weighted price for the next funding round
 		// 3 + 10.6 + 2.6 = 16.333...
+		ensure!(!accepted_bids.is_empty(), Error::<T>::NoBidsFound);
 		let current_bucket = Buckets::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
 		let project_metadata = ProjectsMetadata::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
 		let is_first_bucket = current_bucket.current_price == project_metadata.minimum_price;
 
-		let calc_weighted_price_fn = |bid: &BidInfoOf<T>, amount: BalanceOf<T>| -> Option<PriceOf<T>> {
-			let ticket_size = bid.original_ct_usd_price.saturating_mul_int(amount);
+		let calc_weighted_price_fn = |bid: &BidInfoOf<T>| -> PriceOf<T> {
+			let ticket_size = bid.original_ct_usd_price.saturating_mul_int(bid.final_ct_amount);
 			let bid_weight = <T::Price as FixedPointNumber>::saturating_from_rational(ticket_size, bid_usd_value_sum);
 			let weighted_price = bid.original_ct_usd_price.saturating_mul(bid_weight);
-			Some(weighted_price)
+			weighted_price
 		};
-		let weighted_token_price = match is_first_bucket && !bids.is_empty() {
-			true => project_metadata.minimum_price,
-			false => bids
-				.iter()
-				.filter_map(|bid| match bid.status {
-					BidStatus::Accepted => calc_weighted_price_fn(bid, bid.original_ct_amount),
-					BidStatus::PartiallyAccepted(amount, _) => calc_weighted_price_fn(bid, amount),
-					_ => None,
-				})
-				.reduce(|a, b| a.saturating_add(b))
-				.ok_or(Error::<T>::NoBidsFound)?,
+		let weighted_token_price = if is_first_bucket  { 
+			project_metadata.minimum_price
+		} else {
+			accepted_bids
+			.iter()
+			.map(calc_weighted_price_fn)
+			.fold(Zero::zero(),|a: T::Price, b: T::Price| a.saturating_add(b))
 		};
 
 		let mut final_total_funding_reached_by_bids = BalanceOf::<T>::zero();
+
+		// Update storage
 		// Update the bid in the storage
-		for mut bid in bids.into_iter() {
-			if bid.final_ct_usd_price > weighted_token_price {
-				bid.final_ct_usd_price = weighted_token_price;
+		for mut bid in accepted_bids.into_iter() {
+			if bid.final_ct_usd_price > weighted_token_price || matches!(bid.status, BidStatus::PartiallyAccepted(..)) {
+				if bid.final_ct_usd_price > weighted_token_price {
+					bid.final_ct_usd_price = weighted_token_price;
+				}
+
 				let new_ticket_size =
-					weighted_token_price.checked_mul_int(bid.final_ct_amount).ok_or(Error::<T>::BadMath)?;
+					bid.final_ct_usd_price.checked_mul_int(bid.final_ct_amount).ok_or(Error::<T>::BadMath)?;
 
 				let funding_asset_price =
 					T::PriceProvider::get_price(bid.funding_asset.to_assethub_id()).ok_or(Error::<T>::PriceNotFound)?;
@@ -2757,7 +2714,6 @@ impl<T: Config> Pallet<T> {
 			Bids::<T>::insert((project_id, &bid.bidder, &bid.id), &bid);
 		}
 
-		// Update storage
 		ProjectsDetails::<T>::mutate(project_id, |maybe_info| -> DispatchResult {
 			if let Some(info) = maybe_info {
 				info.weighted_average_price = Some(weighted_token_price);
@@ -2773,15 +2729,11 @@ impl<T: Config> Pallet<T> {
 	}
 
 	/// Refund a bid because of `reason`.
-	fn refund_bid<'a>(
-		bid: &'a mut BidInfoOf<T>,
+	fn refund_bid<>(
+		bid: &BidInfoOf<T>,
 		project_id: ProjectId,
-		project_account: &'a AccountIdOf<T>,
-		reason: RejectionReason,
+		project_account: &AccountIdOf<T>,
 	) -> Result<(), DispatchError> {
-		bid.status = BidStatus::Rejected(reason);
-		bid.final_ct_amount = Zero::zero();
-		bid.final_ct_usd_price = Zero::zero();
 
 		T::FundingCurrency::transfer(
 			bid.funding_asset.to_assethub_id(),
@@ -2796,8 +2748,6 @@ impl<T: Config> Pallet<T> {
 			bid.plmc_bond,
 			Precision::Exact,
 		)?;
-		bid.funding_asset_amount_locked = Zero::zero();
-		bid.plmc_bond = Zero::zero();
 
 		Ok(())
 	}
@@ -3085,7 +3035,7 @@ impl<T: Config> Pallet<T> {
 		available_bytes_for_migration_per_message.saturating_div(one_migration_bytes)
 	}
 
-	pub fn construct_migration_xcm_messages(migrations: Migrations) -> Vec<(Migrations, Xcm<()>)> {
+	pub fn construct_migration_xcm_messages(migrations: BoundedVec<Migration, MaxParticipationsPerUser<T>>) -> Vec<(Migrations, Xcm<()>)> {
 		// TODO: adjust this as benchmarks for polimec-receiver are written
 		const MAX_WEIGHT: Weight = Weight::from_parts(10_000, 0);
 
@@ -3094,7 +3044,7 @@ impl<T: Config> Pallet<T> {
 		// TODO: use the actual pallet index when the fields are not private anymore (https://github.com/paritytech/polkadot-sdk/pull/2231)
 		let mut output = Vec::new();
 
-		for migrations_slice in migrations.inner().chunks(MaxMigrationsPerXcm::<T>::get() as usize) {
+		for migrations_slice in migrations.chunks(MaxMigrationsPerXcm::<T>::get() as usize) {
 			let migrations_vec = migrations_slice.to_vec();
 			let migrations_item = Migrations::from(migrations_vec);
 
