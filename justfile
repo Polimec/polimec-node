@@ -3,11 +3,11 @@ default:
     @just --list
 
 # Build the "Base" Runtime using srtool
-build-base-srtool:
-    srtool build --root -p polimec-runtime --runtime-dir runtimes/base --build-opts="--features=on-chain-release-build"
+build-polimec-srtool:
+    srtool build --root -p polimec-runtime --profile production --runtime-dir runtimes/polimec --build-opts="--features=on-chain-release-build" --no-wasm-std
 
 build-rolimec-srtool:
-    srtool build --root -p polimec-runtime --runtime-dir runtimes/base --build-opts="--features=on-chain-release-build,fast-mode"
+    srtool build --root -p polimec-runtime --profile production --runtime-dir runtimes/polimec --build-opts="--features=on-chain-release-build,fast-mode" --no-wasm-std
 
 # Build the "Testnet" Runtime using srtool
 
@@ -20,10 +20,10 @@ test-integration:
     cargo test -p integration-tests
 
 # src: https://github.com/polkadot-fellows/runtimes/blob/48ccfae6141d2924f579d81e8b1877efd208693f/system-parachains/asset-hubs/asset-hub-polkadot/src/weights/cumulus_pallet_xcmp_queue.rs
-# Benchmark a specific pallet on the "Base" Runtime
+# Benchmark a specific pallet on the "Polimec" Runtime
 # TODO: Adjust the `--chain` flag to match the chain you are benchmarking
-benchmark-runtime chain="base-rococo" pallet="pallet-elections-phragmen" features="runtime-benchmarks":
-    cargo run --features {{ features }} --release -p polimec-parachain-node benchmark pallet \
+benchmark-runtime chain="polimec-local" pallet="pallet-elections-phragmen" features="runtime-benchmarks":
+    cargo run --features {{ features }} --profile production -p polimec-node benchmark pallet \
       --chain={{ chain }} \
       --steps=50 \
       --repeat=20 \
@@ -36,8 +36,8 @@ benchmark-runtime chain="base-rococo" pallet="pallet-elections-phragmen" feature
 # src: https://github.com/paritytech/polkadot-sdk/blob/bc2e5e1fe26e2c2c8ee766ff9fe7be7e212a0c62/substrate/frame/nfts/src/weights.rs
 # Run the Runtime benchmarks for a specific pallet
 # TODO: Adjust the `--chain` flag to match the chain you are benchmarking
-benchmark-pallet chain="base-rococo"  pallet="pallet-elections-phragmen" features="runtime-benchmarks":
-    cargo run --features {{ features }} --release -p polimec-parachain-node benchmark pallet \
+benchmark-pallet chain="polimec-local"  pallet="pallet-elections-phragmen" features="runtime-benchmarks":
+    cargo run --features {{ features }} --profile production -p polimec-node benchmark pallet \
       --chain={{ chain }} \
       --steps=50 \
       --repeat=20 \
