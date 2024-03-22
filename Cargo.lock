@@ -6874,6 +6874,7 @@ name = "pallet-funding"
 version = "0.5.1"
 dependencies = [
  "assert_matches2",
+ "env_logger",
  "frame-benchmarking",
  "frame-support",
  "frame-system",
