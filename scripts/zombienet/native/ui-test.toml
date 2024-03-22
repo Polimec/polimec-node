@@ -29,7 +29,7 @@ name = "ferdie"
 
 [[parachains]]
 id = 3344
-chain = "polimec-testing"
+chain = "politest-populated"
 [[parachains.collators]]
 name = "polimec-testing"
 command = "./target/release/polimec-node"
