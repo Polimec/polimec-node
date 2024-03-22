@@ -79,9 +79,7 @@
 //! * [`NextProjectId`] : Increasing counter to get the next id to assign to a project.
 //! * [`NextBidId`]: Increasing counter to get the next id to assign to a bid.
 //! * [`Nonce`]: Increasing counter to be used in random number generation.
-//! * [`Images`]: Map of the hash of some metadata to the user who owns it. Avoids storing the same image twice, and keeps track of ownership for a future project data access due to regulatory compliance.
 //! * [`ProjectsMetadata`]: Map of the assigned id, to the main information of a project.
-//! * [`ProjectsIssuers`]: Map of a project id, to its issuer account.
 //! * [`ProjectsDetails`]: Map of a project id, to some additional information required for ensuring correctness of the protocol.
 //! * [`ProjectsToUpdate`]: Map of a block number, to a vector of project ids. Used to keep track of projects that need to be updated in on_initialize.
 //! * [`Bids`]: Double map linking a project-user to the bids they made.
@@ -480,10 +478,6 @@ pub mod pallet {
 	pub type Nonce<T: Config> = StorageValue<_, u32, ValueQuery>;
 
 	#[pallet::storage]
-	/// A StorageMap containing all the hashes of the project metadata uploaded by the users.
-	pub type Images<T: Config> = StorageMap<_, Blake2_128Concat, T::Hash, AccountIdOf<T>>;
-
-	#[pallet::storage]
 	/// A StorageMap containing the primary project information of projects
 	pub type ProjectsMetadata<T: Config> = StorageMap<_, Blake2_128Concat, ProjectId, ProjectMetadataOf<T>>;
 
@@ -580,6 +574,10 @@ pub mod pallet {
 		ProjectCreated {
 			project_id: ProjectId,
 			issuer: T::AccountId,
+		},
+		/// An issuer removed the project before the evaluation started
+		ProjectRemoved {
+			project_id: ProjectId,
 		},
 		/// The metadata of a project was modified.
 		MetadataEdited {
@@ -999,8 +997,16 @@ pub mod pallet {
 			let (account, did, investor_type) =
 				T::InvestorOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get())?;
 			ensure!(investor_type == InvestorType::Institutional, Error::<T>::NotAllowed);
-			log::trace!(target: "pallet_funding::test", "in create");
 			Self::do_create(&account, project, did)
+		}
+
+		#[pallet::call_index(35)]
+		#[pallet::weight(Weight::from_parts(100_000, 10_000))]
+		pub fn remove_project(origin: OriginFor<T>, jwt: UntrustedToken, project_id: ProjectId) -> DispatchResult {
+			let (account, did, investor_type) =
+				T::InvestorOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get())?;
+			ensure!(investor_type == InvestorType::Institutional, Error::<T>::NotAllowed);
+			Self::do_remove_project(&account, project_id, did)
 		}
 
 		/// Change the metadata hash of a project
