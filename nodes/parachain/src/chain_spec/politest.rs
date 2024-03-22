@@ -74,6 +74,7 @@ pub fn get_populated_chain_spec() -> Result<ChainSpec, String> {
 	let properties = get_properties("PLMC", 10, 41);
 	let wasm = politest_runtime::WASM_BINARY.ok_or("No WASM")?;
 
+	#[allow(deprecated)]
 	Ok(ChainSpec::from_genesis(
 		"Polimec Develop",
 		"polimec",
@@ -213,7 +214,7 @@ fn testnet_genesis(
 mod testing_helpers {
 	use super::*;
 	pub use macros::generate_accounts;
-	pub use pallet_funding::{instantiator, instantiator::UserToUSDBalance, AuctionPhase, ProjectStatus, *};
+	pub use pallet_funding::{instantiator::UserToUSDBalance, AuctionPhase, ProjectStatus, *};
 	pub use sp_core::H256;
 	pub use sp_runtime::{
 		traits::{ConstU32, Get, PhantomData},
