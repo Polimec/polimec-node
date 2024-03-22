@@ -898,7 +898,7 @@ impl<T: Config> Pallet<T> {
 	pub fn do_edit_metadata(
 		issuer: AccountIdOf<T>,
 		project_id: ProjectId,
-		project_metadata_hash: T::Hash,
+		optional_project_metadata: OptionalProjectMetadataOf<T>,
 	) -> DispatchResult {
 		// * Get variables *
 		let mut project_metadata = ProjectsMetadata::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
@@ -907,12 +907,18 @@ impl<T: Config> Pallet<T> {
 		// * Validity checks *
 		ensure!(project_details.issuer_account == issuer, Error::<T>::NotAllowed);
 		ensure!(!project_details.is_frozen, Error::<T>::Frozen);
-		ensure!(!Images::<T>::contains_key(project_metadata_hash), Error::<T>::MetadataAlreadyExists);
 
 		// * Calculate new variables *
+		project_metadata.edit_fields_from(optional_project_metadata);
+		if let Err(error) = project_metadata.is_valid() {
+			return match error {
+				ValidityError::PriceTooLow => Err(Error::<T>::PriceTooLow.into()),
+				ValidityError::TicketSizeError => Err(Error::<T>::TicketSizeError.into()),
+				ValidityError::ParticipationCurrenciesError => Err(Error::<T>::ParticipationCurrenciesError.into()),
+			};
+		}
 
 		// * Update Storage *
-		project_metadata.offchain_information_hash = Some(project_metadata_hash);
 		ProjectsMetadata::<T>::insert(project_id, project_metadata);
 
 		// * Emit events *

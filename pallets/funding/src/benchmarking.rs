@@ -432,21 +432,172 @@ mod benchmarks {
 		inst.advance_time(1u32.into()).unwrap();
 
 		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
+		let issuer_funding = account::<AccountIdOf<T>>("issuer_funding", 0, 0);
 		whitelist_account!(issuer);
 
 		let project_metadata = default_project::<T>(inst.get_new_nonce(), issuer.clone());
 		let project_id = inst.create_new_project(project_metadata.clone(), issuer.clone());
-		let original_metadata_hash = project_metadata.offchain_information_hash.unwrap();
-		let edited_metadata_hash: H256 = hashed(EDITED_METADATA);
+
+		let optional_project_metadata = OptionalProjectMetadataOf::<T> {
+			token_information: Some(CurrencyMetadata {
+				name: BoundedVec::try_from("Contribution Token TEST v2".as_bytes().to_vec()).unwrap(),
+				symbol: BoundedVec::try_from("CTESTv2".as_bytes().to_vec()).unwrap(),
+				decimals: ASSET_DECIMALS + 2,
+			}),
+			mainnet_token_max_supply: Some(
+				BalanceOf::<T>::try_from(100_000_000_000_0_000_000_000u128)
+					.unwrap_or_else(|_| panic!("Failed to create BalanceOf")),
+			),
+			total_allocation_size: Some(
+				BalanceOf::<T>::try_from(200_000_000_0_000_000_000u128)
+					.unwrap_or_else(|_| panic!("Failed to create BalanceOf")),
+			),
+			auction_round_allocation_percentage: Some(Percent::from_percent(30u8)),
+			minimum_price: Some(11u128.into()),
+			bidding_ticket_sizes: Some(BiddingTicketSizes {
+				professional: TicketSize::new(
+					Some(
+						BalanceOf::<T>::try_from(5000 * US_DOLLAR)
+							.unwrap_or_else(|_| panic!("Failed to create BalanceOf")),
+					),
+					Some(
+						BalanceOf::<T>::try_from(10_000 * US_DOLLAR)
+							.unwrap_or_else(|_| panic!("Failed to create BalanceOf")),
+					),
+				),
+				institutional: TicketSize::new(
+					Some(
+						BalanceOf::<T>::try_from(5000 * US_DOLLAR)
+							.unwrap_or_else(|_| panic!("Failed to create BalanceOf")),
+					),
+					Some(
+						BalanceOf::<T>::try_from(10_000 * US_DOLLAR)
+							.unwrap_or_else(|_| panic!("Failed to create BalanceOf")),
+					),
+				),
+				phantom: Default::default(),
+			}),
+			contributing_ticket_sizes: Some(ContributingTicketSizes {
+				retail: TicketSize::new(
+					Some(
+						BalanceOf::<T>::try_from(5000 * US_DOLLAR)
+							.unwrap_or_else(|_| panic!("Failed to create BalanceOf")),
+					),
+					Some(
+						BalanceOf::<T>::try_from(10_000 * US_DOLLAR)
+							.unwrap_or_else(|_| panic!("Failed to create BalanceOf")),
+					),
+				),
+				professional: TicketSize::new(
+					Some(
+						BalanceOf::<T>::try_from(5000 * US_DOLLAR)
+							.unwrap_or_else(|_| panic!("Failed to create BalanceOf")),
+					),
+					Some(
+						BalanceOf::<T>::try_from(10_000 * US_DOLLAR)
+							.unwrap_or_else(|_| panic!("Failed to create BalanceOf")),
+					),
+				),
+				institutional: TicketSize::new(
+					Some(
+						BalanceOf::<T>::try_from(5000 * US_DOLLAR)
+							.unwrap_or_else(|_| panic!("Failed to create BalanceOf")),
+					),
+					Some(
+						BalanceOf::<T>::try_from(10_000 * US_DOLLAR)
+							.unwrap_or_else(|_| panic!("Failed to create BalanceOf")),
+					),
+				),
+				phantom: Default::default(),
+			}),
+			participation_currencies: Some(
+				vec![AcceptedFundingAsset::USDT, AcceptedFundingAsset::USDC].try_into().unwrap(),
+			),
+			funding_destination_account: Some(issuer_funding.clone().clone()),
+			offchain_information_hash: Some(Some(hashed(format!("{}-{}", METADATA, 69)).into())),
+		};
+
 		let jwt = get_mock_jwt(issuer.clone(), InvestorType::Institutional, generate_did_from_account(issuer.clone()));
+
 		#[extrinsic_call]
-		edit_metadata(RawOrigin::Signed(issuer), jwt, project_id, edited_metadata_hash.into());
+		edit_metadata(RawOrigin::Signed(issuer), jwt, project_id, optional_project_metadata);
 
 		// * validity checks *
 		// Storage
 		let stored_metadata = ProjectsMetadata::<T>::get(project_id).unwrap();
-		assert_eq!(stored_metadata.offchain_information_hash, Some(edited_metadata_hash.into()));
-		assert!(original_metadata_hash != edited_metadata_hash.into());
+		let expected_metadata = ProjectMetadataOf::<T> {
+			token_information: CurrencyMetadata {
+				name: BoundedVec::try_from("Contribution Token TEST v2".as_bytes().to_vec()).unwrap(),
+				symbol: BoundedVec::try_from("CTESTv2".as_bytes().to_vec()).unwrap(),
+				decimals: ASSET_DECIMALS + 2,
+			},
+			mainnet_token_max_supply: BalanceOf::<T>::try_from(100_000_000_000_0_000_000_000u128)
+				.unwrap_or_else(|_| panic!("Failed to create BalanceOf")),
+			total_allocation_size: BalanceOf::<T>::try_from(200_000_000_0_000_000_000u128)
+				.unwrap_or_else(|_| panic!("Failed to create BalanceOf")),
+			auction_round_allocation_percentage: Percent::from_percent(30u8),
+			minimum_price: 11u128.into(),
+			bidding_ticket_sizes: BiddingTicketSizes {
+				professional: TicketSize::new(
+					Some(
+						BalanceOf::<T>::try_from(5000 * US_DOLLAR)
+							.unwrap_or_else(|_| panic!("Failed to create BalanceOf")),
+					),
+					Some(
+						BalanceOf::<T>::try_from(10_000 * US_DOLLAR)
+							.unwrap_or_else(|_| panic!("Failed to create BalanceOf")),
+					),
+				),
+				institutional: TicketSize::new(
+					Some(
+						BalanceOf::<T>::try_from(5000 * US_DOLLAR)
+							.unwrap_or_else(|_| panic!("Failed to create BalanceOf")),
+					),
+					Some(
+						BalanceOf::<T>::try_from(10_000 * US_DOLLAR)
+							.unwrap_or_else(|_| panic!("Failed to create BalanceOf")),
+					),
+				),
+				phantom: Default::default(),
+			},
+			contributing_ticket_sizes: ContributingTicketSizes {
+				retail: TicketSize::new(
+					Some(
+						BalanceOf::<T>::try_from(5000 * US_DOLLAR)
+							.unwrap_or_else(|_| panic!("Failed to create BalanceOf")),
+					),
+					Some(
+						BalanceOf::<T>::try_from(10_000 * US_DOLLAR)
+							.unwrap_or_else(|_| panic!("Failed to create BalanceOf")),
+					),
+				),
+				professional: TicketSize::new(
+					Some(
+						BalanceOf::<T>::try_from(5000 * US_DOLLAR)
+							.unwrap_or_else(|_| panic!("Failed to create BalanceOf")),
+					),
+					Some(
+						BalanceOf::<T>::try_from(10_000 * US_DOLLAR)
+							.unwrap_or_else(|_| panic!("Failed to create BalanceOf")),
+					),
+				),
+				institutional: TicketSize::new(
+					Some(
+						BalanceOf::<T>::try_from(5000 * US_DOLLAR)
+							.unwrap_or_else(|_| panic!("Failed to create BalanceOf")),
+					),
+					Some(
+						BalanceOf::<T>::try_from(10_000 * US_DOLLAR)
+							.unwrap_or_else(|_| panic!("Failed to create BalanceOf")),
+					),
+				),
+				phantom: Default::default(),
+			},
+			participation_currencies: vec![AcceptedFundingAsset::USDT, AcceptedFundingAsset::USDC].try_into().unwrap(),
+			funding_destination_account: issuer_funding,
+			offchain_information_hash: Some(hashed(format!("{}-{}", METADATA, 69)).into()),
+		};
+		assert_eq!(stored_metadata, expected_metadata);
 
 		// Events
 		frame_system::Pallet::<T>::assert_last_event(Event::<T>::MetadataEdited { project_id }.into());

@@ -171,6 +171,8 @@ pub type EvaluatorsOutcomeOf<T> = EvaluatorsOutcome<BalanceOf<T>>;
 pub type TicketSizeOf<T> = TicketSize<BalanceOf<T>>;
 pub type ProjectMetadataOf<T> =
 	ProjectMetadata<BoundedVec<u8, StringLimitOf<T>>, BalanceOf<T>, PriceOf<T>, AccountIdOf<T>, HashOf<T>>;
+pub type OptionalProjectMetadataOf<T> =
+	OptionalProjectMetadata<BoundedVec<u8, StringLimitOf<T>>, BalanceOf<T>, PriceOf<T>, AccountIdOf<T>, HashOf<T>>;
 pub type ProjectDetailsOf<T> =
 	ProjectDetails<AccountIdOf<T>, Did, BlockNumberFor<T>, PriceOf<T>, BalanceOf<T>, EvaluationRoundInfoOf<T>>;
 pub type EvaluationRoundInfoOf<T> = EvaluationRoundInfo<BalanceOf<T>>;
@@ -988,6 +990,7 @@ pub mod pallet {
 		/// The issuer tried to create a new project but already has an active one
 		IssuerHasActiveProjectAlready,
 		NotEnoughFunds,
+		BadMetadata,
 	}
 
 	#[pallet::call]
@@ -1010,12 +1013,12 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			jwt: UntrustedToken,
 			project_id: ProjectId,
-			project_metadata_hash: T::Hash,
+			optional_project_metadata: OptionalProjectMetadataOf<T>,
 		) -> DispatchResult {
 			let (account, _did, investor_type) =
 				T::InvestorOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get())?;
 			ensure!(investor_type == InvestorType::Institutional, Error::<T>::NotAllowed);
-			Self::do_edit_metadata(account, project_id, project_metadata_hash)
+			Self::do_edit_metadata(account, project_id, optional_project_metadata)
 		}
 
 		/// Starts the evaluation round of a project. It needs to be called by the project issuer.
