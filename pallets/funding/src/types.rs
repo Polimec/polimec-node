@@ -297,8 +297,6 @@ pub mod storage_types {
 		pub early_usd_amount: Balance,
 		pub late_usd_amount: Balance,
 		pub when: BlockNumber,
-		// Will be Some after a reward of slash was made on this evaluation.
-		pub ct_migration_status: MigrationStatus,
 	}
 
 	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
@@ -324,7 +322,6 @@ pub mod storage_types {
 		pub multiplier: Multiplier,
 		pub plmc_bond: Balance,
 		pub when: BlockNumber,
-		pub ct_migration_status: MigrationStatus,
 	}
 
 	impl<
@@ -369,7 +366,6 @@ pub mod storage_types {
 		pub funding_asset: AcceptedFundingAsset,
 		pub funding_asset_amount: Balance,
 		pub plmc_bond: Balance,
-		pub ct_migration_status: MigrationStatus,
 	}
 
 	/// Represents a bucket that holds a specific amount of tokens at a given price.
@@ -781,13 +777,7 @@ pub mod inner_types {
 		pub project_id: ProjectId,
 		pub migration_origins: MigrationOrigins,
 	}
-	#[derive(Clone, Encode, Decode, Eq, PartialEq, Ord, PartialOrd, RuntimeDebug, TypeInfo, MaxEncodedLen)]
-	pub enum MigrationStatus {
-		NotStarted,
-		Sent(xcm::v3::QueryId),
-		Confirmed,
-		Failed(BoundedVec<u8, MaxDispatchErrorLen>),
-	}
+	
 
 	#[derive(Clone, Encode, Decode, Eq, PartialEq, Ord, PartialOrd, RuntimeDebug, TypeInfo, MaxEncodedLen)]
 	pub struct MaxMigrationsPerXcm<T>(PhantomData<T>);

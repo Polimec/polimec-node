@@ -5643,6 +5643,11 @@ mod ct_migration {
 	use frame_support::assert_err;
 
 	#[test]
+	fn max_number_of_migrations() {
+		dbg!(Pallet::<TestRuntime>::migrations_per_xcm_message_allowed());
+	}
+
+	#[test]
 	fn para_id_for_project_can_be_set_by_issuer() {
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		let project_id = inst.create_finished_project(

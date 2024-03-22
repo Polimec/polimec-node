@@ -15,7 +15,7 @@ use frame_support::{
 };
 use sp_runtime::{Perquintill, traits::{Zero, Convert}};
 use polimec_common::{
-	migration_types::{MigrationInfo, MigrationOrigin, ParticipationType},
+	migration_types::{MigrationInfo, MigrationOrigin, MigrationStatus, ParticipationType},
 	ReleaseSchedule,
 };
 
@@ -48,9 +48,15 @@ impl<T: Config> Pallet<T> {
             let duration = multiplier.calculate_vesting_duration::<T>();
             Self::create_migration(project_id, &evaluation.evaluator, evaluation.id, ParticipationType::Evaluation, reward, duration)?;
         }
-        Evaluations::<T>::remove((project_id, evaluation.evaluator, evaluation.id));
+        Evaluations::<T>::remove((project_id, evaluation.evaluator.clone(), evaluation.id));
 
-        // TODO: Emit an event
+        Self::deposit_event(Event::EvaluationSettled { 
+            project_id,
+            account: evaluation.evaluator,
+            id: evaluation.id,
+            ct_amount: reward,
+            slashed_amount: evaluation.current_plmc_bond.saturating_sub(bond),
+        });
 
         Ok(())
     }
@@ -78,9 +84,15 @@ impl<T: Config> Pallet<T> {
 			Precision::Exact,
 		)?;
 
-        Evaluations::<T>::remove((project_id, evaluation.evaluator, evaluation.id));
+        Evaluations::<T>::remove((project_id, evaluation.evaluator.clone(), evaluation.id));
 
-        // TODO: Emit an event
+        Self::deposit_event(Event::EvaluationSettled { 
+            project_id,
+            account: evaluation.evaluator,
+            id: evaluation.id,
+            ct_amount: Zero::zero(),
+            slashed_amount: evaluation.current_plmc_bond.saturating_sub(bond),
+        });
 
         Ok(())
     }
@@ -120,9 +132,14 @@ impl<T: Config> Pallet<T> {
         Self::create_migration(project_id, &bidder, bid.id, ParticipationType::Bid, bid.final_ct_amount, vest_info.duration.into())?;
         // TODO: Create MigrationInfo
 
-        Bids::<T>::remove((project_id, bidder, bid.id));
+        Bids::<T>::remove((project_id, bidder.clone(), bid.id));
 
-        // TODO: Emit an event
+        Self::deposit_event(Event::BidSettled { 
+            project_id,
+            account: bidder,
+            id: bid.id,
+            ct_amount: bid.final_ct_amount,
+        });
 
 		Ok(())
     }
@@ -146,9 +163,14 @@ impl<T: Config> Pallet<T> {
         }
         
         // Remove the bid from the storage
-        Bids::<T>::remove((project_id, bidder, bid.id));
+        Bids::<T>::remove((project_id, bidder.clone(), bid.id));
 
-        // TODO: Emit an event
+        Self::deposit_event(Event::BidSettled { 
+            project_id,
+            account: bidder,
+            id: bid.id,
+            ct_amount: Zero::zero(),
+        });
 
         Ok(())
     }
@@ -185,7 +207,14 @@ impl<T: Config> Pallet<T> {
         // Create Migration
         Self::create_migration(project_id, &contributor, contribution.id, ParticipationType::Contribution, contribution.ct_amount, vest_info.duration.into())?;
 
-        Contributions::<T>::remove((project_id, contributor, contribution.id));
+        Contributions::<T>::remove((project_id, contributor.clone(), contribution.id));
+
+        Self::deposit_event(Event::ContributionSettled { 
+            project_id,
+            account: contributor,
+            id: contribution.id,
+            ct_amount: contribution.ct_amount,
+        });
 
         Ok(())
     }
@@ -209,9 +238,14 @@ impl<T: Config> Pallet<T> {
 
 
          // Remove the bid from the storage
-         Contributions::<T>::remove((project_id, contributor, contribution.id));
+         Contributions::<T>::remove((project_id, contributor.clone(), contribution.id));
 
-         // TODO: Emit an event
+         Self::deposit_event(Event::ContributionSettled { 
+            project_id,
+            account: contributor,
+            id: contribution.id,
+            ct_amount: Zero::zero(),
+        });
  
          Ok(())
     }

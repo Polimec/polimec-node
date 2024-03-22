@@ -960,7 +960,6 @@ impl<T: Config> Pallet<T> {
 			early_usd_amount,
 			late_usd_amount,
 			when: now,
-			ct_migration_status: MigrationStatus::NotStarted,
 		};
 
 		if caller_existing_evaluations.len() < T::MaxEvaluationsPerUser::get() as usize {
@@ -1170,7 +1169,6 @@ impl<T: Config> Pallet<T> {
 			multiplier,
 			plmc_bond,
 			when: now,
-			ct_migration_status: MigrationStatus::NotStarted,
 		};
 
 		Self::try_plmc_participation_lock(bidder, project_id, plmc_bond)?;
@@ -1329,7 +1327,6 @@ impl<T: Config> Pallet<T> {
 			funding_asset,
 			funding_asset_amount,
 			plmc_bond,
-			ct_migration_status: MigrationStatus::NotStarted,
 		};
 
 		// Try adding the new contribution to the system
@@ -2420,35 +2417,35 @@ impl<T: Config> Pallet<T> {
 		let project_id = project_migration_origins.project_id;
 		let migration_origins = project_migration_origins.migration_origins;
 		for MigrationOrigin { user, id, participation_type } in migration_origins {
-			match participation_type {
-				ParticipationType::Evaluation => {
-					Evaluations::<T>::mutate(
-						(project_id, T::AccountId32Conversion::convert_back(user), id),
-						|maybe_evaluation| {
-							if let Some(evaluation) = maybe_evaluation {
-								evaluation.ct_migration_status = MigrationStatus::Sent(query_id);
-							}
-						},
-					);
-				},
-				ParticipationType::Bid => {
-					Bids::<T>::mutate((project_id, T::AccountId32Conversion::convert_back(user), id), |maybe_bid| {
-						if let Some(bid) = maybe_bid {
-							bid.ct_migration_status = MigrationStatus::Sent(query_id);
-						}
-					});
-				},
-				ParticipationType::Contribution => {
-					Contributions::<T>::mutate(
-						(project_id, T::AccountId32Conversion::convert_back(user), id),
-						|maybe_contribution| {
-							if let Some(contribution) = maybe_contribution {
-								contribution.ct_migration_status = MigrationStatus::Sent(query_id);
-							}
-						},
-					);
-				},
-			}
+			// match participation_type {
+			// 	ParticipationType::Evaluation => {
+			// 		Evaluations::<T>::mutate(
+			// 			(project_id, T::AccountId32Conversion::convert_back(user), id),
+			// 			|maybe_evaluation| {
+			// 				if let Some(evaluation) = maybe_evaluation {
+			// 					evaluation.ct_migration_status = MigrationStatus::Sent(query_id);
+			// 				}
+			// 			},
+			// 		);
+			// 	},
+			// 	ParticipationType::Bid => {
+			// 		Bids::<T>::mutate((project_id, T::AccountId32Conversion::convert_back(user), id), |maybe_bid| {
+			// 			if let Some(bid) = maybe_bid {
+			// 				bid.ct_migration_status = MigrationStatus::Sent(query_id);
+			// 			}
+			// 		});
+			// 	},
+			// 	ParticipationType::Contribution => {
+			// 		Contributions::<T>::mutate(
+			// 			(project_id, T::AccountId32Conversion::convert_back(user), id),
+			// 			|maybe_contribution| {
+			// 				if let Some(contribution) = maybe_contribution {
+			// 					contribution.ct_migration_status = MigrationStatus::Sent(query_id);
+			// 				}
+			// 			},
+			// 		);
+			// 	},
+			// }
 		}
 	}
 
@@ -2456,35 +2453,35 @@ impl<T: Config> Pallet<T> {
 		let project_id = project_migration_origins.project_id;
 		let migration_origins = project_migration_origins.migration_origins;
 		for MigrationOrigin { user, id, participation_type } in migration_origins {
-			match participation_type {
-				ParticipationType::Evaluation => {
-					Evaluations::<T>::mutate(
-						(project_id, T::AccountId32Conversion::convert_back(user), id),
-						|maybe_evaluation| {
-							if let Some(evaluation) = maybe_evaluation {
-								evaluation.ct_migration_status = MigrationStatus::Confirmed;
-							}
-						},
-					);
-				},
-				ParticipationType::Bid => {
-					Bids::<T>::mutate((project_id, T::AccountId32Conversion::convert_back(user), id), |maybe_bid| {
-						if let Some(bid) = maybe_bid {
-							bid.ct_migration_status = MigrationStatus::Confirmed;
-						}
-					});
-				},
-				ParticipationType::Contribution => {
-					Contributions::<T>::mutate(
-						(project_id, T::AccountId32Conversion::convert_back(user), id),
-						|maybe_contribution| {
-							if let Some(contribution) = maybe_contribution {
-								contribution.ct_migration_status = MigrationStatus::Confirmed;
-							}
-						},
-					);
-				},
-			}
+			// match participation_type {
+			// 	ParticipationType::Evaluation => {
+			// 		Evaluations::<T>::mutate(
+			// 			(project_id, T::AccountId32Conversion::convert_back(user), id),
+			// 			|maybe_evaluation| {
+			// 				if let Some(evaluation) = maybe_evaluation {
+			// 					evaluation.ct_migration_status = MigrationStatus::Confirmed;
+			// 				}
+			// 			},
+			// 		);
+			// 	},
+			// 	ParticipationType::Bid => {
+			// 		Bids::<T>::mutate((project_id, T::AccountId32Conversion::convert_back(user), id), |maybe_bid| {
+			// 			if let Some(bid) = maybe_bid {
+			// 				bid.ct_migration_status = MigrationStatus::Confirmed;
+			// 			}
+			// 		});
+			// 	},
+			// 	ParticipationType::Contribution => {
+			// 		Contributions::<T>::mutate(
+			// 			(project_id, T::AccountId32Conversion::convert_back(user), id),
+			// 			|maybe_contribution| {
+			// 				if let Some(contribution) = maybe_contribution {
+			// 					contribution.ct_migration_status = MigrationStatus::Confirmed;
+			// 				}
+			// 			},
+			// 		);
+			// 	},
+			// }
 		}
 	}
 
@@ -2495,35 +2492,35 @@ impl<T: Config> Pallet<T> {
 		let project_id = project_migration_origins.project_id;
 		let migration_origins = project_migration_origins.migration_origins;
 		for MigrationOrigin { user, id, participation_type } in migration_origins {
-			match participation_type {
-				ParticipationType::Evaluation => {
-					Evaluations::<T>::mutate(
-						(project_id, T::AccountId32Conversion::convert_back(user), id),
-						|maybe_evaluation| {
-							if let Some(evaluation) = maybe_evaluation {
-								evaluation.ct_migration_status = MigrationStatus::Failed(error.clone());
-							}
-						},
-					);
-				},
-				ParticipationType::Bid => {
-					Bids::<T>::mutate((project_id, T::AccountId32Conversion::convert_back(user), id), |maybe_bid| {
-						if let Some(bid) = maybe_bid {
-							bid.ct_migration_status = MigrationStatus::Failed(error.clone());
-						}
-					});
-				},
-				ParticipationType::Contribution => {
-					Contributions::<T>::mutate(
-						(project_id, T::AccountId32Conversion::convert_back(user), id),
-						|maybe_contribution| {
-							if let Some(contribution) = maybe_contribution {
-								contribution.ct_migration_status = MigrationStatus::Failed(error.clone());
-							}
-						},
-					);
-				},
-			}
+			// match participation_type {
+			// 	ParticipationType::Evaluation => {
+			// 		Evaluations::<T>::mutate(
+			// 			(project_id, T::AccountId32Conversion::convert_back(user), id),
+			// 			|maybe_evaluation| {
+			// 				if let Some(evaluation) = maybe_evaluation {
+			// 					evaluation.ct_migration_status = MigrationStatus::Failed(error.clone());
+			// 				}
+			// 			},
+			// 		);
+			// 	},
+			// 	ParticipationType::Bid => {
+			// 		Bids::<T>::mutate((project_id, T::AccountId32Conversion::convert_back(user), id), |maybe_bid| {
+			// 			if let Some(bid) = maybe_bid {
+			// 				bid.ct_migration_status = MigrationStatus::Failed(error.clone());
+			// 			}
+			// 		});
+			// 	},
+			// 	ParticipationType::Contribution => {
+			// 		Contributions::<T>::mutate(
+			// 			(project_id, T::AccountId32Conversion::convert_back(user), id),
+			// 			|maybe_contribution| {
+			// 				if let Some(contribution) = maybe_contribution {
+			// 					contribution.ct_migration_status = MigrationStatus::Failed(error.clone());
+			// 				}
+			// 			},
+			// 		);
+			// 	},
+			// }
 		}
 	}
 }

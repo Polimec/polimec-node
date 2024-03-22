@@ -17,11 +17,11 @@
 use crate::*;
 use pallet_funding::{
 	assert_close_enough, traits::VestingDurationCalculation, AcceptedFundingAsset, BidStatus, EvaluatorsOutcome,
-	MigrationStatus, Multiplier, MultiplierOf, ProjectId, RewardOrSlash,
+	Multiplier, MultiplierOf, ProjectId, RewardOrSlash,
 };
 use polimec_common::{
 	credentials::InvestorType,
-	migration_types::{Migration, MigrationInfo, MigrationOrigin, Migrations, ParticipationType},
+	migration_types::{Migration, MigrationInfo, MigrationOrigin, Migrations, MigrationStatus, ParticipationType},
 };
 use polimec_parachain_runtime::PolimecFunding;
 use sp_runtime::{traits::Convert, FixedPointNumber, Perquintill};

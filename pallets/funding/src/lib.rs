@@ -616,13 +616,6 @@ use sp_arithmetic::Percent;
 			amount: BalanceOf<T>,
 			bonder: AccountIdOf<T>,
 		},
-		/// Someone paid for the release of a user's PLMC bond for a project.
-		BondReleased {
-			project_id: ProjectId,
-			amount: BalanceOf<T>,
-			bonder: AccountIdOf<T>,
-			releaser: AccountIdOf<T>,
-		},
 		/// A bid was made for a project
 		Bid {
 			project_id: ProjectId,
@@ -655,155 +648,28 @@ use sp_arithmetic::Percent;
 			project_id: ProjectId,
 			error: DispatchError,
 		},
-		/// Something terribly wrong happened where the bond could not be unbonded. Most likely a programming error
-		EvaluationUnbondFailed {
-			project_id: ProjectId,
-			evaluator: AccountIdOf<T>,
-			id: u32,
-			error: DispatchError,
-		},
-		/// Contribution tokens were minted to a user
-		ContributionTokenMinted {
-			releaser: AccountIdOf<T>,
-			project_id: ProjectId,
-			claimer: AccountIdOf<T>,
-			amount: BalanceOf<T>,
-		},
-		/// A transfer of tokens failed, but because it was done inside on_initialize it cannot be solved.
-		TransferError {
-			error: DispatchError,
-		},
-		EvaluationRewardFailed {
-			project_id: ProjectId,
-			evaluator: AccountIdOf<T>,
-			id: u32,
-			error: DispatchError,
-		},
-		EvaluationSlashFailed {
-			project_id: ProjectId,
-			evaluator: AccountIdOf<T>,
-			id: u32,
-			error: DispatchError,
-		},
-		ReleaseBidFundsFailed {
-			project_id: ProjectId,
-			bidder: AccountIdOf<T>,
-			id: u32,
-			error: DispatchError,
-		},
-		BidUnbondFailed {
-			project_id: ProjectId,
-			bidder: AccountIdOf<T>,
-			id: u32,
-			error: DispatchError,
-		},
-		ReleaseContributionFundsFailed {
-			project_id: ProjectId,
-			contributor: AccountIdOf<T>,
-			id: u32,
-			error: DispatchError,
-		},
-		ContributionUnbondFailed {
-			project_id: ProjectId,
-			contributor: AccountIdOf<T>,
-			id: u32,
-			error: DispatchError,
-		},
-		PayoutContributionFundsFailed {
-			project_id: ProjectId,
-			contributor: AccountIdOf<T>,
-			id: u32,
-			error: DispatchError,
-		},
-		PayoutBidFundsFailed {
-			project_id: ProjectId,
-			bidder: AccountIdOf<T>,
-			id: u32,
-			error: DispatchError,
-		},
-		EvaluationRewarded {
-			project_id: ProjectId,
-			evaluator: AccountIdOf<T>,
-			id: u32,
-			amount: BalanceOf<T>,
-			caller: AccountIdOf<T>,
-		},
-		EvaluationSlashed {
-			project_id: ProjectId,
-			evaluator: AccountIdOf<T>,
-			id: u32,
-			amount: BalanceOf<T>,
-			caller: AccountIdOf<T>,
-		},
-		CTMintFailed {
-			project_id: ProjectId,
-			claimer: AccountIdOf<T>,
-			id: u32,
-			error: DispatchError,
-		},
-		StartBidderVestingScheduleFailed {
-			project_id: ProjectId,
-			bidder: AccountIdOf<T>,
-			id: u32,
-			error: DispatchError,
-		},
-		StartContributionVestingScheduleFailed {
-			project_id: ProjectId,
-			contributor: AccountIdOf<T>,
-			id: u32,
-			error: DispatchError,
-		},
-		BidPlmcVestingScheduled {
-			project_id: ProjectId,
-			bidder: AccountIdOf<T>,
-			id: u32,
-			amount: BalanceOf<T>,
-			caller: AccountIdOf<T>,
-		},
-		ContributionPlmcVestingScheduled {
-			project_id: ProjectId,
-			contributor: AccountIdOf<T>,
-			id: u32,
-			amount: BalanceOf<T>,
-			caller: AccountIdOf<T>,
-		},
-		ParticipantPlmcVested {
-			project_id: ProjectId,
-			participant: AccountIdOf<T>,
-			amount: BalanceOf<T>,
-			caller: AccountIdOf<T>,
-		},
-		BidFundingPaidOut {
-			project_id: ProjectId,
-			bidder: AccountIdOf<T>,
-			id: u32,
-			amount: BalanceOf<T>,
-			caller: AccountIdOf<T>,
-		},
-		ContributionFundingPaidOut {
-			project_id: ProjectId,
-			contributor: AccountIdOf<T>,
-			id: u32,
-			amount: BalanceOf<T>,
-			caller: AccountIdOf<T>,
-		},
-		BidFundingReleased {
-			project_id: ProjectId,
-			bidder: AccountIdOf<T>,
-			id: u32,
-			amount: BalanceOf<T>,
-			caller: AccountIdOf<T>,
-		},
-		ContributionFundingReleased {
-			project_id: ProjectId,
-			contributor: AccountIdOf<T>,
-			id: u32,
-			amount: BalanceOf<T>,
-			caller: AccountIdOf<T>,
-		},
 		ProjectOutcomeDecided {
 			project_id: ProjectId,
 			decision: FundingOutcomeDecision,
+		},
+		EvaluationSettled {
+			project_id: ProjectId,
+			account: AccountIdOf<T>,
+			id: u32,
+			ct_amount: BalanceOf<T>,
+			slashed_amount: BalanceOf<T>,
+		},
+		BidSettled {
+			project_id: ProjectId,
+			account: AccountIdOf<T>,
+			id: u32,
+			ct_amount: BalanceOf<T>,
+		},
+		ContributionSettled {
+			project_id: ProjectId,
+			account: AccountIdOf<T>,
+			id: u32,
+			ct_amount: BalanceOf<T>,
 		},
 		ProjectParaIdSet {
 			project_id: ProjectId,
@@ -850,16 +716,6 @@ use sp_arithmetic::Percent;
 		MigrationsFailed {
 			project_id: ProjectId,
 			migration_origins: BoundedVec<MigrationOrigin, MaxMigrationsPerXcm<T>>,
-		},
-		ReleaseFutureCTDepositFailed {
-			project_id: ProjectId,
-			participant: AccountIdOf<T>,
-			error: DispatchError,
-		},
-		FutureCTDepositReleased {
-			project_id: ProjectId,
-			participant: AccountIdOf<T>,
-			caller: AccountIdOf<T>,
 		},
 	}
 
