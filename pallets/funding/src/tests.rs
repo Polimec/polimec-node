@@ -475,7 +475,12 @@ mod creation {
 		inst.start_evaluation(project_id, ISSUER_1).unwrap();
 		inst.execute(|| {
 			assert_noop!(
-				Pallet::<TestRuntime>::edit_metadata(RuntimeOrigin::signed(ISSUER_1), jwt.clone(), project_id, new_metadata_1),
+				Pallet::<TestRuntime>::edit_metadata(
+					RuntimeOrigin::signed(ISSUER_1),
+					jwt.clone(),
+					project_id,
+					new_metadata_1
+				),
 				Error::<TestRuntime>::Frozen
 			);
 		});
