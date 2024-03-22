@@ -3670,7 +3670,7 @@ mod remainder_contribution {
 		);
 		let project_details = inst.get_project_details(project_id);
 		let bid_ct_sold: BalanceOf<TestRuntime> = inst.execute(|| {
-			Bids::<TestRuntime>::iter_prefix_values((project_id,))
+			Bids::<TestRuntime>::iter_prefix_values((project_id, ))
 				.fold(Zero::zero(), |acc, bid| acc + bid.final_ct_amount)
 		});
 		assert_eq!(project_details.remaining_contribution_tokens, project_metadata.total_allocation_size - bid_ct_sold);
@@ -4177,7 +4177,7 @@ mod remainder_contribution {
 			default_multipliers(),
 		);
 		let project_id =
-			inst.create_remainder_contributing_project(project_metadata.clone(), ISSUER_1, evaluations, bids,vec![]);
+			inst.create_remainder_contributing_project(project_metadata.clone(), ISSUER_1, evaluations, bids, vec![]);
 		let wap = inst.get_project_details(project_id).weighted_average_price.unwrap();
 		// Professional bids: 1 - 10x multiplier should work
 		for multiplier in 1..=10u8 {
@@ -4194,7 +4194,7 @@ mod remainder_contribution {
 			inst.mint_plmc_to(vec![(BUYER_1, ed).into()]);
 			inst.mint_plmc_to(bidder_plmc);
 			inst.mint_foreign_asset_to(bidder_usdt);
-			assert_ok!(inst.execute(|| Pallet::<TestRuntime>::community_contribute(
+			assert_ok!(inst.execute(|| Pallet::<TestRuntime>::remaining_contribute(
 				RuntimeOrigin::signed(BUYER_1),
 				jwt,
 				project_id,
@@ -4220,7 +4220,7 @@ mod remainder_contribution {
 			inst.mint_foreign_asset_to(bidder_usdt);
 			inst.execute(|| {
 				assert_noop!(
-					Pallet::<TestRuntime>::community_contribute(
+					Pallet::<TestRuntime>::remaining_contribute(
 						RuntimeOrigin::signed(BUYER_1),
 						jwt,
 						project_id,
@@ -4248,7 +4248,7 @@ mod remainder_contribution {
 			inst.mint_plmc_to(vec![(BUYER_2, ed).into()]);
 			inst.mint_plmc_to(bidder_plmc);
 			inst.mint_foreign_asset_to(bidder_usdt);
-			assert_ok!(inst.execute(|| Pallet::<TestRuntime>::community_contribute(
+			assert_ok!(inst.execute(|| Pallet::<TestRuntime>::remaining_contribute(
 				RuntimeOrigin::signed(BUYER_2),
 				jwt,
 				project_id,
@@ -4274,7 +4274,7 @@ mod remainder_contribution {
 			inst.mint_foreign_asset_to(bidder_usdt);
 			inst.execute(|| {
 				assert_noop!(
-					Pallet::<TestRuntime>::community_contribute(
+					Pallet::<TestRuntime>::remaining_contribute(
 						RuntimeOrigin::signed(BUYER_2),
 						jwt,
 						project_id,
@@ -4320,7 +4320,7 @@ mod remainder_contribution {
 			inst.mint_plmc_to(vec![(contributor, ed).into()]);
 			inst.mint_plmc_to(contributor_plmc);
 			inst.mint_foreign_asset_to(bidder_usdt);
-			inst.execute(|| Pallet::<TestRuntime>::community_contribute(
+			inst.execute(|| Pallet::<TestRuntime>::remaining_contribute(
 				RuntimeOrigin::signed(contributor),
 				jwt,
 				project_id,
@@ -4347,7 +4347,7 @@ mod remainder_contribution {
 			let contributor = BUYER_1;
 			log::debug!("creating {} new projects", projects_participated_amount-previous_projects_created);
 
-			(previous_projects_created..projects_participated_amount-1).for_each(|_|{
+			(previous_projects_created..projects_participated_amount - 1).for_each(|_| {
 				let project_id = create_project(&mut inst);
 				log::debug!("created");
 				assert_ok!(contribute(&mut inst, project_id, contributor, 1));
@@ -4358,7 +4358,6 @@ mod remainder_contribution {
 			previous_projects_created = projects_participated_amount;
 
 
-
 			// Multipliers that should work
 			for multiplier in 1..=max_allowed_multiplier {
 				log::debug!("success? - multiplier: {}", multiplier);
@@ -4366,11 +4365,12 @@ mod remainder_contribution {
 			}
 
 			// Multipliers that should NOT work
-			for multiplier in max_allowed_multiplier+1..=50 {
+			for multiplier in max_allowed_multiplier + 1..=50 {
 				log::debug!("error? - multiplier: {}", multiplier);
 				assert_err!(contribute(&mut inst, project_id, contributor, multiplier), Error::<TestRuntime>::MultiplierAboveLimit);
 			}
 		}
+	}
 }
 
 // only functionalities that happen after the REMAINDER FUNDING period of a project and before the CT Migration
