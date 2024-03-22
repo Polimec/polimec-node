@@ -2159,18 +2159,6 @@ mod auction {
 		let project_id = inst.create_auctioning_project(project_metadata.clone(), ISSUER_1, evaluations);
 		// Professional bids: 0x multiplier should fail
 		let jwt = get_mock_jwt(BIDDER_1, InvestorType::Professional, generate_did_from_account(BIDDER_1));
-		let bidder_plmc = MockInstantiator::calculate_auction_plmc_charged_with_given_price(
-			&vec![(BIDDER_1, 1_000 * ASSET_UNIT, Multiplier::force_new(0)).into()],
-			project_metadata.minimum_price,
-		);
-		let bidder_usdt = MockInstantiator::calculate_auction_funding_asset_charged_with_given_price(
-			&vec![(BIDDER_1, 1_000 * ASSET_UNIT, Multiplier::force_new(0)).into()],
-			project_metadata.minimum_price,
-		);
-		let ed = MockInstantiator::get_ed();
-		inst.mint_plmc_to(vec![(BIDDER_1, ed).into()]);
-		inst.mint_plmc_to(bidder_plmc);
-		inst.mint_foreign_asset_to(bidder_usdt);
 		inst.execute(|| {
 			assert_noop!(
 				Pallet::<TestRuntime>::bid(
@@ -2181,7 +2169,7 @@ mod auction {
 					Multiplier::force_new(0),
 					AcceptedFundingAsset::USDT
 				),
-				Error::<TestRuntime>::MultiplierBelowLimit
+				Error::<TestRuntime>::ForbiddenMultiplier
 			);
 		});
 		// Professional bids: 1 - 10x multiplier should work
@@ -2238,6 +2226,21 @@ mod auction {
 			});
 		}
 
+		// Institutional bids: 0x multiplier should fail
+		let jwt = get_mock_jwt(BIDDER_2, InvestorType::Institutional, generate_did_from_account(BIDDER_2));
+		inst.execute(|| {
+			assert_noop!(
+				Pallet::<TestRuntime>::bid(
+					RuntimeOrigin::signed(BIDDER_2),
+					jwt,
+					project_id,
+					1000 * ASSET_UNIT,
+					Multiplier::force_new(0),
+					AcceptedFundingAsset::USDT
+				),
+				Error::<TestRuntime>::ForbiddenMultiplier
+			);
+		});
 		// Institutional bids: 1 - 25x multiplier should work
 		for multiplier in 1..=25u8 {
 			let jwt = get_mock_jwt(BIDDER_2, InvestorType::Institutional, generate_did_from_account(BIDDER_2));
@@ -3309,6 +3312,22 @@ mod community_contribution {
 		let project_id =
 			inst.create_community_contributing_project(project_metadata.clone(), ISSUER_1, evaluations, bids);
 		let wap = inst.get_project_details(project_id).weighted_average_price.unwrap();
+
+		// Professional bids: 0x multiplier should fail
+		let jwt = get_mock_jwt(BUYER_1, InvestorType::Professional, generate_did_from_account(BUYER_1));
+		inst.execute(|| {
+			assert_noop!(
+				Pallet::<TestRuntime>::community_contribute(
+					RuntimeOrigin::signed(BUYER_1),
+					jwt,
+					project_id,
+					1000 * ASSET_UNIT,
+					Multiplier::force_new(0),
+					AcceptedFundingAsset::USDT
+				),
+				Error::<TestRuntime>::ForbiddenMultiplier
+			);
+		});
 		// Professional bids: 1 - 10x multiplier should work
 		for multiplier in 1..=10u8 {
 			let jwt = get_mock_jwt(BUYER_1, InvestorType::Professional, generate_did_from_account(BUYER_1));
@@ -3363,6 +3382,22 @@ mod community_contribution {
 			});
 		}
 
+
+		// Institutional bids: 0x multiplier should fail
+		let jwt = get_mock_jwt(BUYER_2, InvestorType::Institutional, generate_did_from_account(BUYER_2));
+		inst.execute(|| {
+			assert_noop!(
+				Pallet::<TestRuntime>::community_contribute(
+					RuntimeOrigin::signed(BUYER_2),
+					jwt,
+					project_id,
+					1000 * ASSET_UNIT,
+					Multiplier::force_new(0),
+					AcceptedFundingAsset::USDT
+				),
+				Error::<TestRuntime>::ForbiddenMultiplier
+			);
+		});
 		// Institutional bids: 1 - 25x multiplier should work
 		for multiplier in 1..=25u8 {
 			let jwt = get_mock_jwt(BUYER_2, InvestorType::Institutional, generate_did_from_account(BUYER_2));
@@ -3434,23 +3469,23 @@ mod community_contribution {
 				default_bids(),
 			)
 		};
-		let mut contribute = |inst: &mut MockInstantiator, project_id, contributor, multiplier| {
+		let mut contribute = |inst: &mut MockInstantiator, project_id, multiplier| {
+			let jwt = get_mock_jwt(BUYER_1, InvestorType::Retail, generate_did_from_account(BUYER_1));
 			let wap = inst.get_project_details(project_id).weighted_average_price.unwrap();
-			let jwt = get_mock_jwt(contributor, InvestorType::Retail, generate_did_from_account(contributor));
 			let contributor_plmc = MockInstantiator::calculate_contributed_plmc_spent(
-				vec![(contributor, 1_000 * ASSET_UNIT, Multiplier::force_new(multiplier)).into()],
+				vec![(BUYER_1, 1_000 * ASSET_UNIT, Multiplier::force_new(multiplier)).into()],
 				wap,
 			);
 			let bidder_usdt = MockInstantiator::calculate_contributed_funding_asset_spent(
-				vec![(contributor, 1_000 * ASSET_UNIT, Multiplier::force_new(multiplier)).into()],
+				vec![(BUYER_1, 1_000 * ASSET_UNIT, Multiplier::force_new(multiplier)).into()],
 				wap,
 			);
 			let ed = MockInstantiator::get_ed();
-			inst.mint_plmc_to(vec![(contributor, ed).into()]);
+			inst.mint_plmc_to(vec![(BUYER_1, ed).into()]);
 			inst.mint_plmc_to(contributor_plmc);
 			inst.mint_foreign_asset_to(bidder_usdt);
 			inst.execute(|| Pallet::<TestRuntime>::community_contribute(
-				RuntimeOrigin::signed(contributor),
+				RuntimeOrigin::signed(BUYER_1),
 				jwt,
 				project_id,
 				1000 * ASSET_UNIT,
@@ -3473,32 +3508,45 @@ mod community_contribution {
 
 			log::debug!("{max_allowed_multiplier:?}");
 
-			let contributor = BUYER_1;
 			log::debug!("creating {} new projects", projects_participated_amount-previous_projects_created);
 
 			(previous_projects_created..projects_participated_amount-1).for_each(|_|{
 				let project_id = create_project(&mut inst);
 				log::debug!("created");
-				assert_ok!(contribute(&mut inst, project_id, contributor, 1));
+				assert_ok!(contribute(&mut inst, project_id, 1));
 			});
 
 			let project_id = create_project(&mut inst);
 			log::debug!("created");
 			previous_projects_created = projects_participated_amount;
 
-
+			// 0x multiplier should fail
+			// Professional bids: 0x multiplier should fail
+			inst.execute(|| {
+				assert_noop!(
+				Pallet::<TestRuntime>::community_contribute(
+					RuntimeOrigin::signed(BUYER_1),
+					get_mock_jwt(BUYER_1, InvestorType::Retail, generate_did_from_account(BUYER_1)),
+					project_id,
+					1000 * ASSET_UNIT,
+					Multiplier::force_new(0),
+					AcceptedFundingAsset::USDT
+				),
+				Error::<TestRuntime>::ForbiddenMultiplier
+			);
+			});
 
 			// Multipliers that should work
 			for multiplier in 1..=max_allowed_multiplier {
 				log::debug!("success? - multiplier: {}", multiplier);
-				assert_ok!(contribute(&mut inst, project_id, contributor, multiplier));
+				assert_ok!(contribute(&mut inst, project_id, multiplier));
 			}
 			// dbg!
 
 			// Multipliers that should NOT work
 			for multiplier in max_allowed_multiplier+1..=50 {
 				log::debug!("error? - multiplier: {}", multiplier);
-				assert_err!(contribute(&mut inst, project_id, contributor, multiplier), Error::<TestRuntime>::ForbiddenMultiplier);
+				assert_err!(contribute(&mut inst, project_id, multiplier), Error::<TestRuntime>::ForbiddenMultiplier);
 			}
 		}
 	}
@@ -4210,6 +4258,22 @@ mod remainder_contribution {
 		let project_id =
 			inst.create_remainder_contributing_project(project_metadata.clone(), ISSUER_1, evaluations, bids, vec![]);
 		let wap = inst.get_project_details(project_id).weighted_average_price.unwrap();
+
+		// Professional bids: 0x multiplier should fail
+		let jwt = get_mock_jwt(BUYER_1, InvestorType::Professional, generate_did_from_account(BUYER_1));
+		inst.execute(|| {
+			assert_noop!(
+				Pallet::<TestRuntime>::remaining_contribute(
+					RuntimeOrigin::signed(BUYER_1),
+					jwt,
+					project_id,
+					1000 * ASSET_UNIT,
+					Multiplier::force_new(0),
+					AcceptedFundingAsset::USDT
+				),
+				Error::<TestRuntime>::ForbiddenMultiplier
+			);
+		});
 		// Professional bids: 1 - 10x multiplier should work
 		for multiplier in 1..=10u8 {
 			let jwt = get_mock_jwt(BUYER_1, InvestorType::Professional, generate_did_from_account(BUYER_1));
@@ -4264,6 +4328,21 @@ mod remainder_contribution {
 			});
 		}
 
+		// Institutional bids: 0x multiplier should fail
+		let jwt = get_mock_jwt(BUYER_2, InvestorType::Institutional, generate_did_from_account(BUYER_2));
+		inst.execute(|| {
+			assert_noop!(
+				Pallet::<TestRuntime>::remaining_contribute(
+					RuntimeOrigin::signed(BUYER_2),
+					jwt,
+					project_id,
+					1000 * ASSET_UNIT,
+					Multiplier::force_new(0),
+					AcceptedFundingAsset::USDT
+				),
+				Error::<TestRuntime>::ForbiddenMultiplier
+			);
+		});
 		// Institutional bids: 1 - 25x multiplier should work
 		for multiplier in 1..=25u8 {
 			let jwt = get_mock_jwt(BUYER_2, InvestorType::Institutional, generate_did_from_account(BUYER_2));
@@ -4336,23 +4415,23 @@ mod remainder_contribution {
 				vec![],
 			)
 		};
-		let mut contribute = |inst: &mut MockInstantiator, project_id, contributor, multiplier| {
+		let mut contribute = |inst: &mut MockInstantiator, project_id, multiplier| {
+			let jwt = get_mock_jwt(BUYER_1, InvestorType::Retail, generate_did_from_account(BUYER_1));
 			let wap = inst.get_project_details(project_id).weighted_average_price.unwrap();
-			let jwt = get_mock_jwt(contributor, InvestorType::Retail, generate_did_from_account(contributor));
 			let contributor_plmc = MockInstantiator::calculate_contributed_plmc_spent(
-				vec![(contributor, 1_000 * ASSET_UNIT, Multiplier::force_new(multiplier)).into()],
+				vec![(BUYER_1, 1_000 * ASSET_UNIT, Multiplier::force_new(multiplier)).into()],
 				wap,
 			);
 			let bidder_usdt = MockInstantiator::calculate_contributed_funding_asset_spent(
-				vec![(contributor, 1_000 * ASSET_UNIT, Multiplier::force_new(multiplier)).into()],
+				vec![(BUYER_1, 1_000 * ASSET_UNIT, Multiplier::force_new(multiplier)).into()],
 				wap,
 			);
 			let ed = MockInstantiator::get_ed();
-			inst.mint_plmc_to(vec![(contributor, ed).into()]);
+			inst.mint_plmc_to(vec![(BUYER_1, ed).into()]);
 			inst.mint_plmc_to(contributor_plmc);
 			inst.mint_foreign_asset_to(bidder_usdt);
 			inst.execute(|| Pallet::<TestRuntime>::remaining_contribute(
-				RuntimeOrigin::signed(contributor),
+				RuntimeOrigin::signed(BUYER_1),
 				jwt,
 				project_id,
 				1000 * ASSET_UNIT,
@@ -4375,30 +4454,44 @@ mod remainder_contribution {
 
 			log::debug!("{max_allowed_multiplier:?}");
 
-			let contributor = BUYER_1;
 			log::debug!("creating {} new projects", projects_participated_amount-previous_projects_created);
 
 			(previous_projects_created..projects_participated_amount - 1).for_each(|_| {
 				let project_id = create_project(&mut inst);
 				log::debug!("created");
-				assert_ok!(contribute(&mut inst, project_id, contributor, 1));
+				assert_ok!(contribute(&mut inst, project_id, 1));
 			});
 
 			let project_id = create_project(&mut inst);
 			log::debug!("created");
 			previous_projects_created = projects_participated_amount;
 
+			// 0x multiplier should fail
+			// Professional bids: 0x multiplier should fail
+			inst.execute(|| {
+				assert_noop!(
+				Pallet::<TestRuntime>::remaining_contribute(
+					RuntimeOrigin::signed(BUYER_1),
+					get_mock_jwt(BUYER_1, InvestorType::Retail, generate_did_from_account(BUYER_1)),
+					project_id,
+					1000 * ASSET_UNIT,
+					Multiplier::force_new(0),
+					AcceptedFundingAsset::USDT
+				),
+				Error::<TestRuntime>::ForbiddenMultiplier
+			);
+			});
 
 			// Multipliers that should work
 			for multiplier in 1..=max_allowed_multiplier {
 				log::debug!("success? - multiplier: {}", multiplier);
-				assert_ok!(contribute(&mut inst, project_id, contributor, multiplier));
+				assert_ok!(contribute(&mut inst, project_id, multiplier));
 			}
 
 			// Multipliers that should NOT work
 			for multiplier in max_allowed_multiplier + 1..=50 {
 				log::debug!("error? - multiplier: {}", multiplier);
-				assert_err!(contribute(&mut inst, project_id, contributor, multiplier), Error::<TestRuntime>::ForbiddenMultiplier);
+				assert_err!(contribute(&mut inst, project_id, multiplier), Error::<TestRuntime>::ForbiddenMultiplier);
 			}
 		}
 	}
