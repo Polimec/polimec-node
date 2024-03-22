@@ -774,13 +774,4 @@ pub mod inner_types {
 		pub project_id: ProjectId,
 		pub migration_origins: MigrationOrigins,
 	}
-	
-
-	#[derive(Clone, Encode, Decode, Eq, PartialEq, Ord, PartialOrd, RuntimeDebug, TypeInfo, MaxEncodedLen)]
-	pub struct MaxMigrationsPerXcm<T>(PhantomData<T>);
-	impl<T: crate::Config> Get<u32> for MaxMigrationsPerXcm<T> {
-		fn get() -> u32 {
-			crate::Pallet::<T>::migrations_per_xcm_message_allowed()
-		}
-	}
 }

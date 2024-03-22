@@ -179,9 +179,6 @@ pub type BidInfoOf<T> =
 pub type ContributionInfoOf<T> =
 	ContributionInfo<u32, ProjectId, AccountIdOf<T>, BalanceOf<T>, MultiplierOf<T>>;
 
-pub type ProjectMigrationOriginsOf<T> =
-	ProjectMigrationOrigins<ProjectId, BoundedVec<MigrationOrigin, MaxMigrationsPerXcm<T>>>;
-
 pub type BucketOf<T> = Bucket<BalanceOf<T>, PriceOf<T>>;
 pub type WeightInfoOf<T> = <T as Config>::WeightInfo;
 
@@ -565,10 +562,6 @@ use sp_arithmetic::Percent;
 
 	#[pallet::storage]
 	pub type ActiveMigrationQueue<T: Config> = StorageMap<_, Blake2_128Concat, QueryId, (ProjectId, T::AccountId), ResultQuery<Error<T>::NoActiveMigrationsFound>>;
-
-	#[pallet::storage]
-	/// Migrations sent and awaiting for confirmation
-	pub type UnconfirmedMigrations<T: Config> = StorageMap<_, Blake2_128Concat, QueryId, ProjectMigrationOriginsOf<T>>;
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub (super) fn deposit_event)]

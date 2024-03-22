@@ -185,6 +185,14 @@ pub mod migration_types {
 			Self(migrations)
 		}
 
+		pub fn contains(&self, migration: &Migration) -> bool {
+			self.0.contains(migration)
+		}
+
+		pub fn len(&self) -> usize {
+			self.0.len()
+		}
+
 		pub fn origins(&self) -> Vec<MigrationOrigin> {
 			self.0.iter().map(|migration| migration.origin.clone()).collect()
 		}
