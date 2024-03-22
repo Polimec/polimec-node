@@ -1216,39 +1216,14 @@ mod tests {
 		traits::{fungible::InspectFreeze, ConstU32, ConstU64, OnInitialize},
 	};
 	use frame_system::ensure_signed;
-	use sp_core::H256;
-	use sp_runtime::{
-		testing::Header,
-		traits::{BlakeTwo256, IdentityLookup},
-		BuildStorage,
-	};
-	use substrate_test_utils::assert_eq_uvec;
+	use sp_runtime::{testing::Header, traits::IdentityLookup, BuildStorage};
 
 	#[derive_impl(frame_system::config_preludes::TestDefaultConfig as frame_system::DefaultConfig)]
 	impl frame_system::Config for Test {
 		type AccountData = pallet_balances::AccountData<u64>;
 		type AccountId = u64;
-		type BaseCallFilter = frame_support::traits::Everything;
 		type Block = Block;
-		type BlockHashCount = ConstU64<250>;
-		type BlockLength = ();
-		type BlockWeights = ();
-		type DbWeight = ();
-		type Hash = H256;
-		type Hashing = BlakeTwo256;
 		type Lookup = IdentityLookup<Self::AccountId>;
-		type MaxConsumers = ConstU32<16>;
-		type Nonce = u64;
-		type OnKilledAccount = ();
-		type OnNewAccount = ();
-		type OnSetCode = ();
-		type PalletInfo = PalletInfo;
-		type RuntimeCall = RuntimeCall;
-		type RuntimeEvent = RuntimeEvent;
-		type RuntimeOrigin = RuntimeOrigin;
-		type SS58Prefix = ();
-		type SystemWeightInfo = ();
-		type Version = ();
 	}
 
 	impl pallet_balances::Config for Test {
@@ -1263,6 +1238,7 @@ mod tests {
 		type MaxReserves = ();
 		type ReserveIdentifier = [u8; 8];
 		type RuntimeEvent = RuntimeEvent;
+		type RuntimeFreezeReason = RuntimeFreezeReason;
 		type RuntimeHoldReason = RuntimeHoldReason;
 		type WeightInfo = ();
 	}
@@ -3085,5 +3061,25 @@ mod tests {
 
 			assert_ok!(Elections::clean_defunct_voters(RuntimeOrigin::root(), 4, 2));
 		})
+	}
+
+	#[macro_export]
+	macro_rules! assert_eq_uvec {
+		( $x:expr, $y:expr $(,)? ) => {
+			$crate::__assert_eq_uvec!($x, $y);
+			$crate::__assert_eq_uvec!($y, $x);
+		};
+	}
+
+	#[macro_export]
+	#[doc(hidden)]
+	macro_rules! __assert_eq_uvec {
+		( $x:expr, $y:expr ) => {
+			$x.iter().for_each(|e| {
+				if !$y.contains(e) {
+					panic!("vectors not equal: {:?} != {:?}", $x, $y);
+				}
+			});
+		};
 	}
 }

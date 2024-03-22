@@ -117,6 +117,7 @@ parameter_types! {
 
 	// Extras
 	pub const PreimageBaseDeposit: Balance = deposit(2, 64);
+	pub const PreimageByteDeposit: Balance = deposit(0, 1);
 	pub const MaxProposals: u32 = 10;
 	pub const MaxVotes: u32 = 100;
 	pub const MaxBlacklisted: u32 = 100;
@@ -128,6 +129,7 @@ parameter_types! {
 	pub const SpendPeriod: BlockNumber = SPEND_PERIOD;
 	pub const Burn: Permill = Permill::zero();
 	pub const MaxApprovals: u32 = 100;
+	pub const PayoutPeriod: BlockNumber = 0;
 	pub const TreasuryId: PalletId = PalletId(*b"plmc/tsy");
 
 	// Elections phragmen

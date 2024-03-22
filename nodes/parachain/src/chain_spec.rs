@@ -17,8 +17,8 @@
 // If you feel like getting in touch with us, you can do so at info@polimec.org
 
 use cumulus_primitives_core::ParaId;
-use politest_runtime::{AccountId, Signature};
-use polkadot_primitives::v5::LOWEST_PUBLIC_ID;
+use polimec_runtime::{AccountId, Signature};
+use polkadot_primitives::v6::LOWEST_PUBLIC_ID;
 use sc_chain_spec::{ChainSpecExtension, ChainSpecGroup};
 use sc_service::Properties;
 use serde::{Deserialize, Serialize};
@@ -36,7 +36,7 @@ pub fn get_from_seed<TPublic: Public>(seed: &str) -> <TPublic::Pair as Pair>::Pu
 }
 
 /// The extensions for the [`ChainSpec`].
-#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize, ChainSpecGroup, ChainSpecExtension)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, ChainSpecGroup, ChainSpecExtension)]
 #[serde(deny_unknown_fields)]
 pub struct Extensions {
 	/// The relay chain of the Parachain.
@@ -51,6 +51,10 @@ impl Extensions {
 		sc_chain_spec::get_extension(chain_spec.extensions())
 	}
 }
+
+/// Generic chain spec for all polkadot-parachain runtimes
+pub type GenericChainSpec = sc_service::GenericChainSpec<(), Extensions>;
+
 type AccountPublic = <Signature as Verify>::Signer;
 
 /// Helper function to generate an account ID from seed

@@ -12,10 +12,10 @@ version.workspace = true
 
 [dependencies]
 serde = { workspace = true }
-parity-scale-codec = { version = "3.6.5", features = [
+parity-scale-codec = { workspace = true, features = [
 	"derive",
 ], default-features = false }
-scale-info = { version = "2.9.0", default-features = false, features = [
+scale-info = { workspace = true, default-features = false, features = [
 	"derive",
 ] }
 tokio = { version = "1", features = ["full"], optional = true }
@@ -36,14 +36,10 @@ parachains-common.workspace = true
 sp-core.workspace = true
 pallet-balances.workspace = true
 sp-io.workspace = true
-pallet-timestamp.workspace = true
-xcm-builder.workspace = true
 xcm.workspace = true
 polimec-xcm-executor.workspace = true
 pallet-xcm.workspace = true
-polkadot-runtime.workspace = true
-polkadot-runtime-parachains.workspace = true
-polkadot-parachain.workspace = true
+polkadot-parachain-primitives.workspace = true
 polimec-receiver.workspace = true
 assert_matches2 = { workspace = true, optional = true }
 polimec-common-test-utils = { workspace = true, optional = true }
@@ -56,6 +52,7 @@ pallet-assets.workspace = true
 pallet-linear-release.workspace = true
 polimec-common-test-utils.workspace = true
 macros.workspace = true
+xcm-builder.workspace = true
 xcm-executor.workspace = true
 env_logger = "0.10.2"
 
@@ -82,9 +79,7 @@ std = [
 	"polimec-common/std",
 	"polimec-receiver/std",
 	"polimec-xcm-executor/std",
-	"polkadot-parachain/std",
-	"polkadot-runtime-parachains/std",
-	"polkadot-runtime/std",
+	"polkadot-parachain-primitives/std",
 	"scale-info/std",
 	"serde/std",
 	"sp-arithmetic/std",
@@ -107,13 +102,13 @@ runtime-benchmarks = [
 	"pallet-linear-release/runtime-benchmarks",
 	"pallet-timestamp/runtime-benchmarks",
 	"pallet-xcm/runtime-benchmarks",
+	"parachains-common/runtime-benchmarks",
 	"polimec-common-test-utils",
+	"polimec-common-test-utils?/runtime-benchmarks",
 	"polimec-common/runtime-benchmarks",
 	"polimec-receiver/runtime-benchmarks",
 	"polimec-xcm-executor/runtime-benchmarks",
-	"polkadot-parachain/runtime-benchmarks",
-	"polkadot-runtime-parachains/runtime-benchmarks",
-	"polkadot-runtime/runtime-benchmarks",
+	"polkadot-parachain-primitives/runtime-benchmarks",
 	"sp-runtime/runtime-benchmarks",
 	"xcm-builder/runtime-benchmarks",
 	"xcm-executor/runtime-benchmarks",
@@ -127,10 +122,9 @@ try-runtime = [
 	"pallet-linear-release/try-runtime",
 	"pallet-timestamp/try-runtime",
 	"pallet-xcm/try-runtime",
+	"polimec-common-test-utils?/try-runtime",
 	"polimec-common/try-runtime",
 	"polimec-receiver/try-runtime",
 	"polimec-xcm-executor/try-runtime",
-	"polkadot-runtime-parachains/try-runtime",
-	"polkadot-runtime/try-runtime",
 	"sp-runtime/try-runtime",
 ]

@@ -20,8 +20,8 @@ use super::*;
 use crate as pallet_oracle_ocw;
 
 use frame_support::{
-	construct_runtime, parameter_types,
-	traits::{ConstU32, ConstU64, Everything, Hooks, IsInVec, Time},
+	construct_runtime, derive_impl, parameter_types,
+	traits::{ConstU32, ConstU64, Hooks, IsInVec, Time},
 };
 use parking_lot::RwLock;
 use sp_core::{
@@ -30,47 +30,31 @@ use sp_core::{
 		OffchainDbExt, OffchainWorkerExt, TransactionPoolExt,
 	},
 	sr25519::Signature,
-	Pair, Public, H256,
+	Pair, Public,
 };
 use sp_keystore::{testing::MemoryKeystore, Keystore, KeystoreExt};
 use sp_runtime::{
 	testing::TestXt,
-	traits::{BlakeTwo256, Extrinsic as ExtrinsicT, IdentifyAccount, IdentityLookup, Verify},
+	traits::{Extrinsic as ExtrinsicT, IdentifyAccount, IdentityLookup, Verify},
 	BuildStorage,
 };
 use sp_std::cell::RefCell;
 use std::sync::Arc;
 
+type Block = frame_system::mocking::MockBlock<Test>;
 pub type Extrinsic = TestXt<RuntimeCall, ()>;
 pub type AccountId = <<Signature as Verify>::Signer as IdentifyAccount>::AccountId;
 pub type AccountPublic = <Signature as Verify>::Signer;
 type OracleKey = u64;
 type OracleValue = FixedU128;
 
+#[derive_impl(frame_system::config_preludes::TestDefaultConfig as frame_system::DefaultConfig)]
 impl frame_system::Config for Test {
-	type AccountData = ();
+	type AccountData = pallet_balances::AccountData<u64>;
 	type AccountId = sp_core::sr25519::Public;
-	type BaseCallFilter = Everything;
 	type Block = Block;
-	type BlockHashCount = ConstU64<250>;
-	type BlockLength = ();
-	type BlockWeights = ();
-	type DbWeight = ();
-	type Hash = H256;
-	type Hashing = BlakeTwo256;
 	type Lookup = IdentityLookup<Self::AccountId>;
-	type MaxConsumers = ConstU32<16>;
 	type Nonce = u64;
-	type OnKilledAccount = ();
-	type OnNewAccount = ();
-	type OnSetCode = ();
-	type PalletInfo = PalletInfo;
-	type RuntimeCall = RuntimeCall;
-	type RuntimeEvent = RuntimeEvent;
-	type RuntimeOrigin = RuntimeOrigin;
-	type SS58Prefix = ();
-	type SystemWeightInfo = ();
-	type Version = ();
 }
 
 thread_local! {
@@ -166,8 +150,6 @@ where
 		Some((call, (nonce, ())))
 	}
 }
-
-type Block = frame_system::mocking::MockBlock<Test>;
 
 construct_runtime!(
 	pub enum Test

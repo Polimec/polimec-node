@@ -20,17 +20,13 @@
 use crate as pallet_parachain_staking;
 use crate::{pallet, AwardedPts, Config, Event as ParachainStakingEvent, InflationInfo, Points, Range};
 use frame_support::{
-	construct_runtime, parameter_types,
-	traits::{Everything, OnFinalize, OnInitialize},
+	construct_runtime, derive_impl, parameter_types,
+	traits::{OnFinalize, OnInitialize},
 	weights::{constants::RocksDbWeight, Weight},
 };
 use frame_system::pallet_prelude::BlockNumberFor;
-use sp_core::H256;
 use sp_io;
-use sp_runtime::{
-	traits::{BlakeTwo256, IdentityLookup},
-	BuildStorage, Perbill, Percent,
-};
+use sp_runtime::{traits::IdentityLookup, BuildStorage, Perbill, Percent};
 
 pub type AccountId = u64;
 pub type Balance = u128;
@@ -58,31 +54,17 @@ parameter_types! {
 	pub const AvailableBlockRatio: Perbill = Perbill::one();
 	pub const SS58Prefix: u8 = 42;
 }
+
+#[derive_impl(frame_system::config_preludes::TestDefaultConfig as frame_system::DefaultConfig)]
 impl frame_system::Config for Test {
 	type AccountData = pallet_balances::AccountData<Balance>;
 	type AccountId = AccountId;
-	type BaseCallFilter = Everything;
 	type Block = Block;
 	type BlockHashCount = BlockHashCount;
-	type BlockLength = ();
-	type BlockWeights = ();
 	type DbWeight = RocksDbWeight;
-	type Hash = H256;
-	type Hashing = BlakeTwo256;
 	type Lookup = IdentityLookup<Self::AccountId>;
-	type MaxConsumers = frame_support::traits::ConstU32<16>;
-	type Nonce = u64;
-	type OnKilledAccount = ();
-	type OnNewAccount = ();
-	type OnSetCode = ();
-	type PalletInfo = PalletInfo;
-	type RuntimeCall = RuntimeCall;
-	type RuntimeEvent = RuntimeEvent;
-	type RuntimeOrigin = RuntimeOrigin;
-	type SS58Prefix = SS58Prefix;
-	type SystemWeightInfo = ();
-	type Version = ();
 }
+
 parameter_types! {
 	pub const ExistentialDeposit: u128 = 1;
 	pub const MaxHolds: u32 = 10;
@@ -99,6 +81,7 @@ impl pallet_balances::Config for Test {
 	type MaxReserves = ();
 	type ReserveIdentifier = [u8; 4];
 	type RuntimeEvent = RuntimeEvent;
+	type RuntimeFreezeReason = RuntimeFreezeReason;
 	type RuntimeHoldReason = RuntimeHoldReason;
 	type WeightInfo = ();
 }

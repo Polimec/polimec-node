@@ -51,8 +51,9 @@ runtime-benchmarks = [
 	"pallet-assets/runtime-benchmarks",
 	"pallet-balances/runtime-benchmarks",
 	"pallet-funding/runtime-benchmarks",
+	"parachains-common/runtime-benchmarks",
+	"polimec-common/runtime-benchmarks",
 	"sp-runtime/runtime-benchmarks",
-	"polimec-common/runtime-benchmarks"
 ]
 std = [
 	"frame-benchmarking?/std",
@@ -64,13 +65,13 @@ std = [
 	"pallet-insecure-randomness-collective-flip/std",
 	"parachains-common/std",
 	"parity-scale-codec/std",
+	"polimec-common/std",
 	"scale-info/std",
 	"sp-arithmetic/std",
 	"sp-core/std",
 	"sp-io/std",
 	"sp-runtime/std",
 	"sp-std/std",
-	"polimec-common/std",
 ]
 try-runtime = [
 	"frame-support/try-runtime",
@@ -79,6 +80,6 @@ try-runtime = [
 	"pallet-balances/try-runtime",
 	"pallet-funding/try-runtime",
 	"pallet-insecure-randomness-collective-flip/try-runtime",
+	"polimec-common/try-runtime",
 	"sp-runtime/try-runtime",
-	"polimec-common/try-runtime"
 ]

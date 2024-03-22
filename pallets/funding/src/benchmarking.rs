@@ -41,7 +41,7 @@ use scale_info::prelude::format;
 use sp_arithmetic::Percent;
 use sp_core::H256;
 use sp_io::hashing::blake2_256;
-use sp_runtime::traits::{BlakeTwo256, Get, Member, TrailingZeroInput};
+use sp_runtime::traits::{BlakeTwo256, Get, Member, TrailingZeroInput, Zero};
 
 const METADATA: &str = r#"
 {
@@ -393,7 +393,15 @@ mod benchmarks {
 		whitelist_account!(issuer);
 		let project_metadata = default_project::<T>(inst.get_new_nonce(), issuer.clone());
 
-		inst.mint_plmc_to(vec![UserToPLMCBalance::new(issuer.clone(), ed * 2u64.into())]);
+		let metadata_deposit = T::ContributionTokenCurrency::calc_metadata_deposit(
+			project_metadata.token_information.name.as_slice(),
+			project_metadata.token_information.symbol.as_slice(),
+		);
+		let ct_treasury_account_deposit = T::ContributionTokenCurrency::deposit_required(0);
+		inst.mint_plmc_to(vec![UserToPLMCBalance::new(
+			issuer.clone(),
+			ed * 2u64.into() + metadata_deposit + ct_treasury_account_deposit,
+		)]);
 		let jwt = get_mock_jwt(issuer.clone(), InvestorType::Institutional, generate_did_from_account(issuer.clone()));
 
 		#[extrinsic_call]
@@ -544,7 +552,7 @@ mod benchmarks {
 
 		// Events
 		frame_system::Pallet::<T>::assert_last_event(
-			Event::<T>::EnglishAuctionStarted { project_id, when: current_block.into() }.into(),
+			Event::<T>::EnglishAuctionStarted { project_id, when: current_block }.into(),
 		);
 	}
 
@@ -2652,7 +2660,7 @@ mod benchmarks {
 		// Events
 		let current_block = inst.current_block();
 		frame_system::Pallet::<T>::assert_last_event(
-			Event::<T>::CandleAuctionStarted { project_id, when: current_block.into() }.into(),
+			Event::<T>::CandleAuctionStarted { project_id, when: current_block }.into(),
 		);
 	}
 
@@ -2769,9 +2777,11 @@ mod benchmarks {
 		// automatic transition to candle
 		inst.advance_time(1u32.into()).unwrap();
 
-		// testing always produced this random ending
-		let random_ending: BlockNumberFor<T> = 9176u32.into();
-		frame_system::Pallet::<T>::set_block_number(random_ending + 2u32.into());
+		let project_details = inst.get_project_details(project_id);
+		let candle_block_end = project_details.phase_transition_points.candle_auction.end().unwrap();
+		// probably the last block will always be after random end
+		let random_ending: BlockNumberFor<T> = candle_block_end;
+		frame_system::Pallet::<T>::set_block_number(random_ending);
 
 		inst.bid_for_users(project_id, rejected_bids).unwrap();
 
@@ -2796,7 +2806,10 @@ mod benchmarks {
 		// Storage
 		let stored_details = ProjectsDetails::<T>::get(project_id).unwrap();
 		assert_eq!(stored_details.status, ProjectStatus::CommunityRound);
-
+		assert!(
+			stored_details.phase_transition_points.random_candle_ending.unwrap() <
+				stored_details.phase_transition_points.candle_auction.end().unwrap()
+		);
 		let accepted_bids_count =
 			Bids::<T>::iter_prefix_values((project_id,)).filter(|b| matches!(b.status, BidStatus::Accepted)).count();
 		let rejected_bids_count =
@@ -3014,7 +3027,7 @@ mod benchmarks {
 
 		frame_system::Pallet::<T>::set_block_number(last_funding_block + 1u32.into());
 
-		let insertion_block_number = inst.current_block() + T::ManualAcceptanceDuration::get().into() + 1u32.into();
+		let insertion_block_number = inst.current_block() + T::ManualAcceptanceDuration::get() + 1u32.into();
 		fill_projects_to_update::<T>(x, insertion_block_number);
 
 		#[block]
@@ -3072,7 +3085,7 @@ mod benchmarks {
 
 		frame_system::Pallet::<T>::set_block_number(last_funding_block + 1u32.into());
 
-		let insertion_block_number = inst.current_block() + T::ManualAcceptanceDuration::get().into() + 1u32.into();
+		let insertion_block_number = inst.current_block() + T::ManualAcceptanceDuration::get() + 1u32.into();
 		fill_projects_to_update::<T>(x, insertion_block_number);
 
 		#[block]
@@ -3150,7 +3163,7 @@ mod benchmarks {
 
 		frame_system::Pallet::<T>::set_block_number(last_funding_block + 1u32.into());
 
-		let insertion_block_number = inst.current_block() + T::SuccessToSettlementTime::get().into();
+		let insertion_block_number = inst.current_block() + T::SuccessToSettlementTime::get();
 		fill_projects_to_update::<T>(x, insertion_block_number);
 
 		#[block]

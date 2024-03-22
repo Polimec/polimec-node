@@ -130,7 +130,7 @@ use polimec_common::{
 	credentials::{Did, EnsureOriginWithCredentials, InvestorType, UntrustedToken},
 	migration_types::*,
 };
-use polkadot_parachain::primitives::Id as ParaId;
+use polkadot_parachain_primitives::primitives::Id as ParaId;
 use sp_arithmetic::traits::{One, Saturating};
 use sp_runtime::{traits::AccountIdConversion, FixedPointNumber, FixedPointOperand, FixedU128};
 use sp_std::{marker::PhantomData, prelude::*};
@@ -402,7 +402,7 @@ pub mod pallet {
 		type RequiredMaxMessageSize: Get<u32>;
 
 		/// The runtime enum constructed by the construct_runtime macro
-		type RuntimeCall: Parameter + IsType<<Self as frame_system::Config>::RuntimeCall> + From<Call<Self>>;
+		type RuntimeCall: Parameter + IsType<<Self as pallet_xcm::Config>::RuntimeCall> + From<Call<Self>>;
 
 		/// The event enum constructed by the construct_runtime macro
 		type RuntimeEvent: From<Event<Self>>
@@ -1712,14 +1712,16 @@ pub mod pallet {
 		<T as pallet_balances::Config>::Balance: Into<BalanceOf<T>>,
 	{
 		fn build(&self) {
+			#[cfg(any(feature = "std", feature = "runtime-benchmarks"))]
+			{
+				<T as Config>::SetPrices::set_prices();
+			}
 			#[cfg(feature = "std")]
 			{
 				type GenesisInstantiator<T> =
 					instantiator::Instantiator<T, <T as Config>::AllPalletsWithoutSystem, <T as Config>::RuntimeEvent>;
 				let inst = GenesisInstantiator::<T>::new(None);
-				<T as Config>::SetPrices::set_prices();
 				instantiator::async_features::create_multiple_projects_at(inst, self.starting_projects.clone());
-
 				frame_system::Pallet::<T>::set_block_number(0u32.into());
 			}
 		}

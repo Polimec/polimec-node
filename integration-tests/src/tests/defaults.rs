@@ -13,10 +13,9 @@
 
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
-
 use crate::PolitestRuntime;
 use frame_support::BoundedVec;
-pub use pallet_funding::instantiator::{BidParams, ContributionParams, UserToPLMCBalance, UserToUSDBalance};
+pub use pallet_funding::instantiator::{BidParams, ContributionParams, UserToUSDBalance};
 use pallet_funding::{
 	AcceptedFundingAsset, BiddingTicketSizes, ContributingTicketSizes, CurrencyMetadata, ProjectMetadata,
 	ProjectMetadataOf, TicketSize,
@@ -27,6 +26,7 @@ use sp_core::H256;
 use macros::generate_accounts;
 use politest_runtime::AccountId;
 use sp_runtime::{traits::ConstU32, Perquintill};
+
 pub const METADATA: &str = r#"METADATA
         {
             "whitepaper":"ipfs_url",
@@ -67,10 +67,10 @@ pub fn default_weights() -> Vec<u8> {
 	vec![20u8, 15u8, 10u8, 25u8, 30u8]
 }
 pub fn default_bidder_multipliers() -> Vec<u8> {
-	vec![1u8, 6u8, 10u8, 2u8, 5u8]
+	vec![1u8, 6u8, 20u8, 12u8, 3u8]
 }
 pub fn default_contributor_multipliers() -> Vec<u8> {
-	vec![1u8, 1u8, 1u8, 1u8, 1u8]
+	vec![1u8, 2u8, 1u8, 4u8, 1u8]
 }
 
 pub fn default_project_metadata(nonce: u32, issuer: AccountId) -> ProjectMetadataOf<politest_runtime::Runtime> {
@@ -100,7 +100,7 @@ pub fn default_project_metadata(nonce: u32, issuer: AccountId) -> ProjectMetadat
 		offchain_information_hash: Some(metadata_hash(nonce)),
 	}
 }
-pub fn default_evaluations() -> Vec<UserToUSDBalance<politest_runtime::Runtime>> {
+pub fn default_evaluations() -> Vec<UserToUSDBalance<PolitestRuntime>> {
 	vec![
 		UserToUSDBalance::new(EVAL_1.into(), 500_000 * PLMC),
 		UserToUSDBalance::new(EVAL_2.into(), 250_000 * PLMC),
@@ -161,9 +161,9 @@ pub fn default_remainder_contributions() -> Vec<ContributionParams<PolitestRunti
 	IntegrationInstantiator::generate_contributions_from_total_usd(
 		ten_percent_auction_usd + ten_percent_contribution_usd,
 		default_metadata.minimum_price,
-		default_weights(),
+		vec![20u8, 15u8, 10u8, 25u8, 23u8, 7u8],
 		default_remainder_contributors(),
-		default_contributor_multipliers(),
+		vec![1u8, 2u8, 12u8, 1u8, 3u8, 10u8],
 	)
 }
 pub fn default_community_contributors() -> Vec<AccountId> {

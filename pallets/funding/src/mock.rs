@@ -67,9 +67,10 @@ pub const fn free_deposit() -> Balance {
 
 use frame_support::traits::{Everything, OriginTrait};
 use frame_system::RawOrigin as SystemRawOrigin;
-use polkadot_parachain::primitives::Sibling;
+use polkadot_parachain_primitives::primitives::Sibling;
 use sp_runtime::traits::{ConvertBack, Get, TryConvert};
 use xcm_builder::{EnsureXcmOrigin, FixedWeightBounds, ParentIsPreset, SiblingParachainConvertsVia};
+use xcm_executor::traits::XcmAssetTransfers;
 
 pub struct SignedToAccountIndex<RuntimeOrigin, AccountId, Network>(PhantomData<(RuntimeOrigin, AccountId, Network)>);
 
@@ -95,10 +96,7 @@ pub type LocationToAccountId = (
 	// Sibling parachain origins convert to AccountId via the `ParaId::into`.
 	SiblingParachainConvertsVia<Sibling, AccountId>,
 );
-#[cfg(feature = "runtime-benchmarks")]
-parameter_types! {
-	pub ReachableDest: Option<MultiLocation> = Some(Parent.into());
-}
+
 parameter_types! {
 	pub UniversalLocation: InteriorMultiLocation = (
 		GlobalConsensus(Polkadot),
@@ -110,6 +108,42 @@ parameter_types! {
 
 	pub const HereLocation: MultiLocation = MultiLocation::here();
 }
+
+pub struct MockPrepared;
+impl PreparedMessage for MockPrepared {
+	fn weight_of(&self) -> Weight {
+		Weight::zero()
+	}
+}
+
+pub struct MockXcmExecutor;
+impl XcmAssetTransfers for MockXcmExecutor {
+	type AssetTransactor = ();
+	type IsReserve = ();
+	type IsTeleporter = ();
+}
+
+impl ExecuteXcm<RuntimeCall> for MockXcmExecutor {
+	type Prepared = MockPrepared;
+
+	fn prepare(_message: Xcm<RuntimeCall>) -> core::result::Result<Self::Prepared, Xcm<RuntimeCall>> {
+		Ok(MockPrepared)
+	}
+
+	fn execute(
+		_origin: impl Into<MultiLocation>,
+		_pre: Self::Prepared,
+		_id: &mut XcmHash,
+		_weight_credit: Weight,
+	) -> Outcome {
+		Outcome::Complete(Weight::zero())
+	}
+
+	fn charge_fees(_location: impl Into<MultiLocation>, _fees: MultiAssets) -> XcmResult {
+		Ok(())
+	}
+}
+
 impl pallet_xcm::Config for TestRuntime {
 	type AdminOrigin = EnsureRoot<AccountId>;
 	// ^ Override for AdvertisedXcmVersion default
@@ -119,8 +153,6 @@ impl pallet_xcm::Config for TestRuntime {
 	type ExecuteXcmOrigin = EnsureXcmOrigin<RuntimeOrigin, LocalOriginToLocation>;
 	type MaxLockers = ConstU32<8>;
 	type MaxRemoteLockConsumers = ConstU32<0>;
-	#[cfg(feature = "runtime-benchmarks")]
-	type ReachableDest = ReachableDest;
 	type RemoteLockConsumerIdentifier = ();
 	type RuntimeCall = RuntimeCall;
 	type RuntimeEvent = RuntimeEvent;
@@ -135,7 +167,7 @@ impl pallet_xcm::Config for TestRuntime {
 	type XcmExecuteFilter = Everything;
 	// ^ Disable dispatchable execute on the XCM pallet.
 	// Needs to be `Everything` for local testing.
-	type XcmExecutor = ();
+	type XcmExecutor = MockXcmExecutor;
 	type XcmReserveTransferFilter = Everything;
 	type XcmRouter = ();
 	type XcmTeleportFilter = Everything;
@@ -224,6 +256,7 @@ impl system::Config for TestRuntime {
 	type RuntimeCall = RuntimeCall;
 	type RuntimeEvent = RuntimeEvent;
 	type RuntimeOrigin = RuntimeOrigin;
+	type RuntimeTask = RuntimeTask;
 	type SS58Prefix = ConstU16<42>;
 	type SystemWeightInfo = ();
 	type Version = ();
@@ -242,8 +275,9 @@ impl pallet_balances::Config for TestRuntime {
 	type MaxHolds = ConstU32<1024>;
 	type MaxLocks = frame_support::traits::ConstU32<1024>;
 	type MaxReserves = frame_support::traits::ConstU32<1024>;
-	type ReserveIdentifier = RuntimeHoldReason;
+	type ReserveIdentifier = [u8; 8];
 	type RuntimeEvent = RuntimeEvent;
+	type RuntimeFreezeReason = RuntimeFreezeReason;
 	type RuntimeHoldReason = RuntimeHoldReason;
 	type WeightInfo = ();
 }

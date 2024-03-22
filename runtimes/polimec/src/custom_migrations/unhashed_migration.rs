@@ -18,7 +18,7 @@
 use crate::*;
 
 // Substrate
-use frame_support::{log, storage::unhashed};
+use frame_support::storage::unhashed;
 use sp_runtime::AccountId32;
 
 #[cfg(feature = "try-runtime")]
@@ -26,6 +26,9 @@ use sp_core::crypto::Ss58Codec;
 
 #[cfg(feature = "try-runtime")]
 use pallet_vesting::Vesting;
+
+#[cfg(feature = "try-runtime")]
+use log;
 
 // The `VestingInfo` fields from `pallet_vesting` are private, so we need to define them here.
 #[derive(parity_scale_codec::Encode, parity_scale_codec::Decode, sp_runtime::RuntimeDebug, Eq, PartialEq)]

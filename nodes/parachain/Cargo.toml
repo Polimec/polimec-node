@@ -15,6 +15,7 @@ clap = { workspace = true, features = ["derive"] }
 log.workspace = true
 parity-scale-codec = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
+serde_json.workspace = true
 jsonrpsee = { workspace = true, features = ["server"] }
 hex-literal.workspace = true
 color-print = "0.3.5"
@@ -73,8 +74,10 @@ xcm.workspace = true
 
 # Cumulus
 cumulus-client-cli.workspace = true
+cumulus-client-collator.workspace = true
 cumulus-client-consensus-aura.workspace = true
 cumulus-client-consensus-common.workspace = true
+cumulus-client-consensus-proposer.workspace = true
 cumulus-client-network.workspace = true
 cumulus-client-service.workspace = true
 cumulus-primitives-core.workspace = true
@@ -89,18 +92,17 @@ substrate-build-script-utils.workspace = true
 
 [features]
 default = []
-fast-mode = [
-	"polimec-runtime/fast-mode",
-	"politest-runtime/fast-mode",
-]
+fast-mode = [ "polimec-runtime/fast-mode", "politest-runtime/fast-mode" ]
 instant-mode = [
 	"polimec-runtime/instant-mode",
 	"politest-runtime/instant-mode",
 ]
 runtime-benchmarks = [
+	"cumulus-primitives-core/runtime-benchmarks",
 	"frame-benchmarking-cli/runtime-benchmarks",
 	"frame-benchmarking/runtime-benchmarks",
 	"pallet-funding/runtime-benchmarks",
+	"parachains-common/runtime-benchmarks",
 	"polimec-runtime/runtime-benchmarks",
 	"politest-runtime/runtime-benchmarks",
 	"polkadot-cli/runtime-benchmarks",
@@ -121,6 +123,7 @@ try-runtime = [
 ]
 std = [
 	"cumulus-primitives-core/std",
+	"cumulus-primitives-parachain-inherent/std",
 	"frame-benchmarking/std",
 	"itertools",
 	"log/std",
@@ -134,9 +137,12 @@ std = [
 	"sp-consensus-aura/std",
 	"sp-core/std",
 	"sp-io/std",
+	"sp-keystore/std",
 	"sp-offchain/std",
 	"sp-runtime/std",
 	"sp-session/std",
+	"sp-timestamp/std",
 	"sp-transaction-pool/std",
 	"xcm/std",
 ]
+on-chain-release-build = []
