@@ -29,13 +29,13 @@ use defaults::*;
 use frame_support::{
 	assert_err, assert_noop, assert_ok,
 	traits::{
-		fungible::{Inspect as FungibleInspect, InspectHold as FungibleInspectHold},
+		fungible::{Inspect as FungibleInspect, InspectHold as FungibleInspectHold, Mutate},
 		Get,
 	},
 };
 use itertools::Itertools;
 use parachains_common::DAYS;
-use polimec_common::{credentials::*, ReleaseSchedule};
+use polimec_common::ReleaseSchedule;
 use polimec_common_test_utils::{generate_did_from_account, get_mock_jwt};
 use sp_arithmetic::{traits::Zero, Percent, Perquintill};
 use sp_runtime::{BuildStorage, TokenError};
@@ -377,7 +377,12 @@ mod creation {
 		inst.mint_plmc_to(default_plmc_balances());
 
 		inst.execute(|| {
-			assert_ok!(Balances::transfer(RuntimeOrigin::signed(EVALUATOR_1), EVALUATOR_2, PLMC));
+			assert_ok!(Balances::transfer(
+				&EVALUATOR_1,
+				&EVALUATOR_2,
+				PLMC,
+				frame_support::traits::tokens::Preservation::Preserve
+			));
 		});
 	}
 
@@ -5888,7 +5893,7 @@ mod funding_end {
 		// we want to test ct mints on treasury of 1 over the consumer limit,
 		// and we already minted 3 contribution tokens on previous tests.
 		for i in 0..consumer_limit + 1u32 - 3u32 {
-			let _project_98_percent = inst.create_finished_project(
+			let _ = inst.create_finished_project(
 				with_different_metadata(project_metadata.clone()),
 				ISSUER_1 + i + 1000,
 				default_evaluations(),

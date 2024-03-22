@@ -30,7 +30,6 @@ sp-staking.workspace = true
 pallet-balances.workspace = true
 sp-core.workspace = true
 sp-tracing.workspace = true
-substrate-test-utils.workspace = true
 
 [features]
 default = [ "std" ]

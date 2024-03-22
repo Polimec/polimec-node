@@ -49,10 +49,12 @@ pallet-democracy.workspace = true
 pallet-elections-phragmen.workspace = true
 pallet-identity.workspace = true
 pallet-membership.workspace = true
+pallet-message-queue.workspace = true
 pallet-multisig.workspace = true
+pallet-scheduler.workspace = true
 pallet-preimage.workspace = true
 pallet-proxy.workspace = true
-pallet-scheduler.workspace = true
+polkadot-primitives.workspace = true
 pallet-session.workspace = true
 pallet-sudo.workspace = true
 pallet-timestamp.workspace = true
@@ -72,10 +74,11 @@ sp-session.workspace = true
 sp-std.workspace = true
 sp-transaction-pool.workspace = true
 sp-version.workspace = true
+sp-genesis-builder.workspace = true
 
 # Polkadot
 pallet-xcm.workspace = true
-polkadot-parachain.workspace = true
+polkadot-parachain-primitives.workspace = true
 polkadot-runtime-common.workspace = true
 xcm.workspace = true
 xcm-builder.workspace = true
@@ -133,6 +136,7 @@ std = [
 	"pallet-elections-phragmen/std",
 	"pallet-identity/std",
 	"pallet-membership/std",
+	"pallet-message-queue/std",
 	"pallet-multisig/std",
 	"pallet-oracle-ocw/std",
 	"pallet-parachain-staking/std",
@@ -153,7 +157,8 @@ std = [
 	"parity-scale-codec/std",
 	"polimec-common/std",
 	"polimec-xcm-executor/std",
-	"polkadot-parachain/std",
+	"polkadot-parachain-primitives/std",
+	"polkadot-primitives/std",
 	"polkadot-runtime-common/std",
 	"scale-info/std",
 	"shared-configuration/std",
@@ -162,6 +167,7 @@ std = [
 	"sp-consensus-aura/std",
 	"sp-core/std",
 	"sp-debug-derive/std",
+	"sp-genesis-builder/std",
 	"sp-inherents/std",
 	"sp-offchain/std",
 	"sp-runtime/std",
@@ -174,9 +180,12 @@ std = [
 ]
 
 runtime-benchmarks = [
+	"cumulus-pallet-dmp-queue/runtime-benchmarks",
 	"cumulus-pallet-parachain-system/runtime-benchmarks",
 	"cumulus-pallet-session-benchmarking/runtime-benchmarks",
 	"cumulus-pallet-xcmp-queue/runtime-benchmarks",
+	"cumulus-primitives-core/runtime-benchmarks",
+	"cumulus-primitives-utility/runtime-benchmarks",
 	"frame-benchmarking/runtime-benchmarks",
 	"frame-support/runtime-benchmarks",
 	"frame-system-benchmarking/runtime-benchmarks",
@@ -188,6 +197,7 @@ runtime-benchmarks = [
 	"pallet-elections-phragmen/runtime-benchmarks",
 	"pallet-identity/runtime-benchmarks",
 	"pallet-membership/runtime-benchmarks",
+	"pallet-message-queue/runtime-benchmarks",
 	"pallet-multisig/runtime-benchmarks",
 	"pallet-oracle-ocw/runtime-benchmarks",
 	"pallet-parachain-staking/runtime-benchmarks",
@@ -200,9 +210,11 @@ runtime-benchmarks = [
 	"pallet-utility/runtime-benchmarks",
 	"pallet-vesting/runtime-benchmarks",
 	"pallet-xcm/runtime-benchmarks",
+	"parachains-common/runtime-benchmarks",
 	"polimec-common/runtime-benchmarks",
 	"polimec-xcm-executor/runtime-benchmarks",
-	"polkadot-parachain/runtime-benchmarks",
+	"polkadot-parachain-primitives/runtime-benchmarks",
+	"polkadot-primitives/runtime-benchmarks",
 	"polkadot-runtime-common/runtime-benchmarks",
 	"shared-configuration/runtime-benchmarks",
 	"sp-runtime/runtime-benchmarks",
@@ -229,6 +241,7 @@ try-runtime = [
 	"pallet-elections-phragmen/try-runtime",
 	"pallet-identity/try-runtime",
 	"pallet-membership/try-runtime",
+	"pallet-message-queue/try-runtime",
 	"pallet-multisig/try-runtime",
 	"pallet-oracle-ocw/try-runtime",
 	"pallet-parachain-staking/try-runtime",
@@ -245,6 +258,7 @@ try-runtime = [
 	"pallet-xcm/try-runtime",
 	"parachain-info/try-runtime",
 	"polimec-common/try-runtime",
+	"polimec-xcm-executor/try-runtime",
 	"polkadot-runtime-common/try-runtime",
 	"shared-configuration/try-runtime",
 	"sp-runtime/try-runtime",

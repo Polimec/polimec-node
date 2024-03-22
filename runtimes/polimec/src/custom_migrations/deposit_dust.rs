@@ -18,7 +18,9 @@
 use crate::*;
 
 // Substrate
-use frame_support::{log, traits::tokens::Precision::Exact};
+use frame_support::traits::tokens::Precision::Exact;
+#[cfg(feature = "try-runtime")]
+use log;
 
 pub struct DepositDust;
 impl frame_support::traits::OnRuntimeUpgrade for DepositDust {

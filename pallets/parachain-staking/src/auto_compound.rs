@@ -25,10 +25,10 @@ use crate::{
 	},
 	types::{Bond, BondAdjust, Delegator},
 };
-use frame_support::{dispatch::DispatchResultWithPostInfo, ensure, traits::Get, RuntimeDebug};
+use frame_support::{dispatch::DispatchResultWithPostInfo, ensure, traits::Get};
 use parity_scale_codec::{Decode, Encode};
 use scale_info::TypeInfo;
-use sp_runtime::{traits::Saturating, BoundedVec, Percent};
+use sp_runtime::{traits::Saturating, BoundedVec, Percent, RuntimeDebug};
 use sp_std::prelude::*;
 
 /// Represents the auto-compounding amount for a delegation.

@@ -41,13 +41,13 @@ pallet-xcm.workspace = true
 pallet-assets.workspace = true
 polkadot-core-primitives.workspace = true
 polkadot-runtime-parachains.workspace = true
-polkadot-parachain.workspace = true
+polkadot-parachain-primitives.workspace = true
 pallet-collective.workspace = true
 pallet-elections-phragmen.workspace = true
+pallet-message-queue.workspace = true
 
 cumulus-primitives-core.workspace = true
 cumulus-pallet-xcm.workspace = true
-cumulus-pallet-xcmp-queue.workspace = true
 
 parachain-info.workspace = true
 parachains-common.workspace = true
@@ -57,9 +57,10 @@ polkadot-primitives.workspace = true
 polkadot-service.workspace = true
 sp-authority-discovery.workspace = true
 sp-consensus-babe.workspace = true
+sp-consensus-beefy.workspace = true
 polkadot-runtime-constants.workspace = true
+system-parachains-constants.workspace = true
 pallet-staking.workspace = true
-pallet-message-queue.workspace = true
 pallet-membership.workspace = true
 orml-oracle.workspace = true
 pallet-parachain-staking.workspace = true
@@ -85,7 +86,6 @@ instant-mode = [
 std = [
 	"asset-hub-polkadot-runtime/std",
 	"cumulus-pallet-xcm/std",
-	"cumulus-pallet-xcmp-queue/std",
 	"cumulus-primitives-core/std",
 	"frame-support/std",
 	"frame-system/std",
@@ -111,12 +111,12 @@ std = [
 	"parachains-common/std",
 	"parity-scale-codec/std",
 	"penpal-runtime/std",
-	"polimec-common/std",
 	"polimec-common-test-utils/std",
-	"politest-runtime/std",
+	"polimec-common/std",
 	"polimec-receiver/std",
+	"politest-runtime/std",
 	"polkadot-core-primitives/std",
-	"polkadot-parachain/std",
+	"polkadot-parachain-primitives/std",
 	"polkadot-primitives/std",
 	"polkadot-runtime-constants/std",
 	"polkadot-runtime-parachains/std",
@@ -126,10 +126,12 @@ std = [
 	"sp-arithmetic/std",
 	"sp-authority-discovery/std",
 	"sp-consensus-babe/std",
+	"sp-consensus-beefy/std",
 	"sp-core/std",
 	"sp-io/std",
 	"sp-runtime/std",
 	"sp-std/std",
+	"system-parachains-constants/std",
 	"xcm-builder/std",
 	"xcm-executor/std",
 	"xcm/std",

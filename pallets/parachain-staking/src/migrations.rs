@@ -27,9 +27,12 @@ use frame_support::traits::{
 	Currency, Get, LockIdentifier, LockableCurrency, ReservableCurrency,
 };
 #[allow(unused_imports)]
-use frame_support::{dispatch::DispatchError, log, migration, storage::unhashed};
+use frame_support::{migration, storage::unhashed};
+use log;
 use parity_scale_codec::Encode;
 use sp_core::hexdisplay::HexDisplay;
+#[cfg(feature = "try-runtime")]
+use sp_runtime::DispatchError;
 #[allow(unused_imports)]
 use sp_std::vec::Vec;
 

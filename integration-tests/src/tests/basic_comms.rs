@@ -28,7 +28,7 @@ fn dmp() {
 		remark: "Hello from Polkadot!".as_bytes().to_vec(),
 	});
 	let sudo_origin = PolkadotOrigin::root();
-	let para_id = Politest::para_id();
+	let para_id = PolimecNet::para_id();
 	let xcm = VersionedXcm::from(Xcm(vec![
 		UnpaidExecution { weight_limit: Unlimited, check_origin: None },
 		Transact {
@@ -38,22 +38,22 @@ fn dmp() {
 		},
 	]));
 
-	PolkadotRelay::execute_with(|| {
+	PolkaNet::execute_with(|| {
 		assert_ok!(PolkadotXcmPallet::send(sudo_origin, bx!(Parachain(para_id.into()).into()), bx!(xcm),));
 
 		assert_expected_events!(
-			PolkadotRelay,
+			PolkaNet,
 			vec![
 				PolkadotEvent::XcmPallet(pallet_xcm::Event::Sent { .. }) => {},
 			]
 		);
 	});
 
-	Politest::execute_with(|| {
+	PolimecNet::execute_with(|| {
 		assert_expected_events!(
-			Politest,
+			PolimecNet,
 			vec![
-				PolitestEvent::System(frame_system::Event::Remarked { sender: _, hash: _ }) => {},
+				PolimecEvent::System(frame_system::Event::Remarked { sender: _, hash: _ }) => {},
 			]
 		);
 	});
@@ -62,14 +62,14 @@ fn dmp() {
 #[test]
 fn ump() {
 	use polkadot_runtime_parachains::inclusion::{AggregateMessageOrigin, UmpQueueId};
-	let burn_transfer = PolkadotCall::Balances(pallet_balances::Call::<PolkadotRuntime>::transfer {
+	let burn_transfer = PolkadotCall::Balances(pallet_balances::Call::<PolkadotRuntime>::transfer_allow_death {
 		dest: PolkadotAccountId::from([0u8; 32]).into(),
 		value: 1_000,
 	});
 
 	let here_asset: MultiAsset = (MultiLocation::here(), 1_0_000_000_000u128).into();
 
-	Politest::execute_with(|| {
+	PolimecNet::execute_with(|| {
 		assert_ok!(PolimecXcmPallet::force_default_xcm_version(PolimecOrigin::root(), Some(3)));
 
 		assert_ok!(PolimecXcmPallet::send_xcm(
@@ -87,9 +87,9 @@ fn ump() {
 		));
 	});
 
-	PolkadotRelay::execute_with(|| {
+	PolkaNet::execute_with(|| {
 		assert_expected_events!(
-			PolkadotRelay,
+			PolkaNet,
 			vec![
 				PolkadotEvent::MessageQueue(pallet_message_queue::Event::Processed {
 					id: _,
@@ -108,17 +108,17 @@ fn ump() {
 #[ignore]
 #[test]
 fn xcmp() {
-	let burn_transfer = PolimecCall::Balances(pallet_balances::Call::<PolimecRuntime>::transfer {
+	let burn_transfer = PolimecCall::Balances(pallet_balances::Call::<PolimecRuntime>::transfer_allow_death {
 		dest: PolimecAccountId::from([0u8; 32]).into(),
 		value: 1_000,
 	});
 
 	let here_asset: MultiAsset = (MultiLocation::here(), 1_0_000_000_000u128).into();
 
-	Penpal::execute_with(|| {
+	PenNet::execute_with(|| {
 		assert_ok!(PenpalXcmPallet::send_xcm(
 			Here,
-			MultiLocation::new(1, X1(Parachain(Politest::para_id().into()))),
+			MultiLocation::new(1, X1(Parachain(PolimecNet::para_id().into()))),
 			Xcm(vec![
 				WithdrawAsset(vec![here_asset.clone()].into()),
 				BuyExecution { fees: here_asset.clone(), weight_limit: Unlimited },
@@ -131,16 +131,16 @@ fn xcmp() {
 		));
 	});
 
-	let penpal_account = Politest::sovereign_account_id_of((Parent, Parachain(Penpal::para_id().into())).into());
-	let penpal_balance = Politest::account_data_of(penpal_account.clone()).free;
+	let penpal_account = PolimecNet::sovereign_account_id_of((Parent, Parachain(PenNet::para_id().into())).into());
+	let penpal_balance = PolimecNet::account_data_of(penpal_account.clone()).free;
 	dbg!(penpal_account.clone());
 	dbg!(penpal_balance);
 
-	Politest::execute_with(|| {
+	PolimecNet::execute_with(|| {
 		assert_expected_events!(
-			Politest,
+			PolimecNet,
 			vec![
-				PolitestEvent::XcmpQueue(cumulus_pallet_xcmp_queue::Event::Success { .. }) => {},
+				PolimecEvent::MessageQueue(pallet_message_queue::Event::Processed {success: true, ..}) => {},
 			]
 		);
 	});

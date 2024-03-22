@@ -25,7 +25,7 @@ use crate::{
 use frame_support::{pallet_prelude::*, traits::tokens::Balance as BalanceT};
 use frame_system::pallet_prelude::BlockNumberFor;
 use polimec_common::migration_types::{Migration, MigrationInfo, MigrationOrigin, ParticipationType};
-use polkadot_parachain::primitives::Id as ParaId;
+use polkadot_parachain_primitives::primitives::Id as ParaId;
 use serde::{Deserialize, Serialize};
 use sp_arithmetic::{FixedPointNumber, FixedPointOperand};
 use sp_runtime::traits::{CheckedDiv, Convert, Get, Zero};
@@ -163,9 +163,11 @@ pub mod storage_types {
 		traits::{One, Saturating, Zero},
 		Percent,
 	};
+
 	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
 	#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
-	pub struct ProjectMetadata<BoundedString, Balance: BalanceT, Price: FixedPointNumber, AccountId, Hash> {
+
+	pub struct ProjectMetadata<BoundedString, Balance: PartialOrd + Copy, Price: FixedPointNumber, AccountId, Hash> {
 		/// Token Metadata
 		pub token_information: CurrencyMetadata<BoundedString>,
 		/// Mainnet Token Max Supply
@@ -190,7 +192,7 @@ pub mod storage_types {
 		pub offchain_information_hash: Option<Hash>,
 	}
 
-	impl<BoundedString, Balance: BalanceT + From<u64>, Price: FixedPointNumber, Hash, AccountId>
+	impl<BoundedString, Balance: From<u64> + PartialOrd + Copy, Price: FixedPointNumber, Hash, AccountId>
 		ProjectMetadata<BoundedString, Balance, Price, Hash, AccountId>
 	{
 		/// Validate issuer metadata for the following checks:
@@ -450,11 +452,11 @@ pub mod inner_types {
 
 	#[derive(Clone, Copy, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
 	#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
-	pub struct TicketSize<Balance: BalanceT> {
+	pub struct TicketSize<Balance: PartialOrd + Copy> {
 		pub usd_minimum_per_participation: Option<Balance>,
 		pub usd_maximum_per_did: Option<Balance>,
 	}
-	impl<Balance: BalanceT> TicketSize<Balance> {
+	impl<Balance: PartialOrd + Copy> TicketSize<Balance> {
 		pub fn new(usd_minimum_per_participation: Option<Balance>, usd_maximum_per_did: Option<Balance>) -> Self {
 			Self { usd_minimum_per_participation, usd_maximum_per_did }
 		}
@@ -497,12 +499,12 @@ pub mod inner_types {
 
 	#[derive(Clone, Copy, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
 	#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
-	pub struct BiddingTicketSizes<Price: FixedPointNumber, Balance: BalanceT> {
+	pub struct BiddingTicketSizes<Price: FixedPointNumber, Balance: PartialOrd + Copy> {
 		pub professional: TicketSize<Balance>,
 		pub institutional: TicketSize<Balance>,
 		pub phantom: PhantomData<(Price, Balance)>,
 	}
-	impl<Price: FixedPointNumber, Balance: BalanceT> BiddingTicketSizes<Price, Balance> {
+	impl<Price: FixedPointNumber, Balance: PartialOrd + Copy> BiddingTicketSizes<Price, Balance> {
 		pub fn is_valid(&self, usd_bounds: Vec<InvestorTypeUSDBounds<Balance>>) -> Result<(), ValidityError> {
 			for bound in usd_bounds {
 				match bound {
@@ -523,13 +525,13 @@ pub mod inner_types {
 
 	#[derive(Clone, Copy, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
 	#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
-	pub struct ContributingTicketSizes<Price: FixedPointNumber, Balance: BalanceT> {
+	pub struct ContributingTicketSizes<Price: FixedPointNumber, Balance: PartialOrd + Copy> {
 		pub retail: TicketSize<Balance>,
 		pub professional: TicketSize<Balance>,
 		pub institutional: TicketSize<Balance>,
 		pub phantom: PhantomData<(Price, Balance)>,
 	}
-	impl<Price: FixedPointNumber, Balance: BalanceT> ContributingTicketSizes<Price, Balance> {
+	impl<Price: FixedPointNumber, Balance: PartialOrd + Copy> ContributingTicketSizes<Price, Balance> {
 		pub fn is_valid(&self, usd_bounds: Vec<InvestorTypeUSDBounds<Balance>>) -> Result<(), ValidityError> {
 			for bound in usd_bounds {
 				match bound {

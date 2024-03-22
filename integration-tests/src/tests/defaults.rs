@@ -13,10 +13,9 @@
 
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
-
 use crate::PolitestRuntime;
 use frame_support::BoundedVec;
-pub use pallet_funding::instantiator::{BidParams, ContributionParams, UserToPLMCBalance, UserToUSDBalance};
+pub use pallet_funding::instantiator::{BidParams, ContributionParams, UserToUSDBalance};
 use pallet_funding::{
 	AcceptedFundingAsset, BiddingTicketSizes, ContributingTicketSizes, CurrencyMetadata, ProjectMetadata,
 	ProjectMetadataOf, TicketSize,
@@ -27,6 +26,7 @@ use sp_core::H256;
 use macros::generate_accounts;
 use politest_runtime::AccountId;
 use sp_runtime::{traits::ConstU32, Perquintill};
+
 pub const METADATA: &str = r#"METADATA
         {
             "whitepaper":"ipfs_url",
@@ -100,7 +100,7 @@ pub fn default_project_metadata(nonce: u32, issuer: AccountId) -> ProjectMetadat
 		offchain_information_hash: Some(metadata_hash(nonce)),
 	}
 }
-pub fn default_evaluations() -> Vec<UserToUSDBalance<politest_runtime::Runtime>> {
+pub fn default_evaluations() -> Vec<UserToUSDBalance<PolitestRuntime>> {
 	vec![
 		UserToUSDBalance::new(EVAL_1.into(), 500_000 * PLMC),
 		UserToUSDBalance::new(EVAL_2.into(), 250_000 * PLMC),

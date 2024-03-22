@@ -16,8 +16,9 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use frame_support::{pallet_prelude::*, traits::tokens::fungible, RuntimeDebug};
+use frame_support::{pallet_prelude::*, traits::tokens::fungible};
 use itertools::Itertools;
+use sp_runtime::RuntimeDebug;
 use sp_std::prelude::*;
 pub mod credentials;
 

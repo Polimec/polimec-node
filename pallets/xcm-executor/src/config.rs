@@ -18,9 +18,10 @@
 
 use crate::polimec_traits::HrmpHandler;
 use frame_support::{
-	dispatch::{Dispatchable, GetDispatchInfo, Parameter, PostDispatchInfo},
+	dispatch::{GetDispatchInfo, Parameter, PostDispatchInfo},
 	traits::{Contains, ContainsPair, Get, PalletsInfoAccess},
 };
+use sp_runtime::traits::Dispatchable;
 use xcm::v3::prelude::*;
 use xcm_executor::traits::{
 	AssetExchange, AssetLock, CallDispatcher, ClaimAssets, ConvertOrigin, DropAssets, ExportXcm, FeeManager,
@@ -46,6 +47,10 @@ pub trait Config {
 
 	/// Combinations of (Asset, Location) pairs which we trust as teleporters.
 	type IsTeleporter: ContainsPair<MultiAsset, MultiLocation>;
+
+	/// A list of (Origin, Target) pairs allowing a given Origin to be substituted with its
+	/// corresponding Target pair.
+	type Aliasers: ContainsPair<MultiLocation, MultiLocation>;
 
 	/// This chain's Universal Location.
 	type UniversalLocation: Get<InteriorMultiLocation>;

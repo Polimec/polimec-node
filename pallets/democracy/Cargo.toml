@@ -37,18 +37,18 @@ std = [
 	"frame-benchmarking?/std",
 	"frame-support/std",
 	"frame-system/std",
+	"log/std",
 	"pallet-balances/std",
 	"pallet-preimage/std",
 	"pallet-scheduler/std",
 	"parity-scale-codec/std",
 	"scale-info/std",
 	"serde",
+	"serde?/std",
 	"sp-core/std",
 	"sp-io/std",
 	"sp-runtime/std",
 	"sp-std/std",
-	"log/std",
-	"serde?/std"
 ]
 runtime-benchmarks = [
 	"frame-benchmarking/runtime-benchmarks",

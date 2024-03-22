@@ -20,7 +20,7 @@ use itertools::Itertools;
 use macros::generate_accounts;
 use pallet_funding::*;
 use politest_runtime::US_DOLLAR;
-use sp_arithmetic::{FixedPointNumber, Percent, Perquintill};
+use sp_arithmetic::{Percent, Perquintill};
 use sp_runtime::{traits::CheckedSub, FixedU128};
 
 type UserToCTBalance = Vec<(AccountId, BalanceOf<PolitestRuntime>, ProjectId)>;
@@ -259,10 +259,6 @@ fn excel_ct_amounts() -> UserToCTBalance {
 	]
 }
 
-fn excel_weighted_average_price() -> PriceOf<PolitestRuntime> {
-	PriceOf::<PolitestRuntime>::from_float(10.1827469400)
-}
-
 #[test]
 fn evaluation_round_completed() {
 	let mut inst = IntegrationInstantiator::new(None);
@@ -271,7 +267,7 @@ fn evaluation_round_completed() {
 	let project = excel_project(inst.get_new_nonce());
 	let evaluations = excel_evaluators();
 
-	Politest::execute_with(|| {
+	PolitestNet::execute_with(|| {
 		inst.create_auctioning_project(project, issuer, evaluations);
 	});
 }
@@ -285,7 +281,7 @@ fn auction_round_completed() {
 	let evaluations = excel_evaluators();
 	let bids = excel_bidders();
 
-	Politest::execute_with(|| {
+	PolitestNet::execute_with(|| {
 		let project_id = inst.create_community_contributing_project(project, issuer, evaluations, bids);
 		let wavgp_from_excel = 10.202357561;
 		// Convert the float to a FixedU128
@@ -315,7 +311,7 @@ fn auction_round_completed() {
 fn community_round_completed() {
 	let mut inst = IntegrationInstantiator::new(None);
 
-	Politest::execute_with(|| {
+	PolitestNet::execute_with(|| {
 		let _ = inst.create_remainder_contributing_project(
 			excel_project(0),
 			ISSUER.into(),
@@ -340,7 +336,7 @@ fn community_round_completed() {
 fn remainder_round_completed() {
 	let mut inst = IntegrationInstantiator::new(None);
 
-	Politest::execute_with(|| {
+	PolitestNet::execute_with(|| {
 		let project_id = inst.create_finished_project(
 			excel_project(0),
 			ISSUER.into(),
@@ -377,7 +373,7 @@ fn remainder_round_completed() {
 fn funds_raised() {
 	let mut inst = IntegrationInstantiator::new(None);
 
-	Politest::execute_with(|| {
+	PolitestNet::execute_with(|| {
 		let project_id = inst.create_finished_project(
 			excel_project(0),
 			ISSUER.into(),
@@ -390,7 +386,7 @@ fn funds_raised() {
 		inst.execute(|| {
 			let project_specific_account: AccountId = PolitestFundingPallet::fund_account_id(project_id);
 			let stored_usdt_funded =
-				PolimecForeignAssets::balance(AcceptedFundingAsset::USDT.to_assethub_id(), project_specific_account);
+				PolitestForeignAssets::balance(AcceptedFundingAsset::USDT.to_assethub_id(), project_specific_account);
 			let excel_usdt_funded = 1_004_256_0_140_000_000;
 			assert_close_enough!(stored_usdt_funded, excel_usdt_funded, Perquintill::from_float(0.99));
 		})
@@ -401,7 +397,7 @@ fn funds_raised() {
 fn ct_minted() {
 	let mut inst = IntegrationInstantiator::new(None);
 
-	Politest::execute_with(|| {
+	PolitestNet::execute_with(|| {
 		let _ = inst.create_finished_project(
 			excel_project(0),
 			ISSUER.into(),
@@ -426,7 +422,7 @@ fn ct_minted() {
 fn ct_migrated() {
 	let mut inst = IntegrationInstantiator::new(None);
 
-	let project_id = Politest::execute_with(|| {
+	let project_id = PolitestNet::execute_with(|| {
 		let project_id = inst.create_finished_project(
 			excel_project(0),
 			ISSUER.into(),
@@ -448,18 +444,17 @@ fn ct_migrated() {
 		project_id
 	});
 
-	let project_details = Politest::execute_with(|| inst.get_project_details(project_id));
+	let project_details = PolitestNet::execute_with(|| inst.get_project_details(project_id));
 	assert!(matches!(project_details.evaluation_round_info.evaluators_outcome, EvaluatorsOutcome::Rewarded(_)));
 
 	// Mock HRMP establishment
-	Politest::execute_with(|| {
-		let account_id: PolimecAccountId = ISSUER.into();
+	PolitestNet::execute_with(|| {
+		let _account_id: PolitestAccountId = ISSUER.into();
 		assert_ok!(PolitestFundingPallet::do_set_para_id_for_project(
 			&ISSUER.into(),
 			project_id,
 			ParaId::from(6969u32),
 		));
-
 		let open_channel_message = xcm::v3::opaque::Instruction::HrmpNewChannelOpenRequest {
 			sender: 6969,
 			max_message_size: 102_300,
@@ -471,14 +466,19 @@ fn ct_migrated() {
 		assert_ok!(PolitestFundingPallet::do_handle_channel_accepted(channel_accepted_message));
 	});
 
+	PenNet::execute_with(|| {
+		println!("penpal events:");
+		dbg!(PenNet::events());
+	});
+
 	// Migration is ready
-	Politest::execute_with(|| {
+	PolitestNet::execute_with(|| {
 		let project_details = pallet_funding::ProjectsDetails::<PolitestRuntime>::get(project_id).unwrap();
 		assert!(project_details.migration_readiness_check.unwrap().is_ready())
 	});
 
 	excel_ct_amounts().iter().unique().for_each(|item| {
-		let data = Penpal::account_data_of(item.0.clone());
+		let data = PenNet::account_data_of(item.0.clone());
 		assert_eq!(data.free, 0u128, "Participant balances should be 0 before ct migration");
 	});
 
@@ -486,14 +486,14 @@ fn ct_migrated() {
 	let accounts = excel_ct_amounts().iter().map(|item| item.0.clone()).unique().collect::<Vec<_>>();
 	let total_ct_sold = excel_ct_amounts().iter().fold(0, |acc, item| acc + item.1);
 	dbg!(total_ct_sold);
-	let polimec_sov_acc = Penpal::sovereign_account_id_of((Parent, Parachain(politest::PARA_ID)).into());
-	let polimec_fund_balance = Penpal::account_data_of(polimec_sov_acc);
+	let polimec_sov_acc = PenNet::sovereign_account_id_of((Parent, Parachain(polimec::PARA_ID)).into());
+	let polimec_fund_balance = PenNet::account_data_of(polimec_sov_acc);
 	dbg!(polimec_fund_balance);
 
 	let names = names();
 
 	for account in accounts {
-		Politest::execute_with(|| {
+		PolitestNet::execute_with(|| {
 			assert_ok!(PolitestFundingPallet::migrate_one_participant(
 				PolitestOrigin::signed(account.clone()),
 				project_id,
@@ -505,13 +505,13 @@ fn ct_migrated() {
 		});
 	}
 
-	Penpal::execute_with(|| {
-		dbg!(Penpal::events());
+	PenNet::execute_with(|| {
+		dbg!(PenNet::events());
 	});
 
 	// Check balances after migration, before vesting
 	excel_ct_amounts().iter().unique().for_each(|item| {
-		let data = Penpal::account_data_of(item.0.clone());
+		let data = PenNet::account_data_of(item.0.clone());
 		let key: [u8; 32] = item.0.clone().into();
 		println!("Participant {} has {} CTs. Expected {}", names[&key], data.free.clone(), item.1);
 		dbg!(data.clone());

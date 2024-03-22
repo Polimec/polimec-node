@@ -26,14 +26,14 @@ use pallet_vesting::VestingInfo;
 use polimec_runtime::{Balances, ParachainStaking, PayMaster, RuntimeOrigin, Vesting};
 use sp_runtime::Perquintill;
 use tests::defaults::*;
-use xcm_emulator::get_account_id_from_seed;
+use xcm_emulator::helpers::get_account_id_from_seed;
 
 generate_accounts!(PEPE, CARLOS,);
 
 #[test]
 fn base_vested_can_stake() {
-	Polimec::execute_with(|| {
-		let alice = Polimec::account_id_of(ALICE);
+	PolimecNet::execute_with(|| {
+		let alice = PolimecNet::account_id_of(ALICE);
 		let coll_1 = get_account_id_from_seed::<sr25519::Public>("COLL_1");
 		let new_account = get_account_id_from_seed::<sr25519::Public>("NEW_ACCOUNT");
 
@@ -82,7 +82,7 @@ fn base_vested_can_stake() {
 // total balance, so if the user had 20 free, 2000 frozen, 2000 held, then the user could only withdraw any amount over 2000.
 #[test]
 fn base_can_withdraw_when_free_is_below_frozen_with_hold() {
-	Polimec::execute_with(|| {
+	PolimecNet::execute_with(|| {
 		let coll_1 = get_account_id_from_seed::<sr25519::Public>("COLL_1");
 		Balances::set_balance(&PEPE.into(), 2_020 * PLMC + ED * 2);
 		Balances::set_balance(&CARLOS.into(), 0);
@@ -105,7 +105,7 @@ fn base_can_withdraw_when_free_is_below_frozen_with_hold() {
 		// Vested transfer didnt start with the full amount locked, since start date was befire execution
 		assert_eq!(Balances::usable_balance(&CARLOS.into()), 10 * PLMC);
 
-		let carlos_acc: PolimecAccountId = CARLOS.into();
+		let carlos_acc: AccountId = CARLOS.into();
 
 		// PEPE stakes his 20k PLMC, even if most of it is locked (frozen)
 		assert_ok!(ParachainStaking::delegate(RuntimeOrigin::signed(CARLOS.into()), coll_1, 2_000 * PLMC, 0, 0));
@@ -150,7 +150,7 @@ fn base_can_withdraw_when_free_is_below_frozen_with_hold() {
 // the account is killed and the dust is sent to the treasury.
 #[test]
 fn dust_to_treasury() {
-	Polimec::execute_with(|| {
+	PolimecNet::execute_with(|| {
 		// Create two new accounts: a sender and a receiver.
 		let sender = get_account_id_from_seed::<sr25519::Public>("SENDER");
 		let receiver = get_account_id_from_seed::<sr25519::Public>("RECEIVER");
