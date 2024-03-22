@@ -5605,9 +5605,8 @@ dependencies = [
 
 [[package]]
 name = "macros"
-version = "0.1.0"
+version = "0.5.1"
 dependencies = [
- "proc-macro2",
  "quote",
  "sp-core",
  "syn 2.0.53",
@@ -5615,7 +5614,7 @@ dependencies = [
 
 [[package]]
 name = "macros-tests"
-version = "0.1.0"
+version = "0.5.1"
 dependencies = [
  "macros",
 ]
@@ -8249,7 +8248,7 @@ checksum = "626dec3cac7cc0e1577a2ec3fc496277ec2baa084bebad95bb6fdbfae235f84c"
 
 [[package]]
 name = "polimec-common"
-version = "0.1.0"
+version = "0.5.1"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -8266,7 +8265,7 @@ dependencies = [
 
 [[package]]
 name = "polimec-common-test-utils"
-version = "0.1.0"
+version = "0.5.1"
 dependencies = [
  "chrono",
  "frame-support",

@@ -89,6 +89,8 @@ smallvec = "1.11.0"
 log = { version = "0.4.17", default-features = false }
 itertools = { version = "0.10.5", default-features = false, features = ["use_alloc"] }
 array-bytes = { version = "*", default-features = false }
+serde-json-core = { version = '0.5.1', default-features = false }
+heapless = { version = "0.7", default-features = false}
 
 # Emulations
 xcm-emulator = { version = "0.5.0", default-features = false }

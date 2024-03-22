@@ -21,7 +21,7 @@ scale-info = { workspace = true, default-features = false, features = [
 tokio = { version = "1", features = [
 	"sync",
 ], optional = true, default-features = false }
-futures = { version = "0.3.29", optional = true }
+futures = { version = "0.3.29", optional = true, default-features = false}
 log.workspace = true
 itertools.workspace = true
 variant_count = "1.1.0"
