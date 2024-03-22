@@ -57,6 +57,7 @@ pallet-linear-release.workspace = true
 polimec-common-test-utils.workspace = true
 macros.workspace = true
 xcm-executor.workspace = true
+env_logger = "0.10.2"
 
 [features]
 default = [ "std" ]
