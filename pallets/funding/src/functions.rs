@@ -1106,7 +1106,7 @@ impl<T: Config> Pallet<T> {
 			metadata_bidder_ticket_size_bounds.usd_ticket_above_minimum_per_participation(min_total_ticket_size),
 			Error::<T>::BidTooLow
 		);
-		ensure!(multiplier.into() <= max_multiplier, Error::<T>::MultiplierAboveLimit);
+		ensure!(multiplier.into() <= max_multiplier && multiplier.into() > 0u8, Error::<T>::ForbiddenMultiplier);
 
 		// Note: We limit the CT Amount to the auction allocation size, to avoid long running loops.
 		ensure!(
@@ -1364,7 +1364,7 @@ impl<T: Config> Pallet<T> {
 			contributor_ticket_size.usd_ticket_below_maximum_per_did(total_usd_bought_by_did + ticket_size),
 			Error::<T>::ContributionTooHigh
 		);
-		ensure!(multiplier.into() <= max_multiplier, Error::<T>::MultiplierAboveLimit);
+		ensure!(multiplier.into() <= max_multiplier && multiplier.into() > 0u8, Error::<T>::ForbiddenMultiplier);
 		ensure!(
 			project_metadata.participation_currencies.contains(&funding_asset),
 			Error::<T>::FundingAssetNotAccepted

@@ -983,8 +983,8 @@ pub mod pallet {
 		UserHasWinningBids,
 		// Round transition already happened.
 		RoundTransitionAlreadyHappened,
-		// User tried to use a multiplier higher than allowed
-		MultiplierAboveLimit,
+		// User tried to use a multiplier not allowed
+		ForbiddenMultiplier,
 		/// The issuer tried to create a new project but already has an active one
 		IssuerHasActiveProjectAlready,
 		NotEnoughFunds,

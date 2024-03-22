@@ -2157,7 +2157,33 @@ mod auction {
 			default_weights(),
 		);
 		let project_id = inst.create_auctioning_project(project_metadata.clone(), ISSUER_1, evaluations);
-
+		// Professional bids: 0x multiplier should fail
+		let jwt = get_mock_jwt(BIDDER_1, InvestorType::Professional, generate_did_from_account(BIDDER_1));
+		let bidder_plmc = MockInstantiator::calculate_auction_plmc_charged_with_given_price(
+			&vec![(BIDDER_1, 1_000 * ASSET_UNIT, Multiplier::force_new(0)).into()],
+			project_metadata.minimum_price,
+		);
+		let bidder_usdt = MockInstantiator::calculate_auction_funding_asset_charged_with_given_price(
+			&vec![(BIDDER_1, 1_000 * ASSET_UNIT, Multiplier::force_new(0)).into()],
+			project_metadata.minimum_price,
+		);
+		let ed = MockInstantiator::get_ed();
+		inst.mint_plmc_to(vec![(BIDDER_1, ed).into()]);
+		inst.mint_plmc_to(bidder_plmc);
+		inst.mint_foreign_asset_to(bidder_usdt);
+		inst.execute(|| {
+			assert_noop!(
+				Pallet::<TestRuntime>::bid(
+					RuntimeOrigin::signed(BIDDER_1),
+					jwt,
+					project_id,
+					1000 * ASSET_UNIT,
+					Multiplier::force_new(0),
+					AcceptedFundingAsset::USDT
+				),
+				Error::<TestRuntime>::MultiplierBelowLimit
+			);
+		});
 		// Professional bids: 1 - 10x multiplier should work
 		for multiplier in 1..=10u8 {
 			let jwt = get_mock_jwt(BIDDER_1, InvestorType::Professional, generate_did_from_account(BIDDER_1));
@@ -2207,7 +2233,7 @@ mod auction {
 						Multiplier::force_new(multiplier),
 						AcceptedFundingAsset::USDT
 					),
-					Error::<TestRuntime>::MultiplierAboveLimit
+					Error::<TestRuntime>::ForbiddenMultiplier
 				);
 			});
 		}
@@ -2261,7 +2287,7 @@ mod auction {
 						Multiplier::force_new(multiplier),
 						AcceptedFundingAsset::USDT
 					),
-					Error::<TestRuntime>::MultiplierAboveLimit
+					Error::<TestRuntime>::ForbiddenMultiplier
 				);
 			});
 		}
@@ -3332,7 +3358,7 @@ mod community_contribution {
 						Multiplier::force_new(multiplier),
 						AcceptedFundingAsset::USDT
 					),
-					Error::<TestRuntime>::MultiplierAboveLimit
+					Error::<TestRuntime>::ForbiddenMultiplier
 				);
 			});
 		}
@@ -3386,7 +3412,7 @@ mod community_contribution {
 						Multiplier::force_new(multiplier),
 						AcceptedFundingAsset::USDT
 					),
-					Error::<TestRuntime>::MultiplierAboveLimit
+					Error::<TestRuntime>::ForbiddenMultiplier
 				);
 			});
 		}
@@ -3472,7 +3498,7 @@ mod community_contribution {
 			// Multipliers that should NOT work
 			for multiplier in max_allowed_multiplier+1..=50 {
 				log::debug!("error? - multiplier: {}", multiplier);
-				assert_err!(contribute(&mut inst, project_id, contributor, multiplier), Error::<TestRuntime>::MultiplierAboveLimit);
+				assert_err!(contribute(&mut inst, project_id, contributor, multiplier), Error::<TestRuntime>::ForbiddenMultiplier);
 			}
 		}
 	}
@@ -4233,7 +4259,7 @@ mod remainder_contribution {
 						Multiplier::force_new(multiplier),
 						AcceptedFundingAsset::USDT
 					),
-					Error::<TestRuntime>::MultiplierAboveLimit
+					Error::<TestRuntime>::ForbiddenMultiplier
 				);
 			});
 		}
@@ -4287,7 +4313,7 @@ mod remainder_contribution {
 						Multiplier::force_new(multiplier),
 						AcceptedFundingAsset::USDT
 					),
-					Error::<TestRuntime>::MultiplierAboveLimit
+					Error::<TestRuntime>::ForbiddenMultiplier
 				);
 			});
 		}
@@ -4372,7 +4398,7 @@ mod remainder_contribution {
 			// Multipliers that should NOT work
 			for multiplier in max_allowed_multiplier + 1..=50 {
 				log::debug!("error? - multiplier: {}", multiplier);
-				assert_err!(contribute(&mut inst, project_id, contributor, multiplier), Error::<TestRuntime>::MultiplierAboveLimit);
+				assert_err!(contribute(&mut inst, project_id, contributor, multiplier), Error::<TestRuntime>::ForbiddenMultiplier);
 			}
 		}
 	}
