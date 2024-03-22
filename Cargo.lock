@@ -745,9 +745,9 @@ checksum = "d468802bab17cbc0cc575e9b053f41e72aa36bfa6b7f55e3529ffa43161b97fa"
 
 [[package]]
 name = "backtrace"
-version = "0.3.69"
+version = "0.3.70"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2089b7e3f35b9dd2d0ed921ead4f6d318c27680d4a5bd167b3ee120edb105837"
+checksum = "95d8e92cac0961e91dbd517496b00f7e9b92363dbe6d42c3198268323798860c"
 dependencies = [
  "addr2line 0.21.0",
  "cc",
@@ -1278,9 +1278,9 @@ dependencies = [
 
 [[package]]
 name = "cargo-platform"
-version = "0.1.7"
+version = "0.1.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "694c8807f2ae16faecc43dc17d74b3eb042482789fd0eb64b39a2e04e087053f"
+checksum = "24b1f0365a6c6bb4020cd05806fd0d33c44d38046b8bd7f0e40814b9763cabfc"
 dependencies = [
  "serde",
 ]
@@ -4497,7 +4497,7 @@ dependencies = [
  "cumulus-primitives-core",
  "frame-support",
  "frame-system",
- "itertools 0.11.0",
+ "itertools 0.10.5",
  "macros",
  "orml-oracle",
  "pallet-assets",
@@ -5405,9 +5405,9 @@ dependencies = [
 
 [[package]]
 name = "libz-sys"
-version = "1.1.15"
+version = "1.1.16"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "037731f5d3aaa87a5675e895b63ddff1a87624bc29f77004ea829809654e48f6"
+checksum = "5e143b5e666b2695d28f6bca6497720813f699c9602dd7f5cac91008b8ada7f9"
 dependencies = [
  "cc",
  "pkg-config",
@@ -6878,7 +6878,7 @@ dependencies = [
  "frame-support",
  "frame-system",
  "futures",
- "itertools 0.11.0",
+ "itertools 0.10.5",
  "log",
  "macros",
  "pallet-assets",
@@ -7281,7 +7281,6 @@ dependencies = [
  "pallet-session",
  "pallet-timestamp",
  "parity-scale-codec",
- "polimec-common",
  "scale-info",
  "serde",
  "similar-asserts",
@@ -8259,7 +8258,7 @@ dependencies = [
  "frame-benchmarking",
  "frame-support",
  "frame-system",
- "itertools 0.11.0",
+ "itertools 0.10.5",
  "jwt-compact",
  "pallet-timestamp",
  "parity-scale-codec",
@@ -8292,30 +8291,23 @@ dependencies = [
  "cumulus-client-consensus-aura",
  "cumulus-client-consensus-common",
  "cumulus-client-consensus-proposer",
- "cumulus-client-network",
  "cumulus-client-service",
  "cumulus-primitives-core",
- "cumulus-primitives-parachain-inherent",
- "cumulus-relay-chain-inprocess-interface",
  "cumulus-relay-chain-interface",
- "cumulus-relay-chain-minimal-node",
  "frame-benchmarking",
  "frame-benchmarking-cli",
  "futures",
  "hex-literal 0.3.4",
- "itertools 0.11.0",
  "jsonrpsee",
  "log",
  "macros",
  "pallet-funding",
  "pallet-transaction-payment-rpc",
- "parachains-common",
  "parity-scale-codec",
  "polimec-runtime",
  "politest-runtime",
  "polkadot-cli",
  "polkadot-primitives",
- "polkadot-service",
  "sc-basic-authorship",
  "sc-chain-spec",
  "sc-cli",
@@ -8323,11 +8315,9 @@ dependencies = [
  "sc-consensus",
  "sc-executor",
  "sc-network",
- "sc-network-common",
  "sc-network-sync",
  "sc-offchain",
  "sc-rpc",
- "sc-rpc-api",
  "sc-service",
  "sc-sysinfo",
  "sc-telemetry",
@@ -8341,18 +8331,14 @@ dependencies = [
  "sp-blockchain",
  "sp-consensus-aura",
  "sp-core",
- "sp-io",
  "sp-keystore",
- "sp-offchain",
  "sp-runtime",
- "sp-session",
  "sp-timestamp",
  "sp-transaction-pool",
  "staging-xcm",
  "substrate-build-script-utils",
  "substrate-frame-rpc-system",
  "substrate-prometheus-endpoint",
- "try-runtime-cli",
 ]
 
 [[package]]
@@ -8386,7 +8372,6 @@ dependencies = [
  "cumulus-pallet-xcm",
  "cumulus-pallet-xcmp-queue",
  "cumulus-primitives-core",
- "cumulus-primitives-timestamp",
  "cumulus-primitives-utility",
  "frame-benchmarking",
  "frame-executive",
@@ -8415,7 +8400,6 @@ dependencies = [
  "pallet-proxy",
  "pallet-scheduler",
  "pallet-session",
- "pallet-sudo",
  "pallet-timestamp",
  "pallet-transaction-payment",
  "pallet-transaction-payment-rpc-runtime-api",
@@ -8425,10 +8409,8 @@ dependencies = [
  "pallet-xcm",
  "parachains-common",
  "parity-scale-codec",
- "polimec-common",
  "polimec-xcm-executor",
  "polkadot-parachain-primitives",
- "polkadot-primitives",
  "polkadot-runtime-common",
  "scale-info",
  "shared-configuration",

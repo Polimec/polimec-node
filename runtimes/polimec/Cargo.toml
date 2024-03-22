@@ -30,7 +30,6 @@ sp-debug-derive = { workspace = true, features = ["force-debug"]}
 pallet-parachain-staking.workspace = true
 pallet-oracle-ocw.workspace = true
 shared-configuration.workspace = true
-polimec-common.workspace = true
 
 # Substrate
 frame-benchmarking = { workspace = true, optional = true }
@@ -54,9 +53,7 @@ pallet-multisig.workspace = true
 pallet-scheduler.workspace = true
 pallet-preimage.workspace = true
 pallet-proxy.workspace = true
-polkadot-primitives.workspace = true
 pallet-session.workspace = true
-pallet-sudo.workspace = true
 pallet-timestamp.workspace = true
 pallet-transaction-payment.workspace = true
 pallet-transaction-payment-rpc-runtime-api.workspace = true
@@ -92,7 +89,6 @@ cumulus-pallet-session-benchmarking.workspace = true
 cumulus-pallet-xcm.workspace = true
 cumulus-pallet-xcmp-queue.workspace = true
 cumulus-primitives-core.workspace = true
-cumulus-primitives-timestamp.workspace = true
 cumulus-primitives-utility.workspace = true
 parachain-info.workspace = true
 parachains-common.workspace = true
@@ -116,7 +112,6 @@ std = [
 	"cumulus-pallet-xcm/std",
 	"cumulus-pallet-xcmp-queue/std",
 	"cumulus-primitives-core/std",
-	"cumulus-primitives-timestamp/std",
 	"cumulus-primitives-utility/std",
 	"frame-benchmarking?/std",
 	"frame-executive/std",
@@ -144,7 +139,6 @@ std = [
 	"pallet-proxy/std",
 	"pallet-scheduler/std",
 	"pallet-session/std",
-	"pallet-sudo/std",
 	"pallet-timestamp/std",
 	"pallet-transaction-payment-rpc-runtime-api/std",
 	"pallet-transaction-payment/std",
@@ -155,10 +149,8 @@ std = [
 	"parachain-info/std",
 	"parachains-common/std",
 	"parity-scale-codec/std",
-	"polimec-common/std",
 	"polimec-xcm-executor/std",
 	"polkadot-parachain-primitives/std",
-	"polkadot-primitives/std",
 	"polkadot-runtime-common/std",
 	"scale-info/std",
 	"shared-configuration/std",
@@ -204,17 +196,14 @@ runtime-benchmarks = [
 	"pallet-preimage/runtime-benchmarks",
 	"pallet-proxy/runtime-benchmarks",
 	"pallet-scheduler/runtime-benchmarks",
-	"pallet-sudo/runtime-benchmarks",
 	"pallet-timestamp/runtime-benchmarks",
 	"pallet-treasury/runtime-benchmarks",
 	"pallet-utility/runtime-benchmarks",
 	"pallet-vesting/runtime-benchmarks",
 	"pallet-xcm/runtime-benchmarks",
 	"parachains-common/runtime-benchmarks",
-	"polimec-common/runtime-benchmarks",
 	"polimec-xcm-executor/runtime-benchmarks",
 	"polkadot-parachain-primitives/runtime-benchmarks",
-	"polkadot-primitives/runtime-benchmarks",
 	"polkadot-runtime-common/runtime-benchmarks",
 	"shared-configuration/runtime-benchmarks",
 	"sp-runtime/runtime-benchmarks",
@@ -249,7 +238,6 @@ try-runtime = [
 	"pallet-proxy/try-runtime",
 	"pallet-scheduler/try-runtime",
 	"pallet-session/try-runtime",
-	"pallet-sudo/try-runtime",
 	"pallet-timestamp/try-runtime",
 	"pallet-transaction-payment/try-runtime",
 	"pallet-treasury/try-runtime",
@@ -257,7 +245,6 @@ try-runtime = [
 	"pallet-vesting/try-runtime",
 	"pallet-xcm/try-runtime",
 	"parachain-info/try-runtime",
-	"polimec-common/try-runtime",
 	"polimec-xcm-executor/try-runtime",
 	"polkadot-runtime-common/try-runtime",
 	"shared-configuration/try-runtime",
