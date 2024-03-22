@@ -199,7 +199,6 @@ pub mod pallet {
 	};
 	use frame_system::pallet_prelude::*;
 	use local_macros::*;
-	use pallet_xcm::Origin;
 use sp_arithmetic::Percent;
 	use sp_runtime::{
 		traits::{Convert, ConvertBack, Get}, 
@@ -548,16 +547,14 @@ use sp_arithmetic::Percent;
 	>;
 
 	#[pallet::storage]
-	pub type MigrationQueue<T: Config> = StorageDoubleMap<
+	pub type UserMigrations<T: Config> = StorageDoubleMap<
 		_,
 		Blake2_128Concat,
 		ProjectId,
 		Blake2_128Concat,
 		T::AccountId, 
-		BoundedVec<Migration, MaxParticipationsPerUser<T>>,
-		ValueQuery,
+		(MigrationStatus, BoundedVec<Migration, MaxParticipationsPerUser<T>>),
 	>;
-
 	
 	pub struct MaxParticipationsPerUser<T: Config>(PhantomData<T>);
 	impl<T: Config> Get<u32> for MaxParticipationsPerUser<T> {
@@ -565,6 +562,9 @@ use sp_arithmetic::Percent;
 			T::MaxContributionsPerUser::get() + T::MaxBidsPerUser::get() + T::MaxEvaluationsPerUser::get()
 		}
 	}
+
+	#[pallet::storage]
+	pub type ActiveMigrationQueue<T: Config> = StorageMap<_, Blake2_128Concat, QueryId, (ProjectId, T::AccountId), ResultQuery<Error<T>::NoActiveMigrationsFound>>;
 
 	#[pallet::storage]
 	/// Migrations sent and awaiting for confirmation
@@ -701,21 +701,10 @@ use sp_arithmetic::Percent;
 			query_id: QueryId,
 			response: Response,
 		},
-		MigrationStarted {
+		MigrationStatusUpdated {
 			project_id: ProjectId,
-		},
-		UserMigrationSent {
-			project_id: ProjectId,
-			caller: AccountIdOf<T>,
-			participant: AccountIdOf<T>,
-		},
-		MigrationsConfirmed {
-			project_id: ProjectId,
-			migration_origins: BoundedVec<MigrationOrigin, MaxMigrationsPerXcm<T>>,
-		},
-		MigrationsFailed {
-			project_id: ProjectId,
-			migration_origins: BoundedVec<MigrationOrigin, MaxMigrationsPerXcm<T>>,
+			account: AccountIdOf<T>,
+			status: MigrationStatus,
 		},
 	}
 
@@ -805,12 +794,8 @@ use sp_arithmetic::Percent;
 		PriceNotFound,
 		/// Bond is either lower than the minimum set by the issuer, or the vec is full and can't replace an old one with a lower value
 		EvaluationBondTooLow,
-		/// Tried to do an operation on an evaluation that does not exist
-		EvaluationNotFound,
 		/// Tried to do an operation on a finalizer that already finished
 		FinalizerFinished,
-		///
-		ContributionNotFound,
 		/// Tried to start a migration check but the bidirectional channel is not yet open
 		CommsNotEstablished,
 		XcmFailed,
@@ -818,10 +803,6 @@ use sp_arithmetic::Percent;
 		BadConversion,
 		/// The issuer doesn't have enough funds (ExistentialDeposit), to create the escrow account
 		NotEnoughFundsForEscrowCreation,
-		/// The issuer doesn't have enough funds to pay for the metadata of their contribution token
-		NotEnoughFundsForCTMetadata,
-		/// The issuer doesn't have enough funds to pay for the deposit of their contribution token
-		NotEnoughFundsForCTDeposit,
 		/// Too many attempts to insert project in to ProjectsToUpdate storage
 		TooManyInsertionAttempts,
 		/// Reached bid limit for this user on this project
@@ -836,6 +817,8 @@ use sp_arithmetic::Percent;
 		TooManyMigrations,
 		/// User has no migrations to execute.
 		NoMigrationsFound,
+		/// User has no active migrations in the queue.
+		NoActiveMigrationsFound,
 		// Participant tried to do a community contribution but it already had a winning bid on the auction round.
 		UserHasWinningBids,
 		// Round transition already happened.
@@ -1121,15 +1104,6 @@ use sp_arithmetic::Percent;
 			Self::do_migration_check_response(location, query_id, response)
 		}
 
-		#[pallet::call_index(25)]
-		#[pallet::weight(Weight::from_parts(1000, 0))]
-		pub fn start_migration(origin: OriginFor<T>, jwt: UntrustedToken, project_id: ProjectId) -> DispatchResult {
-			let (account, _did, investor_type) =
-				T::InvestorOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get())?;
-			ensure!(investor_type == InvestorType::Institutional, Error::<T>::NotAllowed);
-			Self::do_start_migration(&account, project_id)
-		}
-
 		#[pallet::call_index(26)]
 		#[pallet::weight(Weight::from_parts(1000, 0))]
 		pub fn migrate_one_participant(
@@ -1137,8 +1111,8 @@ use sp_arithmetic::Percent;
 			project_id: ProjectId,
 			participant: AccountIdOf<T>,
 		) -> DispatchResult {
-			let caller = ensure_signed(origin)?;
-			Self::do_migrate_one_participant(caller, project_id, participant)
+			let _caller = ensure_signed(origin)?;
+			Self::do_migrate_one_participant(project_id, participant)
 		}
 
 		#[pallet::call_index(27)]

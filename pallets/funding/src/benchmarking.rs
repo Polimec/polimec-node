@@ -626,7 +626,7 @@ mod benchmarks {
 			.last()
 			.unwrap();
 
-		match stored_evaluation {
+		let correct = match stored_evaluation {
 			EvaluationInfo {
 				project_id,
 				evaluator,
@@ -636,9 +636,10 @@ mod benchmarks {
 			} if project_id == project_id &&
 				evaluator == evaluation.account.clone() &&
 				original_plmc_bond == extrinsic_plmc_bonded &&
-				current_plmc_bond == extrinsic_plmc_bonded &&
-			_ => assert!(false, "Evaluation is not stored correctly"),
-		}
+				current_plmc_bond == extrinsic_plmc_bonded => true,
+			_ => false,
+		};
+		assert!(correct, "Evaluation is not stored correctly");
 
 		// Balances
 		let bonded_plmc = inst.get_reserved_plmc_balances_for(
@@ -1456,16 +1457,16 @@ mod benchmarks {
 		assert_eq!(ct_amount, reward);
 
 		// Events
-		// frame_system::Pallet::<T>::assert_last_event(
-		// 	Event::EvaluationRewarded {
-		// 		project_id,
-		// 		evaluator: evaluator.clone(),
-		// 		id: stored_evaluation.id,
-		// 		amount: total_reward,
-		// 		caller: evaluator,
-		// 	}
-		// 	.into(),
-		// );
+		frame_system::Pallet::<T>::assert_last_event(
+			Event::EvaluationSettled {
+				project_id,
+				account: evaluator.clone(),
+				id: evaluation_to_settle.id,
+				ct_amount: reward,
+				slashed_amount: 0.into(),
+			}
+			.into(),
+		);
 	}
 
 	#[benchmark]
@@ -1532,7 +1533,16 @@ mod benchmarks {
 		assert_eq!(free_treasury_plmc, slashed_amount + ed);
 
 		// Events
-		// TODO assert Event
+		frame_system::Pallet::<T>::assert_last_event(
+			Event::EvaluationSettled {
+				project_id,
+				account: evaluator.clone(),
+				id: evaluation_to_settle.id,
+				ct_amount: 0.into(),
+				slashed_amount: slashed_amount,
+			}
+			.into(),
+		);
 	}
 
 	#[benchmark]
@@ -1577,60 +1587,16 @@ mod benchmarks {
 		assert_eq!(bid_to_settle.final_ct_amount, ct_amount);
 
 		// Events
-		// TODO assert Event
-	}
-
-	#[benchmark]
-	fn settle_successful_contribution() {
-		// setup
-		let mut inst = BenchInstantiator::<T>::new(None);
-
-		// real benchmark starts at block 0, and we can't call `events()` at block 0
-		inst.advance_time(1u32.into()).unwrap();
-
-		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
-		let contributions = default_community_contributions::<T>();
-		let contributor = contributions[0].contributor.clone();
-		whitelist_account!(contributor);
-
-		let project_id = inst.create_finished_project(
-			default_project::<T>(inst.get_new_nonce(), issuer.clone()),
-			issuer,
-			default_evaluations::<T>(),
-			default_bids::<T>(),
-			contributions,
-			vec![],
+		frame_system::Pallet::<T>::assert_last_event(
+			Event::BidSettled {
+				project_id,
+				account: bidder.clone(),
+				id: bid_to_settle.id,
+				ct_amount,
+			}
+			.into(),
 		);
-
-		run_blocks_to_execute_next_transition(project_id, UpdateType::StartSettlement, &mut inst);
-
-		assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::FundingSuccessful);
-
-		let contribution_to_settle =
-			inst.execute(|| Contributions::<T>::iter_prefix_values((project_id, contributor.clone())).next().unwrap());
-
-		#[extrinsic_call]
-		settle_successful_contribution(
-			RawOrigin::Signed(contributor.clone()),
-			project_id,
-			contributor.clone(),
-			contribution_to_settle.id,
-		);
-
-		// * validity checks *
-		// Storage
-		assert!(Contributions::<T>::get((project_id, contributor.clone(), contribution_to_settle.id)).is_none());
-
-		// Balances
-		let ct_amount = inst.get_ct_asset_balances_for(project_id, vec![contributor.clone()])[0];
-		assert_eq!(contribution_to_settle.ct_amount, ct_amount);
-
-		// Events
-		// TODO assert Event
 	}
-
-
-	
 
 	#[benchmark]
 	fn settle_failed_bid() {
@@ -1686,7 +1652,72 @@ mod benchmarks {
 		assert_eq!(free_assets, bid_to_settle.funding_asset_amount_locked + free_assets_before);
 
 		// Events
-		// TODO assert Event
+		frame_system::Pallet::<T>::assert_last_event(
+			Event::BidSettled {
+				project_id,
+				account: bidder.clone(),
+				id: bid_to_settle.id,
+				ct_amount: 0.into(),
+			}
+			.into(),
+		);
+	}
+
+	#[benchmark]
+	fn settle_successful_contribution() {
+		// setup
+		let mut inst = BenchInstantiator::<T>::new(None);
+
+		// real benchmark starts at block 0, and we can't call `events()` at block 0
+		inst.advance_time(1u32.into()).unwrap();
+
+		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
+		let contributions = default_community_contributions::<T>();
+		let contributor = contributions[0].contributor.clone();
+		whitelist_account!(contributor);
+
+		let project_id = inst.create_finished_project(
+			default_project::<T>(inst.get_new_nonce(), issuer.clone()),
+			issuer,
+			default_evaluations::<T>(),
+			default_bids::<T>(),
+			contributions,
+			vec![],
+		);
+
+		run_blocks_to_execute_next_transition(project_id, UpdateType::StartSettlement, &mut inst);
+
+		assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::FundingSuccessful);
+
+		let contribution_to_settle =
+			inst.execute(|| Contributions::<T>::iter_prefix_values((project_id, contributor.clone())).next().unwrap());
+
+		#[extrinsic_call]
+		settle_successful_contribution(
+			RawOrigin::Signed(contributor.clone()),
+			project_id,
+			contributor.clone(),
+			contribution_to_settle.id,
+		);
+
+		// * validity checks *
+		// Storage
+		assert!(Contributions::<T>::get((project_id, contributor.clone(), contribution_to_settle.id)).is_none());
+
+		// Balances
+		let ct_amount = inst.get_ct_asset_balances_for(project_id, vec![contributor.clone()])[0];
+		assert_eq!(contribution_to_settle.ct_amount, ct_amount);
+
+		// Events
+		frame_system::Pallet::<T>::assert_last_event(
+			Event::ContributionSettled {
+				project_id,
+				account: contributor.clone(),
+				id: contribution_to_settle.id,
+				ct_amount,
+			}
+			.into(),
+		);
 	}
 
 	#[benchmark]
@@ -1750,7 +1781,15 @@ mod benchmarks {
 		assert_eq!(free_assets, contribution_to_settle.funding_asset_amount + free_assets_before);
 
 		// Events
-		// TODO assert Event
+		frame_system::Pallet::<T>::assert_last_event(
+			Event::ContributionSettled {
+				project_id,
+				account: contributor.clone(),
+				id: contribution_to_settle.id,
+				ct_amount: 0.into(),
+			}
+			.into(),
+		);
 	}
 
 	//do_evaluation_end

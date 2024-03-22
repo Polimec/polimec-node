@@ -19,16 +19,15 @@
 //! Types for Funding pallet.
 
 use crate::{
-	traits::{BondingRequirementCalculation, ProvideAssetPrice, VestingDurationCalculation},
-	BalanceOf, BidInfoOf, Config, ContributionInfoOf, EvaluationInfoOf, MultiplierOf,
+	traits::{BondingRequirementCalculation, ProvideAssetPrice},
+	BalanceOf,
 };
 use frame_support::{pallet_prelude::*, traits::tokens::Balance as BalanceT};
 use frame_system::pallet_prelude::BlockNumberFor;
-use polimec_common::migration_types::{Migration, MigrationInfo, MigrationOrigin, ParticipationType};
 use polkadot_parachain::primitives::Id as ParaId;
 use serde::{Deserialize, Serialize};
 use sp_arithmetic::{FixedPointNumber, FixedPointOperand};
-use sp_runtime::traits::{CheckedDiv, Convert, Get, Zero};
+use sp_runtime::traits::{CheckedDiv, Get};
 use sp_std::{cmp::Eq, collections::btree_map::*, prelude::*};
 
 pub use config_types::*;
@@ -417,8 +416,6 @@ pub mod storage_types {
 pub mod inner_types {
 	use super::*;
 	use variant_count::VariantCount;
-	use xcm::v3::MaxDispatchErrorLen;
-
 	#[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
 	#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
 	pub struct CurrencyMetadata<BoundedString> {

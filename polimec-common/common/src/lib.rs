@@ -17,7 +17,6 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 use frame_support::{pallet_prelude::*, traits::tokens::fungible, RuntimeDebug};
-use itertools::Itertools;
 use sp_std::prelude::*;
 pub mod credentials;
 
@@ -146,7 +145,7 @@ pub mod migration_types {
 		NotStarted,
 		Sent(xcm::v3::QueryId),
 		Confirmed,
-		Failed(BoundedVec<u8, xcm::v3::MaxDispatchErrorLen>),
+		Failed,
 	}
 
 	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]

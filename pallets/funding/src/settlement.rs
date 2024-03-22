@@ -336,7 +336,7 @@ impl<T: Config> Pallet<T> {
         ct_amount: BalanceOf<T>,
         vesting_time: BlockNumberFor<T>,
     ) -> DispatchResult {
-        MigrationQueue::<T>::try_mutate(project_id, origin, |migrations| -> DispatchResult {
+        UserMigrations::<T>::try_mutate(project_id, origin, |maybe_migrations| -> DispatchResult {
             let migration_origin = MigrationOrigin {
                 user: T::AccountId32Conversion::convert(origin.clone()),
                 id: id,
@@ -345,7 +345,14 @@ impl<T: Config> Pallet<T> {
             let vesting_time: u64 = vesting_time.try_into().map_err(|_| Error::<T>::BadMath)?;
             let migration_info: MigrationInfo = (ct_amount.into(), vesting_time.into()).into();
             let migration = Migration::new(migration_origin, migration_info);
-            migrations.try_push(migration).map_err(|_| Error::<T>::TooManyMigrations)?;
+            if let Some((_, migrations)) = maybe_migrations {
+                migrations.try_push(migration).map_err(|_| Error::<T>::TooManyMigrations)?;
+            } else {
+                let mut migrations = BoundedVec::<_, MaxParticipationsPerUser<T>>::new();
+                migrations.try_push(migration).map_err(|_| Error::<T>::TooManyMigrations)?;
+                *maybe_migrations = Some((MigrationStatus::NotStarted, migrations))
+            }
+            
             Ok(())
         })?;
 

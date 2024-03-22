@@ -5660,8 +5660,6 @@ mod ct_migration {
 		);
 
 		inst.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get() + 20u64).unwrap();
-		let project_details = inst.get_project_details(project_id);
-
 		inst.execute(|| {
 			assert_ok!(crate::Pallet::<TestRuntime>::do_set_para_id_for_project(
 				&ISSUER,
