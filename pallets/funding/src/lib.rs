@@ -1260,10 +1260,15 @@ pub mod pallet {
 		))]
 		pub fn decide_project_outcome(
 			origin: OriginFor<T>,
+			jwt: UntrustedToken,
 			project_id: ProjectId,
 			outcome: FundingOutcomeDecision,
 		) -> DispatchResultWithPostInfo {
 			let caller = ensure_signed(origin)?;
+			let (account, did, investor_type) =
+				T::InvestorOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get())?;
+			ensure!(investor_type == InvestorType::Institutional, Error::<T>::NotAllowed);
+
 			Self::do_decide_project_outcome(caller, project_id, outcome)
 		}
 
