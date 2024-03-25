@@ -17,8 +17,8 @@ targets = ["x86_64-unknown-linux-gnu"]
 parity-scale-codec = { workspace = true, features = ["derive"] }
 scale-info = { workspace = true, features = ["derive"] }
 serde = { workspace = true, features = ["derive"] }
-serde-json-core = { version = '0.5.1', default-features = false }
-heapless = { version = "0.7", features = ["serde"] }
+serde-json-core.workspace = true
+heapless = {workspace = true, features = ["serde"] }
 log.workspace = true
 frame-support.workspace = true
 frame-system.workspace = true
