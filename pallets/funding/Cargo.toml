@@ -18,8 +18,10 @@ parity-scale-codec = { workspace = true, features = [
 scale-info = { workspace = true, default-features = false, features = [
 	"derive",
 ] }
-tokio = { version = "1", features = ["full"], optional = true }
-futures = { version = "0.3.29", optional = true }
+tokio = { version = "1", features = [
+	"sync",
+], optional = true, default-features = false }
+futures = { version = "0.3.29", optional = true, default-features = false}
 log.workspace = true
 itertools.workspace = true
 variant_count = "1.1.0"
@@ -40,7 +42,6 @@ xcm.workspace = true
 polimec-xcm-executor.workspace = true
 pallet-xcm.workspace = true
 polkadot-parachain-primitives.workspace = true
-polimec-receiver.workspace = true
 assert_matches2 = { workspace = true, optional = true }
 polimec-common-test-utils = { workspace = true, optional = true }
 
@@ -76,7 +77,6 @@ std = [
 	"polimec-common-test-utils",
 	"polimec-common-test-utils/std",
 	"polimec-common/std",
-	"polimec-receiver/std",
 	"polimec-xcm-executor/std",
 	"polkadot-parachain-primitives/std",
 	"scale-info/std",
@@ -105,7 +105,6 @@ runtime-benchmarks = [
 	"polimec-common-test-utils",
 	"polimec-common-test-utils?/runtime-benchmarks",
 	"polimec-common/runtime-benchmarks",
-	"polimec-receiver/runtime-benchmarks",
 	"polimec-xcm-executor/runtime-benchmarks",
 	"polkadot-parachain-primitives/runtime-benchmarks",
 	"sp-runtime/runtime-benchmarks",
@@ -123,7 +122,6 @@ try-runtime = [
 	"pallet-xcm/try-runtime",
 	"polimec-common-test-utils?/try-runtime",
 	"polimec-common/try-runtime",
-	"polimec-receiver/try-runtime",
 	"polimec-xcm-executor/try-runtime",
 	"sp-runtime/try-runtime",
 ]
