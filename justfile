@@ -41,7 +41,7 @@ benchmark-runtime chain="polimec-local" pallet="pallet-elections-phragmen" featu
       --extrinsic=* \
       --wasm-execution=compiled \
       --heap-pages=4096 \
-      --output=runtimes/base/src/weights/{{ replace(pallet, "-", "_") }}.rs
+      --output=runtimes/polimec/src/weights/{{ replace(pallet, "-", "_") }}.rs
 
 # src: https://github.com/paritytech/polkadot-sdk/blob/bc2e5e1fe26e2c2c8ee766ff9fe7be7e212a0c62/substrate/frame/nfts/src/weights.rs
 # Run the Runtime benchmarks for a specific pallet
