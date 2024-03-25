@@ -30,15 +30,12 @@ use frame_support::{
 	},
 };
 use frame_system::pallet_prelude::BlockNumberFor;
-use polimec_common::{
-	credentials::{Did, InvestorType},
-};
+use polimec_common::credentials::{Did, InvestorType};
 use sp_arithmetic::{
 	traits::{CheckedDiv, CheckedSub, Zero},
 	Percent, Perquintill,
 };
-use sp_runtime::traits::{Convert};
-
+use sp_runtime::traits::Convert;
 
 use super::*;
 use crate::traits::{BondingRequirementCalculation, ProvideAssetPrice, VestingDurationCalculation};
@@ -306,7 +303,6 @@ impl<T: Config> Pallet<T> {
 			ProjectsDetails::<T>::insert(project_id, project_details.clone());
 			let issuer_did = project_details.issuer_did.clone();
 			DidWithActiveProjects::<T>::set(issuer_did, None);
-
 
 			// * Emit events *
 			Self::deposit_event(Event::EvaluationFailed { project_id });
@@ -1742,16 +1738,14 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
-	pub fn do_migrate_one_participant(
-		project_id: ProjectId,
-		participant: AccountIdOf<T>,
-	) -> DispatchResult {
+	pub fn do_migrate_one_participant(project_id: ProjectId, participant: AccountIdOf<T>) -> DispatchResult {
 		// * Get variables *
 		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 		let migration_readiness_check = project_details.migration_readiness_check.ok_or(Error::<T>::NotAllowed)?;
 		let project_para_id = project_details.parachain_id.ok_or(Error::<T>::ImpossibleState)?;
 		let now = <frame_system::Pallet<T>>::block_number();
-		let (_, migrations) = UserMigrations::<T>::get(project_id, participant.clone()).ok_or(Error::<T>::NoMigrationsFound)?;
+		let (_, migrations) =
+			UserMigrations::<T>::get(project_id, participant.clone()).ok_or(Error::<T>::NoMigrationsFound)?;
 
 		// * Validity Checks *
 		ensure!(migration_readiness_check.is_ready(), Error::<T>::NotAllowed);
@@ -1761,7 +1755,7 @@ impl<T: Config> Pallet<T> {
 			Call::confirm_migrations { query_id: Default::default(), response: Default::default() }.into();
 		let query_id =
 			pallet_xcm::Pallet::<T>::new_notify_query(project_multilocation, call.into(), now + 20u32.into(), Here);
-		
+
 		Self::change_migration_status(project_id, participant.clone(), MigrationStatus::Sent(query_id))?;
 
 		// * Process Data *
@@ -1773,7 +1767,7 @@ impl<T: Config> Pallet<T> {
 		Self::deposit_event(Event::<T>::MigrationStatusUpdated {
 			project_id,
 			account: participant,
-			status: MigrationStatus::Sent(query_id)
+			status: MigrationStatus::Sent(query_id),
 		});
 
 		Ok(())
@@ -1784,8 +1778,10 @@ impl<T: Config> Pallet<T> {
 		let (project_id, participant) = ActiveMigrationQueue::<T>::take(query_id)?;
 		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 
-		ensure!(matches!(location, MultiLocation { parents: 1, interior: X1(Parachain(para_id))} if Some(ParaId::from(para_id)) == project_details.parachain_id), Error::<T>::NotAllowed);
-		
+		ensure!(
+			matches!(location, MultiLocation { parents: 1, interior: X1(Parachain(para_id))} if Some(ParaId::from(para_id)) == project_details.parachain_id),
+			Error::<T>::NotAllowed
+		);
 
 		let status = match response {
 			Response::DispatchResult(MaybeErrorCode::Success) => {
@@ -1799,11 +1795,7 @@ impl<T: Config> Pallet<T> {
 			},
 			_ => return Err(Error::<T>::NotAllowed.into()),
 		};
-		Self::deposit_event(Event::<T>::MigrationStatusUpdated{
-			project_id,
-			account: participant,
-			status: status,
-		});
+		Self::deposit_event(Event::<T>::MigrationStatusUpdated { project_id, account: participant, status });
 		Ok(())
 	}
 }
@@ -1891,8 +1883,6 @@ impl<T: Config> Pallet<T> {
 		let project_account = Self::fund_account_id(project_id);
 		let plmc_price = T::PriceProvider::get_price(PLMC_FOREIGN_ID).ok_or(Error::<T>::PLMCPriceNotAvailable)?;
 
-	
-
 		// sort bids by price, and equal prices sorted by id
 		bids.sort_by(|a, b| b.cmp(a));
 		// accept only bids that were made before `end_block` i.e end of candle auction
@@ -1969,13 +1959,13 @@ impl<T: Config> Pallet<T> {
 			let weighted_price = bid.original_ct_usd_price.saturating_mul(bid_weight);
 			weighted_price
 		};
-		let weighted_token_price = if is_first_bucket  { 
+		let weighted_token_price = if is_first_bucket {
 			project_metadata.minimum_price
 		} else {
 			accepted_bids
-			.iter()
-			.map(calc_weighted_price_fn)
-			.fold(Zero::zero(),|a: T::Price, b: T::Price| a.saturating_add(b))
+				.iter()
+				.map(calc_weighted_price_fn)
+				.fold(Zero::zero(), |a: T::Price, b: T::Price| a.saturating_add(b))
 		};
 
 		let mut final_total_funding_reached_by_bids = BalanceOf::<T>::zero();
@@ -2049,12 +2039,11 @@ impl<T: Config> Pallet<T> {
 	}
 
 	/// Refund a bid because of `reason`.
-	fn refund_bid<>(
+	fn refund_bid(
 		bid: &BidInfoOf<T>,
 		project_id: ProjectId,
 		project_account: &AccountIdOf<T>,
 	) -> Result<(), DispatchError> {
-
 		T::FundingCurrency::transfer(
 			bid.funding_asset.to_assethub_id(),
 			project_account,
@@ -2368,23 +2357,22 @@ impl<T: Config> Pallet<T> {
 		encoded_call.extend_from_slice(migrations_item.encode().as_slice());
 		Xcm(vec![
 			UnpaidExecution { weight_limit: WeightLimit::Unlimited, check_origin: None },
-			Transact {
-				origin_kind: OriginKind::Native,
-				require_weight_at_most: MAX_WEIGHT,
-				call: encoded_call.into(),
-			},
+			Transact { origin_kind: OriginKind::Native, require_weight_at_most: MAX_WEIGHT, call: encoded_call.into() },
 			ReportTransactStatus(QueryResponseInfo {
 				destination: ParentThen(X1(Parachain(POLIMEC_PARA_ID))).into(),
 				query_id,
 				max_weight: MAX_RESPONSE_WEIGHT,
-			})
+			}),
 		])
 	}
 
 	fn change_migration_status(project_id: ProjectId, user: T::AccountId, status: MigrationStatus) -> DispatchResult {
-		let (current_status, migrations) = UserMigrations::<T>::get(project_id, user.clone()).ok_or(Error::<T>::NoMigrationsFound)?;
+		let (current_status, migrations) =
+			UserMigrations::<T>::get(project_id, user.clone()).ok_or(Error::<T>::NoMigrationsFound)?;
 		let status = match status {
-			MigrationStatus::Sent(_) if matches!(current_status, MigrationStatus::NotStarted | MigrationStatus::Failed) => status,
+			MigrationStatus::Sent(_)
+				if matches!(current_status, MigrationStatus::NotStarted | MigrationStatus::Failed) =>
+				status,
 			MigrationStatus::Confirmed if matches!(current_status, MigrationStatus::Sent(_)) => status,
 			MigrationStatus::Failed if matches!(current_status, MigrationStatus::Sent(_)) => status,
 			_ => return Err(Error::<T>::NotAllowed.into()),
@@ -2392,5 +2380,4 @@ impl<T: Config> Pallet<T> {
 		UserMigrations::<T>::insert(project_id, user, (status, migrations));
 		Ok(())
 	}
-	
 }

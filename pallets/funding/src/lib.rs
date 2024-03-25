@@ -177,8 +177,7 @@ pub type EvaluationInfoOf<T> = EvaluationInfo<u32, ProjectId, AccountIdOf<T>, Ba
 pub type BidInfoOf<T> =
 	BidInfo<ProjectId, Did, BalanceOf<T>, PriceOf<T>, AccountIdOf<T>, BlockNumberFor<T>, MultiplierOf<T>>;
 
-pub type ContributionInfoOf<T> =
-	ContributionInfo<u32, ProjectId, AccountIdOf<T>, BalanceOf<T>, MultiplierOf<T>>;
+pub type ContributionInfoOf<T> = ContributionInfo<u32, ProjectId, AccountIdOf<T>, BalanceOf<T>, MultiplierOf<T>>;
 
 pub type BucketOf<T> = Bucket<BalanceOf<T>, PriceOf<T>>;
 pub type WeightInfoOf<T> = <T as Config>::WeightInfo;
@@ -197,10 +196,10 @@ pub mod pallet {
 	};
 	use frame_system::pallet_prelude::*;
 	use local_macros::*;
-use sp_arithmetic::Percent;
+	use sp_arithmetic::Percent;
 	use sp_runtime::{
-		traits::{Convert, ConvertBack, Get}, 
-		DispatchErrorWithPostInfo
+		traits::{Convert, ConvertBack, Get},
+		DispatchErrorWithPostInfo,
 	};
 
 	#[cfg(any(feature = "runtime-benchmarks", feature = "std"))]
@@ -551,10 +550,10 @@ use sp_arithmetic::Percent;
 		Blake2_128Concat,
 		ProjectId,
 		Blake2_128Concat,
-		T::AccountId, 
+		T::AccountId,
 		(MigrationStatus, BoundedVec<Migration, MaxParticipationsPerUser<T>>),
 	>;
-	
+
 	pub struct MaxParticipationsPerUser<T: Config>(PhantomData<T>);
 	impl<T: Config> Get<u32> for MaxParticipationsPerUser<T> {
 		fn get() -> u32 {
@@ -563,7 +562,13 @@ use sp_arithmetic::Percent;
 	}
 
 	#[pallet::storage]
-	pub type ActiveMigrationQueue<T: Config> = StorageMap<_, Blake2_128Concat, QueryId, (ProjectId, T::AccountId), ResultQuery<Error<T>::NoActiveMigrationsFound>>;
+	pub type ActiveMigrationQueue<T: Config> = StorageMap<
+		_,
+		Blake2_128Concat,
+		QueryId,
+		(ProjectId, T::AccountId),
+		ResultQuery<Error<T>::NoActiveMigrationsFound>,
+	>;
 
 	/// A map to keep track of what issuer's did has an active project. It prevents one issuer having multiple active projects
 	#[pallet::storage]
@@ -999,13 +1004,14 @@ use sp_arithmetic::Percent;
 			evaluation_id: u32,
 		) -> DispatchResult {
 			let _caller = ensure_signed(origin)?;
-			let bid = Evaluations::<T>::get((project_id, evaluator, evaluation_id)).ok_or(Error::<T>::ParticipationNotFound)?;
+			let bid = Evaluations::<T>::get((project_id, evaluator, evaluation_id))
+				.ok_or(Error::<T>::ParticipationNotFound)?;
 			Self::do_settle_successful_evaluation(bid, project_id)
 		}
 
 		#[pallet::call_index(10)]
 		#[pallet::weight(Weight::from_parts(0, 0))]
-		pub fn settle_successful_bid (
+		pub fn settle_successful_bid(
 			origin: OriginFor<T>,
 			project_id: ProjectId,
 			bidder: AccountIdOf<T>,
@@ -1025,7 +1031,8 @@ use sp_arithmetic::Percent;
 			contribution_id: u32,
 		) -> DispatchResult {
 			let _caller = ensure_signed(origin)?;
-			let bid = Contributions::<T>::get((project_id, contributor, contribution_id)).ok_or(Error::<T>::ParticipationNotFound)?;
+			let bid = Contributions::<T>::get((project_id, contributor, contribution_id))
+				.ok_or(Error::<T>::ParticipationNotFound)?;
 			Self::do_settle_successful_contribution(bid, project_id)
 		}
 
@@ -1038,13 +1045,14 @@ use sp_arithmetic::Percent;
 			evaluation_id: u32,
 		) -> DispatchResult {
 			let _caller = ensure_signed(origin)?;
-			let bid = Evaluations::<T>::get((project_id, evaluator, evaluation_id)).ok_or(Error::<T>::ParticipationNotFound)?;
+			let bid = Evaluations::<T>::get((project_id, evaluator, evaluation_id))
+				.ok_or(Error::<T>::ParticipationNotFound)?;
 			Self::do_settle_failed_evaluation(bid, project_id)
 		}
 
 		#[pallet::call_index(13)]
 		#[pallet::weight(Weight::from_parts(0, 0))]
-		pub fn settle_failed_bid (
+		pub fn settle_failed_bid(
 			origin: OriginFor<T>,
 			project_id: ProjectId,
 			bidder: AccountIdOf<T>,
@@ -1064,10 +1072,10 @@ use sp_arithmetic::Percent;
 			contribution_id: u32,
 		) -> DispatchResult {
 			let _caller = ensure_signed(origin)?;
-			let bid = Contributions::<T>::get((project_id, contributor, contribution_id)).ok_or(Error::<T>::ParticipationNotFound)?;
+			let bid = Contributions::<T>::get((project_id, contributor, contribution_id))
+				.ok_or(Error::<T>::ParticipationNotFound)?;
 			Self::do_settle_failed_contribution(bid, project_id)
 		}
-
 
 		#[pallet::call_index(22)]
 		#[pallet::weight(Weight::from_parts(1000, 0))]

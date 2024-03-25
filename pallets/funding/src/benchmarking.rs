@@ -635,16 +635,12 @@ mod benchmarks {
 			.unwrap();
 
 		let correct = match stored_evaluation {
-			EvaluationInfo {
-				project_id,
-				evaluator,
-				original_plmc_bond,
-				current_plmc_bond,
-				..
-			} if project_id == project_id &&
-				evaluator == evaluation.account.clone() &&
-				original_plmc_bond == extrinsic_plmc_bonded &&
-				current_plmc_bond == extrinsic_plmc_bonded => true,
+			EvaluationInfo { project_id, evaluator, original_plmc_bond, current_plmc_bond, .. }
+				if project_id == project_id &&
+					evaluator == evaluation.account.clone() &&
+					original_plmc_bond == extrinsic_plmc_bonded &&
+					current_plmc_bond == extrinsic_plmc_bonded =>
+				true,
 			_ => false,
 		};
 		assert!(correct, "Evaluation is not stored correctly");
@@ -1452,7 +1448,6 @@ mod benchmarks {
 		// Evaluation should be removed
 		assert!(Evaluations::<T>::get((project_id, evaluator.clone(), evaluation_to_settle.id)).is_none());
 
-
 		// Balances
 		let project_details = ProjectsDetails::<T>::get(project_id).unwrap();
 		let reward_info = match project_details.evaluation_round_info.evaluators_outcome {
@@ -1460,7 +1455,7 @@ mod benchmarks {
 			_ => panic!("EvaluatorsOutcome should be Rewarded"),
 		};
 		let reward = Pallet::<T>::calculate_evaluator_reward(&evaluation_to_settle, &reward_info);
-		
+
 		let ct_amount = inst.get_ct_asset_balances_for(project_id, vec![evaluator.clone()])[0];
 		assert_eq!(ct_amount, reward);
 
@@ -1532,7 +1527,9 @@ mod benchmarks {
 		assert!(Evaluations::<T>::get((project_id, evaluator.clone(), evaluation_to_settle.id)).is_none());
 		let slashed_amount = T::EvaluatorSlash::get() * evaluation_to_settle.original_plmc_bond;
 
-		let reserved_plmc = inst.get_reserved_plmc_balances_for(vec![evaluator.clone()], HoldReason::Evaluation(project_id).into())[0].plmc_amount;
+		let reserved_plmc = inst
+			.get_reserved_plmc_balances_for(vec![evaluator.clone()], HoldReason::Evaluation(project_id).into())[0]
+			.plmc_amount;
 		assert_eq!(reserved_plmc, 0.into());
 
 		let treasury_account = T::ProtocolGrowthTreasury::get();
@@ -1547,7 +1544,7 @@ mod benchmarks {
 				account: evaluator.clone(),
 				id: evaluation_to_settle.id,
 				ct_amount: 0.into(),
-				slashed_amount: slashed_amount,
+				slashed_amount,
 			}
 			.into(),
 		);
@@ -1589,20 +1586,13 @@ mod benchmarks {
 		// Storage
 		assert!(Bids::<T>::get((project_id, bidder.clone(), bid_to_settle.id)).is_none());
 
-
 		// Balances
 		let ct_amount = inst.get_ct_asset_balances_for(project_id, vec![bidder.clone()])[0];
 		assert_eq!(bid_to_settle.final_ct_amount, ct_amount);
 
 		// Events
 		frame_system::Pallet::<T>::assert_last_event(
-			Event::BidSettled {
-				project_id,
-				account: bidder.clone(),
-				id: bid_to_settle.id,
-				ct_amount,
-			}
-			.into(),
+			Event::BidSettled { project_id, account: bidder.clone(), id: bid_to_settle.id, ct_amount }.into(),
 		);
 	}
 
@@ -1661,13 +1651,7 @@ mod benchmarks {
 
 		// Events
 		frame_system::Pallet::<T>::assert_last_event(
-			Event::BidSettled {
-				project_id,
-				account: bidder.clone(),
-				id: bid_to_settle.id,
-				ct_amount: 0.into(),
-			}
-			.into(),
+			Event::BidSettled { project_id, account: bidder.clone(), id: bid_to_settle.id, ct_amount: 0.into() }.into(),
 		);
 	}
 

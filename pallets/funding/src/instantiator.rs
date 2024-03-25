@@ -1339,42 +1339,34 @@ impl<
 
 	pub fn settle_project(&mut self, project_id: ProjectId) -> Result<(), DispatchError> {
 		let details = self.get_project_details(project_id);
-		self.execute(||{
-			match details.status {
-				ProjectStatus::FundingSuccessful => Self::settle_successful_project(project_id),
-				ProjectStatus::FundingFailed | ProjectStatus::EvaluationFailed => Self::settle_failed_project(project_id),
-				_ => panic!("Project should be in FundingSuccessful, FundingFailed or EvaluationFailed status"),
-			}
+		self.execute(|| match details.status {
+			ProjectStatus::FundingSuccessful => Self::settle_successful_project(project_id),
+			ProjectStatus::FundingFailed | ProjectStatus::EvaluationFailed => Self::settle_failed_project(project_id),
+			_ => panic!("Project should be in FundingSuccessful, FundingFailed or EvaluationFailed status"),
 		})
 	}
 
 	fn settle_successful_project(project_id: ProjectId) -> Result<(), DispatchError> {
-		Evaluations::<T>::iter_prefix((project_id,)).try_for_each(|(_, evaluation)| {
-			Pallet::<T>::do_settle_successful_evaluation(evaluation, project_id)
-		})?;
+		Evaluations::<T>::iter_prefix((project_id,))
+			.try_for_each(|(_, evaluation)| Pallet::<T>::do_settle_successful_evaluation(evaluation, project_id))?;
 
-		Bids::<T>::iter_prefix((project_id,)).try_for_each(|(_, bid)| {
-			Pallet::<T>::do_settle_successful_bid(bid, project_id)
-		})?;
+		Bids::<T>::iter_prefix((project_id,))
+			.try_for_each(|(_, bid)| Pallet::<T>::do_settle_successful_bid(bid, project_id))?;
 
-		Contributions::<T>::iter_prefix((project_id,)).try_for_each(|(_, contribution)| {
-			Pallet::<T>::do_settle_successful_contribution(contribution, project_id)
-		})
+		Contributions::<T>::iter_prefix((project_id,))
+			.try_for_each(|(_, contribution)| Pallet::<T>::do_settle_successful_contribution(contribution, project_id))
 	}
 
 	fn settle_failed_project(project_id: ProjectId) -> Result<(), DispatchError> {
-		Evaluations::<T>::iter_prefix((project_id,)).try_for_each(|(_, evaluation)| {
-			Pallet::<T>::do_settle_failed_evaluation(evaluation, project_id)
-		})?;
+		Evaluations::<T>::iter_prefix((project_id,))
+			.try_for_each(|(_, evaluation)| Pallet::<T>::do_settle_failed_evaluation(evaluation, project_id))?;
 
-		Bids::<T>::iter_prefix((project_id,)).try_for_each(|(_, bid)| {
-			Pallet::<T>::do_settle_failed_bid(bid, project_id)
-		})?;
+		Bids::<T>::iter_prefix((project_id,))
+			.try_for_each(|(_, bid)| Pallet::<T>::do_settle_failed_bid(bid, project_id))?;
 
-		Contributions::<T>::iter_prefix((project_id,)).try_for_each(|(_, contribution)| {
-			Pallet::<T>::do_settle_failed_contribution(contribution, project_id)
-		})?;
-		
+		Contributions::<T>::iter_prefix((project_id,))
+			.try_for_each(|(_, contribution)| Pallet::<T>::do_settle_failed_contribution(contribution, project_id))?;
+
 		Ok(())
 	}
 
@@ -1392,51 +1384,92 @@ impl<
 
 	// Used to check if all evaluations are settled correctly. We cannot check amount of
 	// contributions minted for the user, as they could have received more tokens from other participations.
-	pub fn assert_evaluations_settled(&mut self, project_id: ProjectId, evaluations: Vec<EvaluationInfoOf<T>>, percentage: u64) {
+	pub fn assert_evaluations_settled(
+		&mut self,
+		project_id: ProjectId,
+		evaluations: Vec<EvaluationInfoOf<T>>,
+		percentage: u64,
+	) {
 		let details = self.get_project_details(project_id);
-		assert!(matches!(details.status, ProjectStatus::FundingSuccessful | ProjectStatus::FundingFailed | ProjectStatus::EvaluationFailed));
-		
-		self.execute(||{
-		for evaluation in evaluations {
-				let reward_info = ProjectsDetails::<T>::get(project_id).unwrap().evaluation_round_info.evaluators_outcome;
+		assert!(matches!(
+			details.status,
+			ProjectStatus::FundingSuccessful | ProjectStatus::FundingFailed | ProjectStatus::EvaluationFailed
+		));
+
+		self.execute(|| {
+			for evaluation in evaluations {
+				let reward_info =
+					ProjectsDetails::<T>::get(project_id).unwrap().evaluation_round_info.evaluators_outcome;
 				let account = evaluation.evaluator.clone();
 				assert_eq!(Evaluations::<T>::iter_prefix_values((&project_id, &account)).count(), 0);
-				let reserved = <T as Config>::NativeCurrency::balance_on_hold(&(HoldReason::Evaluation(project_id).into()), &account);
+				let reserved = <T as Config>::NativeCurrency::balance_on_hold(
+					&(HoldReason::Evaluation(project_id).into()),
+					&account,
+				);
 				assert_eq!(reserved, 0u64.into());
 
 				match percentage {
 					0..=75 => {
 						assert!(<T as Config>::NativeCurrency::balance(&account) < evaluation.current_plmc_bond);
 						assert!(matches!(reward_info, EvaluatorsOutcome::Slashed));
-						Self::assert_migration(project_id, account, 0u64.into(), evaluation.id, ParticipationType::Evaluation, false);
+						Self::assert_migration(
+							project_id,
+							account,
+							0u64.into(),
+							evaluation.id,
+							ParticipationType::Evaluation,
+							false,
+						);
 					},
 					76..=89 => {
 						assert!(<T as Config>::NativeCurrency::balance(&account) >= evaluation.current_plmc_bond);
 						assert!(matches!(reward_info, EvaluatorsOutcome::Unchanged));
-						Self::assert_migration(project_id, account, 0u64.into(), evaluation.id, ParticipationType::Evaluation, false);
+						Self::assert_migration(
+							project_id,
+							account,
+							0u64.into(),
+							evaluation.id,
+							ParticipationType::Evaluation,
+							false,
+						);
 					},
 					90..=100 => {
 						assert!(<T as Config>::NativeCurrency::balance(&account) >= evaluation.current_plmc_bond);
 						let reward = match reward_info {
-							EvaluatorsOutcome::Rewarded(info) => Pallet::<T>::calculate_evaluator_reward(&evaluation, &info),
-							_ => panic!("Evaluators should be rewarded")
+							EvaluatorsOutcome::Rewarded(info) =>
+								Pallet::<T>::calculate_evaluator_reward(&evaluation, &info),
+							_ => panic!("Evaluators should be rewarded"),
 						};
-						Self::assert_migration(project_id, account, reward, evaluation.id, ParticipationType::Evaluation, true);
+						Self::assert_migration(
+							project_id,
+							account,
+							reward,
+							evaluation.id,
+							ParticipationType::Evaluation,
+							true,
+						);
 					},
-					_ => panic!("Percentage should be between 0 and 100")
+					_ => panic!("Percentage should be between 0 and 100"),
 				}
 			}
 		});
 	}
 
-	// Testing if a list of bids are settled correctly. 
+	// Testing if a list of bids are settled correctly.
 	pub fn assert_bids_settled(&mut self, project_id: ProjectId, bids: Vec<BidInfoOf<T>>, is_successful: bool) {
-		self.execute(||{
+		self.execute(|| {
 			for bid in bids {
 				let account = bid.bidder.clone();
 				assert_eq!(Bids::<T>::iter_prefix_values((&project_id, &account)).count(), 0);
 				if is_successful {
-					Self::assert_migration(project_id, account, bid.final_ct_amount, bid.id, ParticipationType::Bid, true);
+					Self::assert_migration(
+						project_id,
+						account,
+						bid.final_ct_amount,
+						bid.id,
+						ParticipationType::Bid,
+						true,
+					);
 				} else {
 					Self::assert_migration(project_id, account, 0u64.into(), bid.id, ParticipationType::Bid, false);
 				}
@@ -1445,15 +1478,34 @@ impl<
 	}
 
 	// Testing if a list of contributions are settled correctly.
-	pub fn assert_contributions_settled(&mut self, project_id: ProjectId, contributions: Vec<ContributionInfoOf<T>>, is_successful: bool) {
-		self.execute(||{
+	pub fn assert_contributions_settled(
+		&mut self,
+		project_id: ProjectId,
+		contributions: Vec<ContributionInfoOf<T>>,
+		is_successful: bool,
+	) {
+		self.execute(|| {
 			for contribution in contributions {
 				let account = contribution.contributor.clone();
 				assert_eq!(Bids::<T>::iter_prefix_values((&project_id, &account)).count(), 0);
 				if is_successful {
-					Self::assert_migration(project_id, account, contribution.ct_amount, contribution.id, ParticipationType::Contribution, true);
+					Self::assert_migration(
+						project_id,
+						account,
+						contribution.ct_amount,
+						contribution.id,
+						ParticipationType::Contribution,
+						true,
+					);
 				} else {
-					Self::assert_migration(project_id, account, 0u64.into(), contribution.id, ParticipationType::Contribution, false);
+					Self::assert_migration(
+						project_id,
+						account,
+						0u64.into(),
+						contribution.id,
+						ParticipationType::Contribution,
+						false,
+					);
 				}
 			}
 		});
@@ -1467,7 +1519,7 @@ impl<
 		participation_type: ParticipationType,
 		should_exist: bool,
 	) {
-		let correct = match (should_exist, UserMigrations::<T>::get(project_id, account.clone())){
+		let correct = match (should_exist, UserMigrations::<T>::get(project_id, account.clone())) {
 			// User has migrations, so we need to check if any matches our criteria
 			(_, Some((_, migrations))) => {
 				let maybe_migration = migrations.into_iter().find(|migration| {
@@ -1478,7 +1530,7 @@ impl<
 					// Migration exists so we check if the amount is correct and if it should exist
 					Some(migration) => migration.info.contribution_token_amount == amount.into() && should_exist,
 					// Migration doesn't exist so we check if it should not exist
-					None => !should_exist
+					None => !should_exist,
 				}
 			},
 			// User does not have any migrations, so the migration should not exist

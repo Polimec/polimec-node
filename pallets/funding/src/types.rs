@@ -306,15 +306,7 @@ pub mod storage_types {
 	}
 
 	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
-	pub struct BidInfo<
-		ProjectId,
-		Did,
-		Balance: BalanceT,
-		Price: FixedPointNumber,
-		AccountId,
-		BlockNumber,
-		Multiplier,
-	> {
+	pub struct BidInfo<ProjectId, Did, Balance: BalanceT, Price: FixedPointNumber, AccountId, BlockNumber, Multiplier> {
 		pub id: u32,
 		pub project_id: ProjectId,
 		pub bidder: AccountId,

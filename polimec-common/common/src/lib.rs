@@ -154,7 +154,7 @@ pub mod migration_types {
 		pub origin: MigrationOrigin,
 		pub info: MigrationInfo,
 	}
-	
+
 	impl Migration {
 		pub fn new(origin: MigrationOrigin, info: MigrationInfo) -> Self {
 			Self { origin, info }

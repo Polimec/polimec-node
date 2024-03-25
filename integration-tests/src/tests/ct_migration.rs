@@ -15,12 +15,8 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use crate::*;
-use pallet_funding::{
-	assert_close_enough, ProjectId, 
-};
-use polimec_common::{
-	migration_types::{Migrations, MigrationStatus},
-};
+use pallet_funding::{assert_close_enough, ProjectId};
+use polimec_common::migration_types::{MigrationStatus, Migrations};
 use politest_runtime::PolimecFunding;
 use sp_runtime::Perquintill;
 use std::collections::HashMap;
@@ -49,12 +45,16 @@ fn assert_migration_is_ready(project_id: u32) {
 	});
 }
 
-fn get_migrations_for_participants(project_id: ProjectId, participants: Vec<AccountId>) -> HashMap<AccountId, (MigrationStatus, Migrations)> {
+fn get_migrations_for_participants(
+	project_id: ProjectId,
+	participants: Vec<AccountId>,
+) -> HashMap<AccountId, (MigrationStatus, Migrations)> {
 	let mut user_migrations = HashMap::new();
 	PolitestNet::execute_with(|| {
 		for participant in participants {
-				let (status, migrations) = pallet_funding::UserMigrations::<PolitestRuntime>::get(project_id, participant.clone()).unwrap();
-				user_migrations.insert(participant, (status, Migrations::from(migrations.into())));	
+			let (status, migrations) =
+				pallet_funding::UserMigrations::<PolitestRuntime>::get(project_id, participant.clone()).unwrap();
+			user_migrations.insert(participant, (status, Migrations::from(migrations.into())));
 		}
 	});
 	user_migrations
@@ -74,24 +74,24 @@ fn send_migrations(project_id: ProjectId, accounts: Vec<AccountId>) {
 
 fn migrations_are_executed(project_id: ProjectId, accounts: Vec<AccountId>) {
 	let user_migrations = get_migrations_for_participants(project_id, accounts.clone());
-	for account in accounts.into_iter(){
+	for account in accounts.into_iter() {
 		let user_info = PenNet::account_data_of(account.clone());
 		PenNet::execute_with(|| {
-	
 			let (_, migrations) = user_migrations.get(&account).unwrap();
-			let matched_events = PenNet::events().iter().filter(|event| {
-				match event {
-					PenpalEvent::PolimecReceiver(polimec_receiver::Event::MigrationExecuted{migration}) => {
-						migrations.contains(&migration)
-					},
+			let matched_events = PenNet::events()
+				.iter()
+				.filter(|event| match event {
+					PenpalEvent::PolimecReceiver(polimec_receiver::Event::MigrationExecuted { migration }) =>
+						migrations.contains(&migration),
 					_ => false,
-				}
-			}).count();
+				})
+				.count();
 			assert_eq!(matched_events, migrations.len());
 
 			assert_close_enough!(user_info.free, migrations.total_ct_amount(), Perquintill::from_float(0.99));
 
-			let vest_scheduled_cts = migrations.clone()
+			let vest_scheduled_cts = migrations
+				.clone()
 				.inner()
 				.iter()
 				.filter_map(|migration| {
@@ -113,28 +113,27 @@ fn migrations_are_confirmed(project_id: u32, accounts: Vec<AccountId>) {
 		for user in accounts.iter() {
 			let (current_status, _) = user_migrations.get(user).unwrap();
 			assert_eq!(current_status, &MigrationStatus::Confirmed);
-			
-			let matched_events: usize = PolitestNet::events().iter().filter(|event| {
-				match event {
-					PolitestEvent::PolimecFunding(pallet_funding::Event::MigrationStatusUpdated{project_id, account, status}) => {
-						project_id == project_id && account == user &&
-						matches!(status, &MigrationStatus::Confirmed)
-					},
-					_ => false,
-				}
-			}).count();
-			assert_eq!(matched_events, 1);
 
-			
+			let matched_events: usize = PolitestNet::events()
+				.iter()
+				.filter(|event| match event {
+					PolitestEvent::PolimecFunding(pallet_funding::Event::MigrationStatusUpdated {
+						project_id,
+						account,
+						status,
+					}) => project_id == project_id && account == user && matches!(status, &MigrationStatus::Confirmed),
+					_ => false,
+				})
+				.count();
+			assert_eq!(matched_events, 1);
 		}
 	});
 }
 
 fn vest_migrations(project_id: u32, accounts: Vec<AccountId>) {
 	let user_migrations = get_migrations_for_participants(project_id, accounts.clone());
-	let biggest_time = user_migrations.iter().map(|(_, (_, migrations))| {
-		migrations.biggest_vesting_time()
-	}).max().unwrap();
+	let biggest_time =
+		user_migrations.iter().map(|(_, (_, migrations))| migrations.biggest_vesting_time()).max().unwrap();
 
 	PenNet::execute_with(|| {
 		PenpalSystem::set_block_number(biggest_time as u32 + 1u32);
