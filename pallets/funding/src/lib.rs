@@ -355,6 +355,7 @@ pub mod pallet {
 			+ Default
 			+ Copy
 			+ TryFrom<u8>
+			+ Into<u8>
 			+ MaxEncodedLen
 			+ MaybeSerializeDeserialize;
 
@@ -555,6 +556,11 @@ pub mod pallet {
 		BalanceOf<T>,
 		ValueQuery,
 	>;
+
+	#[pallet::storage]
+	// After 25 participations, the retail user has access to the max multiplier of 10x, so no need to keep tracking it
+	pub type RetailParticipations<T: Config> =
+		StorageMap<_, Blake2_128Concat, Did, BoundedVec<ProjectId, MaxParticipationsForMaxMultiplier>, ValueQuery>;
 
 	#[pallet::storage]
 	/// A map to keep track of what issuer's did has an active project. It prevents one issuer having multiple active projects
@@ -978,6 +984,8 @@ pub mod pallet {
 		UserHasWinningBids,
 		// Round transition already happened.
 		RoundTransitionAlreadyHappened,
+		// User tried to use a multiplier not allowed
+		ForbiddenMultiplier,
 		/// The issuer tried to create a new project but already has an active one
 		IssuerHasActiveProjectAlready,
 		NotEnoughFunds,
@@ -1053,9 +1061,9 @@ pub mod pallet {
 			project_id: ProjectId,
 			#[pallet::compact] usd_amount: BalanceOf<T>,
 		) -> DispatchResultWithPostInfo {
-			let (account, did, _investor_type) =
+			let (account, did, investor_type) =
 				T::InvestorOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get())?;
-			Self::do_evaluate(&account, project_id, usd_amount, did)
+			Self::do_evaluate(&account, project_id, usd_amount, did, investor_type)
 		}
 
 		/// Bid for a project in the Auction round

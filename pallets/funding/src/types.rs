@@ -74,6 +74,10 @@ pub mod config_types {
 				Err(())
 			}
 		}
+
+		pub const fn force_new(x: u8) -> Self {
+			Self(x)
+		}
 	}
 
 	impl BondingRequirementCalculation for Multiplier {
@@ -108,6 +112,12 @@ pub mod config_types {
 
 		fn try_from(x: u8) -> Result<Self, ()> {
 			Self::new(x)
+		}
+	}
+
+	impl Into<u8> for Multiplier {
+		fn into(self) -> u8 {
+			self.0
 		}
 	}
 
@@ -154,6 +164,19 @@ pub mod config_types {
 			a.saturating_mul_int(one_day_in_blocks)
 		}
 	}
+
+	pub type MaxParticipationsForMaxMultiplier = ConstU32<25>;
+	pub const fn retail_max_multiplier_for_participations(participations: u8) -> u8 {
+		match participations {
+			0..=2 => 1,
+			3..=4 => 2,
+			5..=9 => 4,
+			10..=24 => 7,
+			25..=u8::MAX => 10,
+		}
+	}
+	pub const PROFESSIONAL_MAX_MULTIPLIER: u8 = 10u8;
+	pub const INSTITUTIONAL_MAX_MULTIPLIER: u8 = 25u8;
 }
 
 pub mod storage_types {

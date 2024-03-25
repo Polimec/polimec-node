@@ -927,6 +927,7 @@ impl<T: Config> Pallet<T> {
 		project_id: ProjectId,
 		usd_amount: BalanceOf<T>,
 		did: Did,
+		investor_type: InvestorType,
 	) -> DispatchResultWithPostInfo {
 		// * Get variables *
 		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
@@ -946,12 +947,19 @@ impl<T: Config> Pallet<T> {
 		ensure!(evaluations_count < T::MaxEvaluationsPerProject::get(), Error::<T>::TooManyEvaluationsForProject);
 
 		// * Calculate new variables *
+		if investor_type == InvestorType::Retail {
+			RetailParticipations::<T>::mutate(&did, |project_participations| {
+				if project_participations.contains(&project_id).not() {
+					// We don't care if it fails, since it means the user already has access to the max multiplier
+					let _ = project_participations.try_push(project_id);
+				}
+			});
+		}
 		let plmc_bond = plmc_usd_price
 			.reciprocal()
 			.ok_or(Error::<T>::BadMath)?
 			.checked_mul_int(usd_amount)
 			.ok_or(Error::<T>::BadMath)?;
-
 		let previous_total_evaluation_bonded_usd = evaluation_round_info.total_bonded_usd;
 
 		let remaining_bond_to_reach_threshold =
@@ -1064,6 +1072,12 @@ impl<T: Config> Pallet<T> {
 			InvestorType::Professional => project_metadata.bidding_ticket_sizes.professional,
 			_ => return Err(Error::<T>::NotAllowed.into()),
 		};
+		let max_multiplier = match investor_type {
+			InvestorType::Professional => PROFESSIONAL_MAX_MULTIPLIER,
+			InvestorType::Institutional => INSTITUTIONAL_MAX_MULTIPLIER,
+			// unreachable
+			_ => return Err(Error::<T>::NotAllowed.into()),
+		};
 
 		// * Validity checks *
 		ensure!(
@@ -1084,6 +1098,7 @@ impl<T: Config> Pallet<T> {
 			metadata_bidder_ticket_size_bounds.usd_ticket_above_minimum_per_participation(min_total_ticket_size),
 			Error::<T>::BidTooLow
 		);
+		ensure!(multiplier.into() <= max_multiplier && multiplier.into() > 0u8, Error::<T>::ForbiddenMultiplier);
 
 		// Note: We limit the CT Amount to the auction allocation size, to avoid long running loops.
 		ensure!(
@@ -1309,8 +1324,22 @@ impl<T: Config> Pallet<T> {
 			InvestorType::Professional => project_metadata.contributing_ticket_sizes.professional,
 			InvestorType::Retail => project_metadata.contributing_ticket_sizes.retail,
 		};
+		let max_multiplier = match investor_type {
+			InvestorType::Retail => {
+				RetailParticipations::<T>::mutate(&did, |project_participations| {
+					if project_participations.contains(&project_id).not() {
+						// We don't care if it fails, since it means the user already has access to the max multiplier
+						let _ = project_participations.try_push(project_id);
+					}
+					retail_max_multiplier_for_participations(project_participations.len() as u8)
+				})
+			},
 
+			InvestorType::Professional => PROFESSIONAL_MAX_MULTIPLIER,
+			InvestorType::Institutional => INSTITUTIONAL_MAX_MULTIPLIER,
+		};
 		// * Validity checks *
+		ensure!(multiplier.into() <= max_multiplier && multiplier.into() > 0u8, Error::<T>::ForbiddenMultiplier);
 		ensure!(
 			project_metadata.participation_currencies.contains(&funding_asset),
 			Error::<T>::FundingAssetNotAccepted
