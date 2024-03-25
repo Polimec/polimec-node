@@ -93,8 +93,7 @@ fn load_spec(id: &str) -> std::result::Result<Box<dyn ChainSpec>, String> {
 		// Base runtime
 		"polimec" => Box::new(chain_spec::polimec::ChainSpec::from_json_bytes(polimec_chain_spec)?),
 		"rolimec" => Box::new(chain_spec::polimec::ChainSpec::from_json_bytes(rolimec_chain_spec)?),
-		// TODO: add politest live
-		// "politest" => Box::new(chain_spec::politest::get_()?),
+		"politest" => Box::new(chain_spec::politest::get_live_chain_spec()),
 		"polimec-local" => Box::new(chain_spec::polimec::get_local_chain_spec()),
 		"rolimec-local" => Box::new(chain_spec::polimec::get_rococo_chain_spec()),
 		"politest-local" => Box::new(chain_spec::politest::get_local_chain_spec()),
