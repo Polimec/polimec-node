@@ -18,17 +18,12 @@
 
 //! Functions for the Funding pallet.
 use crate::ProjectStatus::FundingSuccessful;
-use frame_support::{
-	dispatch::{DispatchErrorWithPostInfo, DispatchResult, DispatchResultWithPostInfo, PostDispatchInfo},
-	ensure,
-	pallet_prelude::*,
-	traits::{
-		fungible::{Mutate, MutateHold as FungibleMutateHold},
-		fungibles::{metadata::Mutate as MetadataMutate, Create, Inspect, Mutate as FungiblesMutate},
-		tokens::{Fortitude, Precision, Preservation, Restriction},
-		Get,
-	},
-};
+use frame_support::{dispatch::{DispatchErrorWithPostInfo, DispatchResult, DispatchResultWithPostInfo, PostDispatchInfo}, ensure, pallet_prelude::*, traits::{
+	fungible::{Mutate, MutateHold as FungibleMutateHold},
+	fungibles::{metadata::Mutate as MetadataMutate, Create, Inspect, Mutate as FungiblesMutate},
+	tokens::{Fortitude, Precision, Preservation, Restriction},
+	Get,
+}, transactional};
 use frame_system::pallet_prelude::BlockNumberFor;
 use itertools::Itertools;
 use polimec_common::{
@@ -68,6 +63,7 @@ impl<T: Config> Pallet<T> {
 	/// # Next step
 	/// Users will pond PLMC for this project, and when the time comes, the project will be transitioned
 	/// to the next round by `on_initialize` using [`do_evaluation_end`](Self::do_evaluation_end)
+	#[transactional]
 	pub fn do_start_evaluation(caller: AccountIdOf<T>, project_id: ProjectId) -> DispatchResultWithPostInfo {
 		// * Get variables *
 		let project_metadata = ProjectsMetadata::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
@@ -141,6 +137,7 @@ impl<T: Config> Pallet<T> {
 	///
 	/// * Bonding failed - `on_idle` at some point checks for failed evaluation projects, and
 	/// unbonds the evaluators funds.
+	#[transactional]
 	pub fn do_evaluation_end(project_id: ProjectId) -> DispatchResultWithPostInfo {
 		// * Get variables *
 		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
@@ -244,6 +241,7 @@ impl<T: Config> Pallet<T> {
 	/// Professional and Institutional users set bids for the project using the [`bid`](Self::bid) extrinsic.
 	/// Later on, `on_initialize` transitions the project into the candle auction round, by calling
 	/// [`do_candle_auction`](Self::do_candle_auction).
+	#[transactional]
 	pub fn do_english_auction(caller: AccountIdOf<T>, project_id: ProjectId) -> DispatchResultWithPostInfo {
 		// * Get variables *
 		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
@@ -330,6 +328,7 @@ impl<T: Config> Pallet<T> {
 	/// but now their bids are not guaranteed.
 	/// Later on, `on_initialize` ends the candle auction round and starts the community round,
 	/// by calling [`do_community_funding`](Self::do_community_funding).
+	#[transactional]
 	pub fn do_candle_auction(project_id: ProjectId) -> DispatchResultWithPostInfo {
 		// * Get variables *
 		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
@@ -392,6 +391,7 @@ impl<T: Config> Pallet<T> {
 	/// Retail users buy tokens at the price set on the auction round.
 	/// Later on, `on_initialize` ends the community round by calling [`do_remainder_funding`](Self::do_remainder_funding) and
 	/// starts the remainder round, where anyone can buy at that price point.
+	#[transactional]
 	pub fn do_community_funding(project_id: ProjectId) -> DispatchResultWithPostInfo {
 		// * Get variables *
 		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
@@ -495,6 +495,7 @@ impl<T: Config> Pallet<T> {
 	/// Any users can now buy tokens at the price set on the auction round.
 	/// Later on, `on_initialize` ends the remainder round, and finalizes the project funding, by calling
 	/// [`do_end_funding`](Self::do_end_funding).
+	#[transactional]
 	pub fn do_remainder_funding(project_id: ProjectId) -> DispatchResultWithPostInfo {
 		// * Get variables *
 		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
@@ -569,6 +570,7 @@ impl<T: Config> Pallet<T> {
 	/// * Bonded plmc with [`vested_plmc_purchase_unbond_for`](Self::vested_plmc_purchase_unbond_for)
 	///
 	/// If **unsuccessful**, users every user should have their PLMC vesting unbonded.
+	#[transactional]
 	pub fn do_end_funding(project_id: ProjectId) -> DispatchResultWithPostInfo {
 		// * Get variables *
 		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
@@ -678,6 +680,7 @@ impl<T: Config> Pallet<T> {
 		}
 	}
 
+	#[transactional]
 	pub fn do_project_decision(project_id: ProjectId, decision: FundingOutcomeDecision) -> DispatchResultWithPostInfo {
 		// * Get variables *
 		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
@@ -715,6 +718,7 @@ impl<T: Config> Pallet<T> {
 		}
 	}
 
+	#[transactional]
 	pub fn do_start_settlement(project_id: ProjectId) -> DispatchResultWithPostInfo {
 		// * Get variables *
 		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;

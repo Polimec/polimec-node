@@ -1486,7 +1486,7 @@ pub mod pallet {
 		}
 	}
 
-	fn update_weight_and_return_result(used_weight: &mut Weight, call: DispatchResultWithPostInfo, fallback_weight: Weight) -> Result<(), DispatchError> {
+	fn update_weight(used_weight: &mut Weight, call: DispatchResultWithPostInfo, fallback_weight: Weight){
 		match call {
 			Ok(post_dispatch_info) => {
 				if let Some(actual_weight) = post_dispatch_info.actual_weight {
@@ -1494,7 +1494,6 @@ pub mod pallet {
 				} else {
 					*used_weight = used_weight.saturating_add(fallback_weight);
 				}
-				Ok(())
 			},
 			Err(DispatchErrorWithPostInfo::<PostDispatchInfo>{error, post_info}) => {
 				if let Some(actual_weight) = post_info.actual_weight {
@@ -1502,7 +1501,6 @@ pub mod pallet {
 				} else {
 					*used_weight = used_weight.saturating_add(fallback_weight);
 				}
-				Err(error)
 			}
 		}
 	}
@@ -1513,81 +1511,79 @@ pub mod pallet {
 			// Get the projects that need to be updated on this block and update them
 			let mut used_weight = Weight::from_parts(0, 0);
 			for (project_id, update_type) in ProjectsToUpdate::<T>::take(now) {
-				frame_support::storage::transactional::with_storage_layer(|| {
-					match update_type {
-						// EvaluationRound -> AuctionInitializePeriod | EvaluationFailed
-						UpdateType::EvaluationEnd => {
-							let call = Self::do_evaluation_end(project_id);
-							let fallback_weight = Call::<T>::root_do_evaluation_end {
-								project_id,
-							}.get_dispatch_info().weight;
-							update_weight_and_return_result(&mut used_weight, call, fallback_weight)
-						}
-
-						// AuctionInitializePeriod -> AuctionRound(AuctionPhase::English)
-						// Only if it wasn't first handled by user extrinsic
-						UpdateType::EnglishAuctionStart => {
-							let call = Self::do_english_auction(T::PalletId::get().into_account_truncating(), project_id,);
-							let fallback_weight = Call::<T>::root_do_english_auction{
-								project_id,
-							}.get_dispatch_info().weight;
-							update_weight_and_return_result(&mut used_weight, call, fallback_weight)
-						},
-
-						// AuctionRound(AuctionPhase::English) -> AuctionRound(AuctionPhase::Candle)
-						UpdateType::CandleAuctionStart => {
-							let call = Self::do_candle_auction(project_id);
-							let fallback_weight = Call::<T>::root_do_candle_auction {
-								project_id,
-							}.get_dispatch_info().weight;
-							update_weight_and_return_result(&mut used_weight, call, fallback_weight)
-						},
-
-						// AuctionRound(AuctionPhase::Candle) -> CommunityRound
-						UpdateType::CommunityFundingStart => {
-							let call = Self::do_community_funding(project_id);
-							let fallback_weight = Call::<T>::root_do_community_funding {
-								project_id,
-							}.get_dispatch_info().weight;
-							update_weight_and_return_result(&mut used_weight, call, fallback_weight)
-						},
-
-						// CommunityRound -> RemainderRound
-						UpdateType::RemainderFundingStart => {
-							let call = Self::do_remainder_funding(project_id);
-							let fallback_weight = Call::<T>::root_do_remainder_funding {
-								project_id,
-							}.get_dispatch_info().weight;
-							update_weight_and_return_result(&mut used_weight, call, fallback_weight)
-						},
-
-						// CommunityRound || RemainderRound -> FundingEnded
-						UpdateType::FundingEnd => {
-							let call = Self::do_end_funding(project_id);
-							let fallback_weight = Call::<T>::root_do_end_funding {
-								project_id,
-							}.get_dispatch_info().weight;
-							update_weight_and_return_result(&mut used_weight, call, fallback_weight)
-						},
-
-						UpdateType::ProjectDecision(decision) => {
-							let call = Self::do_project_decision(project_id, decision);
-							let fallback_weight = Call::<T>::root_do_project_decision {
-								project_id,
-								decision,
-							}.get_dispatch_info().weight;
-							update_weight_and_return_result(&mut used_weight, call, fallback_weight)
-						},
-
-						UpdateType::StartSettlement => {
-							let call = Self::do_start_settlement(project_id);
-							let fallback_weight = Call::<T>::root_do_start_settlement {
-								project_id,
-							}.get_dispatch_info().weight;
-							update_weight_and_return_result(&mut used_weight, call, fallback_weight)
-						}
+				match update_type {
+					// EvaluationRound -> AuctionInitializePeriod | EvaluationFailed
+					UpdateType::EvaluationEnd => {
+						let call = Self::do_evaluation_end(project_id);
+						let fallback_weight = Call::<T>::root_do_evaluation_end {
+							project_id,
+						}.get_dispatch_info().weight;
+						update_weight(&mut used_weight, call, fallback_weight);
 					}
-				});
+
+					// AuctionInitializePeriod -> AuctionRound(AuctionPhase::English)
+					// Only if it wasn't first handled by user extrinsic
+					UpdateType::EnglishAuctionStart => {
+						let call = Self::do_english_auction(T::PalletId::get().into_account_truncating(), project_id,);
+						let fallback_weight = Call::<T>::root_do_english_auction{
+							project_id,
+						}.get_dispatch_info().weight;
+						update_weight(&mut used_weight, call, fallback_weight);
+					},
+
+					// AuctionRound(AuctionPhase::English) -> AuctionRound(AuctionPhase::Candle)
+					UpdateType::CandleAuctionStart => {
+						let call = Self::do_candle_auction(project_id);
+						let fallback_weight = Call::<T>::root_do_candle_auction {
+							project_id,
+						}.get_dispatch_info().weight;
+						update_weight(&mut used_weight, call, fallback_weight);
+					},
+
+					// AuctionRound(AuctionPhase::Candle) -> CommunityRound
+					UpdateType::CommunityFundingStart => {
+						let call = Self::do_community_funding(project_id);
+						let fallback_weight = Call::<T>::root_do_community_funding {
+							project_id,
+						}.get_dispatch_info().weight;
+						update_weight(&mut used_weight, call, fallback_weight);
+					},
+
+					// CommunityRound -> RemainderRound
+					UpdateType::RemainderFundingStart => {
+						let call = Self::do_remainder_funding(project_id);
+						let fallback_weight = Call::<T>::root_do_remainder_funding {
+							project_id,
+						}.get_dispatch_info().weight;
+						update_weight(&mut used_weight, call, fallback_weight);
+					},
+
+					// CommunityRound || RemainderRound -> FundingEnded
+					UpdateType::FundingEnd => {
+						let call = Self::do_end_funding(project_id);
+						let fallback_weight = Call::<T>::root_do_end_funding {
+							project_id,
+						}.get_dispatch_info().weight;
+						update_weight(&mut used_weight, call, fallback_weight);
+					},
+
+					UpdateType::ProjectDecision(decision) => {
+						let call = Self::do_project_decision(project_id, decision);
+						let fallback_weight = Call::<T>::root_do_project_decision {
+							project_id,
+							decision,
+						}.get_dispatch_info().weight;
+						update_weight(&mut used_weight, call, fallback_weight);
+					},
+
+					UpdateType::StartSettlement => {
+						let call = Self::do_start_settlement(project_id);
+						let fallback_weight = Call::<T>::root_do_start_settlement {
+							project_id,
+						}.get_dispatch_info().weight;
+						update_weight(&mut used_weight, call, fallback_weight);
+					}
+				}
 			}
 			used_weight
 		}
