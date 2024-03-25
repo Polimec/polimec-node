@@ -7,7 +7,7 @@
 if [ -z "$1" ]
 then
     echo "Please pass tag as first argument"
-    echo "Example: ./build_image.sh latest ../Dockerfile polimec-parachain-node"
+    echo "Example: ./build_image.sh latest ../Dockerfile polimec-node"
     exit 1
 fi
 
@@ -15,7 +15,7 @@ fi
 if [ -z "$2" ]
 then
     echo "Please pass path to Dockerfile as second argument"
-    echo "Example: ./build_image.sh latest ../Dockerfile polimec-parachain-node"
+    echo "Example: ./build_image.sh latest ../Dockerfile polimec-node"
     exit 1
 fi
 
@@ -30,7 +30,7 @@ fi
 if [ -z "$3" ]
 then
     echo "Please pass package as third argument"
-    echo "Example: ./build_image.sh latest ../Dockerfile polimec-parachain-node"
+    echo "Example: ./build_image.sh latest ../Dockerfile polimec-node"
     exit 1
 fi
 

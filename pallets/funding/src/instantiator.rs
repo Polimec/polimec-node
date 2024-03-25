@@ -34,7 +34,7 @@ use frame_support::{
 use frame_system::pallet_prelude::BlockNumberFor;
 use itertools::Itertools;
 use parity_scale_codec::Decode;
-use polimec_common::credentials::InvestorType;
+use polimec_common::{credentials::InvestorType, migration_types::MigrationOrigin};
 #[cfg(any(test, feature = "std", feature = "runtime-benchmarks"))]
 use polimec_common_test_utils::generate_did_from_account;
 use sp_arithmetic::{
@@ -42,7 +42,7 @@ use sp_arithmetic::{
 	FixedPointNumber, Percent, Perquintill,
 };
 use sp_runtime::{
-	traits::{Member, One},
+	traits::{Convert, Member, One},
 	DispatchError,
 };
 use sp_std::{
@@ -1055,7 +1055,7 @@ impl<
 		project_id
 	}
 
-	pub fn bond_for_users(
+	pub fn evaluate_for_users(
 		&mut self,
 		project_id: ProjectId,
 		bonds: Vec<UserToUSDBalance<T>>,
@@ -1115,7 +1115,7 @@ impl<
 		self.mint_plmc_to(plmc_eval_deposits.clone());
 		self.mint_plmc_to(plmc_existential_deposits.clone());
 
-		self.bond_for_users(project_id, evaluations).unwrap();
+		self.evaluate_for_users(project_id, evaluations).unwrap();
 
 		let expected_evaluator_balances =
 			Self::sum_balance_mappings(vec![plmc_eval_deposits.clone(), plmc_existential_deposits.clone()]);
@@ -1169,7 +1169,10 @@ impl<
 		// run on_initialize
 		self.advance_time(1u32.into()).unwrap();
 
-		assert_eq!(self.get_project_details(project_id).status, ProjectStatus::CommunityRound);
+		ensure!(
+			self.get_project_details(project_id).status == ProjectStatus::CommunityRound,
+			DispatchError::from("Auction failed")
+		);
 
 		Ok(())
 	}
@@ -1373,6 +1376,116 @@ impl<
 			})?;
 		}
 		Ok(())
+	}
+
+	pub fn get_evaluations(&mut self, project_id: ProjectId) -> Vec<EvaluationInfoOf<T>> {
+		self.execute(|| Evaluations::<T>::iter_prefix_values((project_id,)).collect())
+	}
+
+	pub fn get_bids(&mut self, project_id: ProjectId) -> Vec<BidInfoOf<T>> {
+		self.execute(|| Bids::<T>::iter_prefix_values((project_id,)).collect())
+	}
+
+	pub fn get_contributions(&mut self, project_id: ProjectId) -> Vec<ContributionInfoOf<T>> {
+		self.execute(|| Contributions::<T>::iter_prefix_values((project_id,)).collect())
+	}
+
+	// Used to check if all evaluations are settled correctly. We cannot check amount of
+	// contributions minted for the user, as they could have received more tokens from other participations.
+	pub fn assert_evaluations_settled(&mut self, project_id: ProjectId, evaluations: Vec<EvaluationInfoOf<T>>, percentage: u64) {
+		let details = self.get_project_details(project_id);
+		assert!(matches!(details.status, ProjectStatus::FundingSuccessful | ProjectStatus::FundingFailed | ProjectStatus::EvaluationFailed));
+		
+		self.execute(||{
+		for evaluation in evaluations {
+				let reward_info = ProjectsDetails::<T>::get(project_id).unwrap().evaluation_round_info.evaluators_outcome;
+				let account = evaluation.evaluator.clone();
+				assert_eq!(Evaluations::<T>::iter_prefix_values((&project_id, &account)).count(), 0);
+				let reserved = <T as Config>::NativeCurrency::balance_on_hold(&(HoldReason::Evaluation(project_id).into()), &account);
+				assert_eq!(reserved, 0u64.into());
+
+				match percentage {
+					0..=75 => {
+						assert!(<T as Config>::NativeCurrency::balance(&account) < evaluation.current_plmc_bond);
+						assert!(matches!(reward_info, EvaluatorsOutcome::Slashed));
+						Self::assert_migration(project_id, account, 0u64.into(), evaluation.id, ParticipationType::Evaluation, false);
+					},
+					76..=89 => {
+						assert!(<T as Config>::NativeCurrency::balance(&account) >= evaluation.current_plmc_bond);
+						assert!(matches!(reward_info, EvaluatorsOutcome::Unchanged));
+						Self::assert_migration(project_id, account, 0u64.into(), evaluation.id, ParticipationType::Evaluation, false);
+					},
+					90..=100 => {
+						assert!(<T as Config>::NativeCurrency::balance(&account) >= evaluation.current_plmc_bond);
+						let reward = match reward_info {
+							EvaluatorsOutcome::Rewarded(info) => Pallet::<T>::calculate_evaluator_reward(&evaluation, &info),
+							_ => panic!("Evaluators should be rewarded")
+						};
+						Self::assert_migration(project_id, account, reward, evaluation.id, ParticipationType::Evaluation, true);
+					},
+					_ => panic!("Percentage should be between 0 and 100")
+				}
+			}
+		});
+	}
+
+	// Testing if a list of bids are settled correctly. 
+	pub fn assert_bids_settled(&mut self, project_id: ProjectId, bids: Vec<BidInfoOf<T>>, is_successful: bool) {
+		self.execute(||{
+			for bid in bids {
+				let account = bid.bidder.clone();
+				assert_eq!(Bids::<T>::iter_prefix_values((&project_id, &account)).count(), 0);
+				if is_successful {
+					Self::assert_migration(project_id, account, bid.final_ct_amount, bid.id, ParticipationType::Bid, true);
+				} else {
+					Self::assert_migration(project_id, account, 0u64.into(), bid.id, ParticipationType::Bid, false);
+				}
+			}
+		});
+	}
+
+	// Testing if a list of contributions are settled correctly.
+	pub fn assert_contributions_settled(&mut self, project_id: ProjectId, contributions: Vec<ContributionInfoOf<T>>, is_successful: bool) {
+		self.execute(||{
+			for contribution in contributions {
+				let account = contribution.contributor.clone();
+				assert_eq!(Bids::<T>::iter_prefix_values((&project_id, &account)).count(), 0);
+				if is_successful {
+					Self::assert_migration(project_id, account, contribution.ct_amount, contribution.id, ParticipationType::Contribution, true);
+				} else {
+					Self::assert_migration(project_id, account, 0u64.into(), contribution.id, ParticipationType::Contribution, false);
+				}
+			}
+		});
+	}
+
+	fn assert_migration(
+		project_id: ProjectId,
+		account: AccountIdOf<T>,
+		amount: BalanceOf<T>,
+		id: u32,
+		participation_type: ParticipationType,
+		should_exist: bool,
+	) {
+		let correct = match (should_exist, UserMigrations::<T>::get(project_id, account.clone())){
+			// User has migrations, so we need to check if any matches our criteria
+			(_, Some((_, migrations))) => {
+				let maybe_migration = migrations.into_iter().find(|migration| {
+					let user = T::AccountId32Conversion::convert(account.clone());
+					matches!(migration.origin, MigrationOrigin { user: m_user, id: m_id, participation_type: m_participation_type } if m_user == user && m_id == id && m_participation_type == participation_type)
+				});
+				match maybe_migration {
+					// Migration exists so we check if the amount is correct and if it should exist
+					Some(migration) => migration.info.contribution_token_amount == amount.into() && should_exist,
+					// Migration doesn't exist so we check if it should not exist
+					None => !should_exist
+				}
+			},
+			// User does not have any migrations, so the migration should not exist
+			(false, None) => true,
+			(true, None) => false,
+		};
+		assert!(correct);
 	}
 
 	pub fn create_remainder_contributing_project(
@@ -1853,7 +1966,7 @@ pub mod async_features {
 		inst.mint_plmc_to(plmc_eval_deposits.clone());
 		inst.mint_plmc_to(plmc_existential_deposits.clone());
 
-		inst.bond_for_users(project_id, evaluations).unwrap();
+		inst.evaluate_for_users(project_id, evaluations).unwrap();
 
 		let expected_evaluator_balances =
 			Instantiator::<T, AllPalletsWithoutSystem, RuntimeEvent>::sum_balance_mappings(vec![

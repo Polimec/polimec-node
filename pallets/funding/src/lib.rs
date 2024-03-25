@@ -130,7 +130,7 @@ use polimec_common::{
 	credentials::{Did, EnsureOriginWithCredentials, InvestorType, UntrustedToken},
 	migration_types::*,
 };
-use polkadot_parachain::primitives::Id as ParaId;
+use polkadot_parachain_primitives::primitives::Id as ParaId;
 use sp_arithmetic::traits::{One, Saturating};
 use sp_runtime::{traits::AccountIdConversion, FixedPointNumber, FixedPointOperand, FixedU128};
 use sp_std::{marker::PhantomData, prelude::*};
@@ -175,7 +175,8 @@ pub type ProjectDetailsOf<T> =
 pub type EvaluationRoundInfoOf<T> = EvaluationRoundInfo<BalanceOf<T>>;
 pub type EvaluationInfoOf<T> = EvaluationInfo<u32, ProjectId, AccountIdOf<T>, BalanceOf<T>, BlockNumberFor<T>>;
 pub type BidInfoOf<T> =
-	BidInfo<ProjectId, BalanceOf<T>, PriceOf<T>, AccountIdOf<T>, BlockNumberFor<T>, MultiplierOf<T>>;
+	BidInfo<ProjectId, Did, BalanceOf<T>, PriceOf<T>, AccountIdOf<T>, BlockNumberFor<T>, MultiplierOf<T>>;
+
 pub type ContributionInfoOf<T> =
 	ContributionInfo<u32, ProjectId, AccountIdOf<T>, BalanceOf<T>, MultiplierOf<T>>;
 
@@ -342,6 +343,7 @@ use sp_arithmetic::Percent;
 			+ Default
 			+ Copy
 			+ TryFrom<u8>
+			+ Into<u8>
 			+ MaxEncodedLen
 			+ MaybeSerializeDeserialize;
 
@@ -388,7 +390,7 @@ use sp_arithmetic::Percent;
 		type RequiredMaxMessageSize: Get<u32>;
 
 		/// The runtime enum constructed by the construct_runtime macro
-		type RuntimeCall: Parameter + IsType<<Self as frame_system::Config>::RuntimeCall> + From<Call<Self>>;
+		type RuntimeCall: Parameter + IsType<<Self as pallet_xcm::Config>::RuntimeCall> + From<Call<Self>>;
 
 		/// The event enum constructed by the construct_runtime macro
 		type RuntimeEvent: From<Event<Self>>
@@ -562,6 +564,14 @@ use sp_arithmetic::Percent;
 
 	#[pallet::storage]
 	pub type ActiveMigrationQueue<T: Config> = StorageMap<_, Blake2_128Concat, QueryId, (ProjectId, T::AccountId), ResultQuery<Error<T>::NoActiveMigrationsFound>>;
+
+	/// A map to keep track of what issuer's did has an active project. It prevents one issuer having multiple active projects
+	#[pallet::storage]
+	pub type DidWithActiveProjects<T: Config> = StorageMap<_, Blake2_128Concat, Did, ProjectId, OptionQuery>;
+
+	#[pallet::storage]
+	pub type DidWithWinningBids<T: Config> =
+		StorageDoubleMap<_, Blake2_128Concat, ProjectId, Blake2_128Concat, Did, bool, ValueQuery>;
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub (super) fn deposit_event)]
@@ -773,8 +783,8 @@ use sp_arithmetic::Percent;
 		FieldIsNone,
 		/// Checked math failed
 		BadMath,
-		/// Tried to retrieve a bid but it does not exist
-		BidNotFound,
+		/// Tried to retrieve a evaluation, bid or contribution but it does not exist
+		ParticipationNotFound,
 		/// Tried to contribute but its too low to be accepted
 		ContributionTooLow,
 		/// Contribution is higher than the limit set by the issuer
@@ -816,6 +826,9 @@ use sp_arithmetic::Percent;
 		UserHasWinningBids,
 		// Round transition already happened.
 		RoundTransitionAlreadyHappened,
+		/// The issuer tried to create a new project but already has an active one
+		IssuerHasActiveProjectAlready,
+		NotEnoughFunds,
 	}
 
 	#[pallet::call]
@@ -986,7 +999,7 @@ use sp_arithmetic::Percent;
 			evaluation_id: u32,
 		) -> DispatchResult {
 			let _caller = ensure_signed(origin)?;
-			let bid = Evaluations::<T>::get((project_id, evaluator, evaluation_id)).ok_or(Error::<T>::BidNotFound)?;
+			let bid = Evaluations::<T>::get((project_id, evaluator, evaluation_id)).ok_or(Error::<T>::ParticipationNotFound)?;
 			Self::do_settle_successful_evaluation(bid, project_id)
 		}
 
@@ -999,7 +1012,7 @@ use sp_arithmetic::Percent;
 			bid_id: u32,
 		) -> DispatchResult {
 			let _caller = ensure_signed(origin)?;
-			let bid = Bids::<T>::get((project_id, bidder, bid_id)).ok_or(Error::<T>::BidNotFound)?;
+			let bid = Bids::<T>::get((project_id, bidder, bid_id)).ok_or(Error::<T>::ParticipationNotFound)?;
 			Self::do_settle_successful_bid(bid, project_id)
 		}
 
@@ -1012,7 +1025,7 @@ use sp_arithmetic::Percent;
 			contribution_id: u32,
 		) -> DispatchResult {
 			let _caller = ensure_signed(origin)?;
-			let bid = Contributions::<T>::get((project_id, contributor, contribution_id)).ok_or(Error::<T>::BidNotFound)?;
+			let bid = Contributions::<T>::get((project_id, contributor, contribution_id)).ok_or(Error::<T>::ParticipationNotFound)?;
 			Self::do_settle_successful_contribution(bid, project_id)
 		}
 
@@ -1025,7 +1038,7 @@ use sp_arithmetic::Percent;
 			evaluation_id: u32,
 		) -> DispatchResult {
 			let _caller = ensure_signed(origin)?;
-			let bid = Evaluations::<T>::get((project_id, evaluator, evaluation_id)).ok_or(Error::<T>::BidNotFound)?;
+			let bid = Evaluations::<T>::get((project_id, evaluator, evaluation_id)).ok_or(Error::<T>::ParticipationNotFound)?;
 			Self::do_settle_failed_evaluation(bid, project_id)
 		}
 
@@ -1038,7 +1051,7 @@ use sp_arithmetic::Percent;
 			bid_id: u32,
 		) -> DispatchResult {
 			let _caller = ensure_signed(origin)?;
-			let bid = Bids::<T>::get((project_id, bidder, bid_id)).ok_or(Error::<T>::BidNotFound)?;
+			let bid = Bids::<T>::get((project_id, bidder, bid_id)).ok_or(Error::<T>::ParticipationNotFound)?;
 			Self::do_settle_failed_bid(bid, project_id)
 		}
 
@@ -1051,7 +1064,7 @@ use sp_arithmetic::Percent;
 			contribution_id: u32,
 		) -> DispatchResult {
 			let _caller = ensure_signed(origin)?;
-			let bid = Contributions::<T>::get((project_id, contributor, contribution_id)).ok_or(Error::<T>::BidNotFound)?;
+			let bid = Contributions::<T>::get((project_id, contributor, contribution_id)).ok_or(Error::<T>::ParticipationNotFound)?;
 			Self::do_settle_failed_contribution(bid, project_id)
 		}
 
@@ -1397,14 +1410,16 @@ use sp_arithmetic::Percent;
 		<T as pallet_balances::Config>::Balance: Into<BalanceOf<T>>,
 	{
 		fn build(&self) {
+			#[cfg(any(feature = "std", feature = "runtime-benchmarks"))]
+			{
+				<T as Config>::SetPrices::set_prices();
+			}
 			#[cfg(feature = "std")]
 			{
 				type GenesisInstantiator<T> =
 					instantiator::Instantiator<T, <T as Config>::AllPalletsWithoutSystem, <T as Config>::RuntimeEvent>;
 				let inst = GenesisInstantiator::<T>::new(None);
-				<T as Config>::SetPrices::set_prices();
 				instantiator::async_features::create_multiple_projects_at(inst, self.starting_projects.clone());
-
 				frame_system::Pallet::<T>::set_block_number(0u32.into());
 			}
 		}

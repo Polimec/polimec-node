@@ -34,14 +34,14 @@ use polimec_xcm_executor::{
 	polimec_traits::{JustTry, Properties, ShouldExecute},
 	XcmExecutor,
 };
-use polkadot_parachain::primitives::Sibling;
+use polkadot_parachain_primitives::primitives::Sibling;
 use polkadot_runtime_common::impls::ToAuthor;
 use sp_runtime::traits::MaybeEquivalence;
 use xcm::latest::prelude::*;
 use xcm_builder::{
 	AccountId32Aliases, AllowExplicitUnpaidExecutionFrom, AllowKnownQueryResponses, AllowSubscriptionsFrom,
-	AllowTopLevelPaidExecutionFrom, CreateMatcher, CurrencyAdapter, DenyReserveTransferToRelayChain, DenyThenTry,
-	EnsureXcmOrigin, FixedRateOfFungible, FixedWeightBounds, FungiblesAdapter, IsConcrete, MatchXcm,
+	AllowTopLevelPaidExecutionFrom, CreateMatcher, DenyReserveTransferToRelayChain, DenyThenTry, EnsureXcmOrigin,
+	FixedRateOfFungible, FixedWeightBounds, FungibleAdapter, FungiblesAdapter, IsConcrete, MatchXcm,
 	MatchedConvertedConcreteId, MintLocation, NoChecking, ParentIsPreset, RelayChainAsNative, SiblingParachainAsNative,
 	SiblingParachainConvertsVia, SignedAccountId32AsNative, SignedToAccountId32, SovereignSignedViaLocation,
 	TakeWeightCredit, UsingComponents, WithComputedOrigin,
@@ -95,7 +95,7 @@ pub type LocationToAccountId = (
 );
 
 /// Means for transacting assets on this chain.
-pub type CurrencyTransactor = CurrencyAdapter<
+pub type FungibleTransactor = FungibleAdapter<
 	// Use this currency:
 	Balances,
 	// Use this currency when it is a fungible asset matching the given location or name:
@@ -250,13 +250,14 @@ pub type Barrier = DenyThenTry<
 pub type Reserves = AssetHubAssetsAsReserve;
 
 /// Means for transacting assets on this chain.
-/// CurrencyTransaction is a CurrencyAdapter that allows for transacting PLMC.
+/// FungibleTransactor is a FungibleAdapter that allows for transacting PLMC.
 /// ForeignAssetsAdapter is a FungiblesAdapter that allows for transacting foreign assets.
 /// Currently we only support DOT, USDT and USDC.
-pub type AssetTransactors = (CurrencyTransactor, ForeignAssetsAdapter);
+pub type AssetTransactors = (FungibleTransactor, ForeignAssetsAdapter);
 
 pub struct XcmConfig;
 impl polimec_xcm_executor::Config for XcmConfig {
+	type Aliasers = ();
 	type AssetClaims = PolkadotXcm;
 	type AssetExchanger = ();
 	type AssetLocker = ();
@@ -334,8 +335,6 @@ impl pallet_xcm::Config for Runtime {
 	type ExecuteXcmOrigin = EnsureXcmOrigin<RuntimeOrigin, LocalOriginToLocation>;
 	type MaxLockers = ConstU32<8>;
 	type MaxRemoteLockConsumers = ConstU32<0>;
-	#[cfg(feature = "runtime-benchmarks")]
-	type ReachableDest = ReachableDest;
 	type RemoteLockConsumerIdentifier = ();
 	type RuntimeCall = RuntimeCall;
 	type RuntimeEvent = RuntimeEvent;

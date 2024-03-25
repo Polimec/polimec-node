@@ -15,7 +15,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #[test]
 fn build_spec_testing_node() {
-	// run the polimec-parachain-node compiled with "std" with the build-spec command and --raw flag
+	// run the polimec-node compiled with "std" with the build-spec command and --raw flag
 	// This makes sure our async parallel instantiation of projects is working as intended.
 	// We need this to test the protocol with the UI.
 
@@ -28,9 +28,9 @@ fn build_spec_testing_node() {
 		},
 	}
 
-	let output = std::process::Command::new("../target/release/polimec-parachain-node")
+	let output = std::process::Command::new("../target/release/polimec-node")
 		.arg("build-spec")
-		.arg("--chain=polimec-testing")
+		.arg("--chain=politest-populated")
 		.arg("--disable-default-bootnode")
 		.arg("--raw")
 		.output()
@@ -40,6 +40,6 @@ fn build_spec_testing_node() {
 	assert_eq!(
 		output.status.success(),
 		true,
-		"Make sure you compile the polimec-parachain-node with \"--release\" and \"--features std,fast-mode\" before running this test."
+		"Make sure you compile the polimec-node with \"--release\" and \"--features std,fast-mode\" before running this test."
 	);
 }

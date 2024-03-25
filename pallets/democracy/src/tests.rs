@@ -14,7 +14,7 @@
 use super::*;
 use crate as pallet_democracy;
 use frame_support::{
-	assert_noop, assert_ok, ord_parameter_types, parameter_types,
+	assert_noop, assert_ok, derive_impl, ord_parameter_types, parameter_types,
 	traits::{
 		fungible::InspectFreeze, ConstU32, ConstU64, Contains, EqualPrivilegeOnly, OnInitialize, SortedMembers,
 		StorePreimage,
@@ -22,7 +22,6 @@ use frame_support::{
 	weights::Weight,
 };
 use frame_system::{EnsureRoot, EnsureSigned, EnsureSignedBy};
-use sp_core::H256;
 use sp_runtime::{
 	traits::{BadOrigin, BlakeTwo256, Hash, IdentityLookup},
 	BuildStorage, Perbill,
@@ -70,38 +69,20 @@ parameter_types! {
 			Weight::from_parts(frame_support::weights::constants::WEIGHT_REF_TIME_PER_SECOND, u64::MAX),
 		);
 }
+#[derive_impl(frame_system::config_preludes::TestDefaultConfig as frame_system::DefaultConfig)]
 impl frame_system::Config for Test {
 	type AccountData = pallet_balances::AccountData<u64>;
 	type AccountId = u64;
 	type BaseCallFilter = BaseFilter;
 	type Block = Block;
-	type BlockHashCount = ConstU64<250>;
-	type BlockLength = ();
-	type BlockWeights = BlockWeights;
-	type DbWeight = ();
-	type Hash = H256;
-	type Hashing = BlakeTwo256;
 	type Lookup = IdentityLookup<Self::AccountId>;
-	type MaxConsumers = frame_support::traits::ConstU32<16>;
-	type Nonce = u64;
-	type OnKilledAccount = ();
-	type OnNewAccount = ();
-	type OnSetCode = ();
-	type PalletInfo = PalletInfo;
-	type RuntimeCall = RuntimeCall;
-	type RuntimeEvent = RuntimeEvent;
-	type RuntimeOrigin = RuntimeOrigin;
-	type SS58Prefix = ();
-	type SystemWeightInfo = ();
-	type Version = ();
 }
 parameter_types! {
 	pub MaximumSchedulerWeight: Weight = Perbill::from_percent(80) * BlockWeights::get().max_block;
 }
 
 impl pallet_preimage::Config for Test {
-	type BaseDeposit = ();
-	type ByteDeposit = ();
+	type Consideration = ();
 	type Currency = Balances;
 	type ManagerOrigin = EnsureRoot<u64>;
 	type RuntimeEvent = RuntimeEvent;
@@ -133,6 +114,7 @@ impl pallet_balances::Config for Test {
 	type MaxReserves = ();
 	type ReserveIdentifier = [u8; 8];
 	type RuntimeEvent = RuntimeEvent;
+	type RuntimeFreezeReason = RuntimeFreezeReason;
 	type RuntimeHoldReason = RuntimeHoldReason;
 	type WeightInfo = ();
 }
@@ -286,7 +268,7 @@ fn tally(r: ReferendumIndex) -> Tally<u64> {
 }
 
 /// note a new preimage without registering.
-fn note_preimage(who: u64) -> PreimageHash {
+fn note_preimage(who: u64) -> <Test as frame_system::Config>::Hash {
 	use std::sync::atomic::{AtomicU8, Ordering};
 	// note a new preimage on every function invoke.
 	static COUNTER: AtomicU8 = AtomicU8::new(0);

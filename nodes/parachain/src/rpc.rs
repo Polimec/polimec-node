@@ -20,14 +20,13 @@
 
 use std::sync::Arc;
 
-use sc_client_api::AuxStore;
+use polimec_runtime::{opaque::Block, AccountId, Balance, Nonce};
+
 pub use sc_rpc::DenyUnsafe;
 use sc_transaction_pool_api::TransactionPool;
 use sp_api::ProvideRuntimeApi;
 use sp_block_builder::BlockBuilder;
 use sp_blockchain::{Error as BlockChainError, HeaderBackend, HeaderMetadata};
-
-use polimec_parachain_runtime::{opaque::Block, AccountId, Balance, Nonce};
 
 /// A type representing all RPC extensions.
 pub type RpcExtension = jsonrpsee::RpcModule<()>;
@@ -47,7 +46,6 @@ pub fn create_full<C, P>(deps: FullDeps<C, P>) -> Result<RpcExtension, Box<dyn s
 where
 	C: ProvideRuntimeApi<Block>
 		+ HeaderBackend<Block>
-		+ AuxStore
 		+ HeaderMetadata<Block, Error = BlockChainError>
 		+ Send
 		+ Sync

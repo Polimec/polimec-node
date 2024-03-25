@@ -28,7 +28,7 @@ pub mod pallet {
 	};
 	use frame_system::pallet_prelude::*;
 	use polimec_common::migration_types::{Migration, MigrationInfo, MigrationOrigin, Migrations, ParticipationType};
-	use polkadot_parachain::primitives::{Id as ParaId, Sibling};
+	use polkadot_parachain_primitives::primitives::{Id as ParaId, Sibling};
 	use polkadot_runtime_parachains::origin::{ensure_parachain, Origin as ParachainOrigin};
 	use sp_runtime::traits::{AccountIdConversion, Convert};
 	use sp_std::prelude::*;

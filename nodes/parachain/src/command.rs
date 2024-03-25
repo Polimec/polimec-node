@@ -18,8 +18,8 @@ use std::{net::SocketAddr, path::PathBuf};
 
 use cumulus_primitives_core::ParaId;
 use frame_benchmarking_cli::{BenchmarkCmd, SUBSTRATE_REFERENCE_HARDWARE};
-use log::{info, warn};
-use polimec_parachain_runtime::Block;
+use log::info;
+use polimec_runtime::Block;
 use sc_cli::{
 	ChainSpec, CliConfiguration, DefaultConfigurationValues, ImportParams, KeystoreParams, NetworkParams, Result,
 	SharedParams, SubstrateCli,
@@ -86,28 +86,32 @@ fn runtime(id: &str) -> Runtime {
 
 fn load_spec(id: &str) -> std::result::Result<Box<dyn ChainSpec>, String> {
 	log::info!("Load spec id: {}", id);
-	let generated_chain_spec = include_bytes!("../../../chain-specs/polimec-raw-chain-spec.json").to_vec();
+	let polimec_chain_spec = include_bytes!("../../../chain-specs/polimec-raw-chain-spec.json").to_vec();
+	let rolimec_chain_spec = include_bytes!("../../../chain-specs/rococo/rawlimec.json").to_vec();
 
 	Ok(match id {
 		// Base runtime
-		"base-rococo-local" => Box::new(chain_spec::base::get_local_base_chain_spec()?),
-		"base-rococo" => Box::new(chain_spec::base::get_rococo_base_chain_spec()?),
-		"polimec-polkadot" => Box::new(chain_spec::base::ChainSpec::from_json_bytes(generated_chain_spec)?),
-		"polimec-rococo-local" => Box::new(chain_spec::testnet::get_chain_spec_dev()?),
+		"polimec" => Box::new(chain_spec::polimec::ChainSpec::from_json_bytes(polimec_chain_spec)?),
+		"rolimec" => Box::new(chain_spec::polimec::ChainSpec::from_json_bytes(rolimec_chain_spec)?),
+		// TODO: add politest live
+		// "politest" => Box::new(chain_spec::politest::get_()?),
+		"polimec-local" => Box::new(chain_spec::polimec::get_local_chain_spec()),
+		"rolimec-local" => Box::new(chain_spec::polimec::get_rococo_chain_spec()),
+		"politest-local" => Box::new(chain_spec::politest::get_local_chain_spec()),
 		#[cfg(feature = "std")]
-		"polimec-testing" => Box::new(chain_spec::testnet::get_chain_spec_testing()?),
+		"politest-populated" => Box::new(chain_spec::politest::get_populated_chain_spec()?),
 		// -- Fallback (generic chainspec)
 		"" => {
 			log::warn!("No ChainSpec.id specified, so using default one, based on polimec-rococo-local");
-			Box::new(chain_spec::testnet::get_chain_spec_dev()?)
+			Box::new(chain_spec::politest::get_local_chain_spec())
 		},
 		// A custom chainspec path
 		path => {
 			let path: PathBuf = path.into();
 			log::info!("Got path: {}", path.display());
 			match path.runtime() {
-				Runtime::Testnet => Box::new(chain_spec::testnet::ChainSpec::from_json_file(path)?),
-				Runtime::Base => Box::new(chain_spec::base::ChainSpec::from_json_file(path)?),
+				Runtime::Testnet => Box::new(chain_spec::politest::ChainSpec::from_json_file(path)?),
+				Runtime::Base => Box::new(chain_spec::polimec::ChainSpec::from_json_file(path)?),
 			}
 		},
 	})
@@ -211,10 +215,14 @@ pub fn run() -> Result<()> {
 			})
 		},
 		Some(Subcommand::ExportBlocks(cmd)) => {
-			construct_async_run!(|components, cli, cmd, config| Ok(cmd.run(components.client, config.database)))
+			construct_async_run!(|components, cli, cmd, config| {
+				Ok(cmd.run(components.client, config.database))
+			})
 		},
 		Some(Subcommand::ExportState(cmd)) => {
-			construct_async_run!(|components, cli, cmd, config| Ok(cmd.run(components.client, config.chain_spec)))
+			construct_async_run!(|components, cli, cmd, config| {
+				Ok(cmd.run(components.client, config.chain_spec))
+			})
 		},
 		Some(Subcommand::ImportBlocks(cmd)) => {
 			construct_async_run!(|components, cli, cmd, config| {
@@ -235,19 +243,22 @@ pub fn run() -> Result<()> {
 					[RelayChainCli::executable_name()].iter().chain(cli.relay_chain_args.iter()),
 				);
 
-				let polkadot_config =
-					SubstrateCli::create_configuration(&polkadot_cli, &polkadot_cli, config.tokio_handle.clone())
-						.map_err(|err| format!("Relay chain argument error: {}", err))?;
+				let polkadot_config = SubstrateCli::create_configuration(
+					&polkadot_cli,
+					&polkadot_cli,
+					config.tokio_handle.clone(),
+				)
+				.map_err(|err| format!("Relay chain argument error: {}", err))?;
 
 				cmd.run(config, polkadot_config)
 			})
 		},
-		Some(Subcommand::ExportGenesisState(cmd)) => {
+		Some(Subcommand::ExportGenesisHead(cmd)) => {
 			let runner = cli.create_runner(cmd)?;
 			runner.sync_run(|config| {
 				let partials = new_partial(&config)?;
 
-				cmd.run(&*config.chain_spec, &*partials.client)
+				cmd.run(partials.client)
 			})
 		},
 		Some(Subcommand::ExportGenesisWasm(cmd)) => {
@@ -274,11 +285,13 @@ pub fn run() -> Result<()> {
 					cmd.run(partials.client)
 				}),
 				#[cfg(not(feature = "runtime-benchmarks"))]
-				BenchmarkCmd::Storage(_) => Err(sc_cli::Error::Input(
-					"Compile with --features=runtime-benchmarks \
+				BenchmarkCmd::Storage(_) =>
+					return Err(sc_cli::Error::Input(
+						"Compile with --features=runtime-benchmarks \
 						to enable storage benchmarks."
-						.into(),
-				)),
+							.into(),
+					)
+					.into()),
 				#[cfg(feature = "runtime-benchmarks")]
 				BenchmarkCmd::Storage(cmd) => runner.sync_run(|config| {
 					let partials = new_partial(&config)?;
@@ -294,28 +307,7 @@ pub fn run() -> Result<()> {
 				_ => Err("Benchmarking sub-command unsupported".into()),
 			}
 		},
-		#[cfg(feature = "try-runtime")]
-		Some(Subcommand::TryRuntime(cmd)) => {
-			use parachains_common::MILLISECS_PER_BLOCK;
-			use try_runtime_cli::block_building_info::timestamp_with_aura_info;
-
-			let runner = cli.create_runner(cmd)?;
-
-			type HostFunctions = (sp_io::SubstrateHostFunctions, frame_benchmarking::benchmarking::HostFunctions);
-
-			// grab the task manager.
-			let registry = &runner.config().prometheus_config.as_ref().map(|cfg| &cfg.registry);
-			let task_manager = sc_service::TaskManager::new(runner.config().tokio_handle.clone(), *registry)
-				.map_err(|e| format!("Error: {:?}", e))?;
-
-			let info_provider = timestamp_with_aura_info(MILLISECS_PER_BLOCK);
-
-			runner.async_run(|_| Ok((cmd.run::<Block, HostFunctions, _>(Some(info_provider)), task_manager)))
-		},
-		#[cfg(not(feature = "try-runtime"))]
-		Some(Subcommand::TryRuntime) => Err("Try-runtime was not enabled when building the node. \
-			You can enable it with `--features try-runtime`."
-			.into()),
+		Some(Subcommand::TryRuntime) => Err("The `try-runtime` subcommand has been migrated to a standalone CLI (https://github.com/paritytech/try-runtime-cli). It is no longer being maintained here and will be removed entirely some time after January 2024. Please remove this subcommand from your runtime and use the standalone CLI.".into()),
 		None => {
 			let runner = cli.create_runner(&cli.run.normalize())?;
 			let collator_options = cli.run.collator_options();
@@ -340,32 +332,32 @@ pub fn run() -> Result<()> {
 				let id = ParaId::from(para_id);
 
 				let parachain_account =
-					AccountIdConversion::<polkadot_primitives::AccountId>::into_account_truncating(&id);
+					AccountIdConversion::<polkadot_primitives::AccountId>::into_account_truncating(
+						&id,
+					);
 
 				let tokio_handle = config.tokio_handle.clone();
-				let polkadot_config = SubstrateCli::create_configuration(&polkadot_cli, &polkadot_cli, tokio_handle)
-					.map_err(|err| format!("Relay chain argument error: {}", err))?;
+				let polkadot_config =
+					SubstrateCli::create_configuration(&polkadot_cli, &polkadot_cli, tokio_handle)
+						.map_err(|err| format!("Relay chain argument error: {}", err))?;
 
 				info!("Parachain Account: {parachain_account}");
 				info!("Is collating: {}", if config.role.is_authority() { "yes" } else { "no" });
 
-				if !collator_options.relay_chain_rpc_urls.is_empty() && !cli.relay_chain_args.is_empty() {
-					warn!(
-						"Detected relay chain node arguments together with --relay-chain-rpc-url. \
-						   This command starts a minimal Polkadot node that only uses a \
-						   network-related subset of all relay chain CLI options."
-					);
-				}
-
-				crate::service::start_parachain_node(config, polkadot_config, collator_options, id, hwbench)
-					.await
-					.map(|r| r.0)
-					.map_err(Into::into)
+				crate::service::start_parachain_node(
+					config,
+					polkadot_config,
+					collator_options,
+					id,
+					hwbench,
+				)
+				.await
+				.map(|r| r.0)
+				.map_err(Into::into)
 			})
 		},
 	}
 }
-
 impl DefaultConfigurationValues for RelayChainCli {
 	fn p2p_listen_port() -> u16 {
 		30334

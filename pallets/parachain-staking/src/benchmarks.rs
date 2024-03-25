@@ -23,7 +23,7 @@ use crate::{
 	AwardedPts, BalanceOf, Call, CandidateBondLessRequest, Config, DelegationAction, Pallet, ParachainBondConfig,
 	ParachainBondInfo, Points, Range, RewardPayment, Round, ScheduledRequest, Staked, TopDelegations,
 };
-use frame_benchmarking::{account, benchmarks, impl_benchmark_test_suite, vec};
+use frame_benchmarking::{account, benchmarks, impl_benchmark_test_suite};
 use frame_support::traits::{
 	fungible::{Inspect, Mutate},
 	Get, OnFinalize, OnInitialize,
@@ -32,7 +32,7 @@ use frame_system::{pallet_prelude::BlockNumberFor, RawOrigin};
 #[cfg(test)]
 use sp_runtime::BuildStorage;
 use sp_runtime::{Perbill, Percent};
-use sp_std::{default::Default, vec::Vec};
+use sp_std::{default::Default, vec, vec::Vec};
 
 /// Minimum collator candidate stake
 fn min_candidate_stk<T: Config>() -> BalanceOf<T> {

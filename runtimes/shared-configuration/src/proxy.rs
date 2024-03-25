@@ -15,8 +15,9 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use crate::{deposit, Balance};
-use frame_support::{parameter_types, RuntimeDebug};
+use frame_support::parameter_types;
 use parity_scale_codec::{Decode, Encode, MaxEncodedLen};
+use sp_runtime::RuntimeDebug;
 
 #[derive(
 	Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Encode, Decode, RuntimeDebug, MaxEncodedLen, scale_info::TypeInfo,

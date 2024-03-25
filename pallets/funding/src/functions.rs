@@ -39,6 +39,7 @@ use sp_arithmetic::{
 };
 use sp_runtime::traits::{Convert};
 
+
 use super::*;
 use crate::traits::{BondingRequirementCalculation, ProvideAssetPrice, VestingDurationCalculation};
 use polimec_common::migration_types::{MigrationInfo, Migrations};
@@ -70,11 +71,13 @@ impl<T: Config> Pallet<T> {
 	pub fn do_create(issuer: &AccountIdOf<T>, initial_metadata: ProjectMetadataOf<T>, did: Did) -> DispatchResult {
 		// * Get variables *
 		let project_id = NextProjectId::<T>::get();
+		let maybe_active_project = DidWithActiveProjects::<T>::get(did.clone());
 
 		// * Validity checks *
 		if let Some(metadata) = initial_metadata.offchain_information_hash {
 			ensure!(!Images::<T>::contains_key(metadata), Error::<T>::MetadataAlreadyExists);
 		}
+		ensure!(maybe_active_project == None, Error::<T>::IssuerHasActiveProjectAlready);
 
 		if let Err(error) = initial_metadata.is_valid() {
 			return match error {
@@ -91,7 +94,7 @@ impl<T: Config> Pallet<T> {
 		let now = <frame_system::Pallet<T>>::block_number();
 		let project_details = ProjectDetails {
 			issuer_account: issuer.clone(),
-			issuer_did: did,
+			issuer_did: did.clone(),
 			is_frozen: false,
 			weighted_average_price: None,
 			fundraising_target,
@@ -135,6 +138,7 @@ impl<T: Config> Pallet<T> {
 		if let Some(metadata) = initial_metadata.offchain_information_hash {
 			Images::<T>::insert(metadata, issuer);
 		}
+		DidWithActiveProjects::<T>::set(did, Some(project_id));
 
 		// * Emit events *
 		Self::deposit_event(Event::ProjectCreated { project_id, issuer: issuer.clone() });
@@ -299,7 +303,10 @@ impl<T: Config> Pallet<T> {
 		} else {
 			// * Update storage *
 			project_details.status = ProjectStatus::EvaluationFailed;
-			ProjectsDetails::<T>::insert(project_id, project_details);
+			ProjectsDetails::<T>::insert(project_id, project_details.clone());
+			let issuer_did = project_details.issuer_did.clone();
+			DidWithActiveProjects::<T>::set(issuer_did, None);
+
 
 			// * Emit events *
 			Self::deposit_event(Event::EvaluationFailed { project_id });
@@ -511,7 +518,6 @@ impl<T: Config> Pallet<T> {
 		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 		match calculation_result {
 			Err(pallet_error) if pallet_error == Error::<T>::NoBidsFound.into() => {
-				project_details.status = ProjectStatus::FundingFailed;
 				ProjectsDetails::<T>::insert(project_id, project_details);
 				let insertion_iterations = match Self::add_to_update_store(
 					<frame_system::Pallet<T>>::block_number() + 1u32.into(),
@@ -665,11 +671,15 @@ impl<T: Config> Pallet<T> {
 		let remaining_cts = project_details.remaining_contribution_tokens;
 		let remainder_end_block = project_details.phase_transition_points.remainder.end();
 		let now = <frame_system::Pallet<T>>::block_number();
+		let issuer_did = project_details.issuer_did.clone();
 
 		// * Validity checks *
 		ensure!(
+			// Can end due to running out of CTs
 			remaining_cts == Zero::zero() ||
-				project_details.status == ProjectStatus::FundingFailed ||
+				// or the auction being empty
+				project_details.status == ProjectStatus::AuctionRound(AuctionPhase::Candle) ||
+				// or the last funding round ending
 				matches!(remainder_end_block, Some(end_block) if now > end_block),
 			Error::<T>::TooEarlyForFundingEnd
 		);
@@ -694,6 +704,7 @@ impl<T: Config> Pallet<T> {
 		let funding_ratio = Perquintill::from_rational(funding_reached, funding_target);
 
 		// * Update Storage *
+		DidWithActiveProjects::<T>::set(issuer_did, None);
 		if funding_ratio <= Perquintill::from_percent(33u64) {
 			project_details.evaluation_round_info.evaluators_outcome = EvaluatorsOutcome::Slashed;
 			let insertion_iterations = Self::make_project_funding_fail(
@@ -833,8 +844,8 @@ impl<T: Config> Pallet<T> {
 			let contribution_token_treasury_account = T::ContributionTreasury::get();
 			T::ContributionTokenCurrency::touch(
 				project_id,
-				contribution_token_treasury_account.clone(),
-				contribution_token_treasury_account.clone(),
+				&contribution_token_treasury_account,
+				&contribution_token_treasury_account,
 			)?;
 
 			let (liquidity_pools_ct_amount, long_term_holder_bonus_ct_amount) =
@@ -1156,6 +1167,7 @@ impl<T: Config> Pallet<T> {
 			id: bid_id,
 			project_id,
 			bidder: bidder.clone(),
+			did: did.clone(),
 			status: BidStatus::YetUnknown,
 			original_ct_amount: ct_amount,
 			original_ct_usd_price: ct_usd_price,
@@ -1200,13 +1212,10 @@ impl<T: Config> Pallet<T> {
 		investor_type: InvestorType,
 	) -> DispatchResultWithPostInfo {
 		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
+		let did_has_winning_bid = DidWithWinningBids::<T>::get(project_id, did.clone());
+
 		ensure!(project_details.status == ProjectStatus::CommunityRound, Error::<T>::AuctionNotStarted);
-
-		let user_winning_bids = Bids::<T>::iter_prefix_values((project_id, contributor))
-			.filter(|bid| matches!(bid.status, BidStatus::Accepted | BidStatus::PartiallyAccepted(..)))
-			.next();
-
-		ensure!(user_winning_bids.is_none(), Error::<T>::UserHasWinningBids);
+		ensure!(!did_has_winning_bid, Error::<T>::UserHasWinningBids);
 
 		let buyable_tokens = token_amount.min(project_details.remaining_contribution_tokens);
 		project_details.remaining_contribution_tokens.saturating_reduce(buyable_tokens);
@@ -1290,6 +1299,23 @@ impl<T: Config> Pallet<T> {
 		};
 
 		// * Validity checks *
+		ensure!(
+			project_metadata.participation_currencies.contains(&funding_asset),
+			Error::<T>::FundingAssetNotAccepted
+		);
+		ensure!(did.clone() != project_details.issuer_did, Error::<T>::ParticipationToThemselves);
+		ensure!(
+			caller_existing_contributions.len() < T::MaxContributionsPerUser::get() as usize,
+			Error::<T>::TooManyContributionsForUser
+		);
+		ensure!(
+			contributor_ticket_size.usd_ticket_above_minimum_per_participation(ticket_size),
+			Error::<T>::ContributionTooLow
+		);
+		ensure!(
+			contributor_ticket_size.usd_ticket_below_maximum_per_did(total_usd_bought_by_did + ticket_size),
+			Error::<T>::ContributionTooHigh
+		);
 		ensure!(
 			project_metadata.participation_currencies.contains(&funding_asset),
 			Error::<T>::FundingAssetNotAccepted
@@ -1454,23 +1480,17 @@ impl<T: Config> Pallet<T> {
 					})
 					.ok_or(XcmError::BadOrigin)?;
 
-				let accept_channel_relay_call =
-					polkadot_runtime::RuntimeCall::Hrmp(polkadot_runtime_parachains::hrmp::Call::<
-						polkadot_runtime::Runtime,
-					>::hrmp_accept_open_channel {
-						sender: ParaId::from(sender),
-					})
-					.encode();
+				let mut accept_channel_relay_call = vec![60u8, 1];
+				let sender_id = ParaId::from(sender).encode();
+				accept_channel_relay_call.extend_from_slice(&sender_id);
 
-				let request_channel_relay_call =
-					polkadot_runtime::RuntimeCall::Hrmp(polkadot_runtime_parachains::hrmp::Call::<
-						polkadot_runtime::Runtime,
-					>::hrmp_init_open_channel {
-						recipient: ParaId::from(sender),
-						proposed_max_capacity: T::RequiredMaxCapacity::get(),
-						proposed_max_message_size: T::RequiredMaxMessageSize::get(),
-					})
-					.encode();
+				let mut request_channel_relay_call = vec![60u8, 0];
+				let recipient = ParaId::from(sender).encode();
+				request_channel_relay_call.extend_from_slice(&recipient);
+				let proposed_max_capacity = T::RequiredMaxCapacity::get().encode();
+				request_channel_relay_call.extend_from_slice(&proposed_max_capacity);
+				let proposed_max_message_size = T::RequiredMaxMessageSize::get().encode();
+				request_channel_relay_call.extend_from_slice(&proposed_max_message_size);
 
 				let xcm: Xcm<()> = Xcm(vec![
 					WithdrawAsset(vec![EXECUTION_DOT.clone()].into()),
@@ -1588,18 +1608,17 @@ impl<T: Config> Pallet<T> {
 		}
 
 		// * Update storage *
-		let call: <T as Config>::RuntimeCall =
-			Call::migration_check_response { query_id: Default::default(), response: Default::default() }.into();
+		let call = Call::<T>::migration_check_response { query_id: Default::default(), response: Default::default() };
 
 		let query_id_holdings = pallet_xcm::Pallet::<T>::new_notify_query(
 			project_multilocation.clone(),
-			call.clone().into(),
+			<T as Config>::RuntimeCall::from(call.clone()),
 			now + QUERY_RESPONSE_TIME_WINDOW_BLOCKS.into(),
 			Here,
 		);
 		let query_id_pallet = pallet_xcm::Pallet::<T>::new_notify_query(
 			project_multilocation.clone(),
-			call.into(),
+			<T as Config>::RuntimeCall::from(call),
 			now + QUERY_RESPONSE_TIME_WINDOW_BLOCKS.into(),
 			Here,
 		);
@@ -1893,11 +1912,17 @@ impl<T: Config> Pallet<T> {
 					bid_usd_value_sum.saturating_accrue(ticket_size);
 					bid.final_ct_amount = bid.original_ct_amount;
 					bid.status = BidStatus::Accepted;
+					DidWithWinningBids::<T>::mutate(project_id, bid.did.clone(), |flag| {
+						*flag = true;
+					});
 				} else {
 					let ticket_size = bid.original_ct_usd_price.saturating_mul_int(buyable_amount);
 					bid_usd_value_sum.saturating_accrue(ticket_size);
 					bid_token_amount_sum.saturating_accrue(buyable_amount);
 					bid.status = BidStatus::PartiallyAccepted(buyable_amount, RejectionReason::NoTokensLeft);
+					DidWithWinningBids::<T>::mutate(project_id, bid.did.clone(), |flag| {
+						*flag = true;
+					});
 					bid.final_ct_amount = buyable_amount;
 				}
 				bid
@@ -2118,7 +2143,8 @@ impl<T: Config> Pallet<T> {
 		// the min_balance of funding assets (e.g USDT) are low enough so we don't expect users to care about their balance being dusted.
 		// We do think the UX would be bad if they cannot use all of their available tokens.
 		// Specially since a new funding asset account can be easily created by increasing the provider reference
-		T::FundingCurrency::transfer(asset_id, who, &fund_account, amount, Preservation::Expendable)?;
+		T::FundingCurrency::transfer(asset_id, who, &fund_account, amount, Preservation::Expendable)
+			.map_err(|_| Error::<T>::NotEnoughFunds)?;
 
 		Ok(())
 	}

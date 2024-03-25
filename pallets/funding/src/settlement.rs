@@ -115,13 +115,20 @@ impl<T: Config> Pallet<T> {
 		let vest_info =
 			Self::calculate_vesting_info(&bidder, bid.multiplier, bid.plmc_bond).map_err(|_| Error::<T>::BadMath)?;
 		
-        T::Vesting::add_release_schedule(
-            &bidder,
-            vest_info.total_amount,
-            vest_info.amount_per_block,
-            funding_end_block,
-            HoldReason::Participation(project_id).into(),
-        )?;
+        // If the multiplier is greater than 1, add the release schedule else release the held PLMC bond
+        if bid.multiplier.into() > 1u8 {
+            T::Vesting::add_release_schedule(
+                &bidder,
+                vest_info.total_amount,
+                vest_info.amount_per_block,
+                funding_end_block,
+                HoldReason::Participation(project_id).into(),
+            )?;
+        } else {
+            // Release the held PLMC bond
+            Self::release_bond(project_id, &bidder, bid.plmc_bond)?;
+        }
+        
 
         // Mint the contribution tokens
         Self::mint_ct_tokens(project_id, &bidder, bid.final_ct_amount)?;
@@ -129,7 +136,7 @@ impl<T: Config> Pallet<T> {
         // Payout the bid funding asset amount to the project account
         Self::release_funding_asset(project_id, &project_details.issuer_account, bid.funding_asset_amount_locked, bid.funding_asset)?;
 
-        Self::create_migration(project_id, &bidder, bid.id, ParticipationType::Bid, bid.final_ct_amount, vest_info.duration.into())?;
+        Self::create_migration(project_id, &bidder, bid.id, ParticipationType::Bid, bid.final_ct_amount, vest_info.duration)?;
         // TODO: Create MigrationInfo
 
         Bids::<T>::remove((project_id, bidder.clone(), bid.id));
@@ -153,14 +160,11 @@ impl<T: Config> Pallet<T> {
 
         let bidder = bid.bidder;
 		
+        // Return the funding assets to the bidder
+        Self::release_funding_asset(project_id, &bidder, bid.funding_asset_amount_locked, bid.funding_asset)?;
 
-        if matches!(bid.status, BidStatus::Accepted | BidStatus::PartiallyAccepted(..)) {
-            // Return the funding assets to the bidder
-            Self::release_funding_asset(project_id, &bidder, bid.funding_asset_amount_locked, bid.funding_asset)?;
-
-            // Release the held PLMC bond
-            Self::release_bond(project_id, &bidder, bid.plmc_bond)?;
-        }
+        // Release the held PLMC bond
+        Self::release_bond(project_id, &bidder, bid.plmc_bond)?;
         
         // Remove the bid from the storage
         Bids::<T>::remove((project_id, bidder.clone(), bid.id));
@@ -190,13 +194,18 @@ impl<T: Config> Pallet<T> {
 		let vest_info =
 			Self::calculate_vesting_info(&contributor, contribution.multiplier, contribution.plmc_bond).map_err(|_| Error::<T>::BadMath)?;
 
-        T::Vesting::add_release_schedule(
-            &contributor,
-            vest_info.total_amount,
-            vest_info.amount_per_block,
-            funding_end_block,
-            HoldReason::Participation(project_id).into(),
-        )?;
+        if contribution.multiplier.into() > 1u8 {
+            T::Vesting::add_release_schedule(
+                &contributor,
+                vest_info.total_amount,
+                vest_info.amount_per_block,
+                funding_end_block,
+                HoldReason::Participation(project_id).into(),
+            )?;
+        } else {
+            // Release the held PLMC bond
+            Self::release_bond(project_id, &contributor, contribution.plmc_bond)?;
+        }
 
          // Mint the contribution tokens
         Self::mint_ct_tokens(project_id, &contributor, contribution.ct_amount)?;
@@ -205,7 +214,7 @@ impl<T: Config> Pallet<T> {
         Self::release_funding_asset(project_id, &project_details.issuer_account, contribution.funding_asset_amount, contribution.funding_asset)?;
 
         // Create Migration
-        Self::create_migration(project_id, &contributor, contribution.id, ParticipationType::Contribution, contribution.ct_amount, vest_info.duration.into())?;
+        Self::create_migration(project_id, &contributor, contribution.id, ParticipationType::Contribution, contribution.ct_amount, vest_info.duration)?;
 
         Contributions::<T>::remove((project_id, contributor.clone(), contribution.id));
 
@@ -253,7 +262,7 @@ impl<T: Config> Pallet<T> {
 
     fn mint_ct_tokens(project_id: ProjectId, participant: &AccountIdOf<T>, amount: BalanceOf<T>) -> DispatchResult {
         if !T::ContributionTokenCurrency::contains(&project_id, participant) {
-            T::ContributionTokenCurrency::touch(project_id, participant.clone(), participant.clone())?;
+            T::ContributionTokenCurrency::touch(project_id, participant, participant)?;
         }
         T::ContributionTokenCurrency::mint_into(project_id, participant, amount)?;
         Ok(())
@@ -354,8 +363,6 @@ impl<T: Config> Pallet<T> {
             }
             
             Ok(())
-        })?;
-
-        Ok(())
+        })
     }
 }

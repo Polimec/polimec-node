@@ -14,12 +14,12 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use frame_support::{pallet_prelude::*, parameter_types, traits::OriginTrait, Deserialize, RuntimeDebug, Serialize};
+use frame_support::{pallet_prelude::*, parameter_types, traits::OriginTrait, Deserialize, Serialize};
 use pallet_timestamp::Now;
 use parity_scale_codec::{Decode, Encode};
 use scale_info::{prelude::string::String, TypeInfo};
 use serde::{de::Error, ser::SerializeStruct, Serializer};
-use sp_runtime::{traits::BadOrigin, DeserializeOwned};
+use sp_runtime::{traits::BadOrigin, DeserializeOwned, RuntimeDebug};
 
 pub use jwt_compact::{
 	alg::{Ed25519, VerifyingKey},

@@ -21,13 +21,13 @@ use pallet_funding::{
 use polimec_common::{
 	migration_types::{Migrations, MigrationStatus},
 };
-use polimec_parachain_runtime::PolimecFunding;
+use politest_runtime::PolimecFunding;
 use sp_runtime::Perquintill;
 use std::collections::HashMap;
 use tests::defaults::*;
 
 fn mock_hrmp_establishment(project_id: u32) {
-	Polimec::execute_with(|| {
+	PolitestNet::execute_with(|| {
 		assert_ok!(PolimecFunding::do_set_para_id_for_project(&ISSUER.into(), project_id, ParaId::from(6969u32),));
 
 		let open_channel_message = xcm::v3::opaque::Instruction::HrmpNewChannelOpenRequest {
@@ -43,17 +43,17 @@ fn mock_hrmp_establishment(project_id: u32) {
 }
 
 fn assert_migration_is_ready(project_id: u32) {
-	Polimec::execute_with(|| {
-		let project_details = pallet_funding::ProjectsDetails::<PolimecRuntime>::get(project_id).unwrap();
+	PolitestNet::execute_with(|| {
+		let project_details = pallet_funding::ProjectsDetails::<PolitestRuntime>::get(project_id).unwrap();
 		assert!(project_details.migration_readiness_check.unwrap().is_ready())
 	});
 }
 
 fn get_migrations_for_participants(project_id: ProjectId, participants: Vec<AccountId>) -> HashMap<AccountId, (MigrationStatus, Migrations)> {
 	let mut user_migrations = HashMap::new();
-	Polimec::execute_with(|| {
+	PolitestNet::execute_with(|| {
 		for participant in participants {
-				let (status, migrations) = pallet_funding::UserMigrations::<PolimecRuntime>::get(project_id, participant.clone()).unwrap();
+				let (status, migrations) = pallet_funding::UserMigrations::<PolitestRuntime>::get(project_id, participant.clone()).unwrap();
 				user_migrations.insert(participant, (status, Migrations::from(migrations.into())));	
 		}
 	});
@@ -62,9 +62,9 @@ fn get_migrations_for_participants(project_id: ProjectId, participants: Vec<Acco
 
 fn send_migrations(project_id: ProjectId, accounts: Vec<AccountId>) {
 	for user in accounts.into_iter() {
-		Polimec::execute_with(|| {
+		PolitestNet::execute_with(|| {
 			assert_ok!(PolimecFunding::migrate_one_participant(
-				PolimecOrigin::signed(user.clone()),
+				PolitestOrigin::signed(user.clone()),
 				project_id,
 				user.clone()
 			));
@@ -75,11 +75,11 @@ fn send_migrations(project_id: ProjectId, accounts: Vec<AccountId>) {
 fn migrations_are_executed(project_id: ProjectId, accounts: Vec<AccountId>) {
 	let user_migrations = get_migrations_for_participants(project_id, accounts.clone());
 	for account in accounts.into_iter(){
-		let user_info = Penpal::account_data_of(account.clone());
-		Penpal::execute_with(|| {
+		let user_info = PenNet::account_data_of(account.clone());
+		PenNet::execute_with(|| {
 	
 			let (_, migrations) = user_migrations.get(&account).unwrap();
-			let matched_events = Penpal::events().iter().filter(|event| {
+			let matched_events = PenNet::events().iter().filter(|event| {
 				match event {
 					PenpalEvent::PolimecReceiver(polimec_receiver::Event::MigrationExecuted{migration}) => {
 						migrations.contains(&migration)
@@ -109,14 +109,14 @@ fn migrations_are_executed(project_id: ProjectId, accounts: Vec<AccountId>) {
 
 fn migrations_are_confirmed(project_id: u32, accounts: Vec<AccountId>) {
 	let user_migrations = get_migrations_for_participants(project_id, accounts.clone());
-	Polimec::execute_with(|| {
+	PolitestNet::execute_with(|| {
 		for user in accounts.iter() {
 			let (current_status, _) = user_migrations.get(user).unwrap();
 			assert_eq!(current_status, &MigrationStatus::Confirmed);
 			
-			let matched_events: usize = Polimec::events().iter().filter(|event| {
+			let matched_events: usize = PolitestNet::events().iter().filter(|event| {
 				match event {
-					PolimecEvent::PolimecFunding(pallet_funding::Event::MigrationStatusUpdated{project_id, account, status}) => {
+					PolitestEvent::PolimecFunding(pallet_funding::Event::MigrationStatusUpdated{project_id, account, status}) => {
 						project_id == project_id && account == user &&
 						matches!(status, &MigrationStatus::Confirmed)
 					},
@@ -136,12 +136,12 @@ fn vest_migrations(project_id: u32, accounts: Vec<AccountId>) {
 		migrations.biggest_vesting_time()
 	}).max().unwrap();
 
-	Penpal::execute_with(|| {
+	PenNet::execute_with(|| {
 		PenpalSystem::set_block_number(biggest_time as u32 + 1u32);
 	});
 	for account in accounts {
-		let user_info = Penpal::account_data_of(account.clone());
-		Penpal::execute_with(|| {
+		let user_info = PenNet::account_data_of(account.clone());
+		PenNet::execute_with(|| {
 			if user_info.frozen > 0 {
 				assert_ok!(pallet_vesting::Pallet::<PenpalRuntime>::vest(PenpalOrigin::signed(account)));
 			}
@@ -152,7 +152,7 @@ fn vest_migrations(project_id: u32, accounts: Vec<AccountId>) {
 fn migrations_are_vested(project_id: u32, accounts: Vec<AccountId>) {
 	let user_migrations = get_migrations_for_participants(project_id, accounts.clone());
 	user_migrations.iter().for_each(|(user, (_, migrations))| {
-		let user_info = Penpal::account_data_of(user.clone());
+		let user_info = PenNet::account_data_of(user.clone());
 		assert_eq!(user_info.frozen, 0);
 		assert_eq!(user_info.free, migrations.clone().total_ct_amount());
 	});
@@ -160,7 +160,7 @@ fn migrations_are_vested(project_id: u32, accounts: Vec<AccountId>) {
 
 fn create_settled_project() -> ProjectId {
 	let mut inst = IntegrationInstantiator::new(None);
-	Polimec::execute_with(|| {
+	PolitestNet::execute_with(|| {
 		let project_id = inst.create_finished_project(
 			default_project_metadata(0, ISSUER.into()),
 			ISSUER.into(),
@@ -169,7 +169,7 @@ fn create_settled_project() -> ProjectId {
 			default_community_contributions(),
 			default_remainder_contributions(),
 		);
-		inst.advance_time(<PolimecRuntime as pallet_funding::Config>::SuccessToSettlementTime::get()).unwrap();
+		inst.advance_time(<PolitestRuntime as pallet_funding::Config>::SuccessToSettlementTime::get()).unwrap();
 		inst.settle_project(project_id).unwrap();
 		project_id
 	})

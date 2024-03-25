@@ -24,6 +24,7 @@ use frame_support::{
 	weights::WeightToFee,
 };
 use sp_runtime::DispatchError;
+use xcm_emulator::Parachain;
 
 const RESERVE_TRANSFER_AMOUNT: u128 = 10_0_000_000_000; // 10 DOT
 const MAX_REF_TIME: u64 = 5_000_000_000;
@@ -33,8 +34,8 @@ fn create_asset_on_asset_hub(asset_id: u32) {
 	if asset_id == 0 {
 		return;
 	}
-	let admin_account = AssetHub::account_id_of(FERDIE);
-	AssetHub::execute_with(|| {
+	let admin_account = AssetNet::account_id_of(FERDIE);
+	AssetNet::execute_with(|| {
 		assert_ok!(AssetHubAssets::force_create(
 			AssetHubOrigin::root(),
 			asset_id.into(),
@@ -46,7 +47,7 @@ fn create_asset_on_asset_hub(asset_id: u32) {
 }
 
 fn mint_asset_on_asset_hub_to(asset_id: u32, recipient: &AssetHubAccountId, amount: u128) {
-	AssetHub::execute_with(|| {
+	AssetNet::execute_with(|| {
 		match asset_id {
 			0 => {
 				assert_ok!(AssetHubBalances::write_balance(recipient, amount));
@@ -60,18 +61,18 @@ fn mint_asset_on_asset_hub_to(asset_id: u32, recipient: &AssetHubAccountId, amou
 }
 
 fn get_polimec_balances(asset_id: u32, user_account: AccountId) -> (u128, u128, u128, u128) {
-	PolimecBase::execute_with(|| {
+	PolimecNet::execute_with(|| {
 		(
-			BaseForeignAssets::balance(asset_id, user_account.clone()),
-			BaseBalances::balance(&user_account.clone()),
-			BaseForeignAssets::total_issuance(asset_id),
-			BaseBalances::total_issuance(),
+			PolitestForeignAssets::balance(asset_id, user_account.clone()),
+			PolimecBalances::balance(&user_account.clone()),
+			PolitestForeignAssets::total_issuance(asset_id),
+			PolimecBalances::total_issuance(),
 		)
 	})
 }
 
 fn get_asset_hub_balances(asset_id: u32, user_account: AccountId, polimec_account: AccountId) -> (u128, u128, u128) {
-	AssetHub::execute_with(|| {
+	AssetNet::execute_with(|| {
 		match asset_id {
 			// Asset id 0 equals Dot
 			0 => (
@@ -97,9 +98,9 @@ fn test_reserve_to_polimec(asset_id: u32) {
 		_ => (PalletInstance(AssetHubAssets::index() as u8), GeneralIndex(asset_id as u128)).into(),
 	};
 
-	let alice_account = PolimecBase::account_id_of(ALICE);
+	let alice_account = PolimecNet::account_id_of(ALICE);
 	let polimec_sibling_account =
-		AssetHub::sovereign_account_id_of((Parent, Parachain(PolimecBase::para_id().into())).into());
+		AssetNet::sovereign_account_id_of((Parent, Parachain(PolimecNet::para_id().into())).into());
 	let max_weight = Weight::from_parts(MAX_REF_TIME, MAX_PROOF_SIZE);
 
 	mint_asset_on_asset_hub_to(asset_id, &alice_account, 100_0_000_000_000);
@@ -115,10 +116,10 @@ fn test_reserve_to_polimec(asset_id: u32) {
 	let (asset_hub_prev_alice_asset_balance, asset_hub_prev_polimec_asset_balance, asset_hub_prev_asset_issuance) =
 		get_asset_hub_balances(asset_id, alice_account.clone(), polimec_sibling_account.clone());
 
-	AssetHub::execute_with(|| {
+	AssetNet::execute_with(|| {
 		let asset_transfer: MultiAsset = (asset_hub_asset_id, RESERVE_TRANSFER_AMOUNT).into();
 		let origin = AssetHubOrigin::signed(alice_account.clone());
-		let dest: VersionedMultiLocation = ParentThen(X1(Parachain(PolimecBase::para_id().into()))).into();
+		let dest: VersionedMultiLocation = ParentThen(X1(Parachain(PolimecNet::para_id().into()))).into();
 
 		let beneficiary: VersionedMultiLocation =
 			AccountId32 { network: None, id: alice_account.clone().into() }.into();
@@ -138,11 +139,11 @@ fn test_reserve_to_polimec(asset_id: u32) {
 	});
 
 	// check the transfer was not blocked by our our xcm configured
-	PolimecBase::execute_with(|| {
+	PolimecNet::execute_with(|| {
 		assert_expected_events!(
-			PolimecBase,
+			PolimecNet,
 			vec![
-				BaseEvent::XcmpQueue(cumulus_pallet_xcmp_queue::Event::Success { .. }) => {},
+				PolimecEvent::MessageQueue(pallet_message_queue::Event::Processed {success: true, ..}) => {},
 			]
 		);
 	});
@@ -168,20 +169,24 @@ fn test_reserve_to_polimec(asset_id: u32) {
 	let asset_hub_delta_asset_issuance = asset_hub_post_asset_issuance.abs_diff(asset_hub_prev_asset_issuance);
 
 	assert!(
-	    polimec_delta_alice_asset_balance >= RESERVE_TRANSFER_AMOUNT - polimec_parachain_runtime::WeightToFee::weight_to_fee(&max_weight) &&
+	    polimec_delta_alice_asset_balance >= RESERVE_TRANSFER_AMOUNT - politest_runtime::WeightToFee::weight_to_fee(&max_weight) &&
 	    polimec_delta_alice_asset_balance <= RESERVE_TRANSFER_AMOUNT,
 	    "Polimec alice_account.clone() Asset balance should have increased by at least the transfer amount minus the XCM execution fee"
 	);
 
 	assert!(
 		polimec_delta_asset_issuance >=
-			RESERVE_TRANSFER_AMOUNT - polimec_parachain_runtime::WeightToFee::weight_to_fee(&max_weight) &&
+			RESERVE_TRANSFER_AMOUNT - politest_runtime::WeightToFee::weight_to_fee(&max_weight) &&
 			polimec_delta_asset_issuance <= RESERVE_TRANSFER_AMOUNT,
 		"Polimec Asset issuance should have increased by at least the transfer amount minus the XCM execution fee"
 	);
 
-	assert_eq!(
-		asset_hub_delta_alice_asset_balance, RESERVE_TRANSFER_AMOUNT,
+	// We overapproximate the fee for delivering the assets to polimec. The actual fee is
+	// probably lower.
+	let fee = system_parachains_constants::polkadot::fee::WeightToFee::weight_to_fee(&max_weight);
+	assert!(
+		asset_hub_delta_alice_asset_balance <= RESERVE_TRANSFER_AMOUNT + fee &&
+			asset_hub_delta_alice_asset_balance >= RESERVE_TRANSFER_AMOUNT,
 		"AssetHub alice_account.clone() Asset balance should have decreased by the transfer amount"
 	);
 
@@ -208,22 +213,26 @@ fn test_polimec_to_reserve(asset_id: u32) {
 	let asset_hub_asset_id: MultiLocation = match asset_id {
 		0 => Parent.into(),
 		_ => ParentThen(X3(
-			Parachain(AssetHub::para_id().into()),
+			Parachain(AssetNet::para_id().into()),
 			PalletInstance(AssetHubAssets::index() as u8),
 			GeneralIndex(asset_id as u128),
 		))
 		.into(),
 	};
 
-	let alice_account = PolimecBase::account_id_of(ALICE);
+	let alice_account = PolimecNet::account_id_of(ALICE);
 	let polimec_sibling_account =
-		AssetHub::sovereign_account_id_of((Parent, Parachain(PolimecBase::para_id().into())).into());
+		AssetNet::sovereign_account_id_of((Parent, Parachain(PolimecNet::para_id().into())).into());
 	let max_weight = Weight::from_parts(MAX_REF_TIME, MAX_PROOF_SIZE);
 
 	mint_asset_on_asset_hub_to(asset_id, &polimec_sibling_account, RESERVE_TRANSFER_AMOUNT + 1_0_000_000_000);
 
-	PolimecBase::execute_with(|| {
-		assert_ok!(BaseForeignAssets::mint_into(asset_id, &alice_account, RESERVE_TRANSFER_AMOUNT + 1_0_000_000_000));
+	PolimecNet::execute_with(|| {
+		assert_ok!(PolimecForeignAssets::mint_into(
+			asset_id,
+			&alice_account,
+			RESERVE_TRANSFER_AMOUNT + 1_0_000_000_000
+		));
 	});
 
 	let (
@@ -237,43 +246,34 @@ fn test_polimec_to_reserve(asset_id: u32) {
 	let (asset_hub_prev_alice_asset_balance, asset_hub_prev_polimec_asset_balance, asset_hub_prev_asset_issuance) =
 		get_asset_hub_balances(asset_id, alice_account.clone(), polimec_sibling_account.clone());
 
-	let transferable_asset_plus_exec_fee: MultiAsset =
-		(asset_hub_asset_id, RESERVE_TRANSFER_AMOUNT + 1_0_000_000_000).into();
-	let mut asset_hub_exec_fee: MultiAsset = (asset_hub_asset_id, 1_0_000_000_000u128).into();
-	asset_hub_exec_fee.reanchor(&(ParentThen(X1(Parachain(AssetHub::para_id().into()))).into()), Here).unwrap();
+	PolimecNet::execute_with(|| {
+		let asset_transfer: MultiAsset = (asset_hub_asset_id, RESERVE_TRANSFER_AMOUNT + 1_0_000_000_000).into();
+		let origin = PolimecOrigin::signed(alice_account.clone());
+		let dest: VersionedMultiLocation = ParentThen(X1(Parachain(AssetNet::para_id().into()))).into();
 
-	// construct the XCM to transfer from Polimec to AssetHub's reserve
-	let transfer_xcm: Xcm<BaseCall> = Xcm(vec![
-		WithdrawAsset(transferable_asset_plus_exec_fee.clone().into()),
-		BuyExecution { fees: transferable_asset_plus_exec_fee.clone(), weight_limit: Limited(max_weight) },
-		InitiateReserveWithdraw {
-			assets: All.into(),
-			reserve: MultiLocation::new(1, X1(Parachain(AssetHub::para_id().into()))),
-			xcm: Xcm(vec![
-				BuyExecution { fees: asset_hub_exec_fee, weight_limit: Limited(max_weight) },
-				DepositAsset {
-					assets: All.into(),
-					beneficiary: MultiLocation::new(0, AccountId32 { network: None, id: alice_account.clone().into() }),
-				},
-			]),
-		},
-	]);
+		let beneficiary: VersionedMultiLocation =
+			AccountId32 { network: None, id: alice_account.clone().into() }.into();
+		let assets: VersionedMultiAssets = asset_transfer.into();
+		let fee_asset_item = 0;
+		let weight_limit = Unlimited;
 
-	// do the transfer
-	PolimecBase::execute_with(|| {
-		assert_ok!(BaseXcmPallet::execute(
-			BaseOrigin::signed(alice_account.clone()),
-			Box::new(VersionedXcm::V3(transfer_xcm)),
-			max_weight,
-		));
+		let call = PolimecXcmPallet::limited_reserve_transfer_assets(
+			origin,
+			bx!(dest),
+			bx!(beneficiary),
+			bx!(assets),
+			fee_asset_item,
+			weight_limit,
+		);
+		assert_ok!(call);
 	});
 
 	// check that the xcm was not blocked
-	AssetHub::execute_with(|| {
+	AssetNet::execute_with(|| {
 		assert_expected_events!(
-			AssetHub,
+			AssetNet,
 			vec![
-				AssetHubEvent::XcmpQueue(cumulus_pallet_xcmp_queue::Event::Success {..}) => {},
+				AssetHubEvent::MessageQueue(pallet_message_queue::Event::Processed {success: true, ..}) => {},
 			]
 		);
 	});
@@ -327,7 +327,7 @@ fn test_polimec_to_reserve(asset_id: u32) {
 	);
 
 	assert!(
-	    asset_hub_delta_asset_issuance <= asset_hub_polkadot_runtime::constants::fee::WeightToFee::weight_to_fee(&max_weight),
+	    asset_hub_delta_asset_issuance <= system_parachains_constants::polkadot::fee::WeightToFee::weight_to_fee(&max_weight),
 	    "AssetHub's Asset issuance should not change, since it acts as a reserve for that asset (except for fees which are burnt)"
 	);
 }
@@ -384,11 +384,11 @@ fn polimec_dot_to_reserve() {
 
 #[test]
 fn test_user_cannot_create_foreign_asset_on_polimec() {
-	PolimecBase::execute_with(|| {
-		let admin = AssetHub::account_id_of(ALICE);
+	PolimecNet::execute_with(|| {
+		let admin = AssetNet::account_id_of(ALICE);
 		assert_noop!(
-			BaseForeignAssets::create(
-				BaseOrigin::signed(admin.clone()),
+			PolimecForeignAssets::create(
+				PolimecOrigin::signed(admin.clone()),
 				69.into(),
 				sp_runtime::MultiAddress::Id(admin),
 				0_0_010_000_000u128,

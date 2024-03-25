@@ -14,8 +14,9 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use frame_support::{assert_noop, assert_ok, assert_storage_noop, dispatch::EncodeLike};
+use frame_support::{assert_noop, assert_ok, assert_storage_noop};
 use frame_system::RawOrigin;
+use parity_scale_codec::EncodeLike;
 use sp_runtime::{
 	traits::{BadOrigin, Identity},
 	TokenError,
