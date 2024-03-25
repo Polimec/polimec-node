@@ -7277,3 +7277,47 @@ mod async_tests {
 		assert_eq!(total_bids_count, max_bids_per_project as usize);
 	}
 }
+
+// Bug hunting
+mod bug_hunting {
+	use super::*;
+
+	#[test]
+	// Check that a failed do_function in a place like on_initialize doesn't change the storage
+	fn corrupted_state() {
+		let inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+		let max_projects_per_update_block: u32 = <TestRuntime as Config>::MaxProjectsToUpdatePerBlock::get();
+		// This bug will more likely happen with a limit of 1
+		assert_eq!(max_projects_per_update_block, 1u32);
+		let max_insertion_attempts: u32 = <TestRuntime as Config>::MaxProjectsToUpdateInsertionAttempts::get();
+
+		for i in max_insertion_attempts {
+			let project_id = inst.create_evaluating_project(
+				default_project_metadata(i, 1000 + i),
+				1000 + i,
+			);
+			inst.evaluate_for_users(project_id, default_evaluations()).unwrap();
+		}
+		let bug_project_id = inst.create_evaluating_project(
+			default_project_metadata(inst.get_new_nonce(), ISSUER_1),
+			ISSUER_1,
+		);
+
+		let update_block = inst.get_update_block(project_id, &UpdateType::EvaluationEnd).unwrap();
+		inst.execute(|| frame_system::Pallet::<TestRuntime>::set_block_number(update_block));
+		let auction_initialize_period_start_block = inst.current_block() + 1u32.into();
+		let auction_initialize_period_end_block =
+			auction_initialize_period_start_block + <TestRuntime as Config>::AuctionInitializePeriodDuration::get();
+		let automatic_auction_start = auction_initialize_period_end_block + 1u32.into();
+
+
+
+		for i in 0..max_insertion_attempts {
+
+		}
+
+
+
+		let max_insertion_attempts
+	}
+}
