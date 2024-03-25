@@ -188,26 +188,6 @@ pub mod storage_types {
 	};
 
 	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
-	pub struct OptionalProjectMetadata<
-		BoundedString,
-		Balance: PartialOrd + Copy,
-		Price: FixedPointNumber,
-		AccountId,
-		Hash,
-	> {
-		pub token_information: Option<CurrencyMetadata<BoundedString>>,
-		pub mainnet_token_max_supply: Option<Balance>,
-		pub total_allocation_size: Option<Balance>,
-		pub auction_round_allocation_percentage: Option<Percent>,
-		pub minimum_price: Option<Price>,
-		pub bidding_ticket_sizes: Option<BiddingTicketSizes<Price, Balance>>,
-		pub contributing_ticket_sizes: Option<ContributingTicketSizes<Price, Balance>>,
-		pub participation_currencies:
-			Option<BoundedVec<AcceptedFundingAsset, ConstU32<{ AcceptedFundingAsset::VARIANT_COUNT as u32 }>>>,
-		pub funding_destination_account: Option<AccountId>,
-		pub offchain_information_hash: Option<Option<Hash>>,
-	}
-	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
 	#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
 	pub struct ProjectMetadata<BoundedString, Balance: PartialOrd + Copy, Price: FixedPointNumber, AccountId, Hash> {
 		/// Token Metadata
@@ -259,42 +239,6 @@ pub mod storage_types {
 				return Err(ValidityError::ParticipationCurrenciesError);
 			}
 			Ok(())
-		}
-
-		pub fn edit_fields_from(
-			&mut self,
-			other: OptionalProjectMetadata<BoundedString, Balance, Price, Hash, AccountId>,
-		) {
-			if let Some(token_information) = other.token_information {
-				self.token_information = token_information;
-			}
-			if let Some(mainnet_token_max_supply) = other.mainnet_token_max_supply {
-				self.mainnet_token_max_supply = mainnet_token_max_supply;
-			}
-			if let Some(total_allocation_size) = other.total_allocation_size {
-				self.total_allocation_size = total_allocation_size;
-			}
-			if let Some(auction_round_allocation_percentage) = other.auction_round_allocation_percentage {
-				self.auction_round_allocation_percentage = auction_round_allocation_percentage;
-			}
-			if let Some(minimum_price) = other.minimum_price {
-				self.minimum_price = minimum_price;
-			}
-			if let Some(bidding_ticket_sizes) = other.bidding_ticket_sizes {
-				self.bidding_ticket_sizes = bidding_ticket_sizes;
-			}
-			if let Some(contributing_ticket_sizes) = other.contributing_ticket_sizes {
-				self.contributing_ticket_sizes = contributing_ticket_sizes;
-			}
-			if let Some(participation_currencies) = other.participation_currencies {
-				self.participation_currencies = participation_currencies;
-			}
-			if let Some(funding_destination_account) = other.funding_destination_account {
-				self.funding_destination_account = funding_destination_account;
-			}
-			if let Some(offchain_information_hash) = other.offchain_information_hash {
-				self.offchain_information_hash = offchain_information_hash;
-			}
 		}
 	}
 
