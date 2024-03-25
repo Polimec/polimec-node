@@ -68,12 +68,11 @@ impl<T: Config> Pallet<T> {
 			Error::<T>::NotAllowed
 		);
 
-        let bond;
-        if matches!(project_details.evaluation_round_info.evaluators_outcome, EvaluatorsOutcome::Slashed) {
-            bond = Self::slash_evaluator(project_id, &evaluation)?;
+        let bond = if matches!(project_details.evaluation_round_info.evaluators_outcome, EvaluatorsOutcome::Slashed) {
+             Self::slash_evaluator(project_id, &evaluation)?
         } else {
-            bond = evaluation.current_plmc_bond;
-        }
+            evaluation.current_plmc_bond
+        };
         
 
         // Release the held PLMC bond
@@ -137,7 +136,6 @@ impl<T: Config> Pallet<T> {
         Self::release_funding_asset(project_id, &project_details.issuer_account, bid.funding_asset_amount_locked, bid.funding_asset)?;
 
         Self::create_migration(project_id, &bidder, bid.id, ParticipationType::Bid, bid.final_ct_amount, vest_info.duration)?;
-        // TODO: Create MigrationInfo
 
         Bids::<T>::remove((project_id, bidder.clone(), bid.id));
 
@@ -333,8 +331,7 @@ impl<T: Config> Pallet<T> {
         );
         let early_evaluators_rewards = early_reward_weight * info.early_evaluator_reward_pot;
         let normal_evaluators_rewards = normal_reward_weight * info.normal_evaluator_reward_pot;
-        let total_reward_amount = early_evaluators_rewards.saturating_add(normal_evaluators_rewards);
-        total_reward_amount
+        early_evaluators_rewards.saturating_add(normal_evaluators_rewards)
     }
 
     pub fn create_migration(

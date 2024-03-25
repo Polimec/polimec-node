@@ -1342,7 +1342,7 @@ impl<
 		self.execute(||{
 			match details.status {
 				ProjectStatus::FundingSuccessful => Self::settle_successful_project(project_id),
-				ProjectStatus::FundingFailed | ProjectStatus::EvaluationFailed => Self::settle_failed_project(project_id, details.status),
+				ProjectStatus::FundingFailed | ProjectStatus::EvaluationFailed => Self::settle_failed_project(project_id),
 				_ => panic!("Project should be in FundingSuccessful, FundingFailed or EvaluationFailed status"),
 			}
 		})
@@ -1362,19 +1362,19 @@ impl<
 		})
 	}
 
-	fn settle_failed_project(project_id: ProjectId, status: ProjectStatus) -> Result<(), DispatchError> {
+	fn settle_failed_project(project_id: ProjectId) -> Result<(), DispatchError> {
 		Evaluations::<T>::iter_prefix((project_id,)).try_for_each(|(_, evaluation)| {
 			Pallet::<T>::do_settle_failed_evaluation(evaluation, project_id)
 		})?;
-		if status == ProjectStatus::FundingFailed {
-			Bids::<T>::iter_prefix((project_id,)).try_for_each(|(_, bid)| {
-				Pallet::<T>::do_settle_failed_bid(bid, project_id)
-			})?;
-	
-			Contributions::<T>::iter_prefix((project_id,)).try_for_each(|(_, contribution)| {
-				Pallet::<T>::do_settle_failed_contribution(contribution, project_id)
-			})?;
-		}
+
+		Bids::<T>::iter_prefix((project_id,)).try_for_each(|(_, bid)| {
+			Pallet::<T>::do_settle_failed_bid(bid, project_id)
+		})?;
+
+		Contributions::<T>::iter_prefix((project_id,)).try_for_each(|(_, contribution)| {
+			Pallet::<T>::do_settle_failed_contribution(contribution, project_id)
+		})?;
+		
 		Ok(())
 	}
 
