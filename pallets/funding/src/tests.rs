@@ -3790,7 +3790,7 @@ mod remainder_contribution {
 		);
 		let project_details = inst.get_project_details(project_id);
 		let bid_ct_sold: BalanceOf<TestRuntime> = inst.execute(|| {
-			Bids::<TestRuntime>::iter_prefix_values((project_id,))
+			Bids::<TestRuntime>::iter_prefix_values((project_id, ))
 				.fold(Zero::zero(), |acc, bid| acc + bid.final_ct_amount)
 		});
 		assert_eq!(project_details.remaining_contribution_tokens, project_metadata.total_allocation_size - bid_ct_sold);
