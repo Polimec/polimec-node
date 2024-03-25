@@ -28,6 +28,7 @@ use frame_support::{
 		tokens::{Fortitude, Precision, Preservation, Restriction},
 		Get,
 	},
+	transactional,
 };
 use frame_system::pallet_prelude::BlockNumberFor;
 use itertools::Itertools;
@@ -68,6 +69,7 @@ impl<T: Config> Pallet<T> {
 	/// # Next step
 	/// Users will pond PLMC for this project, and when the time comes, the project will be transitioned
 	/// to the next round by `on_initialize` using [`do_evaluation_end`](Self::do_evaluation_end)
+	#[transactional]
 	pub fn do_start_evaluation(caller: AccountIdOf<T>, project_id: ProjectId) -> DispatchResultWithPostInfo {
 		// * Get variables *
 		let project_metadata = ProjectsMetadata::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
@@ -141,6 +143,7 @@ impl<T: Config> Pallet<T> {
 	///
 	/// * Bonding failed - `on_idle` at some point checks for failed evaluation projects, and
 	/// unbonds the evaluators funds.
+	#[transactional]
 	pub fn do_evaluation_end(project_id: ProjectId) -> DispatchResultWithPostInfo {
 		// * Get variables *
 		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
@@ -244,6 +247,7 @@ impl<T: Config> Pallet<T> {
 	/// Professional and Institutional users set bids for the project using the [`bid`](Self::bid) extrinsic.
 	/// Later on, `on_initialize` transitions the project into the candle auction round, by calling
 	/// [`do_candle_auction`](Self::do_candle_auction).
+	#[transactional]
 	pub fn do_english_auction(caller: AccountIdOf<T>, project_id: ProjectId) -> DispatchResultWithPostInfo {
 		// * Get variables *
 		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
@@ -330,6 +334,7 @@ impl<T: Config> Pallet<T> {
 	/// but now their bids are not guaranteed.
 	/// Later on, `on_initialize` ends the candle auction round and starts the community round,
 	/// by calling [`do_community_funding`](Self::do_community_funding).
+	#[transactional]
 	pub fn do_candle_auction(project_id: ProjectId) -> DispatchResultWithPostInfo {
 		// * Get variables *
 		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
@@ -392,6 +397,7 @@ impl<T: Config> Pallet<T> {
 	/// Retail users buy tokens at the price set on the auction round.
 	/// Later on, `on_initialize` ends the community round by calling [`do_remainder_funding`](Self::do_remainder_funding) and
 	/// starts the remainder round, where anyone can buy at that price point.
+	#[transactional]
 	pub fn do_community_funding(project_id: ProjectId) -> DispatchResultWithPostInfo {
 		// * Get variables *
 		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
@@ -495,6 +501,7 @@ impl<T: Config> Pallet<T> {
 	/// Any users can now buy tokens at the price set on the auction round.
 	/// Later on, `on_initialize` ends the remainder round, and finalizes the project funding, by calling
 	/// [`do_end_funding`](Self::do_end_funding).
+	#[transactional]
 	pub fn do_remainder_funding(project_id: ProjectId) -> DispatchResultWithPostInfo {
 		// * Get variables *
 		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
@@ -569,6 +576,7 @@ impl<T: Config> Pallet<T> {
 	/// * Bonded plmc with [`vested_plmc_purchase_unbond_for`](Self::vested_plmc_purchase_unbond_for)
 	///
 	/// If **unsuccessful**, users every user should have their PLMC vesting unbonded.
+	#[transactional]
 	pub fn do_end_funding(project_id: ProjectId) -> DispatchResultWithPostInfo {
 		// * Get variables *
 		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
@@ -678,6 +686,7 @@ impl<T: Config> Pallet<T> {
 		}
 	}
 
+	#[transactional]
 	pub fn do_project_decision(project_id: ProjectId, decision: FundingOutcomeDecision) -> DispatchResultWithPostInfo {
 		// * Get variables *
 		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
@@ -715,6 +724,7 @@ impl<T: Config> Pallet<T> {
 		}
 	}
 
+	#[transactional]
 	pub fn do_start_settlement(project_id: ProjectId) -> DispatchResultWithPostInfo {
 		// * Get variables *
 		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
@@ -803,6 +813,7 @@ impl<T: Config> Pallet<T> {
 	/// # Next step
 	/// The issuer will call an extrinsic to start the evaluation round of the project.
 	/// [`do_start_evaluation`](Self::do_start_evaluation) will be executed.
+	#[transactional]
 	pub fn do_create(issuer: &AccountIdOf<T>, initial_metadata: ProjectMetadataOf<T>, did: Did) -> DispatchResult {
 		// * Get variables *
 		let project_id = NextProjectId::<T>::get();
@@ -876,6 +887,7 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
+	#[transactional]
 	pub fn do_remove_project(issuer: &AccountIdOf<T>, project_id: ProjectId, did: Did) -> DispatchResult {
 		// * Get variables *
 		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
@@ -908,6 +920,7 @@ impl<T: Config> Pallet<T> {
 	/// * [`Images`] - Check that the image exists
 	/// * [`ProjectsDetails`] - Check that the project is not frozen
 	/// * [`ProjectsMetadata`] - Update the metadata hash
+	#[transactional]
 	pub fn do_edit_metadata(
 		issuer: AccountIdOf<T>,
 		project_id: ProjectId,
@@ -934,6 +947,7 @@ impl<T: Config> Pallet<T> {
 	}
 
 	// Note: usd_amount needs to have the same amount of decimals as PLMC, so when multiplied by the plmc-usd price, it gives us the PLMC amount with the decimals we wanted.
+	#[transactional]
 	pub fn do_evaluate(
 		evaluator: &AccountIdOf<T>,
 		project_id: ProjectId,
@@ -1057,6 +1071,7 @@ impl<T: Config> Pallet<T> {
 	/// * [`ProjectsDetails`] - Check that the project is in the bidding stage
 	/// * [`BiddingBonds`] - Update the storage with the bidder's PLMC bond for that bid
 	/// * [`Bids`] - Check previous bids by that user, and update the storage with the new bid
+	#[transactional]
 	pub fn do_bid(
 		bidder: &AccountIdOf<T>,
 		project_id: ProjectId,
@@ -1164,6 +1179,7 @@ impl<T: Config> Pallet<T> {
 		})
 	}
 
+	#[transactional]
 	fn perform_do_bid(
 		bidder: &AccountIdOf<T>,
 		project_id: ProjectId,
@@ -1240,6 +1256,7 @@ impl<T: Config> Pallet<T> {
 	///   are limited by the total amount of tokens available in the Community Round.
 	/// * multiplier: Decides how much PLMC bonding is required for buying that amount of tokens
 	/// * asset: The asset used for the contribution
+	#[transactional]
 	pub fn do_community_contribute(
 		contributor: &AccountIdOf<T>,
 		project_id: ProjectId,
@@ -1279,6 +1296,7 @@ impl<T: Config> Pallet<T> {
 	///   are limited by the total amount of tokens available after the Auction and Community rounds.
 	/// * multiplier: Decides how much PLMC bonding is required for buying that amount of tokens
 	/// * asset: The asset used for the contribution
+	#[transactional]
 	pub fn do_remaining_contribute(
 		contributor: &AccountIdOf<T>,
 		project_id: ProjectId,
@@ -1309,6 +1327,7 @@ impl<T: Config> Pallet<T> {
 		)
 	}
 
+	#[transactional]
 	fn do_contribute(
 		contributor: &AccountIdOf<T>,
 		project_id: ProjectId,
@@ -1452,6 +1471,7 @@ impl<T: Config> Pallet<T> {
 		Ok(PostDispatchInfo { actual_weight, pays_fee: Pays::Yes })
 	}
 
+	#[transactional]
 	pub fn do_decide_project_outcome(
 		issuer: AccountIdOf<T>,
 		project_id: ProjectId,
@@ -1487,6 +1507,7 @@ impl<T: Config> Pallet<T> {
 		})
 	}
 
+	#[transactional]
 	pub fn do_bid_ct_mint_for(
 		releaser: &AccountIdOf<T>,
 		project_id: ProjectId,
@@ -1536,6 +1557,7 @@ impl<T: Config> Pallet<T> {
 		})
 	}
 
+	#[transactional]
 	pub fn do_contribution_ct_mint_for(
 		releaser: &AccountIdOf<T>,
 		project_id: ProjectId,
@@ -1585,6 +1607,7 @@ impl<T: Config> Pallet<T> {
 		})
 	}
 
+	#[transactional]
 	pub fn do_evaluation_unbond_for(
 		releaser: &AccountIdOf<T>,
 		project_id: ProjectId,
@@ -1633,6 +1656,7 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
+	#[transactional]
 	pub fn do_evaluation_reward_payout_for(
 		caller: &AccountIdOf<T>,
 		project_id: ProjectId,
@@ -1702,6 +1726,7 @@ impl<T: Config> Pallet<T> {
 		})
 	}
 
+	#[transactional]
 	pub fn do_evaluation_slash_for(
 		caller: &AccountIdOf<T>,
 		project_id: ProjectId,
@@ -1755,6 +1780,7 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
+	#[transactional]
 	pub fn do_start_bid_vesting_schedule_for(
 		caller: &AccountIdOf<T>,
 		project_id: ProjectId,
@@ -1801,6 +1827,7 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
+	#[transactional]
 	pub fn do_start_contribution_vesting_schedule_for(
 		caller: &AccountIdOf<T>,
 		project_id: ProjectId,
@@ -1846,6 +1873,7 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
+	#[transactional]
 	pub fn do_vest_plmc_for(
 		caller: AccountIdOf<T>,
 		project_id: ProjectId,
@@ -1866,6 +1894,7 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
+	#[transactional]
 	pub fn do_release_bid_funds_for(
 		caller: &AccountIdOf<T>,
 		project_id: ProjectId,
@@ -1913,6 +1942,7 @@ impl<T: Config> Pallet<T> {
 
 	// Unbond the PLMC of a bid instantly, following a failed funding outcome.
 	// Unbonding of PLMC in a successful funding outcome is handled by the vesting schedule.
+	#[transactional]
 	pub fn do_bid_unbond_for(
 		caller: &AccountIdOf<T>,
 		project_id: ProjectId,
@@ -1952,6 +1982,7 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
+	#[transactional]
 	pub fn do_release_contribution_funds_for(
 		caller: &AccountIdOf<T>,
 		project_id: ProjectId,
@@ -1996,6 +2027,7 @@ impl<T: Config> Pallet<T> {
 
 	// Unbond the PLMC of a contribution instantly, following a failed funding outcome.
 	// Unbonding of PLMC in a successful funding outcome is handled by the vesting schedule.
+	#[transactional]
 	pub fn do_contribution_unbond_for(
 		caller: &AccountIdOf<T>,
 		project_id: ProjectId,
@@ -2031,6 +2063,7 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
+	#[transactional]
 	pub fn do_payout_bid_funds_for(
 		caller: &AccountIdOf<T>,
 		project_id: ProjectId,
@@ -2077,6 +2110,7 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
+	#[transactional]
 	pub fn do_payout_contribution_funds_for(
 		caller: &AccountIdOf<T>,
 		project_id: ProjectId,
@@ -2120,6 +2154,7 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
+	#[transactional]
 	pub fn do_set_para_id_for_project(
 		caller: &AccountIdOf<T>,
 		project_id: ProjectId,
@@ -2263,6 +2298,7 @@ impl<T: Config> Pallet<T> {
 		}
 	}
 
+	#[transactional]
 	pub fn do_start_migration_readiness_check(caller: &AccountIdOf<T>, project_id: ProjectId) -> DispatchResult {
 		// * Get variables *
 		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
@@ -2350,6 +2386,7 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
+	#[transactional]
 	pub fn do_migration_check_response(
 		location: MultiLocation,
 		query_id: xcm::v3::QueryId,
@@ -2431,6 +2468,7 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
+	#[transactional]
 	pub fn do_start_migration(caller: &AccountIdOf<T>, project_id: ProjectId) -> DispatchResult {
 		// * Get variables *
 		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
@@ -2449,6 +2487,7 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
+	#[transactional]
 	pub fn do_migrate_one_participant(
 		caller: AccountIdOf<T>,
 		project_id: ProjectId,
@@ -2516,6 +2555,7 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
+	#[transactional]
 	pub fn do_confirm_migrations(location: MultiLocation, query_id: QueryId, response: Response) -> DispatchResult {
 		use xcm::v3::prelude::*;
 		let unconfirmed_migrations = UnconfirmedMigrations::<T>::take(query_id).ok_or(Error::<T>::NotAllowed)?;
@@ -2555,6 +2595,7 @@ impl<T: Config> Pallet<T> {
 }
 
 // Helper functions
+// ATTENTION: if this is called directly, it will not be transactional
 impl<T: Config> Pallet<T> {
 	/// The account ID of the project pot.
 	///
@@ -2603,7 +2644,7 @@ impl<T: Config> Pallet<T> {
 		plmc_price.reciprocal().ok_or(Error::<T>::BadMath)?.checked_mul_int(usd_bond).ok_or(Error::<T>::BadMath.into())
 	}
 
-	/// Based on the amount of tokens and price to buy, a desired multiplier, and the type of investor the caller is,
+	// Based on the amount of tokens and price to buy, a desired multiplier, and the type of investor the caller is,
 	/// calculate the amount and vesting periods of bonded PLMC and reward CT tokens.
 	pub fn calculate_vesting_info(
 		_caller: &AccountIdOf<T>,
