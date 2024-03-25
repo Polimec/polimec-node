@@ -277,7 +277,7 @@ fn testnet_genesis(
 mod testing_helpers {
 	use super::*;
 	pub use macros::generate_accounts;
-	pub use pallet_funding::{instantiator, instantiator::UserToUSDBalance, AuctionPhase, ProjectStatus, *};
+	pub use pallet_funding::{instantiator::UserToUSDBalance, AuctionPhase, ProjectStatus, *};
 	pub use sp_core::H256;
 	pub use sp_runtime::{
 		traits::{ConstU32, Get, PhantomData},
@@ -394,6 +394,7 @@ fn testing_genesis(
 		BalancesConfig, CouncilConfig, ForeignAssetsConfig, ParachainInfoConfig, ParachainStakingConfig,
 		PolkadotXcmConfig, SessionConfig, SudoConfig, TechnicalCommitteeConfig,
 	};
+	use sp_runtime::bounded_vec;
 	use testing_helpers::*;
 
 	// only used to generate some values, and not for chain interactions
@@ -438,7 +439,7 @@ fn testing_genesis(
 			],
 			phantom: Default::default(),
 		},
-		polimec_funding: politest_runtime::PolimecFundingConfig {
+		funding: politest_runtime::FundingConfig {
 			starting_projects: vec![
 				TestProjectParams::<Runtime> {
 					expected_state: ProjectStatus::FundingSuccessful,
@@ -546,5 +547,7 @@ fn testing_genesis(
 		democracy: Default::default(),
 		elections: Default::default(),
 		vesting: Default::default(),
+		contribution_tokens: Default::default(),
+		transaction_payment: Default::default(),
 	}
 }
