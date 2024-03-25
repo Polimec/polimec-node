@@ -556,6 +556,7 @@ pub mod pallet {
 		BalanceOf<T>,
 		ValueQuery,
 	>;
+
 	#[pallet::storage]
 	// After 25 participations, the retail user has access to the max multiplier of 10x, so no need to keep tracking it
 	pub type RetailParticipations<T: Config> =
