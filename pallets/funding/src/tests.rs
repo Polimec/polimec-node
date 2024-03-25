@@ -2299,8 +2299,8 @@ mod auction {
 
 // only functionalities that happen in the COMMUNITY FUNDING period of a project
 mod community_contribution {
-	use std::collections::HashMap;
 	use super::*;
+	use std::collections::HashMap;
 	pub const HOURS: BlockNumber = 300u64;
 
 	#[test]
@@ -3382,7 +3382,6 @@ mod community_contribution {
 			});
 		}
 
-
 		// Institutional bids: 0x multiplier should fail
 		let jwt = get_mock_jwt(BUYER_2, InvestorType::Institutional, generate_did_from_account(BUYER_2));
 		inst.execute(|| {
@@ -3484,23 +3483,19 @@ mod community_contribution {
 			inst.mint_plmc_to(vec![(BUYER_1, ed).into()]);
 			inst.mint_plmc_to(contributor_plmc);
 			inst.mint_foreign_asset_to(bidder_usdt);
-			inst.execute(|| Pallet::<TestRuntime>::community_contribute(
-				RuntimeOrigin::signed(BUYER_1),
-				jwt,
-				project_id,
-				1000 * ASSET_UNIT,
-				Multiplier::force_new(multiplier),
-				AcceptedFundingAsset::USDT
-			))
+			inst.execute(|| {
+				Pallet::<TestRuntime>::community_contribute(
+					RuntimeOrigin::signed(BUYER_1),
+					jwt,
+					project_id,
+					1000 * ASSET_UNIT,
+					Multiplier::force_new(multiplier),
+					AcceptedFundingAsset::USDT,
+				)
+			})
 		};
 
-		let max_allowed_multipliers_map = vec![
-			(2, 1),
-			(4, 2),
-			(9, 4),
-			(24, 7),
-			(25, 10),
-		];
+		let max_allowed_multipliers_map = vec![(2, 1), (4, 2), (9, 4), (24, 7), (25, 10)];
 
 		let mut previous_projects_created = 0;
 		for (projects_participated_amount, max_allowed_multiplier) in max_allowed_multipliers_map {
@@ -3508,9 +3503,9 @@ mod community_contribution {
 
 			log::debug!("{max_allowed_multiplier:?}");
 
-			log::debug!("creating {} new projects", projects_participated_amount-previous_projects_created);
+			log::debug!("creating {} new projects", projects_participated_amount - previous_projects_created);
 
-			(previous_projects_created..projects_participated_amount-1).for_each(|_|{
+			(previous_projects_created..projects_participated_amount - 1).for_each(|_| {
 				let project_id = create_project(&mut inst);
 				log::debug!("created");
 				assert_ok!(contribute(&mut inst, project_id, 1));
@@ -3524,16 +3519,16 @@ mod community_contribution {
 			// Professional bids: 0x multiplier should fail
 			inst.execute(|| {
 				assert_noop!(
-				Pallet::<TestRuntime>::community_contribute(
-					RuntimeOrigin::signed(BUYER_1),
-					get_mock_jwt(BUYER_1, InvestorType::Retail, generate_did_from_account(BUYER_1)),
-					project_id,
-					1000 * ASSET_UNIT,
-					Multiplier::force_new(0),
-					AcceptedFundingAsset::USDT
-				),
-				Error::<TestRuntime>::ForbiddenMultiplier
-			);
+					Pallet::<TestRuntime>::community_contribute(
+						RuntimeOrigin::signed(BUYER_1),
+						get_mock_jwt(BUYER_1, InvestorType::Retail, generate_did_from_account(BUYER_1)),
+						project_id,
+						1000 * ASSET_UNIT,
+						Multiplier::force_new(0),
+						AcceptedFundingAsset::USDT
+					),
+					Error::<TestRuntime>::ForbiddenMultiplier
+				);
 			});
 
 			// Multipliers that should work
@@ -3544,7 +3539,7 @@ mod community_contribution {
 			// dbg!
 
 			// Multipliers that should NOT work
-			for multiplier in max_allowed_multiplier+1..=50 {
+			for multiplier in max_allowed_multiplier + 1..=50 {
 				log::debug!("error? - multiplier: {}", multiplier);
 				assert_err!(contribute(&mut inst, project_id, multiplier), Error::<TestRuntime>::ForbiddenMultiplier);
 			}
@@ -3749,7 +3744,7 @@ mod remainder_contribution {
 		);
 		let project_details = inst.get_project_details(project_id);
 		let bid_ct_sold: BalanceOf<TestRuntime> = inst.execute(|| {
-			Bids::<TestRuntime>::iter_prefix_values((project_id, ))
+			Bids::<TestRuntime>::iter_prefix_values((project_id,))
 				.fold(Zero::zero(), |acc, bid| acc + bid.final_ct_amount)
 		});
 		assert_eq!(project_details.remaining_contribution_tokens, project_metadata.total_allocation_size - bid_ct_sold);
@@ -4430,23 +4425,19 @@ mod remainder_contribution {
 			inst.mint_plmc_to(vec![(BUYER_1, ed).into()]);
 			inst.mint_plmc_to(contributor_plmc);
 			inst.mint_foreign_asset_to(bidder_usdt);
-			inst.execute(|| Pallet::<TestRuntime>::remaining_contribute(
-				RuntimeOrigin::signed(BUYER_1),
-				jwt,
-				project_id,
-				1000 * ASSET_UNIT,
-				Multiplier::force_new(multiplier),
-				AcceptedFundingAsset::USDT
-			))
+			inst.execute(|| {
+				Pallet::<TestRuntime>::remaining_contribute(
+					RuntimeOrigin::signed(BUYER_1),
+					jwt,
+					project_id,
+					1000 * ASSET_UNIT,
+					Multiplier::force_new(multiplier),
+					AcceptedFundingAsset::USDT,
+				)
+			})
 		};
 
-		let max_allowed_multipliers_map = vec![
-			(2, 1),
-			(4, 2),
-			(9, 4),
-			(24, 7),
-			(25, 10),
-		];
+		let max_allowed_multipliers_map = vec![(2, 1), (4, 2), (9, 4), (24, 7), (25, 10)];
 
 		let mut previous_projects_created = 0;
 		for (projects_participated_amount, max_allowed_multiplier) in max_allowed_multipliers_map {
@@ -4454,7 +4445,7 @@ mod remainder_contribution {
 
 			log::debug!("{max_allowed_multiplier:?}");
 
-			log::debug!("creating {} new projects", projects_participated_amount-previous_projects_created);
+			log::debug!("creating {} new projects", projects_participated_amount - previous_projects_created);
 
 			(previous_projects_created..projects_participated_amount - 1).for_each(|_| {
 				let project_id = create_project(&mut inst);
@@ -4470,16 +4461,16 @@ mod remainder_contribution {
 			// Professional bids: 0x multiplier should fail
 			inst.execute(|| {
 				assert_noop!(
-				Pallet::<TestRuntime>::remaining_contribute(
-					RuntimeOrigin::signed(BUYER_1),
-					get_mock_jwt(BUYER_1, InvestorType::Retail, generate_did_from_account(BUYER_1)),
-					project_id,
-					1000 * ASSET_UNIT,
-					Multiplier::force_new(0),
-					AcceptedFundingAsset::USDT
-				),
-				Error::<TestRuntime>::ForbiddenMultiplier
-			);
+					Pallet::<TestRuntime>::remaining_contribute(
+						RuntimeOrigin::signed(BUYER_1),
+						get_mock_jwt(BUYER_1, InvestorType::Retail, generate_did_from_account(BUYER_1)),
+						project_id,
+						1000 * ASSET_UNIT,
+						Multiplier::force_new(0),
+						AcceptedFundingAsset::USDT
+					),
+					Error::<TestRuntime>::ForbiddenMultiplier
+				);
 			});
 
 			// Multipliers that should work
