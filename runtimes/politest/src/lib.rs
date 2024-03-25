@@ -1110,8 +1110,7 @@ construct_runtime!(
 		OracleProvidersMembership: pallet_membership::<Instance1> = 71,
 		OracleOffchainWorker: pallet_oracle_ocw::{Pallet, Event<T>} = 72,
 
-
-		// Funding
+		// Funding - this should go after Oracle
 		Funding: pallet_funding = 80,
 		LinearRelease: pallet_linear_release = 81,
 	}
