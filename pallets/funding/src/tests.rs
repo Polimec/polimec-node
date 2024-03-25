@@ -371,6 +371,53 @@ mod creation {
 	}
 
 	#[test]
+	fn remove_extrinsic() {
+		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+		let project_metadata = default_project_metadata(inst.get_new_nonce(), ISSUER_1);
+		inst.mint_plmc_to(default_plmc_balances());
+		let jwt = get_mock_jwt(ISSUER_1, InvestorType::Institutional, generate_did_from_account(ISSUER_1));
+		let project_id = inst.create_new_project(project_metadata.clone(), ISSUER_1);
+		assert_ok!(inst.execute(|| crate::Pallet::<TestRuntime>::remove_project(
+			RuntimeOrigin::signed(ISSUER_1),
+			jwt.clone(),
+			project_id
+		)));
+		inst.execute(|| {
+			assert!(ProjectsDetails::<TestRuntime>::get(project_id).is_none());
+			assert!(ProjectsMetadata::<TestRuntime>::get(project_id).is_none());
+			assert!(Buckets::<TestRuntime>::get(project_id).is_none());
+			assert!(DidWithActiveProjects::<TestRuntime>::get(generate_did_from_account(ISSUER_1)).is_none());
+		});
+
+		// removing when no off-chain hash was set works too
+		let mut no_hash_project_metadata = project_metadata.clone();
+		no_hash_project_metadata.offchain_information_hash = None;
+		let project_id = inst.create_new_project(no_hash_project_metadata, ISSUER_1);
+		assert_ok!(inst.execute(|| crate::Pallet::<TestRuntime>::remove_project(
+			RuntimeOrigin::signed(ISSUER_1),
+			jwt.clone(),
+			project_id
+		)));
+		inst.execute(|| {
+			assert!(ProjectsDetails::<TestRuntime>::get(project_id).is_none());
+			assert!(ProjectsMetadata::<TestRuntime>::get(project_id).is_none());
+			assert!(Buckets::<TestRuntime>::get(project_id).is_none());
+			assert!(DidWithActiveProjects::<TestRuntime>::get(generate_did_from_account(ISSUER_1)).is_none());
+		});
+
+		// Cannot remove after evaluation started
+		let project_id = inst.create_new_project(project_metadata, ISSUER_1);
+		inst.start_evaluation(project_id, ISSUER_1).unwrap();
+		inst.execute(|| {
+			assert_noop!(
+				crate::Pallet::<TestRuntime>::remove_project(RuntimeOrigin::signed(ISSUER_1), jwt.clone(), project_id),
+				Error::<TestRuntime>::Frozen
+			);
+		});
+
+	}
+
+	#[test]
 	fn basic_plmc_transfer_works() {
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 

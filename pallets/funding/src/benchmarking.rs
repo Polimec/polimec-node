@@ -424,6 +424,32 @@ mod benchmarks {
 	}
 
 	#[benchmark]
+	fn remove_project() {
+		// * setup *
+		let mut inst = BenchInstantiator::<T>::new(None);
+		// real benchmark starts at block 0, and we can't call `events()` at block 0
+		inst.advance_time(1u32.into()).unwrap();
+
+		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
+		whitelist_account!(issuer);
+
+		let project_metadata = default_project::<T>(inst.get_new_nonce(), issuer.clone());
+		let project_id = inst.create_new_project(project_metadata.clone(), issuer.clone());
+		let jwt = get_mock_jwt(issuer.clone(), InvestorType::Institutional, generate_did_from_account(issuer.clone()));
+
+		#[extrinsic_call]
+		remove_project(RawOrigin::Signed(issuer), jwt, project_id);
+
+		// * validity checks *
+		// Storage
+		assert!(ProjectsMetadata::<T>::get(project_id).is_none());
+		assert!(ProjectsDetails::<T>::get(project_id).is_none());
+
+		// Events
+		frame_system::Pallet::<T>::assert_last_event(Event::<T>::ProjectRemoved { project_id }.into());
+	}
+
+	#[benchmark]
 	fn edit_metadata() {
 		// * setup *
 		let mut inst = BenchInstantiator::<T>::new(None);
@@ -3361,6 +3387,13 @@ mod benchmarks {
 		fn bench_create() {
 			new_test_ext().execute_with(|| {
 				assert_ok!(PalletFunding::<TestRuntime>::test_create());
+			});
+		}
+
+		#[test]
+		fn bench_remove_project() {
+			new_test_ext().execute_with(|| {
+				assert_ok!(PalletFunding::<TestRuntime>::test_remove_project());
 			});
 		}
 

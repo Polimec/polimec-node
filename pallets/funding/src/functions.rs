@@ -52,105 +52,6 @@ const QUERY_RESPONSE_TIME_WINDOW_BLOCKS: u32 = 20u32;
 // Round transitions
 impl<T: Config> Pallet<T> {
 	/// Called by user extrinsic
-	/// Creates a project and assigns it to the `issuer` account.
-	///
-	/// # Arguments
-	/// * `issuer` - The account that will be the issuer of the project.
-	/// * `project` - The project struct containing all the necessary information.
-	///
-	/// # Storage access
-	/// * [`ProjectsMetadata`] - Inserting the main project information. 1 to 1 with the `project` argument.
-	/// * [`ProjectsDetails`] - Inserting the project information. constructed from the `project` argument.
-	/// * [`ProjectsIssuers`] - Inserting the issuer of the project. Mapping of the two parameters `project_id` and `issuer`.
-	/// * [`NextProjectId`] - Getting the next usable id, and updating it for the next project.
-	///
-	/// # Success path
-	/// The `project` argument is valid. A ProjectInfo struct is constructed, and the storage is updated
-	/// with the new structs and mappings to reflect the new project creation
-	///
-	/// # Next step
-	/// The issuer will call an extrinsic to start the evaluation round of the project.
-	/// [`do_start_evaluation`](Self::do_start_evaluation) will be executed.
-	pub fn do_create(issuer: &AccountIdOf<T>, initial_metadata: ProjectMetadataOf<T>, did: Did) -> DispatchResult {
-		// * Get variables *
-		let project_id = NextProjectId::<T>::get();
-		let maybe_active_project = DidWithActiveProjects::<T>::get(did.clone());
-
-		// * Validity checks *
-		if let Some(metadata) = initial_metadata.offchain_information_hash {
-			ensure!(!Images::<T>::contains_key(metadata), Error::<T>::MetadataAlreadyExists);
-		}
-		ensure!(maybe_active_project == None, Error::<T>::IssuerHasActiveProjectAlready);
-
-		if let Err(error) = initial_metadata.is_valid() {
-			return match error {
-				ValidityError::PriceTooLow => Err(Error::<T>::PriceTooLow.into()),
-				ValidityError::TicketSizeError => Err(Error::<T>::TicketSizeError.into()),
-				ValidityError::ParticipationCurrenciesError => Err(Error::<T>::ParticipationCurrenciesError.into()),
-			};
-		}
-		let total_allocation_size = initial_metadata.total_allocation_size;
-
-		// * Calculate new variables *
-		let fundraising_target =
-			initial_metadata.minimum_price.checked_mul_int(total_allocation_size).ok_or(Error::<T>::BadMath)?;
-		let now = <frame_system::Pallet<T>>::block_number();
-		let project_details = ProjectDetails {
-			issuer_account: issuer.clone(),
-			issuer_did: did.clone(),
-			is_frozen: false,
-			weighted_average_price: None,
-			fundraising_target,
-			status: ProjectStatus::Application,
-			phase_transition_points: PhaseTransitionPoints::new(now),
-			remaining_contribution_tokens: initial_metadata.total_allocation_size,
-			funding_amount_reached: BalanceOf::<T>::zero(),
-			cleanup: Cleaner::NotReady,
-			evaluation_round_info: EvaluationRoundInfoOf::<T> {
-				total_bonded_usd: Zero::zero(),
-				total_bonded_plmc: Zero::zero(),
-				evaluators_outcome: EvaluatorsOutcome::Unchanged,
-			},
-			funding_end_block: None,
-			parachain_id: None,
-			migration_readiness_check: None,
-			hrmp_channel_status: HRMPChannelStatus {
-				project_to_polimec: ChannelStatus::Closed,
-				polimec_to_project: ChannelStatus::Closed,
-			},
-		};
-
-		let bucket: BucketOf<T> = Self::create_bucket_from_metadata(&initial_metadata)?;
-
-		// Each project needs an escrow system account to temporarily hold the USDT/USDC. We need to create it by depositing `ED` amount of PLMC into it.
-		// This should be paid by the issuer.
-		let escrow_account = Self::fund_account_id(project_id);
-		// transfer ED from issuer to escrow
-		T::NativeCurrency::transfer(
-			issuer,
-			&escrow_account,
-			<T as pallet_balances::Config>::ExistentialDeposit::get(),
-			Preservation::Preserve,
-		)
-		.map_err(|_| Error::<T>::NotEnoughFundsForEscrowCreation)?;
-
-		// * Update storage *
-		ProjectsMetadata::<T>::insert(project_id, &initial_metadata);
-		ProjectsDetails::<T>::insert(project_id, project_details);
-		Buckets::<T>::insert(project_id, bucket);
-		NextProjectId::<T>::mutate(|n| n.saturating_inc());
-		if let Some(metadata) = initial_metadata.offchain_information_hash {
-			Images::<T>::insert(metadata, issuer);
-		}
-		DidWithActiveProjects::<T>::set(did, Some(project_id));
-
-		// * Emit events *
-		Self::deposit_event(Event::ProjectCreated { project_id, issuer: issuer.clone() });
-
-		Ok(())
-	}
-
-	/// Called by user extrinsic
 	/// Starts the evaluation round of a project. It needs to be called by the project issuer.
 	///
 	/// # Arguments
@@ -883,6 +784,119 @@ impl<T: Config> Pallet<T> {
 
 // Extrinsics and HRMP interactions
 impl<T: Config> Pallet<T> {
+	/// Called by user extrinsic
+	/// Creates a project and assigns it to the `issuer` account.
+	///
+	/// # Arguments
+	/// * `issuer` - The account that will be the issuer of the project.
+	/// * `project` - The project struct containing all the necessary information.
+	///
+	/// # Storage access
+	/// * [`ProjectsMetadata`] - Inserting the main project information. 1 to 1 with the `project` argument.
+	/// * [`ProjectsDetails`] - Inserting the project information. constructed from the `project` argument.
+	/// * [`NextProjectId`] - Getting the next usable id, and updating it for the next project.
+	///
+	/// # Success path
+	/// The `project` argument is valid. A ProjectInfo struct is constructed, and the storage is updated
+	/// with the new structs and mappings to reflect the new project creation
+	///
+	/// # Next step
+	/// The issuer will call an extrinsic to start the evaluation round of the project.
+	/// [`do_start_evaluation`](Self::do_start_evaluation) will be executed.
+	pub fn do_create(issuer: &AccountIdOf<T>, initial_metadata: ProjectMetadataOf<T>, did: Did) -> DispatchResult {
+		// * Get variables *
+		let project_id = NextProjectId::<T>::get();
+		let maybe_active_project = DidWithActiveProjects::<T>::get(did.clone());
+
+		// * Validity checks *
+		ensure!(maybe_active_project == None, Error::<T>::IssuerHasActiveProjectAlready);
+
+		if let Err(error) = initial_metadata.is_valid() {
+			return match error {
+				ValidityError::PriceTooLow => Err(Error::<T>::PriceTooLow.into()),
+				ValidityError::TicketSizeError => Err(Error::<T>::TicketSizeError.into()),
+				ValidityError::ParticipationCurrenciesError => Err(Error::<T>::ParticipationCurrenciesError.into()),
+			};
+		}
+		let total_allocation_size = initial_metadata.total_allocation_size;
+
+		// * Calculate new variables *
+		let fundraising_target =
+			initial_metadata.minimum_price.checked_mul_int(total_allocation_size).ok_or(Error::<T>::BadMath)?;
+		let now = <frame_system::Pallet<T>>::block_number();
+		let project_details = ProjectDetails {
+			issuer_account: issuer.clone(),
+			issuer_did: did.clone(),
+			is_frozen: false,
+			weighted_average_price: None,
+			fundraising_target,
+			status: ProjectStatus::Application,
+			phase_transition_points: PhaseTransitionPoints::new(now),
+			remaining_contribution_tokens: initial_metadata.total_allocation_size,
+			funding_amount_reached: BalanceOf::<T>::zero(),
+			cleanup: Cleaner::NotReady,
+			evaluation_round_info: EvaluationRoundInfoOf::<T> {
+				total_bonded_usd: Zero::zero(),
+				total_bonded_plmc: Zero::zero(),
+				evaluators_outcome: EvaluatorsOutcome::Unchanged,
+			},
+			funding_end_block: None,
+			parachain_id: None,
+			migration_readiness_check: None,
+			hrmp_channel_status: HRMPChannelStatus {
+				project_to_polimec: ChannelStatus::Closed,
+				polimec_to_project: ChannelStatus::Closed,
+			},
+		};
+
+		let bucket: BucketOf<T> = Self::create_bucket_from_metadata(&initial_metadata)?;
+
+		// Each project needs an escrow system account to temporarily hold the USDT/USDC. We need to create it by depositing `ED` amount of PLMC into it.
+		// This should be paid by the issuer.
+		let escrow_account = Self::fund_account_id(project_id);
+		// transfer ED from issuer to escrow
+		T::NativeCurrency::transfer(
+			issuer,
+			&escrow_account,
+			<T as pallet_balances::Config>::ExistentialDeposit::get(),
+			Preservation::Preserve,
+		)
+		.map_err(|_| Error::<T>::NotEnoughFundsForEscrowCreation)?;
+
+		// * Update storage *
+		ProjectsMetadata::<T>::insert(project_id, &initial_metadata);
+		ProjectsDetails::<T>::insert(project_id, project_details);
+		Buckets::<T>::insert(project_id, bucket);
+		NextProjectId::<T>::mutate(|n| n.saturating_inc());
+		DidWithActiveProjects::<T>::set(did, Some(project_id));
+
+		// * Emit events *
+		Self::deposit_event(Event::ProjectCreated { project_id, issuer: issuer.clone() });
+
+		Ok(())
+	}
+
+	pub fn do_remove_project(issuer: &AccountIdOf<T>, project_id: ProjectId, did: Did) -> DispatchResult {
+		// * Get variables *
+		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
+		let project_metadata = ProjectsMetadata::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
+
+		// * Validity checks *
+		ensure!(&project_details.issuer_account == issuer, Error::<T>::NotAllowed);
+		ensure!(project_details.is_frozen.not(), Error::<T>::Frozen);
+
+		// * Update storage *
+		ProjectsDetails::<T>::remove(project_id);
+		ProjectsMetadata::<T>::remove(project_id);
+		DidWithActiveProjects::<T>::set(did, None);
+		Buckets::<T>::remove(project_id);
+
+		// * Emit events *
+		Self::deposit_event(Event::ProjectRemoved { project_id });
+
+		Ok(())
+	}
+
 	/// Change the metadata hash of a project
 	///
 	/// # Arguments
@@ -891,7 +905,6 @@ impl<T: Config> Pallet<T> {
 	/// * `project_metadata_hash` - The hash of the image that contains the metadata
 	///
 	/// # Storage access
-	/// * [`ProjectsIssuers`] - Check that the issuer is the owner of the project
 	/// * [`Images`] - Check that the image exists
 	/// * [`ProjectsDetails`] - Check that the project is not frozen
 	/// * [`ProjectsMetadata`] - Update the metadata hash
@@ -907,7 +920,6 @@ impl<T: Config> Pallet<T> {
 		// * Validity checks *
 		ensure!(project_details.issuer_account == issuer, Error::<T>::NotAllowed);
 		ensure!(!project_details.is_frozen, Error::<T>::Frozen);
-		ensure!(!Images::<T>::contains_key(project_metadata_hash), Error::<T>::MetadataAlreadyExists);
 
 		// * Calculate new variables *
 
@@ -1042,7 +1054,6 @@ impl<T: Config> Pallet<T> {
 	/// * `multiplier` - Used for calculating how much PLMC needs to be bonded to spend this much money (in USD)
 	///
 	/// # Storage access
-	/// * [`ProjectsIssuers`] - Check that the bidder is not the project issuer
 	/// * [`ProjectsDetails`] - Check that the project is in the bidding stage
 	/// * [`BiddingBonds`] - Update the storage with the bidder's PLMC bond for that bid
 	/// * [`Bids`] - Check previous bids by that user, and update the storage with the new bid

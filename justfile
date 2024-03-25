@@ -19,6 +19,16 @@ test-runtime-features:
 test-integration:
     cargo test -p integration-tests
 
+dry-run-benchmarks:
+    cargo run --features runtime-benchmarks --release -p polimec-node benchmark pallet \
+        --chain=politest-local \
+        --steps=2 \
+        --repeat=1 \
+        --pallet="*" \
+        --extrinsic=* \
+        --wasm-execution=compiled \
+        --heap-pages=4096
+
 # src: https://github.com/polkadot-fellows/runtimes/blob/48ccfae6141d2924f579d81e8b1877efd208693f/system-parachains/asset-hubs/asset-hub-polkadot/src/weights/cumulus_pallet_xcmp_queue.rs
 # Benchmark a specific pallet on the "Polimec" Runtime
 # TODO: Adjust the `--chain` flag to match the chain you are benchmarking
