@@ -189,7 +189,6 @@ pub mod storage_types {
 
 	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
 	#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
-
 	pub struct ProjectMetadata<BoundedString, Balance: PartialOrd + Copy, Price: FixedPointNumber, AccountId, Hash> {
 		/// Token Metadata
 		pub token_information: CurrencyMetadata<BoundedString>,

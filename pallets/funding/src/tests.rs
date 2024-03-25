@@ -371,6 +371,95 @@ mod creation {
 	}
 
 	#[test]
+	fn edit_metadata() {
+		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+		let project_metadata = ProjectMetadata {
+			token_information: default_token_information(),
+			mainnet_token_max_supply: 8_000_000 * ASSET_UNIT,
+			total_allocation_size: 1_000_000 * ASSET_UNIT,
+			auction_round_allocation_percentage: Percent::from_percent(50u8),
+			minimum_price: PriceOf::<TestRuntime>::from_float(10.0),
+			bidding_ticket_sizes: BiddingTicketSizes {
+				professional: TicketSize::new(Some(5000 * US_DOLLAR), None),
+				institutional: TicketSize::new(Some(5000 * US_DOLLAR), None),
+				phantom: Default::default(),
+			},
+			contributing_ticket_sizes: ContributingTicketSizes {
+				retail: TicketSize::new(None, None),
+				professional: TicketSize::new(None, None),
+				institutional: TicketSize::new(None, None),
+				phantom: Default::default(),
+			},
+			participation_currencies: vec![AcceptedFundingAsset::USDT].try_into().unwrap(),
+			funding_destination_account: ISSUER_1,
+			offchain_information_hash: None,
+		};
+		inst.mint_plmc_to(default_plmc_balances());
+		let jwt = get_mock_jwt(ISSUER_1, InvestorType::Institutional, generate_did_from_account(ISSUER_1));
+		let project_id = inst.create_new_project(project_metadata.clone(), ISSUER_1);
+		let mut new_metadata_1 = project_metadata.clone();
+		new_metadata_1.minimum_price = PriceOf::<TestRuntime>::from_float(15.0);
+		let new_metadata_2 = ProjectMetadataOf::<TestRuntime> {
+			token_information: CurrencyMetadata {
+				name: BoundedVec::try_from("Changed Name".as_bytes().to_vec()).unwrap(),
+				symbol: BoundedVec::try_from("CN".as_bytes().to_vec()).unwrap(),
+				decimals: 12,
+			},
+			mainnet_token_max_supply: 100_000_000 * ASSET_UNIT,
+			total_allocation_size: 50_000_000 * ASSET_UNIT,
+			auction_round_allocation_percentage: Percent::from_percent(30u8),
+			minimum_price: PriceOf::<TestRuntime>::from_float(20.0),
+			bidding_ticket_sizes: BiddingTicketSizes {
+				professional: TicketSize::new(Some(10_000 * US_DOLLAR), Some(20_000 * US_DOLLAR)),
+				institutional: TicketSize::new(Some(20_000 * US_DOLLAR), Some(30_000 * US_DOLLAR)),
+				phantom: Default::default(),
+			},
+			contributing_ticket_sizes: ContributingTicketSizes {
+				retail: TicketSize::new(Some(1_000 * US_DOLLAR), Some(2_000 * US_DOLLAR)),
+				professional: TicketSize::new(Some(2_000 * US_DOLLAR), Some(3_000 * US_DOLLAR)),
+				institutional: TicketSize::new(Some(3_000 * US_DOLLAR), Some(4_000 * US_DOLLAR)),
+				phantom: Default::default(),
+			},
+			participation_currencies: vec![AcceptedFundingAsset::USDT, AcceptedFundingAsset::USDC].try_into().unwrap(),
+
+			funding_destination_account: ISSUER_2,
+			offchain_information_hash: Some(hashed(METADATA)),
+		};
+
+		// Just one field should change
+		assert_ok!(inst.execute(|| crate::Pallet::<TestRuntime>::edit_metadata(
+			RuntimeOrigin::signed(ISSUER_1),
+			jwt.clone(),
+			project_id,
+			new_metadata_1.clone()
+		)));
+		assert_eq!(inst.get_project_metadata(project_id), new_metadata_1);
+
+		// All fields changed
+		assert_ok!(inst.execute(|| crate::Pallet::<TestRuntime>::edit_metadata(
+			RuntimeOrigin::signed(ISSUER_1),
+			jwt.clone(),
+			project_id,
+			new_metadata_2.clone()
+		)));
+		assert_eq!(inst.get_project_metadata(project_id), new_metadata_2);
+
+		// Cannot edit after evaluation started
+		inst.start_evaluation(project_id, ISSUER_1).unwrap();
+		inst.execute(|| {
+			assert_noop!(
+				Pallet::<TestRuntime>::edit_metadata(
+					RuntimeOrigin::signed(ISSUER_1),
+					jwt.clone(),
+					project_id,
+					new_metadata_1
+				),
+				Error::<TestRuntime>::Frozen
+			);
+		});
+	}
+
+	#[test]
 	fn remove_extrinsic() {
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		let project_metadata = default_project_metadata(inst.get_new_nonce(), ISSUER_1);
@@ -5744,6 +5833,7 @@ mod funding_end {
 			inst,
 			Pallet::<TestRuntime>::decide_project_outcome(
 				RuntimeOrigin::signed(issuer),
+				get_mock_jwt(issuer.clone(), InvestorType::Institutional, generate_did_from_account(issuer.clone())),
 				project_id,
 				FundingOutcomeDecision::RejectFunding
 			)
@@ -5852,6 +5942,7 @@ mod funding_end {
 			inst,
 			Pallet::<TestRuntime>::decide_project_outcome(
 				RuntimeOrigin::signed(issuer),
+				get_mock_jwt(issuer.clone(), InvestorType::Institutional, generate_did_from_account(issuer.clone())),
 				project_id,
 				FundingOutcomeDecision::RejectFunding
 			)
@@ -6013,6 +6104,7 @@ mod funding_end {
 			inst,
 			Pallet::<TestRuntime>::decide_project_outcome(
 				RuntimeOrigin::signed(issuer),
+				get_mock_jwt(issuer.clone(), InvestorType::Institutional, generate_did_from_account(issuer.clone())),
 				project_id,
 				FundingOutcomeDecision::RejectFunding
 			)
@@ -6128,6 +6220,7 @@ mod funding_end {
 			inst,
 			Pallet::<TestRuntime>::decide_project_outcome(
 				RuntimeOrigin::signed(issuer),
+				get_mock_jwt(issuer.clone(), InvestorType::Institutional, generate_did_from_account(issuer.clone())),
 				project_id,
 				FundingOutcomeDecision::RejectFunding
 			)

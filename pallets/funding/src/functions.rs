@@ -794,6 +794,54 @@ impl<T: Config> Pallet<T> {
 
 // Extrinsics and HRMP interactions
 impl<T: Config> Pallet<T> {
+	fn project_validation(
+		metadata: &ProjectMetadataOf<T>,
+		issuer: AccountIdOf<T>,
+		did: Did,
+	) -> Result<(ProjectDetailsOf<T>, BucketOf<T>), DispatchError> {
+		if let Err(error) = metadata.is_valid() {
+			return match error {
+				ValidityError::PriceTooLow => Err(Error::<T>::PriceTooLow.into()),
+				ValidityError::TicketSizeError => Err(Error::<T>::TicketSizeError.into()),
+				ValidityError::ParticipationCurrenciesError => Err(Error::<T>::ParticipationCurrenciesError.into()),
+			};
+		}
+		let total_allocation_size = metadata.total_allocation_size;
+
+		// * Calculate new variables *
+		let fundraising_target =
+			metadata.minimum_price.checked_mul_int(total_allocation_size).ok_or(Error::<T>::BadMath)?;
+		let now = <frame_system::Pallet<T>>::block_number();
+		let project_details = ProjectDetails {
+			issuer_account: issuer.clone(),
+			issuer_did: did.clone(),
+			is_frozen: false,
+			weighted_average_price: None,
+			fundraising_target,
+			status: ProjectStatus::Application,
+			phase_transition_points: PhaseTransitionPoints::new(now),
+			remaining_contribution_tokens: metadata.total_allocation_size,
+			funding_amount_reached: BalanceOf::<T>::zero(),
+			cleanup: Cleaner::NotReady,
+			evaluation_round_info: EvaluationRoundInfoOf::<T> {
+				total_bonded_usd: Zero::zero(),
+				total_bonded_plmc: Zero::zero(),
+				evaluators_outcome: EvaluatorsOutcome::Unchanged,
+			},
+			funding_end_block: None,
+			parachain_id: None,
+			migration_readiness_check: None,
+			hrmp_channel_status: HRMPChannelStatus {
+				project_to_polimec: ChannelStatus::Closed,
+				polimec_to_project: ChannelStatus::Closed,
+			},
+		};
+
+		let bucket: BucketOf<T> = Self::create_bucket_from_metadata(&metadata)?;
+
+		Ok((project_details, bucket))
+	}
+
 	/// Called by user extrinsic
 	/// Creates a project and assigns it to the `issuer` account.
 	///
@@ -822,45 +870,7 @@ impl<T: Config> Pallet<T> {
 		// * Validity checks *
 		ensure!(maybe_active_project == None, Error::<T>::IssuerHasActiveProjectAlready);
 
-		if let Err(error) = initial_metadata.is_valid() {
-			return match error {
-				ValidityError::PriceTooLow => Err(Error::<T>::PriceTooLow.into()),
-				ValidityError::TicketSizeError => Err(Error::<T>::TicketSizeError.into()),
-				ValidityError::ParticipationCurrenciesError => Err(Error::<T>::ParticipationCurrenciesError.into()),
-			};
-		}
-		let total_allocation_size = initial_metadata.total_allocation_size;
-
-		// * Calculate new variables *
-		let fundraising_target =
-			initial_metadata.minimum_price.checked_mul_int(total_allocation_size).ok_or(Error::<T>::BadMath)?;
-		let now = <frame_system::Pallet<T>>::block_number();
-		let project_details = ProjectDetails {
-			issuer_account: issuer.clone(),
-			issuer_did: did.clone(),
-			is_frozen: false,
-			weighted_average_price: None,
-			fundraising_target,
-			status: ProjectStatus::Application,
-			phase_transition_points: PhaseTransitionPoints::new(now),
-			remaining_contribution_tokens: initial_metadata.total_allocation_size,
-			funding_amount_reached: BalanceOf::<T>::zero(),
-			cleanup: Cleaner::NotReady,
-			evaluation_round_info: EvaluationRoundInfoOf::<T> {
-				total_bonded_usd: Zero::zero(),
-				total_bonded_plmc: Zero::zero(),
-				evaluators_outcome: EvaluatorsOutcome::Unchanged,
-			},
-			funding_end_block: None,
-			parachain_id: None,
-			migration_readiness_check: None,
-			hrmp_channel_status: HRMPChannelStatus {
-				project_to_polimec: ChannelStatus::Closed,
-				polimec_to_project: ChannelStatus::Closed,
-			},
-		};
-
-		let bucket: BucketOf<T> = Self::create_bucket_from_metadata(&initial_metadata)?;
+		let (project_details, bucket) = Self::project_validation(&initial_metadata, issuer.clone(), did.clone())?;
 
 		// Each project needs an escrow system account to temporarily hold the USDT/USDC. We need to create it by depositing `ED` amount of PLMC into it.
 		// This should be paid by the issuer.
@@ -891,7 +901,6 @@ impl<T: Config> Pallet<T> {
 	pub fn do_remove_project(issuer: &AccountIdOf<T>, project_id: ProjectId, did: Did) -> DispatchResult {
 		// * Get variables *
 		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
-		let project_metadata = ProjectsMetadata::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
 
 		// * Validity checks *
 		ensure!(&project_details.issuer_account == issuer, Error::<T>::NotAllowed);
@@ -917,17 +926,15 @@ impl<T: Config> Pallet<T> {
 	/// * `project_metadata_hash` - The hash of the image that contains the metadata
 	///
 	/// # Storage access
-	/// * [`Images`] - Check that the image exists
 	/// * [`ProjectsDetails`] - Check that the project is not frozen
 	/// * [`ProjectsMetadata`] - Update the metadata hash
 	#[transactional]
 	pub fn do_edit_metadata(
 		issuer: AccountIdOf<T>,
 		project_id: ProjectId,
-		project_metadata_hash: T::Hash,
+		new_project_metadata: ProjectMetadataOf<T>,
 	) -> DispatchResult {
 		// * Get variables *
-		let mut project_metadata = ProjectsMetadata::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
 		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 
 		// * Validity checks *
@@ -935,13 +942,16 @@ impl<T: Config> Pallet<T> {
 		ensure!(!project_details.is_frozen, Error::<T>::Frozen);
 
 		// * Calculate new variables *
+		let (project_details, bucket) =
+			Self::project_validation(&new_project_metadata, issuer.clone(), project_details.issuer_did.clone())?;
 
-		// * Update Storage *
-		project_metadata.offchain_information_hash = Some(project_metadata_hash);
-		ProjectsMetadata::<T>::insert(project_id, project_metadata);
+		// * Update storage *
+		ProjectsMetadata::<T>::insert(project_id, new_project_metadata.clone());
+		ProjectsDetails::<T>::insert(project_id, project_details);
+		Buckets::<T>::insert(project_id, bucket);
 
 		// * Emit events *
-		Self::deposit_event(Event::MetadataEdited { project_id });
+		Self::deposit_event(Event::MetadataEdited { project_id, metadata: new_project_metadata });
 
 		Ok(())
 	}
