@@ -205,13 +205,11 @@ pub mod pallet {
 		pallet_prelude::*,
 		traits::{OnFinalize, OnIdle, OnInitialize},
 	};
+	use frame_support::dispatch::GetDispatchInfo;
 	use frame_system::pallet_prelude::*;
 	use local_macros::*;
 	use sp_arithmetic::Percent;
-	use sp_runtime::{
-		traits::{Convert, ConvertBack, Get},
-		DispatchErrorWithPostInfo,
-	};
+	use sp_runtime::{traits::{Convert, ConvertBack, Get}, DispatchErrorWithPostInfo, TransactionOutcome};
 
 	#[cfg(any(feature = "runtime-benchmarks", feature = "std"))]
 	use crate::traits::SetPrices;
@@ -1484,154 +1482,177 @@ pub mod pallet {
 			// Get the projects that need to be updated on this block and update them
 			let mut used_weight = Weight::from_parts(0, 0);
 			for (project_id, update_type) in ProjectsToUpdate::<T>::take(now) {
-				match update_type {
-					// EvaluationRound -> AuctionInitializePeriod | EvaluationFailed
-					UpdateType::EvaluationEnd => {
-						used_weight = used_weight.saturating_add(
-							unwrap_result_or_skip!(
-								Self::do_evaluation_end(project_id),
+				used_weight.saturating_add(frame_support::storage::transactional::with_transaction(|| -> TransactionOutcome<Result<Weight, DispatchError>> {
+					match update_type {
+						// EvaluationRound -> AuctionInitializePeriod | EvaluationFailed
+						UpdateType::EvaluationEnd => {
+							let call = Self::do_evaluation_end(project_id);
+							let default_weight = Call::<T>::root_do_evaluation_end {
 								project_id,
-								|e: DispatchErrorWithPostInfo<PostDispatchInfo>| { e.error }
-							)
-							.actual_weight
-							.unwrap_or(WeightInfoOf::<T>::end_evaluation_success(
-								<T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1,
-							)),
-						);
-					},
-
-					// AuctionInitializePeriod -> AuctionRound(AuctionPhase::English)
-					// Only if it wasn't first handled by user extrinsic
-					UpdateType::EnglishAuctionStart => {
-						used_weight = used_weight.saturating_add(
-							unwrap_result_or_skip!(
-								Self::do_english_auction(T::PalletId::get().into_account_truncating(), project_id,),
-								project_id,
-								|e: DispatchErrorWithPostInfo<PostDispatchInfo>| { e.error }
-							)
-							.actual_weight
-							.unwrap_or(WeightInfoOf::<T>::start_auction_manually(
-								<T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1,
-							)),
-						);
-					},
-
-					// AuctionRound(AuctionPhase::English) -> AuctionRound(AuctionPhase::Candle)
-					UpdateType::CandleAuctionStart => {
-						used_weight = used_weight.saturating_add(
-							unwrap_result_or_skip!(
-								Self::do_candle_auction(project_id),
-								project_id,
-								|e: DispatchErrorWithPostInfo<PostDispatchInfo>| { e.error }
-							)
-							.actual_weight
-							.unwrap_or(WeightInfoOf::<T>::start_candle_phase(
-								<T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1,
-							)),
-						);
-					},
-
-					// AuctionRound(AuctionPhase::Candle) -> CommunityRound
-					UpdateType::CommunityFundingStart => {
-						used_weight = used_weight.saturating_add(
-							unwrap_result_or_skip!(
-								Self::do_community_funding(project_id),
-								project_id,
-								|e: DispatchErrorWithPostInfo<PostDispatchInfo>| { e.error }
-							)
-							.actual_weight
-							.unwrap_or(
-								WeightInfoOf::<T>::start_community_funding_success(
-									<T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1,
-									<T as Config>::MaxBidsPerProject::get() / 2,
-									<T as Config>::MaxBidsPerProject::get() / 2,
-								)
-								.max(WeightInfoOf::<T>::start_community_funding_success(
-									<T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1,
-									<T as Config>::MaxBidsPerProject::get(),
-									0u32,
-								))
-								.max(WeightInfoOf::<T>::start_community_funding_success(
-									<T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1,
-									0u32,
-									<T as Config>::MaxBidsPerProject::get(),
-								)),
-							),
-						);
-					},
-
-					// CommunityRound -> RemainderRound
-					UpdateType::RemainderFundingStart => {
-						used_weight = used_weight.saturating_add(
-							unwrap_result_or_skip!(
-								Self::do_remainder_funding(project_id),
-								project_id,
-								|e: DispatchErrorWithPostInfo<PostDispatchInfo>| { e.error }
-							)
-							.actual_weight
-							.unwrap_or(WeightInfoOf::<T>::start_remainder_funding(
-								<T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1,
-							)),
-						);
-					},
-
-					// CommunityRound || RemainderRound -> FundingEnded
-					UpdateType::FundingEnd => {
-						used_weight = used_weight.saturating_add(
-							unwrap_result_or_skip!(
-								Self::do_end_funding(project_id),
-								project_id,
-								|e: DispatchErrorWithPostInfo<PostDispatchInfo>| { e.error }
-							)
-							.actual_weight
-							.unwrap_or(
-								WeightInfoOf::<T>::end_funding_automatically_rejected_evaluators_slashed(
-									<T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1,
-								)
-								.max(WeightInfoOf::<T>::end_funding_awaiting_decision_evaluators_slashed(
-									<T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1,
-								))
-								.max(WeightInfoOf::<T>::end_funding_awaiting_decision_evaluators_unchanged(
-									<T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1,
-								))
-								.max(WeightInfoOf::<T>::end_funding_automatically_accepted_evaluators_rewarded(
-									<T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1,
-									<T as Config>::MaxEvaluationsPerProject::get(),
-								)),
-							),
-						);
-					},
-
-					UpdateType::ProjectDecision(decision) => {
-						used_weight = used_weight.saturating_add(
-							unwrap_result_or_skip!(
-								Self::do_project_decision(project_id, decision),
-								project_id,
-								|e: DispatchErrorWithPostInfo<PostDispatchInfo>| { e.error }
-							)
-							.actual_weight
-							.unwrap_or(
-								WeightInfoOf::<T>::project_decision_accept_funding()
-									.max(WeightInfoOf::<T>::project_decision_reject_funding()),
-							),
-						);
-					},
-
-					UpdateType::StartSettlement => {
-						used_weight = used_weight.saturating_add(
-							unwrap_result_or_skip!(
-								Self::do_start_settlement(project_id),
-								project_id,
-								|e: DispatchErrorWithPostInfo<PostDispatchInfo>| { e.error }
-							)
-							.actual_weight
-							.unwrap_or(
-								WeightInfoOf::<T>::start_settlement_funding_success()
-									.max(WeightInfoOf::<T>::start_settlement_funding_failure()),
-							),
-						);
-					},
-				}
+							}.get_dispatch_info().weight;
+							match call {
+								Ok(post_dispatch_info) => {
+									if let Some(actual_weight) = post_dispatch_info.actual_weight {
+										TransactionOutcome::Commit(Ok(actual_weight))
+									} else {
+										TransactionOutcome::Commit(Ok(default_weight))
+									}
+								},
+								Err(DispatchErrorWithPostInfo::<PostDispatchInfo>{error, post_info}) => {
+									if let Some(actual_weight) = post_info.actual_weight {
+										TransactionOutcome::Rollback(Ok(actual_weight))
+									} else {
+										TransactionOutcome::Rollback(Ok(default_weight))
+									}
+								}
+							}
+						}
+							// if let dispatch @ Ok(dispatch_info) =  {
+							// 	used_weight = used_weight.saturating_add(dispatch_info.actual_weight.unwrap_or(
+							// 		WeightInfoOf::<T>::end_evaluation_success(
+							// 			<T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1,
+							// 		),
+							// 	));
+							// 	Ok(())
+							// } else {
+							// 	used_weight = used_weight.saturating_add(WeightInfoOf::<T>::end_evaluation_failure());
+							// 	Err(())
+							// },
+						//
+						// // AuctionInitializePeriod -> AuctionRound(AuctionPhase::English)
+						// // Only if it wasn't first handled by user extrinsic
+						// UpdateType::EnglishAuctionStart => {
+						// 	used_weight = used_weight.saturating_add(
+						// 		unwrap_result_or_skip!(
+						// 			Self::do_english_auction(T::PalletId::get().into_account_truncating(), project_id,),
+						// 			project_id,
+						// 			|e: DispatchErrorWithPostInfo<PostDispatchInfo>| { e.error }
+						// 		)
+						// 			.actual_weight
+						// 			.unwrap_or(WeightInfoOf::<T>::start_auction_manually(
+						// 				<T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1,
+						// 			)),
+						// 	);
+						// },
+						//
+						// // AuctionRound(AuctionPhase::English) -> AuctionRound(AuctionPhase::Candle)
+						// UpdateType::CandleAuctionStart => {
+						// 	used_weight = used_weight.saturating_add(
+						// 		unwrap_result_or_skip!(
+						// 			Self::do_candle_auction(project_id),
+						// 			project_id,
+						// 			|e: DispatchErrorWithPostInfo<PostDispatchInfo>| { e.error }
+						// 		)
+						// 			.actual_weight
+						// 			.unwrap_or(WeightInfoOf::<T>::start_candle_phase(
+						// 				<T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1,
+						// 			)),
+						// 	);
+						// },
+						//
+						// // AuctionRound(AuctionPhase::Candle) -> CommunityRound
+						// UpdateType::CommunityFundingStart => {
+						// 	used_weight = used_weight.saturating_add(
+						// 		unwrap_result_or_skip!(
+						// 			Self::do_community_funding(project_id),
+						// 			project_id,
+						// 			|e: DispatchErrorWithPostInfo<PostDispatchInfo>| { e.error }
+						// 		)
+						// 			.actual_weight
+						// 			.unwrap_or(
+						// 				WeightInfoOf::<T>::start_community_funding_success(
+						// 					<T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1,
+						// 					<T as Config>::MaxBidsPerProject::get() / 2,
+						// 					<T as Config>::MaxBidsPerProject::get() / 2,
+						// 				)
+						// 					.max(WeightInfoOf::<T>::start_community_funding_success(
+						// 						<T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1,
+						// 						<T as Config>::MaxBidsPerProject::get(),
+						// 						0u32,
+						// 					))
+						// 					.max(WeightInfoOf::<T>::start_community_funding_success(
+						// 						<T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1,
+						// 						0u32,
+						// 						<T as Config>::MaxBidsPerProject::get(),
+						// 					)),
+						// 			),
+						// 	);
+						// },
+						//
+						// // CommunityRound -> RemainderRound
+						// UpdateType::RemainderFundingStart => {
+						// 	used_weight = used_weight.saturating_add(
+						// 		unwrap_result_or_skip!(
+						// 			Self::do_remainder_funding(project_id),
+						// 			project_id,
+						// 			|e: DispatchErrorWithPostInfo<PostDispatchInfo>| { e.error }
+						// 		)
+						// 			.actual_weight
+						// 			.unwrap_or(WeightInfoOf::<T>::start_remainder_funding(
+						// 				<T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1,
+						// 			)),
+						// 	);
+						// },
+						//
+						// // CommunityRound || RemainderRound -> FundingEnded
+						// UpdateType::FundingEnd => {
+						// 	used_weight = used_weight.saturating_add(
+						// 		unwrap_result_or_skip!(
+						// 			Self::do_end_funding(project_id),
+						// 			project_id,
+						// 			|e: DispatchErrorWithPostInfo<PostDispatchInfo>| { e.error }
+						// 		)
+						// 			.actual_weight
+						// 			.unwrap_or(
+						// 				WeightInfoOf::<T>::end_funding_automatically_rejected_evaluators_slashed(
+						// 					<T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1,
+						// 				)
+						// 					.max(WeightInfoOf::<T>::end_funding_awaiting_decision_evaluators_slashed(
+						// 						<T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1,
+						// 					))
+						// 					.max(WeightInfoOf::<T>::end_funding_awaiting_decision_evaluators_unchanged(
+						// 						<T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1,
+						// 					))
+						// 					.max(WeightInfoOf::<T>::end_funding_automatically_accepted_evaluators_rewarded(
+						// 						<T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1,
+						// 						<T as Config>::MaxEvaluationsPerProject::get(),
+						// 					)),
+						// 			),
+						// 	);
+						// },
+						//
+						// UpdateType::ProjectDecision(decision) => {
+						// 	used_weight = used_weight.saturating_add(
+						// 		unwrap_result_or_skip!(
+						// 			Self::do_project_decision(project_id, decision),
+						// 			project_id,
+						// 			|e: DispatchErrorWithPostInfo<PostDispatchInfo>| { e.error }
+						// 		)
+						// 			.actual_weight
+						// 			.unwrap_or(
+						// 				WeightInfoOf::<T>::project_decision_accept_funding()
+						// 					.max(WeightInfoOf::<T>::project_decision_reject_funding()),
+						// 			),
+						// 	);
+						// },
+						//
+						// UpdateType::StartSettlement => {
+						// 	used_weight = used_weight.saturating_add(
+						// 		unwrap_result_or_skip!(
+						// 			Self::do_start_settlement(project_id),
+						// 			project_id,
+						// 			|e: DispatchErrorWithPostInfo<PostDispatchInfo>| { e.error }
+						// 		)
+						// 			.actual_weight
+						// 			.unwrap_or(
+						// 				WeightInfoOf::<T>::start_settlement_funding_success()
+						// 					.max(WeightInfoOf::<T>::start_settlement_funding_failure()),
+						// 			),
+						// 	);
+						// },
+						_ => TransactionOutcome::Rollback(Ok(Weight::zero())),
+					}
+				}).unwrap());
 			}
 
 			used_weight
