@@ -175,7 +175,6 @@ pub mod config_types {
 			25..=u8::MAX => 10,
 		}
 	}
-	pub const RETAIL_MAX_MULTIPLIER: u8 = 10u8;
 	pub const PROFESSIONAL_MAX_MULTIPLIER: u8 = 10u8;
 	pub const INSTITUTIONAL_MAX_MULTIPLIER: u8 = 25u8;
 }

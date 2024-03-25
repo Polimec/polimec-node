@@ -564,6 +564,11 @@ pub mod pallet {
 		StorageMap<_, Blake2_128Concat, Did, BoundedVec<ProjectId, MaxParticipationsForMaxMultiplier>, ValueQuery>;
 
 	#[pallet::storage]
+	// After 25 participations, the retail user has access to the max multiplier of 10x, so no need to keep tracking it
+	pub type RetailParticipations<T: Config> =
+		StorageMap<_, Blake2_128Concat, Did, BoundedVec<ProjectId, MaxParticipationsForMaxMultiplier>, ValueQuery>;
+
+	#[pallet::storage]
 	/// A map to keep track of what issuer's did has an active project. It prevents one issuer having multiple active projects
 	pub type DidWithActiveProjects<T: Config> = StorageMap<_, Blake2_128Concat, Did, ProjectId, OptionQuery>;
 
