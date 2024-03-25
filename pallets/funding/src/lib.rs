@@ -201,7 +201,7 @@ pub mod pallet {
 	use super::*;
 	use crate::traits::{BondingRequirementCalculation, ProvideAssetPrice, VestingDurationCalculation};
 	use frame_support::{
-		dispatch::{GetDispatchInfo, PostDispatchInfo},
+		dispatch::PostDispatchInfo,
 		pallet_prelude::*,
 		traits::{OnFinalize, OnIdle, OnInitialize},
 	};
@@ -210,7 +210,7 @@ pub mod pallet {
 	use sp_arithmetic::Percent;
 	use sp_runtime::{
 		traits::{Convert, ConvertBack, Get},
-		DispatchErrorWithPostInfo, TransactionOutcome,
+		DispatchErrorWithPostInfo,
 	};
 
 	#[cfg(any(feature = "runtime-benchmarks", feature = "std"))]
@@ -1404,13 +1404,6 @@ pub mod pallet {
 			Self::do_evaluation_end(project_id)
 		}
 
-		#[pallet::call_index(59)]
-		#[pallet::weight(WeightInfoOf::<T>::start_auction_manually(<T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1))]
-		pub fn root_do_english_auction(origin: OriginFor<T>, project_id: ProjectId) -> DispatchResultWithPostInfo {
-			ensure_root(origin)?;
-			Self::do_english_auction(T::PalletId::get().into_account_truncating(), project_id)
-		}
-
 		#[pallet::call_index(29)]
 		#[pallet::weight(WeightInfoOf::<T>::start_candle_phase(
 			<T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1,
@@ -1490,24 +1483,6 @@ pub mod pallet {
 		}
 	}
 
-	fn update_weight(used_weight: &mut Weight, call: DispatchResultWithPostInfo, fallback_weight: Weight) {
-		match call {
-			Ok(post_dispatch_info) =>
-				if let Some(actual_weight) = post_dispatch_info.actual_weight {
-					*used_weight = used_weight.saturating_add(actual_weight);
-				} else {
-					*used_weight = used_weight.saturating_add(fallback_weight);
-				},
-			Err(DispatchErrorWithPostInfo::<PostDispatchInfo> { error, post_info }) => {
-				if let Some(actual_weight) = post_info.actual_weight {
-					*used_weight = used_weight.saturating_add(actual_weight);
-				} else {
-					*used_weight = used_weight.saturating_add(fallback_weight);
-				}
-			},
-		}
-	}
-
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
 		fn on_initialize(now: BlockNumberFor<T>) -> Weight {
@@ -1517,67 +1492,153 @@ pub mod pallet {
 				match update_type {
 					// EvaluationRound -> AuctionInitializePeriod | EvaluationFailed
 					UpdateType::EvaluationEnd => {
-						let call = Self::do_evaluation_end(project_id);
-						let fallback_weight =
-							Call::<T>::root_do_evaluation_end { project_id }.get_dispatch_info().weight;
-						update_weight(&mut used_weight, call, fallback_weight);
+						used_weight = used_weight.saturating_add(
+							unwrap_result_or_skip!(
+								Self::do_evaluation_end(project_id),
+								project_id,
+								|e: DispatchErrorWithPostInfo<PostDispatchInfo>| { e.error }
+							)
+							.actual_weight
+							.unwrap_or(WeightInfoOf::<T>::end_evaluation_success(
+								<T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1,
+							)),
+						);
 					},
 
 					// AuctionInitializePeriod -> AuctionRound(AuctionPhase::English)
 					// Only if it wasn't first handled by user extrinsic
 					UpdateType::EnglishAuctionStart => {
-						let call = Self::do_english_auction(T::PalletId::get().into_account_truncating(), project_id);
-						let fallback_weight =
-							Call::<T>::root_do_english_auction { project_id }.get_dispatch_info().weight;
-						update_weight(&mut used_weight, call, fallback_weight);
+						used_weight = used_weight.saturating_add(
+							unwrap_result_or_skip!(
+								Self::do_english_auction(T::PalletId::get().into_account_truncating(), project_id,),
+								project_id,
+								|e: DispatchErrorWithPostInfo<PostDispatchInfo>| { e.error }
+							)
+							.actual_weight
+							.unwrap_or(WeightInfoOf::<T>::start_auction_manually(
+								<T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1,
+							)),
+						);
 					},
 
 					// AuctionRound(AuctionPhase::English) -> AuctionRound(AuctionPhase::Candle)
 					UpdateType::CandleAuctionStart => {
-						let call = Self::do_candle_auction(project_id);
-						let fallback_weight =
-							Call::<T>::root_do_candle_auction { project_id }.get_dispatch_info().weight;
-						update_weight(&mut used_weight, call, fallback_weight);
+						used_weight = used_weight.saturating_add(
+							unwrap_result_or_skip!(
+								Self::do_candle_auction(project_id),
+								project_id,
+								|e: DispatchErrorWithPostInfo<PostDispatchInfo>| { e.error }
+							)
+							.actual_weight
+							.unwrap_or(WeightInfoOf::<T>::start_candle_phase(
+								<T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1,
+							)),
+						);
 					},
 
 					// AuctionRound(AuctionPhase::Candle) -> CommunityRound
 					UpdateType::CommunityFundingStart => {
-						let call = Self::do_community_funding(project_id);
-						let fallback_weight =
-							Call::<T>::root_do_community_funding { project_id }.get_dispatch_info().weight;
-						update_weight(&mut used_weight, call, fallback_weight);
+						used_weight = used_weight.saturating_add(
+							unwrap_result_or_skip!(
+								Self::do_community_funding(project_id),
+								project_id,
+								|e: DispatchErrorWithPostInfo<PostDispatchInfo>| { e.error }
+							)
+							.actual_weight
+							.unwrap_or(
+								WeightInfoOf::<T>::start_community_funding_success(
+									<T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1,
+									<T as Config>::MaxBidsPerProject::get() / 2,
+									<T as Config>::MaxBidsPerProject::get() / 2,
+								)
+								.max(WeightInfoOf::<T>::start_community_funding_success(
+									<T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1,
+									<T as Config>::MaxBidsPerProject::get(),
+									0u32,
+								))
+								.max(WeightInfoOf::<T>::start_community_funding_success(
+									<T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1,
+									0u32,
+									<T as Config>::MaxBidsPerProject::get(),
+								)),
+							),
+						);
 					},
 
 					// CommunityRound -> RemainderRound
 					UpdateType::RemainderFundingStart => {
-						let call = Self::do_remainder_funding(project_id);
-						let fallback_weight =
-							Call::<T>::root_do_remainder_funding { project_id }.get_dispatch_info().weight;
-						update_weight(&mut used_weight, call, fallback_weight);
+						used_weight = used_weight.saturating_add(
+							unwrap_result_or_skip!(
+								Self::do_remainder_funding(project_id),
+								project_id,
+								|e: DispatchErrorWithPostInfo<PostDispatchInfo>| { e.error }
+							)
+							.actual_weight
+							.unwrap_or(WeightInfoOf::<T>::start_remainder_funding(
+								<T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1,
+							)),
+						);
 					},
 
 					// CommunityRound || RemainderRound -> FundingEnded
 					UpdateType::FundingEnd => {
-						let call = Self::do_end_funding(project_id);
-						let fallback_weight = Call::<T>::root_do_end_funding { project_id }.get_dispatch_info().weight;
-						update_weight(&mut used_weight, call, fallback_weight);
+						used_weight = used_weight.saturating_add(
+							unwrap_result_or_skip!(
+								Self::do_end_funding(project_id),
+								project_id,
+								|e: DispatchErrorWithPostInfo<PostDispatchInfo>| { e.error }
+							)
+							.actual_weight
+							.unwrap_or(
+								WeightInfoOf::<T>::end_funding_automatically_rejected_evaluators_slashed(
+									<T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1,
+								)
+								.max(WeightInfoOf::<T>::end_funding_awaiting_decision_evaluators_slashed(
+									<T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1,
+								))
+								.max(WeightInfoOf::<T>::end_funding_awaiting_decision_evaluators_unchanged(
+									<T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1,
+								))
+								.max(WeightInfoOf::<T>::end_funding_automatically_accepted_evaluators_rewarded(
+									<T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1,
+									<T as Config>::MaxEvaluationsPerProject::get(),
+								)),
+							),
+						);
 					},
 
 					UpdateType::ProjectDecision(decision) => {
-						let call = Self::do_project_decision(project_id, decision);
-						let fallback_weight =
-							Call::<T>::root_do_project_decision { project_id, decision }.get_dispatch_info().weight;
-						update_weight(&mut used_weight, call, fallback_weight);
+						used_weight = used_weight.saturating_add(
+							unwrap_result_or_skip!(
+								Self::do_project_decision(project_id, decision),
+								project_id,
+								|e: DispatchErrorWithPostInfo<PostDispatchInfo>| { e.error }
+							)
+							.actual_weight
+							.unwrap_or(
+								WeightInfoOf::<T>::project_decision_accept_funding()
+									.max(WeightInfoOf::<T>::project_decision_reject_funding()),
+							),
+						);
 					},
 
 					UpdateType::StartSettlement => {
-						let call = Self::do_start_settlement(project_id);
-						let fallback_weight =
-							Call::<T>::root_do_start_settlement { project_id }.get_dispatch_info().weight;
-						update_weight(&mut used_weight, call, fallback_weight);
+						used_weight = used_weight.saturating_add(
+							unwrap_result_or_skip!(
+								Self::do_start_settlement(project_id),
+								project_id,
+								|e: DispatchErrorWithPostInfo<PostDispatchInfo>| { e.error }
+							)
+							.actual_weight
+							.unwrap_or(
+								WeightInfoOf::<T>::start_settlement_funding_success()
+									.max(WeightInfoOf::<T>::start_settlement_funding_failure()),
+							),
+						);
 					},
 				}
 			}
+
 			used_weight
 		}
 
