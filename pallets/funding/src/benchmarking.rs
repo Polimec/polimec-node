@@ -464,94 +464,7 @@ mod benchmarks {
 		let project_metadata = default_project::<T>(inst.get_new_nonce(), issuer.clone());
 		let project_id = inst.create_new_project(project_metadata.clone(), issuer.clone());
 
-		let optional_project_metadata = OptionalProjectMetadataOf::<T> {
-			token_information: Some(CurrencyMetadata {
-				name: BoundedVec::try_from("Contribution Token TEST v2".as_bytes().to_vec()).unwrap(),
-				symbol: BoundedVec::try_from("CTESTv2".as_bytes().to_vec()).unwrap(),
-				decimals: ASSET_DECIMALS + 2,
-			}),
-			mainnet_token_max_supply: Some(
-				BalanceOf::<T>::try_from(100_000_000_000_0_000_000_000u128)
-					.unwrap_or_else(|_| panic!("Failed to create BalanceOf")),
-			),
-			total_allocation_size: Some(
-				BalanceOf::<T>::try_from(200_000_000_0_000_000_000u128)
-					.unwrap_or_else(|_| panic!("Failed to create BalanceOf")),
-			),
-			auction_round_allocation_percentage: Some(Percent::from_percent(30u8)),
-			minimum_price: Some(11u128.into()),
-			bidding_ticket_sizes: Some(BiddingTicketSizes {
-				professional: TicketSize::new(
-					Some(
-						BalanceOf::<T>::try_from(5000 * US_DOLLAR)
-							.unwrap_or_else(|_| panic!("Failed to create BalanceOf")),
-					),
-					Some(
-						BalanceOf::<T>::try_from(10_000 * US_DOLLAR)
-							.unwrap_or_else(|_| panic!("Failed to create BalanceOf")),
-					),
-				),
-				institutional: TicketSize::new(
-					Some(
-						BalanceOf::<T>::try_from(5000 * US_DOLLAR)
-							.unwrap_or_else(|_| panic!("Failed to create BalanceOf")),
-					),
-					Some(
-						BalanceOf::<T>::try_from(10_000 * US_DOLLAR)
-							.unwrap_or_else(|_| panic!("Failed to create BalanceOf")),
-					),
-				),
-				phantom: Default::default(),
-			}),
-			contributing_ticket_sizes: Some(ContributingTicketSizes {
-				retail: TicketSize::new(
-					Some(
-						BalanceOf::<T>::try_from(5000 * US_DOLLAR)
-							.unwrap_or_else(|_| panic!("Failed to create BalanceOf")),
-					),
-					Some(
-						BalanceOf::<T>::try_from(10_000 * US_DOLLAR)
-							.unwrap_or_else(|_| panic!("Failed to create BalanceOf")),
-					),
-				),
-				professional: TicketSize::new(
-					Some(
-						BalanceOf::<T>::try_from(5000 * US_DOLLAR)
-							.unwrap_or_else(|_| panic!("Failed to create BalanceOf")),
-					),
-					Some(
-						BalanceOf::<T>::try_from(10_000 * US_DOLLAR)
-							.unwrap_or_else(|_| panic!("Failed to create BalanceOf")),
-					),
-				),
-				institutional: TicketSize::new(
-					Some(
-						BalanceOf::<T>::try_from(5000 * US_DOLLAR)
-							.unwrap_or_else(|_| panic!("Failed to create BalanceOf")),
-					),
-					Some(
-						BalanceOf::<T>::try_from(10_000 * US_DOLLAR)
-							.unwrap_or_else(|_| panic!("Failed to create BalanceOf")),
-					),
-				),
-				phantom: Default::default(),
-			}),
-			participation_currencies: Some(
-				vec![AcceptedFundingAsset::USDT, AcceptedFundingAsset::USDC].try_into().unwrap(),
-			),
-			funding_destination_account: Some(issuer_funding.clone().clone()),
-			offchain_information_hash: Some(Some(hashed(format!("{}-{}", METADATA, 69)).into())),
-		};
-
-		let jwt = get_mock_jwt(issuer.clone(), InvestorType::Institutional, generate_did_from_account(issuer.clone()));
-
-		#[extrinsic_call]
-		edit_metadata(RawOrigin::Signed(issuer), jwt, project_id, optional_project_metadata);
-
-		// * validity checks *
-		// Storage
-		let stored_metadata = ProjectsMetadata::<T>::get(project_id).unwrap();
-		let expected_metadata = ProjectMetadataOf::<T> {
+		let project_metadata = ProjectMetadataOf::<T> {
 			token_information: CurrencyMetadata {
 				name: BoundedVec::try_from("Contribution Token TEST v2".as_bytes().to_vec()).unwrap(),
 				symbol: BoundedVec::try_from("CTESTv2".as_bytes().to_vec()).unwrap(),
@@ -620,13 +533,23 @@ mod benchmarks {
 				phantom: Default::default(),
 			},
 			participation_currencies: vec![AcceptedFundingAsset::USDT, AcceptedFundingAsset::USDC].try_into().unwrap(),
-			funding_destination_account: issuer_funding,
+			funding_destination_account: issuer_funding.clone().clone(),
 			offchain_information_hash: Some(hashed(format!("{}-{}", METADATA, 69)).into()),
 		};
-		assert_eq!(stored_metadata, expected_metadata);
+
+		let jwt = get_mock_jwt(issuer.clone(), InvestorType::Institutional, generate_did_from_account(issuer.clone()));
+
+		#[extrinsic_call]
+		edit_metadata(RawOrigin::Signed(issuer), jwt, project_id, project_metadata.clone());
+
+		// * validity checks *
+		// Storage
+		let stored_metadata = ProjectsMetadata::<T>::get(project_id).unwrap();
+
+		assert_eq!(stored_metadata, project_metadata);
 
 		// Events
-		frame_system::Pallet::<T>::assert_last_event(Event::<T>::MetadataEdited { project_id }.into());
+		frame_system::Pallet::<T>::assert_last_event(Event::<T>::MetadataEdited { project_id, metadata: project_metadata }.into());
 	}
 
 	#[benchmark]
@@ -2369,9 +2292,10 @@ mod benchmarks {
 		let insertion_block_number: BlockNumberFor<T> = current_block + One::one();
 
 		fill_projects_to_update::<T>(x, insertion_block_number);
+		let jwt = get_mock_jwt(issuer.clone(), InvestorType::Institutional, generate_did_from_account(issuer.clone()));
 
 		#[extrinsic_call]
-		decide_project_outcome(RawOrigin::Signed(issuer), project_id, FundingOutcomeDecision::AcceptFunding);
+		decide_project_outcome(RawOrigin::Signed(issuer), jwt, project_id, FundingOutcomeDecision::AcceptFunding);
 
 		// * validity checks *
 		// Storage

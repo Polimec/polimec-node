@@ -397,45 +397,33 @@ mod creation {
 		inst.mint_plmc_to(default_plmc_balances());
 		let jwt = get_mock_jwt(ISSUER_1, InvestorType::Institutional, generate_did_from_account(ISSUER_1));
 		let project_id = inst.create_new_project(project_metadata.clone(), ISSUER_1);
-
-		let new_metadata_1 = OptionalProjectMetadataOf::<TestRuntime> {
-			token_information: None,
-			mainnet_token_max_supply: None,
-			total_allocation_size: None,
-			auction_round_allocation_percentage: None,
-			minimum_price: Some(PriceOf::<TestRuntime>::from_float(15.0)),
-			bidding_ticket_sizes: None,
-			contributing_ticket_sizes: None,
-			participation_currencies: None,
-			funding_destination_account: None,
-			offchain_information_hash: None,
-		};
-		let new_metadata_2 = OptionalProjectMetadataOf::<TestRuntime> {
-			token_information: Some(CurrencyMetadata {
+		let mut new_metadata_1 = project_metadata.clone();
+		new_metadata_1.minimum_price = PriceOf::<TestRuntime>::from_float(15.0);
+		let new_metadata_2 = ProjectMetadataOf::<TestRuntime> {
+			token_information: CurrencyMetadata {
 				name: BoundedVec::try_from("Changed Name".as_bytes().to_vec()).unwrap(),
 				symbol: BoundedVec::try_from("CN".as_bytes().to_vec()).unwrap(),
 				decimals: 12,
-			}),
-			mainnet_token_max_supply: Some(100_000_000 * ASSET_UNIT),
-			total_allocation_size: Some(50_000_000 * ASSET_UNIT),
-			auction_round_allocation_percentage: Some(Percent::from_percent(30u8)),
-			minimum_price: Some(PriceOf::<TestRuntime>::from_float(20.0)),
-			bidding_ticket_sizes: Some(BiddingTicketSizes {
+			},
+			mainnet_token_max_supply: 100_000_000 * ASSET_UNIT,
+			total_allocation_size: 50_000_000 * ASSET_UNIT,
+			auction_round_allocation_percentage: Percent::from_percent(30u8),
+			minimum_price: PriceOf::<TestRuntime>::from_float(20.0),
+			bidding_ticket_sizes: BiddingTicketSizes {
 				professional: TicketSize::new(Some(10_000 * US_DOLLAR), Some(20_000 * US_DOLLAR)),
 				institutional: TicketSize::new(Some(20_000 * US_DOLLAR), Some(30_000 * US_DOLLAR)),
 				phantom: Default::default(),
-			}),
-			contributing_ticket_sizes: Some(ContributingTicketSizes {
+			},
+			contributing_ticket_sizes: ContributingTicketSizes {
 				retail: TicketSize::new(Some(1_000 * US_DOLLAR), Some(2_000 * US_DOLLAR)),
 				professional: TicketSize::new(Some(2_000 * US_DOLLAR), Some(3_000 * US_DOLLAR)),
 				institutional: TicketSize::new(Some(3_000 * US_DOLLAR), Some(4_000 * US_DOLLAR)),
 				phantom: Default::default(),
-			}),
-			participation_currencies: Some(
-				vec![AcceptedFundingAsset::USDT, AcceptedFundingAsset::USDC].try_into().unwrap(),
-			),
-			funding_destination_account: Some(ISSUER_2),
-			offchain_information_hash: Some(Some(hashed(METADATA))),
+			},
+			participation_currencies: vec![AcceptedFundingAsset::USDT, AcceptedFundingAsset::USDC].try_into().unwrap(),
+
+			funding_destination_account: ISSUER_2,
+			offchain_information_hash: Some(hashed(METADATA)),
 		};
 
 		// Just one field should change
@@ -445,9 +433,7 @@ mod creation {
 			project_id,
 			new_metadata_1.clone()
 		)));
-		let mut expected_metadata = project_metadata.clone();
-		expected_metadata.minimum_price = new_metadata_1.minimum_price.unwrap();
-		assert_eq!(inst.get_project_metadata(project_id), expected_metadata);
+		assert_eq!(inst.get_project_metadata(project_id), new_metadata_1);
 
 		// All fields changed
 		assert_ok!(inst.execute(|| crate::Pallet::<TestRuntime>::edit_metadata(
@@ -456,20 +442,7 @@ mod creation {
 			project_id,
 			new_metadata_2.clone()
 		)));
-		let stored_metadata = inst.get_project_metadata(project_id);
-		assert_eq!(stored_metadata.token_information, new_metadata_2.token_information.unwrap());
-		assert_eq!(stored_metadata.mainnet_token_max_supply, new_metadata_2.mainnet_token_max_supply.unwrap());
-		assert_eq!(stored_metadata.total_allocation_size, new_metadata_2.total_allocation_size.unwrap());
-		assert_eq!(
-			stored_metadata.auction_round_allocation_percentage,
-			new_metadata_2.auction_round_allocation_percentage.unwrap()
-		);
-		assert_eq!(stored_metadata.minimum_price, new_metadata_2.minimum_price.unwrap());
-		assert_eq!(stored_metadata.bidding_ticket_sizes, new_metadata_2.bidding_ticket_sizes.unwrap());
-		assert_eq!(stored_metadata.contributing_ticket_sizes, new_metadata_2.contributing_ticket_sizes.unwrap());
-		assert_eq!(stored_metadata.participation_currencies, new_metadata_2.participation_currencies.unwrap());
-		assert_eq!(stored_metadata.funding_destination_account, new_metadata_2.funding_destination_account.unwrap());
-		assert_eq!(stored_metadata.offchain_information_hash, new_metadata_2.offchain_information_hash.unwrap());
+		assert_eq!(inst.get_project_metadata(project_id), new_metadata_2);
 
 		// Cannot edit after evaluation started
 		inst.start_evaluation(project_id, ISSUER_1).unwrap();
@@ -5860,6 +5833,7 @@ mod funding_end {
 			inst,
 			Pallet::<TestRuntime>::decide_project_outcome(
 				RuntimeOrigin::signed(issuer),
+				get_mock_jwt(issuer.clone(), InvestorType::Institutional, generate_did_from_account(issuer.clone())),
 				project_id,
 				FundingOutcomeDecision::RejectFunding
 			)
@@ -5968,6 +5942,7 @@ mod funding_end {
 			inst,
 			Pallet::<TestRuntime>::decide_project_outcome(
 				RuntimeOrigin::signed(issuer),
+				get_mock_jwt(issuer.clone(), InvestorType::Institutional, generate_did_from_account(issuer.clone())),
 				project_id,
 				FundingOutcomeDecision::RejectFunding
 			)
@@ -6129,6 +6104,7 @@ mod funding_end {
 			inst,
 			Pallet::<TestRuntime>::decide_project_outcome(
 				RuntimeOrigin::signed(issuer),
+				get_mock_jwt(issuer.clone(), InvestorType::Institutional, generate_did_from_account(issuer.clone())),
 				project_id,
 				FundingOutcomeDecision::RejectFunding
 			)
@@ -6244,6 +6220,7 @@ mod funding_end {
 			inst,
 			Pallet::<TestRuntime>::decide_project_outcome(
 				RuntimeOrigin::signed(issuer),
+				get_mock_jwt(issuer.clone(), InvestorType::Institutional, generate_did_from_account(issuer.clone())),
 				project_id,
 				FundingOutcomeDecision::RejectFunding
 			)

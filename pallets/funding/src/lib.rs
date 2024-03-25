@@ -206,11 +206,10 @@ pub mod pallet {
 		traits::{OnFinalize, OnIdle, OnInitialize},
 	};
 	use frame_system::pallet_prelude::*;
-	use local_macros::*;
 	use sp_arithmetic::Percent;
 	use sp_runtime::{
 		traits::{Convert, ConvertBack, Get},
-		DispatchErrorWithPostInfo, TransactionOutcome,
+		DispatchErrorWithPostInfo,
 	};
 
 	#[cfg(any(feature = "runtime-benchmarks", feature = "std"))]
@@ -556,11 +555,6 @@ pub mod pallet {
 		StorageMap<_, Blake2_128Concat, Did, BoundedVec<ProjectId, MaxParticipationsForMaxMultiplier>, ValueQuery>;
 
 	#[pallet::storage]
-	// After 25 participations, the retail user has access to the max multiplier of 10x, so no need to keep tracking it
-	pub type RetailParticipations<T: Config> =
-		StorageMap<_, Blake2_128Concat, Did, BoundedVec<ProjectId, MaxParticipationsForMaxMultiplier>, ValueQuery>;
-
-	#[pallet::storage]
 	/// A map to keep track of what issuer's did has an active project. It prevents one issuer having multiple active projects
 	pub type DidWithActiveProjects<T: Config> = StorageMap<_, Blake2_128Concat, Did, ProjectId, OptionQuery>;
 
@@ -587,7 +581,7 @@ pub mod pallet {
 		/// The metadata of a project was modified.
 		MetadataEdited {
 			project_id: ProjectId,
-			metadata: ProjectMetadataOf<T>
+			metadata: ProjectMetadataOf<T>,
 		},
 		/// The evaluation phase of a project started.
 		EvaluationStarted {
@@ -1023,12 +1017,12 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			jwt: UntrustedToken,
 			project_id: ProjectId,
-			optional_project_metadata: OptionalProjectMetadataOf<T>,
+			new_project_metadata: ProjectMetadataOf<T>,
 		) -> DispatchResult {
 			let (account, _did, investor_type) =
 				T::InvestorOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get())?;
 			ensure!(investor_type == InvestorType::Institutional, Error::<T>::NotAllowed);
-			Self::do_edit_metadata(account, project_id, optional_project_metadata)
+			Self::do_edit_metadata(account, project_id, new_project_metadata)
 		}
 
 		/// Starts the evaluation round of a project. It needs to be called by the project issuer.
@@ -1277,12 +1271,11 @@ pub mod pallet {
 			project_id: ProjectId,
 			outcome: FundingOutcomeDecision,
 		) -> DispatchResultWithPostInfo {
-			let caller = ensure_signed(origin)?;
-			let (account, did, investor_type) =
+			let (account, _did, investor_type) =
 				T::InvestorOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get())?;
 			ensure!(investor_type == InvestorType::Institutional, Error::<T>::NotAllowed);
 
-			Self::do_decide_project_outcome(caller, project_id, outcome)
+			Self::do_decide_project_outcome(account, project_id, outcome)
 		}
 
 		#[pallet::call_index(18)]
@@ -1505,7 +1498,7 @@ pub mod pallet {
 				} else {
 					*used_weight = used_weight.saturating_add(fallback_weight);
 				},
-			Err(DispatchErrorWithPostInfo::<PostDispatchInfo> { error, post_info }) => {
+			Err(DispatchErrorWithPostInfo::<PostDispatchInfo> { error: _error, post_info }) => {
 				if let Some(actual_weight) = post_info.actual_weight {
 					*used_weight = used_weight.saturating_add(actual_weight);
 				} else {
@@ -1721,6 +1714,7 @@ pub mod local_macros {
 
 	/// used to unwrap storage values that can be Err in places where an error cannot be returned,
 	/// but an event should be emitted, and skip to the next iteration of a loop
+	#[allow(unused_macros)]
 	macro_rules! unwrap_result_or_skip {
 		($option:expr, $project_id:expr, $error_handler:expr) => {
 			match $option {
@@ -1732,5 +1726,4 @@ pub mod local_macros {
 			}
 		};
 	}
-	pub(crate) use unwrap_result_or_skip;
 }
