@@ -87,8 +87,10 @@ serde = { version = "1.0.188", default-features = false }
 serde_json = "1.0.111"
 smallvec = "1.11.0"
 log = { version = "0.4.17", default-features = false }
-itertools = { version = "0.11.0", default-features = false, features = ["use_alloc"] }
+itertools = { version = "0.10.5", default-features = false, features = ["use_alloc"] }
 array-bytes = { version = "*", default-features = false }
+serde-json-core = { version = '0.5.1', default-features = false }
+heapless = { version = "0.7", default-features = false}
 
 # Emulations
 xcm-emulator = { version = "0.5.0", default-features = false }
@@ -124,7 +126,6 @@ sp-version = { version = "29.0.0", default-features = false }
 sp-consensus-grandpa = { version = "13.0.0", default-features = false }
 sp-npos-elections = { version = "26.0.0", default-features = false }
 sp-tracing = { version = "16.0.0", default-features = false }
-try-runtime-cli = { version = "0.38.0" }
 pallet-im-online = { version = "27.0.0", default-features = false }
 sp-authority-discovery = { version = "26.0.0", default-features = false }
 sp-consensus-babe = { version = "0.32.0", default-features = false }
@@ -189,12 +190,8 @@ cumulus-client-collator = { version = "0.7.0" }
 cumulus-client-consensus-aura = { version = "0.7.0" }
 cumulus-client-consensus-common = { version = "0.7.0" }
 cumulus-client-consensus-proposer = { version = "0.7.0" }
-cumulus-client-network = { version = "0.7.0" }
 cumulus-client-service = { version = "0.7.0" }
-cumulus-primitives-parachain-inherent = { version = "0.7.0", default-features = false }
 cumulus-relay-chain-interface = { version = "0.7.0" }
-cumulus-relay-chain-inprocess-interface = { version = "0.7.0" }
-cumulus-relay-chain-minimal-node = { version = "0.7.0" }
 polkadot-cli = { version = "7.0.0" }
 polkadot-service = { version = "7.0.0" }
 sc-chain-spec = { version = "27.0.0" }
@@ -211,7 +208,6 @@ sc-keystore = { version = "25.0.0", default-features = false }
 sp-consensus = { version = "0.32.0", default-features = false }
 sp-keyring = { version = "31.0.0", default-features = false }
 sc-rpc = { version = "29.0.0" }
-sc-rpc-api = { version = "0.33.0" }
 sc-service = { version = "0.35.0" }
 sc-sysinfo = { version = "27.0.0", default-features = false }
 sc-telemetry = { version = "15.0.0" }
@@ -220,7 +216,6 @@ sc-transaction-pool = { version = "28.0.0" }
 sc-transaction-pool-api = { version = "28.0.0" }
 sp-keystore = { version = "0.34.0", default-features = false }
 sp-timestamp = { version = "26.0.0", default-features = false }
-sc-network-common = { version = "0.33.0" }
 sc-consensus-grandpa = { version = "0.19.0" }
 sc-transaction_pool-api = {version = "28.0.0", default-features = false}
 substrate-frame-rpc-system = { version = "28.0.0" }
