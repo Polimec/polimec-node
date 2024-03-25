@@ -17,7 +17,7 @@
 use crate::{currency::US_DOLLAR, Balance, BlockNumber};
 use frame_support::{parameter_types, PalletId};
 use pallet_funding::types::AcceptedFundingAsset;
-use parachains_common::{AssetIdForTrustBackedAssets};
+use parachains_common::AssetIdForTrustBackedAssets;
 use sp_arithmetic::{FixedU128, Percent};
 use sp_std::{collections::btree_map::BTreeMap, vec, vec::Vec};
 
