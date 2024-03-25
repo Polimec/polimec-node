@@ -161,7 +161,7 @@ pub fn get_live_chain_spec() -> GenericChainSpec {
 
 	GenericChainSpec::builder(
 		politest_runtime::WASM_BINARY.expect("WASM binary was not built, please build it!"),
-		Extensions { relay_chain: "rococo-local".into(), para_id: DEFAULT_PARA_ID.into() },
+		Extensions { relay_chain: "rococo".into(), para_id: PARA_ID.into() },
 	)
 	.with_name("Politest")
 	.with_id("politest")
