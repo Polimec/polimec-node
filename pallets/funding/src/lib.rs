@@ -556,6 +556,10 @@ pub mod pallet {
 		BalanceOf<T>,
 		ValueQuery,
 	>;
+	#[pallet::storage]
+	// After 25 participations, the retail user has access to the max multiplier of 10x, so no need to keep tracking it
+	pub type RetailParticipations<T: Config> =
+		StorageMap<_, Blake2_128Concat, Did, BoundedVec<ProjectId, MaxParticipationsForMaxMultiplier>, ValueQuery>;
 
 	#[pallet::storage]
 	// After 25 participations, the retail user has access to the max multiplier of 10x, so no need to keep tracking it
@@ -1261,10 +1265,15 @@ pub mod pallet {
 		))]
 		pub fn decide_project_outcome(
 			origin: OriginFor<T>,
+			jwt: UntrustedToken,
 			project_id: ProjectId,
 			outcome: FundingOutcomeDecision,
 		) -> DispatchResultWithPostInfo {
 			let caller = ensure_signed(origin)?;
+			let (account, did, investor_type) =
+				T::InvestorOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get())?;
+			ensure!(investor_type == InvestorType::Institutional, Error::<T>::NotAllowed);
+
 			Self::do_decide_project_outcome(caller, project_id, outcome)
 		}
 
