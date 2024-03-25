@@ -82,7 +82,7 @@ decl_test_parachains! {
 			PolkadotXcm: politest_runtime::PolkadotXcm,
 			LocalAssets: politest_runtime::ContributionTokensInstance,
 			ForeignAssets: politest_runtime::ForeignAssets,
-			FundingPallet: politest_runtime::PolimecFunding,
+			FundingPallet: politest_runtime::Funding,
 		}
 	},
 	pub struct AssetHub {

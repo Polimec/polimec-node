@@ -16,19 +16,15 @@
 
 use super::{
 	AccountId, AllPalletsWithSystem, AssetId as AssetIdPalletAssets, Balance, Balances, EnsureRoot, ForeignAssets,
-	ParachainInfo, ParachainSystem, PolkadotXcm, Runtime, RuntimeCall, RuntimeEvent, RuntimeOrigin, WeightToFee,
+	ParachainInfo, ParachainSystem, PolkadotXcm, Runtime, RuntimeCall, RuntimeEvent, RuntimeOrigin, Vec, WeightToFee,
 	XcmpQueue,
 };
 use core::marker::PhantomData;
 use frame_support::{
 	ensure, match_types, parameter_types,
-	traits::{
-		fungibles::{Balanced, Credit},
-		ConstU32, Contains, ContainsPair, Everything, Nothing, ProcessMessageError,
-	},
+	traits::{ConstU32, Contains, ContainsPair, Everything, Nothing, ProcessMessageError},
 	weights::Weight,
 };
-use pallet_asset_tx_payment::HandleCredit;
 use pallet_xcm::XcmPassthrough;
 use polimec_xcm_executor::{
 	polimec_traits::{JustTry, Properties, ShouldExecute},
@@ -55,7 +51,7 @@ const USDT_ASSET_ID: AssetId =
 	Concrete(MultiLocation { parents: 1, interior: X3(Parachain(1000), PalletInstance(50), GeneralIndex(1984)) });
 #[allow(unused)]
 const USDT_PER_SECOND_EXECUTION: u128 = 0_0_000_001_000; // 0.0000001 USDT per second of execution time
-const USDT_PER_MB_PROOF: u128 = 0_0_000_001_000; // 0.0000001 DOT per Megabyte of proof size
+const USDT_PER_MB_PROOF: u128 = 0_0_000_001_000; // 0.0000001 USDT per Megabyte of proof size
 
 const USDC_ASSET_ID: AssetId =
 	Concrete(MultiLocation { parents: 1, interior: X3(Parachain(1000), PalletInstance(50), GeneralIndex(1337)) });
@@ -72,6 +68,7 @@ parameter_types! {
 		 Parachain(ParachainInfo::parachain_id().into()),
 	).into();
 	pub const HereLocation: MultiLocation = MultiLocation::here();
+	pub AssetHubLocation: MultiLocation = (Parent, Parachain(1000)).into();
 	pub CheckAccount: AccountId = PolkadotXcm::check_account();
 	/// The check account that is allowed to mint assets locally. Used for PLMC teleport
 	/// checking once enabled.
@@ -168,7 +165,7 @@ pub struct AssetHubAssetsAsReserve;
 impl ContainsPair<MultiAsset, MultiLocation> for AssetHubAssetsAsReserve {
 	fn contains(asset: &MultiAsset, origin: &MultiLocation) -> bool {
 		// location must be the AssetHub parachain
-		let asset_hub_loc = MultiLocation::new(1, X1(Parachain(1000)));
+		let asset_hub_loc = AssetHubLocation::get();
 		if &asset_hub_loc != origin {
 			return false
 		}
@@ -176,6 +173,16 @@ impl ContainsPair<MultiAsset, MultiLocation> for AssetHubAssetsAsReserve {
 			Concrete(id) => SupportedAssets::contains(&id),
 			_ => false,
 		}
+	}
+}
+impl Contains<(MultiLocation, Vec<MultiAsset>)> for AssetHubAssetsAsReserve {
+	fn contains(item: &(MultiLocation, Vec<MultiAsset>)) -> bool {
+		// We allow all signed origins to send back the AssetHub reserve assets.
+		let (_, assets) = item;
+		assets.iter().all(|asset| match asset.id {
+			Concrete(id) => SupportedAssets::contains(&id),
+			_ => false,
+		})
 	}
 }
 
@@ -325,7 +332,6 @@ impl Contains<(MultiLocation, Xcm<RuntimeCall>)> for XcmExecuteFilter {
 		allowed_origin && allowed_xcm
 	}
 }
-
 impl pallet_xcm::Config for Runtime {
 	type AdminOrigin = EnsureRoot<AccountId>;
 	// ^ Override for AdvertisedXcmVersion default
@@ -346,11 +352,11 @@ impl pallet_xcm::Config for Runtime {
 	type Weigher = FixedWeightBounds<UnitWeightCost, RuntimeCall, MaxInstructions>;
 	type WeightInfo = pallet_xcm::TestWeightInfo;
 	type XcmExecuteFilter = XcmExecuteFilter;
-	// ^ Disable dispatchable execute on the XCM pallet.
+	// ^ Enable dispatchable execute on the XCM pallet.
 	// Needs to be `Everything` for local testing.
 	type XcmExecutor = XcmExecutor<XcmConfig>;
-	// We do not support Reserve-based transfers with Polimec as Reserve.
-	type XcmReserveTransferFilter = Nothing;
+	// We only allow reserve based transfers of AssetHub reserve assets back to AssetHub.
+	type XcmReserveTransferFilter = AssetHubAssetsAsReserve;
 	type XcmRouter = XcmRouter;
 	// We do not allow teleportation of PLMC or other assets.
 	// TODO: change this once we enable PLMC teleports
@@ -385,26 +391,5 @@ impl<T: Contains<MultiLocation>> ShouldExecute for AllowHrmpNotifications<T> {
 			_ => Err(ProcessMessageError::Unsupported),
 		})?;
 		Ok(())
-	}
-}
-
-/// Type alias to conveniently refer to `frame_system`'s `Config::AccountId`.
-pub type AccountIdOf<R> = <R as frame_system::Config>::AccountId;
-// TODO: This is a temporary implementation. We need to carefully consider where to send the
-// fees to. For now, we send the fees to the block author.
-/// A `HandleCredit` implementation that naively transfers the fees to the block author.
-/// Will drop and burn the assets in case the transfer fails.
-pub struct AssetsToBlockAuthor<R, I>(PhantomData<(R, I)>);
-impl<R, I> HandleCredit<AccountIdOf<R>, pallet_assets::Pallet<R, I>> for AssetsToBlockAuthor<R, I>
-where
-	I: 'static,
-	R: pallet_authorship::Config + pallet_assets::Config<I>,
-	AccountIdOf<R>: From<polkadot_primitives::AccountId> + Into<polkadot_primitives::AccountId>,
-{
-	fn handle_credit(credit: Credit<AccountIdOf<R>, pallet_assets::Pallet<R, I>>) {
-		if let Some(author) = pallet_authorship::Pallet::<R>::author() {
-			// In case of error: Will drop the result triggering the `OnDrop` of the imbalance.
-			let _ = pallet_assets::Pallet::<R, I>::resolve(&author, credit);
-		}
 	}
 }
