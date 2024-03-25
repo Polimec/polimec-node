@@ -28,6 +28,7 @@ use frame_support::{
 		tokens::{Fortitude, Precision, Preservation, Restriction},
 		Get,
 	},
+	transactional,
 };
 use frame_system::pallet_prelude::BlockNumberFor;
 use itertools::Itertools;
@@ -52,105 +53,6 @@ const QUERY_RESPONSE_TIME_WINDOW_BLOCKS: u32 = 20u32;
 // Round transitions
 impl<T: Config> Pallet<T> {
 	/// Called by user extrinsic
-	/// Creates a project and assigns it to the `issuer` account.
-	///
-	/// # Arguments
-	/// * `issuer` - The account that will be the issuer of the project.
-	/// * `project` - The project struct containing all the necessary information.
-	///
-	/// # Storage access
-	/// * [`ProjectsMetadata`] - Inserting the main project information. 1 to 1 with the `project` argument.
-	/// * [`ProjectsDetails`] - Inserting the project information. constructed from the `project` argument.
-	/// * [`ProjectsIssuers`] - Inserting the issuer of the project. Mapping of the two parameters `project_id` and `issuer`.
-	/// * [`NextProjectId`] - Getting the next usable id, and updating it for the next project.
-	///
-	/// # Success path
-	/// The `project` argument is valid. A ProjectInfo struct is constructed, and the storage is updated
-	/// with the new structs and mappings to reflect the new project creation
-	///
-	/// # Next step
-	/// The issuer will call an extrinsic to start the evaluation round of the project.
-	/// [`do_start_evaluation`](Self::do_start_evaluation) will be executed.
-	pub fn do_create(issuer: &AccountIdOf<T>, initial_metadata: ProjectMetadataOf<T>, did: Did) -> DispatchResult {
-		// * Get variables *
-		let project_id = NextProjectId::<T>::get();
-		let maybe_active_project = DidWithActiveProjects::<T>::get(did.clone());
-
-		// * Validity checks *
-		if let Some(metadata) = initial_metadata.offchain_information_hash {
-			ensure!(!Images::<T>::contains_key(metadata), Error::<T>::MetadataAlreadyExists);
-		}
-		ensure!(maybe_active_project == None, Error::<T>::IssuerHasActiveProjectAlready);
-
-		if let Err(error) = initial_metadata.is_valid() {
-			return match error {
-				ValidityError::PriceTooLow => Err(Error::<T>::PriceTooLow.into()),
-				ValidityError::TicketSizeError => Err(Error::<T>::TicketSizeError.into()),
-				ValidityError::ParticipationCurrenciesError => Err(Error::<T>::ParticipationCurrenciesError.into()),
-			};
-		}
-		let total_allocation_size = initial_metadata.total_allocation_size;
-
-		// * Calculate new variables *
-		let fundraising_target =
-			initial_metadata.minimum_price.checked_mul_int(total_allocation_size).ok_or(Error::<T>::BadMath)?;
-		let now = <frame_system::Pallet<T>>::block_number();
-		let project_details = ProjectDetails {
-			issuer_account: issuer.clone(),
-			issuer_did: did.clone(),
-			is_frozen: false,
-			weighted_average_price: None,
-			fundraising_target,
-			status: ProjectStatus::Application,
-			phase_transition_points: PhaseTransitionPoints::new(now),
-			remaining_contribution_tokens: initial_metadata.total_allocation_size,
-			funding_amount_reached: BalanceOf::<T>::zero(),
-			cleanup: Cleaner::NotReady,
-			evaluation_round_info: EvaluationRoundInfoOf::<T> {
-				total_bonded_usd: Zero::zero(),
-				total_bonded_plmc: Zero::zero(),
-				evaluators_outcome: EvaluatorsOutcome::Unchanged,
-			},
-			funding_end_block: None,
-			parachain_id: None,
-			migration_readiness_check: None,
-			hrmp_channel_status: HRMPChannelStatus {
-				project_to_polimec: ChannelStatus::Closed,
-				polimec_to_project: ChannelStatus::Closed,
-			},
-		};
-
-		let bucket: BucketOf<T> = Self::create_bucket_from_metadata(&initial_metadata)?;
-
-		// Each project needs an escrow system account to temporarily hold the USDT/USDC. We need to create it by depositing `ED` amount of PLMC into it.
-		// This should be paid by the issuer.
-		let escrow_account = Self::fund_account_id(project_id);
-		// transfer ED from issuer to escrow
-		T::NativeCurrency::transfer(
-			issuer,
-			&escrow_account,
-			<T as pallet_balances::Config>::ExistentialDeposit::get(),
-			Preservation::Preserve,
-		)
-		.map_err(|_| Error::<T>::NotEnoughFundsForEscrowCreation)?;
-
-		// * Update storage *
-		ProjectsMetadata::<T>::insert(project_id, &initial_metadata);
-		ProjectsDetails::<T>::insert(project_id, project_details);
-		Buckets::<T>::insert(project_id, bucket);
-		NextProjectId::<T>::mutate(|n| n.saturating_inc());
-		if let Some(metadata) = initial_metadata.offchain_information_hash {
-			Images::<T>::insert(metadata, issuer);
-		}
-		DidWithActiveProjects::<T>::set(did, Some(project_id));
-
-		// * Emit events *
-		Self::deposit_event(Event::ProjectCreated { project_id, issuer: issuer.clone() });
-
-		Ok(())
-	}
-
-	/// Called by user extrinsic
 	/// Starts the evaluation round of a project. It needs to be called by the project issuer.
 	///
 	/// # Arguments
@@ -167,6 +69,7 @@ impl<T: Config> Pallet<T> {
 	/// # Next step
 	/// Users will pond PLMC for this project, and when the time comes, the project will be transitioned
 	/// to the next round by `on_initialize` using [`do_evaluation_end`](Self::do_evaluation_end)
+	#[transactional]
 	pub fn do_start_evaluation(caller: AccountIdOf<T>, project_id: ProjectId) -> DispatchResultWithPostInfo {
 		// * Get variables *
 		let project_metadata = ProjectsMetadata::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
@@ -240,6 +143,7 @@ impl<T: Config> Pallet<T> {
 	///
 	/// * Bonding failed - `on_idle` at some point checks for failed evaluation projects, and
 	/// unbonds the evaluators funds.
+	#[transactional]
 	pub fn do_evaluation_end(project_id: ProjectId) -> DispatchResultWithPostInfo {
 		// * Get variables *
 		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
@@ -343,6 +247,7 @@ impl<T: Config> Pallet<T> {
 	/// Professional and Institutional users set bids for the project using the [`bid`](Self::bid) extrinsic.
 	/// Later on, `on_initialize` transitions the project into the candle auction round, by calling
 	/// [`do_candle_auction`](Self::do_candle_auction).
+	#[transactional]
 	pub fn do_english_auction(caller: AccountIdOf<T>, project_id: ProjectId) -> DispatchResultWithPostInfo {
 		// * Get variables *
 		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
@@ -429,6 +334,7 @@ impl<T: Config> Pallet<T> {
 	/// but now their bids are not guaranteed.
 	/// Later on, `on_initialize` ends the candle auction round and starts the community round,
 	/// by calling [`do_community_funding`](Self::do_community_funding).
+	#[transactional]
 	pub fn do_candle_auction(project_id: ProjectId) -> DispatchResultWithPostInfo {
 		// * Get variables *
 		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
@@ -491,6 +397,7 @@ impl<T: Config> Pallet<T> {
 	/// Retail users buy tokens at the price set on the auction round.
 	/// Later on, `on_initialize` ends the community round by calling [`do_remainder_funding`](Self::do_remainder_funding) and
 	/// starts the remainder round, where anyone can buy at that price point.
+	#[transactional]
 	pub fn do_community_funding(project_id: ProjectId) -> DispatchResultWithPostInfo {
 		// * Get variables *
 		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
@@ -594,6 +501,7 @@ impl<T: Config> Pallet<T> {
 	/// Any users can now buy tokens at the price set on the auction round.
 	/// Later on, `on_initialize` ends the remainder round, and finalizes the project funding, by calling
 	/// [`do_end_funding`](Self::do_end_funding).
+	#[transactional]
 	pub fn do_remainder_funding(project_id: ProjectId) -> DispatchResultWithPostInfo {
 		// * Get variables *
 		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
@@ -668,6 +576,7 @@ impl<T: Config> Pallet<T> {
 	/// * Bonded plmc with [`vested_plmc_purchase_unbond_for`](Self::vested_plmc_purchase_unbond_for)
 	///
 	/// If **unsuccessful**, users every user should have their PLMC vesting unbonded.
+	#[transactional]
 	pub fn do_end_funding(project_id: ProjectId) -> DispatchResultWithPostInfo {
 		// * Get variables *
 		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
@@ -777,6 +686,7 @@ impl<T: Config> Pallet<T> {
 		}
 	}
 
+	#[transactional]
 	pub fn do_project_decision(project_id: ProjectId, decision: FundingOutcomeDecision) -> DispatchResultWithPostInfo {
 		// * Get variables *
 		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
@@ -814,6 +724,7 @@ impl<T: Config> Pallet<T> {
 		}
 	}
 
+	#[transactional]
 	pub fn do_start_settlement(project_id: ProjectId) -> DispatchResultWithPostInfo {
 		// * Get variables *
 		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
@@ -883,6 +794,121 @@ impl<T: Config> Pallet<T> {
 
 // Extrinsics and HRMP interactions
 impl<T: Config> Pallet<T> {
+	/// Called by user extrinsic
+	/// Creates a project and assigns it to the `issuer` account.
+	///
+	/// # Arguments
+	/// * `issuer` - The account that will be the issuer of the project.
+	/// * `project` - The project struct containing all the necessary information.
+	///
+	/// # Storage access
+	/// * [`ProjectsMetadata`] - Inserting the main project information. 1 to 1 with the `project` argument.
+	/// * [`ProjectsDetails`] - Inserting the project information. constructed from the `project` argument.
+	/// * [`NextProjectId`] - Getting the next usable id, and updating it for the next project.
+	///
+	/// # Success path
+	/// The `project` argument is valid. A ProjectInfo struct is constructed, and the storage is updated
+	/// with the new structs and mappings to reflect the new project creation
+	///
+	/// # Next step
+	/// The issuer will call an extrinsic to start the evaluation round of the project.
+	/// [`do_start_evaluation`](Self::do_start_evaluation) will be executed.
+	#[transactional]
+	pub fn do_create(issuer: &AccountIdOf<T>, initial_metadata: ProjectMetadataOf<T>, did: Did) -> DispatchResult {
+		// * Get variables *
+		let project_id = NextProjectId::<T>::get();
+		let maybe_active_project = DidWithActiveProjects::<T>::get(did.clone());
+
+		// * Validity checks *
+		ensure!(maybe_active_project == None, Error::<T>::IssuerHasActiveProjectAlready);
+
+		if let Err(error) = initial_metadata.is_valid() {
+			return match error {
+				ValidityError::PriceTooLow => Err(Error::<T>::PriceTooLow.into()),
+				ValidityError::TicketSizeError => Err(Error::<T>::TicketSizeError.into()),
+				ValidityError::ParticipationCurrenciesError => Err(Error::<T>::ParticipationCurrenciesError.into()),
+			};
+		}
+		let total_allocation_size = initial_metadata.total_allocation_size;
+
+		// * Calculate new variables *
+		let fundraising_target =
+			initial_metadata.minimum_price.checked_mul_int(total_allocation_size).ok_or(Error::<T>::BadMath)?;
+		let now = <frame_system::Pallet<T>>::block_number();
+		let project_details = ProjectDetails {
+			issuer_account: issuer.clone(),
+			issuer_did: did.clone(),
+			is_frozen: false,
+			weighted_average_price: None,
+			fundraising_target,
+			status: ProjectStatus::Application,
+			phase_transition_points: PhaseTransitionPoints::new(now),
+			remaining_contribution_tokens: initial_metadata.total_allocation_size,
+			funding_amount_reached: BalanceOf::<T>::zero(),
+			cleanup: Cleaner::NotReady,
+			evaluation_round_info: EvaluationRoundInfoOf::<T> {
+				total_bonded_usd: Zero::zero(),
+				total_bonded_plmc: Zero::zero(),
+				evaluators_outcome: EvaluatorsOutcome::Unchanged,
+			},
+			funding_end_block: None,
+			parachain_id: None,
+			migration_readiness_check: None,
+			hrmp_channel_status: HRMPChannelStatus {
+				project_to_polimec: ChannelStatus::Closed,
+				polimec_to_project: ChannelStatus::Closed,
+			},
+		};
+
+		let bucket: BucketOf<T> = Self::create_bucket_from_metadata(&initial_metadata)?;
+
+		// Each project needs an escrow system account to temporarily hold the USDT/USDC. We need to create it by depositing `ED` amount of PLMC into it.
+		// This should be paid by the issuer.
+		let escrow_account = Self::fund_account_id(project_id);
+		// transfer ED from issuer to escrow
+		T::NativeCurrency::transfer(
+			issuer,
+			&escrow_account,
+			<T as pallet_balances::Config>::ExistentialDeposit::get(),
+			Preservation::Preserve,
+		)
+		.map_err(|_| Error::<T>::NotEnoughFundsForEscrowCreation)?;
+
+		// * Update storage *
+		ProjectsMetadata::<T>::insert(project_id, &initial_metadata);
+		ProjectsDetails::<T>::insert(project_id, project_details);
+		Buckets::<T>::insert(project_id, bucket);
+		NextProjectId::<T>::mutate(|n| n.saturating_inc());
+		DidWithActiveProjects::<T>::set(did, Some(project_id));
+
+		// * Emit events *
+		Self::deposit_event(Event::ProjectCreated { project_id, issuer: issuer.clone() });
+
+		Ok(())
+	}
+
+	#[transactional]
+	pub fn do_remove_project(issuer: &AccountIdOf<T>, project_id: ProjectId, did: Did) -> DispatchResult {
+		// * Get variables *
+		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
+		let project_metadata = ProjectsMetadata::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
+
+		// * Validity checks *
+		ensure!(&project_details.issuer_account == issuer, Error::<T>::NotAllowed);
+		ensure!(project_details.is_frozen.not(), Error::<T>::Frozen);
+
+		// * Update storage *
+		ProjectsDetails::<T>::remove(project_id);
+		ProjectsMetadata::<T>::remove(project_id);
+		DidWithActiveProjects::<T>::set(did, None);
+		Buckets::<T>::remove(project_id);
+
+		// * Emit events *
+		Self::deposit_event(Event::ProjectRemoved { project_id });
+
+		Ok(())
+	}
+
 	/// Change the metadata hash of a project
 	///
 	/// # Arguments
@@ -891,10 +917,10 @@ impl<T: Config> Pallet<T> {
 	/// * `project_metadata_hash` - The hash of the image that contains the metadata
 	///
 	/// # Storage access
-	/// * [`ProjectsIssuers`] - Check that the issuer is the owner of the project
 	/// * [`Images`] - Check that the image exists
 	/// * [`ProjectsDetails`] - Check that the project is not frozen
 	/// * [`ProjectsMetadata`] - Update the metadata hash
+	#[transactional]
 	pub fn do_edit_metadata(
 		issuer: AccountIdOf<T>,
 		project_id: ProjectId,
@@ -928,6 +954,7 @@ impl<T: Config> Pallet<T> {
 	}
 
 	// Note: usd_amount needs to have the same amount of decimals as PLMC, so when multiplied by the plmc-usd price, it gives us the PLMC amount with the decimals we wanted.
+	#[transactional]
 	pub fn do_evaluate(
 		evaluator: &AccountIdOf<T>,
 		project_id: ProjectId,
@@ -1048,10 +1075,10 @@ impl<T: Config> Pallet<T> {
 	/// * `multiplier` - Used for calculating how much PLMC needs to be bonded to spend this much money (in USD)
 	///
 	/// # Storage access
-	/// * [`ProjectsIssuers`] - Check that the bidder is not the project issuer
 	/// * [`ProjectsDetails`] - Check that the project is in the bidding stage
 	/// * [`BiddingBonds`] - Update the storage with the bidder's PLMC bond for that bid
 	/// * [`Bids`] - Check previous bids by that user, and update the storage with the new bid
+	#[transactional]
 	pub fn do_bid(
 		bidder: &AccountIdOf<T>,
 		project_id: ProjectId,
@@ -1159,6 +1186,7 @@ impl<T: Config> Pallet<T> {
 		})
 	}
 
+	#[transactional]
 	fn perform_do_bid(
 		bidder: &AccountIdOf<T>,
 		project_id: ProjectId,
@@ -1235,6 +1263,7 @@ impl<T: Config> Pallet<T> {
 	///   are limited by the total amount of tokens available in the Community Round.
 	/// * multiplier: Decides how much PLMC bonding is required for buying that amount of tokens
 	/// * asset: The asset used for the contribution
+	#[transactional]
 	pub fn do_community_contribute(
 		contributor: &AccountIdOf<T>,
 		project_id: ProjectId,
@@ -1274,6 +1303,7 @@ impl<T: Config> Pallet<T> {
 	///   are limited by the total amount of tokens available after the Auction and Community rounds.
 	/// * multiplier: Decides how much PLMC bonding is required for buying that amount of tokens
 	/// * asset: The asset used for the contribution
+	#[transactional]
 	pub fn do_remaining_contribute(
 		contributor: &AccountIdOf<T>,
 		project_id: ProjectId,
@@ -1304,6 +1334,7 @@ impl<T: Config> Pallet<T> {
 		)
 	}
 
+	#[transactional]
 	fn do_contribute(
 		contributor: &AccountIdOf<T>,
 		project_id: ProjectId,
@@ -1447,6 +1478,7 @@ impl<T: Config> Pallet<T> {
 		Ok(PostDispatchInfo { actual_weight, pays_fee: Pays::Yes })
 	}
 
+	#[transactional]
 	pub fn do_decide_project_outcome(
 		issuer: AccountIdOf<T>,
 		project_id: ProjectId,
@@ -1482,6 +1514,7 @@ impl<T: Config> Pallet<T> {
 		})
 	}
 
+	#[transactional]
 	pub fn do_bid_ct_mint_for(
 		releaser: &AccountIdOf<T>,
 		project_id: ProjectId,
@@ -1531,6 +1564,7 @@ impl<T: Config> Pallet<T> {
 		})
 	}
 
+	#[transactional]
 	pub fn do_contribution_ct_mint_for(
 		releaser: &AccountIdOf<T>,
 		project_id: ProjectId,
@@ -1580,6 +1614,7 @@ impl<T: Config> Pallet<T> {
 		})
 	}
 
+	#[transactional]
 	pub fn do_evaluation_unbond_for(
 		releaser: &AccountIdOf<T>,
 		project_id: ProjectId,
@@ -1628,6 +1663,7 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
+	#[transactional]
 	pub fn do_evaluation_reward_payout_for(
 		caller: &AccountIdOf<T>,
 		project_id: ProjectId,
@@ -1697,6 +1733,7 @@ impl<T: Config> Pallet<T> {
 		})
 	}
 
+	#[transactional]
 	pub fn do_evaluation_slash_for(
 		caller: &AccountIdOf<T>,
 		project_id: ProjectId,
@@ -1750,6 +1787,7 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
+	#[transactional]
 	pub fn do_start_bid_vesting_schedule_for(
 		caller: &AccountIdOf<T>,
 		project_id: ProjectId,
@@ -1796,6 +1834,7 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
+	#[transactional]
 	pub fn do_start_contribution_vesting_schedule_for(
 		caller: &AccountIdOf<T>,
 		project_id: ProjectId,
@@ -1841,6 +1880,7 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
+	#[transactional]
 	pub fn do_vest_plmc_for(
 		caller: AccountIdOf<T>,
 		project_id: ProjectId,
@@ -1861,6 +1901,7 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
+	#[transactional]
 	pub fn do_release_bid_funds_for(
 		caller: &AccountIdOf<T>,
 		project_id: ProjectId,
@@ -1908,6 +1949,7 @@ impl<T: Config> Pallet<T> {
 
 	// Unbond the PLMC of a bid instantly, following a failed funding outcome.
 	// Unbonding of PLMC in a successful funding outcome is handled by the vesting schedule.
+	#[transactional]
 	pub fn do_bid_unbond_for(
 		caller: &AccountIdOf<T>,
 		project_id: ProjectId,
@@ -1947,6 +1989,7 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
+	#[transactional]
 	pub fn do_release_contribution_funds_for(
 		caller: &AccountIdOf<T>,
 		project_id: ProjectId,
@@ -1991,6 +2034,7 @@ impl<T: Config> Pallet<T> {
 
 	// Unbond the PLMC of a contribution instantly, following a failed funding outcome.
 	// Unbonding of PLMC in a successful funding outcome is handled by the vesting schedule.
+	#[transactional]
 	pub fn do_contribution_unbond_for(
 		caller: &AccountIdOf<T>,
 		project_id: ProjectId,
@@ -2026,6 +2070,7 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
+	#[transactional]
 	pub fn do_payout_bid_funds_for(
 		caller: &AccountIdOf<T>,
 		project_id: ProjectId,
@@ -2072,6 +2117,7 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
+	#[transactional]
 	pub fn do_payout_contribution_funds_for(
 		caller: &AccountIdOf<T>,
 		project_id: ProjectId,
@@ -2115,6 +2161,7 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
+	#[transactional]
 	pub fn do_set_para_id_for_project(
 		caller: &AccountIdOf<T>,
 		project_id: ProjectId,
@@ -2258,6 +2305,7 @@ impl<T: Config> Pallet<T> {
 		}
 	}
 
+	#[transactional]
 	pub fn do_start_migration_readiness_check(caller: &AccountIdOf<T>, project_id: ProjectId) -> DispatchResult {
 		// * Get variables *
 		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
@@ -2345,6 +2393,7 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
+	#[transactional]
 	pub fn do_migration_check_response(
 		location: MultiLocation,
 		query_id: xcm::v3::QueryId,
@@ -2426,6 +2475,7 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
+	#[transactional]
 	pub fn do_start_migration(caller: &AccountIdOf<T>, project_id: ProjectId) -> DispatchResult {
 		// * Get variables *
 		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
@@ -2444,6 +2494,7 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
+	#[transactional]
 	pub fn do_migrate_one_participant(
 		caller: AccountIdOf<T>,
 		project_id: ProjectId,
@@ -2511,6 +2562,7 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
+	#[transactional]
 	pub fn do_confirm_migrations(location: MultiLocation, query_id: QueryId, response: Response) -> DispatchResult {
 		use xcm::v3::prelude::*;
 		let unconfirmed_migrations = UnconfirmedMigrations::<T>::take(query_id).ok_or(Error::<T>::NotAllowed)?;
@@ -2550,6 +2602,7 @@ impl<T: Config> Pallet<T> {
 }
 
 // Helper functions
+// ATTENTION: if this is called directly, it will not be transactional
 impl<T: Config> Pallet<T> {
 	/// The account ID of the project pot.
 	///
@@ -2598,7 +2651,7 @@ impl<T: Config> Pallet<T> {
 		plmc_price.reciprocal().ok_or(Error::<T>::BadMath)?.checked_mul_int(usd_bond).ok_or(Error::<T>::BadMath.into())
 	}
 
-	/// Based on the amount of tokens and price to buy, a desired multiplier, and the type of investor the caller is,
+	// Based on the amount of tokens and price to buy, a desired multiplier, and the type of investor the caller is,
 	/// calculate the amount and vesting periods of bonded PLMC and reward CT tokens.
 	pub fn calculate_vesting_info(
 		_caller: &AccountIdOf<T>,

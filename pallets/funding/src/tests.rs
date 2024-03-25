@@ -487,6 +487,52 @@ mod creation {
 	}
 
 	#[test]
+	fn remove_extrinsic() {
+		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+		let project_metadata = default_project_metadata(inst.get_new_nonce(), ISSUER_1);
+		inst.mint_plmc_to(default_plmc_balances());
+		let jwt = get_mock_jwt(ISSUER_1, InvestorType::Institutional, generate_did_from_account(ISSUER_1));
+		let project_id = inst.create_new_project(project_metadata.clone(), ISSUER_1);
+		assert_ok!(inst.execute(|| crate::Pallet::<TestRuntime>::remove_project(
+			RuntimeOrigin::signed(ISSUER_1),
+			jwt.clone(),
+			project_id
+		)));
+		inst.execute(|| {
+			assert!(ProjectsDetails::<TestRuntime>::get(project_id).is_none());
+			assert!(ProjectsMetadata::<TestRuntime>::get(project_id).is_none());
+			assert!(Buckets::<TestRuntime>::get(project_id).is_none());
+			assert!(DidWithActiveProjects::<TestRuntime>::get(generate_did_from_account(ISSUER_1)).is_none());
+		});
+
+		// removing when no off-chain hash was set works too
+		let mut no_hash_project_metadata = project_metadata.clone();
+		no_hash_project_metadata.offchain_information_hash = None;
+		let project_id = inst.create_new_project(no_hash_project_metadata, ISSUER_1);
+		assert_ok!(inst.execute(|| crate::Pallet::<TestRuntime>::remove_project(
+			RuntimeOrigin::signed(ISSUER_1),
+			jwt.clone(),
+			project_id
+		)));
+		inst.execute(|| {
+			assert!(ProjectsDetails::<TestRuntime>::get(project_id).is_none());
+			assert!(ProjectsMetadata::<TestRuntime>::get(project_id).is_none());
+			assert!(Buckets::<TestRuntime>::get(project_id).is_none());
+			assert!(DidWithActiveProjects::<TestRuntime>::get(generate_did_from_account(ISSUER_1)).is_none());
+		});
+
+		// Cannot remove after evaluation started
+		let project_id = inst.create_new_project(project_metadata, ISSUER_1);
+		inst.start_evaluation(project_id, ISSUER_1).unwrap();
+		inst.execute(|| {
+			assert_noop!(
+				crate::Pallet::<TestRuntime>::remove_project(RuntimeOrigin::signed(ISSUER_1), jwt.clone(), project_id),
+				Error::<TestRuntime>::Frozen
+			);
+		});
+	}
+
+	#[test]
 	fn basic_plmc_transfer_works() {
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 
@@ -7344,5 +7390,48 @@ mod async_tests {
 		let max_bids_per_project: u32 = <TestRuntime as Config>::MaxBidsPerProject::get();
 		let total_bids_count = inst.execute(|| Bids::<TestRuntime>::iter_values().collect_vec().len());
 		assert_eq!(total_bids_count, max_bids_per_project as usize);
+	}
+}
+
+// Bug hunting
+mod bug_hunting {
+	use super::*;
+
+	#[test]
+	// Check that a failed do_function in on_initialize doesn't change the storage
+	fn transactional_on_initialize() {
+		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+		let max_projects_per_update_block: u32 = <TestRuntime as Config>::MaxProjectsToUpdatePerBlock::get();
+		// This bug will more likely happen with a limit of 1
+		assert_eq!(max_projects_per_update_block, 1u32);
+		let max_insertion_attempts: u32 = <TestRuntime as Config>::MaxProjectsToUpdateInsertionAttempts::get();
+
+		let project_id =
+			inst.create_evaluating_project(default_project_metadata(inst.get_new_nonce(), ISSUER_1), ISSUER_1);
+		let plmc_balances = MockInstantiator::calculate_evaluation_plmc_spent(default_evaluations());
+		let ed = plmc_balances.accounts().existential_deposits();
+		inst.mint_plmc_to(plmc_balances);
+		inst.mint_plmc_to(ed);
+		inst.evaluate_for_users(project_id, default_evaluations()).unwrap();
+		let update_block = inst.get_update_block(project_id, &UpdateType::EvaluationEnd).unwrap();
+		inst.execute(|| frame_system::Pallet::<TestRuntime>::set_block_number(update_block - 1));
+		let now = inst.current_block();
+
+		let auction_initialize_period_start_block = now + 2u64;
+		let auction_initialize_period_end_block =
+			auction_initialize_period_start_block + <TestRuntime as Config>::AuctionInitializePeriodDuration::get();
+		let automatic_auction_start = auction_initialize_period_end_block + 1u64;
+		for i in 0..max_insertion_attempts {
+			let key: BlockNumberFor<TestRuntime> = automatic_auction_start + i as u64;
+			let val: BoundedVec<(ProjectId, UpdateType), <TestRuntime as Config>::MaxProjectsToUpdatePerBlock> =
+				vec![(69u32, UpdateType::EvaluationEnd)].try_into().unwrap();
+			inst.execute(|| crate::ProjectsToUpdate::<TestRuntime>::insert(key, val));
+		}
+
+		let old_project_details = inst.get_project_details(project_id);
+		inst.advance_time(1).unwrap();
+
+		let new_project_details = inst.get_project_details(project_id);
+		assert_eq!(old_project_details, new_project_details);
 	}
 }
