@@ -1347,6 +1347,7 @@ impl<T: Config> Pallet<T> {
 			InvestorType::Institutional => INSTITUTIONAL_MAX_MULTIPLIER,
 		};
 		// * Validity checks *
+		ensure!(multiplier.into() <= max_multiplier && multiplier.into() > 0u8, Error::<T>::ForbiddenMultiplier);
 		ensure!(
 			project_metadata.participation_currencies.contains(&funding_asset),
 			Error::<T>::FundingAssetNotAccepted
@@ -1364,7 +1365,6 @@ impl<T: Config> Pallet<T> {
 			contributor_ticket_size.usd_ticket_below_maximum_per_did(total_usd_bought_by_did + ticket_size),
 			Error::<T>::ContributionTooHigh
 		);
-		ensure!(multiplier.into() <= max_multiplier && multiplier.into() > 0u8, Error::<T>::ForbiddenMultiplier);
 		ensure!(
 			project_metadata.participation_currencies.contains(&funding_asset),
 			Error::<T>::FundingAssetNotAccepted
