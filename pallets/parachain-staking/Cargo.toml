@@ -19,9 +19,6 @@ parity-scale-codec = { workspace = true, features = [
 ] }
 scale-info = { workspace = true, features = ["derive"] }
 
-# Polimec
-polimec-common.workspace = true
-
 # FRAME
 frame-benchmarking = { workspace = true, optional = true }
 frame-support.workspace = true
@@ -55,7 +52,6 @@ std = [
 	"pallet-session/std",
 	"pallet-timestamp/std",
 	"parity-scale-codec/std",
-	"polimec-common/std",
 	"scale-info/std",
 	"serde/std",
 	"sp-consensus-aura/std",
@@ -73,7 +69,6 @@ runtime-benchmarks = [
 	"frame-system/runtime-benchmarks",
 	"pallet-balances/runtime-benchmarks",
 	"pallet-timestamp/runtime-benchmarks",
-	"polimec-common/runtime-benchmarks",
 	"sp-runtime/runtime-benchmarks",
 	"sp-staking/runtime-benchmarks",
 ]
@@ -85,6 +80,5 @@ try-runtime = [
 	"pallet-balances/try-runtime",
 	"pallet-session/try-runtime",
 	"pallet-timestamp/try-runtime",
-	"polimec-common/try-runtime",
 	"sp-runtime/try-runtime",
 ]
