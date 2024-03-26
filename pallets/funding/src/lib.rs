@@ -994,7 +994,11 @@ pub mod pallet {
 		/// Creates a project and assigns it to the `issuer` account.
 		#[pallet::call_index(0)]
 		#[pallet::weight(WeightInfoOf::<T>::create())]
-		pub fn create_project(origin: OriginFor<T>, jwt: UntrustedToken, project: ProjectMetadataOf<T>) -> DispatchResult {
+		pub fn create_project(
+			origin: OriginFor<T>,
+			jwt: UntrustedToken,
+			project: ProjectMetadataOf<T>,
+		) -> DispatchResult {
 			let (account, did, investor_type) =
 				T::InvestorOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get())?;
 			ensure!(investor_type == InvestorType::Institutional, Error::<T>::NotAllowed);

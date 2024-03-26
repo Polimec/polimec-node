@@ -159,12 +159,7 @@ impl<T: Config> Pallet<T> {
 		ensure!(now > evaluation_end_block, Error::<T>::EvaluationPeriodNotEnded);
 
 		// * Calculate new variables *
-		let initial_balance: BalanceOf<T> = 0u32.into();
-		let usd_total_amount_bonded =
-			Evaluations::<T>::iter_prefix((project_id,)).fold(initial_balance, |total, (_evaluator, bond)| {
-				total.saturating_add(bond.early_usd_amount.saturating_add(bond.late_usd_amount))
-			});
-
+		let usd_total_amount_bonded =  project_details.evaluation_round_info.total_bonded_usd;
 		let evaluation_target_usd = <T as Config>::EvaluationSuccessThreshold::get() * fundraising_target_usd;
 
 		let auction_initialize_period_start_block = now + 1u32.into();

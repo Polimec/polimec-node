@@ -139,18 +139,6 @@ pub mod config_types {
 		Deserialize,
 	)]
 
-	pub struct ConstPriceProvider<AssetId, Price, Mapping>(PhantomData<(AssetId, Price, Mapping)>);
-	impl<AssetId: Ord, Price: FixedPointNumber + Clone, Mapping: Get<BTreeMap<AssetId, Price>>> ProvideAssetPrice
-		for ConstPriceProvider<AssetId, Price, Mapping>
-	{
-		type AssetId = AssetId;
-		type Price = Price;
-
-		fn get_price(asset_id: AssetId) -> Option<Price> {
-			Mapping::get().get(&asset_id).cloned()
-		}
-	}
-
 	pub struct DaysToBlocks;
 	impl Convert<FixedU128, u64> for DaysToBlocks {
 		fn convert(a: FixedU128) -> u64 {

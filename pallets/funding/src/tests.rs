@@ -586,7 +586,8 @@ mod creation {
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		inst.mint_plmc_to(default_plmc_balances());
 		let project_err = inst.execute(|| {
-			Pallet::<TestRuntime>::do_create_project(&ISSUER_1, wrong_project, generate_did_from_account(ISSUER_1)).unwrap_err()
+			Pallet::<TestRuntime>::do_create_project(&ISSUER_1, wrong_project, generate_did_from_account(ISSUER_1))
+				.unwrap_err()
 		});
 		assert_eq!(project_err, Error::<TestRuntime>::PriceTooLow.into());
 	}
@@ -752,7 +753,11 @@ mod creation {
 			let issuer_mint = (issuer, 1000 * PLMC).into();
 			inst.mint_plmc_to(vec![issuer_mint]);
 			assert_ok!(inst.execute(|| {
-				Pallet::<TestRuntime>::do_create_project(&issuer, project_metadata_new, generate_did_from_account(issuer))
+				Pallet::<TestRuntime>::do_create_project(
+					&issuer,
+					project_metadata_new,
+					generate_did_from_account(issuer),
+				)
 			}));
 		}
 
@@ -1099,6 +1104,33 @@ mod evaluation {
 			)),
 			Error::<TestRuntime>::ParticipationToThemselves
 		);
+	}
+
+	#[test]
+	fn plmc_price_change_doesnt_affect_evaluation_end() {
+		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+		let project_metadata = default_project_metadata(inst.get_new_nonce(), ISSUER_1);
+
+		// Decreasing the price before the end doesn't make a project over the threshold fail.
+		let target_funding = project_metadata.minimum_price.saturating_mul_int(project_metadata.total_allocation_size);
+		let target_evaluation_usd = Percent::from_percent(10) * target_funding;
+
+		let evaluations = vec![
+			(EVALUATOR_1, target_evaluation_usd).into(),
+		];
+
+		let evaluation_plmc = MockInstantiator::calculate_evaluation_plmc_spent(evaluations.clone());
+		let evaluation_existential = evaluation_plmc.accounts().existential_deposits();
+		inst.mint_plmc_to(evaluation_plmc);
+		inst.mint_plmc_to(evaluation_existential);
+
+		let project_id = inst.create_evaluating_project(project_metadata.clone(), ISSUER_1);
+		inst.evaluate_for_users(project_id, evaluations.clone()).unwrap();
+
+		let old_price = <TestRuntime as Config>::PriceProvider::get_price(PLMC_FOREIGN_ID).unwrap();
+		PRICE_MAP.with_borrow_mut(|map | map.insert(PLMC_FOREIGN_ID, old_price / 2.into()));
+
+		inst.start_auction(project_id, ISSUER_1).unwrap();
 	}
 }
 
