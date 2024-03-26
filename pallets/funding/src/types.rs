@@ -74,6 +74,10 @@ pub mod config_types {
 				Err(())
 			}
 		}
+
+		pub const fn force_new(x: u8) -> Self {
+			Self(x)
+		}
 	}
 
 	impl BondingRequirementCalculation for Multiplier {
@@ -111,6 +115,12 @@ pub mod config_types {
 		}
 	}
 
+	impl Into<u8> for Multiplier {
+		fn into(self) -> u8 {
+			self.0
+		}
+	}
+
 	/// Enum used to identify PLMC holds.
 	/// It implements Serialize and Deserialize to hold a fungible in the Genesis Configuration.
 	#[derive(
@@ -129,18 +139,6 @@ pub mod config_types {
 		Deserialize,
 	)]
 
-	pub struct ConstPriceProvider<AssetId, Price, Mapping>(PhantomData<(AssetId, Price, Mapping)>);
-	impl<AssetId: Ord, Price: FixedPointNumber + Clone, Mapping: Get<BTreeMap<AssetId, Price>>> ProvideAssetPrice
-		for ConstPriceProvider<AssetId, Price, Mapping>
-	{
-		type AssetId = AssetId;
-		type Price = Price;
-
-		fn get_price(asset_id: AssetId) -> Option<Price> {
-			Mapping::get().get(&asset_id).cloned()
-		}
-	}
-
 	pub struct DaysToBlocks;
 	impl Convert<FixedU128, u64> for DaysToBlocks {
 		fn convert(a: FixedU128) -> u64 {
@@ -154,6 +152,19 @@ pub mod config_types {
 			a.saturating_mul_int(one_day_in_blocks)
 		}
 	}
+
+	pub type MaxParticipationsForMaxMultiplier = ConstU32<25>;
+	pub const fn retail_max_multiplier_for_participations(participations: u8) -> u8 {
+		match participations {
+			0..=2 => 1,
+			3..=4 => 2,
+			5..=9 => 4,
+			10..=24 => 7,
+			25..=u8::MAX => 10,
+		}
+	}
+	pub const PROFESSIONAL_MAX_MULTIPLIER: u8 = 10u8;
+	pub const INSTITUTIONAL_MAX_MULTIPLIER: u8 = 25u8;
 }
 
 pub mod storage_types {
@@ -166,7 +177,6 @@ pub mod storage_types {
 
 	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
 	#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
-
 	pub struct ProjectMetadata<BoundedString, Balance: PartialOrd + Copy, Price: FixedPointNumber, AccountId, Hash> {
 		/// Token Metadata
 		pub token_information: CurrencyMetadata<BoundedString>,

@@ -87,11 +87,7 @@ on the KILT parachain, by a KYC/AML provider.
   project.
 - `NextBidId`: Increasing counter to get the next id to assign to a bid.
 - `Nonce`: Increasing counter to be used in random number generation.
-- `Images`: Map of the hash of some metadata to the user who owns it. Avoids
-  storing the same image twice, and keeps track of ownership for a future
-  project data access due to regulatory compliance.
 - `Projects`: Map of the assigned id, to the main information of a project.
-- `ProjectsIssuers`: Map of a project id, to its issuer account.
 - `ProjectsInfo`: Map of a project id, to some additional information required
   for ensuring correctness of the protocol.
 - `ProjectsToUpdate`: Map of a block number, to a vector of project ids. Used to

@@ -37,6 +37,7 @@ use sp_runtime::{
 	BuildStorage,
 };
 use sp_std::collections::btree_map::BTreeMap;
+use std::cell::RefCell;
 use system::EnsureSigned;
 
 type Block = frame_system::mocking::MockBlock<TestRuntime>;
@@ -45,6 +46,7 @@ pub type AccountId = u32;
 pub type Balance = u128;
 pub type BlockNumber = u64;
 pub type Identifier = u32;
+pub type Price = FixedU128;
 
 pub const PLMC: u128 = 10_000_000_000_u128;
 pub const MILLI_PLMC: Balance = 10u128.pow(7);
@@ -65,6 +67,7 @@ pub const fn free_deposit() -> Balance {
 	0 * MICRO_PLMC
 }
 
+use crate::traits::ProvideAssetPrice;
 use frame_support::traits::{Everything, OriginTrait};
 use frame_system::RawOrigin as SystemRawOrigin;
 use polkadot_parachain_primitives::primitives::Sibling;
@@ -303,14 +306,7 @@ parameter_types! {
 	pub const RemainderFundingDuration: BlockNumber = (1 * HOURS) as BlockNumber;
 	pub const ManualAcceptanceDuration: BlockNumber = (3 * HOURS) as BlockNumber;
 	pub const SuccessToSettlementTime: BlockNumber =(4 * HOURS) as BlockNumber;
-
 	pub const FundingPalletId: PalletId = PalletId(*b"py/cfund");
-	pub PriceMap: BTreeMap<AssetId, FixedU128> = BTreeMap::from_iter(vec![
-		(0u32, FixedU128::from_float(69f64)), // DOT
-		(1337u32, FixedU128::from_float(0.97f64)), // USDC
-		(1984u32, FixedU128::from_float(1.0f64)), // USDT
-		(2069u32, FixedU128::from_float(8.4f64)), // PLMC
-	]);
 	pub FeeBrackets: Vec<(Percent, Balance)> = vec![
 		(Percent::from_percent(10), 1_000_000 * US_DOLLAR),
 		(Percent::from_percent(8), 5_000_000 * US_DOLLAR),
@@ -375,7 +371,31 @@ impl ConvertBack<AccountId, [u8; 32]> for DummyConverter {
 		u32::from_le_bytes(account)
 	}
 }
+thread_local! {
+	pub static PRICE_MAP: RefCell<BTreeMap<AssetId, FixedU128>> = RefCell::new(BTreeMap::from_iter(vec![
+		(0u32, FixedU128::from_float(69f64)), // DOT
+		(1337u32, FixedU128::from_float(0.97f64)), // USDC
+		(1984u32, FixedU128::from_float(1.0f64)), // USDT
+		(2069u32, FixedU128::from_float(8.4f64)), // PLMC
+	]));
+}
+pub struct ConstPriceProvider;
+impl ProvideAssetPrice for ConstPriceProvider {
+	type AssetId = AssetId;
+	type Price = Price;
 
+	fn get_price(asset_id: AssetId) -> Option<Price> {
+		PRICE_MAP.with(|price_map| price_map.borrow().get(&asset_id).cloned())
+	}
+}
+
+impl ConstPriceProvider {
+	pub fn set_price(asset_id: AssetId, price: Price) {
+		PRICE_MAP.with(|price_map| {
+			price_map.borrow_mut().insert(asset_id, price);
+		});
+	}
+}
 impl Config for TestRuntime {
 	type AccountId32Conversion = DummyConverter;
 	type AllPalletsWithoutSystem =
@@ -398,9 +418,9 @@ impl Config for TestRuntime {
 	type InvestorOrigin = EnsureInvestor<TestRuntime>;
 	type ManualAcceptanceDuration = ManualAcceptanceDuration;
 	type MaxBidsPerProject = ConstU32<1024>;
-	type MaxBidsPerUser = ConstU32<4>;
+	type MaxBidsPerUser = ConstU32<25>;
 	type MaxCapacityThresholds = MaxCapacityThresholds;
-	type MaxContributionsPerUser = ConstU32<4>;
+	type MaxContributionsPerUser = ConstU32<25>;
 	type MaxEvaluationsPerProject = ConstU32<1024>;
 	type MaxEvaluationsPerUser = ConstU32<4>;
 	type MaxMessageSizeThresholds = MaxMessageSizeThresholds;
@@ -412,7 +432,7 @@ impl Config for TestRuntime {
 	type PolimecReceiverInfo = PolimecReceiverInfo;
 	type PreImageLimit = ConstU32<1024>;
 	type Price = FixedU128;
-	type PriceProvider = ConstPriceProvider<AssetId, FixedU128, PriceMap>;
+	type PriceProvider = ConstPriceProvider;
 	type ProtocolGrowthTreasury = ProtocolGrowthTreasuryAccount;
 	type Randomness = RandomnessCollectiveFlip;
 	type RemainderFundingDuration = RemainderFundingDuration;
