@@ -1118,7 +1118,6 @@ mod evaluation {
 		let evaluations = vec![
 			(EVALUATOR_1, target_evaluation_usd).into(),
 		];
-
 		let evaluation_plmc = MockInstantiator::calculate_evaluation_plmc_spent(evaluations.clone());
 		let evaluation_existential = evaluation_plmc.accounts().existential_deposits();
 		inst.mint_plmc_to(evaluation_plmc);
@@ -1131,6 +1130,29 @@ mod evaluation {
 		PRICE_MAP.with_borrow_mut(|map | map.insert(PLMC_FOREIGN_ID, old_price / 2.into()));
 
 		inst.start_auction(project_id, ISSUER_1).unwrap();
+
+		// Increasing the price before the end doesn't make a project under the threshold succeed.
+		let evaluations = vec![
+			(EVALUATOR_1, target_evaluation_usd/2).into(),
+		];
+		let evaluation_plmc = MockInstantiator::calculate_evaluation_plmc_spent(evaluations.clone());
+		let evaluation_existential = evaluation_plmc.accounts().existential_deposits();
+		inst.mint_plmc_to(evaluation_plmc);
+		inst.mint_plmc_to(evaluation_existential);
+
+		let project_id = inst.create_evaluating_project(project_metadata.clone(), ISSUER_2);
+		inst.evaluate_for_users(project_id, evaluations.clone()).unwrap();
+
+		let old_price = <TestRuntime as Config>::PriceProvider::get_price(PLMC_FOREIGN_ID).unwrap();
+		PRICE_MAP.with_borrow_mut(|map | map.insert(PLMC_FOREIGN_ID, old_price * 2.into()));
+
+		let update_block = inst.get_update_block(project_id, &UpdateType::EvaluationEnd).unwrap();
+		let now = inst.current_block();
+		inst.advance_time(update_block - now + 1).unwrap();
+		let project_status = inst.get_project_details(project_id).status;
+		assert_eq!(project_status, ProjectStatus::EvaluationFailed);
+
+
 	}
 }
 
