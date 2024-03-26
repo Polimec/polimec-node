@@ -82,7 +82,6 @@ use parachains_common::{
 };
 use sp_runtime::traits::Convert;
 use xcm::latest::prelude::BodyId;
-use xcm_executor::XcmExecutor;
 
 /// Balance of an account.
 pub type Balance = u128;

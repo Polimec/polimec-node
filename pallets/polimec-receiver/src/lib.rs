@@ -107,6 +107,7 @@ pub mod pallet {
 			for migration @ Migration {
 				origin: MigrationOrigin { user, id, participation_type },
 				info: MigrationInfo { contribution_token_amount, .. },
+				..
 			} in migrations.clone().inner()
 			{
 				let already_executed = ExecutedMigrations::<T>::get((user, participation_type, id));

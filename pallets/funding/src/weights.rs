@@ -58,23 +58,13 @@ pub trait WeightInfo {
 	fn bid(x: u32, y: u32, ) -> Weight;
 	fn contribution(x: u32, ) -> Weight;
 	fn contribution_ends_round(x: u32, y: u32 ) -> Weight;
-	fn evaluation_unbond_for() -> Weight;
-	fn evaluation_reward_payout_for_with_ct_account_creation() -> Weight;
-	fn evaluation_reward_payout_for_no_ct_account_creation() -> Weight;
-	fn evaluation_slash_for() -> Weight;
-	fn bid_ct_mint_for_with_ct_account_creation() -> Weight;
-	fn bid_ct_mint_for_no_ct_account_creation() -> Weight;
-	fn contribution_ct_mint_for_with_ct_account_creation() -> Weight;
-	fn contribution_ct_mint_for_no_ct_account_creation() -> Weight;
-	fn start_bid_vesting_schedule_for() -> Weight;
-	fn start_contribution_vesting_schedule_for() -> Weight;
-	fn payout_bid_funds_for() -> Weight;
-	fn payout_contribution_funds_for() -> Weight;
 	fn decide_project_outcome(x: u32 ) -> Weight;
-	fn release_bid_funds_for() -> Weight;
-	fn release_contribution_funds_for() -> Weight;
-	fn bid_unbond_for() -> Weight;
-	fn contribution_unbond_for() -> Weight;
+	fn settle_successful_evaluation() -> Weight;
+	fn settle_failed_evaluation() -> Weight;
+	fn settle_successful_bid() -> Weight;
+	fn settle_failed_bid() -> Weight;
+	fn settle_successful_contribution() -> Weight;
+	fn settle_failed_contribution() -> Weight;
 	fn end_evaluation_success(x: u32, ) -> Weight;
 	fn end_evaluation_failure() -> Weight;
 	fn start_candle_phase(x: u32, ) -> Weight;
@@ -329,214 +319,6 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 	}
 	/// Storage: `PolimecFunding::ProjectsDetails` (r:1 w:0)
 	/// Proof: `PolimecFunding::ProjectsDetails` (`max_values`: None, `max_size`: Some(349), added: 2824, mode: `MaxEncodedLen`)
-	/// Storage: `PolimecFunding::Evaluations` (r:1 w:1)
-	/// Proof: `PolimecFunding::Evaluations` (`max_values`: None, `max_size`: Some(345), added: 2820, mode: `MaxEncodedLen`)
-	/// Storage: `Balances::Holds` (r:1 w:1)
-	/// Proof: `Balances::Holds` (`max_values`: None, `max_size`: Some(1149), added: 3624, mode: `MaxEncodedLen`)
-	fn evaluation_unbond_for() -> Weight {
-		// Proof Size summary in bytes:
-		//  Measured:  `1477`
-		//  Estimated: `4614`
-		// Minimum execution time: 54_000_000 picoseconds.
-		Weight::from_parts(57_000_000, 4614)
-			.saturating_add(T::DbWeight::get().reads(3_u64))
-			.saturating_add(T::DbWeight::get().writes(2_u64))
-	}
-	/// Storage: `PolimecFunding::ProjectsDetails` (r:1 w:0)
-	/// Proof: `PolimecFunding::ProjectsDetails` (`max_values`: None, `max_size`: Some(349), added: 2824, mode: `MaxEncodedLen`)
-	/// Storage: `PolimecFunding::Evaluations` (r:1 w:1)
-	/// Proof: `PolimecFunding::Evaluations` (`max_values`: None, `max_size`: Some(345), added: 2820, mode: `MaxEncodedLen`)
-	/// Storage: `LocalAssets::Account` (r:1 w:1)
-	/// Proof: `LocalAssets::Account` (`max_values`: None, `max_size`: Some(134), added: 2609, mode: `MaxEncodedLen`)
-	/// Storage: `Balances::Holds` (r:1 w:1)
-	/// Proof: `Balances::Holds` (`max_values`: None, `max_size`: Some(1149), added: 3624, mode: `MaxEncodedLen`)
-	/// Storage: `LocalAssets::Asset` (r:1 w:1)
-	/// Proof: `LocalAssets::Asset` (`max_values`: None, `max_size`: Some(210), added: 2685, mode: `MaxEncodedLen`)
-	fn evaluation_reward_payout_for_with_ct_account_creation() -> Weight {
-		// Proof Size summary in bytes:
-		//  Measured:  `1654`
-		//  Estimated: `4614`
-		// Minimum execution time: 94_000_000 picoseconds.
-		Weight::from_parts(98_000_000, 4614)
-			.saturating_add(T::DbWeight::get().reads(5_u64))
-			.saturating_add(T::DbWeight::get().writes(4_u64))
-	}
-	/// Storage: `PolimecFunding::ProjectsDetails` (r:1 w:0)
-	/// Proof: `PolimecFunding::ProjectsDetails` (`max_values`: None, `max_size`: Some(349), added: 2824, mode: `MaxEncodedLen`)
-	/// Storage: `PolimecFunding::Evaluations` (r:1 w:1)
-	/// Proof: `PolimecFunding::Evaluations` (`max_values`: None, `max_size`: Some(345), added: 2820, mode: `MaxEncodedLen`)
-	/// Storage: `LocalAssets::Account` (r:1 w:1)
-	/// Proof: `LocalAssets::Account` (`max_values`: None, `max_size`: Some(134), added: 2609, mode: `MaxEncodedLen`)
-	/// Storage: `LocalAssets::Asset` (r:1 w:1)
-	/// Proof: `LocalAssets::Asset` (`max_values`: None, `max_size`: Some(210), added: 2685, mode: `MaxEncodedLen`)
-	fn evaluation_reward_payout_for_no_ct_account_creation() -> Weight {
-		// Proof Size summary in bytes:
-		//  Measured:  `1322`
-		//  Estimated: `3814`
-		// Minimum execution time: 48_000_000 picoseconds.
-		Weight::from_parts(50_000_000, 3814)
-			.saturating_add(T::DbWeight::get().reads(4_u64))
-			.saturating_add(T::DbWeight::get().writes(3_u64))
-	}
-	/// Storage: `PolimecFunding::ProjectsDetails` (r:1 w:0)
-	/// Proof: `PolimecFunding::ProjectsDetails` (`max_values`: None, `max_size`: Some(349), added: 2824, mode: `MaxEncodedLen`)
-	/// Storage: `PolimecFunding::Evaluations` (r:1 w:1)
-	/// Proof: `PolimecFunding::Evaluations` (`max_values`: None, `max_size`: Some(345), added: 2820, mode: `MaxEncodedLen`)
-	/// Storage: `Balances::Holds` (r:1 w:1)
-	/// Proof: `Balances::Holds` (`max_values`: None, `max_size`: Some(1149), added: 3624, mode: `MaxEncodedLen`)
-	/// Storage: `System::Account` (r:1 w:1)
-	/// Proof: `System::Account` (`max_values`: None, `max_size`: Some(128), added: 2603, mode: `MaxEncodedLen`)
-	fn evaluation_slash_for() -> Weight {
-		// Proof Size summary in bytes:
-		//  Measured:  `1485`
-		//  Estimated: `4614`
-		// Minimum execution time: 67_000_000 picoseconds.
-		Weight::from_parts(69_000_000, 4614)
-			.saturating_add(T::DbWeight::get().reads(4_u64))
-			.saturating_add(T::DbWeight::get().writes(3_u64))
-	}
-	/// Storage: `PolimecFunding::Bids` (r:1 w:1)
-	/// Proof: `PolimecFunding::Bids` (`max_values`: None, `max_size`: Some(418), added: 2893, mode: `MaxEncodedLen`)
-	/// Storage: `PolimecFunding::ProjectsDetails` (r:1 w:0)
-	/// Proof: `PolimecFunding::ProjectsDetails` (`max_values`: None, `max_size`: Some(349), added: 2824, mode: `MaxEncodedLen`)
-	/// Storage: `LocalAssets::Asset` (r:1 w:1)
-	/// Proof: `LocalAssets::Asset` (`max_values`: None, `max_size`: Some(210), added: 2685, mode: `MaxEncodedLen`)
-	/// Storage: `LocalAssets::Account` (r:1 w:1)
-	/// Proof: `LocalAssets::Account` (`max_values`: None, `max_size`: Some(134), added: 2609, mode: `MaxEncodedLen`)
-	/// Storage: `Balances::Holds` (r:1 w:1)
-	/// Proof: `Balances::Holds` (`max_values`: None, `max_size`: Some(1149), added: 3624, mode: `MaxEncodedLen`)
-	fn bid_ct_mint_for_with_ct_account_creation() -> Weight {
-		// Proof Size summary in bytes:
-		//  Measured:  `1735`
-		//  Estimated: `4614`
-		// Minimum execution time: 99_000_000 picoseconds.
-		Weight::from_parts(103_000_000, 4614)
-			.saturating_add(T::DbWeight::get().reads(5_u64))
-			.saturating_add(T::DbWeight::get().writes(4_u64))
-	}
-	/// Storage: `PolimecFunding::Bids` (r:1 w:1)
-	/// Proof: `PolimecFunding::Bids` (`max_values`: None, `max_size`: Some(418), added: 2893, mode: `MaxEncodedLen`)
-	/// Storage: `PolimecFunding::ProjectsDetails` (r:1 w:0)
-	/// Proof: `PolimecFunding::ProjectsDetails` (`max_values`: None, `max_size`: Some(349), added: 2824, mode: `MaxEncodedLen`)
-	/// Storage: `LocalAssets::Asset` (r:1 w:1)
-	/// Proof: `LocalAssets::Asset` (`max_values`: None, `max_size`: Some(210), added: 2685, mode: `MaxEncodedLen`)
-	/// Storage: `LocalAssets::Account` (r:1 w:1)
-	/// Proof: `LocalAssets::Account` (`max_values`: None, `max_size`: Some(134), added: 2609, mode: `MaxEncodedLen`)
-	fn bid_ct_mint_for_no_ct_account_creation() -> Weight {
-		// Proof Size summary in bytes:
-		//  Measured:  `1250`
-		//  Estimated: `3883`
-		// Minimum execution time: 46_000_000 picoseconds.
-		Weight::from_parts(50_000_000, 3883)
-			.saturating_add(T::DbWeight::get().reads(4_u64))
-			.saturating_add(T::DbWeight::get().writes(3_u64))
-	}
-	/// Storage: `PolimecFunding::Contributions` (r:1 w:1)
-	/// Proof: `PolimecFunding::Contributions` (`max_values`: None, `max_size`: Some(364), added: 2839, mode: `MaxEncodedLen`)
-	/// Storage: `PolimecFunding::ProjectsDetails` (r:1 w:0)
-	/// Proof: `PolimecFunding::ProjectsDetails` (`max_values`: None, `max_size`: Some(349), added: 2824, mode: `MaxEncodedLen`)
-	/// Storage: `LocalAssets::Asset` (r:1 w:1)
-	/// Proof: `LocalAssets::Asset` (`max_values`: None, `max_size`: Some(210), added: 2685, mode: `MaxEncodedLen`)
-	/// Storage: `LocalAssets::Account` (r:1 w:1)
-	/// Proof: `LocalAssets::Account` (`max_values`: None, `max_size`: Some(134), added: 2609, mode: `MaxEncodedLen`)
-	/// Storage: `Balances::Holds` (r:1 w:1)
-	/// Proof: `Balances::Holds` (`max_values`: None, `max_size`: Some(1149), added: 3624, mode: `MaxEncodedLen`)
-	fn contribution_ct_mint_for_with_ct_account_creation() -> Weight {
-		// Proof Size summary in bytes:
-		//  Measured:  `1651`
-		//  Estimated: `4614`
-		// Minimum execution time: 94_000_000 picoseconds.
-		Weight::from_parts(100_000_000, 4614)
-			.saturating_add(T::DbWeight::get().reads(5_u64))
-			.saturating_add(T::DbWeight::get().writes(4_u64))
-	}
-	/// Storage: `PolimecFunding::Contributions` (r:1 w:1)
-	/// Proof: `PolimecFunding::Contributions` (`max_values`: None, `max_size`: Some(364), added: 2839, mode: `MaxEncodedLen`)
-	/// Storage: `PolimecFunding::ProjectsDetails` (r:1 w:0)
-	/// Proof: `PolimecFunding::ProjectsDetails` (`max_values`: None, `max_size`: Some(349), added: 2824, mode: `MaxEncodedLen`)
-	/// Storage: `LocalAssets::Asset` (r:1 w:1)
-	/// Proof: `LocalAssets::Asset` (`max_values`: None, `max_size`: Some(210), added: 2685, mode: `MaxEncodedLen`)
-	/// Storage: `LocalAssets::Account` (r:1 w:1)
-	/// Proof: `LocalAssets::Account` (`max_values`: None, `max_size`: Some(134), added: 2609, mode: `MaxEncodedLen`)
-	fn contribution_ct_mint_for_no_ct_account_creation() -> Weight {
-		// Proof Size summary in bytes:
-		//  Measured:  `1287`
-		//  Estimated: `3829`
-		// Minimum execution time: 47_000_000 picoseconds.
-		Weight::from_parts(50_000_000, 3829)
-			.saturating_add(T::DbWeight::get().reads(4_u64))
-			.saturating_add(T::DbWeight::get().writes(3_u64))
-	}
-	/// Storage: `PolimecFunding::ProjectsDetails` (r:1 w:0)
-	/// Proof: `PolimecFunding::ProjectsDetails` (`max_values`: None, `max_size`: Some(349), added: 2824, mode: `MaxEncodedLen`)
-	/// Storage: `PolimecFunding::Bids` (r:1 w:1)
-	/// Proof: `PolimecFunding::Bids` (`max_values`: None, `max_size`: Some(418), added: 2893, mode: `MaxEncodedLen`)
-	/// Storage: `LinearRelease::Vesting` (r:1 w:1)
-	/// Proof: `LinearRelease::Vesting` (`max_values`: None, `max_size`: None, mode: `Measured`)
-	fn start_bid_vesting_schedule_for() -> Weight {
-		// Proof Size summary in bytes:
-		//  Measured:  `851`
-		//  Estimated: `4316`
-		// Minimum execution time: 29_000_000 picoseconds.
-		Weight::from_parts(31_000_000, 4316)
-			.saturating_add(T::DbWeight::get().reads(3_u64))
-			.saturating_add(T::DbWeight::get().writes(2_u64))
-	}
-	/// Storage: `PolimecFunding::ProjectsDetails` (r:1 w:0)
-	/// Proof: `PolimecFunding::ProjectsDetails` (`max_values`: None, `max_size`: Some(349), added: 2824, mode: `MaxEncodedLen`)
-	/// Storage: `PolimecFunding::Contributions` (r:1 w:1)
-	/// Proof: `PolimecFunding::Contributions` (`max_values`: None, `max_size`: Some(364), added: 2839, mode: `MaxEncodedLen`)
-	/// Storage: `LinearRelease::Vesting` (r:1 w:1)
-	/// Proof: `LinearRelease::Vesting` (`max_values`: None, `max_size`: None, mode: `Measured`)
-	fn start_contribution_vesting_schedule_for() -> Weight {
-		// Proof Size summary in bytes:
-		//  Measured:  `880`
-		//  Estimated: `4345`
-		// Minimum execution time: 30_000_000 picoseconds.
-		Weight::from_parts(31_000_000, 4345)
-			.saturating_add(T::DbWeight::get().reads(3_u64))
-			.saturating_add(T::DbWeight::get().writes(2_u64))
-	}
-	/// Storage: `PolimecFunding::ProjectsDetails` (r:1 w:0)
-	/// Proof: `PolimecFunding::ProjectsDetails` (`max_values`: None, `max_size`: Some(349), added: 2824, mode: `MaxEncodedLen`)
-	/// Storage: `PolimecFunding::Bids` (r:1 w:1)
-	/// Proof: `PolimecFunding::Bids` (`max_values`: None, `max_size`: Some(418), added: 2893, mode: `MaxEncodedLen`)
-	/// Storage: `StatemintAssets::Asset` (r:1 w:1)
-	/// Proof: `StatemintAssets::Asset` (`max_values`: None, `max_size`: Some(210), added: 2685, mode: `MaxEncodedLen`)
-	/// Storage: `StatemintAssets::Account` (r:2 w:2)
-	/// Proof: `StatemintAssets::Account` (`max_values`: None, `max_size`: Some(134), added: 2609, mode: `MaxEncodedLen`)
-	/// Storage: `System::Account` (r:1 w:1)
-	/// Proof: `System::Account` (`max_values`: None, `max_size`: Some(128), added: 2603, mode: `MaxEncodedLen`)
-	fn payout_bid_funds_for() -> Weight {
-		// Proof Size summary in bytes:
-		//  Measured:  `1405`
-		//  Estimated: `6208`
-		// Minimum execution time: 67_000_000 picoseconds.
-		Weight::from_parts(68_000_000, 6208)
-			.saturating_add(T::DbWeight::get().reads(6_u64))
-			.saturating_add(T::DbWeight::get().writes(5_u64))
-	}
-	/// Storage: `PolimecFunding::ProjectsDetails` (r:1 w:0)
-	/// Proof: `PolimecFunding::ProjectsDetails` (`max_values`: None, `max_size`: Some(349), added: 2824, mode: `MaxEncodedLen`)
-	/// Storage: `PolimecFunding::Contributions` (r:1 w:1)
-	/// Proof: `PolimecFunding::Contributions` (`max_values`: None, `max_size`: Some(364), added: 2839, mode: `MaxEncodedLen`)
-	/// Storage: `StatemintAssets::Asset` (r:1 w:1)
-	/// Proof: `StatemintAssets::Asset` (`max_values`: None, `max_size`: Some(210), added: 2685, mode: `MaxEncodedLen`)
-	/// Storage: `StatemintAssets::Account` (r:2 w:2)
-	/// Proof: `StatemintAssets::Account` (`max_values`: None, `max_size`: Some(134), added: 2609, mode: `MaxEncodedLen`)
-	/// Storage: `System::Account` (r:1 w:1)
-	/// Proof: `System::Account` (`max_values`: None, `max_size`: Some(128), added: 2603, mode: `MaxEncodedLen`)
-	fn payout_contribution_funds_for() -> Weight {
-		// Proof Size summary in bytes:
-		//  Measured:  `1434`
-		//  Estimated: `6208`
-		// Minimum execution time: 66_000_000 picoseconds.
-		Weight::from_parts(69_000_000, 6208)
-			.saturating_add(T::DbWeight::get().reads(6_u64))
-			.saturating_add(T::DbWeight::get().writes(5_u64))
-	}
-	/// Storage: `PolimecFunding::ProjectsDetails` (r:1 w:0)
-	/// Proof: `PolimecFunding::ProjectsDetails` (`max_values`: None, `max_size`: Some(349), added: 2824, mode: `MaxEncodedLen`)
 	/// Storage: `PolimecFunding::ProjectsToUpdate` (r:2980 w:1)
 	/// Proof: `PolimecFunding::ProjectsToUpdate` (`max_values`: None, `max_size`: Some(27), added: 2502, mode: `MaxEncodedLen`)
 	/// The range of component `x` is `[1, 99]`.
@@ -555,69 +337,24 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 			.saturating_add(T::DbWeight::get().writes(1_u64))
 			.saturating_add(Weight::from_parts(0, 3946).saturating_mul(x.into()))
 	}
-	/// Storage: `PolimecFunding::ProjectsDetails` (r:1 w:0)
-	/// Proof: `PolimecFunding::ProjectsDetails` (`max_values`: None, `max_size`: Some(349), added: 2824, mode: `MaxEncodedLen`)
-	/// Storage: `PolimecFunding::Bids` (r:1 w:1)
-	/// Proof: `PolimecFunding::Bids` (`max_values`: None, `max_size`: Some(418), added: 2893, mode: `MaxEncodedLen`)
-	/// Storage: `StatemintAssets::Asset` (r:1 w:1)
-	/// Proof: `StatemintAssets::Asset` (`max_values`: None, `max_size`: Some(210), added: 2685, mode: `MaxEncodedLen`)
-	/// Storage: `StatemintAssets::Account` (r:2 w:2)
-	/// Proof: `StatemintAssets::Account` (`max_values`: None, `max_size`: Some(134), added: 2609, mode: `MaxEncodedLen`)
-	fn release_bid_funds_for() -> Weight {
-		// Proof Size summary in bytes:
-		//  Measured:  `1514`
-		//  Estimated: `6208`
-		// Minimum execution time: 65_000_000 picoseconds.
-		Weight::from_parts(70_000_000, 6208)
-			.saturating_add(T::DbWeight::get().reads(5_u64))
-			.saturating_add(T::DbWeight::get().writes(4_u64))
+
+	fn settle_successful_evaluation() -> Weight {
+		Weight::from_parts(0, 0)
 	}
-	/// Storage: `PolimecFunding::ProjectsDetails` (r:1 w:0)
-	/// Proof: `PolimecFunding::ProjectsDetails` (`max_values`: None, `max_size`: Some(349), added: 2824, mode: `MaxEncodedLen`)
-	/// Storage: `PolimecFunding::Contributions` (r:1 w:1)
-	/// Proof: `PolimecFunding::Contributions` (`max_values`: None, `max_size`: Some(364), added: 2839, mode: `MaxEncodedLen`)
-	/// Storage: `StatemintAssets::Asset` (r:1 w:1)
-	/// Proof: `StatemintAssets::Asset` (`max_values`: None, `max_size`: Some(210), added: 2685, mode: `MaxEncodedLen`)
-	/// Storage: `StatemintAssets::Account` (r:2 w:2)
-	/// Proof: `StatemintAssets::Account` (`max_values`: None, `max_size`: Some(134), added: 2609, mode: `MaxEncodedLen`)
-	fn release_contribution_funds_for() -> Weight {
-		// Proof Size summary in bytes:
-		//  Measured:  `1507`
-		//  Estimated: `6208`
-		// Minimum execution time: 63_000_000 picoseconds.
-		Weight::from_parts(69_000_000, 6208)
-			.saturating_add(T::DbWeight::get().reads(5_u64))
-			.saturating_add(T::DbWeight::get().writes(4_u64))
+	fn settle_failed_evaluation() -> Weight {
+		Weight::from_parts(0, 0)
 	}
-	/// Storage: `PolimecFunding::ProjectsDetails` (r:1 w:0)
-	/// Proof: `PolimecFunding::ProjectsDetails` (`max_values`: None, `max_size`: Some(349), added: 2824, mode: `MaxEncodedLen`)
-	/// Storage: `PolimecFunding::Bids` (r:1 w:1)
-	/// Proof: `PolimecFunding::Bids` (`max_values`: None, `max_size`: Some(418), added: 2893, mode: `MaxEncodedLen`)
-	/// Storage: `Balances::Holds` (r:1 w:1)
-	/// Proof: `Balances::Holds` (`max_values`: None, `max_size`: Some(1149), added: 3624, mode: `MaxEncodedLen`)
-	fn bid_unbond_for() -> Weight {
-		// Proof Size summary in bytes:
-		//  Measured:  `1519`
-		//  Estimated: `4614`
-		// Minimum execution time: 54_000_000 picoseconds.
-		Weight::from_parts(56_000_000, 4614)
-			.saturating_add(T::DbWeight::get().reads(3_u64))
-			.saturating_add(T::DbWeight::get().writes(2_u64))
+	fn settle_successful_bid() -> Weight {
+		Weight::from_parts(0, 0)
 	}
-	/// Storage: `PolimecFunding::ProjectsDetails` (r:1 w:0)
-	/// Proof: `PolimecFunding::ProjectsDetails` (`max_values`: None, `max_size`: Some(349), added: 2824, mode: `MaxEncodedLen`)
-	/// Storage: `PolimecFunding::Contributions` (r:1 w:1)
-	/// Proof: `PolimecFunding::Contributions` (`max_values`: None, `max_size`: Some(364), added: 2839, mode: `MaxEncodedLen`)
-	/// Storage: `Balances::Holds` (r:1 w:1)
-	/// Proof: `Balances::Holds` (`max_values`: None, `max_size`: Some(1149), added: 3624, mode: `MaxEncodedLen`)
-	fn contribution_unbond_for() -> Weight {
-		// Proof Size summary in bytes:
-		//  Measured:  `1474`
-		//  Estimated: `4614`
-		// Minimum execution time: 54_000_000 picoseconds.
-		Weight::from_parts(57_000_000, 4614)
-			.saturating_add(T::DbWeight::get().reads(3_u64))
-			.saturating_add(T::DbWeight::get().writes(2_u64))
+	fn settle_failed_bid() -> Weight {
+		Weight::from_parts(0, 0)
+	}
+	fn settle_successful_contribution() -> Weight {
+		Weight::from_parts(0, 0)
+	}
+	fn settle_failed_contribution() -> Weight {
+		Weight::from_parts(0, 0)
 	}
 	/// Storage: `PolimecFunding::ProjectsDetails` (r:1 w:1)
 	/// Proof: `PolimecFunding::ProjectsDetails` (`max_values`: None, `max_size`: Some(349), added: 2824, mode: `MaxEncodedLen`)
@@ -1152,214 +889,6 @@ impl WeightInfo for () {
 	}
 	/// Storage: `PolimecFunding::ProjectsDetails` (r:1 w:0)
 	/// Proof: `PolimecFunding::ProjectsDetails` (`max_values`: None, `max_size`: Some(349), added: 2824, mode: `MaxEncodedLen`)
-	/// Storage: `PolimecFunding::Evaluations` (r:1 w:1)
-	/// Proof: `PolimecFunding::Evaluations` (`max_values`: None, `max_size`: Some(345), added: 2820, mode: `MaxEncodedLen`)
-	/// Storage: `Balances::Holds` (r:1 w:1)
-	/// Proof: `Balances::Holds` (`max_values`: None, `max_size`: Some(1149), added: 3624, mode: `MaxEncodedLen`)
-	fn evaluation_unbond_for() -> Weight {
-		// Proof Size summary in bytes:
-		//  Measured:  `1477`
-		//  Estimated: `4614`
-		// Minimum execution time: 54_000_000 picoseconds.
-		Weight::from_parts(57_000_000, 4614)
-			.saturating_add(RocksDbWeight::get().reads(3_u64))
-			.saturating_add(RocksDbWeight::get().writes(2_u64))
-	}
-	/// Storage: `PolimecFunding::ProjectsDetails` (r:1 w:0)
-	/// Proof: `PolimecFunding::ProjectsDetails` (`max_values`: None, `max_size`: Some(349), added: 2824, mode: `MaxEncodedLen`)
-	/// Storage: `PolimecFunding::Evaluations` (r:1 w:1)
-	/// Proof: `PolimecFunding::Evaluations` (`max_values`: None, `max_size`: Some(345), added: 2820, mode: `MaxEncodedLen`)
-	/// Storage: `LocalAssets::Account` (r:1 w:1)
-	/// Proof: `LocalAssets::Account` (`max_values`: None, `max_size`: Some(134), added: 2609, mode: `MaxEncodedLen`)
-	/// Storage: `Balances::Holds` (r:1 w:1)
-	/// Proof: `Balances::Holds` (`max_values`: None, `max_size`: Some(1149), added: 3624, mode: `MaxEncodedLen`)
-	/// Storage: `LocalAssets::Asset` (r:1 w:1)
-	/// Proof: `LocalAssets::Asset` (`max_values`: None, `max_size`: Some(210), added: 2685, mode: `MaxEncodedLen`)
-	fn evaluation_reward_payout_for_with_ct_account_creation() -> Weight {
-		// Proof Size summary in bytes:
-		//  Measured:  `1654`
-		//  Estimated: `4614`
-		// Minimum execution time: 94_000_000 picoseconds.
-		Weight::from_parts(98_000_000, 4614)
-			.saturating_add(RocksDbWeight::get().reads(5_u64))
-			.saturating_add(RocksDbWeight::get().writes(4_u64))
-	}
-	/// Storage: `PolimecFunding::ProjectsDetails` (r:1 w:0)
-	/// Proof: `PolimecFunding::ProjectsDetails` (`max_values`: None, `max_size`: Some(349), added: 2824, mode: `MaxEncodedLen`)
-	/// Storage: `PolimecFunding::Evaluations` (r:1 w:1)
-	/// Proof: `PolimecFunding::Evaluations` (`max_values`: None, `max_size`: Some(345), added: 2820, mode: `MaxEncodedLen`)
-	/// Storage: `LocalAssets::Account` (r:1 w:1)
-	/// Proof: `LocalAssets::Account` (`max_values`: None, `max_size`: Some(134), added: 2609, mode: `MaxEncodedLen`)
-	/// Storage: `LocalAssets::Asset` (r:1 w:1)
-	/// Proof: `LocalAssets::Asset` (`max_values`: None, `max_size`: Some(210), added: 2685, mode: `MaxEncodedLen`)
-	fn evaluation_reward_payout_for_no_ct_account_creation() -> Weight {
-		// Proof Size summary in bytes:
-		//  Measured:  `1322`
-		//  Estimated: `3814`
-		// Minimum execution time: 48_000_000 picoseconds.
-		Weight::from_parts(50_000_000, 3814)
-			.saturating_add(RocksDbWeight::get().reads(4_u64))
-			.saturating_add(RocksDbWeight::get().writes(3_u64))
-	}
-	/// Storage: `PolimecFunding::ProjectsDetails` (r:1 w:0)
-	/// Proof: `PolimecFunding::ProjectsDetails` (`max_values`: None, `max_size`: Some(349), added: 2824, mode: `MaxEncodedLen`)
-	/// Storage: `PolimecFunding::Evaluations` (r:1 w:1)
-	/// Proof: `PolimecFunding::Evaluations` (`max_values`: None, `max_size`: Some(345), added: 2820, mode: `MaxEncodedLen`)
-	/// Storage: `Balances::Holds` (r:1 w:1)
-	/// Proof: `Balances::Holds` (`max_values`: None, `max_size`: Some(1149), added: 3624, mode: `MaxEncodedLen`)
-	/// Storage: `System::Account` (r:1 w:1)
-	/// Proof: `System::Account` (`max_values`: None, `max_size`: Some(128), added: 2603, mode: `MaxEncodedLen`)
-	fn evaluation_slash_for() -> Weight {
-		// Proof Size summary in bytes:
-		//  Measured:  `1485`
-		//  Estimated: `4614`
-		// Minimum execution time: 67_000_000 picoseconds.
-		Weight::from_parts(69_000_000, 4614)
-			.saturating_add(RocksDbWeight::get().reads(4_u64))
-			.saturating_add(RocksDbWeight::get().writes(3_u64))
-	}
-	/// Storage: `PolimecFunding::Bids` (r:1 w:1)
-	/// Proof: `PolimecFunding::Bids` (`max_values`: None, `max_size`: Some(418), added: 2893, mode: `MaxEncodedLen`)
-	/// Storage: `PolimecFunding::ProjectsDetails` (r:1 w:0)
-	/// Proof: `PolimecFunding::ProjectsDetails` (`max_values`: None, `max_size`: Some(349), added: 2824, mode: `MaxEncodedLen`)
-	/// Storage: `LocalAssets::Asset` (r:1 w:1)
-	/// Proof: `LocalAssets::Asset` (`max_values`: None, `max_size`: Some(210), added: 2685, mode: `MaxEncodedLen`)
-	/// Storage: `LocalAssets::Account` (r:1 w:1)
-	/// Proof: `LocalAssets::Account` (`max_values`: None, `max_size`: Some(134), added: 2609, mode: `MaxEncodedLen`)
-	/// Storage: `Balances::Holds` (r:1 w:1)
-	/// Proof: `Balances::Holds` (`max_values`: None, `max_size`: Some(1149), added: 3624, mode: `MaxEncodedLen`)
-	fn bid_ct_mint_for_with_ct_account_creation() -> Weight {
-		// Proof Size summary in bytes:
-		//  Measured:  `1735`
-		//  Estimated: `4614`
-		// Minimum execution time: 99_000_000 picoseconds.
-		Weight::from_parts(103_000_000, 4614)
-			.saturating_add(RocksDbWeight::get().reads(5_u64))
-			.saturating_add(RocksDbWeight::get().writes(4_u64))
-	}
-	/// Storage: `PolimecFunding::Bids` (r:1 w:1)
-	/// Proof: `PolimecFunding::Bids` (`max_values`: None, `max_size`: Some(418), added: 2893, mode: `MaxEncodedLen`)
-	/// Storage: `PolimecFunding::ProjectsDetails` (r:1 w:0)
-	/// Proof: `PolimecFunding::ProjectsDetails` (`max_values`: None, `max_size`: Some(349), added: 2824, mode: `MaxEncodedLen`)
-	/// Storage: `LocalAssets::Asset` (r:1 w:1)
-	/// Proof: `LocalAssets::Asset` (`max_values`: None, `max_size`: Some(210), added: 2685, mode: `MaxEncodedLen`)
-	/// Storage: `LocalAssets::Account` (r:1 w:1)
-	/// Proof: `LocalAssets::Account` (`max_values`: None, `max_size`: Some(134), added: 2609, mode: `MaxEncodedLen`)
-	fn bid_ct_mint_for_no_ct_account_creation() -> Weight {
-		// Proof Size summary in bytes:
-		//  Measured:  `1250`
-		//  Estimated: `3883`
-		// Minimum execution time: 46_000_000 picoseconds.
-		Weight::from_parts(50_000_000, 3883)
-			.saturating_add(RocksDbWeight::get().reads(4_u64))
-			.saturating_add(RocksDbWeight::get().writes(3_u64))
-	}
-	/// Storage: `PolimecFunding::Contributions` (r:1 w:1)
-	/// Proof: `PolimecFunding::Contributions` (`max_values`: None, `max_size`: Some(364), added: 2839, mode: `MaxEncodedLen`)
-	/// Storage: `PolimecFunding::ProjectsDetails` (r:1 w:0)
-	/// Proof: `PolimecFunding::ProjectsDetails` (`max_values`: None, `max_size`: Some(349), added: 2824, mode: `MaxEncodedLen`)
-	/// Storage: `LocalAssets::Asset` (r:1 w:1)
-	/// Proof: `LocalAssets::Asset` (`max_values`: None, `max_size`: Some(210), added: 2685, mode: `MaxEncodedLen`)
-	/// Storage: `LocalAssets::Account` (r:1 w:1)
-	/// Proof: `LocalAssets::Account` (`max_values`: None, `max_size`: Some(134), added: 2609, mode: `MaxEncodedLen`)
-	/// Storage: `Balances::Holds` (r:1 w:1)
-	/// Proof: `Balances::Holds` (`max_values`: None, `max_size`: Some(1149), added: 3624, mode: `MaxEncodedLen`)
-	fn contribution_ct_mint_for_with_ct_account_creation() -> Weight {
-		// Proof Size summary in bytes:
-		//  Measured:  `1651`
-		//  Estimated: `4614`
-		// Minimum execution time: 94_000_000 picoseconds.
-		Weight::from_parts(100_000_000, 4614)
-			.saturating_add(RocksDbWeight::get().reads(5_u64))
-			.saturating_add(RocksDbWeight::get().writes(4_u64))
-	}
-	/// Storage: `PolimecFunding::Contributions` (r:1 w:1)
-	/// Proof: `PolimecFunding::Contributions` (`max_values`: None, `max_size`: Some(364), added: 2839, mode: `MaxEncodedLen`)
-	/// Storage: `PolimecFunding::ProjectsDetails` (r:1 w:0)
-	/// Proof: `PolimecFunding::ProjectsDetails` (`max_values`: None, `max_size`: Some(349), added: 2824, mode: `MaxEncodedLen`)
-	/// Storage: `LocalAssets::Asset` (r:1 w:1)
-	/// Proof: `LocalAssets::Asset` (`max_values`: None, `max_size`: Some(210), added: 2685, mode: `MaxEncodedLen`)
-	/// Storage: `LocalAssets::Account` (r:1 w:1)
-	/// Proof: `LocalAssets::Account` (`max_values`: None, `max_size`: Some(134), added: 2609, mode: `MaxEncodedLen`)
-	fn contribution_ct_mint_for_no_ct_account_creation() -> Weight {
-		// Proof Size summary in bytes:
-		//  Measured:  `1287`
-		//  Estimated: `3829`
-		// Minimum execution time: 47_000_000 picoseconds.
-		Weight::from_parts(50_000_000, 3829)
-			.saturating_add(RocksDbWeight::get().reads(4_u64))
-			.saturating_add(RocksDbWeight::get().writes(3_u64))
-	}
-	/// Storage: `PolimecFunding::ProjectsDetails` (r:1 w:0)
-	/// Proof: `PolimecFunding::ProjectsDetails` (`max_values`: None, `max_size`: Some(349), added: 2824, mode: `MaxEncodedLen`)
-	/// Storage: `PolimecFunding::Bids` (r:1 w:1)
-	/// Proof: `PolimecFunding::Bids` (`max_values`: None, `max_size`: Some(418), added: 2893, mode: `MaxEncodedLen`)
-	/// Storage: `LinearRelease::Vesting` (r:1 w:1)
-	/// Proof: `LinearRelease::Vesting` (`max_values`: None, `max_size`: None, mode: `Measured`)
-	fn start_bid_vesting_schedule_for() -> Weight {
-		// Proof Size summary in bytes:
-		//  Measured:  `851`
-		//  Estimated: `4316`
-		// Minimum execution time: 29_000_000 picoseconds.
-		Weight::from_parts(31_000_000, 4316)
-			.saturating_add(RocksDbWeight::get().reads(3_u64))
-			.saturating_add(RocksDbWeight::get().writes(2_u64))
-	}
-	/// Storage: `PolimecFunding::ProjectsDetails` (r:1 w:0)
-	/// Proof: `PolimecFunding::ProjectsDetails` (`max_values`: None, `max_size`: Some(349), added: 2824, mode: `MaxEncodedLen`)
-	/// Storage: `PolimecFunding::Contributions` (r:1 w:1)
-	/// Proof: `PolimecFunding::Contributions` (`max_values`: None, `max_size`: Some(364), added: 2839, mode: `MaxEncodedLen`)
-	/// Storage: `LinearRelease::Vesting` (r:1 w:1)
-	/// Proof: `LinearRelease::Vesting` (`max_values`: None, `max_size`: None, mode: `Measured`)
-	fn start_contribution_vesting_schedule_for() -> Weight {
-		// Proof Size summary in bytes:
-		//  Measured:  `880`
-		//  Estimated: `4345`
-		// Minimum execution time: 30_000_000 picoseconds.
-		Weight::from_parts(31_000_000, 4345)
-			.saturating_add(RocksDbWeight::get().reads(3_u64))
-			.saturating_add(RocksDbWeight::get().writes(2_u64))
-	}
-	/// Storage: `PolimecFunding::ProjectsDetails` (r:1 w:0)
-	/// Proof: `PolimecFunding::ProjectsDetails` (`max_values`: None, `max_size`: Some(349), added: 2824, mode: `MaxEncodedLen`)
-	/// Storage: `PolimecFunding::Bids` (r:1 w:1)
-	/// Proof: `PolimecFunding::Bids` (`max_values`: None, `max_size`: Some(418), added: 2893, mode: `MaxEncodedLen`)
-	/// Storage: `StatemintAssets::Asset` (r:1 w:1)
-	/// Proof: `StatemintAssets::Asset` (`max_values`: None, `max_size`: Some(210), added: 2685, mode: `MaxEncodedLen`)
-	/// Storage: `StatemintAssets::Account` (r:2 w:2)
-	/// Proof: `StatemintAssets::Account` (`max_values`: None, `max_size`: Some(134), added: 2609, mode: `MaxEncodedLen`)
-	/// Storage: `System::Account` (r:1 w:1)
-	/// Proof: `System::Account` (`max_values`: None, `max_size`: Some(128), added: 2603, mode: `MaxEncodedLen`)
-	fn payout_bid_funds_for() -> Weight {
-		// Proof Size summary in bytes:
-		//  Measured:  `1405`
-		//  Estimated: `6208`
-		// Minimum execution time: 67_000_000 picoseconds.
-		Weight::from_parts(68_000_000, 6208)
-			.saturating_add(RocksDbWeight::get().reads(6_u64))
-			.saturating_add(RocksDbWeight::get().writes(5_u64))
-	}
-	/// Storage: `PolimecFunding::ProjectsDetails` (r:1 w:0)
-	/// Proof: `PolimecFunding::ProjectsDetails` (`max_values`: None, `max_size`: Some(349), added: 2824, mode: `MaxEncodedLen`)
-	/// Storage: `PolimecFunding::Contributions` (r:1 w:1)
-	/// Proof: `PolimecFunding::Contributions` (`max_values`: None, `max_size`: Some(364), added: 2839, mode: `MaxEncodedLen`)
-	/// Storage: `StatemintAssets::Asset` (r:1 w:1)
-	/// Proof: `StatemintAssets::Asset` (`max_values`: None, `max_size`: Some(210), added: 2685, mode: `MaxEncodedLen`)
-	/// Storage: `StatemintAssets::Account` (r:2 w:2)
-	/// Proof: `StatemintAssets::Account` (`max_values`: None, `max_size`: Some(134), added: 2609, mode: `MaxEncodedLen`)
-	/// Storage: `System::Account` (r:1 w:1)
-	/// Proof: `System::Account` (`max_values`: None, `max_size`: Some(128), added: 2603, mode: `MaxEncodedLen`)
-	fn payout_contribution_funds_for() -> Weight {
-		// Proof Size summary in bytes:
-		//  Measured:  `1434`
-		//  Estimated: `6208`
-		// Minimum execution time: 66_000_000 picoseconds.
-		Weight::from_parts(69_000_000, 6208)
-			.saturating_add(RocksDbWeight::get().reads(6_u64))
-			.saturating_add(RocksDbWeight::get().writes(5_u64))
-	}
-	/// Storage: `PolimecFunding::ProjectsDetails` (r:1 w:0)
-	/// Proof: `PolimecFunding::ProjectsDetails` (`max_values`: None, `max_size`: Some(349), added: 2824, mode: `MaxEncodedLen`)
 	/// Storage: `PolimecFunding::ProjectsToUpdate` (r:2980 w:1)
 	/// Proof: `PolimecFunding::ProjectsToUpdate` (`max_values`: None, `max_size`: Some(27), added: 2502, mode: `MaxEncodedLen`)
 	/// The range of component `x` is `[1, 99]`.
@@ -1378,69 +907,23 @@ impl WeightInfo for () {
 			.saturating_add(RocksDbWeight::get().writes(1_u64))
 			.saturating_add(Weight::from_parts(0, 3946).saturating_mul(x.into()))
 	}
-	/// Storage: `PolimecFunding::ProjectsDetails` (r:1 w:0)
-	/// Proof: `PolimecFunding::ProjectsDetails` (`max_values`: None, `max_size`: Some(349), added: 2824, mode: `MaxEncodedLen`)
-	/// Storage: `PolimecFunding::Bids` (r:1 w:1)
-	/// Proof: `PolimecFunding::Bids` (`max_values`: None, `max_size`: Some(418), added: 2893, mode: `MaxEncodedLen`)
-	/// Storage: `StatemintAssets::Asset` (r:1 w:1)
-	/// Proof: `StatemintAssets::Asset` (`max_values`: None, `max_size`: Some(210), added: 2685, mode: `MaxEncodedLen`)
-	/// Storage: `StatemintAssets::Account` (r:2 w:2)
-	/// Proof: `StatemintAssets::Account` (`max_values`: None, `max_size`: Some(134), added: 2609, mode: `MaxEncodedLen`)
-	fn release_bid_funds_for() -> Weight {
-		// Proof Size summary in bytes:
-		//  Measured:  `1514`
-		//  Estimated: `6208`
-		// Minimum execution time: 65_000_000 picoseconds.
-		Weight::from_parts(70_000_000, 6208)
-			.saturating_add(RocksDbWeight::get().reads(5_u64))
-			.saturating_add(RocksDbWeight::get().writes(4_u64))
+	fn settle_successful_evaluation() -> Weight {
+		Weight::from_parts(0, 0)
 	}
-	/// Storage: `PolimecFunding::ProjectsDetails` (r:1 w:0)
-	/// Proof: `PolimecFunding::ProjectsDetails` (`max_values`: None, `max_size`: Some(349), added: 2824, mode: `MaxEncodedLen`)
-	/// Storage: `PolimecFunding::Contributions` (r:1 w:1)
-	/// Proof: `PolimecFunding::Contributions` (`max_values`: None, `max_size`: Some(364), added: 2839, mode: `MaxEncodedLen`)
-	/// Storage: `StatemintAssets::Asset` (r:1 w:1)
-	/// Proof: `StatemintAssets::Asset` (`max_values`: None, `max_size`: Some(210), added: 2685, mode: `MaxEncodedLen`)
-	/// Storage: `StatemintAssets::Account` (r:2 w:2)
-	/// Proof: `StatemintAssets::Account` (`max_values`: None, `max_size`: Some(134), added: 2609, mode: `MaxEncodedLen`)
-	fn release_contribution_funds_for() -> Weight {
-		// Proof Size summary in bytes:
-		//  Measured:  `1507`
-		//  Estimated: `6208`
-		// Minimum execution time: 63_000_000 picoseconds.
-		Weight::from_parts(69_000_000, 6208)
-			.saturating_add(RocksDbWeight::get().reads(5_u64))
-			.saturating_add(RocksDbWeight::get().writes(4_u64))
+	fn settle_failed_evaluation() -> Weight {
+		Weight::from_parts(0, 0)
 	}
-	/// Storage: `PolimecFunding::ProjectsDetails` (r:1 w:0)
-	/// Proof: `PolimecFunding::ProjectsDetails` (`max_values`: None, `max_size`: Some(349), added: 2824, mode: `MaxEncodedLen`)
-	/// Storage: `PolimecFunding::Bids` (r:1 w:1)
-	/// Proof: `PolimecFunding::Bids` (`max_values`: None, `max_size`: Some(418), added: 2893, mode: `MaxEncodedLen`)
-	/// Storage: `Balances::Holds` (r:1 w:1)
-	/// Proof: `Balances::Holds` (`max_values`: None, `max_size`: Some(1149), added: 3624, mode: `MaxEncodedLen`)
-	fn bid_unbond_for() -> Weight {
-		// Proof Size summary in bytes:
-		//  Measured:  `1519`
-		//  Estimated: `4614`
-		// Minimum execution time: 54_000_000 picoseconds.
-		Weight::from_parts(56_000_000, 4614)
-			.saturating_add(RocksDbWeight::get().reads(3_u64))
-			.saturating_add(RocksDbWeight::get().writes(2_u64))
+	fn settle_successful_bid() -> Weight {
+		Weight::from_parts(0, 0)
 	}
-	/// Storage: `PolimecFunding::ProjectsDetails` (r:1 w:0)
-	/// Proof: `PolimecFunding::ProjectsDetails` (`max_values`: None, `max_size`: Some(349), added: 2824, mode: `MaxEncodedLen`)
-	/// Storage: `PolimecFunding::Contributions` (r:1 w:1)
-	/// Proof: `PolimecFunding::Contributions` (`max_values`: None, `max_size`: Some(364), added: 2839, mode: `MaxEncodedLen`)
-	/// Storage: `Balances::Holds` (r:1 w:1)
-	/// Proof: `Balances::Holds` (`max_values`: None, `max_size`: Some(1149), added: 3624, mode: `MaxEncodedLen`)
-	fn contribution_unbond_for() -> Weight {
-		// Proof Size summary in bytes:
-		//  Measured:  `1474`
-		//  Estimated: `4614`
-		// Minimum execution time: 54_000_000 picoseconds.
-		Weight::from_parts(57_000_000, 4614)
-			.saturating_add(RocksDbWeight::get().reads(3_u64))
-			.saturating_add(RocksDbWeight::get().writes(2_u64))
+	fn settle_failed_bid() -> Weight {
+		Weight::from_parts(0, 0)
+	}
+	fn settle_successful_contribution() -> Weight {
+		Weight::from_parts(0, 0)
+	}
+	fn settle_failed_contribution() -> Weight {
+		Weight::from_parts(0, 0)
 	}
 	/// Storage: `PolimecFunding::ProjectsDetails` (r:1 w:1)
 	/// Proof: `PolimecFunding::ProjectsDetails` (`max_values`: None, `max_size`: Some(349), added: 2824, mode: `MaxEncodedLen`)
