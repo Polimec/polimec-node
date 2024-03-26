@@ -5102,7 +5102,7 @@ mod funding_end_and_settlement {
 		let first_contribution = inst.get_contributions(project_id).into_iter().next().unwrap();
 		inst.execute(|| {
 			let contributor = first_contribution.contributor;
-			
+
 			assert_ok!(crate::Pallet::<TestRuntime>::settle_failed_contribution(
 				RuntimeOrigin::signed(contributor.clone()),
 				project_id,

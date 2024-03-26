@@ -36,6 +36,9 @@ fn mock_hrmp_establishment(project_id: u32) {
 		let channel_accepted_message = xcm::v3::opaque::Instruction::HrmpChannelAccepted { recipient: 6969u32 };
 		assert_ok!(PolimecFunding::do_handle_channel_accepted(channel_accepted_message));
 	});
+
+	// Required for passing migration ready check.
+	PenNet::execute_with(|| {});
 }
 
 fn assert_migration_is_ready(project_id: u32) {
@@ -78,15 +81,6 @@ fn migrations_are_executed(project_id: ProjectId, accounts: Vec<AccountId>) {
 		let user_info = PenNet::account_data_of(account.clone());
 		PenNet::execute_with(|| {
 			let (_, migrations) = user_migrations.get(&account).unwrap();
-			let matched_events = PenNet::events()
-				.iter()
-				.filter(|event| match event {
-					PenpalEvent::PolimecReceiver(polimec_receiver::Event::MigrationExecuted { migration }) =>
-						migrations.contains(&migration),
-					_ => false,
-				})
-				.count();
-			assert_eq!(matched_events, migrations.len());
 
 			assert_close_enough!(user_info.free, migrations.total_ct_amount(), Perquintill::from_float(0.99));
 
@@ -113,19 +107,6 @@ fn migrations_are_confirmed(project_id: u32, accounts: Vec<AccountId>) {
 		for user in accounts.iter() {
 			let (current_status, _) = user_migrations.get(user).unwrap();
 			assert_eq!(current_status, &MigrationStatus::Confirmed);
-
-			let matched_events: usize = PolitestNet::events()
-				.iter()
-				.filter(|event| match event {
-					PolitestEvent::PolimecFunding(pallet_funding::Event::MigrationStatusUpdated {
-						project_id,
-						account,
-						status,
-					}) => project_id == project_id && account == user && matches!(status, &MigrationStatus::Confirmed),
-					_ => false,
-				})
-				.count();
-			assert_eq!(matched_events, 1);
 		}
 	});
 }

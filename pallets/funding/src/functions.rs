@@ -18,6 +18,7 @@
 
 //! Functions for the Funding pallet.
 use crate::ProjectStatus::FundingSuccessful;
+use core::ops::Not;
 use frame_support::{
 	dispatch::{DispatchErrorWithPostInfo, DispatchResult, DispatchResultWithPostInfo, PostDispatchInfo},
 	ensure,
@@ -37,7 +38,6 @@ use sp_arithmetic::{
 	Percent, Perquintill,
 };
 use sp_runtime::traits::Convert;
-use core::ops::Not;
 
 use super::*;
 use crate::traits::{BondingRequirementCalculation, ProvideAssetPrice, VestingDurationCalculation};
@@ -1819,6 +1819,7 @@ impl<T: Config> Pallet<T> {
 		let migration_readiness_check = project_details.migration_readiness_check.ok_or(Error::<T>::NotAllowed)?;
 		let project_para_id = project_details.parachain_id.ok_or(Error::<T>::ImpossibleState)?;
 		let now = <frame_system::Pallet<T>>::block_number();
+		ensure!(Self::user_has_no_participations(project_id, participant.clone()), Error::<T>::NotAllowed);
 		let (_, migrations) =
 			UserMigrations::<T>::get(project_id, participant.clone()).ok_or(Error::<T>::NoMigrationsFound)?;
 
@@ -2420,6 +2421,14 @@ impl<T: Config> Pallet<T> {
 			T::RequiredMaxMessageSize::get().saturating_sub(xcm_size as u32);
 
 		available_bytes_for_migration_per_message.saturating_div(one_migration_bytes)
+	}
+
+	pub fn user_has_no_participations(project_id: ProjectId, user: AccountIdOf<T>) -> bool {
+		Evaluations::<T>::iter_prefix_values((project_id, user.clone()))
+			.map(|eval| eval.id)
+			.chain(Bids::<T>::iter_prefix_values((project_id, user.clone())).map(|bid| bid.id))
+			.chain(Contributions::<T>::iter_prefix_values((project_id, user)).map(|contribution| contribution.id))
+			.count() == 0
 	}
 
 	pub fn construct_migration_xcm_message(migrations: Vec<Migration>, query_id: QueryId) -> Xcm<()> {
