@@ -549,7 +549,9 @@ mod benchmarks {
 		assert_eq!(stored_metadata, project_metadata);
 
 		// Events
-		frame_system::Pallet::<T>::assert_last_event(Event::<T>::MetadataEdited { project_id, metadata: project_metadata }.into());
+		frame_system::Pallet::<T>::assert_last_event(
+			Event::<T>::MetadataEdited { project_id, metadata: project_metadata }.into(),
+		);
 	}
 
 	#[benchmark]

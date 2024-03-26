@@ -33,7 +33,11 @@ fn test_jwt_for_create() {
 			pallet_funding::Error::<PolitestRuntime>::NotAllowed
 		);
 		let inst_jwt = get_test_jwt(PolitestAccountId::from(ISSUER), InvestorType::Institutional);
-		assert_ok!(PolitestFundingPallet::create_project(PolitestOrigin::signed(ISSUER.into()), inst_jwt, project.clone()));
+		assert_ok!(PolitestFundingPallet::create_project(
+			PolitestOrigin::signed(ISSUER.into()),
+			inst_jwt,
+			project.clone()
+		));
 	});
 }
 
