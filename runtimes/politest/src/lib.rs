@@ -423,17 +423,17 @@ impl pallet_assets::Config<ForeignAssetsInstance> for Runtime {
 }
 
 type ConsensusHook = cumulus_pallet_aura_ext::FixedVelocityConsensusHook<
-    Runtime,
-    RELAY_CHAIN_SLOT_DURATION_MILLIS,
-    BLOCK_PROCESSING_VELOCITY,
-    UNINCLUDED_SEGMENT_CAPACITY,
+	Runtime,
+	RELAY_CHAIN_SLOT_DURATION_MILLIS,
+	BLOCK_PROCESSING_VELOCITY,
+	UNINCLUDED_SEGMENT_CAPACITY,
 >;
 
 impl cumulus_pallet_parachain_system::Config for Runtime {
 	#[cfg(not(feature = "async-backing"))]
 	type CheckAssociatedRelayNumber = RelayNumberStrictlyIncreases;
 	#[cfg(feature = "async-backing")]
-    type CheckAssociatedRelayNumber = RelayNumberMonotonicallyIncreases;
+	type CheckAssociatedRelayNumber = RelayNumberMonotonicallyIncreases;
 	type ConsensusHook = ConsensusHook;
 	type DmpQueue = frame_support::traits::EnqueueWithOrigin<MessageQueue, RelayOrigin>;
 	type OnSystemEvent = ();

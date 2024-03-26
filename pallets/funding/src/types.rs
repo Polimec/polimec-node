@@ -19,7 +19,7 @@
 //! Types for Funding pallet.
 
 use crate::{
-	traits::{BondingRequirementCalculation, ProvideAssetPrice, VestingDurationCalculation},
+	traits::{BondingRequirementCalculation, VestingDurationCalculation},
 	BalanceOf, BidInfoOf, Config, ContributionInfoOf, EvaluationInfoOf, MultiplierOf,
 };
 use frame_support::{pallet_prelude::*, traits::tokens::Balance as BalanceT};
@@ -29,7 +29,7 @@ use polkadot_parachain_primitives::primitives::Id as ParaId;
 use serde::{Deserialize, Serialize};
 use sp_arithmetic::{FixedPointNumber, FixedPointOperand};
 use sp_runtime::traits::{CheckedDiv, Convert, Get, Zero};
-use sp_std::{cmp::Eq, collections::btree_map::*, prelude::*};
+use sp_std::{cmp::Eq, prelude::*};
 
 pub use config_types::*;
 pub use inner_types::*;
