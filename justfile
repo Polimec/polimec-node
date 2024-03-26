@@ -11,7 +11,7 @@ build-rolimec-srtool:
 
 # Build the "Testnet" Runtime using srtool
 build-politest-srtool:
-    srtool build --root -p politest-runtime --profile production --runtime-dir runtimes/politest --build-opts="--features=on-chain-release-build,fast-mode" --no-wasm-std
+    srtool build --root -p politest-runtime --profile production --runtime-dir runtimes/politest --build-opts="--features=on-chain-release-build,fast-mode,async-backing" --no-wasm-std
 
 # Test the runtimes features
 test-runtime-features:
