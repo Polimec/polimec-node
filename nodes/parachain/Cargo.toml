@@ -122,3 +122,6 @@ std = [
 	"xcm/std",
 ]
 on-chain-release-build = []
+async-backing = [
+	"politest-runtime/async-backing"
+]
