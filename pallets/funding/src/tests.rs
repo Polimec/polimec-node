@@ -363,7 +363,7 @@ mod creation {
 		let project_metadata = default_project_metadata(inst.get_new_nonce(), ISSUER_1);
 		inst.mint_plmc_to(default_plmc_balances());
 		let jwt = get_mock_jwt(ISSUER_1, InvestorType::Institutional, generate_did_from_account(ISSUER_1));
-		assert_ok!(inst.execute(|| crate::Pallet::<TestRuntime>::create(
+		assert_ok!(inst.execute(|| crate::Pallet::<TestRuntime>::create_project(
 			RuntimeOrigin::signed(ISSUER_1),
 			jwt,
 			project_metadata
@@ -586,7 +586,7 @@ mod creation {
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		inst.mint_plmc_to(default_plmc_balances());
 		let project_err = inst.execute(|| {
-			Pallet::<TestRuntime>::do_create(&ISSUER_1, wrong_project, generate_did_from_account(ISSUER_1)).unwrap_err()
+			Pallet::<TestRuntime>::do_create_project(&ISSUER_1, wrong_project, generate_did_from_account(ISSUER_1)).unwrap_err()
 		});
 		assert_eq!(project_err, Error::<TestRuntime>::PriceTooLow.into());
 	}
@@ -667,7 +667,7 @@ mod creation {
 
 		for project in wrong_projects {
 			let project_err = inst.execute(|| {
-				Pallet::<TestRuntime>::do_create(
+				Pallet::<TestRuntime>::do_create_project(
 					&ISSUER_1,
 					with_different_metadata(project),
 					generate_did_from_account(ISSUER_1),
@@ -686,7 +686,7 @@ mod creation {
 
 		inst.mint_plmc_to(vec![UserToPLMCBalance::new(ISSUER_1, ed)]);
 		let project_err = inst.execute(|| {
-			Pallet::<TestRuntime>::do_create(&ISSUER_1, project_metadata, generate_did_from_account(ISSUER_1))
+			Pallet::<TestRuntime>::do_create_project(&ISSUER_1, project_metadata, generate_did_from_account(ISSUER_1))
 				.unwrap_err()
 		});
 		assert_eq!(project_err, Error::<TestRuntime>::NotEnoughFundsForEscrowCreation.into());
@@ -752,7 +752,7 @@ mod creation {
 			let issuer_mint = (issuer, 1000 * PLMC).into();
 			inst.mint_plmc_to(vec![issuer_mint]);
 			assert_ok!(inst.execute(|| {
-				Pallet::<TestRuntime>::do_create(&issuer, project_metadata_new, generate_did_from_account(issuer))
+				Pallet::<TestRuntime>::do_create_project(&issuer, project_metadata_new, generate_did_from_account(issuer))
 			}));
 		}
 
@@ -782,7 +782,7 @@ mod creation {
 			let issuer_mint = (issuer, 1000 * PLMC).into();
 			inst.mint_plmc_to(vec![issuer_mint]);
 			let project_err = inst.execute(|| {
-				Pallet::<TestRuntime>::do_create(
+				Pallet::<TestRuntime>::do_create_project(
 					&issuer,
 					with_different_metadata(project),
 					generate_did_from_account(issuer),
@@ -817,7 +817,7 @@ mod creation {
 
 		// Cannot create 2 projects consecutively
 		inst.execute(|| {
-			assert_ok!(Pallet::<TestRuntime>::create(
+			assert_ok!(Pallet::<TestRuntime>::create_project(
 				RuntimeOrigin::signed(ISSUER_1),
 				jwt.clone(),
 				with_different_hash(project_metadata.clone())
@@ -825,7 +825,7 @@ mod creation {
 		});
 		inst.execute(|| {
 			assert_noop!(
-				Pallet::<TestRuntime>::create(
+				Pallet::<TestRuntime>::create_project(
 					RuntimeOrigin::signed(ISSUER_1),
 					jwt.clone(),
 					with_different_hash(project_metadata.clone())
@@ -838,7 +838,7 @@ mod creation {
 		inst.start_evaluation(0, ISSUER_1).unwrap();
 		inst.execute(|| {
 			assert_noop!(
-				Pallet::<TestRuntime>::create(
+				Pallet::<TestRuntime>::create_project(
 					RuntimeOrigin::signed(ISSUER_1),
 					jwt.clone(),
 					with_different_hash(project_metadata.clone())
@@ -849,7 +849,7 @@ mod creation {
 		inst.advance_time(<TestRuntime as Config>::EvaluationDuration::get() + 1).unwrap();
 		assert_eq!(inst.get_project_details(0).status, ProjectStatus::EvaluationFailed);
 		inst.execute(|| {
-			assert_ok!(Pallet::<TestRuntime>::create(
+			assert_ok!(Pallet::<TestRuntime>::create_project(
 				RuntimeOrigin::signed(ISSUER_1),
 				jwt.clone(),
 				with_different_hash(project_metadata.clone())
@@ -862,7 +862,7 @@ mod creation {
 		inst.start_auction(1, ISSUER_1).unwrap();
 		inst.execute(|| {
 			assert_noop!(
-				Pallet::<TestRuntime>::create(
+				Pallet::<TestRuntime>::create_project(
 					RuntimeOrigin::signed(ISSUER_1),
 					jwt.clone(),
 					with_different_hash(project_metadata.clone())
@@ -874,7 +874,7 @@ mod creation {
 		inst.advance_time(1).unwrap();
 		assert_eq!(inst.get_project_details(1).status, ProjectStatus::FundingFailed);
 		inst.execute(|| {
-			assert_ok!(Pallet::<TestRuntime>::create(
+			assert_ok!(Pallet::<TestRuntime>::create_project(
 				RuntimeOrigin::signed(ISSUER_1),
 				jwt.clone(),
 				with_different_hash(project_metadata.clone())
@@ -889,7 +889,7 @@ mod creation {
 		inst.start_community_funding(2).unwrap();
 		inst.execute(|| {
 			assert_noop!(
-				Pallet::<TestRuntime>::create(
+				Pallet::<TestRuntime>::create_project(
 					RuntimeOrigin::signed(ISSUER_1),
 					jwt.clone(),
 					with_different_hash(project_metadata.clone())
@@ -900,7 +900,7 @@ mod creation {
 		inst.finish_funding(2).unwrap();
 		assert_eq!(inst.get_project_details(2).status, ProjectStatus::FundingFailed);
 		inst.execute(|| {
-			assert_ok!(Pallet::<TestRuntime>::create(
+			assert_ok!(Pallet::<TestRuntime>::create_project(
 				RuntimeOrigin::signed(ISSUER_1),
 				jwt.clone(),
 				with_different_hash(project_metadata.clone())
@@ -918,7 +918,7 @@ mod creation {
 		inst.contribute_for_users(3, default_remainder_buys()).unwrap();
 		inst.finish_funding(3).unwrap();
 		assert_eq!(inst.get_project_details(3).status, ProjectStatus::FundingSuccessful);
-		assert_ok!(inst.execute(|| crate::Pallet::<TestRuntime>::create(
+		assert_ok!(inst.execute(|| crate::Pallet::<TestRuntime>::create_project(
 			RuntimeOrigin::signed(ISSUER_1),
 			jwt.clone(),
 			with_different_hash(project_metadata.clone())

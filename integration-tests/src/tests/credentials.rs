@@ -29,11 +29,11 @@ fn test_jwt_for_create() {
 		assert_ok!(PolitestBalances::force_set_balance(PolitestOrigin::root(), issuer.into(), 10_000 * PLMC));
 		let retail_jwt = get_test_jwt(PolitestAccountId::from(ISSUER), InvestorType::Retail);
 		assert_noop!(
-			PolitestFundingPallet::create(PolitestOrigin::signed(ISSUER.into()), retail_jwt, project.clone()),
+			PolitestFundingPallet::create_project(PolitestOrigin::signed(ISSUER.into()), retail_jwt, project.clone()),
 			pallet_funding::Error::<PolitestRuntime>::NotAllowed
 		);
 		let inst_jwt = get_test_jwt(PolitestAccountId::from(ISSUER), InvestorType::Institutional);
-		assert_ok!(PolitestFundingPallet::create(PolitestOrigin::signed(ISSUER.into()), inst_jwt, project.clone()));
+		assert_ok!(PolitestFundingPallet::create_project(PolitestOrigin::signed(ISSUER.into()), inst_jwt, project.clone()));
 	});
 }
 
@@ -46,7 +46,7 @@ fn test_jwt_verification() {
 		// This JWT tokens is signed with a private key that is not the one set in the Pallet Funding configuration in the real runtime.
 		let inst_jwt = get_fake_jwt(PolitestAccountId::from(ISSUER), InvestorType::Institutional);
 		assert_noop!(
-			PolitestFundingPallet::create(PolitestOrigin::signed(ISSUER.into()), inst_jwt, project.clone()),
+			PolitestFundingPallet::create_project(PolitestOrigin::signed(ISSUER.into()), inst_jwt, project.clone()),
 			DispatchError::BadOrigin
 		);
 	});
