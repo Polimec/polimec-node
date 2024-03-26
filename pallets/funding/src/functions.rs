@@ -159,7 +159,7 @@ impl<T: Config> Pallet<T> {
 		ensure!(now > evaluation_end_block, Error::<T>::EvaluationPeriodNotEnded);
 
 		// * Calculate new variables *
-		let usd_total_amount_bonded =  project_details.evaluation_round_info.total_bonded_usd;
+		let usd_total_amount_bonded = project_details.evaluation_round_info.total_bonded_usd;
 		let evaluation_target_usd = <T as Config>::EvaluationSuccessThreshold::get() * fundraising_target_usd;
 
 		let auction_initialize_period_start_block = now + 1u32.into();
