@@ -352,13 +352,14 @@ pub mod defaults {
 }
 
 // only functionalities that happen in the CREATION period of a project
+#[cfg(test)]
 mod creation {
 	use super::*;
 	use polimec_common::credentials::InvestorType;
 	use polimec_common_test_utils::{generate_did_from_account, get_mock_jwt};
 
 	#[test]
-	fn create_extrinsic() {
+	fn create_project_works() {
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		let project_metadata = default_project_metadata(inst.get_new_nonce(), ISSUER_1);
 		inst.mint_plmc_to(default_plmc_balances());
@@ -368,6 +369,23 @@ mod creation {
 			jwt,
 			project_metadata
 		)));
+	}
+	#[cfg(test)]
+	mod create_project_extrinsic {
+		use super::*;
+		#[test]
+		fn auction_round_percentage_100() {
+			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+			let mut project_metadata = default_project_metadata(inst.get_new_nonce(), ISSUER_1);
+			project_metadata.auction_round_allocation_percentage = Percent::from_percent(100u8);
+			inst.mint_plmc_to(default_plmc_balances());
+			let jwt = get_mock_jwt(ISSUER_1, InvestorType::Institutional, generate_did_from_account(ISSUER_1));
+			assert_ok!(inst.execute(|| crate::Pallet::<TestRuntime>::create_project(
+				RuntimeOrigin::signed(ISSUER_1),
+				jwt,
+				project_metadata
+			)));
+		}
 	}
 
 	#[test]
