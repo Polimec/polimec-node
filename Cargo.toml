@@ -53,7 +53,7 @@ pallet-oracle-ocw = { path = "pallets/oracle-ocw", default-features = false }
 pallet-sandbox = { path = "pallets/sandbox", default-features = false }
 pallet-parachain-staking = { path = "pallets/parachain-staking", default-features = false }
 pallet-linear-release = { path = "pallets/linear-release", default-features = false }
-polimec-xcm-executor = { path = "pallets/xcm-executor", default-features = false}
+polimec-xcm-executor = { path = "pallets/xcm-executor", default-features = false }
 polimec-receiver = { path = "pallets/polimec-receiver", default-features = false }
 
 # Internal macros
@@ -62,8 +62,8 @@ macros-tests = { path = "macros/tests" }
 
 
 # External pallets (with default disabled)
-orml-oracle = { version = "0.7.0", default-features = false}
-orml-traits = { version = "0.7.0", default-features = false}
+orml-oracle = { version = "0.7.0", default-features = false }
+orml-traits = { version = "0.7.0", default-features = false }
 jwt-compact = { git = "https://github.com/lrazovic/jwt-compact", default-features = false }
 
 # Internal support (with default disabled)
@@ -87,10 +87,12 @@ serde = { version = "1.0.188", default-features = false }
 serde_json = "1.0.111"
 smallvec = "1.11.0"
 log = { version = "0.4.17", default-features = false }
-itertools = { version = "0.10.5", default-features = false, features = ["use_alloc"] }
+itertools = { version = "0.10.5", default-features = false, features = [
+    "use_alloc",
+] }
 array-bytes = { version = "*", default-features = false }
 serde-json-core = { version = '0.5.1', default-features = false }
-heapless = { version = "0.7", default-features = false}
+heapless = { version = "0.7", default-features = false }
 
 # Emulations
 xcm-emulator = { version = "0.5.0", default-features = false }
@@ -174,7 +176,9 @@ polkadot-primitives = { version = "7.0.0", default-features = false }
 cumulus-pallet-aura-ext = { version = "0.7.0", default-features = false }
 cumulus-pallet-dmp-queue = { version = "0.7.0", default-features = false }
 cumulus-pallet-solo-to-para = { version = "0.7.0", default-features = false }
-cumulus-pallet-parachain-system = { version = "0.7.0", features = ["parameterized-consensus-hook"], default-features = false }
+cumulus-pallet-parachain-system = { version = "0.7.0", features = [
+    "parameterized-consensus-hook",
+], default-features = false }
 cumulus-pallet-xcm = { version = "0.7.0", default-features = false }
 cumulus-pallet-xcmp-queue = { version = "0.7.0", default-features = false }
 cumulus-primitives-core = { version = "0.7.0", default-features = false }
@@ -183,6 +187,7 @@ cumulus-primitives-utility = { version = "0.7.3", default-features = false }
 pallet-collator-selection = { version = "9.0.0", default-features = false }
 parachain-info = { version = "0.7.0", package = 'staging-parachain-info', default-features = false }
 parachains-common = { version = "7.0.0", default-features = false }
+cumulus-primitives-aura = { version = "0.7.0", default-features = false }
 
 # Client-only (with default enabled)
 cumulus-client-cli = { version = "0.7.0" }
@@ -217,7 +222,7 @@ sc-transaction-pool-api = { version = "28.0.0" }
 sp-keystore = { version = "0.34.0", default-features = false }
 sp-timestamp = { version = "26.0.0", default-features = false }
 sc-consensus-grandpa = { version = "0.19.0" }
-sc-transaction_pool-api = {version = "28.0.0", default-features = false}
+sc-transaction_pool-api = { version = "28.0.0", default-features = false }
 substrate-frame-rpc-system = { version = "28.0.0" }
 substrate-prometheus-endpoint = { version = "0.17.0" }
 substrate-build-script-utils = { version = "11.0.0" }
@@ -228,7 +233,7 @@ cumulus-pallet-session-benchmarking = { version = "9.0.0", default-features = fa
 # Runtimes
 politest-runtime = { path = "runtimes/politest" }
 polimec-runtime = { path = "runtimes/polimec" }
-asset-hub-polkadot-runtime = {git = 'https://github.com/polkadot-fellows/runtimes', default-features = false, rev = '59172d5fb8feea2646490618bead3b2b4fb06220'}
-polkadot-runtime-constants = {git = 'https://github.com/polkadot-fellows/runtimes', default-features = false, rev = '59172d5fb8feea2646490618bead3b2b4fb06220'}
-system-parachains-constants =  {git = 'https://github.com/polkadot-fellows/runtimes', default-features = false, rev = '59172d5fb8feea2646490618bead3b2b4fb06220'}
-polkadot-runtime = {git = 'https://github.com/polkadot-fellows/runtimes', default-features = false, rev = '59172d5fb8feea2646490618bead3b2b4fb06220'}
+asset-hub-polkadot-runtime = { git = 'https://github.com/polkadot-fellows/runtimes', default-features = false, rev = '59172d5fb8feea2646490618bead3b2b4fb06220' }
+polkadot-runtime-constants = { git = 'https://github.com/polkadot-fellows/runtimes', default-features = false, rev = '59172d5fb8feea2646490618bead3b2b4fb06220' }
+system-parachains-constants = { git = 'https://github.com/polkadot-fellows/runtimes', default-features = false, rev = '59172d5fb8feea2646490618bead3b2b4fb06220' }
+polkadot-runtime = { git = 'https://github.com/polkadot-fellows/runtimes', default-features = false, rev = '59172d5fb8feea2646490618bead3b2b4fb06220' }

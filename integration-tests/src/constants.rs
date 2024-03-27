@@ -437,8 +437,10 @@ pub mod politest {
 				],
 				accounts: vec![],
 			},
-			polimec_funding: Default::default(),
+			funding: Default::default(),
 			vesting: Default::default(),
+			transaction_payment: Default::default(),
+			contribution_tokens: Default::default(),
 		};
 
 		genesis_config.build_storage().unwrap()

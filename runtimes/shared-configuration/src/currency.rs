@@ -16,6 +16,10 @@
 
 use crate::Balance;
 use frame_support::parameter_types;
+use parachains_common::AssetIdForTrustBackedAssets as AssetId;
+use pallet_funding::AcceptedFundingAsset;
+use sp_runtime::{traits::Convert, FixedU128};
+use pallet_oracle_ocw::types::AssetName;
 
 /// One PLMC
 pub const PLMC: Balance = 10u128.pow(10);
@@ -64,5 +68,21 @@ pub mod vesting {
 		pub const MinVestedTransfer: Balance = PLMC;
 		pub UnvestedFundsAllowedWithdrawReasons: WithdrawReasons =
 			WithdrawReasons::except(WithdrawReasons::TRANSFER | WithdrawReasons::RESERVE);
+	}
+}
+
+pub type Price = FixedU128;
+
+pub type Moment = u64;
+
+pub struct AssetPriceConverter;
+impl Convert<(AssetName, FixedU128), (AssetId, Price)> for AssetPriceConverter {
+	fn convert((asset, price): (AssetName, FixedU128)) -> (AssetId, Price) {
+		match asset {
+			AssetName::DOT => (AcceptedFundingAsset::DOT.to_assethub_id(), price),
+			AssetName::USDC => (AcceptedFundingAsset::USDC.to_assethub_id(), price),
+			AssetName::USDT => (AcceptedFundingAsset::USDT.to_assethub_id(), price),
+			AssetName::PLMC => (pallet_funding::PLMC_FOREIGN_ID, price),
+		}
 	}
 }
