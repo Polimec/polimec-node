@@ -16,10 +16,10 @@
 
 use crate::Balance;
 use frame_support::parameter_types;
-use parachains_common::AssetIdForTrustBackedAssets as AssetId;
 use pallet_funding::AcceptedFundingAsset;
-use sp_runtime::{traits::Convert, FixedU128};
 use pallet_oracle_ocw::types::AssetName;
+use parachains_common::AssetIdForTrustBackedAssets as AssetId;
+use sp_runtime::{traits::Convert, FixedU128};
 
 /// One PLMC
 pub const PLMC: Balance = 10u128.pow(10);
