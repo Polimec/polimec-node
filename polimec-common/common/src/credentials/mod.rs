@@ -80,11 +80,12 @@ where
 		let Some(who) = origin.clone().into_signer() else { return Err(origin) };
 		let Ok(token) = Self::verify_token(token, verifying_key) else { return Err(origin) };
 		let Ok(claims) = Self::extract_claims(&token) else { return Err(origin) };
+		// Get the current timestamp from the pallet_timestamp. It is in milliseconds.
 		let Ok(now) = Now::<T>::get().try_into() else { return Err(origin) };
 		let Some(date_time) = claims.expiration else { return Err(origin) };
 
-		if claims.custom.subject == who && (date_time.timestamp() as u64) >= now {
-			return Ok((who, claims.custom.did.clone(), claims.custom.investor_type.clone()));
+		if claims.custom.subject == who && (date_time.timestamp_millis() as u64) >= now {
+				return Ok((who, claims.custom.did.clone(), claims.custom.investor_type.clone()));
 		}
 
 		Err(origin)
