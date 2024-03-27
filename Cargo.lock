@@ -12403,6 +12403,7 @@ dependencies = [
  "pallet-authorship",
  "pallet-balances",
  "pallet-funding",
+ "pallet-oracle-ocw",
  "pallet-parachain-staking",
  "pallet-transaction-payment",
  "parachains-common",

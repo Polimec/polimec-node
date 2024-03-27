@@ -37,8 +37,8 @@ use frame_support::{
 };
 use frame_system::{EnsureNever, EnsureRoot, EnsureRootWithSuccess, EnsureSigned};
 use pallet_democracy::GetElectorate;
-use pallet_funding::{AcceptedFundingAsset, DaysToBlocks};
-use pallet_oracle_ocw::types::AssetName;
+use pallet_funding::{DaysToBlocks};
+
 use parachains_common::{
 	message_queue::{NarrowOriginToSibling, ParaIdToSibling},
 	AssetIdForTrustBackedAssets as AssetId,
@@ -175,10 +175,6 @@ pub type Executive = frame_executive::Executive<
 	AllPalletsWithSystem,
 	Migrations,
 >;
-
-pub type Price = FixedU128;
-
-pub type Moment = u64;
 
 /// Opaque types. These are used by the CLI to instantiate machinery that don't need to know
 /// the specifics of the runtime. They can then be made to be agnostic over specific formats
@@ -784,18 +780,6 @@ impl orml_oracle::Config for Runtime {
 	type Time = Timestamp;
 	// TODO Add weight info
 	type WeightInfo = ();
-}
-
-pub struct AssetPriceConverter;
-impl Convert<(AssetName, FixedU128), (AssetId, Price)> for AssetPriceConverter {
-	fn convert((asset, price): (AssetName, FixedU128)) -> (AssetId, Price) {
-		match asset {
-			AssetName::DOT => (AcceptedFundingAsset::DOT.to_assethub_id(), price),
-			AssetName::USDC => (AcceptedFundingAsset::USDC.to_assethub_id(), price),
-			AssetName::USDT => (AcceptedFundingAsset::USDT.to_assethub_id(), price),
-			AssetName::PLMC => (pallet_funding::PLMC_FOREIGN_ID, price),
-		}
-	}
 }
 
 parameter_types! {
