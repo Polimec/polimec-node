@@ -926,7 +926,7 @@ impl<T: Config> Pallet<T> {
 	/// * [`ProjectsDetails`] - Check that the project is not frozen
 	/// * [`ProjectsMetadata`] - Update the metadata hash
 	#[transactional]
-	pub fn do_edit_metadata(
+	pub fn do_edit_project(
 		issuer: AccountIdOf<T>,
 		project_id: ProjectId,
 		new_project_metadata: ProjectMetadataOf<T>,
