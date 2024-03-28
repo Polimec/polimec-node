@@ -794,6 +794,9 @@ impl<T: Config> Pallet<T> {
 				ValidityError::PriceTooLow => Err(Error::<T>::PriceTooLow.into()),
 				ValidityError::TicketSizeError => Err(Error::<T>::TicketSizeError.into()),
 				ValidityError::ParticipationCurrenciesError => Err(Error::<T>::ParticipationCurrenciesError.into()),
+				ValidityError::AllocationSizeError => Err(Error::<T>::AllocationSizeError.into()),
+				ValidityError::AuctionRoundPercentageError => Err(Error::<T>::AuctionRoundPercentageError.into()),
+				ValidityError::FundingTargetTooLow => Err(Error::<T>::FundingTargetTooLow.into()),
 			};
 		}
 		let total_allocation_size = metadata.total_allocation_size;

@@ -987,6 +987,12 @@ pub mod pallet {
 		IssuerHasActiveProjectAlready,
 		NotEnoughFunds,
 		BadMetadata,
+		/// Bad allocation size parameter on project metadata
+		AllocationSizeError,
+		/// Bad allocation size parameter on project metadata
+		AuctionRoundPercentageError,
+		/// Cannot ask for funding of less than 10 USD
+		FundingTargetTooLow,
 	}
 
 	#[pallet::call]
