@@ -773,7 +773,7 @@ impl Convert<(AssetName, FixedU128), (AssetId, Price)> for AssetPriceConverter {
 			AssetName::DOT => (0, price),
 			AssetName::USDC => (1337, price),
 			AssetName::USDT => (1984, price),
-			AssetName::PLMC => (2069, price),
+			AssetName::PLMC => (3344, price),
 		}
 	}
 }

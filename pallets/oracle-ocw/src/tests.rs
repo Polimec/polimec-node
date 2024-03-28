@@ -19,10 +19,11 @@
 use crate::{
 	mock::*,
 	traits::FetchPrice,
-	types::{BitFinexFetcher, BitStampFetcher, CoinbaseFetcher, KrakenFetcher},
+	types::{AssetName, BitFinexFetcher, BitStampFetcher, CoinbaseFetcher, KrakenFetcher, MexcFetcher, XTFetcher},
 };
 use parity_scale_codec::Decode;
 use sp_runtime::FixedU128;
+use polimec_common_test_utils::do_request;
 
 #[test]
 fn call_offchain_worker() {
@@ -42,6 +43,7 @@ fn call_offchain_worker() {
 						0 => assert_close_enough(price, FixedU128::from_float(6.138485575453039783)),
 						1984 => assert_close_enough(price, FixedU128::from_float(1.000154206100002620)),
 						1337 => assert_close_enough(price, FixedU128::from_float(1.000093378020633965)),
+						3344 => assert_close_enough(price, FixedU128::from_float(0.414564170729477207)),
 						_ => panic!("Unexpected asset"),
 					}
 				},
@@ -50,38 +52,47 @@ fn call_offchain_worker() {
 	});
 }
 
-#[test]
-fn kraken_parser() {
-	for (_, body_str) in KRAKEN_RESPONSES.iter() {
-		let body = std::str::from_utf8(body_str).unwrap();
-		let data = KrakenFetcher::parse_body(body);
+fn test_fetcher_against_real_api<F: FetchPrice>() {
+	
+	for asset in vec![AssetName::DOT, AssetName::USDC, AssetName::USDT, AssetName::PLMC] {
+		let url = F::get_url(asset);
+		if url == "" {
+			continue;
+		}
+		let body = do_request(url);
+		let data = F::parse_body(&body);
 		assert!(data.is_some());
 	}
 }
 
+
+
 #[test]
-fn bitfinex_parser() {
-	for (_, body_str) in BITFINEX_RESPONSES.iter() {
-		let body = std::str::from_utf8(body_str).unwrap();
-		let data = BitFinexFetcher::parse_body(body);
-		assert!(data.is_some());
-	}
+fn test_coinbase_against_real_api() {
+	test_fetcher_against_real_api::<CoinbaseFetcher>();
 }
 
 #[test]
-fn bitstamp_parser() {
-	for (_, body_str) in BITSTAMP_RESPONSES.iter() {
-		let body = std::str::from_utf8(body_str).unwrap();
-		let data = BitStampFetcher::parse_body(body);
-		assert!(data.is_some());
-	}
+fn test_kraken_against_real_api() {
+	test_fetcher_against_real_api::<KrakenFetcher>();
 }
 
 #[test]
-fn coinbase_parser() {
-	for (_, body_str) in COINBASE_RESPONSES.iter() {
-		let body = std::str::from_utf8(body_str).unwrap();
-		let data = CoinbaseFetcher::parse_body(body);
-		assert!(data.is_some());
-	}
+fn test_bitfinex_against_real_api() {
+	test_fetcher_against_real_api::<BitFinexFetcher>();
+}
+
+#[test]
+fn test_bitstamp_against_real_api() {
+	test_fetcher_against_real_api::<BitStampFetcher>();
+}
+
+#[test]
+fn test_xt_against_real_api() {
+	test_fetcher_against_real_api::<XTFetcher>();
+}
+
+#[test]
+fn test_mexc_against_real_api() {
+	test_fetcher_against_real_api::<MexcFetcher>();
 }

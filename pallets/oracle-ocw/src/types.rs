@@ -19,7 +19,7 @@ use heapless::{LinearMap, Vec as HVec};
 use parity_scale_codec::{Decode, Encode};
 use scale_info::TypeInfo;
 use serde::Deserialize;
-use sp_core::offchain::HttpRequestId as RequestId;
+use sp_core::{offchain::HttpRequestId as RequestId, RuntimeDebug};
 use sp_runtime::{FixedPointNumber, Saturating};
 use sp_std::vec::Vec;
 use substrate_fixed::{traits::ToFixed, types::U100F28};
@@ -38,7 +38,7 @@ pub(crate) struct AssetRequest {
 	pub id: RequestId,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub(crate) struct OpenCloseVolume {
 	pub high: FixedU128,
 	pub low: FixedU128,
@@ -255,6 +255,89 @@ impl FetchPrice for CoinbaseFetcher {
 			AssetName::USDT => "https://api.exchange.coinbase.com/products/USDT-USD/candles?granularity=60",
 			AssetName::DOT => "https://api.exchange.coinbase.com/products/DOT-USD/candles?granularity=60",
 			AssetName::USDC => "",
+			_ => "",
+		}
+	}
+}
+
+#[derive(Default, Deserialize, RuntimeDebug)]
+struct XTCandle<'a> {
+	t: u64,
+    o: &'a str,
+    c: &'a str,
+    h: &'a str,
+    l: &'a str,
+    q: &'a str,
+    v: &'a str,
+}
+
+fn deserialize_hloc_xt<'de, D>(deserializer: D) -> Result<Vec<OpenCloseVolume>, D::Error>
+where
+	D: serde::Deserializer<'de>,
+{
+	let data = HVec::<XTCandle, 10>::deserialize(deserializer)?;
+	let mut result = Vec::<OpenCloseVolume>::with_capacity(data.len());
+	for row in data.into_iter() {
+		let ocv = OpenCloseVolume::from_str(row.h, row.l, row.c, row.v)
+			.map_err(|_| serde::de::Error::custom("Error parsing float"))?;
+		result.push(ocv);
+	}
+	Ok(result)
+}
+
+#[derive(Deserialize, RuntimeDebug)]
+struct XTResponse {
+	#[serde(skip)]
+	_rc: u8,
+	#[serde(skip)]
+	_mc: Vec<u8>,
+	#[serde(skip)]
+	_ma: Vec<u8>,
+	#[serde(deserialize_with = "deserialize_hloc_xt")]
+	result: Vec<OpenCloseVolume>,
+}
+pub(crate) struct XTFetcher;
+impl FetchPrice for XTFetcher {
+	fn parse_body(body: &str) -> Option<Vec<OpenCloseVolume>> {
+		let maybe_response = serde_json_core::from_str::<XTResponse>(body);
+		if let Err(e) = maybe_response {
+			log::error!(target: LOG_TARGET, "Error parsing response for XT: {:?}", e);
+			return None
+		}
+		let response = maybe_response.ok()?;
+
+		Some(response.0.result)
+	}
+
+	fn get_url(name: AssetName) -> &'static str {
+		match name {
+			AssetName::PLMC => "https://sapi.xt.com/v4/public/kline?symbol=plmc_usdt&interval=15m&limit=10",
+			_ => "",
+		}
+	}
+}
+
+pub(crate) struct MexcFetcher;
+impl FetchPrice for MexcFetcher {
+	fn parse_body(body: &str) -> Option<Vec<OpenCloseVolume>> {
+		let maybe_response = serde_json_core::from_str::<HVec<(u64, &str, &str, &str, &str, &str, u64, &str), 10>>(body);
+		if let Err(e) = maybe_response {
+			dbg!(e);
+			log::error!(target: LOG_TARGET, "Error parsing response for BitFinex: {:?}", e);
+			return None;
+		}
+		let response = maybe_response.ok()?;
+		let data: Vec<OpenCloseVolume> =
+			response.0.into_iter().filter_map(|r| OpenCloseVolume::from_str(r.2, r.3, r.4, r.5).ok()).collect();
+		if data.len() < 10 {
+			return None;
+		}
+		Some(data)
+	}
+
+	fn get_url(name: AssetName) -> &'static str {
+		match name {
+			AssetName::PLMC => "https://api.mexc.com/api/v3/klines?symbol=PLMCUSDT&interval=15m&limit=10",
 			_ => "",
 		}
 	}
