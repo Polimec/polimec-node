@@ -263,12 +263,12 @@ impl FetchPrice for CoinbaseFetcher {
 #[derive(Default, Deserialize, RuntimeDebug)]
 struct XTCandle<'a> {
 	t: u64,
-    o: &'a str,
-    c: &'a str,
-    h: &'a str,
-    l: &'a str,
-    q: &'a str,
-    v: &'a str,
+	o: &'a str,
+	c: &'a str,
+	h: &'a str,
+	l: &'a str,
+	q: &'a str,
+	v: &'a str,
 }
 
 fn deserialize_hloc_xt<'de, D>(deserializer: D) -> Result<Vec<OpenCloseVolume>, D::Error>
@@ -320,7 +320,8 @@ impl FetchPrice for XTFetcher {
 pub(crate) struct MexcFetcher;
 impl FetchPrice for MexcFetcher {
 	fn parse_body(body: &str) -> Option<Vec<OpenCloseVolume>> {
-		let maybe_response = serde_json_core::from_str::<HVec<(u64, &str, &str, &str, &str, &str, u64, &str), 10>>(body);
+		let maybe_response =
+			serde_json_core::from_str::<HVec<(u64, &str, &str, &str, &str, &str, u64, &str), 10>>(body);
 		if let Err(e) = maybe_response {
 			dbg!(e);
 			log::error!(target: LOG_TARGET, "Error parsing response for BitFinex: {:?}", e);

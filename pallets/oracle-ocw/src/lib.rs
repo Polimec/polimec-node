@@ -19,7 +19,8 @@
 use crate::{
 	traits::FetchPrice,
 	types::{
-		AssetName, AssetRequest, BitFinexFetcher, BitStampFetcher, CoinbaseFetcher, KrakenFetcher, MexcFetcher, OpenCloseVolume, XTFetcher,
+		AssetName, AssetRequest, BitFinexFetcher, BitStampFetcher, CoinbaseFetcher, KrakenFetcher, MexcFetcher,
+		OpenCloseVolume, XTFetcher,
 	},
 };
 use core::ops::Rem;

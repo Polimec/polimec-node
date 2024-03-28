@@ -22,8 +22,8 @@ use crate::{
 	types::{AssetName, BitFinexFetcher, BitStampFetcher, CoinbaseFetcher, KrakenFetcher, MexcFetcher, XTFetcher},
 };
 use parity_scale_codec::Decode;
-use sp_runtime::FixedU128;
 use polimec_common_test_utils::do_request;
+use sp_runtime::FixedU128;
 
 #[test]
 fn call_offchain_worker() {
@@ -53,7 +53,6 @@ fn call_offchain_worker() {
 }
 
 fn test_fetcher_against_real_api<F: FetchPrice>() {
-	
 	for asset in vec![AssetName::DOT, AssetName::USDC, AssetName::USDT, AssetName::PLMC] {
 		let url = F::get_url(asset);
 		if url == "" {
@@ -64,8 +63,6 @@ fn test_fetcher_against_real_api<F: FetchPrice>() {
 		assert!(data.is_some());
 	}
 }
-
-
 
 #[test]
 fn test_coinbase_against_real_api() {

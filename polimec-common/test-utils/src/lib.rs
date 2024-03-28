@@ -112,7 +112,12 @@ pub fn generate_did_from_account(account_id: impl Parameter) -> Did {
 
 #[cfg(feature = "std")]
 pub fn do_request(url: &str) -> String {
-	reqwest::blocking::Client::builder().user_agent("polimec").build().expect("Failed to build Client").get(url).send()
+	reqwest::blocking::Client::builder()
+		.user_agent("polimec")
+		.build()
+		.expect("Failed to build Client")
+		.get(url)
+		.send()
 		.expect("Failed to perform the HTTP GET")
 		.text()
 		.expect("Failed to get the response body from the specified endpoint")
