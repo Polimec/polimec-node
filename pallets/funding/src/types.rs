@@ -202,8 +202,13 @@ pub mod storage_types {
 		pub offchain_information_hash: Option<Hash>,
 	}
 
-	impl<BoundedString, Balance: From<u64> + PartialOrd + Copy + FixedPointOperand, Price: FixedPointNumber, Hash, AccountId>
-		ProjectMetadata<BoundedString, Balance, Price, Hash, AccountId>
+	impl<
+			BoundedString,
+			Balance: From<u64> + PartialOrd + Copy + FixedPointOperand,
+			Price: FixedPointNumber,
+			Hash,
+			AccountId,
+		> ProjectMetadata<BoundedString, Balance, Price, Hash, AccountId>
 	{
 		/// Validate issuer metadata for the following checks:
 		/// - Minimum price is not zero
@@ -240,7 +245,7 @@ pub mod storage_types {
 			}
 
 			let target_funding = self.minimum_price.saturating_mul_int(self.total_allocation_size);
-			if target_funding < (10u64 * US_DOLLAR as u64).into() {
+			if target_funding < (1000u64 * US_DOLLAR as u64).into() {
 				return Err(ValidityError::FundingTargetTooLow);
 			}
 			Ok(())

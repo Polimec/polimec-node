@@ -20,11 +20,6 @@ mod round_flow {
 			inst.create_evaluating_project(project_metadata, issuer);
 		}
 	}
-
-	#[cfg(test)]
-	mod failure {
-		use super::*;
-	}
 }
 
 #[cfg(test)]
@@ -327,7 +322,7 @@ mod create_project_extrinsic {
 
 			// funding target of 1000 USD at 1quadrillion supply
 			const QUADRILLION_SUPPLY: u128 = 1_000_000_000_000_000 * ASSET_UNIT;
-			const LOW_PRICE: f64 =  0.000_000_000_001f64;
+			const LOW_PRICE: f64 = 0.000_000_000_001f64;
 
 			project_metadata.mainnet_token_max_supply = QUADRILLION_SUPPLY;
 			project_metadata.total_allocation_size = QUADRILLION_SUPPLY;
@@ -638,20 +633,31 @@ mod create_project_extrinsic {
 		}
 
 		#[test]
-		fn target_funding_less_than_10_usd() {
+		fn target_funding_less_than_1000_usd() {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 			let mut project_metadata = default_project_metadata(inst.get_new_nonce(), ISSUER_1);
-			project_metadata.minimum_price = PriceOf::<TestRuntime>::from_float(0.0001);
-			project_metadata.total_allocation_size = 10000u128;
+			project_metadata.minimum_price = PriceOf::<TestRuntime>::from_float(1.0);
+			project_metadata.total_allocation_size = 999u128;
 
 			inst.mint_plmc_to(default_plmc_balances());
 			let jwt = get_mock_jwt(ISSUER_1, InvestorType::Institutional, generate_did_from_account(ISSUER_1));
+			inst.execute(|| {
+				assert_noop!(
+					Pallet::<TestRuntime>::create_project(RuntimeOrigin::signed(ISSUER_1), jwt.clone(), project_metadata.clone()),
+					Error::<TestRuntime>::FundingTargetTooLow
+				);
+			});
+
+			project_metadata.minimum_price = PriceOf::<TestRuntime>::from_float(0.00000000001);
+			project_metadata.total_allocation_size = 99999999999999u128;
 			inst.execute(|| {
 				assert_noop!(
 					Pallet::<TestRuntime>::create_project(RuntimeOrigin::signed(ISSUER_1), jwt, project_metadata),
 					Error::<TestRuntime>::FundingTargetTooLow
 				);
 			});
+
+
 		}
 	}
 }
@@ -663,6 +669,31 @@ mod edit_metadata_extrinsic {
 	#[cfg(test)]
 	mod success {
 		use super::*;
+		#[test]
+		fn project_id_stays_the_same() {
+			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+			let mut project_metadata = default_project_metadata(inst.get_new_nonce(), ISSUER_1);
+			inst.mint_plmc_to(default_plmc_balances());
+			let jwt = get_mock_jwt(ISSUER_1, InvestorType::Institutional, generate_did_from_account(ISSUER_1));
+			let project_id = inst.create_new_project(project_metadata.clone(), ISSUER_1);
+
+			project_metadata.minimum_price = PriceOf::<TestRuntime>::from_float(15.0);
+			assert_ok!(
+				inst.execute(|| crate::Pallet::<TestRuntime>::edit_metadata(
+					RuntimeOrigin::signed(ISSUER_1),
+					jwt.clone(),
+					project_id,
+					project_metadata.clone()
+				))
+			);
+			let next_project_id = inst.execute(|| NextProjectId::<TestRuntime>::get());
+			assert_eq!(project_id, next_project_id - 1);
+			let projects_details = inst.execute(|| ProjectsDetails::<TestRuntime>::iter_keys().collect_vec());
+			let project_metadatas = inst.execute(|| ProjectsMetadata::<TestRuntime>::iter_keys().collect_vec());
+			assert_eq!(projects_details, vec![project_id]);
+			assert_eq!(project_metadatas, vec![project_id]);
+		}
+
 		#[test]
 		fn multiple_fields_edited() {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
@@ -728,7 +759,9 @@ mod edit_metadata_extrinsic {
 				project_id,
 				project_metadata.clone()
 			)));
-			find_event!(TestRuntime, Event::<TestRuntime>::MetadataEdited{project_id, ref metadata}, project_id == 0, metadata == project_metadata);
+			inst.execute(|| {
+				find_event!(TestRuntime, Event::<TestRuntime>::MetadataEdited{project_id, ref metadata}, project_id == 0, metadata == &project_metadata);
+			});
 
 			// Just one field changed
 			assert_ok!(inst.execute(|| crate::Pallet::<TestRuntime>::edit_metadata(
@@ -738,6 +771,9 @@ mod edit_metadata_extrinsic {
 				new_metadata_1.clone()
 			)));
 			assert_eq!(inst.get_project_metadata(project_id), new_metadata_1);
+			inst.execute(|| {
+				find_event!(TestRuntime, Event::<TestRuntime>::MetadataEdited{project_id, ref metadata}, project_id == 0, metadata == &new_metadata_1);
+			});
 
 			// All fields changed
 			assert_ok!(inst.execute(|| crate::Pallet::<TestRuntime>::edit_metadata(
@@ -747,6 +783,9 @@ mod edit_metadata_extrinsic {
 				new_metadata_2.clone()
 			)));
 			assert_eq!(inst.get_project_metadata(project_id), new_metadata_2);
+			inst.execute(|| {
+				find_event!(TestRuntime, Event::<TestRuntime>::MetadataEdited{project_id, ref metadata}, project_id == 0, metadata == &new_metadata_2);
+			});
 		}
 
 		#[test]
@@ -807,13 +846,51 @@ mod edit_metadata_extrinsic {
 			let stored_bucket = inst.execute(|| Buckets::<TestRuntime>::get(project_id).unwrap());
 			assert_eq!(stored_bucket, new_bucket);
 		}
-
-
 	}
 
 	#[cfg(test)]
 	mod failure {
 		use super::*;
+
+		#[test]
+		fn editing_project_by_different_issuer() {
+			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+			let ed = MockInstantiator::get_ed();
+			let issuer_1_mint: UserToPLMCBalance<TestRuntime> = (ISSUER_1, ed).into();
+			let issuer_2_mint: UserToPLMCBalance<TestRuntime> = (ISSUER_2, ed).into();
+
+			let project_metadata_1 = default_project_metadata(inst.get_new_nonce(), ISSUER_1);
+			let project_metadata_2 = default_project_metadata(inst.get_new_nonce(), ISSUER_2);
+
+			inst.mint_plmc_to(vec![issuer_1_mint.clone(), issuer_2_mint.clone()]);
+
+			let jwt_1 = get_mock_jwt(ISSUER_1, InvestorType::Institutional, generate_did_from_account(ISSUER_1));
+			let jwt_2 = get_mock_jwt(ISSUER_2, InvestorType::Institutional, generate_did_from_account(ISSUER_2));
+
+			let project_id_1 = inst.create_new_project(project_metadata_1.clone(), ISSUER_1);
+			let project_id_2 = inst.create_new_project(project_metadata_2.clone(), ISSUER_2);
+
+			inst.execute(|| {
+				assert_noop!(
+					Pallet::<TestRuntime>::edit_metadata(
+						RuntimeOrigin::signed(ISSUER_2),
+						jwt_2,
+						project_id_1,
+						project_metadata_2
+					),
+					Error::<TestRuntime>::NotAllowed
+				);
+				assert_noop!(
+					Pallet::<TestRuntime>::edit_metadata(
+						RuntimeOrigin::signed(ISSUER_1),
+						jwt_1,
+						project_id_2,
+						project_metadata_1
+					),
+					Error::<TestRuntime>::NotAllowed
+				);
+			});
+		}
 
 		#[test]
 		fn cannot_edit_after_evaluation_started() {
@@ -832,6 +909,34 @@ mod edit_metadata_extrinsic {
 						project_metadata.clone()
 					),
 					Error::<TestRuntime>::Frozen
+				);
+			});
+		}
+
+		#[test]
+		fn non_institutional_credential_same_did_and_account() {
+			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+			let project_metadata = default_project_metadata(inst.get_new_nonce(), ISSUER_1);
+			inst.mint_plmc_to(default_plmc_balances());
+			let project_id = inst.create_new_project(project_metadata.clone(), ISSUER_1);
+			inst.execute(|| {
+				assert_noop!(
+					crate::Pallet::<TestRuntime>::edit_metadata(
+						RuntimeOrigin::signed(ISSUER_1),
+						get_mock_jwt(ISSUER_1, InvestorType::Professional, generate_did_from_account(ISSUER_1)),
+						project_id,
+						project_metadata.clone()
+					),
+					Error::<TestRuntime>::NotAllowed
+				);
+				assert_noop!(
+					crate::Pallet::<TestRuntime>::edit_metadata(
+						RuntimeOrigin::signed(ISSUER_1),
+						get_mock_jwt(ISSUER_1, InvestorType::Retail, generate_did_from_account(ISSUER_1)),
+						project_id,
+						project_metadata.clone()
+					),
+					Error::<TestRuntime>::NotAllowed
 				);
 			});
 
