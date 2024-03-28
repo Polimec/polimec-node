@@ -202,7 +202,7 @@ pub mod storage_types {
 		pub offchain_information_hash: Option<Hash>,
 	}
 
-	impl<BoundedString, Balance: From<u64> + PartialOrd + Copy, Price: FixedPointNumber, Hash, AccountId>
+	impl<BoundedString, Balance: From<u64> + PartialOrd + Copy + FixedPointOperand, Price: FixedPointNumber, Hash, AccountId>
 		ProjectMetadata<BoundedString, Balance, Price, Hash, AccountId>
 	{
 		/// Validate issuer metadata for the following checks:
@@ -220,11 +220,28 @@ pub mod storage_types {
 			])?;
 			self.contributing_ticket_sizes.is_valid(vec![])?;
 
+			if self.total_allocation_size > self.mainnet_token_max_supply {
+				return Err(ValidityError::AllocationSizeError);
+			}
+
+			if self.total_allocation_size <= 0u64.into() {
+				return Err(ValidityError::AllocationSizeError);
+			}
+
+			if self.auction_round_allocation_percentage <= Percent::from_percent(0) {
+				return Err(ValidityError::AuctionRoundPercentageError);
+			}
+
 			let mut deduped = self.participation_currencies.clone().to_vec();
 			deduped.sort();
 			deduped.dedup();
 			if deduped.len() != self.participation_currencies.len() {
 				return Err(ValidityError::ParticipationCurrenciesError);
+			}
+
+			let target_funding = self.minimum_price.saturating_mul_int(self.total_allocation_size);
+			if target_funding < (10u64 * US_DOLLAR as u64).into() {
+				return Err(ValidityError::FundingTargetTooLow);
 			}
 			Ok(())
 		}
@@ -677,6 +694,9 @@ pub mod inner_types {
 		PriceTooLow,
 		TicketSizeError,
 		ParticipationCurrenciesError,
+		AllocationSizeError,
+		AuctionRoundPercentageError,
+		FundingTargetTooLow,
 	}
 
 	#[derive(Default, Clone, Copy, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
