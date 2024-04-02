@@ -971,7 +971,7 @@ mod edit_project_extrinsic {
 		#[test]
 		fn invalid_ticket_sizes() {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
-			let mut project_metadata = default_project_metadata(0, ISSUER_1);
+			let project_metadata = default_project_metadata(0, ISSUER_1);
 			let project_id = inst.create_new_project(project_metadata.clone(), ISSUER_1);
 
 			// min in bidding below 5k

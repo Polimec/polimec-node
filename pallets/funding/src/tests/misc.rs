@@ -107,11 +107,7 @@ mod helper_functions {
 			funding_destination_account: ISSUER_1,
 			offchain_information_hash: Some(hashed(METADATA)),
 		};
-		let plmc_charged = MockInstantiator::calculate_auction_plmc_charged_from_all_bids_made_or_with_bucket(
-			&bids,
-			project_metadata.clone(),
-			None,
-		);
+
 		let project_id = inst.create_community_contributing_project(
 			project_metadata.clone(),
 			ISSUER_1,
@@ -119,9 +115,6 @@ mod helper_functions {
 			bids.clone(),
 		);
 
-		let stored_bids = inst.execute(|| {
-			Bids::<TestRuntime>::iter_values().into_iter().sorted_by(|b1, b2| b1.id.cmp(&b2.id)).collect_vec()
-		});
 		let wap = inst.get_project_details(project_id).weighted_average_price.unwrap();
 
 		let expected_returns = vec![

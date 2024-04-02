@@ -251,18 +251,7 @@ fn only_candle_bids_before_random_block_get_included() {
 	}
 
 	for bid in excluded_bids {
-		let mut stored_bids = inst.execute(|| Bids::<TestRuntime>::iter_prefix_values((project_id, bid.bidder)));
-		let desired_bid: BidInfoFilter<TestRuntime> = BidInfoFilter {
-			project_id: Some(project_id),
-			bidder: Some(bid.bidder),
-			original_ct_amount: Some(bid.amount),
-			status: Some(BidStatus::Rejected(RejectionReason::AfterCandleEnd)),
-			..Default::default()
-		};
-		assert!(
-			inst.execute(|| stored_bids.any(|bid| desired_bid.matches_bid(&bid))),
-			"Stored bid does not match the given filter"
-		);
+		assert!(inst.execute(|| Bids::<TestRuntime>::iter_prefix_values((project_id, bid.bidder)).count() == 0));
 	}
 }
 
@@ -380,7 +369,7 @@ fn unsuccessful_bids_dont_get_vest_schedule() {
 	let available_tokens = auction_token_allocation.saturating_sub(bids.iter().fold(0, |acc, bid| acc + bid.amount));
 
 	let rejected_bid = vec![BidParams::new(BIDDER_5, available_tokens, 1u8, AcceptedFundingAsset::USDT)];
-	let accepted_bid = vec![BidParams::new(BIDDER_4, available_tokens, 1u8, AcceptedFundingAsset::USDT)];
+	let accepted_bid = vec![BidParams::new(BIDDER_4, available_tokens, 2u8, AcceptedFundingAsset::USDT)];
 	bids.extend(rejected_bid.clone());
 	bids.extend(accepted_bid.clone());
 
@@ -424,9 +413,8 @@ fn unsuccessful_bids_dont_get_vest_schedule() {
 	inst.start_remainder_or_end_funding(project_id).unwrap();
 	inst.finish_funding(project_id).unwrap();
 
-	inst.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get() + 1).unwrap();
-	let details = inst.get_project_details(project_id);
-	assert_eq!(details.cleanup, Cleaner::Success(CleanerState::Finished(PhantomData)));
+	inst.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get()).unwrap();
+	inst.settle_project(project_id).unwrap();
 
 	let plmc_locked_for_accepted_bid =
 		MockInstantiator::calculate_auction_plmc_charged_with_given_price(&accepted_bid, final_price);
@@ -444,15 +432,14 @@ fn unsuccessful_bids_dont_get_vest_schedule() {
 	assert_close_enough!(schedule.unwrap(), accepted_plmc_amount, Perquintill::from_float(0.99));
 
 	let UserToPLMCBalance { account: rejected_user, .. } = plmc_locked_for_rejected_bid[0];
-	let schedule_exists = inst
+	assert!(inst
 		.execute(|| {
 			<TestRuntime as Config>::Vesting::total_scheduled_amount(
 				&rejected_user,
 				HoldReason::Participation(project_id).into(),
 			)
 		})
-		.is_some();
-	assert!(!schedule_exists);
+		.is_none());
 }
 
 // We use the already tested instantiator functions to calculate the correct post-wap returns

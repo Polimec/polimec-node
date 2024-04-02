@@ -17,7 +17,6 @@ fn community_round_completed() {
 #[test]
 fn multiple_contribution_projects_completed() {
 	let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
-	let issuer = ISSUER_1;
 	let project1 = default_project_metadata(inst.get_new_nonce(), ISSUER_1);
 	let project2 = default_project_metadata(inst.get_new_nonce(), ISSUER_2);
 	let project3 = default_project_metadata(inst.get_new_nonce(), ISSUER_3);
@@ -1147,7 +1146,7 @@ fn retail_multiplier_limits() {
 			default_bids(),
 		)
 	};
-	let mut contribute = |inst: &mut MockInstantiator, project_id, multiplier| {
+	let contribute = |inst: &mut MockInstantiator, project_id, multiplier| {
 		let jwt = get_mock_jwt(BUYER_1, InvestorType::Retail, generate_did_from_account(BUYER_1));
 		let wap = inst.get_project_details(project_id).weighted_average_price.unwrap();
 		let contributor_plmc = MockInstantiator::calculate_contributed_plmc_spent(

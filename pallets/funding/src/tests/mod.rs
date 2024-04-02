@@ -293,6 +293,19 @@ pub mod defaults {
 		vec![EVALUATOR_1, BIDDER_3, BUYER_4, BUYER_6, BIDDER_6]
 	}
 
+	pub fn default_all_participants() -> Vec<AccountId> {
+		let mut accounts: Vec<AccountId> = default_evaluators()
+			.iter()
+			.chain(default_bidders().iter())
+			.chain(default_community_contributors().iter())
+			.chain(default_remainder_contributors().iter())
+			.copied()
+			.collect();
+		accounts.sort();
+		accounts.dedup();
+		accounts
+	}
+
 	pub fn project_from_funding_reached(instantiator: &mut MockInstantiator, percent: u64) -> ProjectId {
 		let project_metadata = default_project_metadata(instantiator.get_new_nonce(), ISSUER_1);
 		let min_price = project_metadata.minimum_price;
@@ -348,4 +361,65 @@ pub mod defaults {
 			default_remainder_contributor_multipliers(),
 		)
 	}
+}
+
+pub fn create_project_with_funding_percentage(
+	percentage: u64,
+	maybe_decision: Option<FundingOutcomeDecision>,
+) -> (MockInstantiator, ProjectId) {
+	let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+	let project_metadata = default_project_metadata(inst.get_new_nonce(), ISSUER_1);
+	let min_price = project_metadata.minimum_price;
+	let percentage_funded_usd = Perquintill::from_percent(percentage) *
+		(project_metadata.minimum_price.checked_mul_int(project_metadata.total_allocation_size).unwrap());
+	let evaluations = default_evaluations();
+	let bids = MockInstantiator::generate_bids_from_total_usd(
+		Percent::from_percent(50u8) * percentage_funded_usd,
+		min_price,
+		default_weights(),
+		default_bidders(),
+		default_multipliers(),
+	);
+	let contributions = MockInstantiator::generate_contributions_from_total_usd(
+		Percent::from_percent(50u8) * percentage_funded_usd,
+		min_price,
+		default_weights(),
+		default_community_contributors(),
+		default_multipliers(),
+	);
+	let project_id = inst.create_finished_project(project_metadata, ISSUER_1, evaluations, bids, contributions, vec![]);
+
+	match inst.get_project_details(project_id).status {
+		ProjectStatus::AwaitingProjectDecision => {
+			assert!(percentage > 33 && percentage < 90);
+			assert!(maybe_decision.is_some());
+			inst.execute(|| PolimecFunding::do_decide_project_outcome(ISSUER_1, project_id, maybe_decision.unwrap()))
+				.unwrap();
+		},
+		ProjectStatus::FundingSuccessful => {
+			assert!(percentage >= 90);
+		},
+		ProjectStatus::FundingFailed => {
+			assert!(percentage <= 33);
+		},
+		_ => panic!("unexpected project status"),
+	};
+
+	inst.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get() + 1u64).unwrap();
+	let funding_sucessful = match percentage {
+		0..=33 => false,
+		34..=89 if matches!(maybe_decision, Some(FundingOutcomeDecision::RejectFunding)) => false,
+		34..=89 if matches!(maybe_decision, Some(FundingOutcomeDecision::AcceptFunding)) => true,
+		90..=100 => true,
+		_ => panic!("unexpected percentage"),
+	};
+
+	if funding_sucessful {
+		assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::FundingSuccessful);
+		inst.test_ct_created_for(project_id);
+	} else {
+		assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::FundingFailed);
+		inst.test_ct_not_created_for(project_id);
+	}
+	(inst, project_id)
 }

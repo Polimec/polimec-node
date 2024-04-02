@@ -844,7 +844,7 @@ fn retail_multiplier_limits() {
 			vec![],
 		)
 	};
-	let mut contribute = |inst: &mut MockInstantiator, project_id, multiplier| {
+	let contribute = |inst: &mut MockInstantiator, project_id, multiplier| {
 		let jwt = get_mock_jwt(BUYER_1, InvestorType::Retail, generate_did_from_account(BUYER_1));
 		let wap = inst.get_project_details(project_id).weighted_average_price.unwrap();
 		let contributor_plmc = MockInstantiator::calculate_contributed_plmc_spent(

@@ -120,7 +120,7 @@ mod round_flow {
 			assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::EvaluationFailed);
 
 			// Check that on_idle has unlocked the failed bonds
-			inst.advance_time(10).unwrap();
+			inst.settle_project(project_id).unwrap();
 			inst.do_free_plmc_assertions(expected_evaluator_balances);
 		}
 	}
@@ -522,7 +522,11 @@ mod evaluate_extrinsic {
 			inst.execute(|| {
 				assert_ok!(PolimecFunding::evaluate(
 					RuntimeOrigin::signed(evaluation.account),
-					get_mock_jwt(evaluation.account, InvestorType::Retail, generate_did_from_account(evaluation.account)),
+					get_mock_jwt(
+						evaluation.account,
+						InvestorType::Retail,
+						generate_did_from_account(evaluation.account)
+					),
 					project_id,
 					evaluation.usd_amount,
 				));
@@ -532,7 +536,11 @@ mod evaluate_extrinsic {
 				assert_noop!(
 					PolimecFunding::evaluate(
 						RuntimeOrigin::signed(evaluation.account),
-						get_mock_jwt(evaluation.account, InvestorType::Retail, generate_did_from_account(evaluation.account)),
+						get_mock_jwt(
+							evaluation.account,
+							InvestorType::Retail,
+							generate_did_from_account(evaluation.account)
+						),
 						project_id,
 						evaluation.usd_amount,
 					),

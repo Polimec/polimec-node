@@ -14,9 +14,6 @@ fn para_id_for_project_can_be_set_by_issuer() {
 	);
 
 	inst.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get() + 20u64).unwrap();
-	let project_details = inst.get_project_details(project_id);
-	assert_eq!(project_details.cleanup, Cleaner::Success(CleanerState::Finished(PhantomData)));
-
 	inst.execute(|| {
 		assert_ok!(crate::Pallet::<TestRuntime>::do_set_para_id_for_project(
 			&ISSUER_1,
@@ -40,8 +37,6 @@ fn para_id_for_project_cannot_be_set_by_anyone_but_issuer() {
 		default_remainder_buys(),
 	);
 	inst.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get() + 20u64).unwrap();
-	let project_details = inst.get_project_details(project_id);
-	assert_eq!(project_details.cleanup, Cleaner::Success(CleanerState::Finished(PhantomData)));
 
 	inst.execute(|| {
 		assert_err!(
@@ -59,10 +54,4 @@ fn para_id_for_project_cannot_be_set_by_anyone_but_issuer() {
 	});
 	let project_details = inst.get_project_details(project_id);
 	assert_eq!(project_details.parachain_id, None);
-}
-
-#[test]
-fn check_migrations_per_xcm() {
-	let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
-	inst.execute(|| dbg!(Pallet::<TestRuntime>::migrations_per_xcm_message_allowed()));
 }
