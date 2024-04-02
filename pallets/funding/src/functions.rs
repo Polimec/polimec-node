@@ -146,31 +146,21 @@ impl<T: Config> Pallet<T> {
 		let evaluation_end_block =
 			project_details.phase_transition_points.evaluation.end().ok_or(Error::<T>::FieldIsNone)?;
 		let fundraising_target_usd = project_details.fundraising_target;
-		let current_plmc_price =
-			T::PriceProvider::get_price(PLMC_FOREIGN_ID).ok_or(Error::<T>::PLMCPriceNotAvailable)?;
 
 		// * Validity checks *
 		ensure!(project_details.status == ProjectStatus::EvaluationRound, Error::<T>::ProjectNotInEvaluationRound);
 		ensure!(now > evaluation_end_block, Error::<T>::EvaluationPeriodNotEnded);
 
 		// * Calculate new variables *
-		let initial_balance: BalanceOf<T> = 0u32.into();
-		let total_amount_bonded = Evaluations::<T>::iter_prefix((project_id,))
-			.fold(initial_balance, |total, (_evaluator, bond)| total.saturating_add(bond.original_plmc_bond));
-
+		let usd_total_amount_bonded = project_details.evaluation_round_info.total_bonded_usd;
 		let evaluation_target_usd = <T as Config>::EvaluationSuccessThreshold::get() * fundraising_target_usd;
-		let evaluation_target_plmc = current_plmc_price
-			.reciprocal()
-			.ok_or(Error::<T>::BadMath)?
-			.checked_mul_int(evaluation_target_usd)
-			.ok_or(Error::<T>::BadMath)?;
 
 		let auction_initialize_period_start_block = now + 1u32.into();
 		let auction_initialize_period_end_block =
 			auction_initialize_period_start_block + T::AuctionInitializePeriodDuration::get();
 
 		// Check which logic path to follow
-		let is_funded = total_amount_bonded >= evaluation_target_plmc;
+		let is_funded = usd_total_amount_bonded >= evaluation_target_usd;
 
 		// * Branch in possible project paths *
 		// Successful path
@@ -853,7 +843,11 @@ impl<T: Config> Pallet<T> {
 	/// The issuer will call an extrinsic to start the evaluation round of the project.
 	/// [`do_start_evaluation`](Self::do_start_evaluation) will be executed.
 	#[transactional]
-	pub fn do_create(issuer: &AccountIdOf<T>, initial_metadata: ProjectMetadataOf<T>, did: Did) -> DispatchResult {
+	pub fn do_create_project(
+		issuer: &AccountIdOf<T>,
+		initial_metadata: ProjectMetadataOf<T>,
+		did: Did,
+	) -> DispatchResult {
 		// * Get variables *
 		let project_id = NextProjectId::<T>::get();
 		let maybe_active_project = DidWithActiveProjects::<T>::get(did.clone());

@@ -19,7 +19,7 @@
 //! Types for Funding pallet.
 
 use crate::{
-	traits::{BondingRequirementCalculation, ProvideAssetPrice},
+	traits::{BondingRequirementCalculation},
 	BalanceOf,
 };
 use frame_support::{pallet_prelude::*, traits::tokens::Balance as BalanceT};
@@ -27,8 +27,8 @@ use frame_system::pallet_prelude::BlockNumberFor;
 use polkadot_parachain_primitives::primitives::Id as ParaId;
 use serde::{Deserialize, Serialize};
 use sp_arithmetic::{FixedPointNumber, FixedPointOperand};
-use sp_runtime::traits::{CheckedDiv, Get};
-use sp_std::{cmp::Eq, collections::btree_map::*, prelude::*};
+use sp_runtime::traits::{CheckedDiv};
+use sp_std::{cmp::Eq, prelude::*};
 
 pub use config_types::*;
 pub use inner_types::*;
@@ -137,18 +137,6 @@ pub mod config_types {
 		Serialize,
 		Deserialize,
 	)]
-
-	pub struct ConstPriceProvider<AssetId, Price, Mapping>(PhantomData<(AssetId, Price, Mapping)>);
-	impl<AssetId: Ord, Price: FixedPointNumber + Clone, Mapping: Get<BTreeMap<AssetId, Price>>> ProvideAssetPrice
-		for ConstPriceProvider<AssetId, Price, Mapping>
-	{
-		type AssetId = AssetId;
-		type Price = Price;
-
-		fn get_price(asset_id: AssetId) -> Option<Price> {
-			Mapping::get().get(&asset_id).cloned()
-		}
-	}
 
 	pub struct DaysToBlocks;
 	impl Convert<FixedU128, u64> for DaysToBlocks {

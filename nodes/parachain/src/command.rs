@@ -39,8 +39,8 @@ use crate::{
 #[derive(Debug, PartialEq, Default)]
 enum Runtime {
 	#[default]
-	Testnet,
-	Base,
+	Politest,
+	Polimec,
 }
 
 trait RuntimeResolver {
@@ -71,10 +71,10 @@ impl RuntimeResolver for PathBuf {
 
 fn runtime(id: &str) -> Runtime {
 	let id = id.replace('_', "-");
-	if id.contains("base") {
-		Runtime::Base
-	} else if id.contains("polimec") {
-		Runtime::Testnet
+	if id.contains("polimec") {
+		Runtime::Polimec
+	} else if id.contains("politest") {
+		Runtime::Politest
 	} else {
 		log::warn!(
 			"No specific runtime was recognized for ChainSpec's id: '{}', so Runtime::default() will be used",
@@ -93,8 +93,7 @@ fn load_spec(id: &str) -> std::result::Result<Box<dyn ChainSpec>, String> {
 		// Base runtime
 		"polimec" => Box::new(chain_spec::polimec::ChainSpec::from_json_bytes(polimec_chain_spec)?),
 		"rolimec" => Box::new(chain_spec::polimec::ChainSpec::from_json_bytes(rolimec_chain_spec)?),
-		// TODO: add politest live
-		// "politest" => Box::new(chain_spec::politest::get_()?),
+		"politest" => Box::new(chain_spec::politest::get_live_chain_spec()),
 		"polimec-local" => Box::new(chain_spec::polimec::get_local_chain_spec()),
 		"rolimec-local" => Box::new(chain_spec::polimec::get_rococo_chain_spec()),
 		"politest-local" => Box::new(chain_spec::politest::get_local_chain_spec()),
@@ -110,8 +109,8 @@ fn load_spec(id: &str) -> std::result::Result<Box<dyn ChainSpec>, String> {
 			let path: PathBuf = path.into();
 			log::info!("Got path: {}", path.display());
 			match path.runtime() {
-				Runtime::Testnet => Box::new(chain_spec::politest::ChainSpec::from_json_file(path)?),
-				Runtime::Base => Box::new(chain_spec::polimec::ChainSpec::from_json_file(path)?),
+				Runtime::Politest => Box::new(chain_spec::politest::ChainSpec::from_json_file(path)?),
+				Runtime::Polimec => Box::new(chain_spec::polimec::ChainSpec::from_json_file(path)?),
 			}
 		},
 	})

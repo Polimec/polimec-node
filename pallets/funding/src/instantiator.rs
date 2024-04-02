@@ -1026,8 +1026,12 @@ impl<
 		self.mint_plmc_to(vec![UserToPLMCBalance::new(issuer.clone(), Self::get_ed() * 2u64.into())]);
 
 		self.execute(|| {
-			crate::Pallet::<T>::do_create(&issuer, project_metadata.clone(), generate_did_from_account(issuer.clone()))
-				.unwrap();
+			crate::Pallet::<T>::do_create_project(
+				&issuer,
+				project_metadata.clone(),
+				generate_did_from_account(issuer.clone()),
+			)
+			.unwrap();
 			let last_project_metadata = ProjectsMetadata::<T>::iter().last().unwrap();
 			log::trace!("Last project metadata: {:?}", last_project_metadata);
 		});
@@ -1874,7 +1878,7 @@ pub mod async_features {
 			Instantiator::<T, AllPalletsWithoutSystem, RuntimeEvent>::get_ed() * 2u64.into(),
 		)]);
 		inst.execute(|| {
-			crate::Pallet::<T>::do_create(
+			crate::Pallet::<T>::do_create_project(
 				&issuer.clone(),
 				project_metadata.clone(),
 				generate_did_from_account(issuer.clone()),

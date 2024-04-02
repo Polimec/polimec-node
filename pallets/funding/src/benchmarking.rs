@@ -381,7 +381,7 @@ mod benchmarks {
 	// Extrinsics
 	//
 	#[benchmark]
-	fn create() {
+	fn create_project() {
 		// * setup *
 		let mut inst = BenchInstantiator::<T>::new(None);
 		// real benchmark starts at block 0, and we can't call `events()` at block 0
@@ -405,7 +405,7 @@ mod benchmarks {
 		let jwt = get_mock_jwt(issuer.clone(), InvestorType::Institutional, generate_did_from_account(issuer.clone()));
 
 		#[extrinsic_call]
-		create(RawOrigin::Signed(issuer.clone()), jwt, project_metadata.clone());
+		create_project(RawOrigin::Signed(issuer.clone()), jwt, project_metadata.clone());
 
 		// * validity checks *
 		// Storage
@@ -2730,9 +2730,9 @@ mod benchmarks {
 		use crate::mock::{new_test_ext, TestRuntime};
 
 		#[test]
-		fn bench_create() {
+		fn bench_create_project() {
 			new_test_ext().execute_with(|| {
-				assert_ok!(PalletFunding::<TestRuntime>::test_create());
+				assert_ok!(PalletFunding::<TestRuntime>::test_create_project());
 			});
 		}
 

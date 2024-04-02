@@ -43,7 +43,7 @@
 //!
 //! | Step                      | Description                                                                                                                                                                                                                                                                                                                                                                                                 | Resulting Project State                                             |
 //! |---------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|---------------------------------------------------------------------|
-//! | Creation                  | Issuer creates a project with the [`create()`](Pallet::create) extrinsic.                                                                                                                                                                                                                                                                                                                                   | [`Application`](ProjectStatus::Application)                         |
+//! | Creation                  | Issuer creates a project with the [`create()`](Pallet::create_project) extrinsic.                                                                                                                                                                                                                                                                                                                                   | [`Application`](ProjectStatus::Application)                         |
 //! | Evaluation Start          | Issuer starts the evaluation round with the [`start_evaluation()`](Pallet::start_evaluation) extrinsic.                                                                                                                                                                                                                                                                                                     | [`EvaluationRound`](ProjectStatus::EvaluationRound)                 |
 //! | Evaluation Submissions    | Evaluators assess the project information, and if they think it is good enough to get funding, they bond Polimec's native token PLMC with [`bond_evaluation()`](Pallet::evaluate)                                                                                                                                                                                                                    | [`EvaluationRound`](ProjectStatus::EvaluationRound)                 |
 //! | Evaluation End            | Evaluation round ends automatically after the [`Config::EvaluationDuration`] has passed. This is achieved by the [`on_initialize()`](Pallet::on_initialize) function.                                                                                                                                                                                                                                       | [`AuctionInitializePeriod`](ProjectStatus::AuctionInitializePeriod) |
@@ -62,7 +62,7 @@
 //! ## Interface
 //! All users who wish to participate need to have a valid credential, given to them on the KILT parachain, by a KYC/AML provider.
 //! ### Extrinsics
-//! * [`create`](Pallet::create) : Creates a new project.
+//! * [`create`](Pallet::create_project) : Creates a new project.
 //! * [`edit_metadata`](Pallet::edit_metadata) : Submit a new Hash of the project metadata.
 //! * [`start_evaluation`](Pallet::start_evaluation) : Start the Evaluation round of a project.
 //! * [`start_auction`](Pallet::start_auction) : Start the English Auction round of a project.
@@ -852,11 +852,15 @@ pub mod pallet {
 		/// Creates a project and assigns it to the `issuer` account.
 		#[pallet::call_index(0)]
 		#[pallet::weight(WeightInfoOf::<T>::create())]
-		pub fn create(origin: OriginFor<T>, jwt: UntrustedToken, project: ProjectMetadataOf<T>) -> DispatchResult {
+		pub fn create_project(
+			origin: OriginFor<T>,
+			jwt: UntrustedToken,
+			project: ProjectMetadataOf<T>,
+		) -> DispatchResult {
 			let (account, did, investor_type) =
 				T::InvestorOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get())?;
 			ensure!(investor_type == InvestorType::Institutional, Error::<T>::NotAllowed);
-			Self::do_create(&account, project, did)
+			Self::do_create_project(&account, project, did)
 		}
 
 		#[pallet::call_index(35)]

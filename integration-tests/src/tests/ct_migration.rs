@@ -17,24 +17,24 @@
 use crate::*;
 use pallet_funding::{assert_close_enough, ProjectId};
 use polimec_common::migration_types::{MigrationStatus, Migrations};
-use politest_runtime::PolimecFunding;
+use politest_runtime::Funding;
 use sp_runtime::Perquintill;
 use std::collections::HashMap;
 use tests::defaults::*;
 
 fn mock_hrmp_establishment(project_id: u32) {
 	PolitestNet::execute_with(|| {
-		assert_ok!(PolimecFunding::do_set_para_id_for_project(&ISSUER.into(), project_id, ParaId::from(6969u32),));
+		assert_ok!(Funding::do_set_para_id_for_project(&ISSUER.into(), project_id, ParaId::from(6969u32)));
 
 		let open_channel_message = xcm::v3::opaque::Instruction::HrmpNewChannelOpenRequest {
 			sender: 6969,
 			max_message_size: 102_300,
 			max_capacity: 1000,
 		};
-		assert_ok!(PolimecFunding::do_handle_channel_open_request(open_channel_message));
+		assert_ok!(Funding::do_handle_channel_open_request(open_channel_message));
 
 		let channel_accepted_message = xcm::v3::opaque::Instruction::HrmpChannelAccepted { recipient: 6969u32 };
-		assert_ok!(PolimecFunding::do_handle_channel_accepted(channel_accepted_message));
+		assert_ok!(Funding::do_handle_channel_accepted(channel_accepted_message));
 	});
 
 	// Required for passing migration ready check.
@@ -66,7 +66,7 @@ fn get_migrations_for_participants(
 fn send_migrations(project_id: ProjectId, accounts: Vec<AccountId>) {
 	for user in accounts.into_iter() {
 		PolitestNet::execute_with(|| {
-			assert_ok!(PolimecFunding::migrate_one_participant(
+			assert_ok!(Funding::migrate_one_participant(
 				PolitestOrigin::signed(user.clone()),
 				project_id,
 				user.clone()
