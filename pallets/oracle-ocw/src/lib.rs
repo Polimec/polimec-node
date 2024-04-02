@@ -151,6 +151,10 @@ pub mod pallet {
 							(AssetName::PLMC, Zero::zero()),
 						]),
 					};
+					// Fix for missing PLMC in last_send_for_assets for old nodes, that did not have PLMC in the list.
+					if !last_send_for_assets.contains_key(&AssetName::PLMC) {
+						last_send_for_assets.insert(AssetName::PLMC, Zero::zero());
+					};
 					let assets = last_send_for_assets
 						.iter()
 						.filter_map(|(asset_name, last_send)| {
