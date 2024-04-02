@@ -1204,12 +1204,42 @@ mod remove_project_extrinsic {
 
 		#[test]
 		fn non_issuer_credential() {
-
+			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+			let project_metadata = default_project_metadata(inst.get_new_nonce(), ISSUER_1);
+			inst.mint_plmc_to(default_plmc_balances());
+			let jwt = get_mock_jwt(ISSUER_1, InvestorType::Professional, generate_did_from_account(ISSUER_1));
+			let project_id = inst.create_new_project(project_metadata.clone(), ISSUER_1);
+			inst.execute(|| {
+				assert_noop!(
+					crate::Pallet::<TestRuntime>::remove_project(
+						RuntimeOrigin::signed(ISSUER_1),
+						jwt.clone(),
+						project_id
+					),
+					Error::<TestRuntime>::NotAllowed
+				);
+			});
 		}
 
 		#[test]
 		fn different_account() {
+			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+			let project_metadata = default_project_metadata(inst.get_new_nonce(), ISSUER_1);
+			inst.mint_plmc_to(default_plmc_balances());
+			let jwt = get_mock_jwt(ISSUER_2, InvestorType::Institutional, generate_did_from_account(ISSUER_2));
 
+			let project_id = inst.create_new_project(project_metadata.clone(), ISSUER_1);
+
+			inst.execute(|| {
+				assert_noop!(
+					crate::Pallet::<TestRuntime>::remove_project(
+						RuntimeOrigin::signed(ISSUER_2),
+						jwt.clone(),
+						project_id
+					),
+					Error::<TestRuntime>::NotAllowed
+				);
+			});
 		}
 	}
 }
