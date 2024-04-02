@@ -39,7 +39,8 @@ mod round_flow {
 			let project_metadata = default_project_metadata(inst.get_new_nonce(), ISSUER_1);
 
 			// Decreasing the price before the end doesn't make a project over the threshold fail.
-			let target_funding = project_metadata.minimum_price.saturating_mul_int(project_metadata.total_allocation_size);
+			let target_funding =
+				project_metadata.minimum_price.saturating_mul_int(project_metadata.total_allocation_size);
 			let target_evaluation_usd = Percent::from_percent(10) * target_funding;
 
 			let evaluations = vec![(EVALUATOR_1, target_evaluation_usd).into()];
@@ -126,6 +127,143 @@ mod round_flow {
 }
 
 #[cfg(test)]
+mod start_evaluation_extrinsic {
+	use super::*;
+
+	#[cfg(test)]
+	mod success {
+		use super::*;
+
+		#[test]
+		fn evaluation_starts() {
+			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+			let issuer = ISSUER_1;
+			let project_metadata = default_project_metadata(inst.get_new_nonce(), issuer);
+
+			let project_id = inst.create_new_project(project_metadata, issuer);
+			let jwt = get_mock_jwt(issuer, InvestorType::Institutional, generate_did_from_account(issuer));
+			assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::Application);
+			assert_ok!(inst.execute(|| PolimecFunding::start_evaluation(
+				RuntimeOrigin::signed(issuer),
+				jwt,
+				project_id
+			)));
+			assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::EvaluationRound);
+		}
+	}
+	#[cfg(test)]
+	mod failure {
+		use super::*;
+
+		#[test]
+		fn no_offchain_hash_provided() {
+			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+			let issuer = ISSUER_1;
+			let mut project_metadata = default_project_metadata(inst.get_new_nonce(), issuer);
+			project_metadata.offchain_information_hash = None;
+
+			let project_id = inst.create_new_project(project_metadata, issuer);
+			let jwt = get_mock_jwt(issuer, InvestorType::Institutional, generate_did_from_account(issuer));
+			assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::Application);
+			inst.execute(|| {
+				assert_noop!(
+					PolimecFunding::start_evaluation(RuntimeOrigin::signed(issuer), jwt, project_id),
+					Error::<TestRuntime>::MetadataNotProvided
+				);
+			});
+		}
+
+		#[test]
+		fn non_institutional_jwt() {
+			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+			let issuer = ISSUER_1;
+			let project_metadata = default_project_metadata(inst.get_new_nonce(), issuer);
+
+			let project_id = inst.create_new_project(project_metadata, issuer);
+			assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::Application);
+
+			inst.execute(|| {
+				assert_noop!(
+					PolimecFunding::start_evaluation(
+						RuntimeOrigin::signed(issuer),
+						get_mock_jwt(issuer, InvestorType::Professional, generate_did_from_account(issuer)),
+						project_id
+					),
+					Error::<TestRuntime>::NotAllowed
+				);
+			});
+
+			inst.execute(|| {
+				assert_noop!(
+					PolimecFunding::start_evaluation(
+						RuntimeOrigin::signed(issuer),
+						get_mock_jwt(issuer, InvestorType::Retail, generate_did_from_account(issuer)),
+						project_id
+					),
+					Error::<TestRuntime>::NotAllowed
+				);
+			});
+		}
+
+		#[test]
+		fn evaluation_started_already() {
+			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+			let issuer = ISSUER_1;
+			let project_metadata = default_project_metadata(inst.get_new_nonce(), issuer);
+
+			let project_id = inst.create_new_project(project_metadata, issuer);
+			let jwt = get_mock_jwt(issuer, InvestorType::Institutional, generate_did_from_account(issuer));
+			assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::Application);
+			assert_ok!(inst.execute(|| PolimecFunding::start_evaluation(
+				RuntimeOrigin::signed(issuer),
+				jwt.clone(),
+				project_id
+			)));
+			assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::EvaluationRound);
+
+			inst.execute(|| {
+				assert_noop!(
+					PolimecFunding::start_evaluation(
+						RuntimeOrigin::signed(issuer),
+						jwt,
+						project_id
+					),
+					Error::<TestRuntime>::ProjectNotInApplicationRound
+				);
+			});
+		}
+
+		#[test]
+		fn different_account() {
+			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+			let issuer = ISSUER_1;
+			let project_metadata = default_project_metadata(inst.get_new_nonce(), issuer);
+
+			let project_id = inst.create_new_project(project_metadata, issuer);
+			let jwt = get_mock_jwt(issuer, InvestorType::Institutional, generate_did_from_account(issuer));
+			assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::Application);
+			assert_ok!(inst.execute(|| PolimecFunding::start_evaluation(
+				RuntimeOrigin::signed(issuer),
+				jwt,
+				project_id
+			)));
+			assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::EvaluationRound);
+
+			inst.execute(|| {
+				assert_noop!(
+					PolimecFunding::start_evaluation(
+						RuntimeOrigin::signed(issuer+1),
+						get_mock_jwt(issuer+1, InvestorType::Institutional, generate_did_from_account(issuer+1)),
+						project_id
+					),
+					Error::<TestRuntime>::NotAllowed
+				);
+			});
+		}
+	}
+}
+
+#[cfg(test)]
 mod evaluate_extrinsic {
 	use super::*;
 
@@ -198,19 +336,15 @@ mod evaluate_extrinsic {
 			let project_metadata = default_project_metadata(0, ISSUER_1);
 			let project_id = inst.create_evaluating_project(project_metadata.clone(), ISSUER_1);
 			assert_err!(
-		inst.execute(|| crate::Pallet::<TestRuntime>::do_evaluate(
-			&(&ISSUER_1 + 1),
-			project_id,
-			500 * US_DOLLAR,
-			generate_did_from_account(ISSUER_1),
-			InvestorType::Institutional
-		)),
-		Error::<TestRuntime>::ParticipationToThemselves
-	);
+				inst.execute(|| crate::Pallet::<TestRuntime>::do_evaluate(
+					&(&ISSUER_1 + 1),
+					project_id,
+					500 * US_DOLLAR,
+					generate_did_from_account(ISSUER_1),
+					InvestorType::Institutional
+				)),
+				Error::<TestRuntime>::ParticipationToThemselves
+			);
 		}
 	}
 }
-
-
-
-

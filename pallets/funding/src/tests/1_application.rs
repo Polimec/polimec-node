@@ -345,7 +345,7 @@ mod create_project_extrinsic {
 		use super::*;
 
 		#[test]
-		fn retail_credential_fails() {
+		fn non_institutional_credential_fails() {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 			let project_metadata = default_project_metadata(inst.get_new_nonce(), ISSUER_1);
 			inst.mint_plmc_to(default_plmc_balances());
@@ -355,18 +355,12 @@ mod create_project_extrinsic {
 					crate::Pallet::<TestRuntime>::create_project(
 						RuntimeOrigin::signed(ISSUER_1),
 						jwt,
-						project_metadata
+						project_metadata.clone()
 					),
 					Error::<TestRuntime>::NotAllowed
 				);
 			});
-		}
 
-		#[test]
-		fn professional_credential_fails() {
-			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
-			let project_metadata = default_project_metadata(inst.get_new_nonce(), ISSUER_1);
-			inst.mint_plmc_to(default_plmc_balances());
 			let jwt = get_mock_jwt(ISSUER_1, InvestorType::Professional, generate_did_from_account(ISSUER_1));
 			inst.execute(|| {
 				assert_noop!(
@@ -409,16 +403,46 @@ mod create_project_extrinsic {
 					Error::<TestRuntime>::IssuerHasActiveProjectAlready
 				);
 			});
+
+			// different account, same did
+			let jwt = get_mock_jwt(ISSUER_2, InvestorType::Institutional, generate_did_from_account(ISSUER_1));
+			inst.execute(|| {
+				assert_noop!(
+					Pallet::<TestRuntime>::create_project(
+						RuntimeOrigin::signed(ISSUER_2),
+						jwt.clone(),
+						project_metadata.clone()
+					),
+					Error::<TestRuntime>::IssuerHasActiveProjectAlready
+				);
+			});
 		}
 
 		#[test]
-		fn price_zero() {
-			let wrong_project: ProjectMetadataOf<TestRuntime> = ProjectMetadata {
+		fn not_enough_plmc_for_escrow_ed() {
+			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+			let project_metadata = default_project_metadata(0, ISSUER_1);
+			let ed = MockInstantiator::get_ed();
+			inst.mint_plmc_to(vec![UserToPLMCBalance::new(ISSUER_1, ed)]);
+			let jwt = get_mock_jwt(ISSUER_1, InvestorType::Institutional, generate_did_from_account(ISSUER_1));
+			inst.execute(|| {
+				assert_noop!(
+					Pallet::<TestRuntime>::create_project(RuntimeOrigin::signed(ISSUER_1), jwt, project_metadata,),
+					Error::<TestRuntime>::NotEnoughFundsForEscrowCreation
+				);
+			});
+		}
+
+		// Invalid metadata tests:
+		#[test]
+		fn mainnet_supply_less_than_allocation() {
+			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+			let project_metadata = ProjectMetadata {
 				token_information: default_token_information(),
 				mainnet_token_max_supply: 100_000_000 * ASSET_UNIT,
-				total_allocation_size: 100_000 * ASSET_UNIT,
+				total_allocation_size: 100_000_001 * ASSET_UNIT,
 				auction_round_allocation_percentage: Percent::from_percent(50u8),
-				minimum_price: 0_u128.into(),
+				minimum_price: PriceOf::<TestRuntime>::from_float(10.0),
 				bidding_ticket_sizes: BiddingTicketSizes {
 					professional: TicketSize::new(Some(5000 * US_DOLLAR), None),
 					institutional: TicketSize::new(Some(5000 * US_DOLLAR), None),
@@ -434,64 +458,17 @@ mod create_project_extrinsic {
 				funding_destination_account: ISSUER_1,
 				offchain_information_hash: Some(hashed(METADATA)),
 			};
-
-			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 			inst.mint_plmc_to(default_plmc_balances());
-			let project_err = inst.execute(|| {
-				Pallet::<TestRuntime>::do_create_project(&ISSUER_1, wrong_project, generate_did_from_account(ISSUER_1))
-					.unwrap_err()
-			});
-			assert_eq!(project_err, Error::<TestRuntime>::PriceTooLow.into());
-		}
-
-		#[test]
-		fn allocation_zero() {
-			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
-			let mut project_metadata = default_project_metadata(inst.get_new_nonce(), ISSUER_1);
-			project_metadata.total_allocation_size = 0;
-
-			inst.mint_plmc_to(default_plmc_balances());
-			let jwt = get_mock_jwt(ISSUER_1, InvestorType::Institutional, generate_did_from_account(ISSUER_1));
 			inst.execute(|| {
 				assert_noop!(
-					Pallet::<TestRuntime>::create_project(RuntimeOrigin::signed(ISSUER_1), jwt, project_metadata),
+					Pallet::<TestRuntime>::do_create_project(
+						&ISSUER_1,
+						project_metadata,
+						generate_did_from_account(ISSUER_1),
+					),
 					Error::<TestRuntime>::AllocationSizeError
 				);
 			});
-		}
-
-		#[test]
-		fn auction_round_percentage_zero() {
-			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
-			let mut project_metadata = default_project_metadata(inst.get_new_nonce(), ISSUER_1);
-			project_metadata.auction_round_allocation_percentage = Percent::from_percent(0);
-
-			inst.mint_plmc_to(default_plmc_balances());
-			let jwt = get_mock_jwt(ISSUER_1, InvestorType::Institutional, generate_did_from_account(ISSUER_1));
-			inst.execute(|| {
-				assert_noop!(
-					Pallet::<TestRuntime>::create_project(RuntimeOrigin::signed(ISSUER_1), jwt, project_metadata),
-					Error::<TestRuntime>::AuctionRoundPercentageError
-				);
-			});
-		}
-
-		#[test]
-		fn issuer_cannot_pay_for_escrow_ed() {
-			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
-			let project_metadata = default_project_metadata(0, ISSUER_1);
-			let ed = MockInstantiator::get_ed();
-
-			inst.mint_plmc_to(vec![UserToPLMCBalance::new(ISSUER_1, ed)]);
-			let project_err = inst.execute(|| {
-				Pallet::<TestRuntime>::do_create_project(
-					&ISSUER_1,
-					project_metadata,
-					generate_did_from_account(ISSUER_1),
-				)
-				.unwrap_err()
-			});
-			assert_eq!(project_err, Error::<TestRuntime>::NotEnoughFundsForEscrowCreation.into());
 		}
 
 		#[test]
@@ -575,21 +552,39 @@ mod create_project_extrinsic {
 						with_different_metadata(project),
 						generate_did_from_account(ISSUER_1),
 					)
-					.unwrap_err()
+						.unwrap_err()
 				});
 				assert_eq!(project_err, Error::<TestRuntime>::TicketSizeError.into());
 			}
 		}
 
 		#[test]
-		fn mainnet_supply_less_than_allocation() {
+		fn duplicated_participation_currencies() {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
-			let project_metadata = ProjectMetadata {
+			let mut project_metadata = default_project_metadata(inst.get_new_nonce(), ISSUER_1);
+			project_metadata.participation_currencies = vec![AcceptedFundingAsset::USDT, AcceptedFundingAsset::USDT]
+				.try_into()
+				.unwrap();
+			inst.execute(|| {
+				assert_noop!(
+					PolimecFunding::create_project(
+						RuntimeOrigin::signed(ISSUER_1),
+						get_mock_jwt(ISSUER_1, InvestorType::Institutional, generate_did_from_account(ISSUER_1)),
+						project_metadata
+					),
+					Error::<TestRuntime>::ParticipationCurrenciesError
+				);
+			});
+		}
+
+		#[test]
+		fn price_zero() {
+			let wrong_project: ProjectMetadataOf<TestRuntime> = ProjectMetadata {
 				token_information: default_token_information(),
 				mainnet_token_max_supply: 100_000_000 * ASSET_UNIT,
-				total_allocation_size: 100_000_001 * ASSET_UNIT,
+				total_allocation_size: 100_000 * ASSET_UNIT,
 				auction_round_allocation_percentage: Percent::from_percent(50u8),
-				minimum_price: PriceOf::<TestRuntime>::from_float(10.0),
+				minimum_price: 0_u128.into(),
 				bidding_ticket_sizes: BiddingTicketSizes {
 					professional: TicketSize::new(Some(5000 * US_DOLLAR), None),
 					institutional: TicketSize::new(Some(5000 * US_DOLLAR), None),
@@ -605,30 +600,44 @@ mod create_project_extrinsic {
 				funding_destination_account: ISSUER_1,
 				offchain_information_hash: Some(hashed(METADATA)),
 			};
+
+			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 			inst.mint_plmc_to(default_plmc_balances());
+			let project_err = inst.execute(|| {
+				Pallet::<TestRuntime>::do_create_project(&ISSUER_1, wrong_project, generate_did_from_account(ISSUER_1))
+					.unwrap_err()
+			});
+			assert_eq!(project_err, Error::<TestRuntime>::PriceTooLow.into());
+		}
+
+		#[test]
+		fn allocation_zero() {
+			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+			let mut project_metadata = default_project_metadata(inst.get_new_nonce(), ISSUER_1);
+			project_metadata.total_allocation_size = 0;
+
+			inst.mint_plmc_to(default_plmc_balances());
+			let jwt = get_mock_jwt(ISSUER_1, InvestorType::Institutional, generate_did_from_account(ISSUER_1));
 			inst.execute(|| {
 				assert_noop!(
-					Pallet::<TestRuntime>::do_create_project(
-						&ISSUER_1,
-						project_metadata,
-						generate_did_from_account(ISSUER_1),
-					),
+					Pallet::<TestRuntime>::create_project(RuntimeOrigin::signed(ISSUER_1), jwt, project_metadata),
 					Error::<TestRuntime>::AllocationSizeError
 				);
 			});
 		}
 
 		#[test]
-		fn not_enough_plmc_for_escrow_ed() {
+		fn auction_round_percentage_zero() {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
-			let project_metadata = default_project_metadata(0, ISSUER_1);
-			let ed = MockInstantiator::get_ed();
-			inst.mint_plmc_to(vec![UserToPLMCBalance::new(ISSUER_1, ed)]);
+			let mut project_metadata = default_project_metadata(inst.get_new_nonce(), ISSUER_1);
+			project_metadata.auction_round_allocation_percentage = Percent::from_percent(0);
+
+			inst.mint_plmc_to(default_plmc_balances());
 			let jwt = get_mock_jwt(ISSUER_1, InvestorType::Institutional, generate_did_from_account(ISSUER_1));
 			inst.execute(|| {
 				assert_noop!(
-					Pallet::<TestRuntime>::create_project(RuntimeOrigin::signed(ISSUER_1), jwt, project_metadata,),
-					Error::<TestRuntime>::NotEnoughFundsForEscrowCreation
+					Pallet::<TestRuntime>::create_project(RuntimeOrigin::signed(ISSUER_1), jwt, project_metadata),
+					Error::<TestRuntime>::AuctionRoundPercentageError
 				);
 			});
 		}
@@ -666,7 +675,7 @@ mod create_project_extrinsic {
 }
 
 #[cfg(test)]
-mod edit_metadata_extrinsic {
+mod edit_project_extrinsic {
 	use super::*;
 
 	#[cfg(test)]
@@ -809,7 +818,7 @@ mod edit_metadata_extrinsic {
 		}
 
 		#[test]
-		fn project_details_reflects_changes() {
+		fn storage_changes() {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 			let project_metadata = default_project_metadata(inst.get_new_nonce(), ISSUER_1);
 			inst.mint_plmc_to(default_plmc_balances());
@@ -824,28 +833,16 @@ mod edit_metadata_extrinsic {
 				project_id,
 				new_metadata.clone()
 			)));
+			// Project details reflect changes
 			assert_eq!(inst.get_project_details(project_id).fundraising_target, 100_000 * US_DOLLAR);
-		}
-
-		#[test]
-		fn bucket_reflects_changes() {
-			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
-			let project_metadata = default_project_metadata(inst.get_new_nonce(), ISSUER_1);
-			inst.mint_plmc_to(default_plmc_balances());
-			let jwt = get_mock_jwt(ISSUER_1, InvestorType::Institutional, generate_did_from_account(ISSUER_1));
-			let project_id = inst.create_new_project(project_metadata.clone(), ISSUER_1);
-			let mut new_metadata = project_metadata.clone();
-			new_metadata.total_allocation_size = 100_000 * ASSET_UNIT;
-			new_metadata.minimum_price = PriceOf::<TestRuntime>::from_float(1f64);
-			assert_ok!(inst.execute(|| crate::Pallet::<TestRuntime>::edit_project(
-				RuntimeOrigin::signed(ISSUER_1),
-				jwt.clone(),
-				project_id,
-				new_metadata.clone()
-			)));
+			// Bucket reflects changes
 			let new_bucket = Pallet::<TestRuntime>::create_bucket_from_metadata(&new_metadata).unwrap();
 			let stored_bucket = inst.execute(|| Buckets::<TestRuntime>::get(project_id).unwrap());
 			assert_eq!(stored_bucket, new_bucket);
+			// Event emitted
+			inst.execute(|| {
+				find_event!(TestRuntime, Event::<TestRuntime>::MetadataEdited{project_id, ref metadata}, project_id == 0, metadata == &new_metadata);
+			});
 		}
 	}
 
@@ -854,7 +851,7 @@ mod edit_metadata_extrinsic {
 		use super::*;
 
 		#[test]
-		fn editing_project_by_different_issuer() {
+		fn called_by_different_issuer() {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 			let ed = MockInstantiator::get_ed();
 			let issuer_1_mint: UserToPLMCBalance<TestRuntime> = (ISSUER_1, ed).into();
@@ -894,7 +891,7 @@ mod edit_metadata_extrinsic {
 		}
 
 		#[test]
-		fn cannot_edit_after_evaluation_started() {
+		fn evaluation_already_started() {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 			let project_metadata = default_project_metadata(inst.get_new_nonce(), ISSUER_1);
 			inst.mint_plmc_to(default_plmc_balances());
@@ -915,7 +912,7 @@ mod edit_metadata_extrinsic {
 		}
 
 		#[test]
-		fn retail_credential_fails() {
+		fn non_institutional_credential() {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 			let project_metadata = default_project_metadata(inst.get_new_nonce(), ISSUER_1);
 			inst.mint_plmc_to(default_plmc_balances());
@@ -929,6 +926,19 @@ mod edit_metadata_extrinsic {
 						RuntimeOrigin::signed(ISSUER_1),
 						jwt,
 						project_id,
+						project_metadata.clone()
+					),
+					Error::<TestRuntime>::NotAllowed
+				);
+			});
+
+			let jwt = get_mock_jwt(ISSUER_1, InvestorType::Professional, generate_did_from_account(ISSUER_1));
+			inst.execute(|| {
+				assert_noop!(
+					crate::Pallet::<TestRuntime>::edit_project(
+						RuntimeOrigin::signed(ISSUER_1),
+						jwt,
+						project_id,
 						project_metadata
 					),
 					Error::<TestRuntime>::NotAllowed
@@ -936,24 +946,104 @@ mod edit_metadata_extrinsic {
 			});
 		}
 
+		// Same tests for create_project extrinsic
 		#[test]
-		fn professional_credential_fails() {
+		fn mainnet_supply_less_than_allocation() {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
-			let project_metadata = default_project_metadata(inst.get_new_nonce(), ISSUER_1);
-			inst.mint_plmc_to(default_plmc_balances());
-			let jwt = get_mock_jwt(ISSUER_1, InvestorType::Professional, generate_did_from_account(ISSUER_1));
+			let mut project_metadata = default_project_metadata(inst.get_new_nonce(), ISSUER_1);
 
 			let project_id = inst.create_new_project(project_metadata.clone(), ISSUER_1);
-			// inst.execute(|| {
-			// 	assert_noop!(
-			// 		crate::Pallet::<TestRuntime>::edit_project(
-			// 			RuntimeOrigin::signed(ISSUER_1),
-			// 			jwt,
-			// 			project_metadata
-			// 		),
-			// 		Error::<TestRuntime>::NotAllowed
-			// 	);
-			// });
+
+			project_metadata.mainnet_token_max_supply = 100_000_000 * ASSET_UNIT;
+			project_metadata.total_allocation_size = 100_000_001 * ASSET_UNIT;
+			inst.execute(|| {
+				assert_noop!(
+					Pallet::<TestRuntime>::edit_project(
+						RuntimeOrigin::signed(ISSUER_1),
+						get_mock_jwt(ISSUER_1, InvestorType::Institutional, generate_did_from_account(ISSUER_1)),
+						project_id,
+						project_metadata,
+					),
+					Error::<TestRuntime>::AllocationSizeError
+				);
+			});
+		}
+
+		#[test]
+		fn invalid_ticket_sizes() {
+			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+			let mut project_metadata = default_project_metadata(0, ISSUER_1);
+			let project_id = inst.create_new_project(project_metadata.clone(), ISSUER_1);
+
+			// min in bidding below 5k
+			let mut wrong_project_1 = project_metadata.clone();
+			wrong_project_1.bidding_ticket_sizes.professional = TicketSize::new(Some(4999 * US_DOLLAR), None);
+
+			let mut wrong_project_2 = project_metadata.clone();
+			wrong_project_2.bidding_ticket_sizes.institutional = TicketSize::new(Some(4999 * US_DOLLAR), None);
+
+			let mut wrong_project_3 = project_metadata.clone();
+			wrong_project_3.bidding_ticket_sizes.professional = TicketSize::new(Some(3000 * US_DOLLAR), None);
+			wrong_project_3.bidding_ticket_sizes.institutional = TicketSize::new(Some(0 * US_DOLLAR), None);
+
+			let mut wrong_project_4 = project_metadata.clone();
+			wrong_project_4.bidding_ticket_sizes.professional = TicketSize::new(None, None);
+			wrong_project_4.bidding_ticket_sizes.institutional = TicketSize::new(None, None);
+
+			// min higher than max
+			let mut wrong_project_5 = project_metadata.clone();
+			wrong_project_5.bidding_ticket_sizes.professional =
+				TicketSize::new(Some(5000 * US_DOLLAR), Some(4990 * US_DOLLAR));
+
+			let mut wrong_project_6 = project_metadata.clone();
+			wrong_project_6.bidding_ticket_sizes.institutional =
+				TicketSize::new(Some(6000 * US_DOLLAR), Some(5500 * US_DOLLAR));
+
+			let wrong_projects = vec![
+				wrong_project_1.clone(),
+				wrong_project_2,
+				wrong_project_3.clone(),
+				wrong_project_4,
+				wrong_project_5,
+				wrong_project_6,
+			];
+
+			let jwt = get_mock_jwt(ISSUER_1, InvestorType::Institutional, generate_did_from_account(ISSUER_1));
+			for project in wrong_projects {
+				inst.execute(|| {
+					assert_noop!(
+						Pallet::<TestRuntime>::edit_project(
+							RuntimeOrigin::signed(ISSUER_1),
+							jwt.clone(),
+							project_id,
+							project,
+						),
+						Error::<TestRuntime>::TicketSizeError
+					);
+				});
+			}
+		}
+
+		#[test]
+		fn duplicated_participation_currencies() {
+			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+			let mut project_metadata = default_project_metadata(inst.get_new_nonce(), ISSUER_1);
+			let project_id = inst.create_new_project(project_metadata.clone(), ISSUER_1);
+
+			project_metadata.participation_currencies = vec![AcceptedFundingAsset::USDT, AcceptedFundingAsset::USDT]
+				.try_into()
+				.unwrap();
+			inst.execute(|| {
+				assert_noop!(
+					PolimecFunding::edit_project(
+						RuntimeOrigin::signed(ISSUER_1),
+						get_mock_jwt(ISSUER_1, InvestorType::Institutional, generate_did_from_account(ISSUER_1)),
+						project_id,
+						project_metadata,
+					),
+					Error::<TestRuntime>::ParticipationCurrenciesError
+				);
+			});
 		}
 
 		#[test]
@@ -1018,83 +1108,6 @@ mod edit_metadata_extrinsic {
 						project_metadata
 					),
 					Error::<TestRuntime>::AuctionRoundPercentageError
-				);
-			});
-		}
-
-		#[test]
-		fn invalid_ticket_sizes() {
-			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
-			let mut project_metadata = default_project_metadata(0, ISSUER_1);
-			let project_id = inst.create_new_project(project_metadata.clone(), ISSUER_1);
-
-			// min in bidding below 5k
-			let mut wrong_project_1 = project_metadata.clone();
-			wrong_project_1.bidding_ticket_sizes.professional = TicketSize::new(Some(4999 * US_DOLLAR), None);
-
-			let mut wrong_project_2 = project_metadata.clone();
-			wrong_project_2.bidding_ticket_sizes.institutional = TicketSize::new(Some(4999 * US_DOLLAR), None);
-
-			let mut wrong_project_3 = project_metadata.clone();
-			wrong_project_3.bidding_ticket_sizes.professional = TicketSize::new(Some(3000 * US_DOLLAR), None);
-			wrong_project_3.bidding_ticket_sizes.institutional = TicketSize::new(Some(0 * US_DOLLAR), None);
-
-			let mut wrong_project_4 = project_metadata.clone();
-			wrong_project_4.bidding_ticket_sizes.professional = TicketSize::new(None, None);
-			wrong_project_4.bidding_ticket_sizes.institutional = TicketSize::new(None, None);
-
-			// min higher than max
-			let mut wrong_project_5 = project_metadata.clone();
-			wrong_project_5.bidding_ticket_sizes.professional =
-				TicketSize::new(Some(5000 * US_DOLLAR), Some(4990 * US_DOLLAR));
-
-			let mut wrong_project_6 = project_metadata.clone();
-			wrong_project_6.bidding_ticket_sizes.institutional =
-				TicketSize::new(Some(6000 * US_DOLLAR), Some(5500 * US_DOLLAR));
-
-			let wrong_projects = vec![
-				wrong_project_1.clone(),
-				wrong_project_2,
-				wrong_project_3.clone(),
-				wrong_project_4,
-				wrong_project_5,
-				wrong_project_6,
-			];
-
-			let jwt = get_mock_jwt(ISSUER_1, InvestorType::Institutional, generate_did_from_account(ISSUER_1));
-			for project in wrong_projects {
-				inst.execute(|| {
-					assert_noop!(
-						Pallet::<TestRuntime>::edit_project(
-							RuntimeOrigin::signed(ISSUER_1),
-							jwt.clone(),
-							project_id,
-							project,
-						),
-						Error::<TestRuntime>::TicketSizeError
-					);
-				});
-			}
-		}
-
-		#[test]
-		fn mainnet_supply_less_than_allocation() {
-			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
-			let mut project_metadata = default_project_metadata(inst.get_new_nonce(), ISSUER_1);
-
-			let project_id = inst.create_new_project(project_metadata.clone(), ISSUER_1);
-
-			project_metadata.mainnet_token_max_supply = 100_000_000 * ASSET_UNIT;
-			project_metadata.total_allocation_size = 100_000_001 * ASSET_UNIT;
-			inst.execute(|| {
-				assert_noop!(
-					Pallet::<TestRuntime>::edit_project(
-						RuntimeOrigin::signed(ISSUER_1),
-						get_mock_jwt(ISSUER_1, InvestorType::Institutional, generate_did_from_account(ISSUER_1)),
-						project_id,
-						project_metadata,
-					),
-					Error::<TestRuntime>::AllocationSizeError
 				);
 			});
 		}
@@ -1196,6 +1209,55 @@ mod remove_project_extrinsic {
 				);
 			});
 		}
+
+		#[test]
+		fn can_create_after_remove() {
+			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+			let project_metadata = default_project_metadata(inst.get_new_nonce(), ISSUER_1);
+			let ed = MockInstantiator::get_ed();
+			let issuer_mint: UserToPLMCBalance<TestRuntime> = (ISSUER_1, ed * 2).into();
+			// Create a first project
+			let jwt = get_mock_jwt(ISSUER_1, InvestorType::Institutional, generate_did_from_account(ISSUER_1));
+			inst.mint_plmc_to(vec![issuer_mint.clone()]);
+			inst.execute(|| {
+				assert_ok!(Pallet::<TestRuntime>::create_project(
+					RuntimeOrigin::signed(ISSUER_1),
+					jwt.clone(),
+					project_metadata.clone()
+				));
+			});
+
+			// Same account same did
+			inst.mint_plmc_to(vec![issuer_mint.clone()]);
+			inst.execute(|| {
+				assert_noop!(
+					Pallet::<TestRuntime>::create_project(
+						RuntimeOrigin::signed(ISSUER_1),
+						jwt.clone(),
+						project_metadata.clone()
+					),
+					Error::<TestRuntime>::IssuerHasActiveProjectAlready
+				);
+			});
+
+			// Remove the first project
+			inst.execute(||{
+				assert_ok!(Pallet::<TestRuntime>::remove_project(
+					RuntimeOrigin::signed(ISSUER_1),
+					jwt.clone(),
+					0
+				));
+			});
+
+			// Create a second project
+			inst.execute(|| {
+				assert_ok!(Pallet::<TestRuntime>::create_project(
+					RuntimeOrigin::signed(ISSUER_1),
+					jwt.clone(),
+					project_metadata.clone()
+				));
+			});
+		}
 	}
 
 	#[cfg(test)]
@@ -1238,6 +1300,26 @@ mod remove_project_extrinsic {
 						project_id
 					),
 					Error::<TestRuntime>::NotAllowed
+				);
+			});
+		}
+
+		#[test]
+		fn evaluation_already_started() {
+			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+			let project_metadata = default_project_metadata(inst.get_new_nonce(), ISSUER_1);
+			inst.mint_plmc_to(default_plmc_balances());
+			let jwt = get_mock_jwt(ISSUER_1, InvestorType::Institutional, generate_did_from_account(ISSUER_1));
+			let project_id = inst.create_new_project(project_metadata.clone(), ISSUER_1);
+			inst.start_evaluation(project_id, ISSUER_1).unwrap();
+			inst.execute(|| {
+				assert_noop!(
+					crate::Pallet::<TestRuntime>::remove_project(
+						RuntimeOrigin::signed(ISSUER_1),
+						jwt.clone(),
+						project_id,
+					),
+					Error::<TestRuntime>::Frozen
 				);
 			});
 		}
