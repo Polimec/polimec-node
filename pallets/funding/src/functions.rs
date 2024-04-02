@@ -2431,12 +2431,15 @@ impl<T: Config> Pallet<T> {
 
 	/// Check if the user has no participations (left) in the project.
 	pub fn user_has_no_participations(project_id: ProjectId, user: AccountIdOf<T>) -> bool {
-		Evaluations::<T>::iter_prefix_values((project_id, user.clone())).next().is_none()
-   		&& Bids::<T>::iter_prefix_values((project_id, user.clone())).next().is_none()
-    	&& Contributions::<T>::iter_prefix_values((project_id, user)).next().is_none()
+		Evaluations::<T>::iter_prefix_values((project_id, user.clone())).next().is_none() &&
+			Bids::<T>::iter_prefix_values((project_id, user.clone())).next().is_none() &&
+			Contributions::<T>::iter_prefix_values((project_id, user)).next().is_none()
 	}
 
-	pub fn construct_migration_xcm_message(migrations: BoundedVec<Migration, MaxParticipationsPerUser<T>>, query_id: QueryId) -> Xcm<()> {
+	pub fn construct_migration_xcm_message(
+		migrations: BoundedVec<Migration, MaxParticipationsPerUser<T>>,
+		query_id: QueryId,
+	) -> Xcm<()> {
 		// TODO: adjust this as benchmarks for polimec-receiver are written
 		const MAX_WEIGHT: Weight = Weight::from_parts(10_000, 0);
 		const MAX_RESPONSE_WEIGHT: Weight = Weight::from_parts(700_000_000, 10_000);

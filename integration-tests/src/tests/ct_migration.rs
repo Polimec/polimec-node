@@ -150,13 +150,19 @@ fn create_settled_project() -> (ProjectId, Vec<AccountId>) {
 			default_remainder_contributions(),
 		);
 		inst.advance_time(<PolitestRuntime as pallet_funding::Config>::SuccessToSettlementTime::get()).unwrap();
-		let mut participants: Vec<AccountId> = pallet_funding::Evaluations::<PolitestRuntime>::iter_prefix_values((project_id,)).map(|eval| eval.evaluator)
-			.chain(pallet_funding::Bids::<PolitestRuntime>::iter_prefix_values((project_id,)).map(|bid| bid.bidder))
-			.chain(pallet_funding::Contributions::<PolitestRuntime>::iter_prefix_values((project_id,)).map(|contribution| contribution.contributor)).collect();
+		let mut participants: Vec<AccountId> =
+			pallet_funding::Evaluations::<PolitestRuntime>::iter_prefix_values((project_id,))
+				.map(|eval| eval.evaluator)
+				.chain(pallet_funding::Bids::<PolitestRuntime>::iter_prefix_values((project_id,)).map(|bid| bid.bidder))
+				.chain(
+					pallet_funding::Contributions::<PolitestRuntime>::iter_prefix_values((project_id,))
+						.map(|contribution| contribution.contributor),
+				)
+				.collect();
 		participants.sort();
 		participants.dedup();
 
-		inst.settle_project(project_id).unwrap(); 
+		inst.settle_project(project_id).unwrap();
 		(project_id, participants)
 	})
 }

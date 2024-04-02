@@ -1450,14 +1450,7 @@ impl<
 				let account = bid.bidder.clone();
 				assert_eq!(Bids::<T>::iter_prefix_values((&project_id, &account)).count(), 0);
 				let amount: BalanceOf<T> = if is_successful { bid.final_ct_amount } else { 0u64.into() };
-				Self::assert_migration(
-					project_id,
-					account,
-					amount,
-					bid.id,
-					ParticipationType::Bid,
-					is_successful,
-				);
+				Self::assert_migration(project_id, account, amount, bid.id, ParticipationType::Bid, is_successful);
 			}
 		});
 	}
@@ -1480,7 +1473,7 @@ impl<
 					amount,
 					contribution.id,
 					ParticipationType::Contribution,
-					is_successful
+					is_successful,
 				);
 			}
 		});

@@ -188,7 +188,9 @@ pub mod pallet {
 	use super::*;
 	use crate::traits::{BondingRequirementCalculation, ProvideAssetPrice, VestingDurationCalculation};
 	use frame_support::{
-		dispatch::{GetDispatchInfo, PostDispatchInfo}, pallet_prelude::*, traits::{OnFinalize, OnIdle, OnInitialize}
+		dispatch::{GetDispatchInfo, PostDispatchInfo},
+		pallet_prelude::*,
+		traits::{OnFinalize, OnIdle, OnInitialize},
 	};
 	use frame_system::pallet_prelude::*;
 	use sp_arithmetic::Percent;

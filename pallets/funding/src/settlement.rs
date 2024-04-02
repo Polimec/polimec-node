@@ -279,7 +279,11 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
-	fn mint_contribution_tokens(project_id: ProjectId, participant: &AccountIdOf<T>, amount: BalanceOf<T>) -> DispatchResult {
+	fn mint_contribution_tokens(
+		project_id: ProjectId,
+		participant: &AccountIdOf<T>,
+		amount: BalanceOf<T>,
+	) -> DispatchResult {
 		if !T::ContributionTokenCurrency::contains(&project_id, participant) {
 			T::ContributionTokenCurrency::touch(project_id, participant, participant)?;
 		}
@@ -304,7 +308,11 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
-	fn release_participation_bond(project_id: ProjectId, participant: &AccountIdOf<T>, amount: BalanceOf<T>) -> DispatchResult {
+	fn release_participation_bond(
+		project_id: ProjectId,
+		participant: &AccountIdOf<T>,
+		amount: BalanceOf<T>,
+	) -> DispatchResult {
 		// Release the held PLMC bond
 		T::NativeCurrency::release(
 			&HoldReason::Participation(project_id).into(),
