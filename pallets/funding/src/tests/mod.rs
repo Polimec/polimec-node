@@ -10,7 +10,7 @@ use defaults::*;
 use frame_support::{
 	assert_err, assert_noop, assert_ok,
 	traits::{
-		fungible::{Inspect as FungibleInspect, InspectHold as FungibleInspectHold, Mutate},
+		fungible::{Inspect as FungibleInspect, InspectHold as FungibleInspectHold, Mutate, MutateHold},
 		Get,
 	},
 };

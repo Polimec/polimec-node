@@ -878,8 +878,6 @@ pub mod pallet {
 		ParticipationCurrenciesError,
 		/// The specified project does not exist
 		ProjectNotFound,
-		/// The Evaluation Round of the project has not started yet
-		EvaluationNotStarted,
 		/// The Evaluation Round of the project has ended without reaching the minimum threshold
 		EvaluationFailed,
 		/// The issuer cannot participate to their own project

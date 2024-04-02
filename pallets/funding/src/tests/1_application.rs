@@ -552,7 +552,7 @@ mod create_project_extrinsic {
 						with_different_metadata(project),
 						generate_did_from_account(ISSUER_1),
 					)
-						.unwrap_err()
+					.unwrap_err()
 				});
 				assert_eq!(project_err, Error::<TestRuntime>::TicketSizeError.into());
 			}
@@ -562,9 +562,8 @@ mod create_project_extrinsic {
 		fn duplicated_participation_currencies() {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 			let mut project_metadata = default_project_metadata(inst.get_new_nonce(), ISSUER_1);
-			project_metadata.participation_currencies = vec![AcceptedFundingAsset::USDT, AcceptedFundingAsset::USDT]
-				.try_into()
-				.unwrap();
+			project_metadata.participation_currencies =
+				vec![AcceptedFundingAsset::USDT, AcceptedFundingAsset::USDT].try_into().unwrap();
 			inst.execute(|| {
 				assert_noop!(
 					PolimecFunding::create_project(
@@ -1030,9 +1029,8 @@ mod edit_project_extrinsic {
 			let mut project_metadata = default_project_metadata(inst.get_new_nonce(), ISSUER_1);
 			let project_id = inst.create_new_project(project_metadata.clone(), ISSUER_1);
 
-			project_metadata.participation_currencies = vec![AcceptedFundingAsset::USDT, AcceptedFundingAsset::USDT]
-				.try_into()
-				.unwrap();
+			project_metadata.participation_currencies =
+				vec![AcceptedFundingAsset::USDT, AcceptedFundingAsset::USDT].try_into().unwrap();
 			inst.execute(|| {
 				assert_noop!(
 					PolimecFunding::edit_project(
@@ -1241,12 +1239,8 @@ mod remove_project_extrinsic {
 			});
 
 			// Remove the first project
-			inst.execute(||{
-				assert_ok!(Pallet::<TestRuntime>::remove_project(
-					RuntimeOrigin::signed(ISSUER_1),
-					jwt.clone(),
-					0
-				));
+			inst.execute(|| {
+				assert_ok!(Pallet::<TestRuntime>::remove_project(RuntimeOrigin::signed(ISSUER_1), jwt.clone(), 0));
 			});
 
 			// Create a second project

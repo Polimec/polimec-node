@@ -976,7 +976,7 @@ impl<T: Config> Pallet<T> {
 
 		// * Validity Checks *
 		ensure!(project_details.issuer_did != did, Error::<T>::ParticipationToThemselves);
-		ensure!(project_details.status == ProjectStatus::EvaluationRound, Error::<T>::EvaluationNotStarted);
+		ensure!(project_details.status == ProjectStatus::EvaluationRound, Error::<T>::ProjectNotInEvaluationRound);
 		ensure!(evaluations_count < T::MaxEvaluationsPerProject::get(), Error::<T>::TooManyEvaluationsForProject);
 
 		// * Calculate new variables *

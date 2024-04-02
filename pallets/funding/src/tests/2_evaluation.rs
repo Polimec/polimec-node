@@ -151,27 +151,10 @@ mod start_evaluation_extrinsic {
 			assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::EvaluationRound);
 		}
 	}
+
 	#[cfg(test)]
 	mod failure {
 		use super::*;
-
-		#[test]
-		fn no_offchain_hash_provided() {
-			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
-			let issuer = ISSUER_1;
-			let mut project_metadata = default_project_metadata(inst.get_new_nonce(), issuer);
-			project_metadata.offchain_information_hash = None;
-
-			let project_id = inst.create_new_project(project_metadata, issuer);
-			let jwt = get_mock_jwt(issuer, InvestorType::Institutional, generate_did_from_account(issuer));
-			assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::Application);
-			inst.execute(|| {
-				assert_noop!(
-					PolimecFunding::start_evaluation(RuntimeOrigin::signed(issuer), jwt, project_id),
-					Error::<TestRuntime>::MetadataNotProvided
-				);
-			});
-		}
 
 		#[test]
 		fn non_institutional_jwt() {
@@ -223,12 +206,26 @@ mod start_evaluation_extrinsic {
 
 			inst.execute(|| {
 				assert_noop!(
-					PolimecFunding::start_evaluation(
-						RuntimeOrigin::signed(issuer),
-						jwt,
-						project_id
-					),
+					PolimecFunding::start_evaluation(RuntimeOrigin::signed(issuer), jwt, project_id),
 					Error::<TestRuntime>::ProjectNotInApplicationRound
+				);
+			});
+		}
+
+		#[test]
+		fn no_offchain_hash_provided() {
+			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+			let issuer = ISSUER_1;
+			let mut project_metadata = default_project_metadata(inst.get_new_nonce(), issuer);
+			project_metadata.offchain_information_hash = None;
+
+			let project_id = inst.create_new_project(project_metadata, issuer);
+			let jwt = get_mock_jwt(issuer, InvestorType::Institutional, generate_did_from_account(issuer));
+			assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::Application);
+			inst.execute(|| {
+				assert_noop!(
+					PolimecFunding::start_evaluation(RuntimeOrigin::signed(issuer), jwt, project_id),
+					Error::<TestRuntime>::MetadataNotProvided
 				);
 			});
 		}
@@ -252,8 +249,8 @@ mod start_evaluation_extrinsic {
 			inst.execute(|| {
 				assert_noop!(
 					PolimecFunding::start_evaluation(
-						RuntimeOrigin::signed(issuer+1),
-						get_mock_jwt(issuer+1, InvestorType::Institutional, generate_did_from_account(issuer+1)),
+						RuntimeOrigin::signed(issuer + 1),
+						get_mock_jwt(issuer + 1, InvestorType::Institutional, generate_did_from_account(issuer + 1)),
 						project_id
 					),
 					Error::<TestRuntime>::NotAllowed
@@ -270,6 +267,86 @@ mod evaluate_extrinsic {
 	#[cfg(test)]
 	mod success {
 		use super::*;
+
+		#[test]
+		fn all_investor_types() {
+			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+			let issuer = ISSUER_1;
+			let project_metadata = default_project_metadata(inst.get_new_nonce(), issuer);
+			let project_id = inst.create_evaluating_project(project_metadata.clone(), issuer);
+
+			let evaluations = vec![
+				(EVALUATOR_1, 500 * US_DOLLAR).into(),
+				(EVALUATOR_2, 1000 * US_DOLLAR).into(),
+				(EVALUATOR_3, 20_000 * US_DOLLAR).into(),
+			];
+			let necessary_plmc = MockInstantiator::calculate_evaluation_plmc_spent(evaluations.clone());
+			let plmc_existential_deposits = necessary_plmc.accounts().existential_deposits();
+
+			inst.mint_plmc_to(necessary_plmc);
+			inst.mint_plmc_to(plmc_existential_deposits);
+
+			assert_ok!(inst.execute(|| PolimecFunding::evaluate(
+				RuntimeOrigin::signed(evaluations[0].account),
+				get_mock_jwt(
+					evaluations[0].account,
+					InvestorType::Institutional,
+					generate_did_from_account(evaluations[0].account)
+				),
+				project_id,
+				evaluations[0].usd_amount,
+			)));
+
+			assert_ok!(inst.execute(|| PolimecFunding::evaluate(
+				RuntimeOrigin::signed(evaluations[1].account),
+				get_mock_jwt(
+					evaluations[1].account,
+					InvestorType::Professional,
+					generate_did_from_account(evaluations[1].account)
+				),
+				project_id,
+				evaluations[1].usd_amount,
+			)));
+
+			assert_ok!(inst.execute(|| PolimecFunding::evaluate(
+				RuntimeOrigin::signed(evaluations[2].account),
+				get_mock_jwt(
+					evaluations[2].account,
+					InvestorType::Retail,
+					generate_did_from_account(evaluations[2].account)
+				),
+				project_id,
+				evaluations[2].usd_amount,
+			)));
+		}
+
+		#[test]
+		fn using_frozen_tokens() {
+			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+			let issuer = ISSUER_1;
+			let project_metadata = default_project_metadata(inst.get_new_nonce(), issuer);
+			let project_id = inst.create_evaluating_project(project_metadata.clone(), issuer);
+
+			let evaluation = UserToUSDBalance::new(EVALUATOR_1, 500 * US_DOLLAR);
+			let necessary_plmc = MockInstantiator::calculate_evaluation_plmc_spent(vec![evaluation.clone()]);
+			let plmc_existential_deposits = necessary_plmc.accounts().existential_deposits();
+
+			inst.mint_plmc_to(necessary_plmc.clone());
+			inst.mint_plmc_to(plmc_existential_deposits);
+
+			inst.execute(|| {
+				frame_system::Account::<TestRuntime>::mutate(EVALUATOR_1, |account| {
+					account.data.frozen = necessary_plmc[0].plmc_amount;
+				});
+			});
+
+			assert_ok!(inst.execute(|| PolimecFunding::evaluate(
+				RuntimeOrigin::signed(evaluation.account),
+				get_mock_jwt(evaluation.account, InvestorType::Retail, generate_did_from_account(evaluation.account)),
+				project_id,
+				evaluation.usd_amount,
+			)));
+		}
 	}
 
 	#[cfg(test)]
@@ -277,7 +354,27 @@ mod evaluate_extrinsic {
 		use super::*;
 
 		#[test]
-		fn evaluation_fails_on_insufficient_balance() {
+		fn project_is_not_in_evaluation_round() {
+			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+			let issuer = ISSUER_1;
+			let project_metadata = default_project_metadata(inst.get_new_nonce(), issuer);
+			let project_id = inst.create_auctioning_project(project_metadata.clone(), issuer, default_evaluations());
+
+			inst.execute(|| {
+				assert_noop!(
+					PolimecFunding::evaluate(
+						RuntimeOrigin::signed(EVALUATOR_1),
+						get_mock_jwt(EVALUATOR_1, InvestorType::Retail, generate_did_from_account(EVALUATOR_1)),
+						project_id,
+						500 * US_DOLLAR,
+					),
+					Error::<TestRuntime>::ProjectNotInEvaluationRound
+				);
+			});
+		}
+
+		#[test]
+		fn insufficient_plmc_for_desired_evaluation() {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 			let issuer = ISSUER_1;
 			let project_metadata = default_project_metadata(inst.get_new_nonce(), issuer);
@@ -291,6 +388,27 @@ mod evaluate_extrinsic {
 
 			inst.mint_plmc_to(insufficient_eval_deposits);
 			inst.mint_plmc_to(plmc_existential_deposits);
+
+			let project_id = inst.create_evaluating_project(project_metadata, issuer);
+
+			let dispatch_error = inst.evaluate_for_users(project_id, evaluations);
+			assert_err!(dispatch_error, TokenError::FundsUnavailable)
+		}
+
+		#[test]
+		fn evaluation_placing_user_balance_under_ed() {
+			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+			let issuer = ISSUER_1;
+			let project_metadata = default_project_metadata(inst.get_new_nonce(), issuer);
+			let evaluations = vec![UserToUSDBalance::new(EVALUATOR_1, 1000 * US_DOLLAR)];
+			let evaluating_plmc = MockInstantiator::calculate_evaluation_plmc_spent(evaluations.clone());
+			let mut plmc_insufficient_existential_deposit = evaluating_plmc.accounts().existential_deposits();
+
+			plmc_insufficient_existential_deposit[0].plmc_amount =
+				plmc_insufficient_existential_deposit[0].plmc_amount / 2;
+
+			inst.mint_plmc_to(evaluating_plmc);
+			inst.mint_plmc_to(plmc_insufficient_existential_deposit);
 
 			let project_id = inst.create_evaluating_project(project_metadata, issuer);
 
@@ -331,6 +449,46 @@ mod evaluate_extrinsic {
 		}
 
 		#[test]
+		fn cannot_use_balance_on_hold() {
+			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+			let issuer = ISSUER_1;
+			let project_metadata = default_project_metadata(inst.get_new_nonce(), issuer);
+			let project_id = inst.create_evaluating_project(project_metadata.clone(), issuer);
+
+			let evaluation = UserToUSDBalance::new(EVALUATOR_1, 500 * US_DOLLAR);
+			let necessary_plmc = MockInstantiator::calculate_evaluation_plmc_spent(vec![evaluation.clone()]);
+			let plmc_existential_deposits = necessary_plmc.accounts().existential_deposits();
+
+			inst.mint_plmc_to(necessary_plmc.clone());
+			inst.mint_plmc_to(plmc_existential_deposits);
+
+			inst.execute(|| {
+				<TestRuntime as Config>::NativeCurrency::hold(
+					&RuntimeHoldReason::PolimecFunding(HoldReason::Evaluation(69)),
+					&EVALUATOR_1,
+					necessary_plmc[0].plmc_amount,
+				)
+				.unwrap();
+			});
+
+			inst.execute(|| {
+				assert_noop!(
+					PolimecFunding::evaluate(
+						RuntimeOrigin::signed(evaluation.account),
+						get_mock_jwt(
+							evaluation.account,
+							InvestorType::Retail,
+							generate_did_from_account(evaluation.account)
+						),
+						project_id,
+						evaluation.usd_amount,
+					),
+					TokenError::FundsUnavailable
+				);
+			});
+		}
+
+		#[test]
 		fn issuer_cannot_evaluate_his_project() {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 			let project_metadata = default_project_metadata(0, ISSUER_1);
@@ -345,6 +503,42 @@ mod evaluate_extrinsic {
 				)),
 				Error::<TestRuntime>::ParticipationToThemselves
 			);
+		}
+
+		#[test]
+		fn cannot_use_same_plmc_for_2_evaluations() {
+			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+			let issuer = ISSUER_1;
+			let project_metadata = default_project_metadata(inst.get_new_nonce(), issuer);
+			let project_id = inst.create_evaluating_project(project_metadata.clone(), issuer);
+
+			let evaluation = UserToUSDBalance::new(EVALUATOR_1, 500 * US_DOLLAR);
+			let necessary_plmc = MockInstantiator::calculate_evaluation_plmc_spent(vec![evaluation.clone()]);
+			let plmc_existential_deposits = necessary_plmc.accounts().existential_deposits();
+
+			inst.mint_plmc_to(necessary_plmc.clone());
+			inst.mint_plmc_to(plmc_existential_deposits);
+
+			inst.execute(|| {
+				assert_ok!(PolimecFunding::evaluate(
+					RuntimeOrigin::signed(evaluation.account),
+					get_mock_jwt(evaluation.account, InvestorType::Retail, generate_did_from_account(evaluation.account)),
+					project_id,
+					evaluation.usd_amount,
+				));
+			});
+
+			inst.execute(|| {
+				assert_noop!(
+					PolimecFunding::evaluate(
+						RuntimeOrigin::signed(evaluation.account),
+						get_mock_jwt(evaluation.account, InvestorType::Retail, generate_did_from_account(evaluation.account)),
+						project_id,
+						evaluation.usd_amount,
+					),
+					TokenError::FundsUnavailable
+				);
+			});
 		}
 	}
 }
