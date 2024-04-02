@@ -34,6 +34,7 @@ pallet-balances = { workspace = true, features = ["std"] }
 sp-consensus-aura = { workspace = true, features = ["std"] }
 sp-keystore = { workspace = true, features = ["std"] }
 parking_lot = "0.12.1"
+polimec-common-test-utils.workspace = true
 
 [features]
 default = [ "std" ]
@@ -54,6 +55,7 @@ std = [
 	"sp-runtime/std",
 	"sp-std/std",
 	"substrate-fixed/std",
+	"polimec-common-test-utils/std",
 ]
 
 try-runtime = [

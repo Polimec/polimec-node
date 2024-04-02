@@ -361,7 +361,7 @@ pub struct DummyConverter;
 impl sp_runtime::traits::Convert<AccountId, [u8; 32]> for DummyConverter {
 	fn convert(a: AccountId) -> [u8; 32] {
 		let mut account: [u8; 32] = [0u8; 32];
-		account[0..7].copy_from_slice(a.to_le_bytes().as_slice());
+		account[0..4].copy_from_slice(a.to_le_bytes().as_slice());
 		account
 	}
 }
@@ -376,7 +376,7 @@ thread_local! {
 		(0u32, FixedU128::from_float(69f64)), // DOT
 		(1337u32, FixedU128::from_float(0.97f64)), // USDC
 		(1984u32, FixedU128::from_float(1.0f64)), // USDT
-		(2069u32, FixedU128::from_float(8.4f64)), // PLMC
+		(3344u32, FixedU128::from_float(8.4f64)), // PLMC
 	]));
 }
 pub struct ConstPriceProvider;

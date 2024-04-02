@@ -398,7 +398,7 @@ fn ct_minted() {
 	let mut inst = IntegrationInstantiator::new(None);
 
 	PolitestNet::execute_with(|| {
-		let _ = inst.create_finished_project(
+		let project_id = inst.create_finished_project(
 			excel_project(0),
 			ISSUER.into(),
 			excel_evaluators(),
@@ -408,7 +408,7 @@ fn ct_minted() {
 		);
 		inst.advance_time(<PolitestRuntime as Config>::SuccessToSettlementTime::get()).unwrap();
 
-		inst.advance_time(10).unwrap();
+		inst.settle_project(project_id).unwrap();
 
 		for (contributor, expected_amount, project_id) in excel_ct_amounts() {
 			let minted = inst
@@ -433,7 +433,7 @@ fn ct_migrated() {
 		);
 		inst.advance_time(<PolitestRuntime as Config>::SuccessToSettlementTime::get()).unwrap();
 
-		inst.advance_time(10).unwrap();
+		inst.settle_project(project_id).unwrap();
 
 		for (contributor, expected_amount, project_id) in excel_ct_amounts() {
 			let minted = inst

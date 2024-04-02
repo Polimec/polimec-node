@@ -34,7 +34,7 @@ use frame_support::{
 use frame_system::pallet_prelude::BlockNumberFor;
 use itertools::Itertools;
 use parity_scale_codec::Decode;
-use polimec_common::credentials::InvestorType;
+use polimec_common::{credentials::InvestorType, migration_types::MigrationOrigin};
 #[cfg(any(test, feature = "std", feature = "runtime-benchmarks"))]
 use polimec_common_test_utils::generate_did_from_account;
 use sp_arithmetic::{
@@ -42,7 +42,7 @@ use sp_arithmetic::{
 	FixedPointNumber, Percent, Perquintill,
 };
 use sp_runtime::{
-	traits::{Member, One},
+	traits::{Convert, Member, One},
 	DispatchError,
 };
 use sp_std::{
@@ -365,7 +365,6 @@ impl<
 				.unwrap(),
 			remaining_contribution_tokens: expected_metadata.total_allocation_size,
 			funding_amount_reached: BalanceOf::<T>::zero(),
-			cleanup: Cleaner::NotReady,
 			evaluation_round_info: EvaluationRoundInfoOf::<T> {
 				total_bonded_usd: Zero::zero(),
 				total_bonded_plmc: Zero::zero(),
@@ -1341,6 +1340,173 @@ impl<
 			"Project should be in Finished status"
 		);
 		Ok(())
+	}
+
+	pub fn settle_project(&mut self, project_id: ProjectId) -> Result<(), DispatchError> {
+		let details = self.get_project_details(project_id);
+		self.execute(|| match details.status {
+			ProjectStatus::FundingSuccessful => Self::settle_successful_project(project_id),
+			ProjectStatus::FundingFailed | ProjectStatus::EvaluationFailed => Self::settle_failed_project(project_id),
+			_ => panic!("Project should be in FundingSuccessful, FundingFailed or EvaluationFailed status"),
+		})
+	}
+
+	fn settle_successful_project(project_id: ProjectId) -> Result<(), DispatchError> {
+		Evaluations::<T>::iter_prefix((project_id,))
+			.try_for_each(|(_, evaluation)| Pallet::<T>::do_settle_successful_evaluation(evaluation, project_id))?;
+
+		Bids::<T>::iter_prefix((project_id,))
+			.try_for_each(|(_, bid)| Pallet::<T>::do_settle_successful_bid(bid, project_id))?;
+
+		Contributions::<T>::iter_prefix((project_id,))
+			.try_for_each(|(_, contribution)| Pallet::<T>::do_settle_successful_contribution(contribution, project_id))
+	}
+
+	fn settle_failed_project(project_id: ProjectId) -> Result<(), DispatchError> {
+		Evaluations::<T>::iter_prefix((project_id,))
+			.try_for_each(|(_, evaluation)| Pallet::<T>::do_settle_failed_evaluation(evaluation, project_id))?;
+
+		Bids::<T>::iter_prefix((project_id,))
+			.try_for_each(|(_, bid)| Pallet::<T>::do_settle_failed_bid(bid, project_id))?;
+
+		Contributions::<T>::iter_prefix((project_id,))
+			.try_for_each(|(_, contribution)| Pallet::<T>::do_settle_failed_contribution(contribution, project_id))?;
+
+		Ok(())
+	}
+
+	pub fn get_evaluations(&mut self, project_id: ProjectId) -> Vec<EvaluationInfoOf<T>> {
+		self.execute(|| Evaluations::<T>::iter_prefix_values((project_id,)).collect())
+	}
+
+	pub fn get_bids(&mut self, project_id: ProjectId) -> Vec<BidInfoOf<T>> {
+		self.execute(|| Bids::<T>::iter_prefix_values((project_id,)).collect())
+	}
+
+	pub fn get_contributions(&mut self, project_id: ProjectId) -> Vec<ContributionInfoOf<T>> {
+		self.execute(|| Contributions::<T>::iter_prefix_values((project_id,)).collect())
+	}
+
+	// Used to check if all evaluations are settled correctly. We cannot check amount of
+	// contributions minted for the user, as they could have received more tokens from other participations.
+	pub fn assert_evaluations_migrations_created(
+		&mut self,
+		project_id: ProjectId,
+		evaluations: Vec<EvaluationInfoOf<T>>,
+		percentage: u64,
+	) {
+		let details = self.get_project_details(project_id);
+		assert!(matches!(
+			details.status,
+			ProjectStatus::FundingSuccessful | ProjectStatus::FundingFailed | ProjectStatus::EvaluationFailed
+		));
+
+		self.execute(|| {
+			for evaluation in evaluations {
+				let reward_info =
+					ProjectsDetails::<T>::get(project_id).unwrap().evaluation_round_info.evaluators_outcome;
+				let account = evaluation.evaluator.clone();
+				assert_eq!(Evaluations::<T>::iter_prefix_values((&project_id, &account)).count(), 0);
+
+				let (amount, should_exist) = match percentage {
+					0..=75 => {
+						assert!(matches!(reward_info, EvaluatorsOutcome::Slashed));
+						(0u64.into(), false)
+					},
+					76..=89 => {
+						assert!(matches!(reward_info, EvaluatorsOutcome::Unchanged));
+						(0u64.into(), false)
+					},
+					90..=100 => {
+						let reward = match reward_info {
+							EvaluatorsOutcome::Rewarded(info) =>
+								Pallet::<T>::calculate_evaluator_reward(&evaluation, &info),
+							_ => panic!("Evaluators should be rewarded"),
+						};
+						(reward, true)
+					},
+					_ => panic!("Percentage should be between 0 and 100"),
+				};
+				Self::assert_migration(
+					project_id,
+					account,
+					amount,
+					evaluation.id,
+					ParticipationType::Evaluation,
+					should_exist,
+				);
+			}
+		});
+	}
+
+	// Testing if a list of bids are settled correctly.
+	pub fn assert_bids_migrations_created(
+		&mut self,
+		project_id: ProjectId,
+		bids: Vec<BidInfoOf<T>>,
+		is_successful: bool,
+	) {
+		self.execute(|| {
+			for bid in bids {
+				let account = bid.bidder.clone();
+				assert_eq!(Bids::<T>::iter_prefix_values((&project_id, &account)).count(), 0);
+				let amount: BalanceOf<T> = if is_successful { bid.final_ct_amount } else { 0u64.into() };
+				Self::assert_migration(project_id, account, amount, bid.id, ParticipationType::Bid, is_successful);
+			}
+		});
+	}
+
+	// Testing if a list of contributions are settled correctly.
+	pub fn assert_contributions_migrations_created(
+		&mut self,
+		project_id: ProjectId,
+		contributions: Vec<ContributionInfoOf<T>>,
+		is_successful: bool,
+	) {
+		self.execute(|| {
+			for contribution in contributions {
+				let account = contribution.contributor.clone();
+				assert_eq!(Bids::<T>::iter_prefix_values((&project_id, &account)).count(), 0);
+				let amount: BalanceOf<T> = if is_successful { contribution.ct_amount } else { 0u64.into() };
+				Self::assert_migration(
+					project_id,
+					account,
+					amount,
+					contribution.id,
+					ParticipationType::Contribution,
+					is_successful,
+				);
+			}
+		});
+	}
+
+	fn assert_migration(
+		project_id: ProjectId,
+		account: AccountIdOf<T>,
+		amount: BalanceOf<T>,
+		id: u32,
+		participation_type: ParticipationType,
+		should_exist: bool,
+	) {
+		let correct = match (should_exist, UserMigrations::<T>::get(project_id, account.clone())) {
+			// User has migrations, so we need to check if any matches our criteria
+			(_, Some((_, migrations))) => {
+				let maybe_migration = migrations.into_iter().find(|migration| {
+					let user = T::AccountId32Conversion::convert(account.clone());
+					matches!(migration.origin, MigrationOrigin { user: m_user, id: m_id, participation_type: m_participation_type } if m_user == user && m_id == id && m_participation_type == participation_type)
+				});
+				match maybe_migration {
+					// Migration exists so we check if the amount is correct and if it should exist
+					Some(migration) => migration.info.contribution_token_amount == amount.into() && should_exist,
+					// Migration doesn't exist so we check if it should not exist
+					None => !should_exist,
+				}
+			},
+			// User does not have any migrations, so the migration should not exist
+			(false, None) => true,
+			(true, None) => false,
+		};
+		assert!(correct);
 	}
 
 	pub fn create_remainder_contributing_project(
@@ -2899,10 +3065,7 @@ pub struct BidInfoFilter<T: Config> {
 	pub funding_asset_amount_locked: Option<BalanceOf<T>>,
 	pub multiplier: Option<MultiplierOf<T>>,
 	pub plmc_bond: Option<BalanceOf<T>>,
-	pub plmc_vesting_info: Option<Option<VestingInfoOf<T>>>,
 	pub when: Option<BlockNumberFor<T>>,
-	pub funds_released: Option<bool>,
-	pub ct_minted: Option<bool>,
 }
 impl<T: Config> BidInfoFilter<T> {
 	pub(crate) fn matches_bid(&self, bid: &BidInfoOf<T>) -> bool {
@@ -2944,16 +3107,7 @@ impl<T: Config> BidInfoFilter<T> {
 		if self.plmc_bond.is_some() && self.plmc_bond.unwrap() != bid.plmc_bond {
 			return false;
 		}
-		if self.plmc_vesting_info.is_some() && self.plmc_vesting_info.unwrap() != bid.plmc_vesting_info {
-			return false;
-		}
 		if self.when.is_some() && self.when.unwrap() != bid.when {
-			return false;
-		}
-		if self.funds_released.is_some() && self.funds_released.unwrap() != bid.funds_released {
-			return false;
-		}
-		if self.ct_minted.is_some() && self.ct_minted.unwrap() != bid.ct_minted {
 			return false;
 		}
 
@@ -2975,10 +3129,7 @@ impl<T: Config> Default for BidInfoFilter<T> {
 			funding_asset_amount_locked: None,
 			multiplier: None,
 			plmc_bond: None,
-			plmc_vesting_info: None,
 			when: None,
-			funds_released: None,
-			ct_minted: None,
 		}
 	}
 }
