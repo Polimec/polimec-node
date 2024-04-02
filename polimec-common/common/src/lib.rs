@@ -17,7 +17,6 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 use frame_support::{pallet_prelude::*, traits::tokens::fungible};
-use itertools::Itertools;
 use sp_runtime::RuntimeDebug;
 use sp_std::prelude::*;
 pub mod credentials;
@@ -142,11 +141,20 @@ pub mod migration_types {
 		}
 	}
 
+	#[derive(Clone, Encode, Decode, Eq, PartialEq, Ord, PartialOrd, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+	pub enum MigrationStatus {
+		NotStarted,
+		Sent(xcm::v3::QueryId),
+		Confirmed,
+		Failed,
+	}
+
 	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
 	pub struct Migration {
 		pub origin: MigrationOrigin,
 		pub info: MigrationInfo,
 	}
+
 	impl Migration {
 		pub fn new(origin: MigrationOrigin, info: MigrationInfo) -> Self {
 			Self { origin, info }
@@ -178,29 +186,20 @@ pub mod migration_types {
 			Self(migrations)
 		}
 
+		pub fn contains(&self, migration: &Migration) -> bool {
+			self.0.contains(migration)
+		}
+
+		pub fn len(&self) -> usize {
+			self.0.len()
+		}
+
 		pub fn origins(&self) -> Vec<MigrationOrigin> {
 			self.0.iter().map(|migration| migration.origin.clone()).collect()
 		}
 
 		pub fn infos(&self) -> Vec<MigrationInfo> {
 			self.0.iter().map(|migration| migration.info.clone()).collect()
-		}
-
-		pub fn group_by_user(self) -> Vec<([u8; 32], Vec<Migration>)> {
-			let mut migrations = self.0;
-			migrations.sort_by(|a, b| a.origin.user.cmp(&b.origin.user));
-			migrations
-				.into_iter()
-				.group_by(|migration| migration.origin.user)
-				.into_iter()
-				.map(|(user, migrations)| (user, migrations.collect::<Vec<_>>()))
-				.collect::<Vec<_>>()
-		}
-
-		pub fn sort_by_ct_amount(self) -> Migrations {
-			let mut migrations = self.0;
-			migrations.sort_by(|a, b| a.info.contribution_token_amount.cmp(&b.info.contribution_token_amount));
-			Migrations(migrations)
 		}
 
 		pub fn total_ct_amount(&self) -> u128 {

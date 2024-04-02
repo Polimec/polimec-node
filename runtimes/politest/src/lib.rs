@@ -37,7 +37,7 @@ use frame_support::{
 };
 use frame_system::{EnsureNever, EnsureRoot, EnsureRootWithSuccess, EnsureSigned};
 use pallet_democracy::GetElectorate;
-use pallet_funding::{DaysToBlocks};
+use pallet_funding::DaysToBlocks;
 
 use parachains_common::{
 	message_queue::{NarrowOriginToSibling, ParaIdToSibling},
@@ -996,11 +996,11 @@ impl pallet_funding::Config for Runtime {
 	type InvestorOrigin = EnsureInvestor<Runtime>;
 	type ManualAcceptanceDuration = ManualAcceptanceDuration;
 	type MaxBidsPerProject = ConstU32<1024>;
-	type MaxBidsPerUser = ConstU32<32>;
+	type MaxBidsPerUser = ConstU32<16>;
 	type MaxCapacityThresholds = MaxCapacityThresholds;
-	type MaxContributionsPerUser = ConstU32<32>;
+	type MaxContributionsPerUser = ConstU32<16>;
 	type MaxEvaluationsPerProject = ConstU32<1024>;
-	type MaxEvaluationsPerUser = ConstU32<32>;
+	type MaxEvaluationsPerUser = ConstU32<16>;
 	type MaxMessageSizeThresholds = MaxMessageSizeThresholds;
 	type MaxProjectsToUpdateInsertionAttempts = ConstU32<100>;
 	type MaxProjectsToUpdatePerBlock = ConstU32<1>;

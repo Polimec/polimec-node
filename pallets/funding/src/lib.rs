@@ -132,11 +132,11 @@ use polkadot_parachain_primitives::primitives::Id as ParaId;
 use sp_arithmetic::traits::{One, Saturating};
 use sp_runtime::{traits::AccountIdConversion, FixedPointNumber, FixedPointOperand, FixedU128};
 use sp_std::{marker::PhantomData, prelude::*};
-use traits::DoRemainingOperation;
 pub use types::*;
 use xcm::v3::{opaque::Instruction, prelude::*, SendXcm};
 
 pub mod functions;
+pub mod settlement;
 
 #[cfg(test)]
 pub mod mock;
@@ -148,7 +148,6 @@ pub mod tests;
 
 #[cfg(feature = "runtime-benchmarks")]
 pub mod benchmarking;
-pub mod impls;
 #[cfg(any(feature = "runtime-benchmarks", feature = "std"))]
 pub mod instantiator;
 pub mod traits;
@@ -172,23 +171,11 @@ pub type ProjectMetadataOf<T> =
 pub type ProjectDetailsOf<T> =
 	ProjectDetails<AccountIdOf<T>, Did, BlockNumberFor<T>, PriceOf<T>, BalanceOf<T>, EvaluationRoundInfoOf<T>>;
 pub type EvaluationRoundInfoOf<T> = EvaluationRoundInfo<BalanceOf<T>>;
-pub type VestingInfoOf<T> = VestingInfo<BlockNumberFor<T>, BalanceOf<T>>;
 pub type EvaluationInfoOf<T> = EvaluationInfo<u32, ProjectId, AccountIdOf<T>, BalanceOf<T>, BlockNumberFor<T>>;
-pub type BidInfoOf<T> = BidInfo<
-	ProjectId,
-	Did,
-	BalanceOf<T>,
-	PriceOf<T>,
-	AccountIdOf<T>,
-	BlockNumberFor<T>,
-	MultiplierOf<T>,
-	VestingInfoOf<T>,
->;
-pub type ContributionInfoOf<T> =
-	ContributionInfo<u32, ProjectId, AccountIdOf<T>, BalanceOf<T>, MultiplierOf<T>, VestingInfoOf<T>>;
+pub type BidInfoOf<T> =
+	BidInfo<ProjectId, Did, BalanceOf<T>, PriceOf<T>, AccountIdOf<T>, BlockNumberFor<T>, MultiplierOf<T>>;
 
-pub type ProjectMigrationOriginsOf<T> =
-	ProjectMigrationOrigins<ProjectId, BoundedVec<MigrationOrigin, MaxMigrationsPerXcm<T>>>;
+pub type ContributionInfoOf<T> = ContributionInfo<u32, ProjectId, AccountIdOf<T>, BalanceOf<T>, MultiplierOf<T>>;
 
 pub type BucketOf<T> = Bucket<BalanceOf<T>, PriceOf<T>>;
 pub type WeightInfoOf<T> = <T as Config>::WeightInfo;
@@ -555,16 +542,38 @@ pub mod pallet {
 		StorageMap<_, Blake2_128Concat, Did, BoundedVec<ProjectId, MaxParticipationsForMaxMultiplier>, ValueQuery>;
 
 	#[pallet::storage]
+	pub type UserMigrations<T: Config> = StorageDoubleMap<
+		_,
+		Blake2_128Concat,
+		ProjectId,
+		Blake2_128Concat,
+		T::AccountId,
+		(MigrationStatus, BoundedVec<Migration, MaxParticipationsPerUser<T>>),
+	>;
+
+	pub struct MaxParticipationsPerUser<T: Config>(PhantomData<T>);
+	impl<T: Config> Get<u32> for MaxParticipationsPerUser<T> {
+		fn get() -> u32 {
+			T::MaxContributionsPerUser::get() + T::MaxBidsPerUser::get() + T::MaxEvaluationsPerUser::get()
+		}
+	}
+
+	#[pallet::storage]
+	pub type ActiveMigrationQueue<T: Config> = StorageMap<
+		_,
+		Blake2_128Concat,
+		QueryId,
+		(ProjectId, T::AccountId),
+		ResultQuery<Error<T>::NoActiveMigrationsFound>,
+	>;
+
 	/// A map to keep track of what issuer's did has an active project. It prevents one issuer having multiple active projects
+	#[pallet::storage]
 	pub type DidWithActiveProjects<T: Config> = StorageMap<_, Blake2_128Concat, Did, ProjectId, OptionQuery>;
 
 	#[pallet::storage]
 	pub type DidWithWinningBids<T: Config> =
 		StorageDoubleMap<_, Blake2_128Concat, ProjectId, Blake2_128Concat, Did, bool, ValueQuery>;
-
-	#[pallet::storage]
-	/// Migrations sent and awaiting for confirmation
-	pub type UnconfirmedMigrations<T: Config> = StorageMap<_, Blake2_128Concat, QueryId, ProjectMigrationOriginsOf<T>>;
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub (super) fn deposit_event)]
@@ -617,13 +626,6 @@ pub mod pallet {
 			amount: BalanceOf<T>,
 			bonder: AccountIdOf<T>,
 		},
-		/// Someone paid for the release of a user's PLMC bond for a project.
-		BondReleased {
-			project_id: ProjectId,
-			amount: BalanceOf<T>,
-			bonder: AccountIdOf<T>,
-			releaser: AccountIdOf<T>,
-		},
 		/// A bid was made for a project
 		Bid {
 			project_id: ProjectId,
@@ -656,155 +658,34 @@ pub mod pallet {
 			project_id: ProjectId,
 			error: DispatchError,
 		},
-		/// Something terribly wrong happened where the bond could not be unbonded. Most likely a programming error
-		EvaluationUnbondFailed {
-			project_id: ProjectId,
-			evaluator: AccountIdOf<T>,
-			id: u32,
-			error: DispatchError,
-		},
-		/// Contribution tokens were minted to a user
-		ContributionTokenMinted {
-			releaser: AccountIdOf<T>,
-			project_id: ProjectId,
-			claimer: AccountIdOf<T>,
-			amount: BalanceOf<T>,
-		},
-		/// A transfer of tokens failed, but because it was done inside on_initialize it cannot be solved.
-		TransferError {
-			error: DispatchError,
-		},
-		EvaluationRewardFailed {
-			project_id: ProjectId,
-			evaluator: AccountIdOf<T>,
-			id: u32,
-			error: DispatchError,
-		},
-		EvaluationSlashFailed {
-			project_id: ProjectId,
-			evaluator: AccountIdOf<T>,
-			id: u32,
-			error: DispatchError,
-		},
-		ReleaseBidFundsFailed {
-			project_id: ProjectId,
-			bidder: AccountIdOf<T>,
-			id: u32,
-			error: DispatchError,
-		},
-		BidUnbondFailed {
-			project_id: ProjectId,
-			bidder: AccountIdOf<T>,
-			id: u32,
-			error: DispatchError,
-		},
-		ReleaseContributionFundsFailed {
-			project_id: ProjectId,
-			contributor: AccountIdOf<T>,
-			id: u32,
-			error: DispatchError,
-		},
-		ContributionUnbondFailed {
-			project_id: ProjectId,
-			contributor: AccountIdOf<T>,
-			id: u32,
-			error: DispatchError,
-		},
-		PayoutContributionFundsFailed {
-			project_id: ProjectId,
-			contributor: AccountIdOf<T>,
-			id: u32,
-			error: DispatchError,
-		},
-		PayoutBidFundsFailed {
-			project_id: ProjectId,
-			bidder: AccountIdOf<T>,
-			id: u32,
-			error: DispatchError,
-		},
-		EvaluationRewarded {
-			project_id: ProjectId,
-			evaluator: AccountIdOf<T>,
-			id: u32,
-			amount: BalanceOf<T>,
-			caller: AccountIdOf<T>,
-		},
-		EvaluationSlashed {
-			project_id: ProjectId,
-			evaluator: AccountIdOf<T>,
-			id: u32,
-			amount: BalanceOf<T>,
-			caller: AccountIdOf<T>,
-		},
-		CTMintFailed {
-			project_id: ProjectId,
-			claimer: AccountIdOf<T>,
-			id: u32,
-			error: DispatchError,
-		},
-		StartBidderVestingScheduleFailed {
-			project_id: ProjectId,
-			bidder: AccountIdOf<T>,
-			id: u32,
-			error: DispatchError,
-		},
-		StartContributionVestingScheduleFailed {
-			project_id: ProjectId,
-			contributor: AccountIdOf<T>,
-			id: u32,
-			error: DispatchError,
-		},
-		BidPlmcVestingScheduled {
-			project_id: ProjectId,
-			bidder: AccountIdOf<T>,
-			id: u32,
-			amount: BalanceOf<T>,
-			caller: AccountIdOf<T>,
-		},
-		ContributionPlmcVestingScheduled {
-			project_id: ProjectId,
-			contributor: AccountIdOf<T>,
-			id: u32,
-			amount: BalanceOf<T>,
-			caller: AccountIdOf<T>,
-		},
-		ParticipantPlmcVested {
-			project_id: ProjectId,
-			participant: AccountIdOf<T>,
-			amount: BalanceOf<T>,
-			caller: AccountIdOf<T>,
-		},
-		BidFundingPaidOut {
-			project_id: ProjectId,
-			bidder: AccountIdOf<T>,
-			id: u32,
-			amount: BalanceOf<T>,
-			caller: AccountIdOf<T>,
-		},
-		ContributionFundingPaidOut {
-			project_id: ProjectId,
-			contributor: AccountIdOf<T>,
-			id: u32,
-			amount: BalanceOf<T>,
-			caller: AccountIdOf<T>,
-		},
-		BidFundingReleased {
-			project_id: ProjectId,
-			bidder: AccountIdOf<T>,
-			id: u32,
-			amount: BalanceOf<T>,
-			caller: AccountIdOf<T>,
-		},
-		ContributionFundingReleased {
-			project_id: ProjectId,
-			contributor: AccountIdOf<T>,
-			id: u32,
-			amount: BalanceOf<T>,
-			caller: AccountIdOf<T>,
-		},
 		ProjectOutcomeDecided {
 			project_id: ProjectId,
 			decision: FundingOutcomeDecision,
+		},
+		EvaluationSettled {
+			project_id: ProjectId,
+			account: AccountIdOf<T>,
+			id: u32,
+			ct_amount: BalanceOf<T>,
+			slashed_amount: BalanceOf<T>,
+		},
+		BidRefunded {
+			project_id: ProjectId,
+			account: AccountIdOf<T>,
+			bid_id: u32,
+			reason: RejectionReason,
+		},
+		BidSettled {
+			project_id: ProjectId,
+			account: AccountIdOf<T>,
+			id: u32,
+			ct_amount: BalanceOf<T>,
+		},
+		ContributionSettled {
+			project_id: ProjectId,
+			account: AccountIdOf<T>,
+			id: u32,
+			ct_amount: BalanceOf<T>,
 		},
 		ProjectParaIdSet {
 			project_id: ProjectId,
@@ -836,31 +717,10 @@ pub mod pallet {
 			query_id: QueryId,
 			response: Response,
 		},
-		MigrationStarted {
+		MigrationStatusUpdated {
 			project_id: ProjectId,
-		},
-		UserMigrationSent {
-			project_id: ProjectId,
-			caller: AccountIdOf<T>,
-			participant: AccountIdOf<T>,
-		},
-		MigrationsConfirmed {
-			project_id: ProjectId,
-			migration_origins: BoundedVec<MigrationOrigin, MaxMigrationsPerXcm<T>>,
-		},
-		MigrationsFailed {
-			project_id: ProjectId,
-			migration_origins: BoundedVec<MigrationOrigin, MaxMigrationsPerXcm<T>>,
-		},
-		ReleaseFutureCTDepositFailed {
-			project_id: ProjectId,
-			participant: AccountIdOf<T>,
-			error: DispatchError,
-		},
-		FutureCTDepositReleased {
-			project_id: ProjectId,
-			participant: AccountIdOf<T>,
-			caller: AccountIdOf<T>,
+			account: AccountIdOf<T>,
+			status: MigrationStatus,
 		},
 	}
 
@@ -936,8 +796,8 @@ pub mod pallet {
 		FieldIsNone,
 		/// Checked math failed
 		BadMath,
-		/// Tried to retrieve a bid but it does not exist
-		BidNotFound,
+		/// Tried to retrieve a evaluation, bid or contribution but it does not exist
+		ParticipationNotFound,
 		/// Tried to contribute but its too low to be accepted
 		ContributionTooLow,
 		/// Contribution is higher than the limit set by the issuer
@@ -950,12 +810,8 @@ pub mod pallet {
 		PriceNotFound,
 		/// Bond is either lower than the minimum set by the issuer, or the vec is full and can't replace an old one with a lower value
 		EvaluationBondTooLow,
-		/// Tried to do an operation on an evaluation that does not exist
-		EvaluationNotFound,
 		/// Tried to do an operation on a finalizer that already finished
 		FinalizerFinished,
-		///
-		ContributionNotFound,
 		/// Tried to start a migration check but the bidirectional channel is not yet open
 		CommsNotEstablished,
 		XcmFailed,
@@ -963,10 +819,6 @@ pub mod pallet {
 		BadConversion,
 		/// The issuer doesn't have enough funds (ExistentialDeposit), to create the escrow account
 		NotEnoughFundsForEscrowCreation,
-		/// The issuer doesn't have enough funds to pay for the metadata of their contribution token
-		NotEnoughFundsForCTMetadata,
-		/// The issuer doesn't have enough funds to pay for the deposit of their contribution token
-		NotEnoughFundsForCTDeposit,
 		/// Too many attempts to insert project in to ProjectsToUpdate storage
 		TooManyInsertionAttempts,
 		/// Reached bid limit for this user on this project
@@ -977,6 +829,12 @@ pub mod pallet {
 		TooManyEvaluationsForProject,
 		/// Reached contribution limit for this user on this project
 		TooManyContributionsForUser,
+		/// Reached the migration queue limit for a user.
+		TooManyMigrations,
+		/// User has no migrations to execute.
+		NoMigrationsFound,
+		/// User has no active migrations in the queue.
+		NoActiveMigrationsFound,
 		// Participant tried to do a community contribution but it already had a winning bid on the auction round.
 		UserHasWinningBids,
 		// Round transition already happened.
@@ -1147,125 +1005,7 @@ pub mod pallet {
 			Self::do_remaining_contribute(&account, project_id, amount, multiplier, asset, did, investor_type)
 		}
 
-		/// Release evaluation-bonded PLMC when a project finishes its funding round.
 		#[pallet::call_index(8)]
-		#[pallet::weight(WeightInfoOf::<T>::evaluation_unbond_for())]
-		pub fn evaluation_unbond_for(
-			origin: OriginFor<T>,
-			project_id: ProjectId,
-			evaluator: AccountIdOf<T>,
-			bond_id: u32,
-		) -> DispatchResult {
-			let releaser = ensure_signed(origin)?;
-			Self::do_evaluation_unbond_for(&releaser, project_id, &evaluator, bond_id)
-		}
-
-		#[pallet::call_index(9)]
-		#[pallet::weight(WeightInfoOf::<T>::evaluation_slash_for())]
-		pub fn evaluation_slash_for(
-			origin: OriginFor<T>,
-			project_id: ProjectId,
-			evaluator: AccountIdOf<T>,
-			bond_id: u32,
-		) -> DispatchResult {
-			let caller = ensure_signed(origin)?;
-			Self::do_evaluation_slash_for(&caller, project_id, &evaluator, bond_id)
-		}
-
-		#[pallet::call_index(10)]
-		#[pallet::weight(
-			WeightInfoOf::<T>::evaluation_reward_payout_for_with_ct_account_creation()
-			.max(WeightInfoOf::<T>::evaluation_reward_payout_for_no_ct_account_creation())
-		)]
-		pub fn evaluation_reward_payout_for(
-			origin: OriginFor<T>,
-			project_id: ProjectId,
-			evaluator: AccountIdOf<T>,
-			bond_id: u32,
-		) -> DispatchResultWithPostInfo {
-			let caller = ensure_signed(origin)?;
-			Self::do_evaluation_reward_payout_for(&caller, project_id, &evaluator, bond_id)
-		}
-
-		#[pallet::call_index(11)]
-		#[pallet::weight(
-			WeightInfoOf::<T>::bid_ct_mint_for_with_ct_account_creation()
-			.max(WeightInfoOf::<T>::bid_ct_mint_for_no_ct_account_creation())
-		)]
-		pub fn bid_ct_mint_for(
-			origin: OriginFor<T>,
-			project_id: ProjectId,
-			bidder: AccountIdOf<T>,
-			bid_id: u32,
-		) -> DispatchResultWithPostInfo {
-			let caller = ensure_signed(origin)?;
-			Self::do_bid_ct_mint_for(&caller, project_id, &bidder, bid_id)
-		}
-
-		#[pallet::call_index(12)]
-		#[pallet::weight(
-			WeightInfoOf::<T>::contribution_ct_mint_for_with_ct_account_creation()
-			.max(WeightInfoOf::<T>::contribution_ct_mint_for_no_ct_account_creation())
-		)]
-		pub fn contribution_ct_mint_for(
-			origin: OriginFor<T>,
-			project_id: ProjectId,
-			contributor: AccountIdOf<T>,
-			contribution_id: u32,
-		) -> DispatchResultWithPostInfo {
-			let caller = ensure_signed(origin)?;
-			Self::do_contribution_ct_mint_for(&caller, project_id, &contributor, contribution_id)
-		}
-
-		#[pallet::call_index(13)]
-		#[pallet::weight(WeightInfoOf::<T>::start_bid_vesting_schedule_for())]
-		pub fn start_bid_vesting_schedule_for(
-			origin: OriginFor<T>,
-			project_id: ProjectId,
-			bidder: AccountIdOf<T>,
-			bid_id: u32,
-		) -> DispatchResult {
-			let caller = ensure_signed(origin)?;
-			Self::do_start_bid_vesting_schedule_for(&caller, project_id, &bidder, bid_id)
-		}
-
-		#[pallet::call_index(14)]
-		#[pallet::weight(WeightInfoOf::<T>::start_contribution_vesting_schedule_for())]
-		pub fn start_contribution_vesting_schedule_for(
-			origin: OriginFor<T>,
-			project_id: ProjectId,
-			contributor: AccountIdOf<T>,
-			contribution_id: u32,
-		) -> DispatchResult {
-			let caller = ensure_signed(origin)?;
-			Self::do_start_contribution_vesting_schedule_for(&caller, project_id, &contributor, contribution_id)
-		}
-
-		#[pallet::call_index(15)]
-		#[pallet::weight(WeightInfoOf::<T>::payout_bid_funds_for())]
-		pub fn payout_bid_funds_for(
-			origin: OriginFor<T>,
-			project_id: ProjectId,
-			bidder: AccountIdOf<T>,
-			bid_id: u32,
-		) -> DispatchResult {
-			let caller = ensure_signed(origin)?;
-			Self::do_payout_bid_funds_for(&caller, project_id, &bidder, bid_id)
-		}
-
-		#[pallet::call_index(16)]
-		#[pallet::weight(WeightInfoOf::<T>::payout_contribution_funds_for())]
-		pub fn payout_contribution_funds_for(
-			origin: OriginFor<T>,
-			project_id: ProjectId,
-			contributor: AccountIdOf<T>,
-			contribution_id: u32,
-		) -> DispatchResult {
-			let caller = ensure_signed(origin)?;
-			Self::do_payout_contribution_funds_for(&caller, project_id, &contributor, contribution_id)
-		}
-
-		#[pallet::call_index(17)]
 		#[pallet::weight(WeightInfoOf::<T>::decide_project_outcome(
 			<T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1
 		))]
@@ -1282,52 +1022,86 @@ pub mod pallet {
 			Self::do_decide_project_outcome(account, project_id, outcome)
 		}
 
-		#[pallet::call_index(18)]
-		#[pallet::weight(WeightInfoOf::<T>::release_bid_funds_for())]
-		pub fn release_bid_funds_for(
+		#[pallet::call_index(9)]
+		#[pallet::weight(Weight::from_parts(0, 0))]
+		pub fn settle_successful_evaluation(
+			origin: OriginFor<T>,
+			project_id: ProjectId,
+			evaluator: AccountIdOf<T>,
+			evaluation_id: u32,
+		) -> DispatchResult {
+			let _caller = ensure_signed(origin)?;
+			let bid = Evaluations::<T>::get((project_id, evaluator, evaluation_id))
+				.ok_or(Error::<T>::ParticipationNotFound)?;
+			Self::do_settle_successful_evaluation(bid, project_id)
+		}
+
+		#[pallet::call_index(10)]
+		#[pallet::weight(Weight::from_parts(0, 0))]
+		pub fn settle_successful_bid(
 			origin: OriginFor<T>,
 			project_id: ProjectId,
 			bidder: AccountIdOf<T>,
 			bid_id: u32,
 		) -> DispatchResult {
-			let caller = ensure_signed(origin)?;
-			Self::do_release_bid_funds_for(&caller, project_id, &bidder, bid_id)
+			let _caller = ensure_signed(origin)?;
+			let bid = Bids::<T>::get((project_id, bidder, bid_id)).ok_or(Error::<T>::ParticipationNotFound)?;
+			Self::do_settle_successful_bid(bid, project_id)
 		}
 
-		#[pallet::call_index(19)]
-		#[pallet::weight(WeightInfoOf::<T>::bid_unbond_for())]
-		pub fn bid_unbond_for(
+		#[pallet::call_index(11)]
+		#[pallet::weight(Weight::from_parts(0, 0))]
+		pub fn settle_successful_contribution(
+			origin: OriginFor<T>,
+			project_id: ProjectId,
+			contributor: AccountIdOf<T>,
+			contribution_id: u32,
+		) -> DispatchResult {
+			let _caller = ensure_signed(origin)?;
+			let bid = Contributions::<T>::get((project_id, contributor, contribution_id))
+				.ok_or(Error::<T>::ParticipationNotFound)?;
+			Self::do_settle_successful_contribution(bid, project_id)
+		}
+
+		#[pallet::call_index(12)]
+		#[pallet::weight(Weight::from_parts(0, 0))]
+		pub fn settle_failed_evaluation(
+			origin: OriginFor<T>,
+			project_id: ProjectId,
+			evaluator: AccountIdOf<T>,
+			evaluation_id: u32,
+		) -> DispatchResult {
+			let _caller = ensure_signed(origin)?;
+			let bid = Evaluations::<T>::get((project_id, evaluator, evaluation_id))
+				.ok_or(Error::<T>::ParticipationNotFound)?;
+			Self::do_settle_failed_evaluation(bid, project_id)
+		}
+
+		#[pallet::call_index(13)]
+		#[pallet::weight(Weight::from_parts(0, 0))]
+		pub fn settle_failed_bid(
 			origin: OriginFor<T>,
 			project_id: ProjectId,
 			bidder: AccountIdOf<T>,
 			bid_id: u32,
 		) -> DispatchResult {
-			let caller = ensure_signed(origin)?;
-			Self::do_bid_unbond_for(&caller, project_id, &bidder, bid_id)
+			let _caller = ensure_signed(origin)?;
+			let bid = Bids::<T>::get((project_id, bidder, bid_id)).ok_or(Error::<T>::ParticipationNotFound)?;
+			Self::do_settle_failed_bid(bid, project_id)
 		}
 
-		#[pallet::call_index(20)]
-		#[pallet::weight(WeightInfoOf::<T>::release_contribution_funds_for())]
-		pub fn release_contribution_funds_for(
+		#[pallet::call_index(14)]
+		#[pallet::weight(Weight::from_parts(0, 0))]
+		pub fn settle_failed_contribution(
 			origin: OriginFor<T>,
 			project_id: ProjectId,
 			contributor: AccountIdOf<T>,
 			contribution_id: u32,
 		) -> DispatchResult {
-			let caller = ensure_signed(origin)?;
-			Self::do_release_contribution_funds_for(&caller, project_id, &contributor, contribution_id)
-		}
-
-		#[pallet::call_index(21)]
-		#[pallet::weight(WeightInfoOf::<T>::contribution_unbond_for())]
-		pub fn contribution_unbond_for(
-			origin: OriginFor<T>,
-			project_id: ProjectId,
-			contributor: AccountIdOf<T>,
-			contribution_id: u32,
-		) -> DispatchResult {
-			let caller = ensure_signed(origin)?;
-			Self::do_contribution_unbond_for(&caller, project_id, &contributor, contribution_id)
+			let _caller = ensure_signed(origin)?;
+			let bid = Contributions::<T>::get((project_id, contributor, contribution_id))
+				.ok_or(Error::<T>::ParticipationNotFound)?;
+			Self::do_settle_failed_contribution(bid, project_id)
 		}
 
 		#[pallet::call_index(22)]
@@ -1371,15 +1145,6 @@ pub mod pallet {
 			Self::do_migration_check_response(location, query_id, response)
 		}
 
-		#[pallet::call_index(25)]
-		#[pallet::weight(Weight::from_parts(1000, 0))]
-		pub fn start_migration(origin: OriginFor<T>, jwt: UntrustedToken, project_id: ProjectId) -> DispatchResult {
-			let (account, _did, investor_type) =
-				T::InvestorOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get())?;
-			ensure!(investor_type == InvestorType::Institutional, Error::<T>::NotAllowed);
-			Self::do_start_migration(&account, project_id)
-		}
-
 		#[pallet::call_index(26)]
 		#[pallet::weight(Weight::from_parts(1000, 0))]
 		pub fn migrate_one_participant(
@@ -1387,8 +1152,8 @@ pub mod pallet {
 			project_id: ProjectId,
 			participant: AccountIdOf<T>,
 		) -> DispatchResult {
-			let caller = ensure_signed(origin)?;
-			Self::do_migrate_one_participant(caller, project_id, participant)
+			let _caller = ensure_signed(origin)?;
+			Self::do_migrate_one_participant(project_id, participant)
 		}
 
 		#[pallet::call_index(27)]
@@ -1583,53 +1348,6 @@ pub mod pallet {
 				}
 			}
 			used_weight
-		}
-
-		fn on_idle(_now: BlockNumberFor<T>, max_weight: Weight) -> Weight {
-			let mut remaining_weight = max_weight;
-
-			let projects_needing_cleanup = ProjectsDetails::<T>::iter()
-				.filter_map(|(project_id, info)| match info.cleanup {
-					cleaner if <Cleaner as DoRemainingOperation<T>>::has_remaining_operations(&cleaner) =>
-						Some((project_id, cleaner)),
-					_ => None,
-				})
-				.collect::<Vec<_>>();
-
-			let projects_amount = projects_needing_cleanup.len() as u64;
-			if projects_amount == 0 {
-				return max_weight;
-			}
-
-			let mut max_weight_per_project = remaining_weight.saturating_div(projects_amount);
-
-			for (remaining_projects, (project_id, mut cleaner)) in
-				projects_needing_cleanup.into_iter().enumerate().rev()
-			{
-				// TODO: Create this benchmark
-				// let mut consumed_weight = WeightInfoOf::<T>::insert_cleaned_project();
-				let mut consumed_weight = Weight::from_parts(6_034_000, 0);
-				while !consumed_weight.any_gt(max_weight_per_project) {
-					if let Ok(weight) = <Cleaner as DoRemainingOperation<T>>::do_one_operation(&mut cleaner, project_id)
-					{
-						consumed_weight.saturating_accrue(weight);
-					} else {
-						break;
-					}
-				}
-
-				let mut details =
-					if let Some(details) = ProjectsDetails::<T>::get(project_id) { details } else { continue };
-				details.cleanup = cleaner;
-				ProjectsDetails::<T>::insert(project_id, details);
-
-				remaining_weight = remaining_weight.saturating_sub(consumed_weight);
-				if remaining_projects > 0 {
-					max_weight_per_project = remaining_weight.saturating_div(remaining_projects as u64);
-				}
-			}
-
-			max_weight.saturating_sub(remaining_weight)
 		}
 	}
 

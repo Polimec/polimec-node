@@ -18,17 +18,13 @@
 
 //! Types for Funding pallet.
 
-use crate::{
-	traits::{BondingRequirementCalculation, VestingDurationCalculation},
-	BalanceOf, BidInfoOf, Config, ContributionInfoOf, EvaluationInfoOf, MultiplierOf,
-};
+use crate::{traits::BondingRequirementCalculation, BalanceOf};
 use frame_support::{pallet_prelude::*, traits::tokens::Balance as BalanceT};
 use frame_system::pallet_prelude::BlockNumberFor;
-use polimec_common::migration_types::{Migration, MigrationInfo, MigrationOrigin, ParticipationType};
 use polkadot_parachain_primitives::primitives::Id as ParaId;
 use serde::{Deserialize, Serialize};
 use sp_arithmetic::{FixedPointNumber, FixedPointOperand};
-use sp_runtime::traits::{CheckedDiv, Convert, Get, Zero};
+use sp_runtime::traits::CheckedDiv;
 use sp_std::{cmp::Eq, prelude::*};
 
 pub use config_types::*;
@@ -272,8 +268,6 @@ pub mod storage_types {
 		pub remaining_contribution_tokens: Balance,
 		/// Funding reached amount in USD equivalent
 		pub funding_amount_reached: Balance,
-		/// Cleanup operations remaining
-		pub cleanup: Cleaner,
 		/// Information about the total amount bonded, and the outcome in regards to reward/slash/nothing
 		pub evaluation_round_info: EvaluationRoundInfo,
 		/// When the Funding Round ends
@@ -309,22 +303,10 @@ pub mod storage_types {
 		pub early_usd_amount: Balance,
 		pub late_usd_amount: Balance,
 		pub when: BlockNumber,
-		// Will be Some after a reward of slash was made on this evaluation.
-		pub rewarded_or_slashed: Option<RewardOrSlash<Balance>>,
-		pub ct_migration_status: MigrationStatus,
 	}
 
 	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
-	pub struct BidInfo<
-		ProjectId,
-		Did,
-		Balance: BalanceT,
-		Price: FixedPointNumber,
-		AccountId,
-		BlockNumber,
-		Multiplier,
-		VestingInfo,
-	> {
+	pub struct BidInfo<ProjectId, Did, Balance: BalanceT, Price: FixedPointNumber, AccountId, BlockNumber, Multiplier> {
 		pub id: u32,
 		pub project_id: ProjectId,
 		pub bidder: AccountId,
@@ -339,11 +321,7 @@ pub mod storage_types {
 		pub funding_asset_amount_locked: Balance,
 		pub multiplier: Multiplier,
 		pub plmc_bond: Balance,
-		pub plmc_vesting_info: Option<VestingInfo>,
 		pub when: BlockNumber,
-		pub funds_released: bool,
-		pub ct_minted: bool,
-		pub ct_migration_status: MigrationStatus,
 	}
 
 	impl<
@@ -354,8 +332,7 @@ pub mod storage_types {
 			AccountId: Eq,
 			BlockNumber: Eq + Ord,
 			Multiplier: Eq,
-			VestingInfo: Eq,
-		> Ord for BidInfo<ProjectId, Did, Balance, Price, AccountId, BlockNumber, Multiplier, VestingInfo>
+		> Ord for BidInfo<ProjectId, Did, Balance, Price, AccountId, BlockNumber, Multiplier>
 	{
 		fn cmp(&self, other: &Self) -> sp_std::cmp::Ordering {
 			match self.original_ct_usd_price.cmp(&other.original_ct_usd_price) {
@@ -373,8 +350,7 @@ pub mod storage_types {
 			AccountId: Eq,
 			BlockNumber: Eq + Ord,
 			Multiplier: Eq,
-			VestingInfo: Eq,
-		> PartialOrd for BidInfo<ProjectId, Did, Balance, Price, AccountId, BlockNumber, Multiplier, VestingInfo>
+		> PartialOrd for BidInfo<ProjectId, Did, Balance, Price, AccountId, BlockNumber, Multiplier>
 	{
 		fn partial_cmp(&self, other: &Self) -> Option<sp_std::cmp::Ordering> {
 			Some(self.cmp(other))
@@ -382,7 +358,7 @@ pub mod storage_types {
 	}
 
 	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
-	pub struct ContributionInfo<Id, ProjectId, AccountId, Balance, Multiplier, VestingInfo> {
+	pub struct ContributionInfo<Id, ProjectId, AccountId, Balance, Multiplier> {
 		pub id: Id,
 		pub project_id: ProjectId,
 		pub contributor: AccountId,
@@ -392,10 +368,6 @@ pub mod storage_types {
 		pub funding_asset: AcceptedFundingAsset,
 		pub funding_asset_amount: Balance,
 		pub plmc_bond: Balance,
-		pub plmc_vesting_info: Option<VestingInfo>,
-		pub funds_released: bool,
-		pub ct_minted: bool,
-		pub ct_migration_status: MigrationStatus,
 	}
 
 	/// Represents a bucket that holds a specific amount of tokens at a given price.
@@ -447,8 +419,6 @@ pub mod storage_types {
 pub mod inner_types {
 	use super::*;
 	use variant_count::VariantCount;
-	use xcm::v3::MaxDispatchErrorLen;
-
 	#[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
 	#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
 	pub struct CurrencyMetadata<BoundedString> {
@@ -732,55 +702,6 @@ pub mod inner_types {
 	}
 
 	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
-	pub struct Success;
-
-	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
-	pub struct Failure;
-
-	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
-	pub enum CleanerState<T> {
-		Initialized(PhantomData<T>),
-		// Success or Failure
-		EvaluationRewardOrSlash(u64, PhantomData<T>),
-		EvaluationUnbonding(u64, PhantomData<T>),
-		// Branch
-		// A. Success only
-		BidCTMint(u64, PhantomData<T>),
-		ContributionCTMint(u64, PhantomData<T>),
-		StartBidderVestingSchedule(u64, PhantomData<T>),
-		StartContributorVestingSchedule(u64, PhantomData<T>),
-		BidFundingPayout(u64, PhantomData<T>),
-		ContributionFundingPayout(u64, PhantomData<T>),
-		// B. Failure only
-		BidFundingRelease(u64, PhantomData<T>),
-		BidUnbonding(u64, PhantomData<T>),
-		ContributionFundingRelease(u64, PhantomData<T>),
-		ContributionUnbonding(u64, PhantomData<T>),
-		// Merge
-		// Success or Failure
-		Finished(PhantomData<T>),
-	}
-
-	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
-	pub enum Cleaner {
-		NotReady,
-		Success(CleanerState<Success>),
-		Failure(CleanerState<Failure>),
-	}
-	impl TryFrom<ProjectStatus> for Cleaner {
-		type Error = ();
-
-		fn try_from(value: ProjectStatus) -> Result<Self, ()> {
-			match value {
-				ProjectStatus::FundingSuccessful => Ok(Cleaner::Success(CleanerState::Initialized(PhantomData))),
-				ProjectStatus::FundingFailed | ProjectStatus::EvaluationFailed =>
-					Ok(Cleaner::Failure(CleanerState::Initialized(PhantomData))),
-				_ => Err(()),
-			}
-		}
-	}
-
-	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
 	pub struct EvaluationRoundInfo<Balance> {
 		pub total_bonded_usd: Balance,
 		pub total_bonded_plmc: Balance,
@@ -855,76 +776,5 @@ pub mod inner_types {
 	pub struct ProjectMigrationOrigins<ProjectId, MigrationOrigins> {
 		pub project_id: ProjectId,
 		pub migration_origins: MigrationOrigins,
-	}
-	#[derive(Clone, Encode, Decode, Eq, PartialEq, Ord, PartialOrd, RuntimeDebug, TypeInfo, MaxEncodedLen)]
-	pub enum MigrationStatus {
-		NotStarted,
-		Sent(xcm::v3::QueryId),
-		Confirmed,
-		Failed(BoundedVec<u8, MaxDispatchErrorLen>),
-	}
-
-	#[derive(Clone, Encode, Decode, Eq, PartialEq, Ord, PartialOrd, RuntimeDebug, TypeInfo, MaxEncodedLen)]
-	pub struct MaxMigrationsPerXcm<T>(PhantomData<T>);
-	impl<T: crate::Config> Get<u32> for MaxMigrationsPerXcm<T> {
-		fn get() -> u32 {
-			crate::Pallet::<T>::migrations_per_xcm_message_allowed()
-		}
-	}
-}
-
-pub struct MigrationGenerator<T: Config>(PhantomData<T>);
-
-impl<T: Config> MigrationGenerator<T> {
-	pub fn evaluation_migration(evaluation: EvaluationInfoOf<T>) -> Option<Migration> {
-		if matches!(evaluation.ct_migration_status, MigrationStatus::Confirmed | MigrationStatus::Sent(_)) {
-			return None;
-		}
-		if let Some(RewardOrSlash::Reward(ct_amount)) = evaluation.rewarded_or_slashed {
-			let multiplier = MultiplierOf::<T>::try_from(1u8).ok()?;
-			let vesting_duration = multiplier.calculate_vesting_duration::<T>();
-			let vesting_duration_local_type = <T as Config>::BlockNumber::from(vesting_duration);
-			let migration_origin = MigrationOrigin {
-				user: T::AccountId32Conversion::convert(evaluation.evaluator),
-				id: evaluation.id,
-				participation_type: ParticipationType::Evaluation,
-			};
-			let migration_info: MigrationInfo = (ct_amount.into(), vesting_duration_local_type.into()).into();
-			Some(Migration::new(migration_origin, migration_info))
-		} else {
-			None
-		}
-	}
-
-	pub fn bid_migration(bid: BidInfoOf<T>) -> Option<Migration> {
-		if bid.final_ct_amount == Zero::zero() ||
-			matches!(bid.ct_migration_status, MigrationStatus::Confirmed | MigrationStatus::Sent(_))
-		{
-			return None;
-		}
-		let vesting_duration = bid.multiplier.calculate_vesting_duration::<T>();
-		let vesting_duration_local_type = <T as Config>::BlockNumber::from(vesting_duration);
-		let migration_origin = MigrationOrigin {
-			user: <T as Config>::AccountId32Conversion::convert(bid.bidder),
-			id: bid.id,
-			participation_type: ParticipationType::Bid,
-		};
-		let migration_info: MigrationInfo = (bid.final_ct_amount.into(), vesting_duration_local_type.into()).into();
-		Some(Migration::new(migration_origin, migration_info))
-	}
-
-	pub fn contribution_migration(contribution: ContributionInfoOf<T>) -> Option<Migration> {
-		if matches!(contribution.ct_migration_status, MigrationStatus::Confirmed | MigrationStatus::Sent(_)) {
-			return None;
-		}
-		let vesting_duration = contribution.multiplier.calculate_vesting_duration::<T>();
-		let vesting_duration_local_type = <T as Config>::BlockNumber::from(vesting_duration);
-		let migration_origin = MigrationOrigin {
-			user: <T as Config>::AccountId32Conversion::convert(contribution.contributor),
-			id: contribution.id,
-			participation_type: ParticipationType::Contribution,
-		};
-		let migration_info: MigrationInfo = (contribution.ct_amount.into(), vesting_duration_local_type.into()).into();
-		Some(Migration::new(migration_origin, migration_info))
 	}
 }
