@@ -2071,3 +2071,32 @@ fn ct_treasury_mints() {
 		inst.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get() + 1).unwrap();
 	}
 }
+
+#[test]
+fn evaluation_rewards_are_paid_full_funding() {
+	let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+
+	let project_metadata = knowledge_hub_project(0);
+	let evaluations = knowledge_hub_evaluations();
+	let bids = knowledge_hub_bids();
+	let contributions = knowledge_hub_buys();
+
+	let project_id = inst.create_finished_project(project_metadata, ISSUER_1, evaluations, bids, contributions, vec![]);
+
+	inst.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get()).unwrap();
+	inst.advance_time(10).unwrap();
+
+	let actual_reward_balances = inst.execute(|| {
+		vec![
+			(EVALUATOR_1, <TestRuntime as Config>::ContributionTokenCurrency::balance(project_id, EVALUATOR_1)),
+			(EVALUATOR_2, <TestRuntime as Config>::ContributionTokenCurrency::balance(project_id, EVALUATOR_2)),
+			(EVALUATOR_3, <TestRuntime as Config>::ContributionTokenCurrency::balance(project_id, EVALUATOR_3)),
+		]
+	});
+	let expected_ct_rewards =
+		vec![(EVALUATOR_1, 1_332_4_500_000_000), (EVALUATOR_2, 917_9_100_000_000), (EVALUATOR_3, 710_6_400_000_000)];
+
+	for (real, desired) in zip(actual_reward_balances.iter(), expected_ct_rewards.iter()) {
+		assert_close_enough!(real.1, desired.1, Perquintill::from_float(0.99));
+	}
+}

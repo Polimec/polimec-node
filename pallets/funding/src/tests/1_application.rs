@@ -20,11 +20,6 @@ mod round_flow {
 			inst.create_evaluating_project(project_metadata, issuer);
 		}
 	}
-
-	#[cfg(test)]
-	mod failure {
-		use super::*;
-	}
 }
 
 #[cfg(test)]
@@ -1131,7 +1126,12 @@ mod edit_metadata_extrinsic {
 			project_metadata.total_allocation_size = 99999999999999u128;
 			inst.execute(|| {
 				assert_noop!(
-					Pallet::<TestRuntime>::edit_project(RuntimeOrigin::signed(ISSUER_1), jwt, project_id, project_metadata),
+					Pallet::<TestRuntime>::edit_project(
+						RuntimeOrigin::signed(ISSUER_1),
+						jwt,
+						project_id,
+						project_metadata
+					),
 					Error::<TestRuntime>::FundingTargetTooLow
 				);
 			});
