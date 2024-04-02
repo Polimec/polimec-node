@@ -34,7 +34,7 @@ use frame_support::{
 };
 use frame_system::{EnsureNever, EnsureRoot, EnsureRootWithSuccess, EnsureSigned};
 use pallet_democracy::GetElectorate;
-use pallet_oracle_ocw::types::AssetName;
+
 use parachains_common::{
 	message_queue::{NarrowOriginToSibling, ParaIdToSibling},
 	AssetIdForTrustBackedAssets as AssetId,
@@ -48,11 +48,10 @@ use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
 use sp_runtime::{
 	create_runtime_str, generic, impl_opaque_keys,
 	traits::{
-		AccountIdLookup, BlakeTwo256, Block as BlockT, Convert, ConvertInto, IdentifyAccount, IdentityLookup,
-		OpaqueKeys, Verify,
+		AccountIdLookup, BlakeTwo256, Block as BlockT, ConvertInto, IdentifyAccount, IdentityLookup, OpaqueKeys, Verify,
 	},
 	transaction_validity::{TransactionSource, TransactionValidity},
-	ApplyExtrinsicResult, FixedU128, MultiSignature, SaturatedConversion,
+	ApplyExtrinsicResult, MultiSignature, SaturatedConversion,
 };
 use sp_std::{cmp::Ordering, prelude::*};
 use sp_version::RuntimeVersion;
@@ -161,10 +160,6 @@ pub type Executive = frame_executive::Executive<
 	AllPalletsWithSystem,
 	Migrations,
 >;
-
-pub type Price = FixedU128;
-
-pub type Moment = u64;
 
 /// Opaque types. These are used by the CLI to instantiate machinery that don't need to know
 /// the specifics of the runtime. They can then be made to be agnostic over specific formats
@@ -407,14 +402,15 @@ impl pallet_assets::Config<ForeignAssetsInstance> for Runtime {
 	type WeightInfo = pallet_assets::weights::SubstrateWeight<Runtime>;
 }
 
+type ConsensusHook = cumulus_pallet_aura_ext::FixedVelocityConsensusHook<
+	Runtime,
+	RELAY_CHAIN_SLOT_DURATION_MILLIS,
+	BLOCK_PROCESSING_VELOCITY,
+	UNINCLUDED_SEGMENT_CAPACITY,
+>;
 impl cumulus_pallet_parachain_system::Config for Runtime {
 	type CheckAssociatedRelayNumber = RelayNumberStrictlyIncreases;
-	type ConsensusHook = cumulus_pallet_aura_ext::FixedVelocityConsensusHook<
-		Runtime,
-		RELAY_CHAIN_SLOT_DURATION_MILLIS,
-		BLOCK_PROCESSING_VELOCITY,
-		UNINCLUDED_SEGMENT_CAPACITY,
-	>;
+	type ConsensusHook = ConsensusHook;
 	type DmpQueue = frame_support::traits::EnqueueWithOrigin<MessageQueue, RelayOrigin>;
 	type OnSystemEvent = ();
 	type OutboundXcmpMessageSource = XcmpQueue;
@@ -764,18 +760,6 @@ impl orml_oracle::Config for Runtime {
 	type Time = Timestamp;
 	// TODO Add weight info
 	type WeightInfo = ();
-}
-
-pub struct AssetPriceConverter;
-impl Convert<(AssetName, FixedU128), (AssetId, Price)> for AssetPriceConverter {
-	fn convert((asset, price): (AssetName, FixedU128)) -> (AssetId, Price) {
-		match asset {
-			AssetName::DOT => (0, price),
-			AssetName::USDC => (1337, price),
-			AssetName::USDT => (1984, price),
-			AssetName::PLMC => (3344, price),
-		}
-	}
 }
 
 parameter_types! {

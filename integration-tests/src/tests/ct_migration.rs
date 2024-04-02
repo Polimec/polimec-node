@@ -20,7 +20,7 @@ use pallet_funding::{
 	ProjectId, ProjectsToUpdate, RewardOrSlash,
 };
 use polimec_common::migration_types::{Migration, MigrationInfo, MigrationOrigin, Migrations, ParticipationType};
-use politest_runtime::PolimecFunding;
+use politest_runtime::Funding;
 use sp_runtime::{traits::Convert, FixedPointNumber, Perquintill};
 use std::collections::HashMap;
 use tests::defaults::*;
@@ -33,17 +33,17 @@ fn execute_cleaner(inst: &mut IntegrationInstantiator) {
 }
 fn mock_hrmp_establishment(project_id: u32) {
 	PolitestNet::execute_with(|| {
-		assert_ok!(PolimecFunding::do_set_para_id_for_project(&ISSUER.into(), project_id, ParaId::from(6969u32)));
+		assert_ok!(Funding::do_set_para_id_for_project(&ISSUER.into(), project_id, ParaId::from(6969u32)));
 
 		let open_channel_message = xcm::v3::opaque::Instruction::HrmpNewChannelOpenRequest {
 			sender: 6969,
 			max_message_size: 102_300,
 			max_capacity: 1000,
 		};
-		assert_ok!(PolimecFunding::do_handle_channel_open_request(open_channel_message));
+		assert_ok!(Funding::do_handle_channel_open_request(open_channel_message));
 
 		let channel_accepted_message = xcm::v3::opaque::Instruction::HrmpChannelAccepted { recipient: 6969u32 };
-		assert_ok!(PolimecFunding::do_handle_channel_accepted(channel_accepted_message));
+		assert_ok!(Funding::do_handle_channel_accepted(channel_accepted_message));
 	});
 
 	PenNet::execute_with(|| {
@@ -63,7 +63,7 @@ fn send_migrations(project_id: ProjectId, accounts: Vec<AccountId>) -> HashMap<A
 	let mut output = HashMap::new();
 	PolitestNet::execute_with(|| {
 		for account in accounts {
-			assert_ok!(PolimecFunding::migrate_one_participant(
+			assert_ok!(Funding::migrate_one_participant(
 				PolitestOrigin::signed(account.clone()),
 				project_id,
 				account.clone()
@@ -198,7 +198,7 @@ fn migrations_are_confirmed(project_id: u32, grouped_migrations: Vec<Migrations>
 		assert_expected_events!(
 			PolitestNet,
 			vec![
-				PolitestEvent::PolimecFunding(pallet_funding::Event::MigrationsConfirmed{project_id, migration_origins}) => {
+				PolitestEvent::Funding(pallet_funding::Event::MigrationsConfirmed{project_id, migration_origins}) => {
 					project_id: project_id == project_id,
 					migration_origins: {
 						let mut migration_origins = migration_origins.to_vec();

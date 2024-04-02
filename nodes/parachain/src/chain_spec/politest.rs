@@ -29,7 +29,7 @@ use politest_runtime::{
 };
 use sc_service::ChainType;
 use sp_core::{crypto::UncheckedInto, sr25519};
-use sp_runtime::{bounded_vec, traits::AccountIdConversion, Perbill, Percent};
+use sp_runtime::{traits::AccountIdConversion, Perbill, Percent};
 
 use crate::chain_spec::{get_account_id_from_seed, GenericChainSpec, DEFAULT_PARA_ID};
 
@@ -145,6 +145,50 @@ pub fn get_local_chain_spec() -> GenericChainSpec {
 	.build()
 }
 
+pub fn get_live_chain_spec() -> GenericChainSpec {
+	let properties = get_properties("PLMC", 10, 41);
+
+	let sudo_acc: AccountId =
+		hex_literal::hex!["ba143e2096e073cb9cddc78e6f4969d8a02160d716a69e08214caf5339d88c42"].into();
+	let col_acc_1: AccountId =
+		hex_literal::hex!["342ff9c467eb02d4ef632e69dfe02d44abe2265fa7d9218aa9bd33e1d238c508"].into();
+	let col_acc_2: AccountId =
+		hex_literal::hex!["52599f31b46056fea6964a1abff785774a33c62e8d86cdfae256a8e722c2590f"].into();
+	let col_acc_3: AccountId =
+		hex_literal::hex!["76ae0ce1319c8f61850063441c106ee2d21da4ca9541d6d18a69852813753267"].into();
+	let pot: AccountId = hex_literal::hex!["b8b0456890290830d2ca7c137154e51b72e571588314a6b217794f40428f071d"].into();
+
+	const PARA_ID: u32 = 4392;
+
+	GenericChainSpec::builder(
+		politest_runtime::WASM_BINARY.expect("WASM binary was not built, please build it!"),
+		Extensions { relay_chain: "rococo".into(), para_id: PARA_ID.into() },
+	)
+	.with_name("Politest")
+	.with_id("politest")
+	.with_chain_type(ChainType::Live)
+	.with_properties(properties)
+	.with_genesis_config_patch(testnet_genesis(
+		vec![
+			(col_acc_1.clone(), None, MinCandidateStk::get()),
+			(col_acc_2.clone(), None, MinCandidateStk::get()),
+			(col_acc_3.clone(), None, MinCandidateStk::get()),
+		],
+		polimec_inflation_config(),
+		vec![col_acc_1.clone(), col_acc_2.clone(), col_acc_3.clone()],
+		vec![
+			(col_acc_1, 2 * MinCandidateStk::get()),
+			(col_acc_2, 2 * MinCandidateStk::get()),
+			(col_acc_3, 2 * MinCandidateStk::get()),
+			(sudo_acc.clone(), 5 * MinCandidateStk::get()),
+			(pot.clone(), 100 * MinCandidateStk::get()),
+		],
+		sudo_acc,
+		PARA_ID.into(),
+	))
+	.build()
+}
+
 #[allow(clippy::too_many_arguments)]
 fn testnet_genesis(
 	stakers: Vec<(AccountId, Option<AccountId>, Balance)>,
@@ -168,9 +212,33 @@ fn testnet_genesis(
 			"assets": vec![(
 				pallet_funding::types::AcceptedFundingAsset::USDT.to_assethub_id(),
 				&AccountIdConversion::<AccountId>::into_account_truncating(&<Runtime as pallet_funding::Config>::PalletId::get()),
-				false,
-				10,
+				true,
+				70000,
+			),
+			(
+				pallet_funding::types::AcceptedFundingAsset::USDC.to_assethub_id(),
+				&AccountIdConversion::<AccountId>::into_account_truncating(&<Runtime as pallet_funding::Config>::PalletId::get()),
+				true,
+				70000,
+			),
+			(
+				pallet_funding::types::AcceptedFundingAsset::DOT.to_assethub_id(),
+				&AccountIdConversion::<AccountId>::into_account_truncating(&<Runtime as pallet_funding::Config>::PalletId::get()),
+				true,
+				70000,
 			)],
+			// (id, name, symbol, decimals)
+			"metadata": vec![
+				(pallet_funding::types::AcceptedFundingAsset::USDT.to_assethub_id(), b"Local USDT", b"USDT", 6),
+				(pallet_funding::types::AcceptedFundingAsset::USDC.to_assethub_id(), b"Local USDC", b"USDC", 6),
+				(pallet_funding::types::AcceptedFundingAsset::DOT.to_assethub_id(), b"Local DOT ", b"DOT ", 6)
+			],
+			// (id, account_id, amount)
+			"accounts": vec![
+				(pallet_funding::types::AcceptedFundingAsset::USDT.to_assethub_id(), accounts[0].clone(), 1000000000000u64),
+				(pallet_funding::types::AcceptedFundingAsset::USDC.to_assethub_id(), accounts[0].clone(), 1000000000000u64),
+				(pallet_funding::types::AcceptedFundingAsset::DOT.to_assethub_id(), accounts[0].clone(), 1000000000000u64)
+			],
 		},
 		"parachainInfo":  { "parachainId": id },
 		"parachainStaking":  {
@@ -200,11 +268,7 @@ fn testnet_genesis(
 			"members": accounts.clone().into_iter().take(5).collect::<Vec<AccountId>>(),
 		},
 		"oracleProvidersMembership": OracleProvidersMembershipConfig {
-			members: bounded_vec![
-				get_account_id_from_seed::<sr25519::Public>("Alice"),
-				get_account_id_from_seed::<sr25519::Public>("Bob"),
-				get_account_id_from_seed::<sr25519::Public>("Charlie"),
-			],
+			members:  accounts.clone().into_iter().take(3).collect::<Vec<AccountId>>().try_into().unwrap(),
 			phantom: Default::default(),
 		},
 	})
@@ -332,6 +396,7 @@ fn testing_genesis(
 		BalancesConfig, CouncilConfig, ForeignAssetsConfig, ParachainInfoConfig, ParachainStakingConfig,
 		PolkadotXcmConfig, SessionConfig, SudoConfig, TechnicalCommitteeConfig,
 	};
+	use sp_runtime::bounded_vec;
 	use testing_helpers::*;
 
 	// only used to generate some values, and not for chain interactions
@@ -376,7 +441,7 @@ fn testing_genesis(
 			],
 			phantom: Default::default(),
 		},
-		polimec_funding: politest_runtime::PolimecFundingConfig {
+		funding: politest_runtime::FundingConfig {
 			starting_projects: vec![
 				TestProjectParams::<Runtime> {
 					expected_state: ProjectStatus::FundingSuccessful,
@@ -484,5 +549,7 @@ fn testing_genesis(
 		democracy: Default::default(),
 		elections: Default::default(),
 		vesting: Default::default(),
+		contribution_tokens: Default::default(),
+		transaction_payment: Default::default(),
 	}
 }

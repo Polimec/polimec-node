@@ -151,8 +151,6 @@ impl<T: Config> Pallet<T> {
 		let evaluation_end_block =
 			project_details.phase_transition_points.evaluation.end().ok_or(Error::<T>::FieldIsNone)?;
 		let fundraising_target_usd = project_details.fundraising_target;
-		let current_plmc_price =
-			T::PriceProvider::get_price(PLMC_FOREIGN_ID).ok_or(Error::<T>::PLMCPriceNotAvailable)?;
 
 		// * Validity checks *
 		ensure!(project_details.status == ProjectStatus::EvaluationRound, Error::<T>::ProjectNotInEvaluationRound);
