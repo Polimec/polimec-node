@@ -311,7 +311,7 @@ impl FetchPrice for XTFetcher {
 
 	fn get_url(name: AssetName) -> &'static str {
 		match name {
-			AssetName::PLMC => "https://sapi.xt.com/v4/public/kline?symbol=plmc_usdt&interval=15m&limit=10",
+			AssetName::PLMC => "https://sapi.xt.com/v4/public/kline?symbol=plmc_usdt&interval=30m&limit=10",
 			_ => "",
 		}
 	}
@@ -338,7 +338,7 @@ impl FetchPrice for MexcFetcher {
 
 	fn get_url(name: AssetName) -> &'static str {
 		match name {
-			AssetName::PLMC => "https://api.mexc.com/api/v3/klines?symbol=PLMCUSDT&interval=15m&limit=10",
+			AssetName::PLMC => "https://api.mexc.com/api/v3/klines?symbol=PLMCUSDT&interval=30m&limit=10",
 			_ => "",
 		}
 	}

@@ -221,14 +221,14 @@ pub fn price_oracle_response(state: &mut testing::OffchainState) {
 	}
 	state.expect_request(testing::PendingRequest {
 		method: "GET".into(),
-		uri: "https://sapi.xt.com/v4/public/kline?symbol=plmc_usdt&interval=15m&limit=10".into(),
+		uri: "https://sapi.xt.com/v4/public/kline?symbol=plmc_usdt&interval=30m&limit=10".into(),
 		response: Some(XT_PLMC_CORRECT.to_vec()),
 		sent: true,
 		..Default::default()
 	});
 	state.expect_request(testing::PendingRequest {
 		method: "GET".into(),
-		uri: "https://api.mexc.com/api/v3/klines?symbol=PLMCUSDT&interval=15m&limit=10".into(),
+		uri: "https://api.mexc.com/api/v3/klines?symbol=PLMCUSDT&interval=30m&limit=10".into(),
 		response: Some(MEXC_PLMC_CORRECT.to_vec()),
 		sent: true,
 		..Default::default()
