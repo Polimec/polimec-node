@@ -106,10 +106,7 @@ impl<T: Config> Pallet<T> {
 
 	pub fn do_settle_successful_bid(bid: BidInfoOf<T>, project_id: ProjectId) -> DispatchResult {
 		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
-		// Ensure that:
-		// 1. The project is in the FundingSuccessful state
-		// 2. The bid is in the Accepted or PartiallyAccepted state
-		// 3. The contribution token exists
+
 		ensure!(project_details.status == ProjectStatus::FundingSuccessful, Error::<T>::NotAllowed);
 		ensure!(matches!(bid.status, BidStatus::Accepted | BidStatus::PartiallyAccepted(..)), Error::<T>::NotAllowed);
 		ensure!(T::ContributionTokenCurrency::asset_exists(project_id), Error::<T>::CannotClaimYet);
@@ -132,11 +129,11 @@ impl<T: Config> Pallet<T> {
 			)?;
 		} else {
 			// Release the held PLMC bond
-			Self::release_bond(project_id, &bidder, bid.plmc_bond)?;
+			Self::release_participation_bond(project_id, &bidder, bid.plmc_bond)?;
 		}
 
 		// Mint the contribution tokens
-		Self::mint_ct_tokens(project_id, &bidder, bid.final_ct_amount)?;
+		Self::mint_contribution_tokens(project_id, &bidder, bid.final_ct_amount)?;
 
 		// Payout the bid funding asset amount to the project account
 		Self::release_funding_asset(
@@ -177,7 +174,7 @@ impl<T: Config> Pallet<T> {
 		Self::release_funding_asset(project_id, &bidder, bid.funding_asset_amount_locked, bid.funding_asset)?;
 
 		// Release the held PLMC bond
-		Self::release_bond(project_id, &bidder, bid.plmc_bond)?;
+		Self::release_participation_bond(project_id, &bidder, bid.plmc_bond)?;
 
 		// Remove the bid from the storage
 		Bids::<T>::remove((project_id, bidder.clone(), bid.id));
@@ -215,11 +212,11 @@ impl<T: Config> Pallet<T> {
 			)?;
 		} else {
 			// Release the held PLMC bond
-			Self::release_bond(project_id, &contributor, contribution.plmc_bond)?;
+			Self::release_participation_bond(project_id, &contributor, contribution.plmc_bond)?;
 		}
 
 		// Mint the contribution tokens
-		Self::mint_ct_tokens(project_id, &contributor, contribution.ct_amount)?;
+		Self::mint_contribution_tokens(project_id, &contributor, contribution.ct_amount)?;
 
 		// Payout the bid funding asset amount to the project account
 		Self::release_funding_asset(
@@ -267,7 +264,7 @@ impl<T: Config> Pallet<T> {
 		)?;
 
 		// Release the held PLMC bond
-		Self::release_bond(project_id, &contributor, contribution.plmc_bond)?;
+		Self::release_participation_bond(project_id, &contributor, contribution.plmc_bond)?;
 
 		// Remove the bid from the storage
 		Contributions::<T>::remove((project_id, contributor.clone(), contribution.id));
@@ -282,7 +279,7 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
-	fn mint_ct_tokens(project_id: ProjectId, participant: &AccountIdOf<T>, amount: BalanceOf<T>) -> DispatchResult {
+	fn mint_contribution_tokens(project_id: ProjectId, participant: &AccountIdOf<T>, amount: BalanceOf<T>) -> DispatchResult {
 		if !T::ContributionTokenCurrency::contains(&project_id, participant) {
 			T::ContributionTokenCurrency::touch(project_id, participant, participant)?;
 		}
@@ -307,7 +304,7 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
-	fn release_bond(project_id: ProjectId, participant: &AccountIdOf<T>, amount: BalanceOf<T>) -> DispatchResult {
+	fn release_participation_bond(project_id: ProjectId, participant: &AccountIdOf<T>, amount: BalanceOf<T>) -> DispatchResult {
 		// Release the held PLMC bond
 		T::NativeCurrency::release(
 			&HoldReason::Participation(project_id).into(),
@@ -345,7 +342,7 @@ impl<T: Config> Pallet<T> {
 		info: &RewardInfoOf<T>,
 	) -> Result<(BalanceOf<T>, BalanceOf<T>), DispatchError> {
 		let reward = Self::calculate_evaluator_reward(evaluation, &info);
-		Self::mint_ct_tokens(project_id, &evaluation.evaluator, reward)?;
+		Self::mint_contribution_tokens(project_id, &evaluation.evaluator, reward)?;
 
 		Ok((evaluation.current_plmc_bond, reward))
 	}

@@ -2136,6 +2136,12 @@ impl<T: Config> Pallet<T> {
 			Precision::Exact,
 		)?;
 
+		// Refund bid should only be called when the bid is rejected, so this if let should
+		// always match.
+		if let BidStatus::Rejected(reason) = bid.status {
+			Self::deposit_event(Event::BidRefunded { project_id, account: bid.bidder.clone(), bid_id: bid.id, reason });
+		}
+
 		Ok(())
 	}
 
@@ -2423,15 +2429,14 @@ impl<T: Config> Pallet<T> {
 		available_bytes_for_migration_per_message.saturating_div(one_migration_bytes)
 	}
 
+	/// Check if the user has no participations (left) in the project.
 	pub fn user_has_no_participations(project_id: ProjectId, user: AccountIdOf<T>) -> bool {
-		Evaluations::<T>::iter_prefix_values((project_id, user.clone()))
-			.map(|eval| eval.id)
-			.chain(Bids::<T>::iter_prefix_values((project_id, user.clone())).map(|bid| bid.id))
-			.chain(Contributions::<T>::iter_prefix_values((project_id, user)).map(|contribution| contribution.id))
-			.count() == 0
+		Evaluations::<T>::iter_prefix_values((project_id, user.clone())).next().is_none()
+   		&& Bids::<T>::iter_prefix_values((project_id, user.clone())).next().is_none()
+    	&& Contributions::<T>::iter_prefix_values((project_id, user)).next().is_none()
 	}
 
-	pub fn construct_migration_xcm_message(migrations: Vec<Migration>, query_id: QueryId) -> Xcm<()> {
+	pub fn construct_migration_xcm_message(migrations: BoundedVec<Migration, MaxParticipationsPerUser<T>>, query_id: QueryId) -> Xcm<()> {
 		// TODO: adjust this as benchmarks for polimec-receiver are written
 		const MAX_WEIGHT: Weight = Weight::from_parts(10_000, 0);
 		const MAX_RESPONSE_WEIGHT: Weight = Weight::from_parts(700_000_000, 10_000);
@@ -2440,6 +2445,9 @@ impl<T: Config> Pallet<T> {
 		let migrations_item = Migrations::from(migrations.into());
 
 		let mut encoded_call = vec![51u8, 0];
+		// migrations_item can contain a Maximum of MaxParticipationsPerUser migrations which
+		// is 48. So we know that there is an upper limit to this encoded call, namely 48 *
+		// Migration encode size.
 		encoded_call.extend_from_slice(migrations_item.encode().as_slice());
 		Xcm(vec![
 			UnpaidExecution { weight_limit: WeightLimit::Unlimited, check_origin: None },

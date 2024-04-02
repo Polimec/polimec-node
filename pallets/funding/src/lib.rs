@@ -188,9 +188,7 @@ pub mod pallet {
 	use super::*;
 	use crate::traits::{BondingRequirementCalculation, ProvideAssetPrice, VestingDurationCalculation};
 	use frame_support::{
-		dispatch::{GetDispatchInfo, PostDispatchInfo},
-		pallet_prelude::*,
-		traits::{OnFinalize, OnIdle, OnInitialize},
+		dispatch::{GetDispatchInfo, PostDispatchInfo}, pallet_prelude::*, traits::{OnFinalize, OnIdle, OnInitialize}
 	};
 	use frame_system::pallet_prelude::*;
 	use sp_arithmetic::Percent;
@@ -668,6 +666,12 @@ pub mod pallet {
 			id: u32,
 			ct_amount: BalanceOf<T>,
 			slashed_amount: BalanceOf<T>,
+		},
+		BidRefunded {
+			project_id: ProjectId,
+			account: AccountIdOf<T>,
+			bid_id: u32,
+			reason: RejectionReason,
 		},
 		BidSettled {
 			project_id: ProjectId,

@@ -1409,30 +1409,16 @@ impl<
 				);
 				assert_eq!(reserved, 0u64.into());
 
-				match percentage {
+				let (amount, should_exist) = match percentage {
 					0..=75 => {
 						assert!(<T as Config>::NativeCurrency::balance(&account) < evaluation.current_plmc_bond);
 						assert!(matches!(reward_info, EvaluatorsOutcome::Slashed));
-						Self::assert_migration(
-							project_id,
-							account,
-							0u64.into(),
-							evaluation.id,
-							ParticipationType::Evaluation,
-							false,
-						);
+						(0u64.into(), false)
 					},
 					76..=89 => {
 						assert!(<T as Config>::NativeCurrency::balance(&account) >= evaluation.current_plmc_bond);
 						assert!(matches!(reward_info, EvaluatorsOutcome::Unchanged));
-						Self::assert_migration(
-							project_id,
-							account,
-							0u64.into(),
-							evaluation.id,
-							ParticipationType::Evaluation,
-							false,
-						);
+						(0u64.into(), false)
 					},
 					90..=100 => {
 						assert!(<T as Config>::NativeCurrency::balance(&account) >= evaluation.current_plmc_bond);
@@ -1441,17 +1427,18 @@ impl<
 								Pallet::<T>::calculate_evaluator_reward(&evaluation, &info),
 							_ => panic!("Evaluators should be rewarded"),
 						};
-						Self::assert_migration(
-							project_id,
-							account,
-							reward,
-							evaluation.id,
-							ParticipationType::Evaluation,
-							true,
-						);
+						(reward, true)
 					},
 					_ => panic!("Percentage should be between 0 and 100"),
-				}
+				};
+				Self::assert_migration(
+					project_id,
+					account,
+					amount,
+					evaluation.id,
+					ParticipationType::Evaluation,
+					should_exist,
+				);
 			}
 		});
 	}
@@ -1462,18 +1449,15 @@ impl<
 			for bid in bids {
 				let account = bid.bidder.clone();
 				assert_eq!(Bids::<T>::iter_prefix_values((&project_id, &account)).count(), 0);
-				if is_successful {
-					Self::assert_migration(
-						project_id,
-						account,
-						bid.final_ct_amount,
-						bid.id,
-						ParticipationType::Bid,
-						true,
-					);
-				} else {
-					Self::assert_migration(project_id, account, 0u64.into(), bid.id, ParticipationType::Bid, false);
-				}
+				let amount: BalanceOf<T> = if is_successful { bid.final_ct_amount } else { 0u64.into() };
+				Self::assert_migration(
+					project_id,
+					account,
+					amount,
+					bid.id,
+					ParticipationType::Bid,
+					is_successful,
+				);
 			}
 		});
 	}
@@ -1489,25 +1473,15 @@ impl<
 			for contribution in contributions {
 				let account = contribution.contributor.clone();
 				assert_eq!(Bids::<T>::iter_prefix_values((&project_id, &account)).count(), 0);
-				if is_successful {
-					Self::assert_migration(
-						project_id,
-						account,
-						contribution.ct_amount,
-						contribution.id,
-						ParticipationType::Contribution,
-						true,
-					);
-				} else {
-					Self::assert_migration(
-						project_id,
-						account,
-						0u64.into(),
-						contribution.id,
-						ParticipationType::Contribution,
-						false,
-					);
-				}
+				let amount: BalanceOf<T> = if is_successful { contribution.ct_amount } else { 0u64.into() };
+				Self::assert_migration(
+					project_id,
+					account,
+					amount,
+					contribution.id,
+					ParticipationType::Contribution,
+					is_successful
+				);
 			}
 		});
 	}

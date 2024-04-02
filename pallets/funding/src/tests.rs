@@ -2431,7 +2431,6 @@ mod auction {
 // only functionalities that happen in the COMMUNITY FUNDING period of a project
 mod community_contribution {
 	use super::*;
-	use std::collections::HashMap;
 	pub const HOURS: BlockNumber = 300u64;
 
 	#[test]
@@ -3598,7 +3597,7 @@ mod community_contribution {
 				default_bids(),
 			)
 		};
-		let mut contribute = |inst: &mut MockInstantiator, project_id, multiplier| {
+		let contribute = |inst: &mut MockInstantiator, project_id, multiplier| {
 			let jwt = get_mock_jwt(BUYER_1, InvestorType::Retail, generate_did_from_account(BUYER_1));
 			let wap = inst.get_project_details(project_id).weighted_average_price.unwrap();
 			let contributor_plmc = MockInstantiator::calculate_contributed_plmc_spent(
@@ -4540,7 +4539,7 @@ mod remainder_contribution {
 				vec![],
 			)
 		};
-		let mut contribute = |inst: &mut MockInstantiator, project_id, multiplier| {
+		let contribute = |inst: &mut MockInstantiator, project_id, multiplier| {
 			let jwt = get_mock_jwt(BUYER_1, InvestorType::Retail, generate_did_from_account(BUYER_1));
 			let wap = inst.get_project_details(project_id).weighted_average_price.unwrap();
 			let contributor_plmc = MockInstantiator::calculate_contributed_plmc_spent(
@@ -5298,11 +5297,7 @@ mod helper_functions {
 			funding_destination_account: ISSUER_1,
 			offchain_information_hash: Some(hashed(METADATA)),
 		};
-		let plmc_charged = MockInstantiator::calculate_auction_plmc_charged_from_all_bids_made_or_with_bucket(
-			&bids,
-			project_metadata.clone(),
-			None,
-		);
+
 		let project_id = inst.create_community_contributing_project(
 			project_metadata.clone(),
 			ISSUER_1,
@@ -5310,9 +5305,6 @@ mod helper_functions {
 			bids.clone(),
 		);
 
-		let stored_bids = inst.execute(|| {
-			Bids::<TestRuntime>::iter_values().into_iter().sorted_by(|b1, b2| b1.id.cmp(&b2.id)).collect_vec()
-		});
 		let wap = inst.get_project_details(project_id).weighted_average_price.unwrap();
 
 		let expected_returns = vec![

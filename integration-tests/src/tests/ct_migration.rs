@@ -138,7 +138,7 @@ fn migrations_are_vested(project_id: u32, accounts: Vec<AccountId>) {
 	});
 }
 
-fn create_settled_project() -> ProjectId {
+fn create_settled_project() -> (ProjectId, Vec<AccountId>) {
 	let mut inst = IntegrationInstantiator::new(None);
 	PolitestNet::execute_with(|| {
 		let project_id = inst.create_finished_project(
@@ -150,19 +150,22 @@ fn create_settled_project() -> ProjectId {
 			default_remainder_contributions(),
 		);
 		inst.advance_time(<PolitestRuntime as pallet_funding::Config>::SuccessToSettlementTime::get()).unwrap();
-		inst.settle_project(project_id).unwrap();
-		project_id
+		let mut participants: Vec<AccountId> = pallet_funding::Evaluations::<PolitestRuntime>::iter_prefix_values((project_id,)).map(|eval| eval.evaluator)
+			.chain(pallet_funding::Bids::<PolitestRuntime>::iter_prefix_values((project_id,)).map(|bid| bid.bidder))
+			.chain(pallet_funding::Contributions::<PolitestRuntime>::iter_prefix_values((project_id,)).map(|contribution| contribution.contributor)).collect();
+		participants.sort();
+		participants.dedup();
+
+		inst.settle_project(project_id).unwrap(); 
+		(project_id, participants)
 	})
 }
 
 #[test]
 fn full_migration_test() {
-	let project_id = create_settled_project();
+	let (project_id, participants) = create_settled_project();
 
-	let participants = vec![EVAL_1, EVAL_2, EVAL_3, BIDDER_1, BIDDER_2, BUYER_1, BUYER_2]
-		.into_iter()
-		.map(|x| AccountId::from(x))
-		.collect::<Vec<_>>();
+	dbg!(get_migrations_for_participants(project_id, participants.clone()));
 
 	mock_hrmp_establishment(project_id);
 
