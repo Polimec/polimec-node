@@ -18,16 +18,13 @@
 
 //! Types for Funding pallet.
 
-use crate::{
-	traits::{BondingRequirementCalculation},
-	BalanceOf,
-};
+use crate::{traits::BondingRequirementCalculation, BalanceOf};
 use frame_support::{pallet_prelude::*, traits::tokens::Balance as BalanceT};
 use frame_system::pallet_prelude::BlockNumberFor;
 use polkadot_parachain_primitives::primitives::Id as ParaId;
 use serde::{Deserialize, Serialize};
 use sp_arithmetic::{FixedPointNumber, FixedPointOperand};
-use sp_runtime::traits::{CheckedDiv};
+use sp_runtime::traits::CheckedDiv;
 use sp_std::{cmp::Eq, prelude::*};
 
 pub use config_types::*;

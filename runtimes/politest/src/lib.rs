@@ -37,7 +37,7 @@ use frame_support::{
 };
 use frame_system::{EnsureNever, EnsureRoot, EnsureRootWithSuccess, EnsureSigned};
 use pallet_democracy::GetElectorate;
-use pallet_funding::{DaysToBlocks};
+use pallet_funding::DaysToBlocks;
 
 use parachains_common::{
 	message_queue::{NarrowOriginToSibling, ParaIdToSibling},

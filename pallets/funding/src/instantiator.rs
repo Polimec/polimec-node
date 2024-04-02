@@ -1440,7 +1440,12 @@ impl<
 	}
 
 	// Testing if a list of bids are settled correctly.
-	pub fn assert_bids_migrations_created(&mut self, project_id: ProjectId, bids: Vec<BidInfoOf<T>>, is_successful: bool) {
+	pub fn assert_bids_migrations_created(
+		&mut self,
+		project_id: ProjectId,
+		bids: Vec<BidInfoOf<T>>,
+		is_successful: bool,
+	) {
 		self.execute(|| {
 			for bid in bids {
 				let account = bid.bidder.clone();
