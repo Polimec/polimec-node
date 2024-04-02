@@ -376,7 +376,7 @@ thread_local! {
 		(0u32, FixedU128::from_float(69f64)), // DOT
 		(1337u32, FixedU128::from_float(0.97f64)), // USDC
 		(1984u32, FixedU128::from_float(1.0f64)), // USDT
-		(2069u32, FixedU128::from_float(8.4f64)), // PLMC
+		(3344u32, FixedU128::from_float(8.4f64)), // PLMC
 	]));
 }
 pub struct ConstPriceProvider;

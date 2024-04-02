@@ -19,7 +19,8 @@
 use crate::{
 	traits::FetchPrice,
 	types::{
-		AssetName, AssetRequest, BitFinexFetcher, BitStampFetcher, CoinbaseFetcher, KrakenFetcher, OpenCloseVolume,
+		AssetName, AssetRequest, BitFinexFetcher, BitStampFetcher, CoinbaseFetcher, KrakenFetcher, MexcFetcher,
+		OpenCloseVolume, XTFetcher,
 	},
 };
 use core::ops::Rem;
@@ -147,6 +148,7 @@ pub mod pallet {
 							(AssetName::USDT, Zero::zero()),
 							(AssetName::USDC, Zero::zero()),
 							(AssetName::DOT, Zero::zero()),
+							(AssetName::PLMC, Zero::zero()),
 						]),
 					};
 					let assets = last_send_for_assets
@@ -199,6 +201,8 @@ pub mod pallet {
 				BitFinexFetcher::get_moving_average,
 				BitStampFetcher::get_moving_average,
 				CoinbaseFetcher::get_moving_average,
+				XTFetcher::get_moving_average,
+				MexcFetcher::get_moving_average,
 			];
 
 			let mut aggr_prices: BTreeMap<AssetName, Vec<(FixedU128, FixedU128)>> = BTreeMap::new();

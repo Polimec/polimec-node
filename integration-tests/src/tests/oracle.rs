@@ -31,7 +31,7 @@ fn values(
 		(0u32, FixedU128::from_float(dot)),
 		(1337u32, FixedU128::from_float(usdc)),
 		(1984u32, FixedU128::from_float(usdt)),
-		(2069u32, FixedU128::from_float(plmc))
+		(3344u32, FixedU128::from_float(plmc))
 	]
 }
 
@@ -55,7 +55,7 @@ fn members_can_feed_data() {
 			(0u32, FixedU128::from_float(4.84)),
 			(1337u32, FixedU128::from_float(1.0)),
 			(1984u32, FixedU128::from_float(1.0)),
-			(2069u32, FixedU128::from_float(0.4)),
+			(3344u32, FixedU128::from_float(0.4)),
 		]);
 
 		for (key, value) in Oracle::get_all_values() {
@@ -97,7 +97,7 @@ fn data_is_correctly_combined() {
 			(0u32, FixedU128::from_float(2.0)),
 			(1337u32, FixedU128::from_float(1.0)),
 			(1984u32, FixedU128::from_float(1.1)),
-			(2069u32, FixedU128::from_float(0.22222)),
+			(3344u32, FixedU128::from_float(0.22222)),
 		]);
 
 		for (key, value) in Oracle::get_all_values() {
