@@ -4776,9 +4776,9 @@ mod funding_end_and_settlement {
 
 		inst.settle_project(project_id).unwrap();
 
-		inst.assert_evaluations_settled(project_id, evaluations, percentage);
-		inst.assert_bids_settled(project_id, bids, true);
-		inst.assert_contributions_settled(project_id, contributions, true);
+		inst.assert_evaluations_migrations_created(project_id, evaluations, percentage);
+		inst.assert_bids_migrations_created(project_id, bids, true);
+		inst.assert_contributions_migrations_created(project_id, contributions, true);
 	}
 
 	#[test]
@@ -4791,9 +4791,9 @@ mod funding_end_and_settlement {
 
 		inst.settle_project(project_id).unwrap();
 
-		inst.assert_evaluations_settled(project_id, evaluations, percentage);
-		inst.assert_bids_settled(project_id, bids, false);
-		inst.assert_contributions_settled(project_id, contributions, false);
+		inst.assert_evaluations_migrations_created(project_id, evaluations, percentage);
+		inst.assert_bids_migrations_created(project_id, bids, false);
+		inst.assert_contributions_migrations_created(project_id, contributions, false);
 	}
 
 	#[test]

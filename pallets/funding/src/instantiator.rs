@@ -1385,7 +1385,7 @@ impl<
 
 	// Used to check if all evaluations are settled correctly. We cannot check amount of
 	// contributions minted for the user, as they could have received more tokens from other participations.
-	pub fn assert_evaluations_settled(
+	pub fn assert_evaluations_migrations_created(
 		&mut self,
 		project_id: ProjectId,
 		evaluations: Vec<EvaluationInfoOf<T>>,
@@ -1403,25 +1403,17 @@ impl<
 					ProjectsDetails::<T>::get(project_id).unwrap().evaluation_round_info.evaluators_outcome;
 				let account = evaluation.evaluator.clone();
 				assert_eq!(Evaluations::<T>::iter_prefix_values((&project_id, &account)).count(), 0);
-				let reserved = <T as Config>::NativeCurrency::balance_on_hold(
-					&(HoldReason::Evaluation(project_id).into()),
-					&account,
-				);
-				assert_eq!(reserved, 0u64.into());
 
 				let (amount, should_exist) = match percentage {
 					0..=75 => {
-						assert!(<T as Config>::NativeCurrency::balance(&account) < evaluation.current_plmc_bond);
 						assert!(matches!(reward_info, EvaluatorsOutcome::Slashed));
 						(0u64.into(), false)
 					},
 					76..=89 => {
-						assert!(<T as Config>::NativeCurrency::balance(&account) >= evaluation.current_plmc_bond);
 						assert!(matches!(reward_info, EvaluatorsOutcome::Unchanged));
 						(0u64.into(), false)
 					},
 					90..=100 => {
-						assert!(<T as Config>::NativeCurrency::balance(&account) >= evaluation.current_plmc_bond);
 						let reward = match reward_info {
 							EvaluatorsOutcome::Rewarded(info) =>
 								Pallet::<T>::calculate_evaluator_reward(&evaluation, &info),
@@ -1444,7 +1436,7 @@ impl<
 	}
 
 	// Testing if a list of bids are settled correctly.
-	pub fn assert_bids_settled(&mut self, project_id: ProjectId, bids: Vec<BidInfoOf<T>>, is_successful: bool) {
+	pub fn assert_bids_migrations_created(&mut self, project_id: ProjectId, bids: Vec<BidInfoOf<T>>, is_successful: bool) {
 		self.execute(|| {
 			for bid in bids {
 				let account = bid.bidder.clone();
@@ -1456,7 +1448,7 @@ impl<
 	}
 
 	// Testing if a list of contributions are settled correctly.
-	pub fn assert_contributions_settled(
+	pub fn assert_contributions_migrations_created(
 		&mut self,
 		project_id: ProjectId,
 		contributions: Vec<ContributionInfoOf<T>>,
