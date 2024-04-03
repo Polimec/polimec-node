@@ -457,7 +457,6 @@ mod create_project_extrinsic {
 			let mut project_metadata = default_project_metadata(ISSUER_1);
 			project_metadata.minimum_price = 0_u128.into();
 
-
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 			inst.mint_plmc_to(default_plmc_balances());
 			let project_err = inst.execute(|| {
