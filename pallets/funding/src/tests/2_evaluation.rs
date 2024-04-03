@@ -233,14 +233,13 @@ mod start_evaluation_extrinsic {
 		#[test]
 		fn different_account() {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
-			let issuer = ISSUER_1;
 			let project_metadata = default_project_metadata(issuer);
 
 			let project_id = inst.create_new_project(project_metadata, issuer);
 			let jwt = get_mock_jwt(issuer, InvestorType::Institutional, generate_did_from_account(issuer));
 			assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::Application);
 			assert_ok!(inst.execute(|| PolimecFunding::start_evaluation(
-				RuntimeOrigin::signed(issuer),
+				RuntimeOrigin::signed(ISSUER_1),
 				jwt,
 				project_id
 			)));
@@ -249,8 +248,8 @@ mod start_evaluation_extrinsic {
 			inst.execute(|| {
 				assert_noop!(
 					PolimecFunding::start_evaluation(
-						RuntimeOrigin::signed(issuer + 1),
-						get_mock_jwt(issuer + 1, InvestorType::Institutional, generate_did_from_account(issuer + 1)),
+						RuntimeOrigin::signed(ISSUER_1),
+						get_mock_jwt(ISSUER_2, InvestorType::Institutional, generate_did_from_account(ISSUER_2)),
 						project_id
 					),
 					Error::<TestRuntime>::NotAllowed
