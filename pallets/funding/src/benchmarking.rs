@@ -601,7 +601,9 @@ mod benchmarks {
 		}
 
 		// Events
-		frame_system::Pallet::<T>::assert_last_event(Event::ProjectPhaseTransition { project_id, phase: ProjectPhases::Evaluation }.into())
+		frame_system::Pallet::<T>::assert_last_event(
+			Event::ProjectPhaseTransition { project_id, phase: ProjectPhases::Evaluation }.into(),
+		)
 	}
 
 	#[benchmark]
@@ -2191,7 +2193,7 @@ mod benchmarks {
 
 		// Events
 		frame_system::Pallet::<T>::assert_last_event(
-			Event::<T>::ProjectPhaseTransition { project_id, phase: ProjectPhases::CommunityFunding }.into()
+			Event::<T>::ProjectPhaseTransition { project_id, phase: ProjectPhases::CommunityFunding }.into(),
 		);
 	}
 
@@ -2241,7 +2243,9 @@ mod benchmarks {
 		assert_eq!(stored_details.status, ProjectStatus::RemainderRound);
 
 		// Events
-		frame_system::Pallet::<T>::assert_last_event(Event::<T>::ProjectPhaseTransition { project_id, phase: ProjectPhases::RemainderFunding }.into());
+		frame_system::Pallet::<T>::assert_last_event(
+			Event::<T>::ProjectPhaseTransition { project_id, phase: ProjectPhases::RemainderFunding }.into(),
+		);
 	}
 
 	// do_end_funding

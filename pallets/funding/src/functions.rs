@@ -181,7 +181,9 @@ impl<T: Config> Pallet<T> {
 			};
 
 			// * Emit events *
-			Self::deposit_event(Event::ProjectPhaseTransition { project_id, phase: ProjectPhases::AuctionInitializePeriod }.into());
+			Self::deposit_event(
+				Event::ProjectPhaseTransition { project_id, phase: ProjectPhases::AuctionInitializePeriod }.into(),
+			);
 
 			return Ok(PostDispatchInfo {
 				actual_weight: Some(WeightInfoOf::<T>::end_evaluation_success(insertion_attempts)),
@@ -197,7 +199,13 @@ impl<T: Config> Pallet<T> {
 			DidWithActiveProjects::<T>::set(issuer_did, None);
 
 			// * Emit events *
-			Self::deposit_event(Event::ProjectPhaseTransition { project_id, phase: ProjectPhases::FundingFinalization(ProjectOutcome::EvaluationFailed) }.into());
+			Self::deposit_event(
+				Event::ProjectPhaseTransition {
+					project_id,
+					phase: ProjectPhases::FundingFinalization(ProjectOutcome::EvaluationFailed),
+				}
+				.into(),
+			);
 			return Ok(PostDispatchInfo {
 				actual_weight: Some(WeightInfoOf::<T>::end_evaluation_failure()),
 				pays_fee: Pays::Yes,
@@ -324,17 +332,17 @@ impl<T: Config> Pallet<T> {
 
 		// * Validity checks *
 		ensure!(now > opening_end_block, Error::<T>::TooEarlyForAuctionClosingStart);
-		ensure!(
-			project_details.status == ProjectStatus::AuctionOpening,
-			Error::<T>::ProjectNotInAuctionOpeningRound
-		);
+		ensure!(project_details.status == ProjectStatus::AuctionOpening, Error::<T>::ProjectNotInAuctionOpeningRound);
 
 		// * Calculate new variables *
 		let closing_start_block = now + 1u32.into();
 		let closing_end_block = now + T::AuctionClosingDuration::get();
 
 		// * Update Storage *
-		project_details.phase_transition_points.auction_closing.update(Some(closing_start_block), Some(closing_end_block));
+		project_details
+			.phase_transition_points
+			.auction_closing
+			.update(Some(closing_start_block), Some(closing_end_block));
 		project_details.status = ProjectStatus::AuctionClosing;
 		ProjectsDetails::<T>::insert(project_id, project_details);
 		// Schedule for automatic check by on_initialize. Success depending on enough funding reached
@@ -390,10 +398,7 @@ impl<T: Config> Pallet<T> {
 
 		// * Validity checks *
 		ensure!(now > auction_closing_end_block, Error::<T>::TooEarlyForCommunityRoundStart);
-		ensure!(
-			project_details.status == ProjectStatus::AuctionClosing,
-			Error::<T>::ProjectNotInAuctionClosingRound
-		);
+		ensure!(project_details.status == ProjectStatus::AuctionClosing, Error::<T>::ProjectNotInAuctionClosingRound);
 
 		// * Calculate new variables *
 		let end_block = Self::select_random_block(auction_closing_start_block, auction_closing_end_block);
@@ -427,7 +432,10 @@ impl<T: Config> Pallet<T> {
 				};
 
 				// * Emit events *
-				Self::deposit_event(Event::<T>::ProjectPhaseTransition { project_id, phase: ProjectPhases::CommunityFunding });
+				Self::deposit_event(Event::<T>::ProjectPhaseTransition {
+					project_id,
+					phase: ProjectPhases::CommunityFunding,
+				});
 
 				Ok(PostDispatchInfo {
 					actual_weight: Some(WeightInfoOf::<T>::start_community_funding(
@@ -581,12 +589,8 @@ impl<T: Config> Pallet<T> {
 		DidWithActiveProjects::<T>::set(issuer_did, None);
 		if funding_ratio <= Perquintill::from_percent(33u64) {
 			project_details.evaluation_round_info.evaluators_outcome = EvaluatorsOutcome::Slashed;
-			let insertion_iterations = Self::finalize_funding(
-				project_id,
-				project_details,
-				ProjectOutcome::FundingFailed,
-				1u32.into(),
-			)?;
+			let insertion_iterations =
+				Self::finalize_funding(project_id, project_details, ProjectOutcome::FundingFailed, 1u32.into())?;
 			return Ok(PostDispatchInfo {
 				actual_weight: Some(WeightInfoOf::<T>::end_funding_automatically_rejected_evaluators_slashed(
 					insertion_iterations,
@@ -661,16 +665,8 @@ impl<T: Config> Pallet<T> {
 		};
 
 		// * Update storage *
-		Self::finalize_funding(
-			project_id,
-			project_details,
-			outcome,
-			T::SuccessToSettlementTime::get(),
-		)?;
-		Ok(PostDispatchInfo {
-			actual_weight: Some(WeightInfoOf::<T>::project_decision()),
-			pays_fee: Pays::Yes,
-		})
+		Self::finalize_funding(project_id, project_details, outcome, T::SuccessToSettlementTime::get())?;
+		Ok(PostDispatchInfo { actual_weight: Some(WeightInfoOf::<T>::project_decision()), pays_fee: Pays::Yes })
 	}
 
 	#[transactional]
@@ -863,7 +859,7 @@ impl<T: Config> Pallet<T> {
 		Buckets::<T>::remove(project_id);
 
 		// * Emit events *
-		Self::deposit_event(Event::ProjectRemoved { project_id, issuer: issuer});
+		Self::deposit_event(Event::ProjectRemoved { project_id, issuer });
 
 		Ok(())
 	}
@@ -1072,7 +1068,10 @@ impl<T: Config> Pallet<T> {
 		ensure!(ct_amount > Zero::zero(), Error::<T>::BidTooLow);
 		ensure!(bid_count < T::MaxBidsPerProject::get(), Error::<T>::TooManyBidsForProject);
 		ensure!(did != project_details.issuer_did, Error::<T>::ParticipationToThemselves);
-		ensure!(matches!(project_details.status, ProjectStatus::AuctionOpening | ProjectStatus::AuctionClosing), Error::<T>::AuctionNotStarted);
+		ensure!(
+			matches!(project_details.status, ProjectStatus::AuctionOpening | ProjectStatus::AuctionClosing),
+			Error::<T>::AuctionNotStarted
+		);
 		ensure!(
 			project_metadata.participation_currencies.contains(&funding_asset),
 			Error::<T>::FundingAssetNotAccepted
@@ -2336,7 +2335,10 @@ impl<T: Config> Pallet<T> {
 				Ok(iterations) => iterations,
 				Err(_iterations) => return Err(Error::<T>::TooManyInsertionAttempts.into()),
 			};
-		Self::deposit_event(Event::ProjectPhaseTransition { project_id, phase: ProjectPhases::FundingFinalization(outcome) });
+		Self::deposit_event(Event::ProjectPhaseTransition {
+			project_id,
+			phase: ProjectPhases::FundingFinalization(outcome),
+		});
 		Ok(insertion_iterations)
 	}
 

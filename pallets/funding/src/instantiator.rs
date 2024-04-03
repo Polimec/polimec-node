@@ -1396,10 +1396,7 @@ impl<
 		percentage: u64,
 	) {
 		let details = self.get_project_details(project_id);
-		assert!(matches!(
-			details.status,
-			ProjectStatus::FundingSuccessful | ProjectStatus::FundingFailed
-		));
+		assert!(matches!(details.status, ProjectStatus::FundingSuccessful | ProjectStatus::FundingFailed));
 
 		self.execute(|| {
 			for evaluation in evaluations {
@@ -1723,8 +1720,7 @@ impl<
 			),
 			ProjectStatus::CommunityRound =>
 				self.create_community_contributing_project(project_metadata, issuer, evaluations, bids),
-			ProjectStatus::AuctionOpening =>
-				self.create_auctioning_project(project_metadata, issuer, evaluations),
+			ProjectStatus::AuctionOpening => self.create_auctioning_project(project_metadata, issuer, evaluations),
 			ProjectStatus::EvaluationRound => self.create_evaluating_project(project_metadata, issuer),
 			ProjectStatus::Application => self.create_new_project(project_metadata, issuer),
 			_ => panic!("unsupported project creation in that status"),

@@ -400,16 +400,16 @@ impl Config for TestRuntime {
 	type AccountId32Conversion = DummyConverter;
 	type AllPalletsWithoutSystem =
 		(Balances, ContributionTokens, ForeignAssets, PolimecFunding, Vesting, RandomnessCollectiveFlip);
+	type AuctionClosingDuration = AuctionClosingDuration;
 	type AuctionInitializePeriodDuration = AuctionInitializePeriodDuration;
+	type AuctionOpeningDuration = AuctionOpeningDuration;
 	type Balance = Balance;
 	type BlockNumber = BlockNumber;
 	type BlockNumberToBalance = ConvertInto;
-	type AuctionClosingDuration = AuctionClosingDuration;
 	type CommunityFundingDuration = CommunityRoundDuration;
 	type ContributionTokenCurrency = ContributionTokens;
 	type ContributionTreasury = ContributionTreasury;
 	type DaysToBlocks = DaysToBlocks;
-	type AuctionOpeningDuration = AuctionOpeningDuration;
 	type EvaluationDuration = EvaluationDuration;
 	type EvaluationSuccessThreshold = EarlyEvaluationThreshold;
 	type EvaluatorSlash = EvaluatorSlash;
