@@ -4,7 +4,7 @@ provider = "native"
 
 # Using Rococo 1.7.0 as relay.
 [relaychain]
-default_command = "../polkadot-sdk/target/release/polkadot"
+default_command = "./bin/polkadot"
 chain = "rococo-local"
 
 [[relaychain.nodes]]
