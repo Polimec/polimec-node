@@ -392,6 +392,45 @@ mod evaluate_extrinsic {
 				evaluation.usd_amount,
 			)));
 		}
+
+		#[test]
+		fn storage_check() {
+			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+			let project_id = inst.create_evaluating_project(default_project_metadata(ISSUER_1), ISSUER_1);
+			let evaluation = UserToUSDBalance::new(EVALUATOR_1, 500 * US_DOLLAR);
+			let necessary_plmc = MockInstantiator::calculate_evaluation_plmc_spent(vec![evaluation.clone()]);
+			let plmc_existential_deposits = necessary_plmc.accounts().existential_deposits();
+			inst.mint_plmc_to(necessary_plmc.clone());
+			inst.mint_plmc_to(plmc_existential_deposits);
+
+			inst.execute(|| {
+				assert_eq!(Evaluations::<TestRuntime>::iter_values().collect_vec(), vec![]);
+			});
+
+			assert_ok!(inst.execute(|| PolimecFunding::evaluate(
+				RuntimeOrigin::signed(evaluation.account),
+				get_mock_jwt(evaluation.account, InvestorType::Retail, generate_did_from_account(evaluation.account)),
+				project_id,
+				evaluation.usd_amount,
+			)));
+
+			inst.execute(|| {
+				let evaluations = Evaluations::<TestRuntime>::iter_prefix_values((project_id,)).collect_vec();
+				assert_eq!(evaluations.len(), 1);
+				let stored_evaluation = &evaluations[0];
+				let expected_evaluation_item = EvaluationInfoOf::<TestRuntime> {
+					id: 0,
+					project_id: 0,
+					evaluator: EVALUATOR_1,
+					original_plmc_bond: necessary_plmc[0].plmc_amount,
+					current_plmc_bond: necessary_plmc[0].plmc_amount,
+					early_usd_amount: evaluation.usd_amount,
+					late_usd_amount: 0,
+					when: 1,
+				};
+			});
+
+		}
 	}
 
 	#[cfg(test)]
