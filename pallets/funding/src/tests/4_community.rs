@@ -6,7 +6,7 @@ pub const HOURS: BlockNumber = 300u64;
 fn community_round_completed() {
 	let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 	let _ = inst.create_remainder_contributing_project(
-		default_project_metadata(0, ISSUER_1),
+		default_project_metadata(ISSUER_1),
 		ISSUER_1,
 		default_evaluations(),
 		default_bids(),
@@ -17,10 +17,10 @@ fn community_round_completed() {
 #[test]
 fn multiple_contribution_projects_completed() {
 	let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
-	let project1 = default_project_metadata(inst.get_new_nonce(), ISSUER_1);
-	let project2 = default_project_metadata(inst.get_new_nonce(), ISSUER_2);
-	let project3 = default_project_metadata(inst.get_new_nonce(), ISSUER_3);
-	let project4 = default_project_metadata(inst.get_new_nonce(), ISSUER_4);
+	let project1 = default_project_metadata(ISSUER_1);
+	let project2 = default_project_metadata(ISSUER_2);
+	let project3 = default_project_metadata(ISSUER_3);
+	let project4 = default_project_metadata(ISSUER_4);
 	let evaluations = default_evaluations();
 	let bids = default_bids();
 	let community_buys = default_community_buys();
@@ -52,7 +52,7 @@ fn multiple_contribution_projects_completed() {
 #[test]
 fn contribute_multiple_times_works() {
 	let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
-	let metadata = default_project_metadata(0, ISSUER_1);
+	let metadata = default_project_metadata(ISSUER_1);
 	let issuer = ISSUER_1;
 	let evaluations = default_evaluations();
 	let bids = default_bids();
@@ -101,7 +101,7 @@ fn community_round_ends_on_all_ct_sold_exact() {
 		BidParams::new_with_defaults(BIDDER_2, 10_000 * ASSET_UNIT),
 	];
 	let project_id = inst.create_community_contributing_project(
-		default_project_metadata(0, ISSUER_1),
+		default_project_metadata(ISSUER_1),
 		ISSUER_1,
 		default_evaluations(),
 		bids,
@@ -149,7 +149,7 @@ fn community_round_ends_on_all_ct_sold_overbuy() {
 		BidParams::new(BIDDER_2, 10_000 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
 	];
 	let project_id = inst.create_community_contributing_project(
-		default_project_metadata(0, ISSUER_1),
+		default_project_metadata(ISSUER_1),
 		ISSUER_1,
 		default_evaluations(),
 		bids,
@@ -212,7 +212,7 @@ fn community_round_ends_on_all_ct_sold_overbuy() {
 fn contribution_errors_if_limit_is_reached() {
 	let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 	let project_id = inst.create_community_contributing_project(
-		default_project_metadata(0, ISSUER_1),
+		default_project_metadata(ISSUER_1),
 		ISSUER_1,
 		default_evaluations(),
 		default_bids(),
@@ -278,7 +278,7 @@ fn contribution_errors_if_limit_is_reached() {
 fn retail_contributor_was_evaluator() {
 	let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 	let issuer = ISSUER_1;
-	let project_metadata = default_project_metadata(inst.get_new_nonce(), issuer);
+	let project_metadata = default_project_metadata(issuer);
 	let mut evaluations = default_evaluations();
 	let evaluator_contributor = 69;
 	let evaluation_amount = 420 * US_DOLLAR;
@@ -314,7 +314,7 @@ fn retail_contributor_was_evaluator() {
 fn evaluator_cannot_use_slash_reserve_for_contributing_call_fail() {
 	let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 	let issuer = ISSUER_1;
-	let project_metadata = default_project_metadata(inst.get_new_nonce(), issuer);
+	let project_metadata = default_project_metadata(issuer);
 	let mut evaluations = default_evaluations();
 	let bids = default_bids();
 
@@ -361,7 +361,7 @@ fn evaluator_cannot_use_slash_reserve_for_contributing_call_fail() {
 fn evaluator_cannot_use_slash_reserve_for_contributing_call_success() {
 	let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 	let issuer = ISSUER_1;
-	let project_metadata = default_project_metadata(inst.get_new_nonce(), issuer);
+	let project_metadata = default_project_metadata(issuer);
 	let mut evaluations = default_evaluations();
 	let bids = default_bids();
 
@@ -423,7 +423,7 @@ fn evaluator_cannot_use_slash_reserve_for_contributing_call_success() {
 #[test]
 fn round_has_total_ct_allocation_minus_auction_sold() {
 	let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
-	let project_metadata = default_project_metadata(0, ISSUER_1);
+	let project_metadata = default_project_metadata(ISSUER_1);
 	let evaluations = default_evaluations();
 	let bids = default_bids();
 
@@ -721,17 +721,17 @@ fn per_credential_type_ticket_size_maximums() {
 #[test]
 fn contribute_with_multiple_currencies() {
 	let inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
-	let mut project_metadata_all = default_project_metadata(0, ISSUER_1);
+	let mut project_metadata_all = default_project_metadata(ISSUER_1);
 	project_metadata_all.participation_currencies =
 		vec![AcceptedFundingAsset::USDT, AcceptedFundingAsset::USDC, AcceptedFundingAsset::DOT].try_into().unwrap();
 
-	let mut project_metadata_usdt = default_project_metadata(1, ISSUER_2);
+	let mut project_metadata_usdt = default_project_metadata(ISSUER_2);
 	project_metadata_usdt.participation_currencies = vec![AcceptedFundingAsset::USDT].try_into().unwrap();
 
-	let mut project_metadata_usdc = default_project_metadata(2, ISSUER_3);
+	let mut project_metadata_usdc = default_project_metadata(ISSUER_3);
 	project_metadata_usdc.participation_currencies = vec![AcceptedFundingAsset::USDC].try_into().unwrap();
 
-	let mut project_metadata_dot = default_project_metadata(3, ISSUER_4);
+	let mut project_metadata_dot = default_project_metadata(ISSUER_4);
 	project_metadata_dot.participation_currencies = vec![AcceptedFundingAsset::DOT].try_into().unwrap();
 
 	let evaluations = default_evaluations();
@@ -870,7 +870,7 @@ fn contribute_with_multiple_currencies() {
 #[test]
 fn issuer_cannot_contribute_his_project() {
 	let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
-	let project_metadata = default_project_metadata(0, ISSUER_1);
+	let project_metadata = default_project_metadata(ISSUER_1);
 	let project_id = inst.create_community_contributing_project(
 		project_metadata.clone(),
 		ISSUER_1,
@@ -894,7 +894,7 @@ fn issuer_cannot_contribute_his_project() {
 #[test]
 fn did_with_winning_bid_cannot_contribute() {
 	let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
-	let project_metadata = default_project_metadata(0, ISSUER_1);
+	let project_metadata = default_project_metadata(ISSUER_1);
 	let bids = vec![
 		BidParams::new(BIDDER_1, 400_000 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
 		BidParams::new(BIDDER_2, 50_000 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
@@ -1140,7 +1140,7 @@ fn retail_multiplier_limits() {
 	let mut create_project = |inst: &mut MockInstantiator| {
 		issuer += 1;
 		inst.create_community_contributing_project(
-			default_project_metadata(issuer as u64, issuer),
+			default_project_metadata(issuer),
 			issuer,
 			default_evaluations(),
 			default_bids(),

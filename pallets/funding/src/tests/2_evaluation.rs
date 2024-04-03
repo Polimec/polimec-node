@@ -12,7 +12,7 @@ mod round_flow {
 		fn evaluation_round_completed() {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 			let issuer = ISSUER_1;
-			let project_metadata = default_project_metadata(inst.get_new_nonce(), issuer);
+			let project_metadata = default_project_metadata(issuer);
 			let evaluations = default_evaluations();
 
 			inst.create_auctioning_project(project_metadata, issuer, evaluations);
@@ -21,10 +21,10 @@ mod round_flow {
 		#[test]
 		fn multiple_evaluating_projects() {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
-			let project1 = default_project_metadata(inst.get_new_nonce(), ISSUER_1);
-			let project2 = default_project_metadata(inst.get_new_nonce(), ISSUER_2);
-			let project3 = default_project_metadata(inst.get_new_nonce(), ISSUER_3);
-			let project4 = default_project_metadata(inst.get_new_nonce(), ISSUER_4);
+			let project1 = default_project_metadata(ISSUER_1);
+			let project2 = default_project_metadata(ISSUER_2);
+			let project3 = default_project_metadata(ISSUER_3);
+			let project4 = default_project_metadata(ISSUER_4);
 			let evaluations = default_evaluations();
 
 			inst.create_auctioning_project(project1, ISSUER_1, evaluations.clone());
@@ -36,7 +36,7 @@ mod round_flow {
 		#[test]
 		fn plmc_price_change_doesnt_affect_evaluation_end() {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
-			let project_metadata = default_project_metadata(inst.get_new_nonce(), ISSUER_1);
+			let project_metadata = default_project_metadata(ISSUER_1);
 
 			// Decreasing the price before the end doesn't make a project over the threshold fail.
 			let target_funding =
@@ -87,7 +87,7 @@ mod round_flow {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 			let now = inst.current_block();
 			let issuer = ISSUER_1;
-			let project_metadata = default_project_metadata(inst.get_new_nonce(), issuer);
+			let project_metadata = default_project_metadata(issuer);
 			let evaluations = default_failing_evaluations();
 			let plmc_eval_deposits: Vec<UserToPLMCBalance<_>> =
 				MockInstantiator::calculate_evaluation_plmc_spent(evaluations);
@@ -138,7 +138,7 @@ mod start_evaluation_extrinsic {
 		fn evaluation_starts() {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 			let issuer = ISSUER_1;
-			let project_metadata = default_project_metadata(inst.get_new_nonce(), issuer);
+			let project_metadata = default_project_metadata(issuer);
 
 			let project_id = inst.create_new_project(project_metadata, issuer);
 			let jwt = get_mock_jwt(issuer, InvestorType::Institutional, generate_did_from_account(issuer));
@@ -160,7 +160,7 @@ mod start_evaluation_extrinsic {
 		fn non_institutional_jwt() {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 			let issuer = ISSUER_1;
-			let project_metadata = default_project_metadata(inst.get_new_nonce(), issuer);
+			let project_metadata = default_project_metadata(issuer);
 
 			let project_id = inst.create_new_project(project_metadata, issuer);
 			assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::Application);
@@ -192,7 +192,7 @@ mod start_evaluation_extrinsic {
 		fn evaluation_started_already() {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 			let issuer = ISSUER_1;
-			let project_metadata = default_project_metadata(inst.get_new_nonce(), issuer);
+			let project_metadata = default_project_metadata(issuer);
 
 			let project_id = inst.create_new_project(project_metadata, issuer);
 			let jwt = get_mock_jwt(issuer, InvestorType::Institutional, generate_did_from_account(issuer));
@@ -216,7 +216,7 @@ mod start_evaluation_extrinsic {
 		fn no_offchain_hash_provided() {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 			let issuer = ISSUER_1;
-			let mut project_metadata = default_project_metadata(inst.get_new_nonce(), issuer);
+			let mut project_metadata = default_project_metadata(issuer);
 			project_metadata.offchain_information_hash = None;
 
 			let project_id = inst.create_new_project(project_metadata, issuer);
@@ -234,7 +234,7 @@ mod start_evaluation_extrinsic {
 		fn different_account() {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 			let issuer = ISSUER_1;
-			let project_metadata = default_project_metadata(inst.get_new_nonce(), issuer);
+			let project_metadata = default_project_metadata(issuer);
 
 			let project_id = inst.create_new_project(project_metadata, issuer);
 			let jwt = get_mock_jwt(issuer, InvestorType::Institutional, generate_did_from_account(issuer));
@@ -272,7 +272,7 @@ mod evaluate_extrinsic {
 		fn all_investor_types() {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 			let issuer = ISSUER_1;
-			let project_metadata = default_project_metadata(inst.get_new_nonce(), issuer);
+			let project_metadata = default_project_metadata(issuer);
 			let project_id = inst.create_evaluating_project(project_metadata.clone(), issuer);
 
 			let evaluations = vec![
@@ -324,7 +324,7 @@ mod evaluate_extrinsic {
 		fn using_frozen_tokens() {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 			let issuer = ISSUER_1;
-			let project_metadata = default_project_metadata(inst.get_new_nonce(), issuer);
+			let project_metadata = default_project_metadata(issuer);
 			let project_id = inst.create_evaluating_project(project_metadata.clone(), issuer);
 
 			let evaluation = UserToUSDBalance::new(EVALUATOR_1, 500 * US_DOLLAR);
@@ -357,7 +357,7 @@ mod evaluate_extrinsic {
 		fn project_is_not_in_evaluation_round() {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 			let issuer = ISSUER_1;
-			let project_metadata = default_project_metadata(inst.get_new_nonce(), issuer);
+			let project_metadata = default_project_metadata(issuer);
 			let project_id = inst.create_auctioning_project(project_metadata.clone(), issuer, default_evaluations());
 
 			inst.execute(|| {
@@ -377,7 +377,7 @@ mod evaluate_extrinsic {
 		fn insufficient_plmc_for_desired_evaluation() {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 			let issuer = ISSUER_1;
-			let project_metadata = default_project_metadata(inst.get_new_nonce(), issuer);
+			let project_metadata = default_project_metadata(issuer);
 			let evaluations = default_evaluations();
 			let insufficient_eval_deposits = MockInstantiator::calculate_evaluation_plmc_spent(evaluations.clone())
 				.iter()
@@ -399,7 +399,7 @@ mod evaluate_extrinsic {
 		fn evaluation_placing_user_balance_under_ed() {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 			let issuer = ISSUER_1;
-			let project_metadata = default_project_metadata(inst.get_new_nonce(), issuer);
+			let project_metadata = default_project_metadata(issuer);
 			let evaluations = vec![UserToUSDBalance::new(EVALUATOR_1, 1000 * US_DOLLAR)];
 			let evaluating_plmc = MockInstantiator::calculate_evaluation_plmc_spent(evaluations.clone());
 			let mut plmc_insufficient_existential_deposit = evaluating_plmc.accounts().existential_deposits();
@@ -419,7 +419,7 @@ mod evaluate_extrinsic {
 		#[test]
 		fn cannot_evaluate_more_than_project_limit() {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
-			let project_metadata = default_project_metadata(0, ISSUER_1);
+			let project_metadata = default_project_metadata(ISSUER_1);
 			let evaluations = (0u32..<TestRuntime as Config>::MaxEvaluationsPerProject::get())
 				.map(|i| UserToUSDBalance::<TestRuntime>::new(i as u32 + 420u32, (10u128 * ASSET_UNIT).into()))
 				.collect_vec();
@@ -452,7 +452,7 @@ mod evaluate_extrinsic {
 		fn cannot_use_balance_on_hold() {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 			let issuer = ISSUER_1;
-			let project_metadata = default_project_metadata(inst.get_new_nonce(), issuer);
+			let project_metadata = default_project_metadata(issuer);
 			let project_id = inst.create_evaluating_project(project_metadata.clone(), issuer);
 
 			let evaluation = UserToUSDBalance::new(EVALUATOR_1, 500 * US_DOLLAR);
@@ -491,7 +491,7 @@ mod evaluate_extrinsic {
 		#[test]
 		fn issuer_cannot_evaluate_his_project() {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
-			let project_metadata = default_project_metadata(0, ISSUER_1);
+			let project_metadata = default_project_metadata(ISSUER_1);
 			let project_id = inst.create_evaluating_project(project_metadata.clone(), ISSUER_1);
 			assert_err!(
 				inst.execute(|| crate::Pallet::<TestRuntime>::do_evaluate(
@@ -509,7 +509,7 @@ mod evaluate_extrinsic {
 		fn cannot_use_same_plmc_for_2_evaluations() {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 			let issuer = ISSUER_1;
-			let project_metadata = default_project_metadata(inst.get_new_nonce(), issuer);
+			let project_metadata = default_project_metadata(issuer);
 			let project_id = inst.create_evaluating_project(project_metadata.clone(), issuer);
 
 			let evaluation = UserToUSDBalance::new(EVALUATOR_1, 500 * US_DOLLAR);

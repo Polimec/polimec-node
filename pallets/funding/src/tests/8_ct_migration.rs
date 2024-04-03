@@ -5,7 +5,7 @@ use frame_support::assert_err;
 fn para_id_for_project_can_be_set_by_issuer() {
 	let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 	let project_id = inst.create_finished_project(
-		default_project_metadata(inst.get_new_nonce(), ISSUER_1),
+		default_project_metadata(ISSUER_1),
 		ISSUER_1,
 		default_evaluations(),
 		default_bids(),
@@ -29,7 +29,7 @@ fn para_id_for_project_can_be_set_by_issuer() {
 fn para_id_for_project_cannot_be_set_by_anyone_but_issuer() {
 	let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 	let project_id = inst.create_finished_project(
-		default_project_metadata(inst.get_new_nonce(), ISSUER_1),
+		default_project_metadata(ISSUER_1),
 		ISSUER_1,
 		default_evaluations(),
 		default_bids(),

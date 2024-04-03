@@ -98,7 +98,7 @@ pub mod defaults {
 			decimals: ASSET_DECIMALS,
 		}
 	}
-	pub fn default_project_metadata(nonce: u64, issuer: AccountId) -> ProjectMetadataOf<TestRuntime> {
+	pub fn default_project_metadata(issuer: AccountId) -> ProjectMetadataOf<TestRuntime> {
 		let bounded_name = BoundedVec::try_from("Contribution Token TEST".as_bytes().to_vec()).unwrap();
 		let bounded_symbol = BoundedVec::try_from("CTEST".as_bytes().to_vec()).unwrap();
 		let metadata_hash = hashed(format!("{}-{}", METADATA, nonce));
@@ -307,7 +307,7 @@ pub mod defaults {
 	}
 
 	pub fn project_from_funding_reached(instantiator: &mut MockInstantiator, percent: u64) -> ProjectId {
-		let project_metadata = default_project_metadata(instantiator.get_new_nonce(), ISSUER_1);
+		let project_metadata = default_project_metadata(ISSUER_1);
 		let min_price = project_metadata.minimum_price;
 		let usd_to_reach = Perquintill::from_percent(percent) *
 			(project_metadata.minimum_price.checked_mul_int(project_metadata.total_allocation_size).unwrap());
@@ -330,7 +330,7 @@ pub mod defaults {
 	}
 
 	pub fn default_bids_from_ct_percent(percent: u8) -> Vec<BidParams<TestRuntime>> {
-		let project_metadata = default_project_metadata(0, ISSUER_1);
+		let project_metadata = default_project_metadata(ISSUER_1);
 		MockInstantiator::generate_bids_from_total_ct_percent(
 			project_metadata,
 			percent,
@@ -341,7 +341,7 @@ pub mod defaults {
 	}
 
 	pub fn default_community_contributions_from_ct_percent(percent: u8) -> Vec<ContributionParams<TestRuntime>> {
-		let project_metadata = default_project_metadata(0, ISSUER_1);
+		let project_metadata = default_project_metadata(ISSUER_1);
 		MockInstantiator::generate_contributions_from_total_ct_percent(
 			project_metadata,
 			percent,
@@ -352,7 +352,7 @@ pub mod defaults {
 	}
 
 	pub fn default_remainder_contributions_from_ct_percent(percent: u8) -> Vec<ContributionParams<TestRuntime>> {
-		let project_metadata = default_project_metadata(0, ISSUER_1);
+		let project_metadata = default_project_metadata(ISSUER_1);
 		MockInstantiator::generate_contributions_from_total_ct_percent(
 			project_metadata,
 			percent,
@@ -368,7 +368,7 @@ pub fn create_project_with_funding_percentage(
 	maybe_decision: Option<FundingOutcomeDecision>,
 ) -> (MockInstantiator, ProjectId) {
 	let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
-	let project_metadata = default_project_metadata(inst.get_new_nonce(), ISSUER_1);
+	let project_metadata = default_project_metadata(ISSUER_1);
 	let min_price = project_metadata.minimum_price;
 	let percentage_funded_usd = Perquintill::from_percent(percentage) *
 		(project_metadata.minimum_price.checked_mul_int(project_metadata.total_allocation_size).unwrap());

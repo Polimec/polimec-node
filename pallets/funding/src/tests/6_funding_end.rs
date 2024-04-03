@@ -31,7 +31,7 @@ fn manual_rejection_percentage_between_34_89() {
 #[test]
 fn automatic_acceptance_on_manual_decision_after_time_delta() {
 	let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
-	let project_metadata = default_project_metadata(inst.get_new_nonce(), ISSUER_1);
+	let project_metadata = default_project_metadata(ISSUER_1);
 	let min_price = project_metadata.minimum_price;
 	let twenty_percent_funding_usd = Perquintill::from_percent(55) *
 		(project_metadata.minimum_price.checked_mul_int(project_metadata.total_allocation_size).unwrap());

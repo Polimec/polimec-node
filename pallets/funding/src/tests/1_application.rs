@@ -15,7 +15,7 @@ mod round_flow {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 
 			let issuer = ISSUER_1;
-			let project_metadata = default_project_metadata(inst.get_new_nonce(), issuer);
+			let project_metadata = default_project_metadata(issuer);
 
 			inst.create_evaluating_project(project_metadata, issuer);
 		}
@@ -33,9 +33,9 @@ mod create_project_extrinsic {
 		#[test]
 		fn project_id_autoincrement_works() {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
-			let project_1 = default_project_metadata(inst.get_new_nonce(), ISSUER_1);
-			let project_2 = default_project_metadata(inst.get_new_nonce(), ISSUER_2);
-			let project_3 = default_project_metadata(inst.get_new_nonce(), ISSUER_3);
+			let project_1 = default_project_metadata(ISSUER_1);
+			let project_2 = default_project_metadata(ISSUER_2);
+			let project_3 = default_project_metadata(ISSUER_3);
 
 			let created_project_1_id = inst.create_evaluating_project(project_1, ISSUER_1);
 			let created_project_2_id = inst.create_evaluating_project(project_2, ISSUER_2);
@@ -51,7 +51,7 @@ mod create_project_extrinsic {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 			let mut issuer = ISSUER_1;
 			for _ in 0..512 {
-				let project_metadata = default_project_metadata(inst.get_new_nonce(), issuer);
+				let project_metadata = default_project_metadata(issuer);
 				inst.create_evaluating_project(project_metadata, issuer);
 				inst.advance_time(1u64).unwrap();
 				issuer += 1;
@@ -70,7 +70,7 @@ mod create_project_extrinsic {
 				project.offchain_information_hash = Some(binding);
 				project
 			};
-			let default_project_metadata = default_project_metadata(inst.get_new_nonce(), ISSUER_1);
+			let default_project_metadata = default_project_metadata(ISSUER_1);
 
 			let mut one_currency_1 = default_project_metadata.clone();
 			one_currency_1.participation_currencies = vec![AcceptedFundingAsset::USDT].try_into().unwrap();
@@ -185,7 +185,7 @@ mod create_project_extrinsic {
 			};
 			let did: Did = BoundedVec::new();
 			let jwt: UntrustedToken = get_mock_jwt(ISSUER_1, InvestorType::Institutional, did);
-			let project_metadata: ProjectMetadataOf<TestRuntime> = default_project_metadata(1, issuer);
+			let project_metadata: ProjectMetadataOf<TestRuntime> = default_project_metadata(issuer);
 
 			let failing_bids = vec![(BIDDER_1, 1000 * ASSET_UNIT).into(), (BIDDER_2, 1000 * ASSET_UNIT).into()];
 
@@ -305,7 +305,7 @@ mod create_project_extrinsic {
 		#[test]
 		fn shitcoin_tokenomics() {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
-			let mut project_metadata = default_project_metadata(inst.get_new_nonce(), ISSUER_1);
+			let mut project_metadata = default_project_metadata(ISSUER_1);
 
 			// funding target of 1000 USD at 1quadrillion supply
 			const QUADRILLION_SUPPLY: u128 = 1_000_000_000_000_000 * ASSET_UNIT;
@@ -334,7 +334,7 @@ mod create_project_extrinsic {
 		#[test]
 		fn non_institutional_credential_fails() {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
-			let project_metadata = default_project_metadata(inst.get_new_nonce(), ISSUER_1);
+			let project_metadata = default_project_metadata(ISSUER_1);
 			inst.mint_plmc_to(default_plmc_balances());
 			let jwt = get_mock_jwt(ISSUER_1, InvestorType::Retail, generate_did_from_account(ISSUER_1));
 			inst.execute(|| {
@@ -364,7 +364,7 @@ mod create_project_extrinsic {
 		#[test]
 		fn cannot_have_2_active_projects() {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
-			let project_metadata = default_project_metadata(inst.get_new_nonce(), ISSUER_1);
+			let project_metadata = default_project_metadata(ISSUER_1);
 			let ed = MockInstantiator::get_ed();
 			let issuer_mint: UserToPLMCBalance<TestRuntime> = (ISSUER_1, ed * 2).into();
 			// Create a first project
@@ -408,7 +408,7 @@ mod create_project_extrinsic {
 		#[test]
 		fn not_enough_plmc_for_escrow_ed() {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
-			let project_metadata = default_project_metadata(0, ISSUER_1);
+			let project_metadata = default_project_metadata(ISSUER_1);
 			let ed = MockInstantiator::get_ed();
 			inst.mint_plmc_to(vec![UserToPLMCBalance::new(ISSUER_1, ed)]);
 			let jwt = get_mock_jwt(ISSUER_1, InvestorType::Institutional, generate_did_from_account(ISSUER_1));
@@ -548,7 +548,7 @@ mod create_project_extrinsic {
 		#[test]
 		fn duplicated_participation_currencies() {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
-			let mut project_metadata = default_project_metadata(inst.get_new_nonce(), ISSUER_1);
+			let mut project_metadata = default_project_metadata(ISSUER_1);
 			project_metadata.participation_currencies =
 				vec![AcceptedFundingAsset::USDT, AcceptedFundingAsset::USDT].try_into().unwrap();
 			inst.execute(|| {
@@ -599,7 +599,7 @@ mod create_project_extrinsic {
 		#[test]
 		fn allocation_zero() {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
-			let mut project_metadata = default_project_metadata(inst.get_new_nonce(), ISSUER_1);
+			let mut project_metadata = default_project_metadata(ISSUER_1);
 			project_metadata.total_allocation_size = 0;
 
 			inst.mint_plmc_to(default_plmc_balances());
@@ -615,7 +615,7 @@ mod create_project_extrinsic {
 		#[test]
 		fn auction_round_percentage_zero() {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
-			let mut project_metadata = default_project_metadata(inst.get_new_nonce(), ISSUER_1);
+			let mut project_metadata = default_project_metadata(ISSUER_1);
 			project_metadata.auction_round_allocation_percentage = Percent::from_percent(0);
 
 			inst.mint_plmc_to(default_plmc_balances());
@@ -631,7 +631,7 @@ mod create_project_extrinsic {
 		#[test]
 		fn target_funding_less_than_1000_usd() {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
-			let mut project_metadata = default_project_metadata(inst.get_new_nonce(), ISSUER_1);
+			let mut project_metadata = default_project_metadata(ISSUER_1);
 			project_metadata.minimum_price = PriceOf::<TestRuntime>::from_float(1.0);
 			project_metadata.total_allocation_size = 999u128;
 
@@ -670,7 +670,7 @@ mod edit_project_extrinsic {
 		#[test]
 		fn project_id_stays_the_same() {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
-			let mut project_metadata = default_project_metadata(inst.get_new_nonce(), ISSUER_1);
+			let mut project_metadata = default_project_metadata(ISSUER_1);
 			inst.mint_plmc_to(default_plmc_balances());
 			let jwt = get_mock_jwt(ISSUER_1, InvestorType::Institutional, generate_did_from_account(ISSUER_1));
 			let project_id = inst.create_new_project(project_metadata.clone(), ISSUER_1);
@@ -787,7 +787,7 @@ mod edit_project_extrinsic {
 		#[test]
 		fn adding_offchain_hash() {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
-			let mut project_metadata = default_project_metadata(inst.get_new_nonce(), ISSUER_1);
+			let mut project_metadata = default_project_metadata(ISSUER_1);
 			project_metadata.offchain_information_hash = None;
 			inst.mint_plmc_to(default_plmc_balances());
 			let jwt = get_mock_jwt(ISSUER_1, InvestorType::Institutional, generate_did_from_account(ISSUER_1));
@@ -806,7 +806,7 @@ mod edit_project_extrinsic {
 		#[test]
 		fn storage_changes() {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
-			let project_metadata = default_project_metadata(inst.get_new_nonce(), ISSUER_1);
+			let project_metadata = default_project_metadata(ISSUER_1);
 			inst.mint_plmc_to(default_plmc_balances());
 			let jwt = get_mock_jwt(ISSUER_1, InvestorType::Institutional, generate_did_from_account(ISSUER_1));
 			let project_id = inst.create_new_project(project_metadata.clone(), ISSUER_1);
@@ -843,8 +843,8 @@ mod edit_project_extrinsic {
 			let issuer_1_mint: UserToPLMCBalance<TestRuntime> = (ISSUER_1, ed).into();
 			let issuer_2_mint: UserToPLMCBalance<TestRuntime> = (ISSUER_2, ed).into();
 
-			let project_metadata_1 = default_project_metadata(inst.get_new_nonce(), ISSUER_1);
-			let project_metadata_2 = default_project_metadata(inst.get_new_nonce(), ISSUER_2);
+			let project_metadata_1 = default_project_metadata(ISSUER_1);
+			let project_metadata_2 = default_project_metadata(ISSUER_2);
 
 			inst.mint_plmc_to(vec![issuer_1_mint.clone(), issuer_2_mint.clone()]);
 
@@ -879,7 +879,7 @@ mod edit_project_extrinsic {
 		#[test]
 		fn evaluation_already_started() {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
-			let project_metadata = default_project_metadata(inst.get_new_nonce(), ISSUER_1);
+			let project_metadata = default_project_metadata(ISSUER_1);
 			inst.mint_plmc_to(default_plmc_balances());
 			let jwt = get_mock_jwt(ISSUER_1, InvestorType::Institutional, generate_did_from_account(ISSUER_1));
 			let project_id = inst.create_new_project(project_metadata.clone(), ISSUER_1);
@@ -900,7 +900,7 @@ mod edit_project_extrinsic {
 		#[test]
 		fn non_institutional_credential() {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
-			let project_metadata = default_project_metadata(inst.get_new_nonce(), ISSUER_1);
+			let project_metadata = default_project_metadata(ISSUER_1);
 			inst.mint_plmc_to(default_plmc_balances());
 			let jwt = get_mock_jwt(ISSUER_1, InvestorType::Retail, generate_did_from_account(ISSUER_1));
 
@@ -936,7 +936,7 @@ mod edit_project_extrinsic {
 		#[test]
 		fn mainnet_supply_less_than_allocation() {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
-			let mut project_metadata = default_project_metadata(inst.get_new_nonce(), ISSUER_1);
+			let mut project_metadata = default_project_metadata(ISSUER_1);
 
 			let project_id = inst.create_new_project(project_metadata.clone(), ISSUER_1);
 
@@ -958,7 +958,7 @@ mod edit_project_extrinsic {
 		#[test]
 		fn invalid_ticket_sizes() {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
-			let project_metadata = default_project_metadata(0, ISSUER_1);
+			let project_metadata = default_project_metadata(ISSUER_1);
 			let project_id = inst.create_new_project(project_metadata.clone(), ISSUER_1);
 
 			// min in bidding below 5k
@@ -1013,7 +1013,7 @@ mod edit_project_extrinsic {
 		#[test]
 		fn duplicated_participation_currencies() {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
-			let mut project_metadata = default_project_metadata(inst.get_new_nonce(), ISSUER_1);
+			let mut project_metadata = default_project_metadata(ISSUER_1);
 			let project_id = inst.create_new_project(project_metadata.clone(), ISSUER_1);
 
 			project_metadata.participation_currencies =
@@ -1035,7 +1035,7 @@ mod edit_project_extrinsic {
 		fn price_zero() {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 
-			let mut project_metadata = default_project_metadata(0, ISSUER_1);
+			let mut project_metadata = default_project_metadata(ISSUER_1);
 			let project_id = inst.create_new_project(project_metadata.clone(), ISSUER_1);
 
 			project_metadata.minimum_price = PriceOf::<TestRuntime>::from_float(0.0);
@@ -1057,7 +1057,7 @@ mod edit_project_extrinsic {
 		fn allocation_zero() {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 
-			let mut project_metadata = default_project_metadata(inst.get_new_nonce(), ISSUER_1);
+			let mut project_metadata = default_project_metadata(ISSUER_1);
 			let project_id = inst.create_new_project(project_metadata.clone(), ISSUER_1);
 
 			project_metadata.total_allocation_size = 0;
@@ -1079,7 +1079,7 @@ mod edit_project_extrinsic {
 		fn auction_round_percentage_zero() {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 
-			let mut project_metadata = default_project_metadata(inst.get_new_nonce(), ISSUER_1);
+			let mut project_metadata = default_project_metadata(ISSUER_1);
 			let project_id = inst.create_new_project(project_metadata.clone(), ISSUER_1);
 
 			project_metadata.auction_round_allocation_percentage = Percent::from_percent(0);
@@ -1100,7 +1100,7 @@ mod edit_project_extrinsic {
 		#[test]
 		fn target_funding_less_than_1000_usd() {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
-			let mut project_metadata = default_project_metadata(inst.get_new_nonce(), ISSUER_1);
+			let mut project_metadata = default_project_metadata(ISSUER_1);
 
 			let project_id = inst.create_new_project(project_metadata.clone(), ISSUER_1);
 
@@ -1148,7 +1148,7 @@ mod remove_project_extrinsic {
 		#[test]
 		fn normal_remove() {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
-			let project_metadata = default_project_metadata(inst.get_new_nonce(), ISSUER_1);
+			let project_metadata = default_project_metadata(ISSUER_1);
 			inst.mint_plmc_to(default_plmc_balances());
 			let jwt = get_mock_jwt(ISSUER_1, InvestorType::Institutional, generate_did_from_account(ISSUER_1));
 			let project_id = inst.create_new_project(project_metadata.clone(), ISSUER_1);
@@ -1198,7 +1198,7 @@ mod remove_project_extrinsic {
 		#[test]
 		fn can_create_after_remove() {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
-			let project_metadata = default_project_metadata(inst.get_new_nonce(), ISSUER_1);
+			let project_metadata = default_project_metadata(ISSUER_1);
 			let ed = MockInstantiator::get_ed();
 			let issuer_mint: UserToPLMCBalance<TestRuntime> = (ISSUER_1, ed * 2).into();
 			// Create a first project
@@ -1248,7 +1248,7 @@ mod remove_project_extrinsic {
 		#[test]
 		fn non_issuer_credential() {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
-			let project_metadata = default_project_metadata(inst.get_new_nonce(), ISSUER_1);
+			let project_metadata = default_project_metadata(ISSUER_1);
 			inst.mint_plmc_to(default_plmc_balances());
 			let jwt = get_mock_jwt(ISSUER_1, InvestorType::Professional, generate_did_from_account(ISSUER_1));
 			let project_id = inst.create_new_project(project_metadata.clone(), ISSUER_1);
@@ -1267,7 +1267,7 @@ mod remove_project_extrinsic {
 		#[test]
 		fn different_account() {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
-			let project_metadata = default_project_metadata(inst.get_new_nonce(), ISSUER_1);
+			let project_metadata = default_project_metadata(ISSUER_1);
 			inst.mint_plmc_to(default_plmc_balances());
 			let jwt = get_mock_jwt(ISSUER_2, InvestorType::Institutional, generate_did_from_account(ISSUER_2));
 
@@ -1288,7 +1288,7 @@ mod remove_project_extrinsic {
 		#[test]
 		fn evaluation_already_started() {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
-			let project_metadata = default_project_metadata(inst.get_new_nonce(), ISSUER_1);
+			let project_metadata = default_project_metadata(ISSUER_1);
 			inst.mint_plmc_to(default_plmc_balances());
 			let jwt = get_mock_jwt(ISSUER_1, InvestorType::Institutional, generate_did_from_account(ISSUER_1));
 			let project_id = inst.create_new_project(project_metadata.clone(), ISSUER_1);

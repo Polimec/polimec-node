@@ -3,7 +3,7 @@ use super::*;
 #[test]
 fn failed_auction_is_settled() {
 	let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
-	let project_metadata = default_project_metadata(0, ISSUER_1);
+	let project_metadata = default_project_metadata(ISSUER_1);
 	let project_id = inst.create_auctioning_project(project_metadata.clone(), ISSUER_1, default_evaluations());
 	inst.start_community_funding(project_id).unwrap_err();
 	// execute `do_end_funding`

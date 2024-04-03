@@ -250,7 +250,7 @@ mod async_tests {
 		let project_params = vec![
 			TestProjectParams {
 				expected_state: ProjectStatus::Application,
-				metadata: default_project_metadata(inst.get_new_nonce(), ISSUER_1),
+				metadata: default_project_metadata(ISSUER_1),
 				issuer: ISSUER_1,
 				evaluations: vec![],
 				bids: vec![],
@@ -259,7 +259,7 @@ mod async_tests {
 			},
 			TestProjectParams {
 				expected_state: ProjectStatus::EvaluationRound,
-				metadata: default_project_metadata(inst.get_new_nonce(), ISSUER_2),
+				metadata: default_project_metadata(ISSUER_2),
 				issuer: ISSUER_2,
 				evaluations: vec![],
 				bids: vec![],
@@ -268,7 +268,7 @@ mod async_tests {
 			},
 			TestProjectParams {
 				expected_state: ProjectStatus::AuctionRound(AuctionPhase::English),
-				metadata: default_project_metadata(inst.get_new_nonce(), ISSUER_3),
+				metadata: default_project_metadata(ISSUER_3),
 				issuer: ISSUER_3,
 				evaluations: default_evaluations(),
 				bids: vec![],
@@ -277,7 +277,7 @@ mod async_tests {
 			},
 			TestProjectParams {
 				expected_state: ProjectStatus::CommunityRound,
-				metadata: default_project_metadata(inst.get_new_nonce(), ISSUER_4),
+				metadata: default_project_metadata(ISSUER_4),
 				issuer: ISSUER_4,
 				evaluations: default_evaluations(),
 				bids: default_bids(),
@@ -286,7 +286,7 @@ mod async_tests {
 			},
 			TestProjectParams {
 				expected_state: ProjectStatus::RemainderRound,
-				metadata: default_project_metadata(inst.get_new_nonce(), ISSUER_5),
+				metadata: default_project_metadata(ISSUER_5),
 				issuer: ISSUER_5,
 				evaluations: default_evaluations(),
 				bids: default_bids(),
@@ -295,7 +295,7 @@ mod async_tests {
 			},
 			TestProjectParams {
 				expected_state: ProjectStatus::FundingSuccessful,
-				metadata: default_project_metadata(inst.get_new_nonce(), ISSUER_6),
+				metadata: default_project_metadata(ISSUER_6),
 				issuer: ISSUER_6,
 				evaluations: default_evaluations(),
 				bids: default_bids(),
@@ -327,7 +327,7 @@ mod async_tests {
 
 		// only used to generate some values, and not for chain interactions
 		let funding_percent = 93u64;
-		let project_metadata = default_project_metadata(0u64, ISSUER_1.into());
+		let project_metadata = default_project_metadata(ISSUER_1.into());
 		let min_price = project_metadata.minimum_price;
 		let twenty_percent_funding_usd = Perquintill::from_percent(funding_percent) *
 			(project_metadata.minimum_price.checked_mul_int(project_metadata.total_allocation_size).unwrap());
@@ -375,7 +375,7 @@ mod async_tests {
 				starting_projects: vec![
 					TestProjectParams::<TestRuntime> {
 						expected_state: ProjectStatus::FundingSuccessful,
-						metadata: default_project_metadata(0u64, ISSUER_1.into()),
+						metadata: default_project_metadata(ISSUER_1.into()),
 						issuer: ISSUER_1.into(),
 						evaluations: evaluations.clone(),
 						bids: bids.clone(),
@@ -384,7 +384,7 @@ mod async_tests {
 					},
 					TestProjectParams::<TestRuntime> {
 						expected_state: ProjectStatus::RemainderRound,
-						metadata: default_project_metadata(1u64, ISSUER_2.into()),
+						metadata: default_project_metadata(ISSUER_2.into()),
 						issuer: (ISSUER_2).into(),
 						evaluations: evaluations.clone(),
 						bids: bids.clone(),
@@ -393,7 +393,7 @@ mod async_tests {
 					},
 					TestProjectParams::<TestRuntime> {
 						expected_state: ProjectStatus::CommunityRound,
-						metadata: default_project_metadata(2u64, ISSUER_3.into()),
+						metadata: default_project_metadata(ISSUER_3.into()),
 						issuer: (ISSUER_3).into(),
 						evaluations: evaluations.clone(),
 						bids: bids.clone(),
@@ -402,7 +402,7 @@ mod async_tests {
 					},
 					TestProjectParams::<TestRuntime> {
 						expected_state: ProjectStatus::AuctionRound(AuctionPhase::English),
-						metadata: default_project_metadata(3u64, ISSUER_4.into()),
+						metadata: default_project_metadata(ISSUER_4.into()),
 						issuer: ISSUER_4.into(),
 						evaluations: evaluations.clone(),
 						bids: vec![],
@@ -411,7 +411,7 @@ mod async_tests {
 					},
 					TestProjectParams::<TestRuntime> {
 						expected_state: ProjectStatus::EvaluationRound,
-						metadata: default_project_metadata(4u64, ISSUER_5.into()),
+						metadata: default_project_metadata(ISSUER_5.into()),
 						issuer: ISSUER_5.into(),
 						evaluations: vec![],
 						bids: vec![],
@@ -420,7 +420,7 @@ mod async_tests {
 					},
 					TestProjectParams::<TestRuntime> {
 						expected_state: ProjectStatus::Application,
-						metadata: default_project_metadata(5u64, ISSUER_6.into()),
+						metadata: default_project_metadata(ISSUER_6.into()),
 						issuer: ISSUER_6.into(),
 						evaluations: vec![],
 						bids: vec![],
@@ -459,7 +459,7 @@ mod async_tests {
 		let mut t = frame_system::GenesisConfig::<TestRuntime>::default().build_storage().unwrap();
 
 		// only used to generate some values, and not for chain interactions
-		let mut project_metadata = default_project_metadata(0u64, ISSUER_1.into());
+		let mut project_metadata = default_project_metadata(ISSUER_1.into());
 		let evaluations = default_evaluations();
 		let max_bids_per_project: u32 = <TestRuntime as Config>::MaxBidsPerProject::get();
 		let min_bid = project_metadata.bidding_ticket_sizes.institutional.usd_minimum_per_participation.unwrap();
@@ -499,7 +499,7 @@ mod async_tests {
 			polimec_funding: PolimecFundingConfig {
 				starting_projects: vec![TestProjectParams::<TestRuntime> {
 					expected_state: ProjectStatus::AuctionRound(AuctionPhase::English),
-					metadata: default_project_metadata(0u64, ISSUER_1.into()),
+					metadata: default_project_metadata(ISSUER_1.into()),
 					issuer: ISSUER_1.into(),
 					evaluations: evaluations.clone(),
 					bids: max_bids.clone(),
@@ -538,7 +538,7 @@ mod bug_hunting {
 		let max_insertion_attempts: u32 = <TestRuntime as Config>::MaxProjectsToUpdateInsertionAttempts::get();
 
 		let project_id =
-			inst.create_evaluating_project(default_project_metadata(inst.get_new_nonce(), ISSUER_1), ISSUER_1);
+			inst.create_evaluating_project(default_project_metadata(ISSUER_1), ISSUER_1);
 		let plmc_balances = MockInstantiator::calculate_evaluation_plmc_spent(default_evaluations());
 		let ed = plmc_balances.accounts().existential_deposits();
 		inst.mint_plmc_to(plmc_balances);
