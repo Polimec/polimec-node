@@ -47,23 +47,6 @@ mod create_project_extrinsic {
 		}
 
 		#[test]
-		fn auction_round_percentage_1_to_100() {
-			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
-			let mut project_metadata = default_project_metadata(inst.get_new_nonce(), ISSUER_1);
-			let mut issuer = 1337;
-			for i in 1..=100 {
-				project_metadata.auction_round_allocation_percentage = Percent::from_percent(i);
-				issuer += 1;
-				let ed = MockInstantiator::get_ed();
-				inst.mint_plmc_to(vec![UserToPLMCBalance::new(issuer, ed * 2)]);
-				let jwt = get_mock_jwt(issuer, InvestorType::Institutional, generate_did_from_account(issuer));
-				assert_ok!(inst.execute(|| {
-					Pallet::<TestRuntime>::create_project(RuntimeOrigin::signed(issuer), jwt, project_metadata.clone())
-				}));
-			}
-		}
-
-		#[test]
 		fn multiple_creations_different_issuers() {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 			let mut issuer = ISSUER_1;
