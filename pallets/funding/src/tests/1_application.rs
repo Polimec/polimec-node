@@ -109,43 +109,6 @@ mod create_project_extrinsic {
 					Pallet::<TestRuntime>::do_create_project(&issuer, project, generate_did_from_account(issuer))
 				}));
 			}
-
-			let mut wrong_project_1 = default_project_metadata.clone();
-			wrong_project_1.participation_currencies =
-				vec![AcceptedFundingAsset::USDT, AcceptedFundingAsset::USDT].try_into().unwrap();
-
-			let mut wrong_project_2 = default_project_metadata.clone();
-			wrong_project_2.participation_currencies =
-				vec![AcceptedFundingAsset::USDT, AcceptedFundingAsset::USDT, AcceptedFundingAsset::USDT]
-					.try_into()
-					.unwrap();
-
-			let mut wrong_project_3 = default_project_metadata.clone();
-			wrong_project_3.participation_currencies =
-				vec![AcceptedFundingAsset::USDT, AcceptedFundingAsset::USDC, AcceptedFundingAsset::USDT]
-					.try_into()
-					.unwrap();
-
-			let mut wrong_project_4 = default_project_metadata.clone();
-			wrong_project_4.participation_currencies =
-				vec![AcceptedFundingAsset::DOT, AcceptedFundingAsset::DOT, AcceptedFundingAsset::USDC]
-					.try_into()
-					.unwrap();
-
-			let wrong_projects = vec![wrong_project_1, wrong_project_2, wrong_project_3, wrong_project_4];
-			for project in wrong_projects {
-				issuer += 1;
-				let issuer_mint = (issuer, 1000 * PLMC).into();
-				inst.mint_plmc_to(vec![issuer_mint]);
-				let project_err = inst.execute(|| {
-					Pallet::<TestRuntime>::do_create_project(&issuer, project, generate_did_from_account(issuer))
-						.unwrap_err()
-				});
-				assert_eq!(
-					project_err,
-					Error::<TestRuntime>::BadMetadata(MetadataError::ParticipationCurrenciesError).into()
-				);
-			}
 		}
 
 		#[test]
@@ -448,19 +411,45 @@ mod create_project_extrinsic {
 		#[test]
 		fn duplicated_participation_currencies() {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
-			let mut project_metadata = default_project_metadata(ISSUER_1);
-			project_metadata.participation_currencies =
+			let mut issuer = ISSUER_1;
+			let default_project_metadata = default_project_metadata(ISSUER_1);
+
+			let mut wrong_project_1 = default_project_metadata.clone();
+			wrong_project_1.participation_currencies =
 				vec![AcceptedFundingAsset::USDT, AcceptedFundingAsset::USDT].try_into().unwrap();
-			inst.execute(|| {
-				assert_noop!(
-					PolimecFunding::create_project(
-						RuntimeOrigin::signed(ISSUER_1),
-						get_mock_jwt(ISSUER_1, InvestorType::Institutional, generate_did_from_account(ISSUER_1)),
-						project_metadata
-					),
-					Error::<TestRuntime>::BadMetadata(MetadataError::ParticipationCurrenciesError)
+
+			let mut wrong_project_2 = default_project_metadata.clone();
+			wrong_project_2.participation_currencies =
+				vec![AcceptedFundingAsset::USDT, AcceptedFundingAsset::USDT, AcceptedFundingAsset::USDT]
+					.try_into()
+					.unwrap();
+
+			let mut wrong_project_3 = default_project_metadata.clone();
+			wrong_project_3.participation_currencies =
+				vec![AcceptedFundingAsset::USDT, AcceptedFundingAsset::USDC, AcceptedFundingAsset::USDT]
+					.try_into()
+					.unwrap();
+
+			let mut wrong_project_4 = default_project_metadata.clone();
+			wrong_project_4.participation_currencies =
+				vec![AcceptedFundingAsset::DOT, AcceptedFundingAsset::DOT, AcceptedFundingAsset::USDC]
+					.try_into()
+					.unwrap();
+
+			let wrong_projects = vec![wrong_project_1, wrong_project_2, wrong_project_3, wrong_project_4];
+			for project in wrong_projects {
+				issuer += 1;
+				let issuer_mint = (issuer, 1000 * PLMC).into();
+				inst.mint_plmc_to(vec![issuer_mint]);
+				let project_err = inst.execute(|| {
+					Pallet::<TestRuntime>::do_create_project(&issuer, project, generate_did_from_account(issuer))
+						.unwrap_err()
+				});
+				assert_eq!(
+					project_err,
+					Error::<TestRuntime>::BadMetadata(MetadataError::ParticipationCurrenciesError).into()
 				);
-			});
+			}
 		}
 
 		#[test]
