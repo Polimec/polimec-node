@@ -838,7 +838,7 @@ impl<T: Config> Pallet<T> {
 		DidWithActiveProjects::<T>::set(did, Some(project_id));
 
 		// * Emit events *
-		Self::deposit_event(Event::ProjectCreated { project_id, issuer: issuer.clone() });
+		Self::deposit_event(Event::ProjectCreated { project_id, issuer: issuer.clone(), metadata: initial_metadata });
 
 		Ok(())
 	}
@@ -1001,7 +1001,12 @@ impl<T: Config> Pallet<T> {
 		EvaluationCounts::<T>::mutate(project_id, |c| *c += 1);
 
 		// * Emit events *
-		Self::deposit_event(Event::Evaluation { project_id, amount: plmc_bond, evaluator: evaluator.clone() });
+		Self::deposit_event(Event::Evaluation {
+			project_id,
+			evaluator: evaluator.clone(),
+			id: evaluation_id,
+			amount: plmc_bond,
+		});
 
 		let existing_evaluations_count = caller_existing_evaluations.len() as u32;
 		let actual_weight = if existing_evaluations_count < T::MaxEvaluationsPerUser::get() {
@@ -1195,7 +1200,14 @@ impl<T: Config> Pallet<T> {
 		BidCounts::<T>::mutate(project_id, |c| *c += 1);
 		AuctionBoughtUSD::<T>::mutate((project_id, did), |amount| *amount += ticket_size);
 
-		Self::deposit_event(Event::Bid { project_id, amount: ct_amount, price: ct_usd_price, multiplier });
+		Self::deposit_event(Event::Bid {
+			project_id,
+			bidder: bidder.clone(),
+			id: bid_id,
+			amount: ct_amount,
+			price: ct_usd_price,
+			multiplier,
+		});
 
 		Ok(new_bid)
 	}
@@ -1404,6 +1416,7 @@ impl<T: Config> Pallet<T> {
 		Self::deposit_event(Event::Contribution {
 			project_id,
 			contributor: contributor.clone(),
+			id: contribution_id,
 			amount: buyable_tokens,
 			multiplier,
 		});
@@ -1473,7 +1486,7 @@ impl<T: Config> Pallet<T> {
 		ProjectsDetails::<T>::insert(project_id, project_details);
 
 		// * Emit events *
-		Self::deposit_event(Event::ProjectParaIdSet { project_id, para_id, caller: caller.clone() });
+		Self::deposit_event(Event::ProjectParaIdSet { project_id, para_id });
 
 		Ok(())
 	}

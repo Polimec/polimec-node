@@ -586,6 +586,7 @@ pub mod pallet {
 		ProjectCreated {
 			project_id: ProjectId,
 			issuer: T::AccountId,
+			metadata: ProjectMetadataOf<T>,
 		},
 		/// An issuer removed the project before the evaluation started
 		ProjectRemoved {
@@ -605,12 +606,15 @@ pub mod pallet {
 		/// A `bonder` bonded an `amount` of PLMC for `project_id`.
 		Evaluation {
 			project_id: ProjectId,
-			amount: BalanceOf<T>,
 			evaluator: AccountIdOf<T>,
+			id: u32,
+			amount: BalanceOf<T>,
 		},
 		/// A bid was made for a project
 		Bid {
 			project_id: ProjectId,
+			bidder: AccountIdOf<T>,
+			id: u32,
 			amount: BalanceOf<T>,
 			price: T::Price,
 			multiplier: MultiplierOf<T>,
@@ -619,6 +623,7 @@ pub mod pallet {
 		Contribution {
 			project_id: ProjectId,
 			contributor: AccountIdOf<T>,
+			id: u32,
 			amount: BalanceOf<T>,
 			multiplier: MultiplierOf<T>,
 		},
@@ -654,7 +659,6 @@ pub mod pallet {
 		ProjectParaIdSet {
 			project_id: ProjectId,
 			para_id: ParaId,
-			caller: T::AccountId,
 		},
 		/// A channel was accepted from a parachain to Polimec belonging to a project. A request has been sent to the relay for a Polimec->project channel
 		HrmpChannelAccepted {

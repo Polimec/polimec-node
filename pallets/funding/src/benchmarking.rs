@@ -25,17 +25,13 @@ use frame_benchmarking::v2::*;
 use frame_support::assert_ok;
 use frame_support::{
 	dispatch::RawOrigin,
-	traits::{
-		fungible::{InspectHold, MutateHold},
-		fungibles::metadata::MetadataDeposit,
-		OriginTrait,
-	},
+	traits::{fungibles::metadata::MetadataDeposit, OriginTrait},
 	Parameter,
 };
 #[allow(unused_imports)]
 use pallet::Pallet as PalletFunding;
 use parity_scale_codec::{Decode, Encode};
-use polimec_common::{credentials::InvestorType, ReleaseSchedule};
+use polimec_common::credentials::InvestorType;
 use polimec_common_test_utils::get_mock_jwt;
 use scale_info::prelude::format;
 use sp_arithmetic::Percent;
@@ -50,15 +46,6 @@ const METADATA: &str = r#"
     "tokenomics":"ipfs_url",
     "roadmap":"ipfs_url",
     "usage_of_founds":"ipfs_url"
-}
-"#;
-const EDITED_METADATA: &str = r#"
-{
-    "whitepaper":"new_ipfs_url",
-    "team_description":"new_ipfs_url",
-    "tokenomics":"new_ipfs_url",
-    "roadmap":"new_ipfs_url",
-    "usage_of_founds":"new_ipfs_url"
 }
 "#;
 
@@ -420,7 +407,9 @@ mod benchmarks {
 		assert_eq!(&stored_details.issuer_account, &issuer);
 
 		// Events
-		frame_system::Pallet::<T>::assert_last_event(Event::<T>::ProjectCreated { project_id, issuer }.into());
+		frame_system::Pallet::<T>::assert_last_event(
+			Event::<T>::ProjectCreated { project_id, issuer, metadata: stored_metadata.clone() }.into(),
+		);
 	}
 
 	#[benchmark]
@@ -759,8 +748,13 @@ mod benchmarks {
 
 		// Events
 		frame_system::Pallet::<T>::assert_last_event(
-			Event::<T>::Evaluation { project_id, amount: extrinsic_plmc_bonded, evaluator: evaluation.account.clone() }
-				.into(),
+			Event::<T>::Evaluation {
+				project_id,
+				evaluator: evaluation.account.clone(),
+				id: stored_evaluation.id,
+				amount: extrinsic_plmc_bonded,
+			}
+			.into(),
 		);
 	}
 
@@ -1346,6 +1340,7 @@ mod benchmarks {
 			Event::Contribution {
 				project_id,
 				contributor,
+				id: stored_contribution.id,
 				amount: extrinsic_contribution.amount,
 				multiplier: extrinsic_contribution.multiplier,
 			}
@@ -2032,7 +2027,6 @@ mod benchmarks {
 		assert_eq!(stored_details.status, ProjectStatus::AuctionClosing);
 
 		// Events
-		let current_block = inst.current_block();
 		frame_system::Pallet::<T>::assert_last_event(
 			Event::<T>::ProjectPhaseTransition { project_id, phase: ProjectPhases::AuctionClosing }.into(),
 		);
