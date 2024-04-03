@@ -25,6 +25,7 @@ mod round_flow {
 #[cfg(test)]
 mod create_project_extrinsic {
 	use super::*;
+
 	#[cfg(test)]
 	mod success {
 		use super::*;
@@ -60,126 +61,129 @@ mod create_project_extrinsic {
 					Pallet::<TestRuntime>::create_project(RuntimeOrigin::signed(issuer), jwt, project_metadata.clone())
 				}));
 			}
+		}
 
-			#[test]
-			fn multiple_creations_different_issuers() {
-				let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
-				let mut issuer = ISSUER_1;
-				for _ in 0..512 {
-					let project_metadata = default_project_metadata(inst.get_new_nonce(), issuer);
-					inst.create_evaluating_project(project_metadata, issuer);
-					inst.advance_time(1u64).unwrap();
-					issuer += 1;
-				}
+		#[test]
+		fn multiple_creations_different_issuers() {
+			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+			let mut issuer = ISSUER_1;
+			for _ in 0..512 {
+				let project_metadata = default_project_metadata(inst.get_new_nonce(), issuer);
+				inst.create_evaluating_project(project_metadata, issuer);
+				inst.advance_time(1u64).unwrap();
+				issuer += 1;
+			}
+		}
+
+		#[test]
+		fn multiple_funding_currencies() {
+			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+			let mut counter: u8 = 1u8;
+			let mut with_different_metadata = |mut project: ProjectMetadataOf<TestRuntime>| {
+				let mut binding = project.offchain_information_hash.unwrap();
+				let h256_bytes = binding.as_fixed_bytes_mut();
+				h256_bytes[0] = counter;
+				counter += 1u8;
+				project.offchain_information_hash = Some(binding);
+				project
+			};
+			let default_project_metadata = default_project_metadata(inst.get_new_nonce(), ISSUER_1);
+
+			let mut one_currency_1 = default_project_metadata.clone();
+			one_currency_1.participation_currencies = vec![AcceptedFundingAsset::USDT].try_into().unwrap();
+
+			let mut one_currency_2 = default_project_metadata.clone();
+			one_currency_2.participation_currencies = vec![AcceptedFundingAsset::USDC].try_into().unwrap();
+
+			let mut one_currency_3 = default_project_metadata.clone();
+			one_currency_3.participation_currencies = vec![AcceptedFundingAsset::DOT].try_into().unwrap();
+
+			let mut two_currencies_1 = default_project_metadata.clone();
+			two_currencies_1.participation_currencies =
+				vec![AcceptedFundingAsset::USDT, AcceptedFundingAsset::USDC].try_into().unwrap();
+
+			let mut two_currencies_2 = default_project_metadata.clone();
+			two_currencies_2.participation_currencies =
+				vec![AcceptedFundingAsset::USDT, AcceptedFundingAsset::DOT].try_into().unwrap();
+
+			let mut two_currencies_3 = default_project_metadata.clone();
+			two_currencies_3.participation_currencies =
+				vec![AcceptedFundingAsset::USDC, AcceptedFundingAsset::DOT].try_into().unwrap();
+
+			let mut three_currencies = default_project_metadata.clone();
+			three_currencies.participation_currencies =
+				vec![AcceptedFundingAsset::USDT, AcceptedFundingAsset::USDC, AcceptedFundingAsset::DOT]
+					.try_into()
+					.unwrap();
+
+			let projects = vec![
+				one_currency_1.clone(),
+				one_currency_2.clone(),
+				one_currency_3,
+				two_currencies_1,
+				two_currencies_2,
+				two_currencies_3,
+				three_currencies,
+			];
+
+			let test_1 = with_different_metadata(one_currency_1);
+			let test_2 = with_different_metadata(one_currency_2);
+			assert!(test_1.offchain_information_hash != test_2.offchain_information_hash);
+
+			let mut issuer = ISSUER_1;
+			for project in projects {
+				let project_metadata_new = with_different_metadata(project);
+				issuer += 1;
+				let issuer_mint = (issuer, 1000 * PLMC).into();
+				inst.mint_plmc_to(vec![issuer_mint]);
+				assert_ok!(inst.execute(|| {
+					Pallet::<TestRuntime>::do_create_project(
+						&issuer,
+						project_metadata_new,
+						generate_did_from_account(issuer),
+					)
+				}));
 			}
 
-			#[test]
-			fn multiple_funding_currencies() {
-				let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
-				let mut counter: u8 = 1u8;
-				let mut with_different_metadata = |mut project: ProjectMetadataOf<TestRuntime>| {
-					let mut binding = project.offchain_information_hash.unwrap();
-					let h256_bytes = binding.as_fixed_bytes_mut();
-					h256_bytes[0] = counter;
-					counter += 1u8;
-					project.offchain_information_hash = Some(binding);
-					project
-				};
-				let default_project_metadata = default_project_metadata(inst.get_new_nonce(), ISSUER_1);
+			let mut wrong_project_1 = default_project_metadata.clone();
+			wrong_project_1.participation_currencies =
+				vec![AcceptedFundingAsset::USDT, AcceptedFundingAsset::USDT].try_into().unwrap();
 
-				let mut one_currency_1 = default_project_metadata.clone();
-				one_currency_1.participation_currencies = vec![AcceptedFundingAsset::USDT].try_into().unwrap();
+			let mut wrong_project_2 = default_project_metadata.clone();
+			wrong_project_2.participation_currencies =
+				vec![AcceptedFundingAsset::USDT, AcceptedFundingAsset::USDT, AcceptedFundingAsset::USDT]
+					.try_into()
+					.unwrap();
 
-				let mut one_currency_2 = default_project_metadata.clone();
-				one_currency_2.participation_currencies = vec![AcceptedFundingAsset::USDC].try_into().unwrap();
+			let mut wrong_project_3 = default_project_metadata.clone();
+			wrong_project_3.participation_currencies =
+				vec![AcceptedFundingAsset::USDT, AcceptedFundingAsset::USDC, AcceptedFundingAsset::USDT]
+					.try_into()
+					.unwrap();
 
-				let mut one_currency_3 = default_project_metadata.clone();
-				one_currency_3.participation_currencies = vec![AcceptedFundingAsset::DOT].try_into().unwrap();
+			let mut wrong_project_4 = default_project_metadata.clone();
+			wrong_project_4.participation_currencies =
+				vec![AcceptedFundingAsset::DOT, AcceptedFundingAsset::DOT, AcceptedFundingAsset::USDC]
+					.try_into()
+					.unwrap();
 
-				let mut two_currencies_1 = default_project_metadata.clone();
-				two_currencies_1.participation_currencies =
-					vec![AcceptedFundingAsset::USDT, AcceptedFundingAsset::USDC].try_into().unwrap();
-
-				let mut two_currencies_2 = default_project_metadata.clone();
-				two_currencies_2.participation_currencies =
-					vec![AcceptedFundingAsset::USDT, AcceptedFundingAsset::DOT].try_into().unwrap();
-
-				let mut two_currencies_3 = default_project_metadata.clone();
-				two_currencies_3.participation_currencies =
-					vec![AcceptedFundingAsset::USDC, AcceptedFundingAsset::DOT].try_into().unwrap();
-
-				let mut three_currencies = default_project_metadata.clone();
-				three_currencies.participation_currencies =
-					vec![AcceptedFundingAsset::USDT, AcceptedFundingAsset::USDC, AcceptedFundingAsset::DOT]
-						.try_into()
-						.unwrap();
-
-				let projects = vec![
-					one_currency_1.clone(),
-					one_currency_2.clone(),
-					one_currency_3,
-					two_currencies_1,
-					two_currencies_2,
-					two_currencies_3,
-					three_currencies,
-				];
-
-				let test_1 = with_different_metadata(one_currency_1);
-				let test_2 = with_different_metadata(one_currency_2);
-				assert!(test_1.offchain_information_hash != test_2.offchain_information_hash);
-
-				let mut issuer = ISSUER_1;
-				for project in projects {
-					let project_metadata_new = with_different_metadata(project);
-					issuer += 1;
-					let issuer_mint = (issuer, 1000 * PLMC).into();
-					inst.mint_plmc_to(vec![issuer_mint]);
-					assert_ok!(inst.execute(|| {
-						Pallet::<TestRuntime>::do_create_project(
-							&issuer,
-							project_metadata_new,
-							generate_did_from_account(issuer),
-						)
-					}));
-				}
-
-				let mut wrong_project_1 = default_project_metadata.clone();
-				wrong_project_1.participation_currencies =
-					vec![AcceptedFundingAsset::USDT, AcceptedFundingAsset::USDT].try_into().unwrap();
-
-				let mut wrong_project_2 = default_project_metadata.clone();
-				wrong_project_2.participation_currencies =
-					vec![AcceptedFundingAsset::USDT, AcceptedFundingAsset::USDT, AcceptedFundingAsset::USDT]
-						.try_into()
-						.unwrap();
-
-				let mut wrong_project_3 = default_project_metadata.clone();
-				wrong_project_3.participation_currencies =
-					vec![AcceptedFundingAsset::USDT, AcceptedFundingAsset::USDC, AcceptedFundingAsset::USDT]
-						.try_into()
-						.unwrap();
-
-				let mut wrong_project_4 = default_project_metadata.clone();
-				wrong_project_4.participation_currencies =
-					vec![AcceptedFundingAsset::DOT, AcceptedFundingAsset::DOT, AcceptedFundingAsset::USDC]
-						.try_into()
-						.unwrap();
-
-				let wrong_projects = vec![wrong_project_1, wrong_project_2, wrong_project_3, wrong_project_4];
-				for project in wrong_projects {
-					issuer += 1;
-					let issuer_mint = (issuer, 1000 * PLMC).into();
-					inst.mint_plmc_to(vec![issuer_mint]);
-					let project_err = inst.execute(|| {
-						Pallet::<TestRuntime>::do_create_project(
-							&issuer,
-							with_different_metadata(project),
-							generate_did_from_account(issuer),
-						)
-						.unwrap_err()
-					});
-					assert_eq!(project_err, Error::<TestRuntime>::ParticipationCurrenciesError.into());
-				}
+			let wrong_projects = vec![wrong_project_1, wrong_project_2, wrong_project_3, wrong_project_4];
+			for project in wrong_projects {
+				issuer += 1;
+				let issuer_mint = (issuer, 1000 * PLMC).into();
+				inst.mint_plmc_to(vec![issuer_mint]);
+				let project_err = inst.execute(|| {
+					Pallet::<TestRuntime>::do_create_project(
+						&issuer,
+						with_different_metadata(project),
+						generate_did_from_account(issuer),
+					)
+					.unwrap_err()
+				});
+				assert_eq!(
+					project_err,
+					Error::<TestRuntime>::BadMetadata(MetadataError::ParticipationCurrenciesError).into()
+				);
 			}
 		}
 
@@ -466,7 +470,7 @@ mod create_project_extrinsic {
 						project_metadata,
 						generate_did_from_account(ISSUER_1),
 					),
-					Error::<TestRuntime>::AllocationSizeError
+					Error::<TestRuntime>::BadMetadata(MetadataError::AllocationSizeError)
 				);
 			});
 		}
@@ -554,7 +558,7 @@ mod create_project_extrinsic {
 					)
 					.unwrap_err()
 				});
-				assert_eq!(project_err, Error::<TestRuntime>::TicketSizeError.into());
+				assert_eq!(project_err, Error::<TestRuntime>::BadMetadata(MetadataError::TicketSizeError).into());
 			}
 		}
 
@@ -571,7 +575,7 @@ mod create_project_extrinsic {
 						get_mock_jwt(ISSUER_1, InvestorType::Institutional, generate_did_from_account(ISSUER_1)),
 						project_metadata
 					),
-					Error::<TestRuntime>::ParticipationCurrenciesError
+					Error::<TestRuntime>::BadMetadata(MetadataError::ParticipationCurrenciesError)
 				);
 			});
 		}
@@ -606,7 +610,7 @@ mod create_project_extrinsic {
 				Pallet::<TestRuntime>::do_create_project(&ISSUER_1, wrong_project, generate_did_from_account(ISSUER_1))
 					.unwrap_err()
 			});
-			assert_eq!(project_err, Error::<TestRuntime>::PriceTooLow.into());
+			assert_eq!(project_err, Error::<TestRuntime>::BadMetadata(MetadataError::PriceTooLow).into());
 		}
 
 		#[test]
@@ -620,7 +624,7 @@ mod create_project_extrinsic {
 			inst.execute(|| {
 				assert_noop!(
 					Pallet::<TestRuntime>::create_project(RuntimeOrigin::signed(ISSUER_1), jwt, project_metadata),
-					Error::<TestRuntime>::AllocationSizeError
+					Error::<TestRuntime>::BadMetadata(MetadataError::AllocationSizeError)
 				);
 			});
 		}
@@ -636,7 +640,7 @@ mod create_project_extrinsic {
 			inst.execute(|| {
 				assert_noop!(
 					Pallet::<TestRuntime>::create_project(RuntimeOrigin::signed(ISSUER_1), jwt, project_metadata),
-					Error::<TestRuntime>::AuctionRoundPercentageError
+					Error::<TestRuntime>::BadMetadata(MetadataError::AuctionRoundPercentageError)
 				);
 			});
 		}
@@ -657,7 +661,7 @@ mod create_project_extrinsic {
 						jwt.clone(),
 						project_metadata.clone()
 					),
-					Error::<TestRuntime>::FundingTargetTooLow
+					Error::<TestRuntime>::BadMetadata(MetadataError::FundingTargetTooLow)
 				);
 			});
 
@@ -666,7 +670,7 @@ mod create_project_extrinsic {
 			inst.execute(|| {
 				assert_noop!(
 					Pallet::<TestRuntime>::create_project(RuntimeOrigin::signed(ISSUER_1), jwt, project_metadata),
-					Error::<TestRuntime>::FundingTargetTooLow
+					Error::<TestRuntime>::BadMetadata(MetadataError::FundingTargetTooLow)
 				);
 			});
 		}
@@ -963,7 +967,7 @@ mod edit_project_extrinsic {
 						project_id,
 						project_metadata,
 					),
-					Error::<TestRuntime>::AllocationSizeError
+					Error::<TestRuntime>::BadMetadata(MetadataError::AllocationSizeError)
 				);
 			});
 		}
@@ -1017,7 +1021,7 @@ mod edit_project_extrinsic {
 							project_id,
 							project,
 						),
-						Error::<TestRuntime>::TicketSizeError
+						Error::<TestRuntime>::BadMetadata(MetadataError::TicketSizeError)
 					);
 				});
 			}
@@ -1039,7 +1043,7 @@ mod edit_project_extrinsic {
 						project_id,
 						project_metadata,
 					),
-					Error::<TestRuntime>::ParticipationCurrenciesError
+					Error::<TestRuntime>::BadMetadata(MetadataError::ParticipationCurrenciesError)
 				);
 			});
 		}
@@ -1061,7 +1065,7 @@ mod edit_project_extrinsic {
 						project_id,
 						project_metadata
 					),
-					Error::<TestRuntime>::PriceTooLow
+					Error::<TestRuntime>::BadMetadata(MetadataError::PriceTooLow)
 				);
 			});
 		}
@@ -1083,7 +1087,7 @@ mod edit_project_extrinsic {
 						project_id,
 						project_metadata
 					),
-					Error::<TestRuntime>::AllocationSizeError
+					Error::<TestRuntime>::BadMetadata(MetadataError::AllocationSizeError)
 				);
 			});
 		}
@@ -1105,7 +1109,7 @@ mod edit_project_extrinsic {
 						project_id,
 						project_metadata
 					),
-					Error::<TestRuntime>::AuctionRoundPercentageError
+					Error::<TestRuntime>::BadMetadata(MetadataError::AuctionRoundPercentageError)
 				);
 			});
 		}
@@ -1129,7 +1133,7 @@ mod edit_project_extrinsic {
 						project_id,
 						project_metadata.clone()
 					),
-					Error::<TestRuntime>::FundingTargetTooLow
+					Error::<TestRuntime>::BadMetadata(MetadataError::FundingTargetTooLow)
 				);
 			});
 
@@ -1143,7 +1147,7 @@ mod edit_project_extrinsic {
 						project_id,
 						project_metadata
 					),
-					Error::<TestRuntime>::FundingTargetTooLow
+					Error::<TestRuntime>::BadMetadata(MetadataError::FundingTargetTooLow)
 				);
 			});
 		}

@@ -728,14 +728,6 @@ pub mod pallet {
 	pub enum Error<T> {
 		/// Something in storage has a state which should never be possible at this point. Programming error
 		ImpossibleState,
-		/// The price provided in the `create` call is too low
-		PriceTooLow,
-		/// The participation size provided in the `create` call is too low
-		ParticipantsSizeError,
-		/// The ticket size provided in the `create` call is too low
-		TicketSizeError,
-		/// The participation currencies specified are invalid
-		ParticipationCurrenciesError,
 		/// The specified project does not exist
 		ProjectNotFound,
 		/// The Evaluation Round of the project has ended without reaching the minimum threshold
@@ -842,13 +834,7 @@ pub mod pallet {
 		/// The issuer tried to create a new project but already has an active one
 		IssuerHasActiveProjectAlready,
 		NotEnoughFunds,
-		BadMetadata,
-		/// Bad allocation size parameter on project metadata
-		AllocationSizeError,
-		/// Bad allocation size parameter on project metadata
-		AuctionRoundPercentageError,
-		/// Cannot ask for funding of less than 10 USD
-		FundingTargetTooLow,
+		BadMetadata(MetadataError),
 	}
 
 	#[pallet::call]

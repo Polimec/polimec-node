@@ -440,6 +440,7 @@ pub mod storage_types {
 
 pub mod inner_types {
 	use super::*;
+	use frame_support::PalletError;
 	use variant_count::VariantCount;
 	#[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
 	#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
@@ -666,6 +667,16 @@ pub mod inner_types {
 
 	#[derive(Debug)]
 	pub enum ValidityError {
+		PriceTooLow,
+		TicketSizeError,
+		ParticipationCurrenciesError,
+		AllocationSizeError,
+		AuctionRoundPercentageError,
+		FundingTargetTooLow,
+	}
+
+	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen, PalletError)]
+	pub enum MetadataError {
 		PriceTooLow,
 		TicketSizeError,
 		ParticipationCurrenciesError,
