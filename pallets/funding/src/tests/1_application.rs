@@ -454,27 +454,9 @@ mod create_project_extrinsic {
 
 		#[test]
 		fn price_zero() {
-			let wrong_project: ProjectMetadataOf<TestRuntime> = ProjectMetadata {
-				token_information: default_token_information(),
-				mainnet_token_max_supply: 100_000_000 * ASSET_UNIT,
-				total_allocation_size: 100_000 * ASSET_UNIT,
-				auction_round_allocation_percentage: Percent::from_percent(50u8),
-				minimum_price: 0_u128.into(),
-				bidding_ticket_sizes: BiddingTicketSizes {
-					professional: TicketSize::new(Some(5000 * US_DOLLAR), None),
-					institutional: TicketSize::new(Some(5000 * US_DOLLAR), None),
-					phantom: Default::default(),
-				},
-				contributing_ticket_sizes: ContributingTicketSizes {
-					retail: TicketSize::new(None, None),
-					professional: TicketSize::new(None, None),
-					institutional: TicketSize::new(None, None),
-					phantom: Default::default(),
-				},
-				participation_currencies: vec![AcceptedFundingAsset::USDT].try_into().unwrap(),
-				funding_destination_account: ISSUER_1,
-				offchain_information_hash: Some(hashed(METADATA)),
-			};
+			let mut project_metadata = default_project_metadata(ISSUER_1);
+			project_metadata.minimum_price = 0_u128.into();
+
 
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 			inst.mint_plmc_to(default_plmc_balances());
