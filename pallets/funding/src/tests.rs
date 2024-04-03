@@ -862,32 +862,7 @@ mod creation {
 			);
 		});
 		inst.advance_time(<TestRuntime as Config>::EvaluationDuration::get() + 1).unwrap();
-		assert_eq!(inst.get_project_details(0).status, ProjectStatus::EvaluationFailed);
-		inst.execute(|| {
-			assert_ok!(Pallet::<TestRuntime>::create_project(
-				RuntimeOrigin::signed(ISSUER_1),
-				jwt.clone(),
-				with_different_hash(project_metadata.clone())
-			));
-		});
-
-		// A Project is "inactive" after the auction fails
-		inst.start_evaluation(1, ISSUER_1).unwrap();
-		inst.evaluate_for_users(1, default_evaluations()).unwrap();
-		inst.start_auction(1, ISSUER_1).unwrap();
-		inst.execute(|| {
-			assert_noop!(
-				Pallet::<TestRuntime>::create_project(
-					RuntimeOrigin::signed(ISSUER_1),
-					jwt.clone(),
-					with_different_hash(project_metadata.clone())
-				),
-				Error::<TestRuntime>::IssuerHasActiveProjectAlready
-			);
-		});
-		inst.start_community_funding(1).unwrap_err();
-		inst.advance_time(1).unwrap();
-		assert_eq!(inst.get_project_details(1).status, ProjectStatus::FundingFailed);
+		assert_eq!(inst.get_project_details(0).status, ProjectStatus::FundingFailed);
 		inst.execute(|| {
 			assert_ok!(Pallet::<TestRuntime>::create_project(
 				RuntimeOrigin::signed(ISSUER_1),
@@ -897,11 +872,11 @@ mod creation {
 		});
 
 		// A Project is "inactive" after the funding fails
-		inst.start_evaluation(2, ISSUER_1).unwrap();
-		inst.evaluate_for_users(2, default_evaluations()).unwrap();
-		inst.start_auction(2, ISSUER_1).unwrap();
-		inst.bid_for_users(2, failing_bids).unwrap();
-		inst.start_community_funding(2).unwrap();
+		inst.start_evaluation(1, ISSUER_1).unwrap();
+		inst.evaluate_for_users(1, default_evaluations()).unwrap();
+		inst.start_auction(1, ISSUER_1).unwrap();
+		inst.bid_for_users(1, failing_bids).unwrap();
+		inst.start_community_funding(1).unwrap();
 		inst.execute(|| {
 			assert_noop!(
 				Pallet::<TestRuntime>::create_project(
@@ -912,8 +887,8 @@ mod creation {
 				Error::<TestRuntime>::IssuerHasActiveProjectAlready
 			);
 		});
-		inst.finish_funding(2).unwrap();
-		assert_eq!(inst.get_project_details(2).status, ProjectStatus::FundingFailed);
+		inst.finish_funding(1).unwrap();
+		assert_eq!(inst.get_project_details(1).status, ProjectStatus::FundingFailed);
 		inst.execute(|| {
 			assert_ok!(Pallet::<TestRuntime>::create_project(
 				RuntimeOrigin::signed(ISSUER_1),
@@ -923,16 +898,16 @@ mod creation {
 		});
 
 		// A project is "inactive" after the funding succeeds
-		inst.start_evaluation(3, ISSUER_1).unwrap();
-		inst.evaluate_for_users(3, default_evaluations()).unwrap();
-		inst.start_auction(3, ISSUER_1).unwrap();
-		inst.bid_for_users(3, default_bids()).unwrap();
-		inst.start_community_funding(3).unwrap();
-		inst.contribute_for_users(3, default_community_buys()).unwrap();
-		inst.start_remainder_or_end_funding(3).unwrap();
-		inst.contribute_for_users(3, default_remainder_buys()).unwrap();
-		inst.finish_funding(3).unwrap();
-		assert_eq!(inst.get_project_details(3).status, ProjectStatus::FundingSuccessful);
+		inst.start_evaluation(2, ISSUER_1).unwrap();
+		inst.evaluate_for_users(2, default_evaluations()).unwrap();
+		inst.start_auction(2, ISSUER_1).unwrap();
+		inst.bid_for_users(2, default_bids()).unwrap();
+		inst.start_community_funding(2).unwrap();
+		inst.contribute_for_users(2, default_community_buys()).unwrap();
+		inst.start_remainder_or_end_funding(2).unwrap();
+		inst.contribute_for_users(2, default_remainder_buys()).unwrap();
+		inst.finish_funding(2).unwrap();
+		assert_eq!(inst.get_project_details(2).status, ProjectStatus::FundingSuccessful);
 		assert_ok!(inst.execute(|| crate::Pallet::<TestRuntime>::create_project(
 			RuntimeOrigin::signed(ISSUER_1),
 			jwt.clone(),
@@ -1038,7 +1013,7 @@ mod evaluation {
 
 		inst.advance_time(evaluation_end - now + 1).unwrap();
 
-		assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::EvaluationFailed);
+		assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::FundingFailed);
 
 		inst.settle_project(project_id).unwrap();
 		inst.do_free_plmc_assertions(expected_evaluator_balances);
@@ -1155,7 +1130,7 @@ mod evaluation {
 		let now = inst.current_block();
 		inst.advance_time(update_block - now + 1).unwrap();
 		let project_status = inst.get_project_details(project_id).status;
-		assert_eq!(project_status, ProjectStatus::EvaluationFailed);
+		assert_eq!(project_status, ProjectStatus::FundingFailed);
 	}
 }
 
@@ -1848,7 +1823,7 @@ mod auction {
 		let issuer = ISSUER_1;
 		let project_metadata = default_project_metadata(inst.get_new_nonce(), issuer);
 		let evaluations = default_evaluations();
-		let project_id = inst.create_auctioning_project(project_metadata, issuer, evaluations);
+		let project_id = inst.create_auctioning_project(project_metadata.clone(), issuer, evaluations);
 
 		let details = inst.get_project_details(project_id);
 		let english_end = details.phase_transition_points.english_auction.end().unwrap();
@@ -1861,7 +1836,8 @@ mod auction {
 		inst.advance_time(candle_end - now + 2).unwrap();
 
 		let details = inst.get_project_details(project_id);
-		assert_eq!(details.status, ProjectStatus::FundingFailed);
+		assert_eq!(details.status, ProjectStatus::CommunityRound);
+		assert_eq!(details.weighted_average_price, Some(project_metadata.minimum_price));
 	}
 
 	#[test]
@@ -4731,21 +4707,6 @@ mod funding_end_and_settlement {
 			inst.test_ct_not_created_for(project_id);
 		}
 		(inst, project_id)
-	}
-
-	#[test]
-	fn failed_auction_is_settled() {
-		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
-		let project_metadata = default_project_metadata(0, ISSUER_1);
-		let project_id = inst.create_auctioning_project(project_metadata.clone(), ISSUER_1, default_evaluations());
-		inst.start_community_funding(project_id).unwrap_err();
-		// execute `do_end_funding`
-		inst.advance_time(1).unwrap();
-		assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::FundingFailed);
-		// execute `do_start_settlement`
-		inst.advance_time(1).unwrap();
-		// Settle the project.
-		inst.settle_project(project_id).unwrap();
 	}
 
 	#[test]

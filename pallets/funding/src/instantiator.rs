@@ -1346,8 +1346,8 @@ impl<
 		let details = self.get_project_details(project_id);
 		self.execute(|| match details.status {
 			ProjectStatus::FundingSuccessful => Self::settle_successful_project(project_id),
-			ProjectStatus::FundingFailed | ProjectStatus::EvaluationFailed => Self::settle_failed_project(project_id),
-			_ => panic!("Project should be in FundingSuccessful, FundingFailed or EvaluationFailed status"),
+			ProjectStatus::FundingFailed => Self::settle_failed_project(project_id),
+			_ => panic!("Project should be in FundingSuccessful or FundingFailed status"),
 		})
 	}
 
@@ -1398,7 +1398,7 @@ impl<
 		let details = self.get_project_details(project_id);
 		assert!(matches!(
 			details.status,
-			ProjectStatus::FundingSuccessful | ProjectStatus::FundingFailed | ProjectStatus::EvaluationFailed
+			ProjectStatus::FundingSuccessful | ProjectStatus::FundingFailed
 		));
 
 		self.execute(|| {

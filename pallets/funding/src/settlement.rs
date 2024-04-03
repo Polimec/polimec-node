@@ -73,7 +73,7 @@ impl<T: Config> Pallet<T> {
 	pub fn do_settle_failed_evaluation(evaluation: EvaluationInfoOf<T>, project_id: ProjectId) -> DispatchResult {
 		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 		ensure!(
-			matches!(project_details.status, ProjectStatus::FundingFailed | ProjectStatus::EvaluationFailed),
+			matches!(project_details.status, ProjectStatus::FundingFailed),
 			Error::<T>::NotAllowed
 		);
 

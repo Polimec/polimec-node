@@ -561,7 +561,6 @@ pub mod inner_types {
 		#[default]
 		Application,
 		EvaluationRound,
-		EvaluationFailed,
 		AuctionInitializePeriod,
 		AuctionRound(AuctionPhase),
 		CommunityRound,
@@ -680,25 +679,32 @@ pub mod inner_types {
 	}
 
 	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
-	pub enum FundingOutcome {
-		Success(SuccessReason),
-		Failure(FailureReason),
+	pub enum ProjectPhases {
+		Evaluation,
+		AuctionInitializePeriod,
+		EnglishAuction,
+		CandleAuction,
+		CommunityFunding,
+		RemainderFunding,
+		DecisionPeriod,
+		FundingFinalization(ProjectOutcome),
+		Settlement,
+		Migration,
 	}
 
+	/// An enum representing all possible outcomes for a project.
 	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
-	pub enum SuccessReason {
-		SoldOut,
-		ReachedTarget,
-		ProjectDecision,
-	}
-
-	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
-	pub enum FailureReason {
+	pub enum ProjectOutcome {
+		/// The evaluation funding target was not reached.
 		EvaluationFailed,
-		AuctionFailed,
-		TargetNotReached,
-		ProjectDecision,
-		Unknown,
+		/// 90%+ of the funding target was reached, so the project is successful.
+		FundingSuccessful,
+		/// 33%- of the funding target was reached, so the project failed.
+		FundingFailed,
+		/// The project issuer accepted the funding outcome between 33% and 90% of the target.
+		FundingAccepted,
+		/// The project issuer rejected the funding outcome between 33% and 90% of the target.
+		FundingRejected,
 	}
 
 	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]

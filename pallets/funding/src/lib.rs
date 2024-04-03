@@ -586,45 +586,23 @@ pub mod pallet {
 		/// An issuer removed the project before the evaluation started
 		ProjectRemoved {
 			project_id: ProjectId,
+			issuer: T::AccountId,
 		},
 		/// The metadata of a project was modified.
 		MetadataEdited {
 			project_id: ProjectId,
 			metadata: ProjectMetadataOf<T>,
 		},
-		/// The evaluation phase of a project started.
-		EvaluationStarted {
+		/// Project transitioned to a new phase.
+		ProjectPhaseTransition {
 			project_id: ProjectId,
-		},
-		/// The evaluation phase of a project ended without reaching the minimum threshold of evaluation bonds.
-		EvaluationFailed {
-			project_id: ProjectId,
-		},
-		/// The period an issuer has to start the auction phase of the project.
-		AuctionInitializePeriod {
-			project_id: ProjectId,
-			start_block: BlockNumberFor<T>,
-			end_block: BlockNumberFor<T>,
-		},
-		/// The auction round of a project started.
-		EnglishAuctionStarted {
-			project_id: ProjectId,
-			when: BlockNumberFor<T>,
-		},
-		/// The candle auction part of the auction started for a project
-		CandleAuctionStarted {
-			project_id: ProjectId,
-			when: BlockNumberFor<T>,
-		},
-		/// The auction round of a project ended.
-		AuctionFailed {
-			project_id: ProjectId,
+			phase: ProjectPhases,
 		},
 		/// A `bonder` bonded an `amount` of PLMC for `project_id`.
-		FundsBonded {
+		Evaluation {
 			project_id: ProjectId,
 			amount: BalanceOf<T>,
-			bonder: AccountIdOf<T>,
+			evaluator: AccountIdOf<T>,
 		},
 		/// A bid was made for a project
 		Bid {
@@ -640,27 +618,15 @@ pub mod pallet {
 			amount: BalanceOf<T>,
 			multiplier: MultiplierOf<T>,
 		},
-		/// A project is now in its community funding round
-		CommunityFundingStarted {
-			project_id: ProjectId,
-		},
-		/// A project is now in the remainder funding round
-		RemainderFundingStarted {
-			project_id: ProjectId,
-		},
-		/// A project has now finished funding
-		FundingEnded {
-			project_id: ProjectId,
-			outcome: FundingOutcome,
-		},
-		/// Something was not properly initialized. Most likely due to dev error manually calling do_* functions or updating storage
-		TransitionError {
-			project_id: ProjectId,
-			error: DispatchError,
-		},
 		ProjectOutcomeDecided {
 			project_id: ProjectId,
 			decision: FundingOutcomeDecision,
+		},
+		BidRefunded {
+			project_id: ProjectId,
+			account: AccountIdOf<T>,
+			bid_id: u32,
+			reason: RejectionReason,
 		},
 		EvaluationSettled {
 			project_id: ProjectId,
@@ -668,12 +634,6 @@ pub mod pallet {
 			id: u32,
 			ct_amount: BalanceOf<T>,
 			slashed_amount: BalanceOf<T>,
-		},
-		BidRefunded {
-			project_id: ProjectId,
-			account: AccountIdOf<T>,
-			bid_id: u32,
-			reason: RejectionReason,
 		},
 		BidSettled {
 			project_id: ProjectId,
@@ -740,8 +700,6 @@ pub mod pallet {
 		ProjectNotFound,
 		/// The Evaluation Round of the project has not started yet
 		EvaluationNotStarted,
-		/// The Evaluation Round of the project has ended without reaching the minimum threshold
-		EvaluationFailed,
 		/// The issuer cannot participate to their own project
 		ParticipationToThemselves,
 		/// Only the issuer can start the Evaluation Round
@@ -758,8 +716,6 @@ pub mod pallet {
 		BidTooHigh,
 		/// The Funding Round of the project has not ended yet
 		CannotClaimYet,
-		/// No bids were made for the project at the time of the auction close
-		NoBidsFound,
 		/// Tried to freeze the project to start the Evaluation Round, but the project is already frozen
 		ProjectAlreadyFrozen,
 		/// Tried to move the project from Application to Evaluation round, but the project is not in ApplicationRound
@@ -869,7 +825,7 @@ pub mod pallet {
 			let (account, did, investor_type) =
 				T::InvestorOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get())?;
 			ensure!(investor_type == InvestorType::Institutional, Error::<T>::NotAllowed);
-			Self::do_remove_project(&account, project_id, did)
+			Self::do_remove_project(account, project_id, did)
 		}
 
 		/// Change the metadata hash of a project
@@ -1190,17 +1146,17 @@ pub mod pallet {
 		}
 
 		#[pallet::call_index(30)]
-		#[pallet::weight(WeightInfoOf::<T>::start_community_funding_success(
+		#[pallet::weight(WeightInfoOf::<T>::start_community_funding(
 			<T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1,
 			<T as Config>::MaxBidsPerProject::get() / 2,
 			<T as Config>::MaxBidsPerProject::get() / 2,
 		)
-		.max(WeightInfoOf::<T>::start_community_funding_success(
+		.max(WeightInfoOf::<T>::start_community_funding(
 			<T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1,
 			<T as Config>::MaxBidsPerProject::get(),
 			0u32,
 		))
-		.max(WeightInfoOf::<T>::start_community_funding_success(
+		.max(WeightInfoOf::<T>::start_community_funding(
 			<T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1,
 			0u32,
 			<T as Config>::MaxBidsPerProject::get(),
@@ -1239,8 +1195,7 @@ pub mod pallet {
 		}
 
 		#[pallet::call_index(33)]
-		#[pallet::weight(WeightInfoOf::<T>::project_decision_accept_funding()
-		.max(WeightInfoOf::<T>::project_decision_reject_funding()))]
+		#[pallet::weight(WeightInfoOf::<T>::project_decision())]
 		pub fn root_do_project_decision(
 			origin: OriginFor<T>,
 			project_id: ProjectId,
@@ -1284,7 +1239,7 @@ pub mod pallet {
 			let mut used_weight = Weight::from_parts(0, 0);
 			for (project_id, update_type) in ProjectsToUpdate::<T>::take(now) {
 				match update_type {
-					// EvaluationRound -> AuctionInitializePeriod | EvaluationFailed
+					// EvaluationRound -> AuctionInitializePeriod | ProjectFailed
 					UpdateType::EvaluationEnd => {
 						let call = Self::do_evaluation_end(project_id);
 						let fallback_weight =
@@ -1412,40 +1367,5 @@ pub mod xcm_executor_impl {
 		fn handle_channel_accepted(message: Instruction) -> XcmResult {
 			<Pallet<T>>::do_handle_channel_accepted(message)
 		}
-	}
-}
-
-pub mod local_macros {
-	/// used to unwrap storage values that can be None in places where an error cannot be returned,
-	/// but an event should be emitted, and skip to the next iteration of a loop
-	#[allow(unused_macros)]
-	macro_rules! unwrap_option_or_skip {
-		($option:expr, $project_id:expr) => {
-			match $option {
-				Some(val) => val,
-				None => {
-					Self::deposit_event(Event::TransitionError {
-						project_id: $project_id,
-						error: Error::<T>::FieldIsNone.into(),
-					});
-					continue;
-				},
-			}
-		};
-	}
-
-	/// used to unwrap storage values that can be Err in places where an error cannot be returned,
-	/// but an event should be emitted, and skip to the next iteration of a loop
-	#[allow(unused_macros)]
-	macro_rules! unwrap_result_or_skip {
-		($option:expr, $project_id:expr, $error_handler:expr) => {
-			match $option {
-				Ok(val) => val,
-				Err(err) => {
-					Self::deposit_event(Event::TransitionError { project_id: $project_id, error: $error_handler(err) });
-					continue;
-				},
-			}
-		};
 	}
 }

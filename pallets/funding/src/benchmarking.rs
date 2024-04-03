@@ -438,7 +438,7 @@ mod benchmarks {
 		let jwt = get_mock_jwt(issuer.clone(), InvestorType::Institutional, generate_did_from_account(issuer.clone()));
 
 		#[extrinsic_call]
-		remove_project(RawOrigin::Signed(issuer), jwt, project_id);
+		remove_project(RawOrigin::Signed(issuer.clone()), jwt, project_id);
 
 		// * validity checks *
 		// Storage
@@ -446,7 +446,7 @@ mod benchmarks {
 		assert!(ProjectsDetails::<T>::get(project_id).is_none());
 
 		// Events
-		frame_system::Pallet::<T>::assert_last_event(Event::<T>::ProjectRemoved { project_id }.into());
+		frame_system::Pallet::<T>::assert_last_event(Event::<T>::ProjectRemoved { project_id, issuer }.into());
 	}
 
 	#[benchmark]
@@ -601,7 +601,7 @@ mod benchmarks {
 		}
 
 		// Events
-		frame_system::Pallet::<T>::assert_last_event(Event::EvaluationStarted { project_id }.into())
+		frame_system::Pallet::<T>::assert_last_event(Event::ProjectPhaseTransition { project_id, phase: ProjectPhases::Evaluation }.into())
 	}
 
 	#[benchmark]
@@ -654,7 +654,7 @@ mod benchmarks {
 
 		// Events
 		frame_system::Pallet::<T>::assert_last_event(
-			Event::<T>::EnglishAuctionStarted { project_id, when: current_block }.into(),
+			Event::<T>::ProjectPhaseTransition { project_id, phase: ProjectPhases::EnglishAuction }.into(),
 		);
 	}
 
@@ -757,7 +757,7 @@ mod benchmarks {
 
 		// Events
 		frame_system::Pallet::<T>::assert_last_event(
-			Event::<T>::FundsBonded { project_id, amount: extrinsic_plmc_bonded, bonder: evaluation.account.clone() }
+			Event::<T>::Evaluation { project_id, amount: extrinsic_plmc_bonded, evaluator: evaluation.account.clone() }
 				.into(),
 		);
 	}
@@ -1989,7 +1989,7 @@ mod benchmarks {
 
 		// * validity checks *
 		let project_details = inst.get_project_details(project_id);
-		assert_eq!(project_details.status, ProjectStatus::EvaluationFailed);
+		assert_eq!(project_details.status, ProjectStatus::FundingFailed);
 	}
 
 	// do_candle_auction
@@ -2032,18 +2032,18 @@ mod benchmarks {
 		// Events
 		let current_block = inst.current_block();
 		frame_system::Pallet::<T>::assert_last_event(
-			Event::<T>::CandleAuctionStarted { project_id, when: current_block }.into(),
+			Event::<T>::ProjectPhaseTransition { project_id, phase: ProjectPhases::CandleAuction }.into(),
 		);
 	}
 
 	// do_community_funding
 	// Should be complex due to calling `calculate_weighted_average_price`
 	#[benchmark]
-	fn start_community_funding_success(
+	fn start_community_funding(
 		// Insertion attempts in add_to_update_store. Total amount of storage items iterated through in `ProjectsToUpdate`. Leave one free to make the fn succeed
 		x: Linear<1, { <T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1 }>,
 		// Accepted Bids
-		y: Linear<1, { <T as Config>::MaxBidsPerProject::get() / 2 }>,
+		y: Linear<0, { <T as Config>::MaxBidsPerProject::get() / 2 }>,
 		// Failed Bids
 		z: Linear<0, { <T as Config>::MaxBidsPerProject::get() / 2 }>,
 	) {
@@ -2190,60 +2190,8 @@ mod benchmarks {
 		assert_eq!(accepted_bids_count, y as usize);
 
 		// Events
-		frame_system::Pallet::<T>::assert_last_event(Event::<T>::CommunityFundingStarted { project_id }.into());
-	}
-
-	#[benchmark]
-	fn start_community_funding_failure(
-		// Insertion attempts in add_to_update_store. Total amount of storage items iterated through in `ProjectsToUpdate`. Leave one free to make the fn succeed
-		x: Linear<1, { <T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1 }>,
-	) {
-		// * setup *
-		let mut inst = BenchInstantiator::<T>::new(None);
-
-		// real benchmark starts at block 0, and we can't call `events()` at block 0
-		inst.advance_time(1u32.into()).unwrap();
-
-		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
-		whitelist_account!(issuer);
-
-		let project_metadata = default_project::<T>(inst.get_new_nonce(), issuer.clone());
-		let project_id = inst.create_auctioning_project(project_metadata, issuer.clone(), default_evaluations());
-
-		// no bids are made, so the project fails
-		run_blocks_to_execute_next_transition(project_id, UpdateType::CandleAuctionStart, &mut inst);
-
-		let auction_candle_end_block =
-			inst.get_project_details(project_id).phase_transition_points.candle_auction.end().unwrap();
-		// we don't use advance time to avoid triggering on_initialize. This benchmark should only measure the fn
-		// weight and not the whole on_initialize call weight
-		frame_system::Pallet::<T>::set_block_number(auction_candle_end_block + One::one());
-		let now = inst.current_block();
-
-		let community_end_block = now + T::CommunityFundingDuration::get();
-
-		let insertion_block_number = community_end_block + 1u32.into();
-		fill_projects_to_update::<T>(x, insertion_block_number);
-
-		#[block]
-		{
-			Pallet::<T>::do_community_funding(project_id).unwrap();
-		}
-
-		frame_system::Pallet::<T>::assert_last_event(Event::<T>::AuctionFailed { project_id }.into());
-
-		// execute do_funding_end automatically
-		inst.advance_time(1u32.into());
-
-		let stored_details = ProjectsDetails::<T>::get(project_id).unwrap();
-		assert_eq!(stored_details.status, ProjectStatus::FundingFailed);
-
 		frame_system::Pallet::<T>::assert_last_event(
-			Event::<T>::FundingEnded {
-				project_id: 0,
-				outcome: FundingOutcome::Failure(FailureReason::TargetNotReached),
-			}
-			.into(),
+			Event::<T>::ProjectPhaseTransition { project_id, phase: ProjectPhases::CommunityFunding }.into()
 		);
 	}
 
@@ -2293,7 +2241,7 @@ mod benchmarks {
 		assert_eq!(stored_details.status, ProjectStatus::RemainderRound);
 
 		// Events
-		frame_system::Pallet::<T>::assert_last_event(Event::<T>::RemainderFundingStarted { project_id }.into());
+		frame_system::Pallet::<T>::assert_last_event(Event::<T>::ProjectPhaseTransition { project_id, phase: ProjectPhases::RemainderFunding }.into());
 	}
 
 	// do_end_funding
@@ -2550,7 +2498,7 @@ mod benchmarks {
 
 	// do_project_decision
 	#[benchmark]
-	fn project_decision_accept_funding() {
+	fn project_decision() {
 		// setup
 		let mut inst = BenchInstantiator::<T>::new(None);
 
@@ -2595,54 +2543,6 @@ mod benchmarks {
 		// * validity checks *
 		let project_details = inst.get_project_details(project_id);
 		assert_eq!(project_details.status, ProjectStatus::FundingSuccessful);
-	}
-
-	#[benchmark]
-	fn project_decision_reject_funding() {
-		// setup
-		let mut inst = BenchInstantiator::<T>::new(None);
-
-		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
-
-		let project_metadata = default_project::<T>(inst.get_new_nonce(), issuer.clone());
-		let target_funding_amount: BalanceOf<T> =
-			project_metadata.minimum_price.saturating_mul_int(project_metadata.total_allocation_size);
-		let manual_outcome_threshold = Percent::from_percent(50);
-
-		let bids: Vec<BidParams<T>> = BenchInstantiator::generate_bids_from_total_usd(
-			(manual_outcome_threshold * target_funding_amount) / 2.into(),
-			project_metadata.minimum_price,
-			default_weights(),
-			default_bidders::<T>(),
-			default_bidder_multipliers(),
-		);
-		let contributions = BenchInstantiator::generate_contributions_from_total_usd(
-			(manual_outcome_threshold * target_funding_amount) / 2.into(),
-			project_metadata.minimum_price,
-			default_weights(),
-			default_community_contributors::<T>(),
-			default_community_contributor_multipliers(),
-		);
-
-		let project_id = inst.create_finished_project(
-			project_metadata,
-			issuer.clone(),
-			default_evaluations::<T>(),
-			bids,
-			contributions,
-			vec![],
-		);
-
-		assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::AwaitingProjectDecision);
-
-		#[block]
-		{
-			Pallet::<T>::do_project_decision(project_id, FundingOutcomeDecision::RejectFunding).unwrap();
-		}
-
-		// * validity checks *
-		let project_details = inst.get_project_details(project_id);
-		assert_eq!(project_details.status, ProjectStatus::FundingFailed);
 	}
 
 	// do_start_settlement
@@ -2871,16 +2771,9 @@ mod benchmarks {
 		}
 
 		#[test]
-		fn bench_start_community_funding_success() {
+		fn bench_start_community_funding() {
 			new_test_ext().execute_with(|| {
-				assert_ok!(PalletFunding::<TestRuntime>::test_start_community_funding_success());
-			});
-		}
-
-		#[test]
-		fn bench_start_community_funding_failure() {
-			new_test_ext().execute_with(|| {
-				assert_ok!(PalletFunding::<TestRuntime>::test_start_community_funding_failure());
+				assert_ok!(PalletFunding::<TestRuntime>::test_start_community_funding());
 			});
 		}
 
@@ -2906,16 +2799,9 @@ mod benchmarks {
 		}
 
 		#[test]
-		fn bench_project_decision_accept_funding() {
+		fn bench_project_decision() {
 			new_test_ext().execute_with(|| {
-				assert_ok!(PalletFunding::<TestRuntime>::test_project_decision_accept_funding());
-			});
-		}
-
-		#[test]
-		fn bench_project_decision_reject_funding() {
-			new_test_ext().execute_with(|| {
-				assert_ok!(PalletFunding::<TestRuntime>::test_project_decision_reject_funding());
+				assert_ok!(PalletFunding::<TestRuntime>::test_project_decision());
 			});
 		}
 
