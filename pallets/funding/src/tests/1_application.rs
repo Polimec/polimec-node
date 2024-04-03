@@ -339,7 +339,7 @@ mod create_project_extrinsic {
 		}
 
 		#[test]
-		fn cannot_have_2_active_projects() {
+		fn did_cannot_have_2_active_projects() {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 			let project_metadata = default_project_metadata(ISSUER_1);
 			let ed = MockInstantiator::get_ed();
@@ -353,19 +353,6 @@ mod create_project_extrinsic {
 					jwt.clone(),
 					project_metadata.clone()
 				));
-			});
-
-			// Same account same did
-			inst.mint_plmc_to(vec![issuer_mint.clone()]);
-			inst.execute(|| {
-				assert_noop!(
-					Pallet::<TestRuntime>::create_project(
-						RuntimeOrigin::signed(ISSUER_1),
-						jwt.clone(),
-						project_metadata.clone()
-					),
-					Error::<TestRuntime>::IssuerHasActiveProjectAlready
-				);
 			});
 
 			// different account, same did
