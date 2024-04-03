@@ -388,27 +388,9 @@ mod create_project_extrinsic {
 		#[test]
 		fn mainnet_supply_less_than_allocation() {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
-			let project_metadata = ProjectMetadata {
-				token_information: default_token_information(),
-				mainnet_token_max_supply: 100_000_000 * ASSET_UNIT,
-				total_allocation_size: 100_000_001 * ASSET_UNIT,
-				auction_round_allocation_percentage: Percent::from_percent(50u8),
-				minimum_price: PriceOf::<TestRuntime>::from_float(10.0),
-				bidding_ticket_sizes: BiddingTicketSizes {
-					professional: TicketSize::new(Some(5000 * US_DOLLAR), None),
-					institutional: TicketSize::new(Some(5000 * US_DOLLAR), None),
-					phantom: Default::default(),
-				},
-				contributing_ticket_sizes: ContributingTicketSizes {
-					retail: TicketSize::new(None, None),
-					professional: TicketSize::new(None, None),
-					institutional: TicketSize::new(None, None),
-					phantom: Default::default(),
-				},
-				participation_currencies: vec![AcceptedFundingAsset::USDT].try_into().unwrap(),
-				funding_destination_account: ISSUER_1,
-				offchain_information_hash: Some(hashed(METADATA)),
-			};
+			let mut project_metadata = default_project_metadata(ISSUER_1);
+			project_metadata.total_allocation_size = 100_000_001 * ASSET_UNIT;
+			project_metadata.mainnet_token_max_supply = 100_000_000 * ASSET_UNIT;
 			inst.mint_plmc_to(default_plmc_balances());
 			inst.execute(|| {
 				assert_noop!(
@@ -424,27 +406,7 @@ mod create_project_extrinsic {
 
 		#[test]
 		fn invalid_ticket_sizes() {
-			let correct_project: ProjectMetadataOf<TestRuntime> = ProjectMetadata {
-				token_information: default_token_information(),
-				mainnet_token_max_supply: 100_000_000_000 * ASSET_UNIT,
-				total_allocation_size: 100_000 * ASSET_UNIT,
-				auction_round_allocation_percentage: Default::default(),
-				minimum_price: 10_u128.into(),
-				bidding_ticket_sizes: BiddingTicketSizes {
-					professional: TicketSize::new(Some(5000 * US_DOLLAR), None),
-					institutional: TicketSize::new(Some(5000 * US_DOLLAR), None),
-					phantom: Default::default(),
-				},
-				contributing_ticket_sizes: ContributingTicketSizes {
-					retail: TicketSize::new(None, None),
-					professional: TicketSize::new(None, None),
-					institutional: TicketSize::new(None, None),
-					phantom: Default::default(),
-				},
-				participation_currencies: vec![AcceptedFundingAsset::USDT].try_into().unwrap(),
-				funding_destination_account: ISSUER_1,
-				offchain_information_hash: Some(hashed(METADATA)),
-			};
+			let mut correct_project = default_project_metadata(ISSUER_1);
 
 			// min in bidding below 5k
 			let mut wrong_project_1 = correct_project.clone();
