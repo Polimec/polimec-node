@@ -150,6 +150,54 @@ mod start_evaluation_extrinsic {
 			)));
 			assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::EvaluationRound);
 		}
+
+		#[test]
+		fn storage_is_updated() {
+			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+			let issuer = ISSUER_1;
+			let issuer_did = generate_did_from_account(issuer);
+			let project_metadata = default_project_metadata(issuer);
+
+			let project_id = inst.create_new_project(project_metadata.clone(), issuer);
+			let jwt = get_mock_jwt(issuer, InvestorType::Institutional, issuer_did.clone());
+			let project_details = inst.get_project_details(project_id);
+			let expected_details = ProjectDetailsOf::<TestRuntime> {
+				issuer_account: ISSUER_1,
+				issuer_did,
+				is_frozen: true,
+				weighted_average_price: None,
+				status: ProjectStatus::EvaluationRound,
+				phase_transition_points: PhaseTransitionPoints {
+					application: BlockNumberPair { start: Some(1u64), end: Some(1u64) },
+					evaluation: BlockNumberPair { start: Some(2u64), end: Some(1u64 + <TestRuntime as Config>::EvaluationDuration::get()) },
+					auction_initialize_period: BlockNumberPair { start: None, end: None },
+					english_auction: BlockNumberPair { start: None, end: None },
+					random_candle_ending: None,
+					candle_auction: BlockNumberPair { start: None, end: None },
+					community: BlockNumberPair { start: None, end: None },
+					remainder: BlockNumberPair { start: None, end: None },
+				},
+				fundraising_target: project_metadata.minimum_price.saturating_mul_int(project_metadata.total_allocation_size),
+				remaining_contribution_tokens: project_metadata.total_allocation_size,
+				funding_amount_reached: 0u128,
+				evaluation_round_info: EvaluationRoundInfoOf::<TestRuntime> {
+					total_bonded_usd: 0u128,
+					total_bonded_plmc: 0u128,
+					evaluators_outcome: EvaluatorsOutcome::Unchanged,
+				},
+				funding_end_block: None,
+				parachain_id: None,
+				migration_readiness_check: None,
+				hrmp_channel_status: HRMPChannelStatus { project_to_polimec: ChannelStatus::Closed, polimec_to_project: ChannelStatus::Closed },
+			};
+			assert_ok!(inst.execute(|| PolimecFunding::start_evaluation(
+				RuntimeOrigin::signed(issuer),
+				jwt,
+				project_id
+			)));
+
+			assert_eq!(inst.get_project_details(project_id), expected_details);
+		}
 	}
 
 	#[cfg(test)]
