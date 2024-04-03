@@ -2,31 +2,41 @@
 timeout = 1000
 provider = "native"
 
+# Using Rococo 1.7.0 as relay.
 [relaychain]
-default_command = "polkadot"
+default_command = "./bin/polkadot"
 chain = "rococo-local"
 
-	[[relaychain.nodes]]
-	name = "eve"
+[[relaychain.nodes]]
+name = "eve"
 
-	[[relaychain.nodes]]
-	name = "ferdie"
+[[relaychain.nodes]]
+name = "ferdie"
 
-	[[relaychain.nodes]]
-	name = "charlie"
+[[relaychain.nodes]]
+name = "charlie"
 
-	[[relaychain.nodes]]
-	name = "dave"
+[[relaychain.nodes]]
+name = "dave"
 
 [[parachains]]
 id = 3344
-chain = "polimec-rococo-local"
+chain = "politest-local"
 
-	[[parachains.collators]]
-	name = "alice"
-	command = "polimec"
-    ws_port = 8080
+[[parachains.collators]]
+name = "alice"
+command = "./target/release/polimec-node"
+args = [
+	"-lcredentials::try_origin",
+	"-lcredentials::ensure_origin"
+]
+ws_port = 8080
 
-	[[parachains.collators]]
-	name = "bob"
-	command = "polimec"
+[[parachains.collators]]
+name = "bob"
+command = "./target/release/polimec-node"
+args = [
+	"-lcredentials::try_origin",
+	"-lcredentials::ensure_origin"
+]
+ws_port = 8081

@@ -423,6 +423,7 @@ pub mod pallet {
 		type ContributionTreasury: Get<AccountIdOf<Self>>;
 
 		/// The Ed25519 Verifier Public Key of credential JWTs
+		#[pallet::constant]
 		type VerifierPublicKey: Get<[u8; 32]>;
 
 		/// The type used for vesting
