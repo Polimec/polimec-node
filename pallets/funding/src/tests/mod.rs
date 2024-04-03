@@ -101,7 +101,7 @@ pub mod defaults {
 	pub fn default_project_metadata(issuer: AccountId) -> ProjectMetadataOf<TestRuntime> {
 		let bounded_name = BoundedVec::try_from("Contribution Token TEST".as_bytes().to_vec()).unwrap();
 		let bounded_symbol = BoundedVec::try_from("CTEST".as_bytes().to_vec()).unwrap();
-		let metadata_hash = hashed(format!("{}-{}", METADATA, nonce));
+		let metadata_hash = hashed(format!("{}", METADATA));
 		ProjectMetadata {
 			token_information: CurrencyMetadata {
 				name: bounded_name,
