@@ -61,15 +61,6 @@ mod create_project_extrinsic {
 		#[test]
 		fn multiple_funding_currencies() {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
-			let mut counter: u8 = 1u8;
-			let mut with_different_metadata = |mut project: ProjectMetadataOf<TestRuntime>| {
-				let mut binding = project.offchain_information_hash.unwrap();
-				let h256_bytes = binding.as_fixed_bytes_mut();
-				h256_bytes[0] = counter;
-				counter += 1u8;
-				project.offchain_information_hash = Some(binding);
-				project
-			};
 			let default_project_metadata = default_project_metadata(ISSUER_1);
 
 			let mut one_currency_1 = default_project_metadata.clone();
@@ -109,20 +100,15 @@ mod create_project_extrinsic {
 				three_currencies,
 			];
 
-			let test_1 = with_different_metadata(one_currency_1);
-			let test_2 = with_different_metadata(one_currency_2);
-			assert!(test_1.offchain_information_hash != test_2.offchain_information_hash);
-
 			let mut issuer = ISSUER_1;
 			for project in projects {
-				let project_metadata_new = with_different_metadata(project);
 				issuer += 1;
 				let issuer_mint = (issuer, 1000 * PLMC).into();
 				inst.mint_plmc_to(vec![issuer_mint]);
 				assert_ok!(inst.execute(|| {
 					Pallet::<TestRuntime>::do_create_project(
 						&issuer,
-						project_metadata_new,
+						project,
 						generate_did_from_account(issuer),
 					)
 				}));
@@ -158,7 +144,7 @@ mod create_project_extrinsic {
 				let project_err = inst.execute(|| {
 					Pallet::<TestRuntime>::do_create_project(
 						&issuer,
-						with_different_metadata(project),
+						project,
 						generate_did_from_account(issuer),
 					)
 					.unwrap_err()
@@ -174,15 +160,6 @@ mod create_project_extrinsic {
 		fn issuer_can_create_second_project_after_first_is_inactive() {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 			let issuer: AccountId = ISSUER_1;
-			let mut counter: u8 = 0u8;
-			let mut with_different_hash = |mut project: ProjectMetadataOf<TestRuntime>| {
-				let mut binding = project.offchain_information_hash.unwrap();
-				let h256_bytes = binding.as_fixed_bytes_mut();
-				h256_bytes[0] = counter;
-				counter += 1u8;
-				project.offchain_information_hash = Some(binding);
-				project
-			};
 			let did: Did = BoundedVec::new();
 			let jwt: UntrustedToken = get_mock_jwt(ISSUER_1, InvestorType::Institutional, did);
 			let project_metadata: ProjectMetadataOf<TestRuntime> = default_project_metadata(issuer);
@@ -197,7 +174,7 @@ mod create_project_extrinsic {
 				assert_ok!(Pallet::<TestRuntime>::create_project(
 					RuntimeOrigin::signed(ISSUER_1),
 					jwt.clone(),
-					with_different_hash(project_metadata.clone())
+					project_metadata.clone()
 				));
 			});
 			inst.execute(|| {
@@ -205,7 +182,7 @@ mod create_project_extrinsic {
 					Pallet::<TestRuntime>::create_project(
 						RuntimeOrigin::signed(ISSUER_1),
 						jwt.clone(),
-						with_different_hash(project_metadata.clone())
+						project_metadata.clone()
 					),
 					Error::<TestRuntime>::IssuerHasActiveProjectAlready
 				);
@@ -218,7 +195,7 @@ mod create_project_extrinsic {
 					Pallet::<TestRuntime>::create_project(
 						RuntimeOrigin::signed(ISSUER_1),
 						jwt.clone(),
-						with_different_hash(project_metadata.clone())
+						project_metadata.clone()
 					),
 					Error::<TestRuntime>::IssuerHasActiveProjectAlready
 				);
@@ -229,7 +206,7 @@ mod create_project_extrinsic {
 				assert_ok!(Pallet::<TestRuntime>::create_project(
 					RuntimeOrigin::signed(ISSUER_1),
 					jwt.clone(),
-					with_different_hash(project_metadata.clone())
+					project_metadata.clone()
 				));
 			});
 
@@ -242,7 +219,7 @@ mod create_project_extrinsic {
 					Pallet::<TestRuntime>::create_project(
 						RuntimeOrigin::signed(ISSUER_1),
 						jwt.clone(),
-						with_different_hash(project_metadata.clone())
+						project_metadata.clone()
 					),
 					Error::<TestRuntime>::IssuerHasActiveProjectAlready
 				);
@@ -254,7 +231,7 @@ mod create_project_extrinsic {
 				assert_ok!(Pallet::<TestRuntime>::create_project(
 					RuntimeOrigin::signed(ISSUER_1),
 					jwt.clone(),
-					with_different_hash(project_metadata.clone())
+					project_metadata.clone()
 				));
 			});
 
@@ -269,7 +246,7 @@ mod create_project_extrinsic {
 					Pallet::<TestRuntime>::create_project(
 						RuntimeOrigin::signed(ISSUER_1),
 						jwt.clone(),
-						with_different_hash(project_metadata.clone())
+						project_metadata.clone()
 					),
 					Error::<TestRuntime>::IssuerHasActiveProjectAlready
 				);
@@ -280,7 +257,7 @@ mod create_project_extrinsic {
 				assert_ok!(Pallet::<TestRuntime>::create_project(
 					RuntimeOrigin::signed(ISSUER_1),
 					jwt.clone(),
-					with_different_hash(project_metadata.clone())
+					project_metadata.clone()
 				));
 			});
 
@@ -298,7 +275,7 @@ mod create_project_extrinsic {
 			assert_ok!(inst.execute(|| crate::Pallet::<TestRuntime>::create_project(
 				RuntimeOrigin::signed(ISSUER_1),
 				jwt.clone(),
-				with_different_hash(project_metadata.clone())
+				project_metadata.clone()
 			)));
 		}
 
@@ -482,16 +459,6 @@ mod create_project_extrinsic {
 				offchain_information_hash: Some(hashed(METADATA)),
 			};
 
-			let mut counter: u8 = 0u8;
-			let mut with_different_metadata = |mut project: ProjectMetadataOf<TestRuntime>| {
-				let mut binding = project.offchain_information_hash.unwrap();
-				let h256_bytes = binding.as_fixed_bytes_mut();
-				h256_bytes[0] = counter;
-				counter += 1u8;
-				project.offchain_information_hash = Some(binding);
-				project
-			};
-
 			// min in bidding below 5k
 			let mut wrong_project_1 = correct_project.clone();
 			wrong_project_1.bidding_ticket_sizes.professional = TicketSize::new(Some(4999 * US_DOLLAR), None);
@@ -528,15 +495,11 @@ mod create_project_extrinsic {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 			inst.mint_plmc_to(default_plmc_balances());
 
-			let test_1 = with_different_metadata(wrong_project_1);
-			let test_2 = with_different_metadata(wrong_project_3);
-			assert!(test_1.offchain_information_hash != test_2.offchain_information_hash);
-
 			for project in wrong_projects {
 				let project_err = inst.execute(|| {
 					Pallet::<TestRuntime>::do_create_project(
 						&ISSUER_1,
-						with_different_metadata(project),
+						project,
 						generate_did_from_account(ISSUER_1),
 					)
 					.unwrap_err()
