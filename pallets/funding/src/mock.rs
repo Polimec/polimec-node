@@ -300,8 +300,8 @@ pub const HOURS: BlockNumber = 300u64;
 parameter_types! {
 	pub const EvaluationDuration: BlockNumber = (28 * HOURS) as BlockNumber;
 	pub const AuctionInitializePeriodDuration: BlockNumber = (7 * HOURS) as BlockNumber;
-	pub const EnglishAuctionDuration: BlockNumber = (2 * HOURS) as BlockNumber;
-	pub const CandleAuctionDuration: BlockNumber = (3 * HOURS) as BlockNumber;
+	pub const AuctionOpeningDuration: BlockNumber = (2 * HOURS) as BlockNumber;
+	pub const AuctionClosingDuration: BlockNumber = (3 * HOURS) as BlockNumber;
 	pub const CommunityRoundDuration: BlockNumber = (5 * HOURS) as BlockNumber;
 	pub const RemainderFundingDuration: BlockNumber = (1 * HOURS) as BlockNumber;
 	pub const ManualAcceptanceDuration: BlockNumber = (3 * HOURS) as BlockNumber;
@@ -404,12 +404,12 @@ impl Config for TestRuntime {
 	type Balance = Balance;
 	type BlockNumber = BlockNumber;
 	type BlockNumberToBalance = ConvertInto;
-	type CandleAuctionDuration = CandleAuctionDuration;
+	type AuctionClosingDuration = AuctionClosingDuration;
 	type CommunityFundingDuration = CommunityRoundDuration;
 	type ContributionTokenCurrency = ContributionTokens;
 	type ContributionTreasury = ContributionTreasury;
 	type DaysToBlocks = DaysToBlocks;
-	type EnglishAuctionDuration = EnglishAuctionDuration;
+	type AuctionOpeningDuration = AuctionOpeningDuration;
 	type EvaluationDuration = EvaluationDuration;
 	type EvaluationSuccessThreshold = EarlyEvaluationThreshold;
 	type EvaluatorSlash = EvaluatorSlash;

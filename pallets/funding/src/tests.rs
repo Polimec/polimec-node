@@ -1289,7 +1289,7 @@ mod auction {
 	}
 
 	#[test]
-	fn only_candle_bids_before_random_block_get_included() {
+	fn only_closing_bids_before_random_block_get_included() {
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		let issuer = ISSUER_1;
 		let mut project_metadata = default_project_metadata(inst.get_new_nonce(), issuer);
@@ -1300,24 +1300,24 @@ mod auction {
 			default_weights(),
 		);
 		let project_id = inst.create_auctioning_project(project_metadata.clone(), issuer, evaluations);
-		let english_end_block = inst
+		let opening_end_block = inst
 			.get_project_details(project_id)
 			.phase_transition_points
-			.english_auction
+			.auction_opening
 			.end()
 			.expect("Auction start point should exist");
-		// The block following the end of the english auction, is used to transition the project into candle auction.
-		// We move past that transition, into the start of the candle auction.
+		// The block following the end of the opening auction, is used to transition the project into closing auction.
+		// We move past that transition, into the start of the closing auction.
 		let now = inst.current_block();
-		inst.advance_time(english_end_block - now + 1).unwrap();
-		assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::AuctionRound(AuctionPhase::Candle));
+		inst.advance_time(opening_end_block - now + 1).unwrap();
+		assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::AuctionClosing);
 
-		let candle_end_block = inst
+		let closing_end_block = inst
 			.get_project_details(project_id)
 			.phase_transition_points
-			.candle_auction
+			.auction_closing
 			.end()
-			.expect("Candle auction end point should exist");
+			.expect("closing auction end point should exist");
 
 		let bid_info = BidParams::new(0, 500u128 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT);
 
@@ -1336,13 +1336,13 @@ mod auction {
 
 		let mut bids_made: Vec<BidParams<TestRuntime>> = vec![];
 		let starting_bid_block = inst.current_block();
-		let blocks_to_bid = inst.current_block()..candle_end_block;
+		let blocks_to_bid = inst.current_block()..closing_end_block;
 
 		let mut bidding_account = 1000;
 
-		// Do one candle bid for each block until the end of candle auction with a new user
+		// Do one closing bid for each block until the end of closing auction with a new user
 		for _block in blocks_to_bid {
-			assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::AuctionRound(AuctionPhase::Candle));
+			assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::AuctionClosing);
 			inst.mint_plmc_to(vec![UserToPLMCBalance::new(bidding_account, plmc_necessary_funding * 10)]);
 			inst.mint_plmc_to(vec![bidding_account].existential_deposits());
 
@@ -1365,12 +1365,12 @@ mod auction {
 			inst.advance_time(1).unwrap();
 		}
 		let now = inst.current_block();
-		inst.advance_time(candle_end_block - now + 1).unwrap();
+		inst.advance_time(closing_end_block - now + 1).unwrap();
 
 		let random_end = inst
 			.get_project_details(project_id)
 			.phase_transition_points
-			.random_candle_ending
+			.random_closing_ending
 			.expect("Random auction end point should exist");
 
 		let split = (random_end - starting_bid_block + 1) as usize;
@@ -1415,7 +1415,7 @@ mod auction {
 		inst.advance_time(<TestRuntime as Config>::EvaluationDuration::get() + 1).unwrap();
 		assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::AuctionInitializePeriod);
 		inst.advance_time(<TestRuntime as Config>::AuctionInitializePeriodDuration::get() + 2).unwrap();
-		assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::AuctionRound(AuctionPhase::English));
+		assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::AuctionOpening);
 	}
 
 	#[test]
@@ -1431,8 +1431,8 @@ mod auction {
 		inst.advance_time(<TestRuntime as Config>::EvaluationDuration::get() + 1).unwrap();
 		assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::AuctionInitializePeriod);
 		inst.advance_time(1).unwrap();
-		inst.execute(|| Pallet::<TestRuntime>::do_english_auction(ISSUER_1, project_id)).unwrap();
-		assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::AuctionRound(AuctionPhase::English));
+		inst.execute(|| Pallet::<TestRuntime>::do_auction_opening(ISSUER_1, project_id)).unwrap();
+		assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::AuctionOpening);
 	}
 
 	#[test]
@@ -1451,7 +1451,7 @@ mod auction {
 
 		for account in 6000..6010 {
 			inst.execute(|| {
-				let response = Pallet::<TestRuntime>::do_english_auction(account, project_id);
+				let response = Pallet::<TestRuntime>::do_auction_opening(account, project_id);
 				assert_noop!(response, Error::<TestRuntime>::NotAllowed);
 			});
 		}
@@ -1677,7 +1677,7 @@ mod auction {
 		let project_id = inst.create_evaluating_project(default_project_metadata(0, ISSUER_1), ISSUER_1);
 		inst.execute(|| {
 			assert_noop!(
-				PolimecFunding::do_english_auction(ISSUER_1, project_id),
+				PolimecFunding::do_auction_opening(ISSUER_1, project_id),
 				Error::<TestRuntime>::EvaluationPeriodNotEnded
 			);
 		});
@@ -1826,14 +1826,14 @@ mod auction {
 		let project_id = inst.create_auctioning_project(project_metadata.clone(), issuer, evaluations);
 
 		let details = inst.get_project_details(project_id);
-		let english_end = details.phase_transition_points.english_auction.end().unwrap();
+		let opening_end = details.phase_transition_points.auction_opening.end().unwrap();
 		let now = inst.current_block();
-		inst.advance_time(english_end - now + 2).unwrap();
+		inst.advance_time(opening_end - now + 2).unwrap();
 
 		let details = inst.get_project_details(project_id);
-		let candle_end = details.phase_transition_points.candle_auction.end().unwrap();
+		let closing_end = details.phase_transition_points.auction_closing.end().unwrap();
 		let now = inst.current_block();
-		inst.advance_time(candle_end - now + 2).unwrap();
+		inst.advance_time(closing_end - now + 2).unwrap();
 
 		let details = inst.get_project_details(project_id);
 		assert_eq!(details.status, ProjectStatus::CommunityRound);
@@ -1865,8 +1865,8 @@ mod auction {
 
 		inst.bid_for_users(project_id, vec![bid_in]).unwrap();
 		inst.advance_time(
-			<TestRuntime as Config>::EnglishAuctionDuration::get() +
-				<TestRuntime as Config>::CandleAuctionDuration::get() -
+			<TestRuntime as Config>::AuctionOpeningDuration::get() +
+				<TestRuntime as Config>::AuctionClosingDuration::get() -
 				1,
 		)
 		.unwrap();
@@ -2161,7 +2161,7 @@ mod auction {
 
 		let projects = vec![
 			TestProjectParams {
-				expected_state: ProjectStatus::AuctionRound(AuctionPhase::English),
+				expected_state: ProjectStatus::AuctionOpening,
 				metadata: project_metadata_all.clone(),
 				issuer: ISSUER_1,
 				evaluations: evaluations.clone(),
@@ -2170,7 +2170,7 @@ mod auction {
 				remainder_contributions: vec![],
 			},
 			TestProjectParams {
-				expected_state: ProjectStatus::AuctionRound(AuctionPhase::English),
+				expected_state: ProjectStatus::AuctionOpening,
 				metadata: project_metadata_usdt,
 				issuer: ISSUER_2,
 				evaluations: evaluations.clone(),
@@ -2179,7 +2179,7 @@ mod auction {
 				remainder_contributions: vec![],
 			},
 			TestProjectParams {
-				expected_state: ProjectStatus::AuctionRound(AuctionPhase::English),
+				expected_state: ProjectStatus::AuctionOpening,
 				metadata: project_metadata_usdc,
 				issuer: ISSUER_3,
 				evaluations: evaluations.clone(),
@@ -2188,7 +2188,7 @@ mod auction {
 				remainder_contributions: vec![],
 			},
 			TestProjectParams {
-				expected_state: ProjectStatus::AuctionRound(AuctionPhase::English),
+				expected_state: ProjectStatus::AuctionOpening,
 				metadata: project_metadata_dot,
 				issuer: ISSUER_4,
 				evaluations: evaluations.clone(),
@@ -5466,7 +5466,7 @@ mod async_tests {
 				remainder_contributions: vec![],
 			},
 			TestProjectParams {
-				expected_state: ProjectStatus::AuctionRound(AuctionPhase::English),
+				expected_state: ProjectStatus::AuctionOpening,
 				metadata: default_project_metadata(inst.get_new_nonce(), ISSUER_3),
 				issuer: ISSUER_3,
 				evaluations: default_evaluations(),
@@ -5514,7 +5514,7 @@ mod async_tests {
 
 		assert_eq!(inst.get_project_details(project_ids[0]).status, ProjectStatus::Application);
 		assert_eq!(inst.get_project_details(project_ids[1]).status, ProjectStatus::EvaluationRound);
-		assert_eq!(inst.get_project_details(project_ids[2]).status, ProjectStatus::AuctionRound(AuctionPhase::English));
+		assert_eq!(inst.get_project_details(project_ids[2]).status, ProjectStatus::AuctionOpening);
 		assert_eq!(inst.get_project_details(project_ids[3]).status, ProjectStatus::CommunityRound);
 		assert_eq!(inst.get_project_details(project_ids[4]).status, ProjectStatus::RemainderRound);
 		assert_eq!(inst.get_project_details(project_ids[5]).status, ProjectStatus::FundingSuccessful);
@@ -5600,7 +5600,7 @@ mod async_tests {
 						remainder_contributions: vec![],
 					},
 					TestProjectParams::<TestRuntime> {
-						expected_state: ProjectStatus::AuctionRound(AuctionPhase::English),
+						expected_state: ProjectStatus::AuctionOpening,
 						metadata: default_project_metadata(3u64, ISSUER_4.into()),
 						issuer: ISSUER_4.into(),
 						evaluations: evaluations.clone(),
@@ -5647,7 +5647,7 @@ mod async_tests {
 
 		assert_eq!(inst.get_project_details(5).status, ProjectStatus::Application);
 		assert_eq!(inst.get_project_details(4).status, ProjectStatus::EvaluationRound);
-		assert_eq!(inst.get_project_details(3).status, ProjectStatus::AuctionRound(AuctionPhase::English));
+		assert_eq!(inst.get_project_details(3).status, ProjectStatus::AuctionOpening);
 		assert_eq!(inst.get_project_details(2).status, ProjectStatus::CommunityRound);
 		assert_eq!(inst.get_project_details(1).status, ProjectStatus::RemainderRound);
 		assert_eq!(inst.get_project_details(0).status, ProjectStatus::FundingSuccessful);
@@ -5697,7 +5697,7 @@ mod async_tests {
 			},
 			polimec_funding: PolimecFundingConfig {
 				starting_projects: vec![TestProjectParams::<TestRuntime> {
-					expected_state: ProjectStatus::AuctionRound(AuctionPhase::English),
+					expected_state: ProjectStatus::AuctionOpening,
 					metadata: default_project_metadata(0u64, ISSUER_1.into()),
 					issuer: ISSUER_1.into(),
 					evaluations: evaluations.clone(),
@@ -5716,7 +5716,7 @@ mod async_tests {
 		let ext = sp_io::TestExternalities::new(t);
 		let mut inst = MockInstantiator::new(Some(RefCell::new(ext)));
 
-		assert_eq!(inst.get_project_details(0).status, ProjectStatus::AuctionRound(AuctionPhase::English));
+		assert_eq!(inst.get_project_details(0).status, ProjectStatus::AuctionOpening);
 		let max_bids_per_project: u32 = <TestRuntime as Config>::MaxBidsPerProject::get();
 		let total_bids_count = inst.execute(|| Bids::<TestRuntime>::iter_values().collect_vec().len());
 		assert_eq!(total_bids_count, max_bids_per_project as usize);

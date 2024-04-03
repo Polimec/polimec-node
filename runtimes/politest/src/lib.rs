@@ -982,12 +982,12 @@ impl pallet_funding::Config for Runtime {
 	type Balance = Balance;
 	type BlockNumber = BlockNumber;
 	type BlockNumberToBalance = ConvertInto;
-	type CandleAuctionDuration = CandleAuctionDuration;
+	type AuctionClosingDuration = AuctionClosingDuration;
 	type CommunityFundingDuration = CommunityFundingDuration;
 	type ContributionTokenCurrency = ContributionTokens;
 	type ContributionTreasury = TreasuryAccount;
 	type DaysToBlocks = DaysToBlocks;
-	type EnglishAuctionDuration = EnglishAuctionDuration;
+	type AuctionOpeningDuration = AuctionOpeningDuration;
 	type EvaluationDuration = EvaluationDuration;
 	type EvaluationSuccessThreshold = EarlyEvaluationThreshold;
 	type EvaluatorSlash = EvaluatorSlash;

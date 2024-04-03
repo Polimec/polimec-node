@@ -323,7 +323,6 @@ impl FetchPrice for MexcFetcher {
 		let maybe_response =
 			serde_json_core::from_str::<HVec<(u64, &str, &str, &str, &str, &str, u64, &str), 10>>(body);
 		if let Err(e) = maybe_response {
-			dbg!(e);
 			log::error!(target: LOG_TARGET, "Error parsing response for BitFinex: {:?}", e);
 			return None;
 		}

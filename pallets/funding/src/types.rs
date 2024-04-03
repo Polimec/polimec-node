@@ -283,8 +283,8 @@ pub mod storage_types {
 	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
 	pub enum UpdateType {
 		EvaluationEnd,
-		EnglishAuctionStart,
-		CandleAuctionStart,
+		AuctionOpeningStart,
+		AuctionClosingStart,
 		CommunityFundingStart,
 		RemainderFundingStart,
 		FundingEnd,
@@ -562,7 +562,8 @@ pub mod inner_types {
 		Application,
 		EvaluationRound,
 		AuctionInitializePeriod,
-		AuctionRound(AuctionPhase),
+		AuctionOpening,
+		AuctionClosing,
 		CommunityRound,
 		RemainderRound,
 		FundingFailed,
@@ -572,22 +573,14 @@ pub mod inner_types {
 		MigrationCompleted,
 	}
 
-	#[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
-	#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
-	pub enum AuctionPhase {
-		#[default]
-		English,
-		Candle,
-	}
-
 	#[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
 	pub struct PhaseTransitionPoints<BlockNumber> {
 		pub application: BlockNumberPair<BlockNumber>,
 		pub evaluation: BlockNumberPair<BlockNumber>,
 		pub auction_initialize_period: BlockNumberPair<BlockNumber>,
-		pub english_auction: BlockNumberPair<BlockNumber>,
-		pub random_candle_ending: Option<BlockNumber>,
-		pub candle_auction: BlockNumberPair<BlockNumber>,
+		pub auction_opening: BlockNumberPair<BlockNumber>,
+		pub random_closing_ending: Option<BlockNumber>,
+		pub auction_closing: BlockNumberPair<BlockNumber>,
 		pub community: BlockNumberPair<BlockNumber>,
 		pub remainder: BlockNumberPair<BlockNumber>,
 	}
@@ -598,9 +591,9 @@ pub mod inner_types {
 				application: BlockNumberPair::new(Some(now), None),
 				evaluation: BlockNumberPair::new(None, None),
 				auction_initialize_period: BlockNumberPair::new(None, None),
-				english_auction: BlockNumberPair::new(None, None),
-				random_candle_ending: None,
-				candle_auction: BlockNumberPair::new(None, None),
+				auction_opening: BlockNumberPair::new(None, None),
+				random_closing_ending: None,
+				auction_closing: BlockNumberPair::new(None, None),
 				community: BlockNumberPair::new(None, None),
 				remainder: BlockNumberPair::new(None, None),
 			}
@@ -663,8 +656,8 @@ pub mod inner_types {
 
 	#[derive(Clone, Copy, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
 	pub enum RejectionReason {
-		/// The bid was submitted after the candle auction ended
-		AfterCandleEnd,
+		/// The bid was submitted after the closing auction ended
+		AfterClosingEnd,
 		/// The bid was accepted but too many tokens were requested. A partial amount was accepted
 		NoTokensLeft,
 		/// Error in calculating ticket_size for partially funded request
@@ -682,8 +675,8 @@ pub mod inner_types {
 	pub enum ProjectPhases {
 		Evaluation,
 		AuctionInitializePeriod,
-		EnglishAuction,
-		CandleAuction,
+		AuctionOpening,
+		AuctionClosing,
 		CommunityFunding,
 		RemainderFunding,
 		DecisionPeriod,

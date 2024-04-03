@@ -39,18 +39,18 @@ pub const AUCTION_INITIALIZE_PERIOD_DURATION: BlockNumber = 1 * HOURS;
 pub const AUCTION_INITIALIZE_PERIOD_DURATION: BlockNumber = 7 * crate::DAYS;
 
 #[cfg(feature = "instant-mode")]
-pub const ENGLISH_AUCTION_DURATION: BlockNumber = 2;
+pub const AUCTION_OPENING_DURATION: BlockNumber = 2;
 #[cfg(feature = "fast-mode")]
-pub const ENGLISH_AUCTION_DURATION: BlockNumber = 1 * HOURS;
+pub const AUCTION_OPENING_DURATION: BlockNumber = 1 * HOURS;
 #[cfg(not(any(feature = "fast-mode", feature = "instant-mode")))]
-pub const ENGLISH_AUCTION_DURATION: BlockNumber = 2 * crate::DAYS;
+pub const AUCTION_OPENING_DURATION: BlockNumber = 2 * crate::DAYS;
 
 #[cfg(feature = "instant-mode")]
-pub const CANDLE_AUCTION_DURATION: BlockNumber = 2;
+pub const AUCTION_CLOSING_DURATION: BlockNumber = 2;
 #[cfg(feature = "fast-mode")]
-pub const CANDLE_AUCTION_DURATION: BlockNumber = 2 * HOURS;
+pub const AUCTION_CLOSING_DURATION: BlockNumber = 2 * HOURS;
 #[cfg(not(any(feature = "fast-mode", feature = "instant-mode")))]
-pub const CANDLE_AUCTION_DURATION: BlockNumber = 3 * crate::DAYS;
+pub const AUCTION_CLOSING_DURATION: BlockNumber = 3 * crate::DAYS;
 
 #[cfg(feature = "instant-mode")]
 pub const COMMUNITY_FUNDING_DURATION: BlockNumber = 3;
@@ -92,8 +92,8 @@ pub type ProjectIdentifier = u32;
 parameter_types! {
 	pub const EvaluationDuration: BlockNumber = EVALUATION_DURATION;
 	pub const AuctionInitializePeriodDuration: BlockNumber = AUCTION_INITIALIZE_PERIOD_DURATION;
-	pub const EnglishAuctionDuration: BlockNumber = ENGLISH_AUCTION_DURATION;
-	pub const CandleAuctionDuration: BlockNumber = CANDLE_AUCTION_DURATION;
+	pub const AuctionOpeningDuration: BlockNumber = AUCTION_OPENING_DURATION;
+	pub const AuctionClosingDuration: BlockNumber = AUCTION_CLOSING_DURATION;
 	pub const CommunityFundingDuration: BlockNumber = COMMUNITY_FUNDING_DURATION;
 	pub const RemainderFundingDuration: BlockNumber = REMAINDER_FUNDING_DURATION;
 	pub const ManualAcceptanceDuration: BlockNumber = MANUAL_ACCEPTANCE_DURATION;

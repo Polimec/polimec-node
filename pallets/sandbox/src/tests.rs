@@ -42,8 +42,8 @@
 // 		assert_ok!(PolimecFunding::bid(RuntimeOrigin::signed(bidder), 0, 1000, 100 * PLMC, None, 1984));
 
 // 		// advance time
-// 		for _block in 0..(<TestRuntime as pallet_funding::Config>::EnglishAuctionDuration::get() +
-// 			<TestRuntime as pallet_funding::Config>::CandleAuctionDuration::get() +
+// 		for _block in 0..(<TestRuntime as pallet_funding::Config>::AuctionOpeningDuration::get() +
+// 			<TestRuntime as pallet_funding::Config>::AuctionClosingDuration::get() +
 // 			5)
 // 		{
 // 			<AllPalletsWithoutSystem as OnFinalize<u64>>::on_finalize(System::block_number());

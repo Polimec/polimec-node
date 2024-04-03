@@ -174,7 +174,7 @@ impl<T: Config> Pallet<T> {
 			ProjectsDetails::<T>::insert(project_id, project_details);
 			let insertion_attempts = match Self::add_to_update_store(
 				auction_initialize_period_end_block + 1u32.into(),
-				(&project_id, UpdateType::EnglishAuctionStart),
+				(&project_id, UpdateType::AuctionOpeningStart),
 			) {
 				Ok(insertions) => insertions,
 				Err(_insertions) => return Err(Error::<T>::TooManyInsertionAttempts.into()),
@@ -208,7 +208,7 @@ impl<T: Config> Pallet<T> {
 	/// Called by user extrinsic
 	/// Starts the auction round for a project. From the next block forward, any professional or
 	/// institutional user can set bids for a token_amount/token_price pair.
-	/// Any bids from this point until the candle_auction starts, will be considered as valid.
+	/// Any bids from this point until the auction_closing starts, will be considered as valid.
 	///
 	/// # Arguments
 	/// * `project_id` - The project identifier
@@ -219,16 +219,16 @@ impl<T: Config> Pallet<T> {
 	/// Update the project information with the new round status and transition points in case of success.
 	///
 	/// # Success Path
-	/// The validity checks pass, and the project is transitioned to the English Auction round.
+	/// The validity checks pass, and the project is transitioned to the Auction Opening round.
 	/// The project is scheduled to be transitioned automatically by `on_initialize` at the end of the
-	/// english auction round.
+	/// auction opening round.
 	///
 	/// # Next step
 	/// Professional and Institutional users set bids for the project using the [`bid`](Self::bid) extrinsic.
-	/// Later on, `on_initialize` transitions the project into the candle auction round, by calling
-	/// [`do_candle_auction`](Self::do_candle_auction).
+	/// Later on, `on_initialize` transitions the project into the closing auction round, by calling
+	/// [`do_auction_closing`](Self::do_auction_closing).
 	#[transactional]
-	pub fn do_english_auction(caller: AccountIdOf<T>, project_id: ProjectId) -> DispatchResultWithPostInfo {
+	pub fn do_auction_opening(caller: AccountIdOf<T>, project_id: ProjectId) -> DispatchResultWithPostInfo {
 		// * Get variables *
 		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 		let now = <frame_system::Pallet<T>>::block_number();
@@ -244,7 +244,7 @@ impl<T: Config> Pallet<T> {
 			Error::<T>::NotAllowed
 		);
 
-		ensure!(now >= auction_initialize_period_start_block, Error::<T>::TooEarlyForEnglishAuctionStart);
+		ensure!(now >= auction_initialize_period_start_block, Error::<T>::TooEarlyForAuctionOpeningStart);
 		// If the auction is first manually started, the automatic transition fails here. This
 		// behaviour is intended, as it gracefully skips the automatic transition if the
 		// auction was started manually.
@@ -254,20 +254,20 @@ impl<T: Config> Pallet<T> {
 		);
 
 		// * Calculate new variables *
-		let english_start_block = now + 1u32.into();
-		let english_end_block = now + T::EnglishAuctionDuration::get();
+		let opening_start_block = now + 1u32.into();
+		let opening_end_block = now + T::AuctionOpeningDuration::get();
 
 		// * Update Storage *
 		project_details
 			.phase_transition_points
-			.english_auction
-			.update(Some(english_start_block), Some(english_end_block));
-		project_details.status = ProjectStatus::AuctionRound(AuctionPhase::English);
+			.auction_opening
+			.update(Some(opening_start_block), Some(opening_end_block));
+		project_details.status = ProjectStatus::AuctionOpening;
 		ProjectsDetails::<T>::insert(project_id, project_details);
 
 		let insertion_attempts;
-		// Schedule for automatic transition to candle auction round
-		match Self::add_to_update_store(english_end_block + 1u32.into(), (&project_id, UpdateType::CandleAuctionStart))
+		// Schedule for automatic transition to auction closing round
+		match Self::add_to_update_store(opening_end_block + 1u32.into(), (&project_id, UpdateType::AuctionClosingStart))
 		{
 			Ok(iterations) => {
 				insertion_attempts = iterations;
@@ -283,7 +283,7 @@ impl<T: Config> Pallet<T> {
 		};
 
 		// * Emit events *
-		Self::deposit_event(Event::ProjectPhaseTransition { project_id, phase: ProjectPhases::EnglishAuction });
+		Self::deposit_event(Event::ProjectPhaseTransition { project_id, phase: ProjectPhases::AuctionOpening });
 
 		Ok(PostDispatchInfo {
 			actual_weight: Some(WeightInfoOf::<T>::start_auction_manually(insertion_attempts)),
@@ -292,54 +292,54 @@ impl<T: Config> Pallet<T> {
 	}
 
 	/// Called automatically by on_initialize
-	/// Starts the candle round for a project.
-	/// Any bids from this point until the candle round ends, are not guaranteed. Only bids
-	/// made before the random ending block between the candle start and end will be considered
+	/// Starts the auction closing round for a project.
+	/// Any bids from this point until the auction closing round ends, are not guaranteed. Only bids
+	/// made before the random ending block between the auction closing start and end will be considered
 	///
 	/// # Arguments
 	/// * `project_id` - The project identifier
 	///
 	/// # Storage access
 	/// * [`ProjectsDetails`] - Get the project information, and check if the project is in the correct
-	/// round, and the current block after the english auction end period.
+	/// round, and the current block after the opening auction end period.
 	/// Update the project information with the new round status and transition points in case of success.
 	///
 	/// # Success Path
-	/// The validity checks pass, and the project is transitioned to the Candle Auction round.
+	/// The validity checks pass, and the project is transitioned to the auction closing round.
 	/// The project is scheduled to be transitioned automatically by `on_initialize` at the end of the
-	/// candle auction round.
+	/// auction closing round.
 	///
 	/// # Next step
 	/// Professional and Institutional users set bids for the project using the `bid` extrinsic,
 	/// but now their bids are not guaranteed.
-	/// Later on, `on_initialize` ends the candle auction round and starts the community round,
+	/// Later on, `on_initialize` ends the auction closing round and starts the community round,
 	/// by calling [`do_community_funding`](Self::do_community_funding).
 	#[transactional]
-	pub fn do_candle_auction(project_id: ProjectId) -> DispatchResultWithPostInfo {
+	pub fn do_auction_closing(project_id: ProjectId) -> DispatchResultWithPostInfo {
 		// * Get variables *
 		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 		let now = <frame_system::Pallet<T>>::block_number();
-		let english_end_block =
-			project_details.phase_transition_points.english_auction.end().ok_or(Error::<T>::FieldIsNone)?;
+		let opening_end_block =
+			project_details.phase_transition_points.auction_opening.end().ok_or(Error::<T>::FieldIsNone)?;
 
 		// * Validity checks *
-		ensure!(now > english_end_block, Error::<T>::TooEarlyForCandleAuctionStart);
+		ensure!(now > opening_end_block, Error::<T>::TooEarlyForAuctionClosingStart);
 		ensure!(
-			project_details.status == ProjectStatus::AuctionRound(AuctionPhase::English),
-			Error::<T>::ProjectNotInEnglishAuctionRound
+			project_details.status == ProjectStatus::AuctionOpening,
+			Error::<T>::ProjectNotInAuctionOpeningRound
 		);
 
 		// * Calculate new variables *
-		let candle_start_block = now + 1u32.into();
-		let candle_end_block = now + T::CandleAuctionDuration::get();
+		let closing_start_block = now + 1u32.into();
+		let closing_end_block = now + T::AuctionClosingDuration::get();
 
 		// * Update Storage *
-		project_details.phase_transition_points.candle_auction.update(Some(candle_start_block), Some(candle_end_block));
-		project_details.status = ProjectStatus::AuctionRound(AuctionPhase::Candle);
+		project_details.phase_transition_points.auction_closing.update(Some(closing_start_block), Some(closing_end_block));
+		project_details.status = ProjectStatus::AuctionClosing;
 		ProjectsDetails::<T>::insert(project_id, project_details);
 		// Schedule for automatic check by on_initialize. Success depending on enough funding reached
 		let insertion_iterations = match Self::add_to_update_store(
-			candle_end_block + 1u32.into(),
+			closing_end_block + 1u32.into(),
 			(&project_id, UpdateType::CommunityFundingStart),
 		) {
 			Ok(iterations) => iterations,
@@ -347,10 +347,10 @@ impl<T: Config> Pallet<T> {
 		};
 
 		// * Emit events *
-		Self::deposit_event(Event::<T>::ProjectPhaseTransition { project_id, phase: ProjectPhases::CandleAuction });
+		Self::deposit_event(Event::<T>::ProjectPhaseTransition { project_id, phase: ProjectPhases::AuctionClosing });
 
 		Ok(PostDispatchInfo {
-			actual_weight: Some(WeightInfoOf::<T>::start_candle_phase(insertion_iterations)),
+			actual_weight: Some(WeightInfoOf::<T>::start_auction_closing_phase(insertion_iterations)),
 			pays_fee: Pays::Yes,
 		})
 	}
@@ -365,7 +365,7 @@ impl<T: Config> Pallet<T> {
 	///
 	/// # Storage access
 	/// * [`ProjectsDetails`] - Get the project information, and check if the project is in the correct
-	/// round, and the current block is after the candle auction end period.
+	/// round, and the current block is after the auction closing end period.
 	/// Update the project information with the new round status and transition points in case of success.
 	///
 	/// # Success Path
@@ -383,20 +383,20 @@ impl<T: Config> Pallet<T> {
 		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 		let project_metadata = ProjectsMetadata::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 		let now = <frame_system::Pallet<T>>::block_number();
-		let auction_candle_start_block =
-			project_details.phase_transition_points.candle_auction.start().ok_or(Error::<T>::FieldIsNone)?;
-		let auction_candle_end_block =
-			project_details.phase_transition_points.candle_auction.end().ok_or(Error::<T>::FieldIsNone)?;
+		let auction_closing_start_block =
+			project_details.phase_transition_points.auction_closing.start().ok_or(Error::<T>::FieldIsNone)?;
+		let auction_closing_end_block =
+			project_details.phase_transition_points.auction_closing.end().ok_or(Error::<T>::FieldIsNone)?;
 
 		// * Validity checks *
-		ensure!(now > auction_candle_end_block, Error::<T>::TooEarlyForCommunityRoundStart);
+		ensure!(now > auction_closing_end_block, Error::<T>::TooEarlyForCommunityRoundStart);
 		ensure!(
-			project_details.status == ProjectStatus::AuctionRound(AuctionPhase::Candle),
-			Error::<T>::ProjectNotInCandleAuctionRound
+			project_details.status == ProjectStatus::AuctionClosing,
+			Error::<T>::ProjectNotInAuctionClosingRound
 		);
 
 		// * Calculate new variables *
-		let end_block = Self::select_random_block(auction_candle_start_block, auction_candle_end_block);
+		let end_block = Self::select_random_block(auction_closing_start_block, auction_closing_end_block);
 		let community_start_block = now + 1u32.into();
 		let community_end_block = now + T::CommunityFundingDuration::get();
 		// * Update Storage *
@@ -410,7 +410,7 @@ impl<T: Config> Pallet<T> {
 			Err(e) => return Err(DispatchErrorWithPostInfo { post_info: ().into(), error: e }),
 			Ok((accepted_bids_count, rejected_bids_count)) => {
 				// Get info again after updating it with new price.
-				project_details.phase_transition_points.random_candle_ending = Some(end_block);
+				project_details.phase_transition_points.random_closing_ending = Some(end_block);
 				project_details
 					.phase_transition_points
 					.community
@@ -552,7 +552,7 @@ impl<T: Config> Pallet<T> {
 			// Can end due to running out of CTs
 			remaining_cts == Zero::zero() ||
 				// or the auction being empty
-				project_details.status == ProjectStatus::AuctionRound(AuctionPhase::Candle) ||
+				project_details.status == ProjectStatus::AuctionClosing ||
 				// or the last funding round ending
 				matches!(remainder_end_block, Some(end_block) if now > end_block),
 			Error::<T>::TooEarlyForFundingEnd
@@ -1072,7 +1072,7 @@ impl<T: Config> Pallet<T> {
 		ensure!(ct_amount > Zero::zero(), Error::<T>::BidTooLow);
 		ensure!(bid_count < T::MaxBidsPerProject::get(), Error::<T>::TooManyBidsForProject);
 		ensure!(did != project_details.issuer_did, Error::<T>::ParticipationToThemselves);
-		ensure!(matches!(project_details.status, ProjectStatus::AuctionRound(_)), Error::<T>::AuctionNotStarted);
+		ensure!(matches!(project_details.status, ProjectStatus::AuctionOpening | ProjectStatus::AuctionClosing), Error::<T>::AuctionNotStarted);
 		ensure!(
 			project_metadata.participation_currencies.contains(&funding_asset),
 			Error::<T>::FundingAssetNotAccepted
@@ -1911,7 +1911,7 @@ impl<T: Config> Pallet<T> {
 		end_block: BlockNumberFor<T>,
 		auction_allocation_size: BalanceOf<T>,
 	) -> Result<(u32, u32), DispatchError> {
-		// Get all the bids that were made before the end of the candle
+		// Get all the bids that were made before the end of the closing
 		let mut bids = Bids::<T>::iter_prefix_values((project_id,)).collect::<Vec<_>>();
 		// temp variable to store the sum of the bids
 		let mut bid_token_amount_sum = Zero::zero();
@@ -1922,12 +1922,12 @@ impl<T: Config> Pallet<T> {
 
 		// sort bids by price, and equal prices sorted by id
 		bids.sort_by(|a, b| b.cmp(a));
-		// accept only bids that were made before `end_block` i.e end of candle auction
+		// accept only bids that were made before `end_block` i.e end of auction closing
 		let (accepted_bids, rejected_bids): (Vec<_>, Vec<_>) = bids
 			.into_iter()
 			.map(|mut bid| {
 				if bid.when > end_block {
-					bid.status = BidStatus::Rejected(RejectionReason::AfterCandleEnd);
+					bid.status = BidStatus::Rejected(RejectionReason::AfterClosingEnd);
 					return bid;
 				}
 				let buyable_amount = auction_allocation_size.saturating_sub(bid_token_amount_sum);
@@ -2104,16 +2104,16 @@ impl<T: Config> Pallet<T> {
 	}
 
 	pub fn select_random_block(
-		candle_starting_block: BlockNumberFor<T>,
-		candle_ending_block: BlockNumberFor<T>,
+		closing_starting_block: BlockNumberFor<T>,
+		closing_ending_block: BlockNumberFor<T>,
 	) -> BlockNumberFor<T> {
 		let nonce = Self::get_and_increment_nonce();
 		let (random_value, _known_since) = T::Randomness::random(&nonce);
 		let random_block = <BlockNumberFor<T>>::decode(&mut random_value.as_ref())
 			.expect("secure hashes should always be bigger than the block number; qed");
-		let block_range = candle_ending_block - candle_starting_block;
+		let block_range = closing_ending_block - closing_starting_block;
 
-		candle_starting_block + (random_block % block_range)
+		closing_starting_block + (random_block % block_range)
 	}
 
 	fn get_and_increment_nonce() -> Vec<u8> {

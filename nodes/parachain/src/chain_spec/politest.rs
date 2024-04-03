@@ -471,7 +471,7 @@ fn testing_genesis(
 					remainder_contributions: vec![],
 				},
 				TestProjectParams::<Runtime> {
-					expected_state: ProjectStatus::AuctionRound(AuctionPhase::English),
+					expected_state: ProjectStatus::AuctionOpening,
 					metadata: project_metadata(ISSUER_4.into(), 3u32),
 					issuer: ISSUER_4.into(),
 					evaluations: evaluations.clone(),

@@ -43,21 +43,21 @@
 //!
 //! | Step                      | Description                                                                                                                                                                                                                                                                                                                                                                                                 | Resulting Project State                                             |
 //! |---------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|---------------------------------------------------------------------|
-//! | Creation                  | Issuer creates a project with the [`create()`](Pallet::create_project) extrinsic.                                                                                                                                                                                                                                                                                                                                   | [`Application`](ProjectStatus::Application)                         |
+//! | Creation                  | Issuer creates a project with the [`create()`](Pallet::create_project) extrinsic.                                                                                                                                                                                                                                                                                                                           | [`Application`](ProjectStatus::Application)                         |
 //! | Evaluation Start          | Issuer starts the evaluation round with the [`start_evaluation()`](Pallet::start_evaluation) extrinsic.                                                                                                                                                                                                                                                                                                     | [`EvaluationRound`](ProjectStatus::EvaluationRound)                 |
-//! | Evaluation Submissions    | Evaluators assess the project information, and if they think it is good enough to get funding, they bond Polimec's native token PLMC with [`bond_evaluation()`](Pallet::evaluate)                                                                                                                                                                                                                    | [`EvaluationRound`](ProjectStatus::EvaluationRound)                 |
+//! | Evaluation Submissions    | Evaluators assess the project information, and if they think it is good enough to get funding, they bond Polimec's native token PLMC with [`bond_evaluation()`](Pallet::evaluate)                                                                                                                                                                                                                           | [`EvaluationRound`](ProjectStatus::EvaluationRound)                 |
 //! | Evaluation End            | Evaluation round ends automatically after the [`Config::EvaluationDuration`] has passed. This is achieved by the [`on_initialize()`](Pallet::on_initialize) function.                                                                                                                                                                                                                                       | [`AuctionInitializePeriod`](ProjectStatus::AuctionInitializePeriod) |
-//! | Auction Start             | Issuer starts the auction round within the [`Config::AuctionInitializePeriodDuration`], by calling the extrinsic [`start_auction()`](Pallet::start_auction)                                                                                                                                                                                                                                                 | [`AuctionRound(English)`](ProjectStatus::AuctionRound)              |
-//! | Bid Submissions           | Institutional and Professional users can place bids with [`bid()`](Pallet::bid) by choosing their desired token price, amount, and multiplier (for vesting). Their bids are guaranteed to be considered                                                                                                                                                                                                     | [`AuctionRound(English)`](ProjectStatus::AuctionRound)              |                                                                                                                                                                                                                |                                                                     |
-//! | Candle Auction Transition | After the [`Config::EnglishAuctionDuration`] has passed, the auction goes into candle mode thanks to [`on_initialize()`](Pallet::on_initialize)                                                                                                                                                                                                                                                             | [`AuctionRound(Candle)`](ProjectStatus::AuctionRound)               |
-//! | Bid Submissions           | Institutional and Professional users can continue bidding, but this time their bids will only be considered, if they managed to fall before the random ending block calculated at the end of the auction.                                                                                                                                                                                                   | [`AuctionRound(Candle)`](ProjectStatus::AuctionRound)               |
-//! | Community Funding Start   | After the [`Config::CandleAuctionDuration`] has passed, the auction automatically. A final token price for the next rounds is calculated based on the accepted bids.                                                                                                                                                                                                                                        | [`CommunityRound`](ProjectStatus::CommunityRound)                   |
+//! | Auction Start             | Issuer starts the auction round within the [`Config::AuctionInitializePeriodDuration`], by calling the extrinsic [`start_auction()`](Pallet::start_auction)                                                                                                                                                                                                                                                 | [`AuctionOpening`](ProjectStatus::AuctionOpening)                   |
+//! | Bid Submissions           | Institutional and Professional users can place bids with [`bid()`](Pallet::bid) by choosing their desired token price, amount, and multiplier (for vesting). Their bids are guaranteed to be considered                                                                                                                                                                                                     | [`AuctionOpening`](ProjectStatus::AuctionOpening)                   |                                                                                                                                                                                                                |                                                                     |
+//! | Closing Auction Transition| After the [`Config::AuctionOpeningDuration`] has passed, the auction goes into closing mode thanks to [`on_initialize()`](Pallet::on_initialize)                                                                                                                                                                                                                                                            | [`AuctionClosing`](ProjectStatus::AuctionClosing)                   |
+//! | Bid Submissions           | Institutional and Professional users can continue bidding, but this time their bids will only be considered, if they managed to fall before the random ending block calculated at the end of the auction.                                                                                                                                                                                                   | [`AuctionClosing`](ProjectStatus::AuctionClosing)                   |
+//! | Community Funding Start   | After the [`Config::AuctionClosingDuration`] has passed, the auction automatically. A final token price for the next rounds is calculated based on the accepted bids.                                                                                                                                                                                                                                       | [`CommunityRound`](ProjectStatus::CommunityRound)                   |
 //! | Funding Submissions       | Retail investors can call the [`contribute()`](Pallet::contribute) extrinsic to buy tokens at the set price.                                                                                                                                                                                                                                                                                                | [`CommunityRound`](ProjectStatus::CommunityRound)                   |
 //! | Remainder Funding Start   | After the [`Config::CommunityFundingDuration`] has passed, the project is now open to token purchases from any user type                                                                                                                                                                                                                                                                                    | [`RemainderRound`](ProjectStatus::RemainderRound)                   |
-//! | Funding End               | If all tokens were sold, or after the [`Config::RemainderFundingDuration`] has passed, the project automatically ends, and it is calculated if it reached its desired funding or not.                                                                                                                                                                                                                       | [`FundingEnded`](ProjectStatus::FundingSuccessful)                       |
-//! | Evaluator Rewards         | If the funding was successful, evaluators can claim their contribution token rewards with the [`TBD`]() extrinsic. If it failed, evaluators can either call the [`failed_evaluation_unbond_for()`](Pallet::failed_evaluation_unbond_for) extrinsic, or wait for the [`on_idle()`](Pallet::on_initialize) function, to return their funds                                                                    | [`FundingEnded`](ProjectStatus::FundingSuccessful)                       |
-//! | Bidder Rewards            | If the funding was successful, bidders will call [`vested_contribution_token_bid_mint_for()`](Pallet::vested_contribution_token_bid_mint_for) to mint the contribution tokens they are owed, and [`vested_plmc_bid_unbond_for()`](Pallet::vested_plmc_bid_unbond_for) to unbond their PLMC, based on their current vesting schedule.                                                                        | [`FundingEnded`](ProjectStatus::FundingSuccessful)                       |
-//! | Buyer Rewards             | If the funding was successful, users who bought tokens on the Community or Remainder round, can call [`vested_contribution_token_purchase_mint_for()`](Pallet::vested_contribution_token_purchase_mint_for) to mint the contribution tokens they are owed, and [`vested_plmc_purchase_unbond_for()`](Pallet::vested_plmc_purchase_unbond_for) to unbond their PLMC, based on their current vesting schedule | [`FundingEnded`](ProjectStatus::FundingSuccessful)                       |
+//! | Funding End               | If all tokens were sold, or after the [`Config::RemainderFundingDuration`] has passed, the project automatically ends, and it is calculated if it reached its desired funding or not.                                                                                                                                                                                                                       | [`FundingEnded`](ProjectStatus::FundingSuccessful)                  |
+//! | Evaluator Rewards         | If the funding was successful, evaluators can claim their contribution token rewards with the [`TBD`]() extrinsic. If it failed, evaluators can either call the [`failed_evaluation_unbond_for()`](Pallet::failed_evaluation_unbond_for) extrinsic, or wait for the [`on_idle()`](Pallet::on_initialize) function, to return their funds                                                                    | [`FundingEnded`](ProjectStatus::FundingSuccessful)                  |
+//! | Bidder Rewards            | If the funding was successful, bidders will call [`vested_contribution_token_bid_mint_for()`](Pallet::vested_contribution_token_bid_mint_for) to mint the contribution tokens they are owed, and [`vested_plmc_bid_unbond_for()`](Pallet::vested_plmc_bid_unbond_for) to unbond their PLMC, based on their current vesting schedule.                                                                        | [`FundingEnded`](ProjectStatus::FundingSuccessful)                  |
+//! | Buyer Rewards             | If the funding was successful, users who bought tokens on the Community or Remainder round, can call [`vested_contribution_token_purchase_mint_for()`](Pallet::vested_contribution_token_purchase_mint_for) to mint the contribution tokens they are owed, and [`vested_plmc_purchase_unbond_for()`](Pallet::vested_plmc_purchase_unbond_for) to unbond their PLMC, based on their current vesting schedule | [`FundingEnded`](ProjectStatus::FundingSuccessful)                  |
 //!
 //! ## Interface
 //! All users who wish to participate need to have a valid credential, given to them on the KILT parachain, by a KYC/AML provider.
@@ -65,14 +65,18 @@
 //! * [`create`](Pallet::create_project) : Creates a new project.
 //! * [`edit_metadata`](Pallet::edit_metadata) : Submit a new Hash of the project metadata.
 //! * [`start_evaluation`](Pallet::start_evaluation) : Start the Evaluation round of a project.
-//! * [`start_auction`](Pallet::start_auction) : Start the English Auction round of a project.
+//! * [`start_auction`](Pallet::start_auction) : Start the Auction Opening round of a project.
 //! * [`bond_evaluation`](Pallet::evaluate) : Bond PLMC on a project in the evaluation stage. A sort of "bet" that you think the project will be funded
 //! * [`failed_evaluation_unbond_for`](Pallet::failed_evaluation_unbond_for) : Unbond the PLMC bonded on a project's evaluation round for any user, if the project failed the evaluation.
-//! * [`bid`](Pallet::bid) : Perform a bid during the English or Candle Auction Round.
+//! * [`bid`](Pallet::bid) : Perform a bid during the Opening or Closing Auction Round.
 //! * [`contribute`](Pallet::contribute) : Buy contribution tokens if a project during the Community or Remainder round
-//! * [`vested_plmc_bid_unbond_for`](Pallet::vested_plmc_bid_unbond_for) : Unbond the PLMC bonded on a project's English or Candle Auction Round for any user, based on their vesting schedule.
+//! * [`vested_plmc_bid_unbond_for`](Pallet::vested_plmc_bid_unbond_for) : Unbond the PLMC
+//!   bonded on a project's Opening or Closing Auction Round for any user, based on their vesting
+//!   schedule.
 //! * [`vested_plmc_purchase_unbond_for`](Pallet::vested_plmc_purchase_unbond_for) : Unbond the PLMC bonded on a project's Community or Remainder Round for any user, based on their vesting schedule.
-//! * [`vested_contribution_token_bid_mint_for`](Pallet::vested_contribution_token_bid_mint_for) : Mint the contribution tokens for a user who participated in the English or Candle Auction Round, based on their vesting schedule.
+//! * [`vested_contribution_token_bid_mint_for`](Pallet::vested_contribution_token_bid_mint_for)
+//!   : Mint the contribution tokens for a user who participated in the Opening or Closing Auction Round,
+//!   based on their vesting schedule.
 //! * [`vested_contribution_token_purchase_mint_for`](Pallet::vested_contribution_token_purchase_mint_for) : Mint the contribution tokens for a user who participated in the Community or Remainder Round, based on their vesting schedule.
 //!
 //! ### Storage Items
@@ -235,12 +239,12 @@ pub mod pallet {
 		/// BlockNumber used for PLMC vesting durations on this chain, and CT vesting durations on funded chains.
 		type BlockNumber: IsType<BlockNumberFor<Self>> + Into<u64>;
 
-		/// The length (expressed in number of blocks) of the Auction Round, Candle period.
+		/// The length (expressed in number of blocks) of the Auction Round, Closing period.
 		type BlockNumberToBalance: Convert<BlockNumberFor<Self>, BalanceOf<Self>>;
 
-		/// The length (expressed in number of blocks) of the Auction Round, Candle period.
+		/// The length (expressed in number of blocks) of the Auction Round, Closing period.
 		#[pallet::constant]
-		type CandleAuctionDuration: Get<BlockNumberFor<Self>>;
+		type AuctionClosingDuration: Get<BlockNumberFor<Self>>;
 
 		/// The length (expressed in number of blocks) of the Community Round.
 		#[pallet::constant]
@@ -261,9 +265,9 @@ pub mod pallet {
 		/// Convert 24 hours as FixedU128, to the corresponding amount of blocks in the same type as frame_system
 		type DaysToBlocks: Convert<FixedU128, BlockNumberFor<Self>>;
 
-		/// The length (expressed in number of blocks) of the Auction Round, English period.
+		/// The length (expressed in number of blocks) of the Auction Round, Opening period.
 		#[pallet::constant]
-		type EnglishAuctionDuration: Get<BlockNumberFor<Self>>;
+		type AuctionOpeningDuration: Get<BlockNumberFor<Self>>;
 
 		/// The length (expressed in number of blocks) of the evaluation period.
 		#[pallet::constant]
@@ -722,20 +726,20 @@ pub mod pallet {
 		ProjectNotInApplicationRound,
 		/// Tried to move the project from Evaluation to EvaluationEnded round, but the project is not in EvaluationRound
 		ProjectNotInEvaluationRound,
-		/// Tried to move the project from AuctionInitializePeriod to EnglishAuctionRound, but the project is not in AuctionInitializePeriodRound
+		/// Tried to move the project from AuctionInitializePeriod to AuctionOpeningRound, but the project is not in AuctionInitializePeriodRound
 		ProjectNotInAuctionInitializePeriodRound,
-		/// Tried to move the project to CandleAuction, but it was not in EnglishAuctionRound before
-		ProjectNotInEnglishAuctionRound,
-		/// Tried to move the project to Community round, but it was not in CandleAuctionRound before
-		ProjectNotInCandleAuctionRound,
+		/// Tried to move the project to AuctionClosing, but it was not in AuctionOpeningRound before
+		ProjectNotInAuctionOpeningRound,
+		/// Tried to move the project to Community round, but it was not in AuctionClosingRound before
+		ProjectNotInAuctionClosingRound,
 		/// Tried to move the project to RemainderRound, but it was not in CommunityRound before
 		ProjectNotInCommunityRound,
 		/// Tried to move the project to ReadyToLaunch round, but it was not in FundingEnded round before
 		ProjectNotInFundingEndedRound,
 		/// Tried to start an auction before the initialization period
-		TooEarlyForEnglishAuctionStart,
-		/// Tried to move the project to CandleAuctionRound, but its too early for that
-		TooEarlyForCandleAuctionStart,
+		TooEarlyForAuctionOpeningStart,
+		/// Tried to move the project to AuctionClosingRound, but its too early for that
+		TooEarlyForAuctionClosingStart,
 		/// Tried to move the project to CommunityRound, but its too early for that
 		TooEarlyForCommunityRoundStart,
 		/// Tried to move the project to RemainderRound, but its too early for that
@@ -859,7 +863,7 @@ pub mod pallet {
 
 		/// Starts the auction round for a project. From the next block forward, any professional or
 		/// institutional user can set bids for a token_amount/token_price pair.
-		/// Any bids from this point until the candle_auction starts, will be considered as valid.
+		/// Any bids from this point until the auction_closing starts, will be considered as valid.
 		#[pallet::call_index(3)]
 		#[pallet::weight(WeightInfoOf::<T>::start_auction_manually(<T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1))]
 		pub fn start_auction(
@@ -870,7 +874,7 @@ pub mod pallet {
 			let (account, _did, investor_type) =
 				T::InvestorOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get())?;
 			ensure!(investor_type == InvestorType::Institutional, Error::<T>::NotAllowed);
-			Self::do_english_auction(account, project_id)
+			Self::do_auction_opening(account, project_id)
 		}
 
 		/// Bond PLMC for a project in the evaluation stage
@@ -1131,18 +1135,18 @@ pub mod pallet {
 
 		#[pallet::call_index(59)]
 		#[pallet::weight(WeightInfoOf::<T>::start_auction_manually(<T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1))]
-		pub fn root_do_english_auction(origin: OriginFor<T>, project_id: ProjectId) -> DispatchResultWithPostInfo {
+		pub fn root_do_auction_opening(origin: OriginFor<T>, project_id: ProjectId) -> DispatchResultWithPostInfo {
 			ensure_root(origin)?;
-			Self::do_english_auction(T::PalletId::get().into_account_truncating(), project_id)
+			Self::do_auction_opening(T::PalletId::get().into_account_truncating(), project_id)
 		}
 
 		#[pallet::call_index(29)]
-		#[pallet::weight(WeightInfoOf::<T>::start_candle_phase(
+		#[pallet::weight(WeightInfoOf::<T>::start_auction_closing_phase(
 			<T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1,
 		))]
-		pub fn root_do_candle_auction(origin: OriginFor<T>, project_id: ProjectId) -> DispatchResultWithPostInfo {
+		pub fn root_do_auction_closing(origin: OriginFor<T>, project_id: ProjectId) -> DispatchResultWithPostInfo {
 			ensure_root(origin)?;
-			Self::do_candle_auction(project_id)
+			Self::do_auction_closing(project_id)
 		}
 
 		#[pallet::call_index(30)]
@@ -1247,24 +1251,24 @@ pub mod pallet {
 						update_weight(&mut used_weight, call, fallback_weight);
 					},
 
-					// AuctionInitializePeriod -> AuctionRound(AuctionPhase::English)
+					// AuctionInitializePeriod -> AuctionOpening
 					// Only if it wasn't first handled by user extrinsic
-					UpdateType::EnglishAuctionStart => {
-						let call = Self::do_english_auction(T::PalletId::get().into_account_truncating(), project_id);
+					UpdateType::AuctionOpeningStart => {
+						let call = Self::do_auction_opening(T::PalletId::get().into_account_truncating(), project_id);
 						let fallback_weight =
-							Call::<T>::root_do_english_auction { project_id }.get_dispatch_info().weight;
+							Call::<T>::root_do_auction_opening { project_id }.get_dispatch_info().weight;
 						update_weight(&mut used_weight, call, fallback_weight);
 					},
 
-					// AuctionRound(AuctionPhase::English) -> AuctionRound(AuctionPhase::Candle)
-					UpdateType::CandleAuctionStart => {
-						let call = Self::do_candle_auction(project_id);
+					// AuctionOpening -> AuctionClosing
+					UpdateType::AuctionClosingStart => {
+						let call = Self::do_auction_closing(project_id);
 						let fallback_weight =
-							Call::<T>::root_do_candle_auction { project_id }.get_dispatch_info().weight;
+							Call::<T>::root_do_auction_closing { project_id }.get_dispatch_info().weight;
 						update_weight(&mut used_weight, call, fallback_weight);
 					},
 
-					// AuctionRound(AuctionPhase::Candle) -> CommunityRound
+					// AuctionClosing -> CommunityRound
 					UpdateType::CommunityFundingStart => {
 						let call = Self::do_community_funding(project_id);
 						let fallback_weight =

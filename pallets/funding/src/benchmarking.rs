@@ -306,7 +306,7 @@ where
 	let states = vec![
 		ProjectStatus::Application,
 		ProjectStatus::EvaluationRound,
-		ProjectStatus::AuctionRound(AuctionPhase::English),
+		ProjectStatus::AuctionOpening,
 		ProjectStatus::CommunityRound,
 		ProjectStatus::RemainderRound,
 		ProjectStatus::FundingSuccessful,
@@ -638,8 +638,8 @@ mod benchmarks {
 		assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::AuctionInitializePeriod);
 
 		let current_block = inst.current_block();
-		// `do_english_auction` fn will try to add an automatic transition 1 block after the last english round block
-		let insertion_block_number: BlockNumberFor<T> = current_block + T::EnglishAuctionDuration::get() + One::one();
+		// `do_auction_opening` fn will try to add an automatic transition 1 block after the last opening round block
+		let insertion_block_number: BlockNumberFor<T> = current_block + T::AuctionOpeningDuration::get() + One::one();
 
 		fill_projects_to_update::<T>(x, insertion_block_number);
 
@@ -650,11 +650,11 @@ mod benchmarks {
 		// * validity checks *
 		// Storage
 		let stored_details = ProjectsDetails::<T>::get(project_id).unwrap();
-		assert_eq!(stored_details.status, ProjectStatus::AuctionRound(AuctionPhase::English));
+		assert_eq!(stored_details.status, ProjectStatus::AuctionOpening);
 
 		// Events
 		frame_system::Pallet::<T>::assert_last_event(
-			Event::<T>::ProjectPhaseTransition { project_id, phase: ProjectPhases::EnglishAuction }.into(),
+			Event::<T>::ProjectPhaseTransition { project_id, phase: ProjectPhases::AuctionOpening }.into(),
 		);
 	}
 
@@ -1992,9 +1992,9 @@ mod benchmarks {
 		assert_eq!(project_details.status, ProjectStatus::FundingFailed);
 	}
 
-	// do_candle_auction
+	// do_auction_closing_auction
 	#[benchmark]
-	fn start_candle_phase(
+	fn start_auction_closing_phase(
 		// Insertion attempts in add_to_update_store. Total amount of storage items iterated through in `ProjectsToUpdate`. Leave one free to make the fn succeed
 		x: Linear<1, { <T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1 }>,
 	) {
@@ -2010,29 +2010,29 @@ mod benchmarks {
 		let project_metadata = default_project::<T>(inst.get_new_nonce(), issuer.clone());
 		let project_id = inst.create_auctioning_project(project_metadata, issuer.clone(), default_evaluations());
 
-		let english_end_block =
-			inst.get_project_details(project_id).phase_transition_points.english_auction.end().unwrap();
+		let opening_end_block =
+			inst.get_project_details(project_id).phase_transition_points.auction_opening.end().unwrap();
 		// we don't use advance time to avoid triggering on_initialize. This benchmark should only measure the extrinsic
 		// weight and not the whole on_initialize call weight
-		frame_system::Pallet::<T>::set_block_number(english_end_block + One::one());
+		frame_system::Pallet::<T>::set_block_number(opening_end_block + One::one());
 
-		let insertion_block_number = inst.current_block() + T::CandleAuctionDuration::get() + One::one();
+		let insertion_block_number = inst.current_block() + T::AuctionClosingDuration::get() + One::one();
 
 		fill_projects_to_update::<T>(x, insertion_block_number);
 
 		#[block]
 		{
-			Pallet::<T>::do_candle_auction(project_id).unwrap();
+			Pallet::<T>::do_auction_closing(project_id).unwrap();
 		}
 		// * validity checks *
 		// Storage
 		let stored_details = ProjectsDetails::<T>::get(project_id).unwrap();
-		assert_eq!(stored_details.status, ProjectStatus::AuctionRound(AuctionPhase::Candle));
+		assert_eq!(stored_details.status, ProjectStatus::AuctionClosing);
 
 		// Events
 		let current_block = inst.current_block();
 		frame_system::Pallet::<T>::assert_last_event(
-			Event::<T>::ProjectPhaseTransition { project_id, phase: ProjectPhases::CandleAuction }.into(),
+			Event::<T>::ProjectPhaseTransition { project_id, phase: ProjectPhases::AuctionClosing }.into(),
 		);
 	}
 
@@ -2145,23 +2145,23 @@ mod benchmarks {
 		inst.bid_for_users(project_id, accepted_bids).unwrap();
 
 		let now = inst.current_block();
-		frame_system::Pallet::<T>::set_block_number(now + <T as Config>::EnglishAuctionDuration::get());
-		// automatic transition to candle
+		frame_system::Pallet::<T>::set_block_number(now + <T as Config>::AuctionOpeningDuration::get());
+		// automatic transition to opening auction
 		inst.advance_time(1u32.into()).unwrap();
 
 		let project_details = inst.get_project_details(project_id);
-		let candle_block_end = project_details.phase_transition_points.candle_auction.end().unwrap();
+		let auction_closing_block_end = project_details.phase_transition_points.auction_closing.end().unwrap();
 		// probably the last block will always be after random end
-		let random_ending: BlockNumberFor<T> = candle_block_end;
+		let random_ending: BlockNumberFor<T> = auction_closing_block_end;
 		frame_system::Pallet::<T>::set_block_number(random_ending);
 
 		inst.bid_for_users(project_id, rejected_bids).unwrap();
 
-		let auction_candle_end_block =
-			inst.get_project_details(project_id).phase_transition_points.candle_auction.end().unwrap();
+		let auction_closing_end_block =
+			inst.get_project_details(project_id).phase_transition_points.auction_closing.end().unwrap();
 		// we don't use advance time to avoid triggering on_initialize. This benchmark should only measure the fn
 		// weight and not the whole on_initialize call weight
-		frame_system::Pallet::<T>::set_block_number(auction_candle_end_block + One::one());
+		frame_system::Pallet::<T>::set_block_number(auction_closing_end_block + One::one());
 		let now = inst.current_block();
 
 		let community_end_block = now + T::CommunityFundingDuration::get();
@@ -2179,8 +2179,8 @@ mod benchmarks {
 		let stored_details = ProjectsDetails::<T>::get(project_id).unwrap();
 		assert_eq!(stored_details.status, ProjectStatus::CommunityRound);
 		assert!(
-			stored_details.phase_transition_points.random_candle_ending.unwrap() <
-				stored_details.phase_transition_points.candle_auction.end().unwrap()
+			stored_details.phase_transition_points.random_closing_ending.unwrap() <
+				stored_details.phase_transition_points.auction_closing.end().unwrap()
 		);
 		let accepted_bids_count =
 			Bids::<T>::iter_prefix_values((project_id,)).filter(|b| matches!(b.status, BidStatus::Accepted)).count();
@@ -2764,9 +2764,9 @@ mod benchmarks {
 		}
 
 		#[test]
-		fn bench_start_candle_phase() {
+		fn bench_start_auction_closing_phase() {
 			new_test_ext().execute_with(|| {
-				assert_ok!(PalletFunding::<TestRuntime>::test_start_candle_phase());
+				assert_ok!(PalletFunding::<TestRuntime>::test_start_auction_closing_phase());
 			});
 		}
 
