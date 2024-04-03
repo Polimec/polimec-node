@@ -233,10 +233,10 @@ mod start_evaluation_extrinsic {
 		#[test]
 		fn different_account() {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
-			let project_metadata = default_project_metadata(issuer);
+			let project_metadata = default_project_metadata(ISSUER_1);
 
-			let project_id = inst.create_new_project(project_metadata, issuer);
-			let jwt = get_mock_jwt(issuer, InvestorType::Institutional, generate_did_from_account(issuer));
+			let project_id = inst.create_new_project(project_metadata, ISSUER_1);
+			let jwt = get_mock_jwt(ISSUER_1, InvestorType::Institutional, generate_did_from_account(ISSUER_1));
 			assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::Application);
 			assert_ok!(inst.execute(|| PolimecFunding::start_evaluation(
 				RuntimeOrigin::signed(ISSUER_1),
@@ -334,9 +334,7 @@ mod evaluate_extrinsic {
 			inst.mint_plmc_to(plmc_existential_deposits);
 
 			inst.execute(|| {
-				frame_system::Account::<TestRuntime>::mutate(EVALUATOR_1, |account| {
-					account.data.frozen = necessary_plmc[0].plmc_amount;
-				});
+				mock::Balances::set_freeze(&(), &EVALUATOR_1, necessary_plmc[0].plmc_amount).unwrap();
 			});
 
 			assert_ok!(inst.execute(|| PolimecFunding::evaluate(

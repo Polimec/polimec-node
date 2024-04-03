@@ -22,7 +22,7 @@ use sp_arithmetic::{traits::Zero, Percent, Perquintill};
 use sp_runtime::{BuildStorage, TokenError};
 use sp_std::{cell::RefCell, marker::PhantomData};
 use std::{cmp::min, iter::zip, ops::Not};
-
+use frame_support::traits::fungible::MutateFreeze;
 type MockInstantiator =
 	Instantiator<TestRuntime, <TestRuntime as crate::Config>::AllPalletsWithoutSystem, RuntimeEvent>;
 
