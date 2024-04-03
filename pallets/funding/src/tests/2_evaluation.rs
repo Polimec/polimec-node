@@ -296,7 +296,7 @@ mod start_evaluation_extrinsic {
 			inst.execute(|| {
 				assert_noop!(
 					PolimecFunding::start_evaluation(
-						RuntimeOrigin::signed(ISSUER_1),
+						RuntimeOrigin::signed(ISSUER_2),
 						get_mock_jwt(ISSUER_2, InvestorType::Institutional, generate_did_from_account(ISSUER_2)),
 						project_id
 					),
