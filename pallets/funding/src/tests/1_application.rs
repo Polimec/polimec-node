@@ -106,11 +106,7 @@ mod create_project_extrinsic {
 				let issuer_mint = (issuer, 1000 * PLMC).into();
 				inst.mint_plmc_to(vec![issuer_mint]);
 				assert_ok!(inst.execute(|| {
-					Pallet::<TestRuntime>::do_create_project(
-						&issuer,
-						project,
-						generate_did_from_account(issuer),
-					)
+					Pallet::<TestRuntime>::do_create_project(&issuer, project, generate_did_from_account(issuer))
 				}));
 			}
 
@@ -142,12 +138,8 @@ mod create_project_extrinsic {
 				let issuer_mint = (issuer, 1000 * PLMC).into();
 				inst.mint_plmc_to(vec![issuer_mint]);
 				let project_err = inst.execute(|| {
-					Pallet::<TestRuntime>::do_create_project(
-						&issuer,
-						project,
-						generate_did_from_account(issuer),
-					)
-					.unwrap_err()
+					Pallet::<TestRuntime>::do_create_project(&issuer, project, generate_did_from_account(issuer))
+						.unwrap_err()
 				});
 				assert_eq!(
 					project_err,
@@ -446,12 +438,8 @@ mod create_project_extrinsic {
 
 			for project in wrong_projects {
 				let project_err = inst.execute(|| {
-					Pallet::<TestRuntime>::do_create_project(
-						&ISSUER_1,
-						project,
-						generate_did_from_account(ISSUER_1),
-					)
-					.unwrap_err()
+					Pallet::<TestRuntime>::do_create_project(&ISSUER_1, project, generate_did_from_account(ISSUER_1))
+						.unwrap_err()
 				});
 				assert_eq!(project_err, Error::<TestRuntime>::BadMetadata(MetadataError::TicketSizeError).into());
 			}

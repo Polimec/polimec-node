@@ -537,8 +537,7 @@ mod bug_hunting {
 		assert_eq!(max_projects_per_update_block, 1u32);
 		let max_insertion_attempts: u32 = <TestRuntime as Config>::MaxProjectsToUpdateInsertionAttempts::get();
 
-		let project_id =
-			inst.create_evaluating_project(default_project_metadata(ISSUER_1), ISSUER_1);
+		let project_id = inst.create_evaluating_project(default_project_metadata(ISSUER_1), ISSUER_1);
 		let plmc_balances = MockInstantiator::calculate_evaluation_plmc_spent(default_evaluations());
 		let ed = plmc_balances.accounts().existential_deposits();
 		inst.mint_plmc_to(plmc_balances);
