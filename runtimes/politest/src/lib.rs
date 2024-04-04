@@ -147,7 +147,10 @@ pub type SignedExtra = (
 	frame_system::CheckEra<Runtime>,
 	frame_system::CheckNonce<Runtime>,
 	frame_system::CheckWeight<Runtime>,
-	pallet_transaction_payment::ChargeTransactionPayment<Runtime>,
+	pallet_skip_feeless_payment::SkipCheckIfFeeless<
+		Runtime,
+		pallet_transaction_payment::ChargeTransactionPayment<Runtime>,
+	>,
 );
 
 /// Unchecked extrinsic type as expected by this runtime.
@@ -837,7 +840,9 @@ where
 			frame_system::CheckEra::<Runtime>::from(generic::Era::mortal(period, current_block)),
 			frame_system::CheckNonce::<Runtime>::from(nonce),
 			frame_system::CheckWeight::<Runtime>::new(),
-			pallet_transaction_payment::ChargeTransactionPayment::<Runtime>::from(tip),
+			pallet_skip_feeless_payment::SkipCheckIfFeeless::from(
+				pallet_transaction_payment::ChargeTransactionPayment::<Runtime>::from(tip),
+			),
 		);
 		let raw_payload = generic::SignedPayload::new(call, extra)
 			.map_err(|e| {
@@ -1051,6 +1056,24 @@ impl pallet_linear_release::Config for Runtime {
 
 impl pallet_insecure_randomness_collective_flip::Config for Runtime {}
 
+impl pallet_faucet::Config for Runtime {
+	type AdminOrigin = EnsureRoot<AccountId>;
+	type BlockNumberToBalance = ConvertInto;
+	type PalletId = FaucetId;
+	type LockPeriod = FaucetLockPeriod;
+	type VestPeriod = FaucetVestPeriod;
+	type InitialClaimAmount = InitialClaimAmount;
+	type RuntimeEvent = RuntimeEvent;
+	type InvestorOrigin = EnsureInvestor<Runtime>;
+	type VestingSchedule = Vesting;
+	type VerifierPublicKey = VerifierPublicKey;
+	type WeightInfo = ();
+}
+
+impl pallet_skip_feeless_payment::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+}
+
 // Create the runtime by composing the FRAME pallets that were previously configured.
 construct_runtime!(
 	pub enum Runtime
@@ -1072,6 +1095,8 @@ construct_runtime!(
 		Vesting: pallet_vesting = 12,
 		ContributionTokens: pallet_assets::<Instance1> = 13,
 		ForeignAssets: pallet_assets::<Instance2> = 14,
+		Claims: pallet_faucet = 15,
+		SkipFeelessPayment: pallet_skip_feeless_payment = 16,
 
 		// Collator support. the order of these 5 are important and shall not change.
 		Authorship: pallet_authorship::{Pallet, Storage} = 20,

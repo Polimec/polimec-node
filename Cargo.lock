@@ -4533,6 +4533,7 @@ dependencies = [
  "pallet-collective",
  "pallet-democracy 0.5.1",
  "pallet-elections-phragmen 0.5.1",
+ "pallet-faucet",
  "pallet-funding",
  "pallet-im-online",
  "pallet-linear-release",
@@ -4541,6 +4542,7 @@ dependencies = [
  "pallet-parachain-staking",
  "pallet-scheduler",
  "pallet-staking",
+ "pallet-transaction-payment",
  "pallet-treasury",
  "pallet-vesting",
  "pallet-xcm",
@@ -6950,6 +6952,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "pallet-faucet"
+version = "0.5.1"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "pallet-balances",
+ "pallet-timestamp",
+ "pallet-vesting",
+ "parity-scale-codec",
+ "polimec-common",
+ "polimec-common-test-utils",
+ "scale-info",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
 name = "pallet-funding"
 version = "0.5.1"
 dependencies = [
@@ -7559,6 +7581,20 @@ dependencies = [
  "rand",
  "sp-runtime",
  "sp-session",
+ "sp-std",
+]
+
+[[package]]
+name = "pallet-skip-feeless-payment"
+version = "3.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "dc512514bc78be8896f4cf7128e16188415ea0b68e73f3fe240a83cdbb236512"
+dependencies = [
+ "frame-support",
+ "frame-system",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-runtime",
  "sp-std",
 ]
 
@@ -8565,6 +8601,7 @@ dependencies = [
  "pallet-collective",
  "pallet-democracy 0.5.1",
  "pallet-elections-phragmen 0.5.1",
+ "pallet-faucet",
  "pallet-funding",
  "pallet-identity",
  "pallet-insecure-randomness-collective-flip",
@@ -8578,6 +8615,7 @@ dependencies = [
  "pallet-proxy",
  "pallet-scheduler",
  "pallet-session",
+ "pallet-skip-feeless-payment",
  "pallet-sudo",
  "pallet-timestamp",
  "pallet-transaction-payment",

@@ -26,6 +26,7 @@ scale-info = { workspace = true, default-features = false, features = [
 sp-debug-derive = { workspace = true, features = ["force-debug"]}
 
 # Polimec specific
+pallet-faucet.workspace = true
 pallet-funding.workspace = true
 pallet-oracle-ocw.workspace = true
 pallet-linear-release.workspace = true
@@ -57,6 +58,7 @@ pallet-proxy.workspace = true
 pallet-sudo.workspace = true
 pallet-scheduler.workspace = true
 pallet-session.workspace = true
+pallet-skip-feeless-payment.workspace = true
 pallet-timestamp.workspace = true
 pallet-transaction-payment.workspace = true
 pallet-transaction-payment-rpc-runtime-api.workspace = true
@@ -142,6 +144,7 @@ std = [
 	"pallet-collective/std",
 	"pallet-democracy/std",
 	"pallet-elections-phragmen/std",
+	"pallet-faucet/std",
 	"pallet-funding/std",
 	"pallet-identity/std",
 	"pallet-insecure-randomness-collective-flip/std",
@@ -155,6 +158,7 @@ std = [
 	"pallet-proxy/std",
 	"pallet-scheduler/std",
 	"pallet-session/std",
+	"pallet-skip-feeless-payment/std",
 	"pallet-sudo/std",
 	"pallet-timestamp/std",
 	"pallet-transaction-payment-rpc-runtime-api/std",
@@ -209,6 +213,7 @@ runtime-benchmarks = [
 	"pallet-collective/runtime-benchmarks",
 	"pallet-democracy/runtime-benchmarks",
 	"pallet-elections-phragmen/runtime-benchmarks",
+	"pallet-faucet/runtime-benchmarks",
 	"pallet-funding/runtime-benchmarks",
 	"pallet-identity/runtime-benchmarks",
 	"pallet-linear-release/runtime-benchmarks",
@@ -220,6 +225,7 @@ runtime-benchmarks = [
 	"pallet-preimage/runtime-benchmarks",
 	"pallet-proxy/runtime-benchmarks",
 	"pallet-scheduler/runtime-benchmarks",
+	"pallet-skip-feeless-payment/runtime-benchmarks",
 	"pallet-sudo/runtime-benchmarks",
 	"pallet-timestamp/runtime-benchmarks",
 	"pallet-treasury/runtime-benchmarks",
@@ -258,6 +264,7 @@ try-runtime = [
 	"pallet-collective/try-runtime",
 	"pallet-democracy/try-runtime",
 	"pallet-elections-phragmen/try-runtime",
+	"pallet-faucet/try-runtime",
 	"pallet-funding/try-runtime",
 	"pallet-identity/try-runtime",
 	"pallet-insecure-randomness-collective-flip/try-runtime",
@@ -271,6 +278,7 @@ try-runtime = [
 	"pallet-proxy/try-runtime",
 	"pallet-scheduler/try-runtime",
 	"pallet-session/try-runtime",
+	"pallet-skip-feeless-payment/try-runtime",
 	"pallet-sudo/try-runtime",
 	"pallet-timestamp/try-runtime",
 	"pallet-transaction-payment/try-runtime",
