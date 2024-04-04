@@ -71,7 +71,7 @@ where
 	let metadata_hash = hashed(format!("{}-{}", METADATA, nonce));
 	ProjectMetadata {
 		token_information: CurrencyMetadata { name: bounded_name, symbol: bounded_symbol, decimals: ASSET_DECIMALS },
-		mainnet_token_max_supply: BalanceOf::<T>::try_from(8_000_000_0_000_000_000u128)
+		mainnet_token_max_supply: BalanceOf::<T>::try_from(800_000_000_0_000_000_000u128)
 			.unwrap_or_else(|_| panic!("Failed to create BalanceOf")),
 		total_allocation_size: BalanceOf::<T>::try_from(100_000_000_0_000_000_000u128)
 			.unwrap_or_else(|_| panic!("Failed to create BalanceOf")),
@@ -439,7 +439,7 @@ mod benchmarks {
 	}
 
 	#[benchmark]
-	fn edit_metadata() {
+	fn edit_project() {
 		// * setup *
 		let mut inst = BenchInstantiator::<T>::new(None);
 
@@ -529,7 +529,7 @@ mod benchmarks {
 		let jwt = get_mock_jwt(issuer.clone(), InvestorType::Institutional, generate_did_from_account(issuer.clone()));
 
 		#[extrinsic_call]
-		edit_metadata(RawOrigin::Signed(issuer), jwt, project_id, project_metadata.clone());
+		edit_project(RawOrigin::Signed(issuer), jwt, project_id, project_metadata.clone());
 
 		// * validity checks *
 		// Storage
@@ -2060,7 +2060,7 @@ mod benchmarks {
 				symbol: bounded_symbol,
 				decimals: ASSET_DECIMALS,
 			},
-			mainnet_token_max_supply: BalanceOf::<T>::try_from(8_000_000_0_000_000_000u128)
+			mainnet_token_max_supply: BalanceOf::<T>::try_from(800_000_000_0_000_000_000u128)
 				.unwrap_or_else(|_| panic!("Failed to create BalanceOf")),
 			total_allocation_size: BalanceOf::<T>::try_from(100_000_000_0_000_000_000u128)
 				.unwrap_or_else(|_| panic!("Failed to create BalanceOf")),
@@ -2642,9 +2642,9 @@ mod benchmarks {
 		}
 
 		#[test]
-		fn bench_edit_metadata() {
+		fn bench_edit_project() {
 			new_test_ext().execute_with(|| {
-				assert_ok!(PalletFunding::<TestRuntime>::test_edit_metadata());
+				assert_ok!(PalletFunding::<TestRuntime>::test_edit_project());
 			});
 		}
 

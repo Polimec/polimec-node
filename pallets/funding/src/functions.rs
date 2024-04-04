@@ -743,11 +743,15 @@ impl<T: Config> Pallet<T> {
 		did: Did,
 	) -> Result<(ProjectDetailsOf<T>, BucketOf<T>), DispatchError> {
 		if let Err(error) = metadata.is_valid() {
-			return match error {
-				ValidityError::PriceTooLow => Err(Error::<T>::PriceTooLow.into()),
-				ValidityError::TicketSizeError => Err(Error::<T>::TicketSizeError.into()),
-				ValidityError::ParticipationCurrenciesError => Err(Error::<T>::ParticipationCurrenciesError.into()),
+			let metadata_error = match error {
+				ValidityError::PriceTooLow => MetadataError::PriceTooLow,
+				ValidityError::TicketSizeError => MetadataError::TicketSizeError,
+				ValidityError::ParticipationCurrenciesError => MetadataError::ParticipationCurrenciesError,
+				ValidityError::AllocationSizeError => MetadataError::AllocationSizeError,
+				ValidityError::AuctionRoundPercentageError => MetadataError::AuctionRoundPercentageError,
+				ValidityError::FundingTargetTooLow => MetadataError::FundingTargetTooLow,
 			};
+			return Err(Error::<T>::BadMetadata(metadata_error).into());
 		}
 		let total_allocation_size = metadata.total_allocation_size;
 
@@ -875,7 +879,7 @@ impl<T: Config> Pallet<T> {
 	/// * [`ProjectsDetails`] - Check that the project is not frozen
 	/// * [`ProjectsMetadata`] - Update the metadata hash
 	#[transactional]
-	pub fn do_edit_metadata(
+	pub fn do_edit_project(
 		issuer: AccountIdOf<T>,
 		project_id: ProjectId,
 		new_project_metadata: ProjectMetadataOf<T>,
@@ -925,7 +929,7 @@ impl<T: Config> Pallet<T> {
 
 		// * Validity Checks *
 		ensure!(project_details.issuer_did != did, Error::<T>::ParticipationToThemselves);
-		ensure!(project_details.status == ProjectStatus::EvaluationRound, Error::<T>::EvaluationNotStarted);
+		ensure!(project_details.status == ProjectStatus::EvaluationRound, Error::<T>::ProjectNotInEvaluationRound);
 		ensure!(evaluations_count < T::MaxEvaluationsPerProject::get(), Error::<T>::TooManyEvaluationsForProject);
 
 		// * Calculate new variables *
