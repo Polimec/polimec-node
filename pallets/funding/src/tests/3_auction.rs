@@ -652,7 +652,7 @@ fn bid_with_asset_not_accepted() {
 		inst.create_auctioning_project(default_project_metadata(ISSUER_1), ISSUER_1, default_evaluations());
 	let bids = vec![BidParams::<TestRuntime>::new(BIDDER_1, 10_000, 1u8, AcceptedFundingAsset::USDC)];
 
-	let did = generate_did_from_account(bids[0].bidder.clone());
+	let did = generate_did_from_account(bids[0].bidder);
 	let investor_type = InvestorType::Institutional;
 
 	let outcome = inst.execute(|| {

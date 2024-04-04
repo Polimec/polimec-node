@@ -57,14 +57,14 @@ fn cannot_settle_successful_project_twice() {
 	inst.execute(|| {
 		let evaluator = first_evaluation.evaluator;
 		assert_ok!(crate::Pallet::<TestRuntime>::settle_successful_evaluation(
-			RuntimeOrigin::signed(evaluator.clone()),
+			RuntimeOrigin::signed(evaluator),
 			project_id,
 			evaluator,
 			first_evaluation.id
 		));
 		assert_noop!(
 			crate::Pallet::<TestRuntime>::settle_successful_evaluation(
-				RuntimeOrigin::signed(evaluator.clone()),
+				RuntimeOrigin::signed(evaluator),
 				project_id,
 				evaluator,
 				first_evaluation.id
@@ -74,14 +74,14 @@ fn cannot_settle_successful_project_twice() {
 
 		let bidder = first_bid.bidder;
 		assert_ok!(crate::Pallet::<TestRuntime>::settle_successful_bid(
-			RuntimeOrigin::signed(bidder.clone()),
+			RuntimeOrigin::signed(bidder),
 			project_id,
 			bidder,
 			first_bid.id
 		));
 		assert_noop!(
 			crate::Pallet::<TestRuntime>::settle_successful_bid(
-				RuntimeOrigin::signed(bidder.clone()),
+				RuntimeOrigin::signed(bidder),
 				project_id,
 				bidder,
 				first_bid.id
@@ -91,14 +91,14 @@ fn cannot_settle_successful_project_twice() {
 
 		let contributor = first_contribution.contributor;
 		assert_ok!(crate::Pallet::<TestRuntime>::settle_successful_contribution(
-			RuntimeOrigin::signed(contributor.clone()),
+			RuntimeOrigin::signed(contributor),
 			project_id,
 			contributor,
 			first_contribution.id
 		));
 		assert_noop!(
 			crate::Pallet::<TestRuntime>::settle_successful_contribution(
-				RuntimeOrigin::signed(contributor.clone()),
+				RuntimeOrigin::signed(contributor),
 				project_id,
 				contributor,
 				first_contribution.id
@@ -120,14 +120,14 @@ fn cannot_settle_failed_project_twice() {
 	inst.execute(|| {
 		let evaluator = first_evaluation.evaluator;
 		assert_ok!(crate::Pallet::<TestRuntime>::settle_failed_evaluation(
-			RuntimeOrigin::signed(evaluator.clone()),
+			RuntimeOrigin::signed(evaluator),
 			project_id,
 			evaluator,
 			first_evaluation.id
 		));
 		assert_noop!(
 			crate::Pallet::<TestRuntime>::settle_failed_evaluation(
-				RuntimeOrigin::signed(evaluator.clone()),
+				RuntimeOrigin::signed(evaluator),
 				project_id,
 				evaluator,
 				first_evaluation.id
@@ -137,14 +137,14 @@ fn cannot_settle_failed_project_twice() {
 
 		let bidder = first_bid.bidder;
 		assert_ok!(crate::Pallet::<TestRuntime>::settle_failed_bid(
-			RuntimeOrigin::signed(bidder.clone()),
+			RuntimeOrigin::signed(bidder),
 			project_id,
 			bidder,
 			first_bid.id
 		));
 		assert_noop!(
 			crate::Pallet::<TestRuntime>::settle_failed_bid(
-				RuntimeOrigin::signed(bidder.clone()),
+				RuntimeOrigin::signed(bidder),
 				project_id,
 				bidder,
 				first_bid.id
@@ -154,14 +154,14 @@ fn cannot_settle_failed_project_twice() {
 
 		let contributor = first_contribution.contributor;
 		assert_ok!(crate::Pallet::<TestRuntime>::settle_failed_contribution(
-			RuntimeOrigin::signed(contributor.clone()),
+			RuntimeOrigin::signed(contributor),
 			project_id,
 			contributor,
 			first_contribution.id
 		));
 		assert_noop!(
 			crate::Pallet::<TestRuntime>::settle_failed_contribution(
-				RuntimeOrigin::signed(contributor.clone()),
+				RuntimeOrigin::signed(contributor),
 				project_id,
 				contributor,
 				first_contribution.id
@@ -189,7 +189,7 @@ fn evaluator_slashed_if_between_33_and_75() {
 			match ProjectsDetails::<TestRuntime>::get(project_id).unwrap().status {
 				ProjectStatus::FundingSuccessful => {
 					assert_ok!(crate::Pallet::<TestRuntime>::settle_successful_evaluation(
-						RuntimeOrigin::signed(evaluator.clone()),
+						RuntimeOrigin::signed(evaluator),
 						project_id,
 						evaluator,
 						first_evaluation.id
@@ -197,7 +197,7 @@ fn evaluator_slashed_if_between_33_and_75() {
 				},
 				ProjectStatus::FundingFailed => {
 					assert_ok!(crate::Pallet::<TestRuntime>::settle_failed_evaluation(
-						RuntimeOrigin::signed(evaluator.clone()),
+						RuntimeOrigin::signed(evaluator),
 						project_id,
 						evaluator,
 						first_evaluation.id
@@ -234,7 +234,7 @@ fn evaluator_plmc_unchanged_between_76_and_89() {
 			match ProjectsDetails::<TestRuntime>::get(project_id).unwrap().status {
 				ProjectStatus::FundingSuccessful => {
 					assert_ok!(crate::Pallet::<TestRuntime>::settle_successful_evaluation(
-						RuntimeOrigin::signed(evaluator.clone()),
+						RuntimeOrigin::signed(evaluator),
 						project_id,
 						evaluator,
 						first_evaluation.id
@@ -242,7 +242,7 @@ fn evaluator_plmc_unchanged_between_76_and_89() {
 				},
 				ProjectStatus::FundingFailed => {
 					assert_ok!(crate::Pallet::<TestRuntime>::settle_failed_evaluation(
-						RuntimeOrigin::signed(evaluator.clone()),
+						RuntimeOrigin::signed(evaluator),
 						project_id,
 						evaluator,
 						first_evaluation.id
@@ -266,7 +266,7 @@ fn bid_is_correctly_settled_for_successful_project() {
 		let bidder = first_bid.bidder;
 
 		assert_ok!(crate::Pallet::<TestRuntime>::settle_successful_bid(
-			RuntimeOrigin::signed(bidder.clone()),
+			RuntimeOrigin::signed(bidder),
 			project_id,
 			bidder,
 			first_bid.id
@@ -293,7 +293,7 @@ fn bid_is_correctly_settled_for_failed_project() {
 	inst.execute(|| {
 		let bidder = first_bid.bidder;
 		assert_ok!(crate::Pallet::<TestRuntime>::settle_failed_bid(
-			RuntimeOrigin::signed(bidder.clone()),
+			RuntimeOrigin::signed(bidder),
 			project_id,
 			bidder,
 			first_bid.id
@@ -322,7 +322,7 @@ fn contribution_is_correctly_settled_for_successful_project() {
 		let contributor = first_contribution.contributor;
 
 		assert_ok!(crate::Pallet::<TestRuntime>::settle_successful_contribution(
-			RuntimeOrigin::signed(contributor.clone()),
+			RuntimeOrigin::signed(contributor),
 			project_id,
 			contributor,
 			first_contribution.id
@@ -352,7 +352,7 @@ fn contribution_is_correctly_settled_for_failed_project() {
 		let contributor = first_contribution.contributor;
 
 		assert_ok!(crate::Pallet::<TestRuntime>::settle_failed_contribution(
-			RuntimeOrigin::signed(contributor.clone()),
+			RuntimeOrigin::signed(contributor),
 			project_id,
 			contributor,
 			first_contribution.id

@@ -160,7 +160,6 @@ mod start_evaluation_extrinsic {
 
 			let project_id = inst.create_new_project(project_metadata.clone(), issuer);
 			let jwt = get_mock_jwt(issuer, InvestorType::Institutional, issuer_did.clone());
-			let project_details = inst.get_project_details(project_id);
 			let expected_details = ProjectDetailsOf::<TestRuntime> {
 				issuer_account: ISSUER_1,
 				issuer_did,
@@ -428,6 +427,7 @@ mod evaluate_extrinsic {
 					late_usd_amount: 0,
 					when: 1,
 				};
+				assert_eq!(stored_evaluation, &expected_evaluation_item);
 			});
 
 		}

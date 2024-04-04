@@ -1,5 +1,4 @@
 use super::*;
-use std::collections::HashMap;
 pub const HOURS: BlockNumber = 300u64;
 
 #[test]

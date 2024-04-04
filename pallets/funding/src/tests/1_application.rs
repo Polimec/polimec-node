@@ -361,7 +361,7 @@ mod create_project_extrinsic {
 
 		#[test]
 		fn invalid_ticket_sizes() {
-			let mut correct_project = default_project_metadata(ISSUER_1);
+			let correct_project = default_project_metadata(ISSUER_1);
 
 			// min in bidding below 5k
 			let mut wrong_project_1 = correct_project.clone();

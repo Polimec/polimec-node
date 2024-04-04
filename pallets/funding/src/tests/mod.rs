@@ -10,7 +10,7 @@ use defaults::*;
 use frame_support::{
 	assert_err, assert_noop, assert_ok,
 	traits::{
-		fungible::{Inspect as FungibleInspect, InspectHold as FungibleInspectHold, Mutate, MutateHold},
+		fungible::{Inspect as FungibleInspect, InspectHold as FungibleInspectHold, MutateHold},
 		Get,
 	},
 };
@@ -21,7 +21,7 @@ use polimec_common_test_utils::{generate_did_from_account, get_mock_jwt};
 use sp_arithmetic::{traits::Zero, Percent, Perquintill};
 use sp_runtime::{BuildStorage, TokenError};
 use sp_std::{cell::RefCell, marker::PhantomData};
-use std::{cmp::min, iter::zip, ops::Not};
+use std::{iter::zip};
 use frame_support::traits::fungible::MutateFreeze;
 type MockInstantiator =
 	Instantiator<TestRuntime, <TestRuntime as crate::Config>::AllPalletsWithoutSystem, RuntimeEvent>;
@@ -101,7 +101,7 @@ pub mod defaults {
 	pub fn default_project_metadata(issuer: AccountId) -> ProjectMetadataOf<TestRuntime> {
 		let bounded_name = BoundedVec::try_from("Contribution Token TEST".as_bytes().to_vec()).unwrap();
 		let bounded_symbol = BoundedVec::try_from("CTEST".as_bytes().to_vec()).unwrap();
-		let metadata_hash = hashed(format!("{}", METADATA));
+		let metadata_hash = hashed(METADATA.to_string());
 		ProjectMetadata {
 			token_information: CurrencyMetadata {
 				name: bounded_name,
