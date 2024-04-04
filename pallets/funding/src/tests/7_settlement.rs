@@ -1,6 +1,5 @@
 use super::*;
 
-
 #[test]
 fn can_settle_accepted_project() {
 	let percentage = 100u64;

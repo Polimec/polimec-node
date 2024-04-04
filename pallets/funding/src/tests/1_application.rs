@@ -165,7 +165,6 @@ mod create_project_extrinsic {
 				));
 			});
 
-
 			// A Project is "inactive" after the funding fails
 			inst.start_evaluation(1, ISSUER_1).unwrap();
 			inst.evaluate_for_users(1, default_evaluations()).unwrap();
