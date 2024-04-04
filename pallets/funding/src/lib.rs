@@ -63,7 +63,7 @@
 //! All users who wish to participate need to have a valid credential, given to them on the KILT parachain, by a KYC/AML provider.
 //! ### Extrinsics
 //! * [`create`](Pallet::create_project) : Creates a new project.
-//! * [`edit_metadata`](Pallet::edit_metadata) : Submit a new Hash of the project metadata.
+//! * [`edit_metadata`](Pallet::edit_project) : Submit a new Hash of the project metadata.
 //! * [`start_evaluation`](Pallet::start_evaluation) : Start the Evaluation round of a project.
 //! * [`start_auction`](Pallet::start_auction) : Start the English Auction round of a project.
 //! * [`bond_evaluation`](Pallet::evaluate) : Bond PLMC on a project in the evaluation stage. A sort of "bet" that you think the project will be funded
@@ -729,18 +729,8 @@ pub mod pallet {
 	pub enum Error<T> {
 		/// Something in storage has a state which should never be possible at this point. Programming error
 		ImpossibleState,
-		/// The price provided in the `create` call is too low
-		PriceTooLow,
-		/// The participation size provided in the `create` call is too low
-		ParticipantsSizeError,
-		/// The ticket size provided in the `create` call is too low
-		TicketSizeError,
-		/// The participation currencies specified are invalid
-		ParticipationCurrenciesError,
 		/// The specified project does not exist
 		ProjectNotFound,
-		/// The Evaluation Round of the project has not started yet
-		EvaluationNotStarted,
 		/// The Evaluation Round of the project has ended without reaching the minimum threshold
 		EvaluationFailed,
 		/// The issuer cannot participate to their own project
@@ -845,7 +835,7 @@ pub mod pallet {
 		/// The issuer tried to create a new project but already has an active one
 		IssuerHasActiveProjectAlready,
 		NotEnoughFunds,
-		BadMetadata,
+		BadMetadata(MetadataError),
 	}
 
 	#[pallet::call]
@@ -876,7 +866,7 @@ pub mod pallet {
 		/// Change the metadata hash of a project
 		#[pallet::call_index(1)]
 		#[pallet::weight(WeightInfoOf::<T>::edit_metadata())]
-		pub fn edit_metadata(
+		pub fn edit_project(
 			origin: OriginFor<T>,
 			jwt: UntrustedToken,
 			project_id: ProjectId,
@@ -885,7 +875,7 @@ pub mod pallet {
 			let (account, _did, investor_type) =
 				T::InvestorOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get())?;
 			ensure!(investor_type == InvestorType::Institutional, Error::<T>::NotAllowed);
-			Self::do_edit_metadata(account, project_id, new_project_metadata)
+			Self::do_edit_project(account, project_id, new_project_metadata)
 		}
 
 		/// Starts the evaluation round of a project. It needs to be called by the project issuer.
