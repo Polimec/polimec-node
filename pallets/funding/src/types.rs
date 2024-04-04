@@ -692,7 +692,7 @@ pub mod inner_types {
 
 	#[derive(Clone, Copy, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
 	pub enum RejectionReason {
-		/// The bid was submitted after the closing auction ended
+		/// The bid was submitted after the closing period ended
 		AfterClosingEnd,
 		/// The bid was accepted but too many tokens were requested. A partial amount was accepted
 		NoTokensLeft,

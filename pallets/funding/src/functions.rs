@@ -1933,7 +1933,7 @@ impl<T: Config> Pallet<T> {
 		end_block: BlockNumberFor<T>,
 		auction_allocation_size: BalanceOf<T>,
 	) -> Result<(u32, u32), DispatchError> {
-		// Get all the bids that were made before the end of the closing
+		// Get all the bids that were made before the end of the closing period.
 		let mut bids = Bids::<T>::iter_prefix_values((project_id,)).collect::<Vec<_>>();
 		// temp variable to store the sum of the bids
 		let mut bid_token_amount_sum = Zero::zero();
@@ -1944,7 +1944,7 @@ impl<T: Config> Pallet<T> {
 
 		// sort bids by price, and equal prices sorted by id
 		bids.sort_by(|a, b| b.cmp(a));
-		// accept only bids that were made before `end_block` i.e end of auction closing
+		// accept only bids that were made before `end_block` i.e end of the the auction candle. 
 		let (accepted_bids, rejected_bids): (Vec<_>, Vec<_>) = bids
 			.into_iter()
 			.map(|mut bid| {

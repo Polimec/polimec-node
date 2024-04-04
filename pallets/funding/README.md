@@ -62,15 +62,15 @@ on the KILT parachain, by a KYC/AML provider.
 - `create` : Creates a new project.
 - `edit_metadata` : Submit a new Hash of the project metadata.
 - `start_evaluation` : Start the Evaluation round of a project.
-- `start_auction` : Start the Opening Auction phase of a project.
+- `start_auction` : Start the auction round of a project.
 - `bond_evaluation` : Bond PLMC on a project in the evaluation stage. A sort of
   "bet" that you think the project will be funded
 - `failed_evaluation_unbond_for` : Unbond the PLMC bonded on a project's
   evaluation round for any user, if the project failed the evaluation.
-- `bid` : Perform a bid during the Opening or Closing Auction Phase.
+- `bid` : Perform a bid during the auction round.
 - `contribute` : Buy contribution tokens if a project during the Community or
   Remainder round
-- `vested_plmc_bid_unbond_for` : Unbond the PLMC bonded on a project's Opening or Closing Auction Phase for any user, based on their vesting schedule.
+- `vested_plmc_bid_unbond_for` : Unbond the PLMC bonded on a project's auction round for any user, based on their vesting schedule.
 - `vested_plmc_purchase_unbond_for` : Unbond the PLMC bonded on a project's
   Community or Remainder Round for any user, based on their vesting schedule.
 - `vested_contribution_token_bid_mint_for` : Mint the contribution tokens for a
@@ -95,7 +95,7 @@ on the KILT parachain, by a KYC/AML provider.
 - `EvaluationBonds`: Double map linking a project-user to the PLMC they bonded
   in the evaluation round.
 - `BiddingBonds`: Double map linking a project-user to the PLMC they bonded in
-  the Opening or Closing Auction round.
+  the auction round.
 - `ContributingBonds`: Double map linking a project-user to the PLMC they bonded
   in the Community or Remainder round.
 - `Contributions`: Double map linking a project-user to the contribution tokens
