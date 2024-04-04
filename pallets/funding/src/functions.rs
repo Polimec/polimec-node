@@ -1944,7 +1944,7 @@ impl<T: Config> Pallet<T> {
 
 		// sort bids by price, and equal prices sorted by id
 		bids.sort_by(|a, b| b.cmp(a));
-		// accept only bids that were made before `end_block` i.e end of the the auction candle. 
+		// accept only bids that were made before `end_block` i.e end of the the auction candle.
 		let (accepted_bids, rejected_bids): (Vec<_>, Vec<_>) = bids
 			.into_iter()
 			.map(|mut bid| {
