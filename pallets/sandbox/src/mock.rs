@@ -140,8 +140,8 @@
 // parameter_types! {
 // 	pub const EvaluationDuration: BlockNumber = (28 * HOURS) as BlockNumber;
 // 	pub const AuctionInitializePeriodDuration: BlockNumber = (7 * HOURS) as BlockNumber;
-// 	pub const EnglishAuctionDuration: BlockNumber = (2 * HOURS) as BlockNumber;
-// 	pub const CandleAuctionDuration: BlockNumber = (3 * HOURS) as BlockNumber;
+// 	pub const AuctionOpeningDuration: BlockNumber = (2 * HOURS) as BlockNumber;
+// 	pub const AuctionClosingDuration: BlockNumber = (3 * HOURS) as BlockNumber;
 // 	pub const CommunityRoundDuration: BlockNumber = (5 * HOURS) as BlockNumber;
 // 	pub const RemainderFundingDuration: BlockNumber = (1 * HOURS) as BlockNumber;
 // 	pub const FundingPalletId: PalletId = PalletId(*b"py/cfund");
@@ -166,11 +166,11 @@
 // 	type Balance = Balance;
 // 	#[cfg(feature = "runtime-benchmarks")]
 // 	type BenchmarkHelper = ();
-// 	type CandleAuctionDuration = CandleAuctionDuration;
+// 	type AuctionClosingDuration = AuctionClosingDuration;
 // 	type CommunityFundingDuration = CommunityRoundDuration;
 // 	type ContributionTokenCurrency = ();
 // 	type ContributionVesting = ConstU32<4>;
-// 	type EnglishAuctionDuration = EnglishAuctionDuration;
+// 	type AuctionOpeningDuration = AuctionOpeningDuration;
 // 	type EvaluationDuration = EvaluationDuration;
 // 	type EvaluationSuccessThreshold = EarlyEvaluationThreshold;
 // 	type FeeBrackets = FeeBrackets;

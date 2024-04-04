@@ -74,7 +74,7 @@ mod round_flow {
 			let now = inst.current_block();
 			inst.advance_time(update_block - now + 1).unwrap();
 			let project_status = inst.get_project_details(project_id).status;
-			assert_eq!(project_status, ProjectStatus::EvaluationFailed);
+			assert_eq!(project_status, ProjectStatus::FundingFailed);
 		}
 	}
 
@@ -117,7 +117,7 @@ mod round_flow {
 
 			inst.advance_time(evaluation_end - now + 1).unwrap();
 
-			assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::EvaluationFailed);
+			assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::FundingFailed);
 
 			// Check that on_idle has unlocked the failed bonds
 			inst.settle_project(project_id).unwrap();
@@ -173,9 +173,9 @@ mod start_evaluation_extrinsic {
 						end: Some(1u64 + <TestRuntime as Config>::EvaluationDuration::get()),
 					},
 					auction_initialize_period: BlockNumberPair { start: None, end: None },
-					english_auction: BlockNumberPair { start: None, end: None },
-					random_candle_ending: None,
-					candle_auction: BlockNumberPair { start: None, end: None },
+					auction_opening: BlockNumberPair { start: None, end: None },
+					random_closing_ending: None,
+					auction_closing: BlockNumberPair { start: None, end: None },
 					community: BlockNumberPair { start: None, end: None },
 					remainder: BlockNumberPair { start: None, end: None },
 				},
