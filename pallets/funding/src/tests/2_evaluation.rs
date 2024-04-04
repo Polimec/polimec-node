@@ -168,7 +168,10 @@ mod start_evaluation_extrinsic {
 				status: ProjectStatus::EvaluationRound,
 				phase_transition_points: PhaseTransitionPoints {
 					application: BlockNumberPair { start: Some(1u64), end: Some(1u64) },
-					evaluation: BlockNumberPair { start: Some(2u64), end: Some(1u64 + <TestRuntime as Config>::EvaluationDuration::get()) },
+					evaluation: BlockNumberPair {
+						start: Some(2u64),
+						end: Some(1u64 + <TestRuntime as Config>::EvaluationDuration::get()),
+					},
 					auction_initialize_period: BlockNumberPair { start: None, end: None },
 					english_auction: BlockNumberPair { start: None, end: None },
 					random_candle_ending: None,
@@ -176,7 +179,9 @@ mod start_evaluation_extrinsic {
 					community: BlockNumberPair { start: None, end: None },
 					remainder: BlockNumberPair { start: None, end: None },
 				},
-				fundraising_target: project_metadata.minimum_price.saturating_mul_int(project_metadata.total_allocation_size),
+				fundraising_target: project_metadata
+					.minimum_price
+					.saturating_mul_int(project_metadata.total_allocation_size),
 				remaining_contribution_tokens: project_metadata.total_allocation_size,
 				funding_amount_reached: 0u128,
 				evaluation_round_info: EvaluationRoundInfoOf::<TestRuntime> {
@@ -187,7 +192,10 @@ mod start_evaluation_extrinsic {
 				funding_end_block: None,
 				parachain_id: None,
 				migration_readiness_check: None,
-				hrmp_channel_status: HRMPChannelStatus { project_to_polimec: ChannelStatus::Closed, polimec_to_project: ChannelStatus::Closed },
+				hrmp_channel_status: HRMPChannelStatus {
+					project_to_polimec: ChannelStatus::Closed,
+					polimec_to_project: ChannelStatus::Closed,
+				},
 			};
 			assert_ok!(inst.execute(|| PolimecFunding::start_evaluation(
 				RuntimeOrigin::signed(issuer),
@@ -429,7 +437,6 @@ mod evaluate_extrinsic {
 				};
 				assert_eq!(stored_evaluation, &expected_evaluation_item);
 			});
-
 		}
 	}
 

@@ -10,7 +10,7 @@ use defaults::*;
 use frame_support::{
 	assert_err, assert_noop, assert_ok,
 	traits::{
-		fungible::{Inspect as FungibleInspect, InspectHold as FungibleInspectHold, MutateHold},
+		fungible::{Inspect as FungibleInspect, InspectHold as FungibleInspectHold, MutateFreeze, MutateHold},
 		Get,
 	},
 };
@@ -21,8 +21,7 @@ use polimec_common_test_utils::{generate_did_from_account, get_mock_jwt};
 use sp_arithmetic::{traits::Zero, Percent, Perquintill};
 use sp_runtime::{BuildStorage, TokenError};
 use sp_std::{cell::RefCell, marker::PhantomData};
-use std::{iter::zip};
-use frame_support::traits::fungible::MutateFreeze;
+use std::iter::zip;
 type MockInstantiator =
 	Instantiator<TestRuntime, <TestRuntime as crate::Config>::AllPalletsWithoutSystem, RuntimeEvent>;
 

@@ -460,8 +460,12 @@ mod create_project_extrinsic {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 			inst.mint_plmc_to(default_plmc_balances());
 			let project_err = inst.execute(|| {
-				Pallet::<TestRuntime>::do_create_project(&ISSUER_1, project_metadata, generate_did_from_account(ISSUER_1))
-					.unwrap_err()
+				Pallet::<TestRuntime>::do_create_project(
+					&ISSUER_1,
+					project_metadata,
+					generate_did_from_account(ISSUER_1),
+				)
+				.unwrap_err()
 			});
 			assert_eq!(project_err, Error::<TestRuntime>::BadMetadata(MetadataError::PriceTooLow).into());
 		}
