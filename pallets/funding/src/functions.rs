@@ -1009,7 +1009,7 @@ impl<T: Config> Pallet<T> {
 			project_id,
 			evaluator: evaluator.clone(),
 			id: evaluation_id,
-			amount: plmc_bond,
+			plmc_amount: plmc_bond,
 		});
 
 		let existing_evaluations_count = caller_existing_evaluations.len() as u32;
@@ -1208,8 +1208,11 @@ impl<T: Config> Pallet<T> {
 			project_id,
 			bidder: bidder.clone(),
 			id: bid_id,
-			amount: ct_amount,
-			price: ct_usd_price,
+			ct_amount,
+			ct_price: ct_usd_price,
+			funding_asset,
+			funding_amount: funding_asset_amount_locked,
+			plmc_bond,
 			multiplier,
 		});
 
@@ -1421,7 +1424,10 @@ impl<T: Config> Pallet<T> {
 			project_id,
 			contributor: contributor.clone(),
 			id: contribution_id,
-			amount: buyable_tokens,
+			ct_amount: buyable_tokens,
+			funding_asset,
+			funding_amount: funding_asset_amount,
+			plmc_bond,
 			multiplier,
 		});
 
@@ -2113,7 +2119,15 @@ impl<T: Config> Pallet<T> {
 		// Refund bid should only be called when the bid is rejected, so this if let should
 		// always match.
 		if let BidStatus::Rejected(reason) = bid.status {
-			Self::deposit_event(Event::BidRefunded { project_id, account: bid.bidder.clone(), bid_id: bid.id, reason });
+			Self::deposit_event(Event::BidRefunded {
+				project_id,
+				account: bid.bidder.clone(),
+				bid_id: bid.id,
+				reason,
+				plmc_amount: bid.plmc_bond,
+				funding_asset: bid.funding_asset,
+				funding_amount: bid.funding_asset_amount_locked,
+			});
 		}
 
 		Ok(())

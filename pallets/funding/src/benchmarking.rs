@@ -752,7 +752,7 @@ mod benchmarks {
 				project_id,
 				evaluator: evaluation.account.clone(),
 				id: stored_evaluation.id,
-				amount: extrinsic_plmc_bonded,
+				plmc_amount: extrinsic_plmc_bonded,
 			}
 			.into(),
 		);
@@ -1079,11 +1079,11 @@ mod benchmarks {
 				T,
 				Event::<T>::Bid {
 					project_id,
-					amount,
+					ct_amount,
 					multiplier, ..
 				},
 				project_id == project_id,
-				amount == bid_params.amount,
+				ct_amount == bid_params.amount,
 				multiplier == bid_params.multiplier
 			}
 			.expect("Event has to be emitted");
@@ -1341,7 +1341,10 @@ mod benchmarks {
 				project_id,
 				contributor,
 				id: stored_contribution.id,
-				amount: extrinsic_contribution.amount,
+				ct_amount: extrinsic_contribution.amount,
+				funding_asset: stored_contribution.funding_asset,
+				funding_amount: stored_contribution.funding_asset_amount,
+				plmc_bond: stored_contribution.plmc_bond,
 				multiplier: extrinsic_contribution.multiplier,
 			}
 			.into(),
@@ -1566,7 +1569,7 @@ mod benchmarks {
 				account: evaluator.clone(),
 				id: evaluation_to_settle.id,
 				ct_amount: reward,
-				slashed_amount: 0.into(),
+				slashed_plmc_amount: 0.into(),
 			}
 			.into(),
 		);
@@ -1644,7 +1647,7 @@ mod benchmarks {
 				account: evaluator.clone(),
 				id: evaluation_to_settle.id,
 				ct_amount: 0.into(),
-				slashed_amount,
+				slashed_plmc_amount: slashed_amount,
 			}
 			.into(),
 		);

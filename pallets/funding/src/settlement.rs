@@ -64,7 +64,7 @@ impl<T: Config> Pallet<T> {
 			account: evaluation.evaluator,
 			id: evaluation.id,
 			ct_amount: reward,
-			slashed_amount: evaluation.current_plmc_bond.saturating_sub(bond),
+			slashed_plmc_amount: evaluation.current_plmc_bond.saturating_sub(bond),
 		});
 
 		Ok(())
@@ -95,7 +95,7 @@ impl<T: Config> Pallet<T> {
 			account: evaluation.evaluator,
 			id: evaluation.id,
 			ct_amount: Zero::zero(),
-			slashed_amount: evaluation.current_plmc_bond.saturating_sub(bond),
+			slashed_plmc_amount: evaluation.current_plmc_bond.saturating_sub(bond),
 		});
 
 		Ok(())
