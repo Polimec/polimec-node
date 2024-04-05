@@ -7585,20 +7585,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "pallet-skip-feeless-payment"
-version = "3.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dc512514bc78be8896f4cf7128e16188415ea0b68e73f3fe240a83cdbb236512"
-dependencies = [
- "frame-support",
- "frame-system",
- "parity-scale-codec",
- "scale-info",
- "sp-runtime",
- "sp-std",
-]
-
-[[package]]
 name = "pallet-society"
 version = "28.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -8615,7 +8601,6 @@ dependencies = [
  "pallet-proxy",
  "pallet-scheduler",
  "pallet-session",
- "pallet-skip-feeless-payment",
  "pallet-sudo",
  "pallet-timestamp",
  "pallet-transaction-payment",

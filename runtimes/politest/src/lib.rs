@@ -145,9 +145,9 @@ pub type SignedExtra = (
 	frame_system::CheckTxVersion<Runtime>,
 	frame_system::CheckGenesis<Runtime>,
 	frame_system::CheckEra<Runtime>,
-	frame_system::CheckNonce<Runtime>,
+	pallet_faucet::extensions::CheckNonce<Runtime>,
 	frame_system::CheckWeight<Runtime>,
-	pallet_skip_feeless_payment::SkipCheckIfFeeless<
+	pallet_faucet::extensions::SkipCheckIfFeeless<
 		Runtime,
 		pallet_transaction_payment::ChargeTransactionPayment<Runtime>,
 	>,
@@ -838,9 +838,9 @@ where
 			frame_system::CheckTxVersion::<Runtime>::new(),
 			frame_system::CheckGenesis::<Runtime>::new(),
 			frame_system::CheckEra::<Runtime>::from(generic::Era::mortal(period, current_block)),
-			frame_system::CheckNonce::<Runtime>::from(nonce),
+			pallet_faucet::extensions::CheckNonce::<Runtime>::from(nonce),
 			frame_system::CheckWeight::<Runtime>::new(),
-			pallet_skip_feeless_payment::SkipCheckIfFeeless::from(
+			pallet_faucet::extensions::SkipCheckIfFeeless::from(
 				pallet_transaction_payment::ChargeTransactionPayment::<Runtime>::from(tip),
 			),
 		);
@@ -1070,10 +1070,6 @@ impl pallet_faucet::Config for Runtime {
 	type WeightInfo = ();
 }
 
-impl pallet_skip_feeless_payment::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
-}
-
 // Create the runtime by composing the FRAME pallets that were previously configured.
 construct_runtime!(
 	pub enum Runtime
@@ -1096,7 +1092,6 @@ construct_runtime!(
 		ContributionTokens: pallet_assets::<Instance1> = 13,
 		ForeignAssets: pallet_assets::<Instance2> = 14,
 		Claims: pallet_faucet = 15,
-		SkipFeelessPayment: pallet_skip_feeless_payment = 16,
 
 		// Collator support. the order of these 5 are important and shall not change.
 		Authorship: pallet_authorship::{Pallet, Storage} = 20,

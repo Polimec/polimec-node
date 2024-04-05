@@ -15,11 +15,12 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use crate::*;
-use frame_support::assert_ok;
+use tests::defaults::*;
+use macros::generate_accounts;
+use frame_support::{assert_ok, dispatch::GetDispatchInfo};
 use polimec_common::credentials::InvestorType;
 use polimec_common_test_utils::{get_fake_jwt, get_test_jwt};
-use sp_runtime::{AccountId32, DispatchError};
-use tests::defaults::*;
+use sp_runtime::{AccountId32, DispatchError, traits::SignedExtension, generic::Era};
 
 #[test]
 fn test_jwt_for_create() {
@@ -56,30 +57,25 @@ fn test_jwt_verification() {
 	});
 }
 
-use sp_runtime::traits::SignedExtension;
-use macros::generate_accounts;
-use frame_support::dispatch::GetDispatchInfo;
-use sp_runtime::generic::Era;
 generate_accounts!(CLAIMER);
 
 #[test]
 fn faucet_pre_dispatch_passed_for_new_account() {
 	PolitestNet::execute_with(|| {
-		dbg!(<PolitestNet as PolitestParaPallet>::Claims::claiming_account());
 		let who = PolitestAccountId::from(CLAIMER);
-		let jwt = get_fake_jwt(who.clone(), InvestorType::Institutional);
-		let call = PolitestCall::Claims(pallet_faucet::Call::claim {jwt: jwt});
-
+		let jwt = get_test_jwt(who.clone(), InvestorType::Retail);
+		let call = PolitestCall::Claims(pallet_faucet::Call::claim {jwt: jwt.clone()});
 		let extra: politest_runtime::SignedExtra = (
 			frame_system::CheckNonZeroSender::<PolitestRuntime>::new(),
 			frame_system::CheckSpecVersion::<PolitestRuntime>::new(),
 			frame_system::CheckTxVersion::<PolitestRuntime>::new(),
 			frame_system::CheckGenesis::<PolitestRuntime>::new(),
 			frame_system::CheckEra::<PolitestRuntime>::from(Era::mortal(0u64, 0u64)),
-			frame_system::CheckNonce::<PolitestRuntime>::from(0u32),
+			pallet_faucet::extensions::CheckNonce::<PolitestRuntime>::from(0u32),
 			frame_system::CheckWeight::<PolitestRuntime>::new(),
 			pallet_transaction_payment::ChargeTransactionPayment::<PolitestRuntime>::from(0u64.into()).into(),
 		);
+		assert_ok!(extra.validate(&who, &call, &call.get_dispatch_info(), 0));
 		assert_ok!(extra.pre_dispatch(&who, &call, &call.get_dispatch_info(), 0));
 	});
 }

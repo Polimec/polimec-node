@@ -171,8 +171,6 @@ fn create_settled_project() -> (ProjectId, Vec<AccountId>) {
 fn full_migration_test() {
 	let (project_id, participants) = create_settled_project();
 
-	dbg!(get_migrations_for_participants(project_id, participants.clone()));
-
 	mock_hrmp_establishment(project_id);
 
 	assert_migration_is_ready(project_id);

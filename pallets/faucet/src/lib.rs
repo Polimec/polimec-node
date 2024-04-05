@@ -1,9 +1,30 @@
+// Polimec Blockchain – https://www.polimec.org/
+// Copyright (C) Polimec 2022. All rights reserved.
+
+// The Polimec Blockchain is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// The Polimec Blockchain is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+// If you feel like getting in touch with us, you can do so at info@polimec.org
+
 #![cfg_attr(not(feature = "std"), no_std)]
 pub use pallet::*;
 
 pub use frame_support::{traits::{Currency, ExistenceRequirement, tokens::{Balance, currency::VestingSchedule}}};
 pub use polimec_common::credentials::{Did, EnsureOriginWithCredentials, InvestorType, UntrustedToken };
 pub use sp_runtime::traits::Convert;
+
+pub mod extensions;
+
 #[cfg(test)]
 mod mock;
 
@@ -98,7 +119,13 @@ pub mod pallet {
 
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
-		#[pallet::feeless_if( | _origin: &OriginFor<T>, _jwt: &UntrustedToken | -> bool { true })]
+		#[pallet::feeless_if( | origin: &OriginFor<T>, jwt: &UntrustedToken | -> bool { 
+            if let Ok((_, did, _)) = T::InvestorOrigin::ensure_origin(origin.clone(), jwt, T::VerifierPublicKey::get()) {
+                Claims::<T>::get(did).is_none()
+            } else {
+                false
+            }
+         })]
 		#[pallet::call_index(0)]
 		#[pallet::weight(Weight::from_parts(10_000, 0) + T::DbWeight::get().writes(1))]
 		pub fn claim(origin: OriginFor<T>, jwt: UntrustedToken) -> DispatchResultWithPostInfo {
