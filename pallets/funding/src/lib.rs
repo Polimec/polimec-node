@@ -117,7 +117,7 @@ pub use crate::weights::WeightInfo;
 use frame_support::{
 	traits::{
 		tokens::{fungible, fungibles, Balance},
-		AccountTouch, ContainsPair, Randomness,
+		AccountTouch, ContainsPair, Randomness, StorageVersion,
 	},
 	BoundedVec, PalletId,
 };
@@ -150,6 +150,7 @@ pub mod tests;
 pub mod benchmarking;
 #[cfg(any(feature = "runtime-benchmarks", feature = "std"))]
 pub mod instantiator;
+pub mod migration;
 pub mod traits;
 
 pub type AccountIdOf<T> = <T as frame_system::Config>::AccountId;
@@ -209,6 +210,7 @@ pub mod pallet {
 	}
 
 	#[pallet::pallet]
+	#[pallet::storage_version(migration::STORAGE_VERSION)]
 	pub struct Pallet<T>(_);
 
 	#[pallet::config]
