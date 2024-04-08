@@ -17,4 +17,3 @@ use sp_std::marker::PhantomData;
 /// The current storage version
 pub const STORAGE_VERSION: StorageVersion = StorageVersion::new(1);
 pub const LOG: &str = "runtime::funding::migration";
-

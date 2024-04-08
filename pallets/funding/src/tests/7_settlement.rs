@@ -357,3 +357,98 @@ fn contribution_is_correctly_settled_for_failed_project() {
 		assert_eq!(ct_amount, Zero::zero());
 	});
 }
+#[test]
+fn unsuccessful_bids_dont_get_vest_schedule() {
+	let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+	let issuer = ISSUER_1;
+	let project_metadata = default_project_metadata(issuer);
+	let evaluations = default_evaluations();
+	let auction_token_allocation =
+		project_metadata.auction_round_allocation_percentage * project_metadata.total_allocation_size;
+
+	let mut bids = MockInstantiator::generate_bids_from_total_usd(
+		Percent::from_percent(80) * project_metadata.minimum_price.saturating_mul_int(auction_token_allocation),
+		project_metadata.minimum_price,
+		vec![60, 40],
+		vec![BIDDER_1, BIDDER_2],
+		vec![1u8, 1u8],
+	);
+
+	let available_tokens =
+		auction_token_allocation.saturating_sub(bids.iter().fold(0, |acc, bid| acc + bid.amount));
+
+	let rejected_bid = vec![BidParams::new(BIDDER_5, available_tokens, 1u8, AcceptedFundingAsset::USDT)];
+	let accepted_bid = vec![BidParams::new(BIDDER_4, available_tokens, 2u8, AcceptedFundingAsset::USDT)];
+	bids.extend(rejected_bid.clone());
+	bids.extend(accepted_bid.clone());
+
+	let community_contributions = default_community_buys();
+
+	let project_id = inst.create_auctioning_project(project_metadata.clone(), issuer, evaluations);
+
+	let bidders_plmc = MockInstantiator::calculate_auction_plmc_charged_from_all_bids_made_or_with_bucket(
+		&bids,
+		project_metadata.clone(),
+		None,
+	);
+	let bidders_existential_deposits = bidders_plmc.accounts().existential_deposits();
+	inst.mint_plmc_to(bidders_plmc.clone());
+	inst.mint_plmc_to(bidders_existential_deposits);
+
+	let bidders_funding_assets =
+		MockInstantiator::calculate_auction_funding_asset_charged_from_all_bids_made_or_with_bucket(
+			&bids,
+			project_metadata.clone(),
+			None,
+		);
+	inst.mint_foreign_asset_to(bidders_funding_assets);
+
+	inst.bid_for_users(project_id, bids).unwrap();
+
+	inst.start_community_funding(project_id).unwrap();
+
+	let final_price = inst.get_project_details(project_id).weighted_average_price.unwrap();
+	let contributors_plmc =
+		MockInstantiator::calculate_contributed_plmc_spent(community_contributions.clone(), final_price);
+	let contributors_existential_deposits = contributors_plmc.accounts().existential_deposits();
+	inst.mint_plmc_to(contributors_plmc.clone());
+	inst.mint_plmc_to(contributors_existential_deposits);
+
+	let contributors_funding_assets = MockInstantiator::calculate_contributed_funding_asset_spent(
+		community_contributions.clone(),
+		final_price,
+	);
+	inst.mint_foreign_asset_to(contributors_funding_assets);
+
+	inst.contribute_for_users(project_id, community_contributions).unwrap();
+	inst.start_remainder_or_end_funding(project_id).unwrap();
+	inst.finish_funding(project_id).unwrap();
+
+	inst.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get()).unwrap();
+	inst.settle_project(project_id).unwrap();
+
+	let plmc_locked_for_accepted_bid =
+		MockInstantiator::calculate_auction_plmc_charged_with_given_price(&accepted_bid, final_price);
+	let plmc_locked_for_rejected_bid =
+		MockInstantiator::calculate_auction_plmc_charged_with_given_price(&rejected_bid, final_price);
+
+	let UserToPLMCBalance { account: accepted_user, plmc_amount: accepted_plmc_amount } =
+		plmc_locked_for_accepted_bid[0];
+	let schedule = inst.execute(|| {
+		<TestRuntime as Config>::Vesting::total_scheduled_amount(
+			&accepted_user,
+			HoldReason::Participation(project_id).into(),
+		)
+	});
+	assert_close_enough!(schedule.unwrap(), accepted_plmc_amount, Perquintill::from_float(0.99));
+
+	let UserToPLMCBalance { account: rejected_user, .. } = plmc_locked_for_rejected_bid[0];
+	assert!(inst
+		.execute(|| {
+			<TestRuntime as Config>::Vesting::total_scheduled_amount(
+				&rejected_user,
+				HoldReason::Participation(project_id).into(),
+			)
+		})
+		.is_none());
+}
