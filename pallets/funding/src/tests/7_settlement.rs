@@ -1,21 +1,6 @@
 use super::*;
 
 #[test]
-fn failed_auction_is_settled() {
-	let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
-	let project_metadata = default_project_metadata(ISSUER_1);
-	let project_id = inst.create_auctioning_project(project_metadata.clone(), ISSUER_1, default_evaluations());
-	inst.start_community_funding(project_id).unwrap_err();
-	// execute `do_end_funding`
-	inst.advance_time(1).unwrap();
-	assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::FundingFailed);
-	// execute `do_start_settlement`
-	inst.advance_time(1).unwrap();
-	// Settle the project.
-	inst.settle_project(project_id).unwrap();
-}
-
-#[test]
 fn can_settle_accepted_project() {
 	let percentage = 100u64;
 	let (mut inst, project_id) = create_project_with_funding_percentage(percentage, None);

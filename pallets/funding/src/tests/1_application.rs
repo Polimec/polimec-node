@@ -156,32 +156,7 @@ mod create_project_extrinsic {
 				);
 			});
 			inst.advance_time(<TestRuntime as Config>::EvaluationDuration::get() + 1).unwrap();
-			assert_eq!(inst.get_project_details(0).status, ProjectStatus::EvaluationFailed);
-			inst.execute(|| {
-				assert_ok!(Pallet::<TestRuntime>::create_project(
-					RuntimeOrigin::signed(ISSUER_1),
-					jwt.clone(),
-					project_metadata.clone()
-				));
-			});
-
-			// A Project is "inactive" after the auction fails
-			inst.start_evaluation(1, ISSUER_1).unwrap();
-			inst.evaluate_for_users(1, default_evaluations()).unwrap();
-			inst.start_auction(1, ISSUER_1).unwrap();
-			inst.execute(|| {
-				assert_noop!(
-					Pallet::<TestRuntime>::create_project(
-						RuntimeOrigin::signed(ISSUER_1),
-						jwt.clone(),
-						project_metadata.clone()
-					),
-					Error::<TestRuntime>::IssuerHasActiveProjectAlready
-				);
-			});
-			inst.start_community_funding(1).unwrap_err();
-			inst.advance_time(1).unwrap();
-			assert_eq!(inst.get_project_details(1).status, ProjectStatus::FundingFailed);
+			assert_eq!(inst.get_project_details(0).status, ProjectStatus::FundingFailed);
 			inst.execute(|| {
 				assert_ok!(Pallet::<TestRuntime>::create_project(
 					RuntimeOrigin::signed(ISSUER_1),
@@ -191,11 +166,11 @@ mod create_project_extrinsic {
 			});
 
 			// A Project is "inactive" after the funding fails
-			inst.start_evaluation(2, ISSUER_1).unwrap();
-			inst.evaluate_for_users(2, default_evaluations()).unwrap();
-			inst.start_auction(2, ISSUER_1).unwrap();
-			inst.bid_for_users(2, failing_bids).unwrap();
-			inst.start_community_funding(2).unwrap();
+			inst.start_evaluation(1, ISSUER_1).unwrap();
+			inst.evaluate_for_users(1, default_evaluations()).unwrap();
+			inst.start_auction(1, ISSUER_1).unwrap();
+			inst.bid_for_users(1, failing_bids).unwrap();
+			inst.start_community_funding(1).unwrap();
 			inst.execute(|| {
 				assert_noop!(
 					Pallet::<TestRuntime>::create_project(
@@ -206,8 +181,8 @@ mod create_project_extrinsic {
 					Error::<TestRuntime>::IssuerHasActiveProjectAlready
 				);
 			});
-			inst.finish_funding(2).unwrap();
-			assert_eq!(inst.get_project_details(2).status, ProjectStatus::FundingFailed);
+			inst.finish_funding(1).unwrap();
+			assert_eq!(inst.get_project_details(1).status, ProjectStatus::FundingFailed);
 			inst.execute(|| {
 				assert_ok!(Pallet::<TestRuntime>::create_project(
 					RuntimeOrigin::signed(ISSUER_1),
@@ -217,16 +192,16 @@ mod create_project_extrinsic {
 			});
 
 			// A project is "inactive" after the funding succeeds
-			inst.start_evaluation(3, ISSUER_1).unwrap();
-			inst.evaluate_for_users(3, default_evaluations()).unwrap();
-			inst.start_auction(3, ISSUER_1).unwrap();
-			inst.bid_for_users(3, default_bids()).unwrap();
-			inst.start_community_funding(3).unwrap();
-			inst.contribute_for_users(3, default_community_buys()).unwrap();
-			inst.start_remainder_or_end_funding(3).unwrap();
-			inst.contribute_for_users(3, default_remainder_buys()).unwrap();
-			inst.finish_funding(3).unwrap();
-			assert_eq!(inst.get_project_details(3).status, ProjectStatus::FundingSuccessful);
+			inst.start_evaluation(2, ISSUER_1).unwrap();
+			inst.evaluate_for_users(2, default_evaluations()).unwrap();
+			inst.start_auction(2, ISSUER_1).unwrap();
+			inst.bid_for_users(2, default_bids()).unwrap();
+			inst.start_community_funding(2).unwrap();
+			inst.contribute_for_users(2, default_community_buys()).unwrap();
+			inst.start_remainder_or_end_funding(2).unwrap();
+			inst.contribute_for_users(2, default_remainder_buys()).unwrap();
+			inst.finish_funding(2).unwrap();
+			assert_eq!(inst.get_project_details(2).status, ProjectStatus::FundingSuccessful);
 			assert_ok!(inst.execute(|| crate::Pallet::<TestRuntime>::create_project(
 				RuntimeOrigin::signed(ISSUER_1),
 				jwt.clone(),

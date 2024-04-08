@@ -267,7 +267,7 @@ mod async_tests {
 				remainder_contributions: vec![],
 			},
 			TestProjectParams {
-				expected_state: ProjectStatus::AuctionRound(AuctionPhase::English),
+				expected_state: ProjectStatus::AuctionOpening,
 				metadata: default_project_metadata(ISSUER_3),
 				issuer: ISSUER_3,
 				evaluations: default_evaluations(),
@@ -315,7 +315,7 @@ mod async_tests {
 
 		assert_eq!(inst.get_project_details(project_ids[0]).status, ProjectStatus::Application);
 		assert_eq!(inst.get_project_details(project_ids[1]).status, ProjectStatus::EvaluationRound);
-		assert_eq!(inst.get_project_details(project_ids[2]).status, ProjectStatus::AuctionRound(AuctionPhase::English));
+		assert_eq!(inst.get_project_details(project_ids[2]).status, ProjectStatus::AuctionOpening);
 		assert_eq!(inst.get_project_details(project_ids[3]).status, ProjectStatus::CommunityRound);
 		assert_eq!(inst.get_project_details(project_ids[4]).status, ProjectStatus::RemainderRound);
 		assert_eq!(inst.get_project_details(project_ids[5]).status, ProjectStatus::FundingSuccessful);
@@ -401,7 +401,7 @@ mod async_tests {
 						remainder_contributions: vec![],
 					},
 					TestProjectParams::<TestRuntime> {
-						expected_state: ProjectStatus::AuctionRound(AuctionPhase::English),
+						expected_state: ProjectStatus::AuctionOpening,
 						metadata: default_project_metadata(ISSUER_4.into()),
 						issuer: ISSUER_4.into(),
 						evaluations: evaluations.clone(),
@@ -448,7 +448,7 @@ mod async_tests {
 
 		assert_eq!(inst.get_project_details(5).status, ProjectStatus::Application);
 		assert_eq!(inst.get_project_details(4).status, ProjectStatus::EvaluationRound);
-		assert_eq!(inst.get_project_details(3).status, ProjectStatus::AuctionRound(AuctionPhase::English));
+		assert_eq!(inst.get_project_details(3).status, ProjectStatus::AuctionOpening);
 		assert_eq!(inst.get_project_details(2).status, ProjectStatus::CommunityRound);
 		assert_eq!(inst.get_project_details(1).status, ProjectStatus::RemainderRound);
 		assert_eq!(inst.get_project_details(0).status, ProjectStatus::FundingSuccessful);
@@ -498,7 +498,7 @@ mod async_tests {
 			},
 			polimec_funding: PolimecFundingConfig {
 				starting_projects: vec![TestProjectParams::<TestRuntime> {
-					expected_state: ProjectStatus::AuctionRound(AuctionPhase::English),
+					expected_state: ProjectStatus::AuctionOpening,
 					metadata: default_project_metadata(ISSUER_1.into()),
 					issuer: ISSUER_1.into(),
 					evaluations: evaluations.clone(),
@@ -517,7 +517,7 @@ mod async_tests {
 		let ext = sp_io::TestExternalities::new(t);
 		let mut inst = MockInstantiator::new(Some(RefCell::new(ext)));
 
-		assert_eq!(inst.get_project_details(0).status, ProjectStatus::AuctionRound(AuctionPhase::English));
+		assert_eq!(inst.get_project_details(0).status, ProjectStatus::AuctionOpening);
 		let max_bids_per_project: u32 = <TestRuntime as Config>::MaxBidsPerProject::get();
 		let total_bids_count = inst.execute(|| Bids::<TestRuntime>::iter_values().collect_vec().len());
 		assert_eq!(total_bids_count, max_bids_per_project as usize);
