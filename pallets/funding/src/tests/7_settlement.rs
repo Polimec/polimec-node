@@ -374,8 +374,7 @@ fn unsuccessful_bids_dont_get_vest_schedule() {
 		vec![1u8, 1u8],
 	);
 
-	let available_tokens =
-		auction_token_allocation.saturating_sub(bids.iter().fold(0, |acc, bid| acc + bid.amount));
+	let available_tokens = auction_token_allocation.saturating_sub(bids.iter().fold(0, |acc, bid| acc + bid.amount));
 
 	let rejected_bid = vec![BidParams::new(BIDDER_5, available_tokens, 1u8, AcceptedFundingAsset::USDT)];
 	let accepted_bid = vec![BidParams::new(BIDDER_4, available_tokens, 2u8, AcceptedFundingAsset::USDT)];
@@ -414,10 +413,8 @@ fn unsuccessful_bids_dont_get_vest_schedule() {
 	inst.mint_plmc_to(contributors_plmc.clone());
 	inst.mint_plmc_to(contributors_existential_deposits);
 
-	let contributors_funding_assets = MockInstantiator::calculate_contributed_funding_asset_spent(
-		community_contributions.clone(),
-		final_price,
-	);
+	let contributors_funding_assets =
+		MockInstantiator::calculate_contributed_funding_asset_spent(community_contributions.clone(), final_price);
 	inst.mint_foreign_asset_to(contributors_funding_assets);
 
 	inst.contribute_for_users(project_id, community_contributions).unwrap();

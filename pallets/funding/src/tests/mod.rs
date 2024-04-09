@@ -34,32 +34,32 @@ const METADATA: &str = r#"METADATA
                 "usage_of_founds":"ipfs_url"
             }"#;
 const ASSET_DECIMALS: u8 = 10;
-const ISSUER_1: AccountId = 10;
+const ISSUER_1: AccountId = 11;
 const ISSUER_2: AccountId = 12;
 const ISSUER_3: AccountId = 13;
 const ISSUER_4: AccountId = 14;
 const ISSUER_5: AccountId = 15;
 const ISSUER_6: AccountId = 16;
-const EVALUATOR_1: AccountId = 20;
-const EVALUATOR_2: AccountId = 21;
-const EVALUATOR_3: AccountId = 22;
-const EVALUATOR_4: AccountId = 23;
-const EVALUATOR_5: AccountId = 24;
+const EVALUATOR_1: AccountId = 21;
+const EVALUATOR_2: AccountId = 22;
+const EVALUATOR_3: AccountId = 23;
+const EVALUATOR_4: AccountId = 24;
+const EVALUATOR_5: AccountId = 25;
 const BIDDER_1: AccountId = 31;
 const BIDDER_2: AccountId = 32;
 const BIDDER_3: AccountId = 33;
 const BIDDER_4: AccountId = 34;
 const BIDDER_5: AccountId = 35;
 const BIDDER_6: AccountId = 36;
-const BUYER_1: AccountId = 40;
-const BUYER_2: AccountId = 41;
-const BUYER_3: AccountId = 42;
-const BUYER_4: AccountId = 43;
-const BUYER_5: AccountId = 44;
-const BUYER_6: AccountId = 45;
-const BUYER_7: AccountId = 46;
-const BUYER_8: AccountId = 47;
-const BUYER_9: AccountId = 48;
+const BUYER_1: AccountId = 41;
+const BUYER_2: AccountId = 42;
+const BUYER_3: AccountId = 43;
+const BUYER_4: AccountId = 44;
+const BUYER_5: AccountId = 45;
+const BUYER_6: AccountId = 46;
+const BUYER_7: AccountId = 47;
+const BUYER_8: AccountId = 48;
+const BUYER_9: AccountId = 49;
 
 const ASSET_UNIT: u128 = 10_u128.pow(10u32);
 
