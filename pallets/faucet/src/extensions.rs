@@ -21,6 +21,7 @@ use parity_scale_codec::{Decode, Encode};
 use scale_info::{StaticTypeInfo, TypeInfo};
 use frame_support::{dispatch::{DispatchInfo, CheckIfFeeless}, pallet_prelude::*, traits::{IsSubType, OriginTrait}};
 use sp_runtime::traits::{Dispatchable, DispatchInfoOf, PostDispatchInfoOf, One, SignedExtension, Zero};
+use sp_std::vec;
 /// Custom CheckNonce signed extension for Polimec Blockchain. Based on the CheckNonce signed extension from the FRAME.
 /// Removing the providers and sufficients checks for the `claim` extrinsic, so a new account
 /// can get tokens. This is a temporary solution until
