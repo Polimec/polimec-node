@@ -51,7 +51,7 @@ pub mod pallet {
 		PalletId,
 	};
 	use frame_system::pallet_prelude::*;
-	use sp_runtime::{Saturating, traits::AccountIdConversion};
+	use sp_runtime::{traits::AccountIdConversion, Saturating};
 
 	/// Configure the pallet by specifying the parameters and types on which it depends.
 	#[pallet::config]
@@ -155,7 +155,12 @@ pub mod pallet {
 			)?;
 
 			<CurrencyOf<T>>::transfer(&Self::dispense_account(), &who, amount, ExistenceRequirement::AllowDeath)?;
-			T::VestingSchedule::add_vesting_schedule(&who, locked_amount, per_block, current_block + T::LockPeriod::get())?;
+			T::VestingSchedule::add_vesting_schedule(
+				&who,
+				locked_amount,
+				per_block,
+				current_block + T::LockPeriod::get(),
+			)?;
 
 			Dispensed::<T>::insert(did.clone(), ());
 			Self::deposit_event(Event::Dispensed { dispensed_to_did: did, dispensed_to: who, amount });

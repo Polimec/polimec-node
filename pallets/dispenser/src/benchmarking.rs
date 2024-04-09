@@ -47,8 +47,12 @@ mod benchmarks {
 
 		assert_eq!(Dispensed::<T>::get(did.clone()), Some(()));
 		assert_last_event::<T>(
-			Event::<T>::Dispensed { dispensed_to_did: did.clone(), dispensed_to: caller, amount: T::InitialDispenseAmount::get() }
-				.into(),
+			Event::<T>::Dispensed {
+				dispensed_to_did: did.clone(),
+				dispensed_to: caller,
+				amount: T::InitialDispenseAmount::get(),
+			}
+			.into(),
 		);
 	}
 

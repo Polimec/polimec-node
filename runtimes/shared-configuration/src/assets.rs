@@ -18,11 +18,11 @@ use crate::{
 	currency::{deposit, PLMC},
 	Balance,
 };
-use parachains_common::DAYS;
 use core::marker::PhantomData;
 use frame_support::{parameter_types, PalletId};
 use orml_traits::DataProvider;
 use pallet_funding::traits::ProvideAssetPrice;
+use parachains_common::DAYS;
 use sp_arithmetic::FixedPointNumber;
 
 parameter_types! {
