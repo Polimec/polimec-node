@@ -43,6 +43,16 @@ mod admin {
 			assert_eq!(DispenseAmount::<Test>::get(), 1000);
 		});
 	}
+
+	#[test]
+	fn amount_has_to_be_higher_then_free_amount() {
+		ExtBuilder::default().build().execute_with(|| {
+			assert_noop!(
+				Dispenser::set_dispense_amount(RuntimeOrigin::signed(Admin::get()), <Test as pallet_dispenser::Config>::FreeDispenseAmount::get()),
+				Error::<Test>::DispenseAmountTooLow
+			);
+		});
+	}
 }
 
 mod dispense {
@@ -58,8 +68,8 @@ mod dispense {
 
 			// Tokens are dispensed and locked.
 			assert_eq!(Balances::free_balance(1), <Test as pallet_dispenser::Config>::InitialDispenseAmount::get());
-			assert_eq!(Balances::usable_balance(1), 0);
-			assert_eq!(Vesting::vesting_balance(&1), Some(<Test as pallet_dispenser::Config>::InitialDispenseAmount::get()));
+			assert_eq!(Balances::usable_balance(1), <Test as pallet_dispenser::Config>::FreeDispenseAmount::get());
+			assert_eq!(Vesting::vesting_balance(&1), Some(<Test as pallet_dispenser::Config>::InitialDispenseAmount::get() - <Test as pallet_dispenser::Config>::FreeDispenseAmount::get()));
 		});
 	}
 

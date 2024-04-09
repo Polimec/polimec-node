@@ -18,6 +18,7 @@ use crate::{
 	currency::{deposit, PLMC},
 	Balance,
 };
+use parachains_common::DAYS;
 use core::marker::PhantomData;
 use frame_support::{parameter_types, PalletId};
 use orml_traits::DataProvider;
@@ -52,9 +53,10 @@ where
 
 // Dispenser Related constants
 parameter_types! {
-	pub const InitialDispenseAmount: Balance = 1000 * PLMC;
+	pub const InitialDispenseAmount: Balance = 700 * PLMC;
+	pub const FreeDispenseAmount: Balance = 5 * PLMC;
 	pub const DispenserId: PalletId = PalletId(*b"plmc/fct");
-	pub const DispenserLockPeriod: u32 = 30;
-	pub const DispenserVestPeriod: u32 = 30;
+	pub const DispenserLockPeriod: u32 = DAYS * 365 * 2; // 2 years
+	pub const DispenserVestPeriod: u32 = DAYS * 365 * 2; // 2 years
 
 }

@@ -45,12 +45,13 @@ type CurrencyOf<T> = <<T as Config>::VestingSchedule as VestingSchedule<AccountI
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
+	use crate::weights::WeightInfo;
 	use frame_support::{
 		pallet_prelude::{ValueQuery, *},
 		PalletId,
 	};
 	use frame_system::pallet_prelude::*;
-	use sp_runtime::traits::AccountIdConversion;
+	use sp_runtime::{Saturating, traits::AccountIdConversion};
 
 	/// Configure the pallet by specifying the parameters and types on which it depends.
 	#[pallet::config]
@@ -59,6 +60,10 @@ pub mod pallet {
 		type AdminOrigin: EnsureOrigin<Self::RuntimeOrigin>;
 		/// Block to balance converter.
 		type BlockNumberToBalance: Convert<BlockNumberFor<Self>, BalanceOf<Self>>;
+		/// The amount of dispensed tokens that are free, so they could be used to pay for
+		/// furure transaction fees.
+		#[pallet::constant]
+		type FreeDispenseAmount: Get<BalanceOf<Self>>;
 		/// The amount of tokens that are initially dispensed from the dispenser.
 		#[pallet::constant]
 		type InitialDispenseAmount: Get<BalanceOf<Self>>;
@@ -111,6 +116,8 @@ pub mod pallet {
 		DispensedAlreadyToDid,
 		/// The dispenser account does not have any funds to distribute.
 		DispenserDepleted,
+		/// The dispense amount is too low. It must be greater than the free dispense amount.
+		DispenseAmountTooLow,
 	}
 
 	#[pallet::hooks]
@@ -126,7 +133,7 @@ pub mod pallet {
             }
         })]
 		#[pallet::call_index(0)]
-		#[pallet::weight(Weight::from_parts(10_000, 0) + T::DbWeight::get().writes(1))]
+		#[pallet::weight(T::WeightInfo::dispense())]
 		pub fn dispense(origin: OriginFor<T>, jwt: UntrustedToken) -> DispatchResultWithPostInfo {
 			let (who, did, _investor_type) =
 				T::InvestorOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get())?;
@@ -137,17 +144,18 @@ pub mod pallet {
 
 			let current_block = <frame_system::Pallet<T>>::block_number();
 			let length_as_balance = T::BlockNumberToBalance::convert(T::VestPeriod::get());
-			let per_block = amount / length_as_balance.max(sp_runtime::traits::One::one());
+			let locked_amount = amount.saturating_sub(T::FreeDispenseAmount::get());
+			let per_block = locked_amount / length_as_balance.max(sp_runtime::traits::One::one());
 
 			T::VestingSchedule::can_add_vesting_schedule(
 				&who,
-				amount,
+				locked_amount,
 				per_block,
 				current_block + T::LockPeriod::get(),
 			)?;
 
 			<CurrencyOf<T>>::transfer(&Self::dispense_account(), &who, amount, ExistenceRequirement::AllowDeath)?;
-			T::VestingSchedule::add_vesting_schedule(&who, amount, per_block, current_block + T::LockPeriod::get())?;
+			T::VestingSchedule::add_vesting_schedule(&who, locked_amount, per_block, current_block + T::LockPeriod::get())?;
 
 			Dispensed::<T>::insert(did.clone(), ());
 			Self::deposit_event(Event::Dispensed { dispensed_to_did: did, dispensed_to: who, amount });
@@ -156,9 +164,10 @@ pub mod pallet {
 		}
 
 		#[pallet::call_index(1)]
-		#[pallet::weight(Weight::from_parts(10_000, 0) + T::DbWeight::get().writes(1))]
+		#[pallet::weight(T::WeightInfo::set_dispense_amount())]
 		pub fn set_dispense_amount(origin: OriginFor<T>, amount: BalanceOf<T>) -> DispatchResultWithPostInfo {
 			T::AdminOrigin::ensure_origin(origin)?;
+			ensure!(amount > T::FreeDispenseAmount::get(), Error::<T>::DispenseAmountTooLow);
 			DispenseAmount::<T>::put(amount);
 			Self::deposit_event(Event::DispenseAmountChanged(amount));
 			Ok(Pays::No.into())

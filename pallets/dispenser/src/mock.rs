@@ -71,6 +71,7 @@ impl pallet_vesting::Config for Test {
 
 parameter_types! {
 	pub const InitialDispenseAmount: u64 = 100;
+	pub const FreeDispenseAmount: u64 = 5;
 	pub const LockPeriod: u64 = 10;
 	pub const DispenserPalletId: PalletId = PalletId(*b"plmc/fct");
 	pub const VestPeriod: u64 = 10;
@@ -87,6 +88,7 @@ ord_parameter_types! {
 impl crate::Config for Test {
 	type AdminOrigin = EnsureSignedBy<Admin, AccountId>;
 	type BlockNumberToBalance = ConvertInto;
+	type FreeDispenseAmount = FreeDispenseAmount;
 	type InitialDispenseAmount = InitialDispenseAmount;
 	type InvestorOrigin = EnsureInvestor<Test>;
 	type LockPeriod = LockPeriod;

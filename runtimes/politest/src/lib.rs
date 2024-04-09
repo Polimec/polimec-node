@@ -1060,6 +1060,7 @@ impl pallet_dispenser::Config for Runtime {
 	// TODO: Change this account to an actual admin account.
 	type AdminOrigin = EnsureRoot<AccountId>;
 	type BlockNumberToBalance = ConvertInto;
+	type FreeDispenseAmount = FreeDispenseAmount;
 	type InitialDispenseAmount = InitialDispenseAmount;
 	type InvestorOrigin = EnsureInvestor<Runtime>;
 	type LockPeriod = DispenserLockPeriod;
