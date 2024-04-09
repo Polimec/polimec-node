@@ -19,7 +19,7 @@
 use super::*;
 
 #[allow(unused)]
-use crate::Pallet as Faucet;
+use crate::Pallet as Dispenser;
 use frame_benchmarking::v2::*;
 use frame_support::traits::{EnsureOrigin, Get};
 use frame_system::RawOrigin;
@@ -35,36 +35,36 @@ mod benchmarks {
 	use super::*;
 
 	#[benchmark]
-	fn claim() {
+	fn dispense() {
 		let caller: T::AccountId = whitelisted_caller();
 		let did = generate_did_from_account(1);
-		assert_eq!(Claims::<T>::get(did.clone()), None);
-		CurrencyOf::<T>::deposit_creating(&Faucet::<T>::claiming_account(), T::InitialClaimAmount::get());
+		assert_eq!(Dispensed::<T>::get(did.clone()), None);
+		CurrencyOf::<T>::deposit_creating(&Dispenser::<T>::dispense_account(), T::InitialDispenseAmount::get());
 
 		let jwt = get_mock_jwt(caller.clone(), InvestorType::Retail, did.clone());
 		#[extrinsic_call]
-		claim(RawOrigin::Signed(caller.clone()), jwt);
+		dispense(RawOrigin::Signed(caller.clone()), jwt);
 
-		assert_eq!(Claims::<T>::get(did.clone()), Some(()));
+		assert_eq!(Dispensed::<T>::get(did.clone()), Some(()));
 		assert_last_event::<T>(
-			Event::<T>::Claimed { claimer_did: did.clone(), claimer: caller, amount: T::InitialClaimAmount::get() }
+			Event::<T>::Dispensed { dispensed_to_did: did.clone(), dispensed_to: caller, amount: T::InitialDispenseAmount::get() }
 				.into(),
 		);
 	}
 
 	#[benchmark]
-	fn set_claiming_amount() -> Result<(), BenchmarkError> {
+	fn set_dispense_amount() -> Result<(), BenchmarkError> {
 		let origin = T::AdminOrigin::try_successful_origin().map_err(|_| BenchmarkError::Weightless)?;
-		assert_eq!(ClaimAmount::<T>::get(), T::InitialClaimAmount::get());
+		assert_eq!(DispenseAmount::<T>::get(), T::InitialDispenseAmount::get());
 
-		let new_amount = T::InitialClaimAmount::get() + One::one();
+		let new_amount = T::InitialDispenseAmount::get() + One::one();
 		#[extrinsic_call]
-		set_claiming_amount(origin as T::RuntimeOrigin, new_amount);
+		set_dispense_amount(origin as T::RuntimeOrigin, new_amount);
 
-		assert_eq!(ClaimAmount::<T>::get(), new_amount);
-		assert_last_event::<T>(Event::<T>::ClaimAmountChanged(new_amount).into());
+		assert_eq!(DispenseAmount::<T>::get(), new_amount);
+		assert_last_event::<T>(Event::<T>::DispenseAmountChanged(new_amount).into());
 		Ok(())
 	}
 
-	impl_benchmark_test_suite!(Faucet, crate::mock::ExtBuilder::default().build(), crate::mock::Test);
+	impl_benchmark_test_suite!(Dispenser, crate::mock::ExtBuilder::default().build(), crate::mock::Test);
 }

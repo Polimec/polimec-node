@@ -1,6 +1,6 @@
 [package]
-name = "pallet-faucet"
-description = "Polimec Faucet logic"
+name = "pallet-dispenser"
+description = "Polimec Dispenser Logic"
 authors.workspace = true
 documentation.workspace = true
 edition.workspace = true

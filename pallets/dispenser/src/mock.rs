@@ -32,7 +32,7 @@ frame_support::construct_runtime!(
 		Balances: pallet_balances,
 		Timestamp: pallet_timestamp,
 		Vesting: pallet_vesting,
-		Faucet: crate::{Pallet, Call, Storage, Event<T>},
+		Dispenser: crate::{Pallet, Call, Storage, Event<T>},
 	}
 );
 
@@ -70,9 +70,9 @@ impl pallet_vesting::Config for Test {
 }
 
 parameter_types! {
-	pub const InitialClaimAmount: u64 = 100;
+	pub const InitialDispenseAmount: u64 = 100;
 	pub const LockPeriod: u64 = 10;
-	pub const FaucetPalletId: PalletId = PalletId(*b"plmc/fct");
+	pub const DispenserPalletId: PalletId = PalletId(*b"plmc/fct");
 	pub const VestPeriod: u64 = 10;
 	pub VerifierPublicKey: [u8; 32] = [
 		32, 118, 30, 171, 58, 212, 197, 27, 146, 122, 255, 243, 34, 245, 90, 244, 221, 37, 253,
@@ -87,10 +87,10 @@ ord_parameter_types! {
 impl crate::Config for Test {
 	type AdminOrigin = EnsureSignedBy<Admin, AccountId>;
 	type BlockNumberToBalance = ConvertInto;
-	type InitialClaimAmount = InitialClaimAmount;
+	type InitialDispenseAmount = InitialDispenseAmount;
 	type InvestorOrigin = EnsureInvestor<Test>;
 	type LockPeriod = LockPeriod;
-	type PalletId = FaucetPalletId;
+	type PalletId = DispenserPalletId;
 	type RuntimeEvent = RuntimeEvent;
 	type VerifierPublicKey = VerifierPublicKey;
 	type VestPeriod = VestPeriod;
@@ -99,19 +99,19 @@ impl crate::Config for Test {
 }
 
 pub(crate) struct ExtBuilder {
-	// amount of account that can claim tokens
-	claiming_accounts: u64,
+	// amount of account that can dispense tokens
+	dispensing_accounts: u64,
 }
 
 impl Default for ExtBuilder {
 	fn default() -> ExtBuilder {
-		ExtBuilder { claiming_accounts: 1 }
+		ExtBuilder { dispensing_accounts: 1 }
 	}
 }
 
 impl ExtBuilder {
-	pub(crate) fn claiming_account(mut self, amount: u64) -> Self {
-		self.claiming_accounts = amount;
+	pub(crate) fn dispense_account(mut self, amount: u64) -> Self {
+		self.dispensing_accounts = amount;
 		self
 	}
 
@@ -119,11 +119,11 @@ impl ExtBuilder {
 		let mut t = system::GenesisConfig::<Test>::default()
 			.build_storage()
 			.expect("Frame system builds valid default genesis config");
-		let faucet_filled = vec![(
-			Faucet::claiming_account(),
-			self.claiming_accounts * <Test as crate::Config>::InitialClaimAmount::get(),
+		let dispenser_filled = vec![(
+			Dispenser::dispense_account(),
+			self.dispensing_accounts * <Test as crate::Config>::InitialDispenseAmount::get(),
 		)];
-		pallet_balances::GenesisConfig::<Test> { balances: faucet_filled }
+		pallet_balances::GenesisConfig::<Test> { balances: dispenser_filled }
 			.assimilate_storage(&mut t)
 			.expect("Pallet balances storage can be assimilated");
 

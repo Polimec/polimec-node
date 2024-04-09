@@ -48,7 +48,7 @@ benchmark-runtime chain="polimec-local" pallet="pallet-elections-phragmen" featu
 # src: https://github.com/paritytech/polkadot-sdk/blob/bc2e5e1fe26e2c2c8ee766ff9fe7be7e212a0c62/substrate/frame/nfts/src/weights.rs
 # Run the Runtime benchmarks for a specific pallet
 # TODO: Adjust the `--chain` flag to match the chain you are benchmarking
-benchmark-pallet chain="politest-local"  pallet="pallet-faucet" features="runtime-benchmarks":
+benchmark-pallet chain="politest-local"  pallet="pallet-dispenser" features="runtime-benchmarks":
     cargo run --features {{ features }} --release -p polimec-node benchmark pallet \
       --chain={{ chain }} \
       --steps=50 \

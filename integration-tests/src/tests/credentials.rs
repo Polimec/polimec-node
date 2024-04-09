@@ -57,21 +57,21 @@ fn test_jwt_verification() {
 	});
 }
 
-generate_accounts!(CLAIMER);
+generate_accounts!(EMPTY_ACCOUNT);
 
 #[test]
-fn faucet_signed_extensions_pass_for_new_account() {
+fn dispenser_signed_extensions_pass_for_new_account() {
 	PolitestNet::execute_with(|| {
-		let who = PolitestAccountId::from(CLAIMER);
+		let who = PolitestAccountId::from(EMPTY_ACCOUNT);
 		let jwt = get_test_jwt(who.clone(), InvestorType::Retail);
-		let call = PolitestCall::Claims(pallet_faucet::Call::claim { jwt: jwt.clone() });
+		let call = PolitestCall::Dispenser(pallet_dispenser::Call::dispense { jwt: jwt.clone() });
 		let extra: politest_runtime::SignedExtra = (
 			frame_system::CheckNonZeroSender::<PolitestRuntime>::new(),
 			frame_system::CheckSpecVersion::<PolitestRuntime>::new(),
 			frame_system::CheckTxVersion::<PolitestRuntime>::new(),
 			frame_system::CheckGenesis::<PolitestRuntime>::new(),
 			frame_system::CheckEra::<PolitestRuntime>::from(Era::mortal(0u64, 0u64)),
-			pallet_faucet::extensions::CheckNonce::<PolitestRuntime>::from(0u32),
+			pallet_dispenser::extensions::CheckNonce::<PolitestRuntime>::from(0u32),
 			frame_system::CheckWeight::<PolitestRuntime>::new(),
 			pallet_transaction_payment::ChargeTransactionPayment::<PolitestRuntime>::from(0u64.into()).into(),
 		);

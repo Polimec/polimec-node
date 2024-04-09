@@ -145,9 +145,9 @@ pub type SignedExtra = (
 	frame_system::CheckTxVersion<Runtime>,
 	frame_system::CheckGenesis<Runtime>,
 	frame_system::CheckEra<Runtime>,
-	pallet_faucet::extensions::CheckNonce<Runtime>,
+	pallet_dispenser::extensions::CheckNonce<Runtime>,
 	frame_system::CheckWeight<Runtime>,
-	pallet_faucet::extensions::SkipCheckIfFeeless<
+	pallet_dispenser::extensions::SkipCheckIfFeeless<
 		Runtime,
 		pallet_transaction_payment::ChargeTransactionPayment<Runtime>,
 	>,
@@ -838,9 +838,9 @@ where
 			frame_system::CheckTxVersion::<Runtime>::new(),
 			frame_system::CheckGenesis::<Runtime>::new(),
 			frame_system::CheckEra::<Runtime>::from(generic::Era::mortal(period, current_block)),
-			pallet_faucet::extensions::CheckNonce::<Runtime>::from(nonce),
+			pallet_dispenser::extensions::CheckNonce::<Runtime>::from(nonce),
 			frame_system::CheckWeight::<Runtime>::new(),
-			pallet_faucet::extensions::SkipCheckIfFeeless::from(
+			pallet_dispenser::extensions::SkipCheckIfFeeless::from(
 				pallet_transaction_payment::ChargeTransactionPayment::<Runtime>::from(tip),
 			),
 		);
@@ -1056,17 +1056,17 @@ impl pallet_linear_release::Config for Runtime {
 
 impl pallet_insecure_randomness_collective_flip::Config for Runtime {}
 
-impl pallet_faucet::Config for Runtime {
+impl pallet_dispenser::Config for Runtime {
 	// TODO: Change this account to an actual admin account.
 	type AdminOrigin = EnsureRoot<AccountId>;
 	type BlockNumberToBalance = ConvertInto;
-	type InitialClaimAmount = InitialClaimAmount;
+	type InitialDispenseAmount = InitialDispenseAmount;
 	type InvestorOrigin = EnsureInvestor<Runtime>;
-	type LockPeriod = FaucetLockPeriod;
-	type PalletId = FaucetId;
+	type LockPeriod = DispenserLockPeriod;
+	type PalletId = DispenserId;
 	type RuntimeEvent = RuntimeEvent;
 	type VerifierPublicKey = VerifierPublicKey;
-	type VestPeriod = FaucetVestPeriod;
+	type VestPeriod = DispenserVestPeriod;
 	type VestingSchedule = Vesting;
 	type WeightInfo = ();
 }
@@ -1092,7 +1092,7 @@ construct_runtime!(
 		Vesting: pallet_vesting = 12,
 		ContributionTokens: pallet_assets::<Instance1> = 13,
 		ForeignAssets: pallet_assets::<Instance2> = 14,
-		Claims: pallet_faucet = 15,
+		Dispenser: pallet_dispenser = 15,
 
 		// Collator support. the order of these 5 are important and shall not change.
 		Authorship: pallet_authorship::{Pallet, Storage} = 20,
@@ -1142,7 +1142,7 @@ mod benches {
 		// Monetary stuff.
 		[pallet_balances, Balances]
 		[pallet_vesting, Vesting]
-		[pallet_faucet, Claims]
+		[pallet_dispenser, Dispenser]
 
 		// Collator support.
 		[pallet_session, SessionBench::<Runtime>]

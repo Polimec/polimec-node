@@ -50,11 +50,11 @@ where
 	}
 }
 
-// Faucet Related constants
+// Dispenser Related constants
 parameter_types! {
-	pub const InitialClaimAmount: Balance = 1000 * PLMC;
-	pub const FaucetId: PalletId = PalletId(*b"plmc/fct");
-	pub const FaucetLockPeriod: u32 = 30;
-	pub const FaucetVestPeriod: u32 = 30;
+	pub const InitialDispenseAmount: Balance = 1000 * PLMC;
+	pub const DispenserId: PalletId = PalletId(*b"plmc/fct");
+	pub const DispenserLockPeriod: u32 = 30;
+	pub const DispenserVestPeriod: u32 = 30;
 
 }

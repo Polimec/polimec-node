@@ -27,7 +27,7 @@ use scale_info::{StaticTypeInfo, TypeInfo};
 use sp_runtime::traits::{DispatchInfoOf, Dispatchable, One, PostDispatchInfoOf, SignedExtension, Zero};
 use sp_std::vec;
 /// Custom CheckNonce signed extension for Polimec Blockchain. Based on the CheckNonce signed extension from the FRAME.
-/// Removing the providers and sufficients checks for the `claim` extrinsic, so a new account
+/// Removing the providers and sufficients checks for the `dispense` extrinsic, so a new account
 /// can get tokens. This is a temporary solution until
 /// https://github.com/paritytech/polkadot-sdk/issues/3991 is solved.
 /// Nonce check and increment to give replay protection for transactions.
@@ -85,7 +85,7 @@ where
 		let mut account = frame_system::Account::<T>::get(who);
 		if account.providers.is_zero() && account.sufficients.is_zero() {
 			match call.is_sub_type() {
-				Some(call) if matches!(call, &Call::<T>::claim { .. }) => {},
+				Some(call) if matches!(call, &Call::<T>::dispense { .. }) => {},
 				_ => return Err(InvalidTransaction::Payment.into()),
 			}
 		}
@@ -109,7 +109,7 @@ where
 		let account = frame_system::Account::<T>::get(who);
 		if account.providers.is_zero() && account.sufficients.is_zero() {
 			match call.is_sub_type() {
-				Some(call) if matches!(call, &Call::<T>::claim { .. }) => {},
+				Some(call) if matches!(call, &Call::<T>::dispense { .. }) => {},
 				_ => return Err(InvalidTransaction::Payment.into()),
 			}
 		}

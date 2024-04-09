@@ -83,7 +83,7 @@ decl_test_parachains! {
 			LocalAssets: politest_runtime::ContributionTokensInstance,
 			ForeignAssets: politest_runtime::ForeignAssets,
 			FundingPallet: politest_runtime::Funding,
-			Claims: politest_runtime::Claims,
+			Dispenser: politest_runtime::Dispenser,
 		}
 	},
 	pub struct AssetHub {

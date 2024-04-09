@@ -55,30 +55,30 @@ pub mod pallet {
 	/// Configure the pallet by specifying the parameters and types on which it depends.
 	#[pallet::config]
 	pub trait Config: frame_system::Config {
-		/// The Origin that has admin access to change the claiming amount.
+		/// The Origin that has admin access to change the dispense amount.
 		type AdminOrigin: EnsureOrigin<Self::RuntimeOrigin>;
 		/// Block to balance converter.
 		type BlockNumberToBalance: Convert<BlockNumberFor<Self>, BalanceOf<Self>>;
-		/// The amount of tokens that can be initially claimed from the faucet.
+		/// The amount of tokens that are initially dispensed from the dispenser.
 		#[pallet::constant]
-		type InitialClaimAmount: Get<BalanceOf<Self>>;
-		/// The Origin that can claim funds from the faucet. The Origin must contain a valid JWT token.
+		type InitialDispenseAmount: Get<BalanceOf<Self>>;
+		/// The Origin that can dispense funds from the dispenser. The Origin must contain a valid JWT token.
 		type InvestorOrigin: EnsureOriginWithCredentials<
 			<Self as frame_system::Config>::RuntimeOrigin,
 			Success = (AccountIdOf<Self>, Did, InvestorType),
 		>;
-		/// The period of time that the claimed funds are locked. Used to calculate the
+		/// The period of time that the dispensed funds are locked. Used to calculate the
 		/// starting block of the vesting schedule.
 		#[pallet::constant]
 		type LockPeriod: Get<BlockNumberFor<Self>>;
-		/// The faucet's pallet id, used for deriving its sovereign account ID.
+		/// The dispenser's pallet id, used for deriving its sovereign account ID.
 		#[pallet::constant]
 		type PalletId: Get<PalletId>;
 		/// Because this pallet emits events, it depends on the runtime's definition of an event.
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 		/// The loose coupling to a vesting schedule implementation.
 		type VestingSchedule: VestingSchedule<Self::AccountId, Moment = BlockNumberFor<Self>>;
-		/// The period of time that the claimed funds are in a vesting schedule. The schedule
+		/// The period of time that the dispensed funds are in a vesting schedule. The schedule
 		/// starts after the lock period.
 		#[pallet::constant]
 		type VestPeriod: Get<BlockNumberFor<Self>>;
@@ -93,24 +93,24 @@ pub mod pallet {
 	pub struct Pallet<T>(_);
 
 	#[pallet::storage]
-	pub type ClaimAmount<T> = StorageValue<_, BalanceOf<T>, ValueQuery, <T as Config>::InitialClaimAmount>;
+	pub type DispenseAmount<T> = StorageValue<_, BalanceOf<T>, ValueQuery, <T as Config>::InitialDispenseAmount>;
 
 	#[pallet::storage]
-	pub type Claims<T> = StorageMap<_, Blake2_128Concat, Did, ()>;
+	pub type Dispensed<T> = StorageMap<_, Blake2_128Concat, Did, ()>;
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
-		Claimed { claimer_did: Did, claimer: T::AccountId, amount: BalanceOf<T> },
-		ClaimAmountChanged(BalanceOf<T>),
+		Dispensed { dispensed_to_did: Did, dispensed_to: T::AccountId, amount: BalanceOf<T> },
+		DispenseAmountChanged(BalanceOf<T>),
 	}
 
 	#[pallet::error]
 	pub enum Error<T> {
-		/// The DID has already claimed from the faucet.
-		DidAlreadyClaimed,
-		/// The faucet account does not have any funds to distribute.
-		FaucetDepleted,
+		/// The dispenser has already dispensed to the did.
+		DispensedAlreadyToDid,
+		/// The dispenser account does not have any funds to distribute.
+		DispenserDepleted,
 	}
 
 	#[pallet::hooks]
@@ -120,20 +120,20 @@ pub mod pallet {
 	impl<T: Config> Pallet<T> {
 		#[pallet::feeless_if( | origin: &OriginFor<T>, jwt: &UntrustedToken | -> bool {
             if let Ok((_, did, _)) = T::InvestorOrigin::ensure_origin(origin.clone(), jwt, T::VerifierPublicKey::get()) {
-                return Claims::<T>::get(did).is_none()
+                return Dispensed::<T>::get(did).is_none()
             } else {
                 return false
             }
         })]
 		#[pallet::call_index(0)]
 		#[pallet::weight(Weight::from_parts(10_000, 0) + T::DbWeight::get().writes(1))]
-		pub fn claim(origin: OriginFor<T>, jwt: UntrustedToken) -> DispatchResultWithPostInfo {
+		pub fn dispense(origin: OriginFor<T>, jwt: UntrustedToken) -> DispatchResultWithPostInfo {
 			let (who, did, _investor_type) =
 				T::InvestorOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get())?;
-			ensure!(Claims::<T>::get(&did).is_none(), Error::<T>::DidAlreadyClaimed);
+			ensure!(Dispensed::<T>::get(&did).is_none(), Error::<T>::DispensedAlreadyToDid);
 
-			let amount = ClaimAmount::<T>::get();
-			ensure!(CurrencyOf::<T>::free_balance(&Self::claiming_account()) >= amount, Error::<T>::FaucetDepleted);
+			let amount = DispenseAmount::<T>::get();
+			ensure!(CurrencyOf::<T>::free_balance(&Self::dispense_account()) >= amount, Error::<T>::DispenserDepleted);
 
 			let current_block = <frame_system::Pallet<T>>::block_number();
 			let length_as_balance = T::BlockNumberToBalance::convert(T::VestPeriod::get());
@@ -146,27 +146,27 @@ pub mod pallet {
 				current_block + T::LockPeriod::get(),
 			)?;
 
-			<CurrencyOf<T>>::transfer(&Self::claiming_account(), &who, amount, ExistenceRequirement::AllowDeath)?;
+			<CurrencyOf<T>>::transfer(&Self::dispense_account(), &who, amount, ExistenceRequirement::AllowDeath)?;
 			T::VestingSchedule::add_vesting_schedule(&who, amount, per_block, current_block + T::LockPeriod::get())?;
 
-			Claims::<T>::insert(did.clone(), ());
-			Self::deposit_event(Event::Claimed { claimer_did: did, claimer: who, amount });
+			Dispensed::<T>::insert(did.clone(), ());
+			Self::deposit_event(Event::Dispensed { dispensed_to_did: did, dispensed_to: who, amount });
 
 			Ok(Pays::No.into())
 		}
 
 		#[pallet::call_index(1)]
 		#[pallet::weight(Weight::from_parts(10_000, 0) + T::DbWeight::get().writes(1))]
-		pub fn set_claiming_amount(origin: OriginFor<T>, amount: BalanceOf<T>) -> DispatchResultWithPostInfo {
+		pub fn set_dispense_amount(origin: OriginFor<T>, amount: BalanceOf<T>) -> DispatchResultWithPostInfo {
 			T::AdminOrigin::ensure_origin(origin)?;
-			ClaimAmount::<T>::put(amount);
-			Self::deposit_event(Event::ClaimAmountChanged(amount));
+			DispenseAmount::<T>::put(amount);
+			Self::deposit_event(Event::DispenseAmountChanged(amount));
 			Ok(Pays::No.into())
 		}
 	}
 
 	impl<T: Config> Pallet<T> {
-		pub fn claiming_account() -> T::AccountId {
+		pub fn dispense_account() -> T::AccountId {
 			T::PalletId::get().into_account_truncating()
 		}
 	}
