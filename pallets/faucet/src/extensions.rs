@@ -17,10 +17,14 @@
 // If you feel like getting in touch with us, you can do so at info@polimec.org
 
 use crate::*;
+use frame_support::{
+	dispatch::{CheckIfFeeless, DispatchInfo},
+	pallet_prelude::*,
+	traits::{IsSubType, OriginTrait},
+};
 use parity_scale_codec::{Decode, Encode};
 use scale_info::{StaticTypeInfo, TypeInfo};
-use frame_support::{dispatch::{DispatchInfo, CheckIfFeeless}, pallet_prelude::*, traits::{IsSubType, OriginTrait}};
-use sp_runtime::traits::{Dispatchable, DispatchInfoOf, PostDispatchInfoOf, One, SignedExtension, Zero};
+use sp_runtime::traits::{DispatchInfoOf, Dispatchable, One, PostDispatchInfoOf, SignedExtension, Zero};
 use sp_std::vec;
 /// Custom CheckNonce signed extension for Polimec Blockchain. Based on the CheckNonce signed extension from the FRAME.
 /// Removing the providers and sufficients checks for the `claim` extrinsic, so a new account
@@ -58,12 +62,13 @@ impl<T: Config> sp_std::fmt::Debug for CheckNonce<T> {
 
 impl<T: Config> SignedExtension for CheckNonce<T>
 where
-    <T as frame_system::Config>::RuntimeCall: Dispatchable<Info = DispatchInfo> + IsSubType<Call<T>>,
+	<T as frame_system::Config>::RuntimeCall: Dispatchable<Info = DispatchInfo> + IsSubType<Call<T>>,
 {
 	type AccountId = T::AccountId;
-	type Call = <T as frame_system::Config>::RuntimeCall;
 	type AdditionalSigned = ();
+	type Call = <T as frame_system::Config>::RuntimeCall;
 	type Pre = ();
+
 	const IDENTIFIER: &'static str = "CheckNonce";
 
 	fn additional_signed(&self) -> sp_std::result::Result<(), TransactionValidityError> {
@@ -79,18 +84,15 @@ where
 	) -> Result<(), TransactionValidityError> {
 		let mut account = frame_system::Account::<T>::get(who);
 		if account.providers.is_zero() && account.sufficients.is_zero() {
-            match call.is_sub_type() {
-                Some(call) if matches!(call, &Call::<T>::claim{..}) => { },
-                _ => return Err(InvalidTransaction::Payment.into())
-            }
+			match call.is_sub_type() {
+				Some(call) if matches!(call, &Call::<T>::claim { .. }) => {},
+				_ => return Err(InvalidTransaction::Payment.into()),
+			}
 		}
 		if self.0 != account.nonce {
-			return Err(if self.0 < account.nonce {
-				InvalidTransaction::Stale
-			} else {
-				InvalidTransaction::Future
-			}
-			.into())
+			return Err(
+				if self.0 < account.nonce { InvalidTransaction::Stale } else { InvalidTransaction::Future }.into()
+			)
 		}
 		account.nonce += T::Nonce::one();
 		frame_system::Account::<T>::insert(who, account);
@@ -107,20 +109,16 @@ where
 		let account = frame_system::Account::<T>::get(who);
 		if account.providers.is_zero() && account.sufficients.is_zero() {
 			match call.is_sub_type() {
-                Some(call) if matches!(call, &Call::<T>::claim{..}) => { },
-                _ => return Err(InvalidTransaction::Payment.into())
-            }
+				Some(call) if matches!(call, &Call::<T>::claim { .. }) => {},
+				_ => return Err(InvalidTransaction::Payment.into()),
+			}
 		}
 		if self.0 < account.nonce {
 			return InvalidTransaction::Stale.into()
 		}
 
 		let provides = vec![Encode::encode(&(who, self.0))];
-		let requires = if account.nonce < self.0 {
-			vec![Encode::encode(&(who, self.0 - One::one()))]
-		} else {
-			vec![]
-		};
+		let requires = if account.nonce < self.0 { vec![Encode::encode(&(who, self.0 - One::one()))] } else { vec![] };
 
 		Ok(ValidTransaction {
 			priority: 0,
@@ -133,9 +131,9 @@ where
 }
 
 /// A [`SignedExtension`] that skips the wrapped extension if the dispatchable is feeless.
-/// This is an adjusted version of the `CheckIfFeeless` signed extension from FRAME. 
+/// This is an adjusted version of the `CheckIfFeeless` signed extension from FRAME.
 /// The FRAME implementation does currently not implement the 'validate' function, which opens
-/// up the possibility of DoS attacks. This implementation is a temporary solution until fixed 
+/// up the possibility of DoS attacks. This implementation is a temporary solution until fixed
 /// (https://github.com/paritytech/polkadot-sdk/pull/3993) in FRAME.
 #[derive(Encode, Decode, Clone, Eq, PartialEq)]
 pub struct SkipCheckIfFeeless<T, S>(pub S, sp_std::marker::PhantomData<T>);
@@ -143,6 +141,7 @@ pub struct SkipCheckIfFeeless<T, S>(pub S, sp_std::marker::PhantomData<T>);
 // Make this extension "invisible" from the outside (ie metadata type information)
 impl<T, S: StaticTypeInfo> TypeInfo for SkipCheckIfFeeless<T, S> {
 	type Identity = S;
+
 	fn type_info() -> scale_info::Type {
 		S::type_info()
 	}
@@ -153,6 +152,7 @@ impl<T, S: Encode> sp_std::fmt::Debug for SkipCheckIfFeeless<T, S> {
 	fn fmt(&self, f: &mut sp_std::fmt::Formatter) -> sp_std::fmt::Result {
 		write!(f, "SkipCheckIfFeeless<{:?}>", self.0.encode())
 	}
+
 	#[cfg(not(feature = "std"))]
 	fn fmt(&self, _: &mut sp_std::fmt::Formatter) -> sp_std::fmt::Result {
 		Ok(())
@@ -165,15 +165,15 @@ impl<T, S> From<S> for SkipCheckIfFeeless<T, S> {
 	}
 }
 
-impl<T: Config + Send + Sync, S: SignedExtension<AccountId = T::AccountId>> SignedExtension
-	for SkipCheckIfFeeless<T, S>
+impl<T: Config + Send + Sync, S: SignedExtension<AccountId = T::AccountId>> SignedExtension for SkipCheckIfFeeless<T, S>
 where
 	S::Call: CheckIfFeeless<Origin = frame_system::pallet_prelude::OriginFor<T>>,
 {
 	type AccountId = T::AccountId;
-	type Call = S::Call;
 	type AdditionalSigned = S::AdditionalSigned;
+	type Call = S::Call;
 	type Pre = Option<<S as SignedExtension>::Pre>;
+
 	// From the outside this extension should be "invisible", because it just extends the wrapped
 	// extension with an extra check in `pre_dispatch` and `post_dispatch`. Thus, we should forward
 	// the identifier of the wrapped extension to let wallets see this extension as it would only be
@@ -205,13 +205,12 @@ where
 		info: &DispatchInfoOf<Self::Call>,
 		len: usize,
 	) -> TransactionValidity {
-			if call.is_feeless(&<T as frame_system::Config>::RuntimeOrigin::signed(who.clone())) {
-				Ok(ValidTransaction::default())
-			} else {
-				self.0.validate(who, call, info, len)
-			}
+		if call.is_feeless(&<T as frame_system::Config>::RuntimeOrigin::signed(who.clone())) {
+			Ok(ValidTransaction::default())
+		} else {
+			self.0.validate(who, call, info, len)
+		}
 	}
-
 
 	fn post_dispatch(
 		pre: Option<Self::Pre>,

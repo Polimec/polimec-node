@@ -15,12 +15,12 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use crate::*;
-use tests::defaults::*;
-use macros::generate_accounts;
 use frame_support::{assert_ok, dispatch::GetDispatchInfo};
+use macros::generate_accounts;
 use polimec_common::credentials::InvestorType;
 use polimec_common_test_utils::{get_fake_jwt, get_test_jwt};
-use sp_runtime::{AccountId32, DispatchError, traits::SignedExtension, generic::Era};
+use sp_runtime::{generic::Era, traits::SignedExtension, AccountId32, DispatchError};
+use tests::defaults::*;
 
 #[test]
 fn test_jwt_for_create() {
@@ -64,7 +64,7 @@ fn faucet_pre_dispatch_passed_for_new_account() {
 	PolitestNet::execute_with(|| {
 		let who = PolitestAccountId::from(CLAIMER);
 		let jwt = get_test_jwt(who.clone(), InvestorType::Retail);
-		let call = PolitestCall::Claims(pallet_faucet::Call::claim {jwt: jwt.clone()});
+		let call = PolitestCall::Claims(pallet_faucet::Call::claim { jwt: jwt.clone() });
 		let extra: politest_runtime::SignedExtra = (
 			frame_system::CheckNonZeroSender::<PolitestRuntime>::new(),
 			frame_system::CheckSpecVersion::<PolitestRuntime>::new(),

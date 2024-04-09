@@ -1059,14 +1059,14 @@ impl pallet_insecure_randomness_collective_flip::Config for Runtime {}
 impl pallet_faucet::Config for Runtime {
 	type AdminOrigin = EnsureRoot<AccountId>;
 	type BlockNumberToBalance = ConvertInto;
-	type PalletId = FaucetId;
-	type LockPeriod = FaucetLockPeriod;
-	type VestPeriod = FaucetVestPeriod;
 	type InitialClaimAmount = InitialClaimAmount;
-	type RuntimeEvent = RuntimeEvent;
 	type InvestorOrigin = EnsureInvestor<Runtime>;
-	type VestingSchedule = Vesting;
+	type LockPeriod = FaucetLockPeriod;
+	type PalletId = FaucetId;
+	type RuntimeEvent = RuntimeEvent;
 	type VerifierPublicKey = VerifierPublicKey;
+	type VestPeriod = FaucetVestPeriod;
+	type VestingSchedule = Vesting;
 	type WeightInfo = ();
 }
 

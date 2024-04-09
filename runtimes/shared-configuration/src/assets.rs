@@ -50,7 +50,6 @@ where
 	}
 }
 
-
 // Faucet Related constants
 parameter_types! {
 	pub const InitialClaimAmount: Balance = 1000 * PLMC;

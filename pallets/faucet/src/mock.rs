@@ -16,14 +16,11 @@
 
 // If you feel like getting in touch with us, you can do so at info@polimec.org
 
-use frame_support::{PalletId, traits::tokens::WithdrawReasons, derive_impl, parameter_types, ord_parameter_types};
+use frame_support::{derive_impl, ord_parameter_types, parameter_types, traits::tokens::WithdrawReasons, PalletId};
 use frame_system as system;
 use frame_system::EnsureSignedBy;
-use sp_runtime::{
-	traits::{ConvertInto},
-	BuildStorage,
-};
 use polimec_common::credentials::EnsureInvestor;
+use sp_runtime::{traits::ConvertInto, BuildStorage};
 
 type Block = frame_system::mocking::MockBlock<Test>;
 type AccountId = u64;
@@ -43,8 +40,6 @@ parameter_types! {
 	pub const BlockHashCount: u64 = 250;
 	pub const SS58Prefix: u8 = 42;
 }
-
-
 
 #[derive_impl(frame_system::config_preludes::TestDefaultConfig as frame_system::DefaultConfig)]
 impl system::Config for Test {
@@ -68,13 +63,14 @@ parameter_types! {
 }
 
 impl pallet_vesting::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
-	type Currency = Balances;
-	type BlockNumberToBalance = ConvertInto;
-	type MinVestedTransfer = MinVestedTransfer;
-	type WeightInfo = ();
-	type UnvestedFundsAllowedWithdrawReasons = UnvestedFundsAllowedWithdrawReasons;
 	type BlockNumberProvider = System;
+	type BlockNumberToBalance = ConvertInto;
+	type Currency = Balances;
+	type MinVestedTransfer = MinVestedTransfer;
+	type RuntimeEvent = RuntimeEvent;
+	type UnvestedFundsAllowedWithdrawReasons = UnvestedFundsAllowedWithdrawReasons;
+	type WeightInfo = ();
+
 	const MAX_VESTING_SCHEDULES: u32 = 28;
 }
 
@@ -96,10 +92,10 @@ ord_parameter_types! {
 impl crate::Config for Test {
 	type AdminOrigin = EnsureSignedBy<Admin, AccountId>;
 	type BlockNumberToBalance = ConvertInto;
-	type PalletId = FaucetPalletId;
 	type InitialClaimAmount = InitialClaimAmount;
 	type InvestorOrigin = EnsureInvestor<Test>;
 	type LockPeriod = LockPeriod;
+	type PalletId = FaucetPalletId;
 	type RuntimeEvent = RuntimeEvent;
 	type VerifierPublicKey = VerifierPublicKey;
 	type VestPeriod = VestPeriod;
@@ -110,14 +106,11 @@ impl crate::Config for Test {
 pub(crate) struct ExtBuilder {
 	// amount of account that can claim tokens
 	claiming_accounts: u64,
-	
 }
 
 impl Default for ExtBuilder {
 	fn default() -> ExtBuilder {
-		ExtBuilder {
-			claiming_accounts: 1,
-		}
+		ExtBuilder { claiming_accounts: 1 }
 	}
 }
 
@@ -131,11 +124,13 @@ impl ExtBuilder {
 		let mut t = system::GenesisConfig::<Test>::default()
 			.build_storage()
 			.expect("Frame system builds valid default genesis config");
-		let faucet_filled = vec![(Faucet::claiming_account(), self.claiming_accounts * <Test as crate::Config>::InitialClaimAmount::get())];
+		let faucet_filled = vec![(
+			Faucet::claiming_account(),
+			self.claiming_accounts * <Test as crate::Config>::InitialClaimAmount::get(),
+		)];
 		pallet_balances::GenesisConfig::<Test> { balances: faucet_filled }
 			.assimilate_storage(&mut t)
 			.expect("Pallet balances storage can be assimilated");
-		
 
 		let mut ext = sp_io::TestExternalities::new(t);
 		ext.execute_with(|| System::set_block_number(1));
