@@ -121,7 +121,7 @@ pub use crate::weights::WeightInfo;
 use frame_support::{
 	traits::{
 		tokens::{fungible, fungibles, Balance},
-		AccountTouch, ContainsPair, Randomness,
+		AccountTouch, ContainsPair, Randomness, StorageVersion,
 	},
 	BoundedVec, PalletId,
 };
