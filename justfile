@@ -29,6 +29,14 @@ dry-run-benchmarks:
         --pallet="*" \
         --extrinsic=* \
         --wasm-execution=compiled \
+        --heap-pages=4096 && \
+    cargo run --features runtime-benchmarks --release -p polimec-node benchmark pallet \
+        --chain=polimec-local \
+        --steps=2 \
+        --repeat=1 \
+        --pallet="*" \
+        --extrinsic=* \
+        --wasm-execution=compiled \
         --heap-pages=4096
 
 # src: https://github.com/polkadot-fellows/runtimes/blob/48ccfae6141d2924f579d81e8b1877efd208693f/system-parachains/asset-hubs/asset-hub-polkadot/src/weights/cumulus_pallet_xcmp_queue.rs
