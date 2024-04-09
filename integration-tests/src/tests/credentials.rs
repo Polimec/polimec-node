@@ -60,7 +60,7 @@ fn test_jwt_verification() {
 generate_accounts!(CLAIMER);
 
 #[test]
-fn faucet_pre_dispatch_passed_for_new_account() {
+fn faucet_signed_extensions_pass_for_new_account() {
 	PolitestNet::execute_with(|| {
 		let who = PolitestAccountId::from(CLAIMER);
 		let jwt = get_test_jwt(who.clone(), InvestorType::Retail);

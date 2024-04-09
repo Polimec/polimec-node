@@ -39,6 +39,7 @@ mod benchmarks {
 		let caller: T::AccountId = whitelisted_caller();
 		let did = generate_did_from_account(1);
 		assert_eq!(Claims::<T>::get(did.clone()), None);
+		CurrencyOf::<T>::deposit_creating(&Faucet::<T>::claiming_account(), T::InitialClaimAmount::get());
 
 		let jwt = get_mock_jwt(caller.clone(), InvestorType::Retail, did.clone());
 		#[extrinsic_call]

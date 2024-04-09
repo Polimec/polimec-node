@@ -1057,6 +1057,7 @@ impl pallet_linear_release::Config for Runtime {
 impl pallet_insecure_randomness_collective_flip::Config for Runtime {}
 
 impl pallet_faucet::Config for Runtime {
+	// TODO: Change this account to an actual admin account.
 	type AdminOrigin = EnsureRoot<AccountId>;
 	type BlockNumberToBalance = ConvertInto;
 	type InitialClaimAmount = InitialClaimAmount;
@@ -1141,6 +1142,7 @@ mod benches {
 		// Monetary stuff.
 		[pallet_balances, Balances]
 		[pallet_vesting, Vesting]
+		[pallet_faucet, Claims]
 
 		// Collator support.
 		[pallet_session, SessionBench::<Runtime>]

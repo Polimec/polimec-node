@@ -57,31 +57,31 @@ pub mod pallet {
 	pub trait Config: frame_system::Config {
 		/// The Origin that has admin access to change the claiming amount.
 		type AdminOrigin: EnsureOrigin<Self::RuntimeOrigin>;
-
+		/// Block to balance converter.
 		type BlockNumberToBalance: Convert<BlockNumberFor<Self>, BalanceOf<Self>>;
-
-		/// The faucet's pallet id, used for deriving its sovereign account ID.
-		#[pallet::constant]
-		type PalletId: Get<PalletId>;
-
-		#[pallet::constant]
-		type LockPeriod: Get<BlockNumberFor<Self>>;
-
-		#[pallet::constant]
-		type VestPeriod: Get<BlockNumberFor<Self>>;
-
+		/// The amount of tokens that can be initially claimed from the faucet.
 		#[pallet::constant]
 		type InitialClaimAmount: Get<BalanceOf<Self>>;
-
-		/// Because this pallet emits events, it depends on the runtime's definition of an event.
-		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
-
+		/// The Origin that can claim funds from the faucet. The Origin must contain a valid JWT token.
 		type InvestorOrigin: EnsureOriginWithCredentials<
 			<Self as frame_system::Config>::RuntimeOrigin,
 			Success = (AccountIdOf<Self>, Did, InvestorType),
 		>;
-
+		/// The period of time that the claimed funds are locked. Used to calculate the
+		/// starting block of the vesting schedule.
+		#[pallet::constant]
+		type LockPeriod: Get<BlockNumberFor<Self>>;
+		/// The faucet's pallet id, used for deriving its sovereign account ID.
+		#[pallet::constant]
+		type PalletId: Get<PalletId>;
+		/// Because this pallet emits events, it depends on the runtime's definition of an event.
+		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
+		/// The loose coupling to a vesting schedule implementation.
 		type VestingSchedule: VestingSchedule<Self::AccountId, Moment = BlockNumberFor<Self>>;
+		/// The period of time that the claimed funds are in a vesting schedule. The schedule
+		/// starts after the lock period.
+		#[pallet::constant]
+		type VestPeriod: Get<BlockNumberFor<Self>>;
 		/// The Ed25519 Verifier Public Key to verify the signature of the credentials.
 		#[pallet::constant]
 		type VerifierPublicKey: Get<[u8; 32]>;
@@ -107,7 +107,9 @@ pub mod pallet {
 
 	#[pallet::error]
 	pub enum Error<T> {
+		/// The DID has already claimed from the faucet.
 		DidAlreadyClaimed,
+		/// The faucet account does not have any funds to distribute.
 		FaucetDepleted,
 	}
 
@@ -122,7 +124,7 @@ pub mod pallet {
             } else {
                 return false
             }
-         })]
+        })]
 		#[pallet::call_index(0)]
 		#[pallet::weight(Weight::from_parts(10_000, 0) + T::DbWeight::get().writes(1))]
 		pub fn claim(origin: OriginFor<T>, jwt: UntrustedToken) -> DispatchResultWithPostInfo {
