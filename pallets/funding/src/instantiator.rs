@@ -2983,14 +2983,22 @@ impl<T: Config> From<(AccountIdOf<T>, BalanceOf<T>)> for BidParams<T> {
 }
 impl<T: Config> From<(AccountIdOf<T>, BalanceOf<T>, u8)> for BidParams<T> {
 	fn from((bidder, amount, multiplier): (AccountIdOf<T>, BalanceOf<T>, u8)) -> Self {
-		Self { bidder, amount, multiplier: multiplier.try_into().unwrap_or_else(|_| panic!("Failed to create multiplier")), asset: AcceptedFundingAsset::USDT }
+		Self {
+			bidder,
+			amount,
+			multiplier: multiplier.try_into().unwrap_or_else(|_| panic!("Failed to create multiplier")),
+			asset: AcceptedFundingAsset::USDT,
+		}
 	}
 }
 impl<T: Config> From<(AccountIdOf<T>, BalanceOf<T>, u8, AcceptedFundingAsset)> for BidParams<T> {
-	fn from(
-		(bidder, amount, multiplier, asset): (AccountIdOf<T>, BalanceOf<T>, u8, AcceptedFundingAsset),
-	) -> Self {
-		Self { bidder, amount, multiplier: multiplier.try_into().unwrap_or_else(|_| panic!("Failed to create multiplier")), asset }
+	fn from((bidder, amount, multiplier, asset): (AccountIdOf<T>, BalanceOf<T>, u8, AcceptedFundingAsset)) -> Self {
+		Self {
+			bidder,
+			amount,
+			multiplier: multiplier.try_into().unwrap_or_else(|_| panic!("Failed to create multiplier")),
+			asset,
+		}
 	}
 }
 
