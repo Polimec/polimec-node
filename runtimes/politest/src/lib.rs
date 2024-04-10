@@ -170,7 +170,7 @@ pub type Migrations = migrations::Unreleased;
 pub mod migrations {
 	// use crate::Runtime;
 	/// Unreleased migrations. Add new ones here:
-	pub type Unreleased = ();
+	pub type Unreleased = pallet_funding::migration::v1::MigrationToV1<crate::Runtime>;
 }
 
 /// Executive: handles dispatch to the various modules.
@@ -216,7 +216,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("politest"),
 	impl_name: create_runtime_str!("politest"),
 	authoring_version: 1,
-	spec_version: 0_006_000,
+	spec_version: 0_006_003,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 2,
@@ -991,16 +991,16 @@ impl pallet_funding::Config for Runtime {
 	#[cfg(any(test, feature = "runtime-benchmarks", feature = "std"))]
 	type AllPalletsWithoutSystem =
 		(Balances, ContributionTokens, ForeignAssets, Oracle, Funding, LinearRelease, Random);
+	type AuctionClosingDuration = AuctionClosingDuration;
 	type AuctionInitializePeriodDuration = AuctionInitializePeriodDuration;
+	type AuctionOpeningDuration = AuctionOpeningDuration;
 	type Balance = Balance;
 	type BlockNumber = BlockNumber;
 	type BlockNumberToBalance = ConvertInto;
-	type CandleAuctionDuration = CandleAuctionDuration;
 	type CommunityFundingDuration = CommunityFundingDuration;
 	type ContributionTokenCurrency = ContributionTokens;
 	type ContributionTreasury = TreasuryAccount;
 	type DaysToBlocks = DaysToBlocks;
-	type EnglishAuctionDuration = EnglishAuctionDuration;
 	type EvaluationDuration = EvaluationDuration;
 	type EvaluationSuccessThreshold = EarlyEvaluationThreshold;
 	type EvaluatorSlash = EvaluatorSlash;

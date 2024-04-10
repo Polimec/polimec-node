@@ -64,7 +64,7 @@ impl<T: Config> Pallet<T> {
 			account: evaluation.evaluator,
 			id: evaluation.id,
 			ct_amount: reward,
-			slashed_amount: evaluation.current_plmc_bond.saturating_sub(bond),
+			slashed_plmc_amount: evaluation.current_plmc_bond.saturating_sub(bond),
 		});
 
 		Ok(())
@@ -72,10 +72,7 @@ impl<T: Config> Pallet<T> {
 
 	pub fn do_settle_failed_evaluation(evaluation: EvaluationInfoOf<T>, project_id: ProjectId) -> DispatchResult {
 		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
-		ensure!(
-			matches!(project_details.status, ProjectStatus::FundingFailed | ProjectStatus::EvaluationFailed),
-			Error::<T>::NotAllowed
-		);
+		ensure!(matches!(project_details.status, ProjectStatus::FundingFailed), Error::<T>::NotAllowed);
 
 		let bond = if matches!(project_details.evaluation_round_info.evaluators_outcome, EvaluatorsOutcome::Slashed) {
 			Self::slash_evaluator(project_id, &evaluation)?
@@ -98,7 +95,7 @@ impl<T: Config> Pallet<T> {
 			account: evaluation.evaluator,
 			id: evaluation.id,
 			ct_amount: Zero::zero(),
-			slashed_amount: evaluation.current_plmc_bond.saturating_sub(bond),
+			slashed_plmc_amount: evaluation.current_plmc_bond.saturating_sub(bond),
 		});
 
 		Ok(())

@@ -518,7 +518,7 @@ impl<
 		output.merge_accounts(MergeOperation::Add)
 	}
 
-	// WARNING: Only put bids that you are sure will be done before the random end of the candle auction
+	// WARNING: Only put bids that you are sure will be done before the random end of the closing auction
 	pub fn calculate_auction_plmc_returned_from_all_bids_made(
 		// bids in the order they were made
 		bids: &Vec<BidParams<T>>,
@@ -625,7 +625,7 @@ impl<
 		output.merge_accounts(MergeOperation::Add)
 	}
 
-	// WARNING: Only put bids that you are sure will be done before the random end of the candle auction
+	// WARNING: Only put bids that you are sure will be done before the random end of the closing auction
 	pub fn calculate_auction_funding_asset_returned_from_all_bids_made(
 		// bids in the order they were made
 		bids: &Vec<BidParams<T>>,
@@ -1090,9 +1090,9 @@ impl<
 
 		assert_eq!(self.get_project_details(project_id).status, ProjectStatus::AuctionInitializePeriod);
 
-		self.execute(|| crate::Pallet::<T>::do_english_auction(caller, project_id).unwrap());
+		self.execute(|| crate::Pallet::<T>::do_auction_opening(caller, project_id).unwrap());
 
-		assert_eq!(self.get_project_details(project_id).status, ProjectStatus::AuctionRound(AuctionPhase::English));
+		assert_eq!(self.get_project_details(project_id).status, ProjectStatus::AuctionOpening);
 
 		Ok(())
 	}
@@ -1152,25 +1152,25 @@ impl<
 	}
 
 	pub fn start_community_funding(&mut self, project_id: ProjectId) -> Result<(), DispatchError> {
-		let english_end = self
+		let opening_end = self
 			.get_project_details(project_id)
 			.phase_transition_points
-			.english_auction
+			.auction_opening
 			.end()
-			.expect("English end point should exist");
+			.expect("Auction Opening end point should exist");
 
-		self.execute(|| frame_system::Pallet::<T>::set_block_number(english_end));
+		self.execute(|| frame_system::Pallet::<T>::set_block_number(opening_end));
 		// run on_initialize
 		self.advance_time(1u32.into()).unwrap();
 
-		let candle_end = self
+		let closing_end = self
 			.get_project_details(project_id)
 			.phase_transition_points
-			.candle_auction
+			.auction_closing
 			.end()
-			.expect("Candle end point should exist");
+			.expect("closing end point should exist");
 
-		self.execute(|| frame_system::Pallet::<T>::set_block_number(candle_end));
+		self.execute(|| frame_system::Pallet::<T>::set_block_number(closing_end));
 		// run on_initialize
 		self.advance_time(1u32.into()).unwrap();
 
@@ -1346,8 +1346,8 @@ impl<
 		let details = self.get_project_details(project_id);
 		self.execute(|| match details.status {
 			ProjectStatus::FundingSuccessful => Self::settle_successful_project(project_id),
-			ProjectStatus::FundingFailed | ProjectStatus::EvaluationFailed => Self::settle_failed_project(project_id),
-			_ => panic!("Project should be in FundingSuccessful, FundingFailed or EvaluationFailed status"),
+			ProjectStatus::FundingFailed => Self::settle_failed_project(project_id),
+			_ => panic!("Project should be in FundingSuccessful or FundingFailed status"),
 		})
 	}
 
@@ -1396,10 +1396,7 @@ impl<
 		percentage: u64,
 	) {
 		let details = self.get_project_details(project_id);
-		assert!(matches!(
-			details.status,
-			ProjectStatus::FundingSuccessful | ProjectStatus::FundingFailed | ProjectStatus::EvaluationFailed
-		));
+		assert!(matches!(details.status, ProjectStatus::FundingSuccessful | ProjectStatus::FundingFailed));
 
 		self.execute(|| {
 			for evaluation in evaluations {
@@ -1723,8 +1720,7 @@ impl<
 			),
 			ProjectStatus::CommunityRound =>
 				self.create_community_contributing_project(project_metadata, issuer, evaluations, bids),
-			ProjectStatus::AuctionRound(AuctionPhase::English) =>
-				self.create_auctioning_project(project_metadata, issuer, evaluations),
+			ProjectStatus::AuctionOpening => self.create_auctioning_project(project_metadata, issuer, evaluations),
 			ProjectStatus::EvaluationRound => self.create_evaluating_project(project_metadata, issuer),
 			ProjectStatus::Application => self.create_new_project(project_metadata, issuer),
 			_ => panic!("unsupported project creation in that status"),
@@ -1944,9 +1940,9 @@ pub mod async_features {
 
 		assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::AuctionInitializePeriod);
 
-		inst.execute(|| crate::Pallet::<T>::do_english_auction(caller.clone(), project_id).unwrap());
+		inst.execute(|| crate::Pallet::<T>::do_auction_opening(caller.clone(), project_id).unwrap());
 
-		assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::AuctionRound(AuctionPhase::English));
+		assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::AuctionOpening);
 
 		Ok(())
 	}
@@ -2039,12 +2035,12 @@ pub mod async_features {
 	) -> Result<(), DispatchError> {
 		let mut inst = instantiator.lock().await;
 
-		let update_block = inst.get_update_block(project_id, &UpdateType::CandleAuctionStart).unwrap();
-		let candle_start = update_block + 1u32.into();
+		let update_block = inst.get_update_block(project_id, &UpdateType::AuctionClosingStart).unwrap();
+		let closing_start = update_block + 1u32.into();
 
 		let notify = Arc::new(Notify::new());
 
-		block_orchestrator.add_awaiting_project(candle_start, notify.clone()).await;
+		block_orchestrator.add_awaiting_project(closing_start, notify.clone()).await;
 
 		// Wait for the notification that our desired block was reached to continue
 
@@ -2545,7 +2541,7 @@ pub mod async_features {
 				)
 				.map(|(project_id, _)| project_id)
 				.await,
-			ProjectStatus::AuctionRound(AuctionPhase::English) =>
+			ProjectStatus::AuctionOpening =>
 				async_create_auctioning_project(
 					instantiator,
 					block_orchestrator,
@@ -2578,8 +2574,8 @@ pub mod async_features {
 		// we immediately start the auction, so we dont wait for T::AuctionInitializePeriodDuration.
 		let time_to_auction: BlockNumberFor<T> = time_to_evaluation + <T as Config>::EvaluationDuration::get();
 		let time_to_community: BlockNumberFor<T> = time_to_auction +
-			<T as Config>::EnglishAuctionDuration::get() +
-			<T as Config>::CandleAuctionDuration::get();
+			<T as Config>::AuctionOpeningDuration::get() +
+			<T as Config>::AuctionClosingDuration::get();
 		let time_to_remainder: BlockNumberFor<T> = time_to_community + <T as Config>::CommunityFundingDuration::get();
 		let time_to_finish: BlockNumberFor<T> = time_to_remainder + <T as Config>::RemainderFundingDuration::get();
 		let mut inst = mutex_inst.lock().await;
@@ -2611,7 +2607,7 @@ pub mod async_features {
 				)
 				.await
 			},
-			ProjectStatus::AuctionRound(_) => {
+			ProjectStatus::AuctionOpening | ProjectStatus::AuctionClosing => {
 				let notify = Arc::new(Notify::new());
 				block_orchestrator.add_awaiting_project(now + time_to_finish - time_to_auction, notify.clone()).await;
 				// Wait for the notification that our desired block was reached to continue

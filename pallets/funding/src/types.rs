@@ -198,8 +198,13 @@ pub mod storage_types {
 		pub offchain_information_hash: Option<Hash>,
 	}
 
-	impl<BoundedString, Balance: From<u64> + PartialOrd + Copy, Price: FixedPointNumber, Hash, AccountId>
-		ProjectMetadata<BoundedString, Balance, Price, Hash, AccountId>
+	impl<
+			BoundedString,
+			Balance: From<u64> + PartialOrd + Copy + FixedPointOperand,
+			Price: FixedPointNumber,
+			Hash,
+			AccountId,
+		> ProjectMetadata<BoundedString, Balance, Price, Hash, AccountId>
 	{
 		/// Validate issuer metadata for the following checks:
 		/// - Minimum price is not zero
@@ -216,11 +221,28 @@ pub mod storage_types {
 			])?;
 			self.contributing_ticket_sizes.is_valid(vec![])?;
 
+			if self.total_allocation_size > self.mainnet_token_max_supply {
+				return Err(ValidityError::AllocationSizeError);
+			}
+
+			if self.total_allocation_size <= 0u64.into() {
+				return Err(ValidityError::AllocationSizeError);
+			}
+
+			if self.auction_round_allocation_percentage <= Percent::from_percent(0) {
+				return Err(ValidityError::AuctionRoundPercentageError);
+			}
+
 			let mut deduped = self.participation_currencies.clone().to_vec();
 			deduped.sort();
 			deduped.dedup();
 			if deduped.len() != self.participation_currencies.len() {
 				return Err(ValidityError::ParticipationCurrenciesError);
+			}
+
+			let target_funding = self.minimum_price.saturating_mul_int(self.total_allocation_size);
+			if target_funding < (1000u64 * US_DOLLAR as u64).into() {
+				return Err(ValidityError::FundingTargetTooLow);
 			}
 			Ok(())
 		}
@@ -283,8 +305,8 @@ pub mod storage_types {
 	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
 	pub enum UpdateType {
 		EvaluationEnd,
-		EnglishAuctionStart,
-		CandleAuctionStart,
+		AuctionOpeningStart,
+		AuctionClosingStart,
 		CommunityFundingStart,
 		RemainderFundingStart,
 		FundingEnd,
@@ -418,6 +440,7 @@ pub mod storage_types {
 
 pub mod inner_types {
 	use super::*;
+	use frame_support::PalletError;
 	use variant_count::VariantCount;
 	#[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
 	#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
@@ -561,9 +584,9 @@ pub mod inner_types {
 		#[default]
 		Application,
 		EvaluationRound,
-		EvaluationFailed,
 		AuctionInitializePeriod,
-		AuctionRound(AuctionPhase),
+		AuctionOpening,
+		AuctionClosing,
 		CommunityRound,
 		RemainderRound,
 		FundingFailed,
@@ -573,22 +596,14 @@ pub mod inner_types {
 		MigrationCompleted,
 	}
 
-	#[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
-	#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
-	pub enum AuctionPhase {
-		#[default]
-		English,
-		Candle,
-	}
-
 	#[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
 	pub struct PhaseTransitionPoints<BlockNumber> {
 		pub application: BlockNumberPair<BlockNumber>,
 		pub evaluation: BlockNumberPair<BlockNumber>,
 		pub auction_initialize_period: BlockNumberPair<BlockNumber>,
-		pub english_auction: BlockNumberPair<BlockNumber>,
-		pub random_candle_ending: Option<BlockNumber>,
-		pub candle_auction: BlockNumberPair<BlockNumber>,
+		pub auction_opening: BlockNumberPair<BlockNumber>,
+		pub random_closing_ending: Option<BlockNumber>,
+		pub auction_closing: BlockNumberPair<BlockNumber>,
 		pub community: BlockNumberPair<BlockNumber>,
 		pub remainder: BlockNumberPair<BlockNumber>,
 	}
@@ -599,9 +614,9 @@ pub mod inner_types {
 				application: BlockNumberPair::new(Some(now), None),
 				evaluation: BlockNumberPair::new(None, None),
 				auction_initialize_period: BlockNumberPair::new(None, None),
-				english_auction: BlockNumberPair::new(None, None),
-				random_candle_ending: None,
-				candle_auction: BlockNumberPair::new(None, None),
+				auction_opening: BlockNumberPair::new(None, None),
+				random_closing_ending: None,
+				auction_closing: BlockNumberPair::new(None, None),
 				community: BlockNumberPair::new(None, None),
 				remainder: BlockNumberPair::new(None, None),
 			}
@@ -647,6 +662,19 @@ pub mod inner_types {
 		PriceTooLow,
 		TicketSizeError,
 		ParticipationCurrenciesError,
+		AllocationSizeError,
+		AuctionRoundPercentageError,
+		FundingTargetTooLow,
+	}
+
+	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen, PalletError)]
+	pub enum MetadataError {
+		PriceTooLow,
+		TicketSizeError,
+		ParticipationCurrenciesError,
+		AllocationSizeError,
+		AuctionRoundPercentageError,
+		FundingTargetTooLow,
 	}
 
 	#[derive(Default, Clone, Copy, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
@@ -664,8 +692,8 @@ pub mod inner_types {
 
 	#[derive(Clone, Copy, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
 	pub enum RejectionReason {
-		/// The bid was submitted after the candle auction ended
-		AfterCandleEnd,
+		/// The bid was submitted after the closing period ended
+		AfterClosingEnd,
 		/// The bid was accepted but too many tokens were requested. A partial amount was accepted
 		NoTokensLeft,
 		/// Error in calculating ticket_size for partially funded request
@@ -680,25 +708,32 @@ pub mod inner_types {
 	}
 
 	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
-	pub enum FundingOutcome {
-		Success(SuccessReason),
-		Failure(FailureReason),
+	pub enum ProjectPhases {
+		Evaluation,
+		AuctionInitializePeriod,
+		AuctionOpening,
+		AuctionClosing,
+		CommunityFunding,
+		RemainderFunding,
+		DecisionPeriod,
+		FundingFinalization(ProjectOutcome),
+		Settlement,
+		Migration,
 	}
 
+	/// An enum representing all possible outcomes for a project.
 	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
-	pub enum SuccessReason {
-		SoldOut,
-		ReachedTarget,
-		ProjectDecision,
-	}
-
-	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
-	pub enum FailureReason {
+	pub enum ProjectOutcome {
+		/// The evaluation funding target was not reached.
 		EvaluationFailed,
-		AuctionFailed,
-		TargetNotReached,
-		ProjectDecision,
-		Unknown,
+		/// 90%+ of the funding target was reached, so the project is successful.
+		FundingSuccessful,
+		/// 33%- of the funding target was reached, so the project failed.
+		FundingFailed,
+		/// The project issuer accepted the funding outcome between 33% and 90% of the target.
+		FundingAccepted,
+		/// The project issuer rejected the funding outcome between 33% and 90% of the target.
+		FundingRejected,
 	}
 
 	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
