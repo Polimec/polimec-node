@@ -1181,6 +1181,75 @@ mod bid_extrinsic {
 		}
 
 		#[test]
+		fn splitted_bids_cannot_exceed_project_limit_count() {
+			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+			let mut project_metadata = default_project_metadata(ISSUER_1);
+			project_metadata.mainnet_token_max_supply = 1_000_000_000 * ASSET_UNIT;
+			project_metadata.total_allocation_size = 100_000_000 * ASSET_UNIT;
+
+			let evaluations = MockInstantiator::generate_successful_evaluations(
+				project_metadata.clone(),
+				vec![EVALUATOR_1],
+				vec![100u8],
+			);
+			let max_bids_per_project: u32 = <TestRuntime as Config>::MaxBidsPerProject::get();
+			let bids = (0u32..max_bids_per_project-1)
+				.map(|i| (i as u32 + 420u32, 5000 * ASSET_UNIT).into())
+				.collect_vec();
+
+			let project_id = inst.create_auctioning_project(project_metadata.clone(), ISSUER_1, evaluations);
+
+			let plmc_for_bidding = MockInstantiator::calculate_auction_plmc_charged_with_given_price(
+				&bids.clone(),
+				project_metadata.minimum_price,
+			);
+			let plmc_existential_deposits = bids.accounts().existential_deposits();
+			let usdt_for_bidding = MockInstantiator::calculate_auction_funding_asset_charged_with_given_price(
+				&bids.clone(),
+				project_metadata.minimum_price,
+			);
+
+			inst.mint_plmc_to(plmc_for_bidding.clone());
+			inst.mint_plmc_to(plmc_existential_deposits.clone());
+			inst.mint_foreign_asset_to(usdt_for_bidding.clone());
+			inst.bid_for_users(project_id, bids.clone()).unwrap();
+
+			let current_bucket = inst.execute(|| Buckets::<TestRuntime>::get(project_id)).unwrap();
+			let remaining_ct = current_bucket.amount_left;
+
+			// This bid should be split in 2, but the second one should fail, making the whole extrinsic fail and roll back storage
+			let failing_bid = BidParams::<TestRuntime>::new(BIDDER_1, remaining_ct + 5000 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT);
+			let plmc_for_failing_bid = MockInstantiator::calculate_auction_plmc_charged_from_all_bids_made_or_with_bucket(
+				&vec![failing_bid.clone()],
+				project_metadata.clone(),
+				Some(current_bucket),
+			);
+			let plmc_existential_deposits = plmc_for_failing_bid.accounts().existential_deposits();
+			let usdt_for_bidding = MockInstantiator::calculate_auction_funding_asset_charged_from_all_bids_made_or_with_bucket(
+				&vec![failing_bid.clone()],
+				project_metadata.clone(),
+				Some(current_bucket),
+			);
+
+			inst.mint_plmc_to(plmc_for_failing_bid.clone());
+			inst.mint_plmc_to(plmc_existential_deposits.clone());
+			inst.mint_foreign_asset_to(usdt_for_bidding.clone());
+
+			inst.execute(|| {
+				assert_noop!(
+					PolimecFunding::bid(
+						RuntimeOrigin::signed(failing_bid.bidder),
+						get_mock_jwt(failing_bid.bidder, InvestorType::Professional, generate_did_from_account(failing_bid.bidder)),
+						project_id,
+						failing_bid.amount,
+						failing_bid.multiplier,
+						failing_bid.asset
+					),
+					Error::<TestRuntime>::TooManyBidsForUser);
+			});
+		}
+
+		#[test]
 		fn cannot_bid_more_than_user_limit_count() {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 			let mut project_metadata = default_project_metadata(ISSUER_1);
@@ -1231,6 +1300,75 @@ mod bid_extrinsic {
 			inst.mint_foreign_asset_to(usdt_for_bidding.clone());
 
 			assert_err!(inst.bid_for_users(project_id, vec![failing_bid]), Error::<TestRuntime>::TooManyBidsForUser);
+		}
+
+		#[test]
+		fn splitted_bids_cannot_exceed_user_limit_count() {
+			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+			let mut project_metadata = default_project_metadata(ISSUER_1);
+			project_metadata.mainnet_token_max_supply = 1_000_000_000 * ASSET_UNIT;
+			project_metadata.total_allocation_size = 100_000_000 * ASSET_UNIT;
+
+			let evaluations = MockInstantiator::generate_successful_evaluations(
+				project_metadata.clone(),
+				vec![EVALUATOR_1],
+				vec![100u8],
+			);
+			let max_bids_per_user: u32 = <TestRuntime as Config>::MaxBidsPerUser::get();
+			let bids = (0u32..max_bids_per_user-1u32)
+				.map(|i| (BIDDER_1, 5000 * ASSET_UNIT).into())
+				.collect_vec();
+
+			let project_id = inst.create_auctioning_project(project_metadata.clone(), ISSUER_1, evaluations);
+
+			let plmc_for_bidding = MockInstantiator::calculate_auction_plmc_charged_with_given_price(
+				&bids.clone(),
+				project_metadata.minimum_price,
+			);
+			let plmc_existential_deposits = bids.accounts().existential_deposits();
+			let usdt_for_bidding = MockInstantiator::calculate_auction_funding_asset_charged_with_given_price(
+				&bids.clone(),
+				project_metadata.minimum_price,
+			);
+
+			inst.mint_plmc_to(plmc_for_bidding.clone());
+			inst.mint_plmc_to(plmc_existential_deposits.clone());
+			inst.mint_foreign_asset_to(usdt_for_bidding.clone());
+			inst.bid_for_users(project_id, bids.clone()).unwrap();
+
+			let current_bucket = inst.execute(|| Buckets::<TestRuntime>::get(project_id)).unwrap();
+			let remaining_ct = current_bucket.amount_left;
+
+			// This bid should be split in 2, but the second one should fail, making the whole extrinsic fail and roll back storage
+			let failing_bid = BidParams::<TestRuntime>::new(BIDDER_1, remaining_ct + 5000 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT);
+			let plmc_for_failing_bid = MockInstantiator::calculate_auction_plmc_charged_from_all_bids_made_or_with_bucket(
+				&vec![failing_bid.clone()],
+				project_metadata.clone(),
+				Some(current_bucket),
+			);
+			let plmc_existential_deposits = plmc_for_failing_bid.accounts().existential_deposits();
+			let usdt_for_bidding = MockInstantiator::calculate_auction_funding_asset_charged_from_all_bids_made_or_with_bucket(
+				&vec![failing_bid.clone()],
+				project_metadata.clone(),
+				Some(current_bucket),
+			);
+
+			inst.mint_plmc_to(plmc_for_failing_bid.clone());
+			inst.mint_plmc_to(plmc_existential_deposits.clone());
+			inst.mint_foreign_asset_to(usdt_for_bidding.clone());
+
+			inst.execute(|| {
+				assert_noop!(
+					PolimecFunding::bid(
+						RuntimeOrigin::signed(failing_bid.bidder),
+						get_mock_jwt(failing_bid.bidder, InvestorType::Professional, generate_did_from_account(failing_bid.bidder)),
+						project_id,
+						failing_bid.amount,
+						failing_bid.multiplier,
+						failing_bid.asset
+					),
+					Error::<TestRuntime>::TooManyBidsForUser);
+			});
 		}
 
 		#[test]
