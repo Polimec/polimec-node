@@ -2981,16 +2981,16 @@ impl<T: Config> From<(AccountIdOf<T>, BalanceOf<T>)> for BidParams<T> {
 		}
 	}
 }
-impl<T: Config> From<(AccountIdOf<T>, BalanceOf<T>, MultiplierOf<T>)> for BidParams<T> {
-	fn from((bidder, amount, multiplier): (AccountIdOf<T>, BalanceOf<T>, MultiplierOf<T>)) -> Self {
-		Self { bidder, amount, multiplier, asset: AcceptedFundingAsset::USDT }
+impl<T: Config> From<(AccountIdOf<T>, BalanceOf<T>, u8)> for BidParams<T> {
+	fn from((bidder, amount, multiplier): (AccountIdOf<T>, BalanceOf<T>, u8)) -> Self {
+		Self { bidder, amount, multiplier: multiplier.try_into().unwrap_or_else(|_| panic!("Failed to create multiplier")), asset: AcceptedFundingAsset::USDT }
 	}
 }
-impl<T: Config> From<(AccountIdOf<T>, BalanceOf<T>, MultiplierOf<T>, AcceptedFundingAsset)> for BidParams<T> {
+impl<T: Config> From<(AccountIdOf<T>, BalanceOf<T>, u8, AcceptedFundingAsset)> for BidParams<T> {
 	fn from(
-		(bidder, amount, multiplier, asset): (AccountIdOf<T>, BalanceOf<T>, MultiplierOf<T>, AcceptedFundingAsset),
+		(bidder, amount, multiplier, asset): (AccountIdOf<T>, BalanceOf<T>, u8, AcceptedFundingAsset),
 	) -> Self {
-		Self { bidder, amount, multiplier, asset }
+		Self { bidder, amount, multiplier: multiplier.try_into().unwrap_or_else(|_| panic!("Failed to create multiplier")), asset }
 	}
 }
 

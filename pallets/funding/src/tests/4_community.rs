@@ -47,28 +47,7 @@ fn multiple_contribution_projects_completed() {
 	);
 	inst.create_remainder_contributing_project(project4, ISSUER_4, evaluations, bids, community_buys);
 }
-#[test]
-fn no_bids_made() {
-	let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
-	let issuer = ISSUER_1;
-	let project_metadata = default_project_metadata(issuer);
-	let evaluations = default_evaluations();
-	let project_id = inst.create_auctioning_project(project_metadata.clone(), issuer, evaluations);
 
-	let details = inst.get_project_details(project_id);
-	let opening_end = details.phase_transition_points.auction_opening.end().unwrap();
-	let now = inst.current_block();
-	inst.advance_time(opening_end - now + 2).unwrap();
-
-	let details = inst.get_project_details(project_id);
-	let closing_end = details.phase_transition_points.auction_closing.end().unwrap();
-	let now = inst.current_block();
-	inst.advance_time(closing_end - now + 2).unwrap();
-
-	let details = inst.get_project_details(project_id);
-	assert_eq!(details.status, ProjectStatus::CommunityRound);
-	assert_eq!(details.weighted_average_price, Some(project_metadata.minimum_price));
-}
 #[test]
 fn contribute_multiple_times_works() {
 	let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
