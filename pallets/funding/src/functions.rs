@@ -240,6 +240,7 @@ impl<T: Config> Pallet<T> {
 		// * Get variables *
 		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 		let now = <frame_system::Pallet<T>>::block_number();
+
 		let auction_initialize_period_start_block = project_details
 			.phase_transition_points
 			.auction_initialize_period

@@ -255,7 +255,6 @@ mod round_flow {
 			);
 			let expected_free_funding_assets =
 				MockInstantiator::generic_map_operation(vec![returned_funding_assets.clone()], MergeOperation::Add);
-			dbg!(&expected_free_plmc);
 			let expected_reserved_plmc = MockInstantiator::generic_map_operation(
 				vec![plmc_fundings.clone(), returned_auction_plmc],
 				MergeOperation::Subtract,
@@ -468,7 +467,7 @@ mod start_auction_extrinsic {
 		use super::*;
 
 		#[test]
-		fn cannot_start_auction_before_evaluation_finishes() {
+		fn cannot_start_auction_manually_before_evaluation_finishes() {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 			let project_id = inst.create_evaluating_project(default_project_metadata(ISSUER_1), ISSUER_1);
 			inst.execute(|| {
@@ -480,28 +479,42 @@ mod start_auction_extrinsic {
 		}
 
 		#[test]
-		fn bid_with_asset_not_accepted() {
+		fn cannot_start_auction_manually_if_evaluation_fails() {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
-			let project_id =
-				inst.create_auctioning_project(default_project_metadata(ISSUER_1), ISSUER_1, default_evaluations());
-			let bids = vec![BidParams::<TestRuntime>::new(BIDDER_1, 10_000, 1u8, AcceptedFundingAsset::USDC)];
-
-			let did = generate_did_from_account(bids[0].bidder);
-			let investor_type = InvestorType::Institutional;
-
-			let outcome = inst.execute(|| {
-				Pallet::<TestRuntime>::do_bid(
-					&bids[0].bidder,
-					project_id,
-					bids[0].amount,
-					bids[0].multiplier,
-					bids[0].asset,
-					did,
-					investor_type,
-				)
+			let project_id = inst.create_evaluating_project(default_project_metadata(ISSUER_1), ISSUER_1);
+			inst.advance_time(<TestRuntime as Config>::EvaluationDuration::get() + 1).unwrap();
+			inst.execute(|| {
+				assert_noop!(
+					PolimecFunding::do_auction_opening(ISSUER_1, project_id),
+					Error::<TestRuntime>::EvaluationPeriodNotEnded
+				);
 			});
-			frame_support::assert_err!(outcome, Error::<TestRuntime>::FundingAssetNotAccepted);
+			assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::FundingFailed);
 		}
+
+		#[test]
+		fn auction_doesnt_start_automatically_if_evaluation_fails() {
+			// Test our success assumption is ok
+			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+			let project_id = inst.create_evaluating_project(default_project_metadata(ISSUER_1), ISSUER_1);
+			let evaluations = default_evaluations();
+			let required_plmc = MockInstantiator::calculate_evaluation_plmc_spent(evaluations.clone());
+			let ed_plmc = required_plmc.accounts().existential_deposits();
+			inst.mint_plmc_to(required_plmc);
+			inst.mint_plmc_to(ed_plmc);
+			inst.evaluate_for_users(project_id, evaluations).unwrap();
+			inst.advance_time(<TestRuntime as Config>::EvaluationDuration::get() + 1).unwrap();
+			inst.advance_time(<TestRuntime as Config>::AuctionInitializePeriodDuration::get() + 2).unwrap();
+			assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::AuctionOpening);
+
+			// Main test with failed evaluation
+			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+			let project_id = inst.create_evaluating_project(default_project_metadata(ISSUER_1), ISSUER_1);
+			inst.advance_time(<TestRuntime as Config>::EvaluationDuration::get() + 1).unwrap();
+			inst.advance_time(<TestRuntime as Config>::AuctionInitializePeriodDuration::get() + 2).unwrap();
+			assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::FundingFailed);
+		}
+
 	}
 }
 
@@ -694,27 +707,7 @@ mod bid_extrinsic {
 		#[test]
 		fn multiplier_limits() {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
-			let project_metadata = ProjectMetadata {
-				token_information: default_token_information(),
-				mainnet_token_max_supply: 80_000_000 * ASSET_UNIT,
-				total_allocation_size: 10_000_000 * ASSET_UNIT,
-				auction_round_allocation_percentage: Percent::from_percent(50u8),
-				minimum_price: PriceOf::<TestRuntime>::from_float(10.0),
-				bidding_ticket_sizes: BiddingTicketSizes {
-					professional: TicketSize::new(Some(5000 * US_DOLLAR), None),
-					institutional: TicketSize::new(Some(5000 * US_DOLLAR), None),
-					phantom: Default::default(),
-				},
-				contributing_ticket_sizes: ContributingTicketSizes {
-					retail: TicketSize::new(None, None),
-					professional: TicketSize::new(None, None),
-					institutional: TicketSize::new(None, None),
-					phantom: Default::default(),
-				},
-				participation_currencies: vec![AcceptedFundingAsset::USDT].try_into().unwrap(),
-				funding_destination_account: ISSUER_1,
-				offchain_information_hash: Some(hashed(METADATA)),
-			};
+			let project_metadata = default_project_metadata(ISSUER_1);
 			let evaluations = MockInstantiator::generate_successful_evaluations(
 				project_metadata.clone(),
 				default_evaluators(),
@@ -920,17 +913,30 @@ mod bid_extrinsic {
 			// 40% + 10% + 5% + 5% + 3% = 5 total bids
 			assert_eq!(stored_bids.len(), 5);
 
-			stored_bids[1].original_ct_usd_price = PriceOf::<TestRuntime>::from_float(1.0);
-			stored_bids[1].original_ct_amount = Percent::from_percent(10) * project_metadata.total_allocation_size;
+			assert_eq!(stored_bids[1].original_ct_usd_price, PriceOf::<TestRuntime>::from_float(1.0));
+			assert_eq!(
+				stored_bids[1].original_ct_amount,
+				Percent::from_percent(10) * project_metadata.total_allocation_size
+			);
+			assert_eq!(stored_bids[2].original_ct_usd_price, PriceOf::<TestRuntime>::from_rational(11, 10));
+			assert_eq!(
+				stored_bids[2].original_ct_amount,
+				Percent::from_percent(5) * project_metadata.total_allocation_size
+			);
 
-			stored_bids[2].original_ct_usd_price = PriceOf::<TestRuntime>::from_float(1.1);
-			stored_bids[2].original_ct_amount = Percent::from_percent(5) * project_metadata.total_allocation_size;
+			assert_eq!(stored_bids[3].original_ct_usd_price, PriceOf::<TestRuntime>::from_float(1.2));
+			assert_eq!(
+				stored_bids[3].original_ct_amount,
+				Percent::from_percent(5) * project_metadata.total_allocation_size
+			);
 
-			stored_bids[3].original_ct_usd_price = PriceOf::<TestRuntime>::from_float(1.2);
-			stored_bids[3].original_ct_amount = Percent::from_percent(5) * project_metadata.total_allocation_size;
-
-			stored_bids[4].original_ct_usd_price = PriceOf::<TestRuntime>::from_float(1.3);
-			stored_bids[4].original_ct_amount = Percent::from_percent(3) * project_metadata.total_allocation_size;
+			assert_eq!(stored_bids[4].original_ct_usd_price, PriceOf::<TestRuntime>::from_float(1.3));
+			assert_eq!(
+				stored_bids[4].original_ct_amount,
+				Percent::from_percent(3) * project_metadata.total_allocation_size
+			);
+			let current_bucket = inst.execute(|| Buckets::<TestRuntime>::get(project_id)).unwrap();
+			assert_eq!(current_bucket.current_price, PriceOf::<TestRuntime>::from_float(1.3));
 		}
 	}
 
@@ -960,6 +966,7 @@ mod bid_extrinsic {
 
 			assert_err!(inst.bid_for_users(project_id, vec![evaluator_bid]), TokenError::FundsUnavailable);
 		}
+
 		#[test]
 		fn cannot_bid_before_auction_round() {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
@@ -985,27 +992,9 @@ mod bid_extrinsic {
 		#[test]
 		fn cannot_bid_more_than_project_limit_count() {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
-			let project_metadata = ProjectMetadata {
-				token_information: default_token_information(),
-				mainnet_token_max_supply: 8_000_000 * ASSET_UNIT,
-				total_allocation_size: 1_000_000 * ASSET_UNIT,
-				auction_round_allocation_percentage: Percent::from_percent(50u8),
-				minimum_price: PriceOf::<TestRuntime>::from_float(100.0),
-				bidding_ticket_sizes: BiddingTicketSizes {
-					professional: TicketSize::new(Some(5000 * US_DOLLAR), None),
-					institutional: TicketSize::new(Some(5000 * US_DOLLAR), None),
-					phantom: Default::default(),
-				},
-				contributing_ticket_sizes: ContributingTicketSizes {
-					retail: TicketSize::new(None, None),
-					professional: TicketSize::new(None, None),
-					institutional: TicketSize::new(None, None),
-					phantom: Default::default(),
-				},
-				participation_currencies: vec![AcceptedFundingAsset::USDT].try_into().unwrap(),
-				funding_destination_account: ISSUER_1,
-				offchain_information_hash: Some(hashed(METADATA)),
-			};
+			let mut project_metadata = default_project_metadata(ISSUER_1);
+			project_metadata.minimum_price = PriceOf::<TestRuntime>::from_float(100.0);
+
 			let evaluations = MockInstantiator::generate_successful_evaluations(
 				project_metadata.clone(),
 				vec![EVALUATOR_1],
@@ -1174,26 +1163,17 @@ mod bid_extrinsic {
 		#[test]
 		fn per_credential_type_ticket_size_maximums() {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
-			let project_metadata = ProjectMetadata {
-				token_information: default_token_information(),
-				mainnet_token_max_supply: 8_000_000 * ASSET_UNIT,
-				total_allocation_size: 100_000 * ASSET_UNIT,
-				auction_round_allocation_percentage: Percent::from_percent(80u8),
-				minimum_price: PriceOf::<TestRuntime>::from_float(10.0),
-				bidding_ticket_sizes: BiddingTicketSizes {
-					professional: TicketSize::new(Some(8_000 * US_DOLLAR), Some(100_000 * US_DOLLAR)),
-					institutional: TicketSize::new(Some(20_000 * US_DOLLAR), Some(500_000 * US_DOLLAR)),
-					phantom: Default::default(),
-				},
-				contributing_ticket_sizes: ContributingTicketSizes {
-					retail: TicketSize::new(None, Some(100_000 * US_DOLLAR)),
-					professional: TicketSize::new(None, Some(20_000 * US_DOLLAR)),
-					institutional: TicketSize::new(None, Some(50_000 * US_DOLLAR)),
-					phantom: Default::default(),
-				},
-				participation_currencies: vec![AcceptedFundingAsset::USDT].try_into().unwrap(),
-				funding_destination_account: ISSUER_1,
-				offchain_information_hash: Some(hashed(METADATA)),
+			let mut project_metadata = default_project_metadata(ISSUER_1);
+			project_metadata.bidding_ticket_sizes = BiddingTicketSizes {
+				professional: TicketSize::new(Some(8_000 * US_DOLLAR), Some(100_000 * US_DOLLAR)),
+				institutional: TicketSize::new(Some(20_000 * US_DOLLAR), Some(500_000 * US_DOLLAR)),
+				phantom: Default::default(),
+			};
+			project_metadata.contributing_ticket_sizes = ContributingTicketSizes {
+				retail: TicketSize::new(None, Some(100_000 * US_DOLLAR)),
+				professional: TicketSize::new(None, Some(20_000 * US_DOLLAR)),
+				institutional: TicketSize::new(None, Some(50_000 * US_DOLLAR)),
+				phantom: Default::default(),
 			};
 			let evaluations = default_evaluations();
 
@@ -1309,6 +1289,30 @@ mod bid_extrinsic {
 				)),
 				Error::<TestRuntime>::ParticipationToThemselves
 			);
+		}
+
+		#[test]
+		fn bid_with_asset_not_accepted() {
+			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+			let project_id =
+				inst.create_auctioning_project(default_project_metadata(ISSUER_1), ISSUER_1, default_evaluations());
+			let bids = vec![BidParams::<TestRuntime>::new(BIDDER_1, 10_000, 1u8, AcceptedFundingAsset::USDC)];
+
+			let did = generate_did_from_account(bids[0].bidder);
+			let investor_type = InvestorType::Institutional;
+
+			let outcome = inst.execute(|| {
+				Pallet::<TestRuntime>::do_bid(
+					&bids[0].bidder,
+					project_id,
+					bids[0].amount,
+					bids[0].multiplier,
+					bids[0].asset,
+					did,
+					investor_type,
+				)
+			});
+			frame_support::assert_err!(outcome, Error::<TestRuntime>::FundingAssetNotAccepted);
 		}
 	}
 }
