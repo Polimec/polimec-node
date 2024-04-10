@@ -38,7 +38,6 @@ use sp_arithmetic::{
 	Percent, Perquintill,
 };
 use sp_runtime::traits::Convert;
-use std::thread::current;
 
 use super::*;
 use crate::traits::{BondingRequirementCalculation, ProvideAssetPrice, VestingDurationCalculation};
