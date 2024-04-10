@@ -51,7 +51,10 @@ pub mod pallet {
 		PalletId,
 	};
 	use frame_system::pallet_prelude::*;
-	use sp_runtime::{traits::{AccountIdConversion, CheckedDiv}, Saturating};
+	use sp_runtime::{
+		traits::{AccountIdConversion, CheckedDiv},
+		Saturating,
+	};
 
 	/// Configure the pallet by specifying the parameters and types on which it depends.
 	#[pallet::config]
@@ -131,7 +134,6 @@ pub mod pallet {
 		DispenseAmountTooLow,
 	}
 
-
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
 		#[pallet::feeless_if( | origin: &OriginFor<T>, jwt: &UntrustedToken | -> bool {
@@ -154,7 +156,9 @@ pub mod pallet {
 			let current_block = <frame_system::Pallet<T>>::block_number();
 			let length_as_balance = T::BlockNumberToBalance::convert(T::VestPeriod::get());
 			let locked_amount = amount.saturating_sub(T::FreeDispenseAmount::get());
-			let per_block = locked_amount.checked_div(&length_as_balance.max(sp_runtime::traits::One::one())).ok_or(DispatchError::Arithmetic(sp_runtime::ArithmeticError::Underflow))?;
+			let per_block = locked_amount
+				.checked_div(&length_as_balance.max(sp_runtime::traits::One::one()))
+				.ok_or(DispatchError::Arithmetic(sp_runtime::ArithmeticError::Underflow))?;
 
 			T::VestingSchedule::can_add_vesting_schedule(
 				&who,

@@ -85,13 +85,24 @@ fn dispenser_works_with_runtime_values() {
 	PolitestNet::execute_with(|| {
 		let who = PolitestAccountId::from(EMPTY_ACCOUNT);
 		let jwt = get_test_jwt(who.clone(), InvestorType::Retail);
-		PolitestBalances::force_set_balance(PolitestOrigin::root(), PolitestDispenser::dispense_account().into(), 1000 * PLMC).unwrap();
+		PolitestBalances::force_set_balance(
+			PolitestOrigin::root(),
+			PolitestDispenser::dispense_account().into(),
+			1000 * PLMC,
+		)
+		.unwrap();
 		assert_ok!(PolitestDispenser::dispense(PolitestOrigin::signed(who.clone()), jwt));
 		assert_eq!(PolitestBalances::free_balance(&who), 700 * PLMC);
-		assert_eq!(PolitestBalances::usable_balance(who.clone()), <PolitestRuntime as pallet_dispenser::Config>::FreeDispenseAmount::get());
+		assert_eq!(
+			PolitestBalances::usable_balance(who.clone()),
+			<PolitestRuntime as pallet_dispenser::Config>::FreeDispenseAmount::get()
+		);
 		assert_eq!(
 			PolitestVesting::vesting_balance(&who),
-			Some(<PolitestRuntime as pallet_dispenser::Config>::InitialDispenseAmount::get() - <PolitestRuntime as pallet_dispenser::Config>::FreeDispenseAmount::get())
+			Some(
+				<PolitestRuntime as pallet_dispenser::Config>::InitialDispenseAmount::get() -
+					<PolitestRuntime as pallet_dispenser::Config>::FreeDispenseAmount::get()
+			)
 		);
 	})
 }

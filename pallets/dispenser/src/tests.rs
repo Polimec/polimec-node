@@ -100,7 +100,10 @@ mod dispense {
 			assert_eq!(Balances::usable_balance(1), <Test as pallet_dispenser::Config>::FreeDispenseAmount::get());
 			assert_eq!(
 				Vesting::vesting_balance(&1),
-				Some(<Test as pallet_dispenser::Config>::InitialDispenseAmount::get() - <Test as pallet_dispenser::Config>::FreeDispenseAmount::get())
+				Some(
+					<Test as pallet_dispenser::Config>::InitialDispenseAmount::get() -
+						<Test as pallet_dispenser::Config>::FreeDispenseAmount::get()
+				)
 			);
 
 			// Change the dispense amount.
@@ -132,7 +135,10 @@ mod dispense {
 				assert_eq!(Balances::usable_balance(i), <Test as pallet_dispenser::Config>::FreeDispenseAmount::get());
 				assert_eq!(
 					Vesting::vesting_balance(&i),
-					Some(<Test as pallet_dispenser::Config>::InitialDispenseAmount::get() - <Test as pallet_dispenser::Config>::FreeDispenseAmount::get())
+					Some(
+						<Test as pallet_dispenser::Config>::InitialDispenseAmount::get() -
+							<Test as pallet_dispenser::Config>::FreeDispenseAmount::get()
+					)
 				);
 			}
 			// Dispenser is empty.
