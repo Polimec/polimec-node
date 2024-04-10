@@ -1146,10 +1146,15 @@ mod benches {
 		[pallet_utility, Utility]
 		[pallet_multisig, Multisig]
 		[pallet_proxy, Proxy]
+		[cumulus_pallet_parachain_system, ParachainSystem]
+		[pallet_identity, Identity]
+		[pallet_sudo, Sudo]
 
 		// Monetary stuff.
 		[pallet_balances, Balances]
 		[pallet_vesting, Vesting]
+		[pallet_assets, ForeignAssets]
+		[pallet_assets, ContributionTokens]
 		[pallet_dispenser, Dispenser]
 
 		// Collator support.
@@ -1159,6 +1164,8 @@ mod benches {
 		// XCM helpers.
 		[cumulus_pallet_xcmp_queue, XcmpQueue]
 		[pallet_xcm, PalletXcmExtrinsiscsBenchmark::<Runtime>]
+		[cumulus_pallet_dmp_queue, DmpQueue]
+		[pallet_message_queue, MessageQueue]
 
 		// Governance
 		[pallet_treasury, Treasury]
@@ -1171,7 +1178,8 @@ mod benches {
 
 		// Oracle
 		[pallet_membership, OracleProvidersMembership]
-		//[orml_oracle, Oracle]
+		// [orml_oracle, Oracle]
+
 		// Funding
 		[pallet_funding, Funding]
 		[pallet_linear_release, LinearRelease]
