@@ -1472,6 +1472,76 @@ mod bid_extrinsic {
 		}
 
 		#[test]
+		fn ticket_size_minimums_use_current_bucket_price() {
+			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+			let mut project_metadata = default_project_metadata(ISSUER_1);
+			project_metadata.total_allocation_size = 100_000 * ASSET_UNIT;
+			project_metadata.bidding_ticket_sizes = BiddingTicketSizes {
+				professional: TicketSize::new(Some(8_000 * US_DOLLAR), None),
+				institutional: TicketSize::new(Some(20_000 * US_DOLLAR), None),
+				phantom: Default::default(),
+			};
+			project_metadata.minimum_price = PriceOf::<TestRuntime>::from_float(1.0);
+
+			let evaluations = default_evaluations();
+
+			let project_id = inst.create_auctioning_project(project_metadata.clone(), ISSUER_1, evaluations.clone());
+
+			inst.mint_plmc_to(vec![
+				(BIDDER_1, 200_000 * PLMC).into(),
+				(BIDDER_2, 200_000 * PLMC).into(),
+				(BIDDER_3, 200_000 * PLMC).into(),
+			]);
+			inst.mint_foreign_asset_to(vec![
+				(BIDDER_1, 200_000 * ASSET_UNIT).into(),
+				(BIDDER_2, 200_000 * ASSET_UNIT).into(),
+				(BIDDER_3, 200_000 * ASSET_UNIT).into(),
+			]);
+
+			// First bucket is covered by one bidder
+			let big_bid: BidParams<TestRuntime> = (BIDDER_1, 50_000 * ASSET_UNIT).into();
+			inst.bid_for_users(project_id, vec![big_bid.clone()]).unwrap();
+
+			// A bid at the min price of 1 should require a min of 8k CT, but with a new price of 1.1, we can now bid with less
+			let smallest_ct_amount_at_8k_usd = PriceOf::<TestRuntime>::from_float(1.1)
+				.reciprocal()
+				.unwrap()
+				.checked_mul_int(8000 * US_DOLLAR)
+				// add 1 because result could be .99999 of what we expect
+				.unwrap() + 1;
+			assert!(smallest_ct_amount_at_8k_usd < 8000 * ASSET_UNIT);
+			inst.execute(|| {
+				assert_ok!(Pallet::<TestRuntime>::do_bid(
+					&BIDDER_1,
+					project_id,
+					smallest_ct_amount_at_8k_usd,
+					1u8.try_into().unwrap(),
+					AcceptedFundingAsset::USDT,
+					generate_did_from_account(BIDDER_1),
+					InvestorType::Professional
+				));
+			});
+			let smallest_ct_amount_at_20k_usd = PriceOf::<TestRuntime>::from_float(1.1)
+				.reciprocal()
+				.unwrap()
+				.checked_mul_int(20_000 * US_DOLLAR)
+				// add 1 because result could be .99999 of what we expect
+				.unwrap() + 1;
+			assert!(smallest_ct_amount_at_20k_usd < 20_000 * ASSET_UNIT);
+			inst.execute(|| {
+				assert_ok!(Pallet::<TestRuntime>::do_bid(
+					&BIDDER_2,
+					project_id,
+					smallest_ct_amount_at_20k_usd,
+					1u8.try_into().unwrap(),
+					AcceptedFundingAsset::USDT,
+					generate_did_from_account(BIDDER_1),
+					InvestorType::Institutional
+				));
+			});
+		}
+
+		#[test]
 		fn per_credential_type_ticket_size_maximums() {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 			let mut project_metadata = default_project_metadata(ISSUER_1);

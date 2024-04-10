@@ -38,6 +38,7 @@ use sp_arithmetic::{
 	Percent, Perquintill,
 };
 use sp_runtime::traits::Convert;
+use std::thread::current;
 
 use super::*;
 use crate::traits::{BondingRequirementCalculation, ProvideAssetPrice, VestingDurationCalculation};
@@ -1049,10 +1050,16 @@ impl<T: Config> Pallet<T> {
 		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 		let project_metadata = ProjectsMetadata::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
 		let plmc_usd_price = T::PriceProvider::get_price(PLMC_FOREIGN_ID).ok_or(Error::<T>::PriceNotFound)?;
+
+		// Fetch current bucket details and other required info
+		let mut current_bucket = Buckets::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
+		let now = <frame_system::Pallet<T>>::block_number();
+		let mut amount_to_bid = ct_amount;
 		let total_bids_for_project = BidCounts::<T>::get(project_id);
+
 		// User will spend at least this amount of USD for his bid(s). More if the bid gets split into different buckets
 		let min_total_ticket_size =
-			project_metadata.minimum_price.checked_mul_int(ct_amount).ok_or(Error::<T>::BadMath)?;
+			current_bucket.current_price.checked_mul_int(ct_amount).ok_or(Error::<T>::BadMath)?;
 		// weight return variables
 		let mut perform_bid_calls = 0;
 
@@ -1099,11 +1106,6 @@ impl<T: Config> Pallet<T> {
 			ct_amount <= project_metadata.auction_round_allocation_percentage * project_metadata.total_allocation_size,
 			Error::<T>::NotAllowed
 		);
-
-		// Fetch current bucket details and other required info
-		let mut current_bucket = Buckets::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
-		let now = <frame_system::Pallet<T>>::block_number();
-		let mut amount_to_bid = ct_amount;
 
 		// While there's a remaining amount to bid for
 		while !amount_to_bid.is_zero() {
