@@ -51,45 +51,56 @@ pub mod pallet {
 		PalletId,
 	};
 	use frame_system::pallet_prelude::*;
-	use sp_runtime::{traits::AccountIdConversion, Saturating};
+	use sp_runtime::{traits::{AccountIdConversion, CheckedDiv}, Saturating};
 
 	/// Configure the pallet by specifying the parameters and types on which it depends.
 	#[pallet::config]
 	pub trait Config: frame_system::Config {
 		/// The Origin that has admin access to change the dispense amount.
 		type AdminOrigin: EnsureOrigin<Self::RuntimeOrigin>;
+
 		/// Block to balance converter.
 		type BlockNumberToBalance: Convert<BlockNumberFor<Self>, BalanceOf<Self>>;
+
 		/// The amount of dispensed tokens that are free, so they could be used to pay for
-		/// furure transaction fees.
+		/// future transaction fees.
 		#[pallet::constant]
 		type FreeDispenseAmount: Get<BalanceOf<Self>>;
+
 		/// The amount of tokens that are initially dispensed from the dispenser.
 		#[pallet::constant]
 		type InitialDispenseAmount: Get<BalanceOf<Self>>;
+
 		/// The Origin that can dispense funds from the dispenser. The Origin must contain a valid JWT token.
 		type InvestorOrigin: EnsureOriginWithCredentials<
 			<Self as frame_system::Config>::RuntimeOrigin,
 			Success = (AccountIdOf<Self>, Did, InvestorType),
 		>;
+
 		/// The period of time that the dispensed funds are locked. Used to calculate the
 		/// starting block of the vesting schedule.
 		#[pallet::constant]
 		type LockPeriod: Get<BlockNumberFor<Self>>;
+
 		/// The dispenser's pallet id, used for deriving its sovereign account ID.
 		#[pallet::constant]
 		type PalletId: Get<PalletId>;
+
 		/// Because this pallet emits events, it depends on the runtime's definition of an event.
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
+
 		/// The loose coupling to a vesting schedule implementation.
 		type VestingSchedule: VestingSchedule<Self::AccountId, Moment = BlockNumberFor<Self>>;
+
 		/// The period of time that the dispensed funds are in a vesting schedule. The schedule
 		/// starts after the lock period.
 		#[pallet::constant]
 		type VestPeriod: Get<BlockNumberFor<Self>>;
+
 		/// The Ed25519 Verifier Public Key to verify the signature of the credentials.
 		#[pallet::constant]
 		type VerifierPublicKey: Get<[u8; 32]>;
+
 		/// A type representing the weights required by the dispatchables of this pallet.
 		type WeightInfo: crate::weights::WeightInfo;
 	}
@@ -112,7 +123,7 @@ pub mod pallet {
 
 	#[pallet::error]
 	pub enum Error<T> {
-		/// The dispenser has already dispensed to the did.
+		/// The dispenser has already dispensed to the DID.
 		DispensedAlreadyToDid,
 		/// The dispenser account does not have any funds to distribute.
 		DispenserDepleted,
@@ -120,8 +131,6 @@ pub mod pallet {
 		DispenseAmountTooLow,
 	}
 
-	#[pallet::hooks]
-	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {}
 
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
@@ -145,7 +154,7 @@ pub mod pallet {
 			let current_block = <frame_system::Pallet<T>>::block_number();
 			let length_as_balance = T::BlockNumberToBalance::convert(T::VestPeriod::get());
 			let locked_amount = amount.saturating_sub(T::FreeDispenseAmount::get());
-			let per_block = locked_amount / length_as_balance.max(sp_runtime::traits::One::one());
+			let per_block = locked_amount.checked_div(&length_as_balance.max(sp_runtime::traits::One::one())).ok_or(DispatchError::Arithmetic(sp_runtime::ArithmeticError::Underflow))?;
 
 			T::VestingSchedule::can_add_vesting_schedule(
 				&who,

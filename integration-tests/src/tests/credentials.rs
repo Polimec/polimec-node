@@ -15,7 +15,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use crate::*;
-use frame_support::{assert_ok, dispatch::GetDispatchInfo};
+use frame_support::{assert_ok, dispatch::GetDispatchInfo, traits::tokens::currency::VestingSchedule};
 use macros::generate_accounts;
 use polimec_common::credentials::InvestorType;
 use polimec_common_test_utils::{get_fake_jwt, get_test_jwt};
@@ -78,4 +78,20 @@ fn dispenser_signed_extensions_pass_for_new_account() {
 		assert_ok!(extra.validate(&who, &call, &call.get_dispatch_info(), 0));
 		assert_ok!(extra.pre_dispatch(&who, &call, &call.get_dispatch_info(), 0));
 	});
+}
+
+#[test]
+fn dispenser_works_with_runtime_values() {
+	PolitestNet::execute_with(|| {
+		let who = PolitestAccountId::from(EMPTY_ACCOUNT);
+		let jwt = get_test_jwt(who.clone(), InvestorType::Retail);
+		PolitestBalances::force_set_balance(PolitestOrigin::root(), PolitestDispenser::dispense_account().into(), 1000 * PLMC).unwrap();
+		assert_ok!(PolitestDispenser::dispense(PolitestOrigin::signed(who.clone()), jwt));
+		assert_eq!(PolitestBalances::free_balance(&who), 700 * PLMC);
+		assert_eq!(PolitestBalances::usable_balance(who.clone()), <PolitestRuntime as pallet_dispenser::Config>::FreeDispenseAmount::get());
+		assert_eq!(
+			PolitestVesting::vesting_balance(&who),
+			Some(<PolitestRuntime as pallet_dispenser::Config>::InitialDispenseAmount::get() - <PolitestRuntime as pallet_dispenser::Config>::FreeDispenseAmount::get())
+		);
+	})
 }

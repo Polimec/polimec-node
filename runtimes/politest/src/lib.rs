@@ -145,8 +145,12 @@ pub type SignedExtra = (
 	frame_system::CheckTxVersion<Runtime>,
 	frame_system::CheckGenesis<Runtime>,
 	frame_system::CheckEra<Runtime>,
+	// TODO: Return to parity CheckNonce implementation once
+	// https://github.com/paritytech/polkadot-sdk/issues/3991 is resolved.
 	pallet_dispenser::extensions::CheckNonce<Runtime>,
 	frame_system::CheckWeight<Runtime>,
+	// TODO: Use parity's implementation once 
+	// https://github.com/paritytech/polkadot-sdk/pull/3993 is available.
 	pallet_dispenser::extensions::SkipCheckIfFeeless<
 		Runtime,
 		pallet_transaction_payment::ChargeTransactionPayment<Runtime>,
@@ -838,8 +842,12 @@ where
 			frame_system::CheckTxVersion::<Runtime>::new(),
 			frame_system::CheckGenesis::<Runtime>::new(),
 			frame_system::CheckEra::<Runtime>::from(generic::Era::mortal(period, current_block)),
+			// TODO: Return to parity CheckNonce implementation once
+			// https://github.com/paritytech/polkadot-sdk/issues/3991 is resolved.
 			pallet_dispenser::extensions::CheckNonce::<Runtime>::from(nonce),
 			frame_system::CheckWeight::<Runtime>::new(),
+			// TODO: Use parity's implementation once 
+			// https://github.com/paritytech/polkadot-sdk/pull/3993 is available.
 			pallet_dispenser::extensions::SkipCheckIfFeeless::from(
 				pallet_transaction_payment::ChargeTransactionPayment::<Runtime>::from(tip),
 			),

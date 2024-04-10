@@ -92,6 +92,32 @@ mod dispense {
 	}
 
 	#[test]
+	fn correct_amount_received_after_dispense_amount_changed() {
+		ExtBuilder::default().dispense_account(2).build().execute_with(|| {
+			let jwt = get_mock_jwt(1, InvestorType::Retail, generate_did_from_account(1));
+			assert_ok!(Dispenser::dispense(RuntimeOrigin::signed(1), jwt));
+			assert_eq!(Balances::free_balance(1), <Test as pallet_dispenser::Config>::InitialDispenseAmount::get());
+			assert_eq!(Balances::usable_balance(1), <Test as pallet_dispenser::Config>::FreeDispenseAmount::get());
+			assert_eq!(
+				Vesting::vesting_balance(&1),
+				Some(<Test as pallet_dispenser::Config>::InitialDispenseAmount::get() - <Test as pallet_dispenser::Config>::FreeDispenseAmount::get())
+			);
+
+			// Change the dispense amount.
+			let new_amount: BalanceOf<Test> = 50u32.into();
+			assert_ok!(Dispenser::set_dispense_amount(RuntimeOrigin::signed(Admin::get()), new_amount));
+			let jwt = get_mock_jwt(2, InvestorType::Retail, generate_did_from_account(2));
+			assert_ok!(Dispenser::dispense(RuntimeOrigin::signed(2), jwt));
+			assert_eq!(Balances::free_balance(2), new_amount);
+			assert_eq!(Balances::usable_balance(2), <Test as pallet_dispenser::Config>::FreeDispenseAmount::get());
+			assert_eq!(
+				Vesting::vesting_balance(&2),
+				Some(new_amount - <Test as pallet_dispenser::Config>::FreeDispenseAmount::get())
+			);
+		});
+	}
+
+	#[test]
 	fn x_users_dispense_until_dispenser_is_empty() {
 		let x = 10;
 		ExtBuilder::default().dispense_account(x).build().execute_with(|| {
@@ -103,10 +129,10 @@ mod dispense {
 				let jwt = get_mock_jwt(i, InvestorType::Retail, generate_did_from_account(i));
 				assert_ok!(Dispenser::dispense(RuntimeOrigin::signed(i), jwt));
 				assert_eq!(Balances::free_balance(i), <Test as pallet_dispenser::Config>::InitialDispenseAmount::get());
-				assert_eq!(Balances::usable_balance(i), 0);
+				assert_eq!(Balances::usable_balance(i), <Test as pallet_dispenser::Config>::FreeDispenseAmount::get());
 				assert_eq!(
 					Vesting::vesting_balance(&i),
-					Some(<Test as pallet_dispenser::Config>::InitialDispenseAmount::get())
+					Some(<Test as pallet_dispenser::Config>::InitialDispenseAmount::get() - <Test as pallet_dispenser::Config>::FreeDispenseAmount::get())
 				);
 			}
 			// Dispenser is empty.
