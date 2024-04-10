@@ -145,9 +145,16 @@ pub type SignedExtra = (
 	frame_system::CheckTxVersion<Runtime>,
 	frame_system::CheckGenesis<Runtime>,
 	frame_system::CheckEra<Runtime>,
-	frame_system::CheckNonce<Runtime>,
+	// TODO: Return to parity CheckNonce implementation once
+	// https://github.com/paritytech/polkadot-sdk/issues/3991 is resolved.
+	pallet_dispenser::extensions::CheckNonce<Runtime>,
 	frame_system::CheckWeight<Runtime>,
-	pallet_transaction_payment::ChargeTransactionPayment<Runtime>,
+	// TODO: Use parity's implementation once
+	// https://github.com/paritytech/polkadot-sdk/pull/3993 is available.
+	pallet_dispenser::extensions::SkipCheckIfFeeless<
+		Runtime,
+		pallet_transaction_payment::ChargeTransactionPayment<Runtime>,
+	>,
 );
 
 /// Unchecked extrinsic type as expected by this runtime.
@@ -161,9 +168,8 @@ pub type Migrations = migrations::Unreleased;
 /// The runtime migrations per release.
 #[allow(missing_docs)]
 pub mod migrations {
-	// use crate::Runtime;
 	/// Unreleased migrations. Add new ones here:
-	pub type Unreleased = pallet_funding::migration::v1::MigrationToV1<crate::Runtime>;
+	pub type Unreleased = ();
 }
 
 /// Executive: handles dispatch to the various modules.
@@ -835,9 +841,15 @@ where
 			frame_system::CheckTxVersion::<Runtime>::new(),
 			frame_system::CheckGenesis::<Runtime>::new(),
 			frame_system::CheckEra::<Runtime>::from(generic::Era::mortal(period, current_block)),
-			frame_system::CheckNonce::<Runtime>::from(nonce),
+			// TODO: Return to parity CheckNonce implementation once
+			// https://github.com/paritytech/polkadot-sdk/issues/3991 is resolved.
+			pallet_dispenser::extensions::CheckNonce::<Runtime>::from(nonce),
 			frame_system::CheckWeight::<Runtime>::new(),
-			pallet_transaction_payment::ChargeTransactionPayment::<Runtime>::from(tip),
+			// TODO: Use parity's implementation once
+			// https://github.com/paritytech/polkadot-sdk/pull/3993 is available.
+			pallet_dispenser::extensions::SkipCheckIfFeeless::from(
+				pallet_transaction_payment::ChargeTransactionPayment::<Runtime>::from(tip),
+			),
 		);
 		let raw_payload = generic::SignedPayload::new(call, extra)
 			.map_err(|e| {
@@ -1051,6 +1063,22 @@ impl pallet_linear_release::Config for Runtime {
 
 impl pallet_insecure_randomness_collective_flip::Config for Runtime {}
 
+impl pallet_dispenser::Config for Runtime {
+	// TODO: Change this account to an actual admin account.
+	type AdminOrigin = EnsureRoot<AccountId>;
+	type BlockNumberToBalance = ConvertInto;
+	type FreeDispenseAmount = FreeDispenseAmount;
+	type InitialDispenseAmount = InitialDispenseAmount;
+	type InvestorOrigin = EnsureInvestor<Runtime>;
+	type LockPeriod = DispenserLockPeriod;
+	type PalletId = DispenserId;
+	type RuntimeEvent = RuntimeEvent;
+	type VerifierPublicKey = VerifierPublicKey;
+	type VestPeriod = DispenserVestPeriod;
+	type VestingSchedule = Vesting;
+	type WeightInfo = ();
+}
+
 // Create the runtime by composing the FRAME pallets that were previously configured.
 construct_runtime!(
 	pub enum Runtime
@@ -1072,6 +1100,7 @@ construct_runtime!(
 		Vesting: pallet_vesting = 12,
 		ContributionTokens: pallet_assets::<Instance1> = 13,
 		ForeignAssets: pallet_assets::<Instance2> = 14,
+		Dispenser: pallet_dispenser = 15,
 
 		// Collator support. the order of these 5 are important and shall not change.
 		Authorship: pallet_authorship::{Pallet, Storage} = 20,
@@ -1121,6 +1150,7 @@ mod benches {
 		// Monetary stuff.
 		[pallet_balances, Balances]
 		[pallet_vesting, Vesting]
+		[pallet_dispenser, Dispenser]
 
 		// Collator support.
 		[pallet_session, SessionBench::<Runtime>]

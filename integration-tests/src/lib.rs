@@ -83,6 +83,8 @@ decl_test_parachains! {
 			LocalAssets: politest_runtime::ContributionTokensInstance,
 			ForeignAssets: politest_runtime::ForeignAssets,
 			FundingPallet: politest_runtime::Funding,
+			Dispenser: politest_runtime::Dispenser,
+			Vesting: politest_runtime::Vesting,
 		}
 	},
 	pub struct AssetHub {
@@ -203,5 +205,9 @@ pub mod shortcuts {
 	pub type PenpalSystem = <PenNet as Chain>::System;
 	pub type AssetHubSystem = <AssetNet as Chain>::System;
 	pub type PolimecSystem = <PolimecNet as Chain>::System;
+
+	// Politest specific pallets
+	pub type PolitestDispenser = <PolitestNet as PolitestParaPallet>::Dispenser;
+	pub type PolitestVesting = <PolitestNet as PolitestParaPallet>::Vesting;
 }
 pub use shortcuts::*;

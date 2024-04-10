@@ -31,6 +31,8 @@ sp-std.workspace = true
 sp-core.workspace = true
 sp-runtime.workspace = true
 sp-io.workspace = true
+pallet-dispenser.workspace = true
+pallet-transaction-payment.workspace = true
 pallet-funding.workspace = true
 pallet-linear-release.workspace = true
 xcm.workspace = true
@@ -96,6 +98,7 @@ std = [
 	"pallet-collective/std",
 	"pallet-democracy/std",
 	"pallet-elections-phragmen/std",
+	"pallet-dispenser/std",
 	"pallet-funding/std",
 	"pallet-im-online/std",
 	"pallet-linear-release/std",
@@ -104,6 +107,7 @@ std = [
 	"pallet-parachain-staking/std",
 	"pallet-scheduler/std",
 	"pallet-staking/std",
+	"pallet-transaction-payment/std",
 	"pallet-treasury/std",
 	"pallet-vesting/std",
 	"pallet-xcm/std",

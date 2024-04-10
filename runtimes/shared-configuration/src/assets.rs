@@ -19,9 +19,10 @@ use crate::{
 	Balance,
 };
 use core::marker::PhantomData;
-use frame_support::parameter_types;
+use frame_support::{parameter_types, PalletId};
 use orml_traits::DataProvider;
 use pallet_funding::traits::ProvideAssetPrice;
+use parachains_common::DAYS;
 use sp_arithmetic::FixedPointNumber;
 
 parameter_types! {
@@ -48,4 +49,14 @@ where
 	fn get_price(asset_id: AssetId) -> Option<Price> {
 		Oracle::get(&asset_id)
 	}
+}
+
+// Dispenser Related constants
+parameter_types! {
+	pub const InitialDispenseAmount: Balance = 700 * PLMC;
+	pub const FreeDispenseAmount: Balance = 5 * PLMC;
+	pub const DispenserId: PalletId = PalletId(*b"plmc/fct");
+	pub const DispenserLockPeriod: u32 = DAYS * 365 * 2; // 2 years
+	pub const DispenserVestPeriod: u32 = DAYS * 365 * 2; // 2 years
+
 }

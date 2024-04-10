@@ -4532,6 +4532,7 @@ dependencies = [
  "pallet-balances",
  "pallet-collective",
  "pallet-democracy 0.5.1",
+ "pallet-dispenser",
  "pallet-elections-phragmen 0.5.1",
  "pallet-funding",
  "pallet-im-online",
@@ -4541,6 +4542,7 @@ dependencies = [
  "pallet-parachain-staking",
  "pallet-scheduler",
  "pallet-staking",
+ "pallet-transaction-payment",
  "pallet-treasury",
  "pallet-vesting",
  "pallet-xcm",
@@ -6852,6 +6854,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "pallet-dispenser"
+version = "0.5.1"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "pallet-balances",
+ "pallet-timestamp",
+ "pallet-vesting",
+ "parity-scale-codec",
+ "polimec-common",
+ "polimec-common-test-utils",
+ "scale-info",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
 name = "pallet-election-provider-multi-phase"
 version = "27.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -8564,6 +8586,7 @@ dependencies = [
  "pallet-balances",
  "pallet-collective",
  "pallet-democracy 0.5.1",
+ "pallet-dispenser",
  "pallet-elections-phragmen 0.5.1",
  "pallet-funding",
  "pallet-identity",
