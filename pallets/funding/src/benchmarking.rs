@@ -226,6 +226,15 @@ pub fn default_weights() -> Vec<u8> {
 	vec![20u8, 15u8, 10u8, 25u8, 30u8]
 }
 
+pub fn default_evaluators<T: Config>() -> Vec<AccountIdOf<T>> {
+	vec![
+		account::<AccountIdOf<T>>("evaluator_1", 0, 0),
+		account::<AccountIdOf<T>>("evaluator_2", 0, 0),
+		account::<AccountIdOf<T>>("evaluator_3", 0, 0),
+		account::<AccountIdOf<T>>("evaluator_4", 0, 0),
+		account::<AccountIdOf<T>>("evaluator_5", 0, 0),
+	]
+}
 pub fn default_bidders<T: Config>() -> Vec<AccountIdOf<T>> {
 	vec![
 		account::<AccountIdOf<T>>("bidder_1", 0, 0),
@@ -854,11 +863,22 @@ mod benchmarks {
 		let bidder = account::<AccountIdOf<T>>("bidder", 0, 0);
 		whitelist_account!(bidder);
 
-		let project_metadata = default_project::<T>(inst.get_new_nonce(), issuer.clone());
+		let mut project_metadata = default_project::<T>(inst.get_new_nonce(), issuer.clone());
+		project_metadata.mainnet_token_max_supply =
+			(1_000_000_000 * ASSET_UNIT).try_into().unwrap_or_else(|_| panic!("Failed to create BalanceOf"));
+		project_metadata.total_allocation_size =
+			(100_000_000 * ASSET_UNIT).try_into().unwrap_or_else(|_| panic!("Failed to create BalanceOf"));
+		project_metadata.minimum_price = PriceOf::<T>::checked_from_rational(100, 1).unwrap();
 
-		let project_id = inst.create_auctioning_project(project_metadata.clone(), issuer, default_evaluations::<T>());
+		let evaluations = BenchInstantiator::<T>::generate_successful_evaluations(
+			project_metadata.clone(),
+			default_evaluators::<T>(),
+			default_weights(),
+		);
 
-		let existing_bid = BidParams::new(bidder.clone(), (500 * ASSET_UNIT).into(), 5u8, AcceptedFundingAsset::USDT);
+		let project_id = inst.create_auctioning_project(project_metadata.clone(), issuer, evaluations);
+
+		let existing_bid = BidParams::new(bidder.clone(), (50 * ASSET_UNIT).into(), 5u8, AcceptedFundingAsset::USDT);
 
 		let existing_bids = vec![existing_bid; existing_bids_count as usize];
 		let existing_bids_post_bucketing = BenchInstantiator::<T>::get_actual_price_charged_for_bucketed_bids(
@@ -894,7 +914,7 @@ mod benchmarks {
 
 		// to call do_perform_bid several times, we need the bucket to reach its limit. You can only bid over 10 buckets
 		// in a single bid, since the increase delta is 10% of the total allocation, and you cannot bid more than the allocation.
-		let mut ct_amount = (500 * ASSET_UNIT).into();
+		let mut ct_amount = (50 * ASSET_UNIT).into();
 		let mut maybe_filler_bid = None;
 		let new_bidder = account::<AccountIdOf<T>>("new_bidder", 0, 0);
 
@@ -925,10 +945,10 @@ mod benchmarks {
 
 			inst.bid_for_users(project_id, vec![bid_params]).unwrap();
 
-			ct_amount = Percent::from_percent(10) *
-				project_metadata.auction_round_allocation_percentage *
-				project_metadata.total_allocation_size *
-				(do_perform_bid_calls as u128).into();
+			let auction_allocation =
+				project_metadata.auction_round_allocation_percentage * project_metadata.total_allocation_size;
+			let bucket_size = Percent::from_percent(10) * auction_allocation;
+			ct_amount = bucket_size * (do_perform_bid_calls as u128).into();
 			usdt_for_filler_bidder = usdt_for_new_bidder;
 		}
 		let extrinsic_bid = BidParams::new(bidder.clone(), ct_amount, 1u8, AcceptedFundingAsset::USDT);
@@ -1092,8 +1112,8 @@ mod benchmarks {
 
 	#[benchmark]
 	fn bid(
-		// amount of already made bids by the same user
-		x: Linear<0, { T::MaxBidsPerUser::get() - 1 }>,
+		// amount of already made bids by the same user. Leave y::max (10) to make the extrinsic pass
+		x: Linear<0, { T::MaxBidsPerUser::get() - 10 }>,
 		// amount of times where `perform_bid` is called (i.e how many buckets)
 		y: Linear<0, 10>,
 	) {

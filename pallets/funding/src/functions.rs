@@ -1049,14 +1049,16 @@ impl<T: Config> Pallet<T> {
 		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 		let project_metadata = ProjectsMetadata::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
 		let plmc_usd_price = T::PriceProvider::get_price(PLMC_FOREIGN_ID).ok_or(Error::<T>::PriceNotFound)?;
-		let existing_bids = Bids::<T>::iter_prefix_values((project_id, bidder)).collect::<Vec<_>>();
-		let bid_count = BidCounts::<T>::get(project_id);
+		let total_bids_for_project = BidCounts::<T>::get(project_id);
 		// User will spend at least this amount of USD for his bid(s). More if the bid gets split into different buckets
 		let min_total_ticket_size =
 			project_metadata.minimum_price.checked_mul_int(ct_amount).ok_or(Error::<T>::BadMath)?;
 		// weight return variables
 		let mut perform_bid_calls = 0;
+
+		let existing_bids = Bids::<T>::iter_prefix_values((project_id, bidder)).collect::<Vec<_>>();
 		let existing_bids_amount = existing_bids.len() as u32;
+
 		let metadata_bidder_ticket_size_bounds = match investor_type {
 			InvestorType::Institutional => project_metadata.bidding_ticket_sizes.institutional,
 			InvestorType::Professional => project_metadata.bidding_ticket_sizes.professional,
@@ -1076,7 +1078,6 @@ impl<T: Config> Pallet<T> {
 		);
 
 		ensure!(ct_amount > Zero::zero(), Error::<T>::BidTooLow);
-		ensure!(bid_count < T::MaxBidsPerProject::get(), Error::<T>::TooManyBidsForProject);
 		ensure!(did != project_details.issuer_did, Error::<T>::ParticipationToThemselves);
 		ensure!(
 			matches!(project_details.status, ProjectStatus::AuctionOpening | ProjectStatus::AuctionClosing),
@@ -1098,7 +1099,6 @@ impl<T: Config> Pallet<T> {
 			ct_amount <= project_metadata.auction_round_allocation_percentage * project_metadata.total_allocation_size,
 			Error::<T>::NotAllowed
 		);
-		ensure!(existing_bids.len() < T::MaxBidsPerUser::get() as usize, Error::<T>::TooManyBidsForUser);
 
 		// Fetch current bucket details and other required info
 		let mut current_bucket = Buckets::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
@@ -1128,6 +1128,8 @@ impl<T: Config> Pallet<T> {
 				plmc_usd_price,
 				did.clone(),
 				metadata_bidder_ticket_size_bounds,
+				existing_bids_amount + perform_bid_calls,
+				total_bids_for_project + perform_bid_calls,
 			)?;
 
 			perform_bid_calls += 1;
@@ -1159,15 +1161,19 @@ impl<T: Config> Pallet<T> {
 		plmc_usd_price: T::Price,
 		did: Did,
 		metadata_ticket_size_bounds: TicketSizeOf<T>,
+		total_bids_by_bidder: u32,
+		total_bids_for_project: u32,
 	) -> Result<BidInfoOf<T>, DispatchError> {
 		let ticket_size = ct_usd_price.checked_mul_int(ct_amount).ok_or(Error::<T>::BadMath)?;
-
 		let total_usd_bid_by_did = AuctionBoughtUSD::<T>::get((project_id, did.clone()));
+
 		ensure!(
 			metadata_ticket_size_bounds
 				.usd_ticket_below_maximum_per_did(total_usd_bid_by_did.saturating_add(ticket_size)),
 			Error::<T>::BidTooHigh
 		);
+		ensure!(total_bids_by_bidder < T::MaxBidsPerUser::get(), Error::<T>::TooManyBidsForUser);
+		ensure!(total_bids_for_project < T::MaxBidsPerProject::get(), Error::<T>::TooManyBidsForProject);
 
 		let funding_asset_usd_price =
 			T::PriceProvider::get_price(funding_asset.to_assethub_id()).ok_or(Error::<T>::PriceNotFound)?;

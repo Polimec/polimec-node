@@ -860,7 +860,13 @@ mod bid_extrinsic {
 			assert_ok!(inst.bid_for_users(project_id_dot, vec![dot_bid.clone()]));
 		}
 
-		fn test_bid_setup(inst: &mut MockInstantiator, project_id: ProjectId, bidder: AccountIdOf<TestRuntime>, investor_type: InvestorType, u8_multiplier: u8) -> (UntrustedToken<Empty>, BalanceOf<TestRuntime>, MultiplierOf<TestRuntime>) {
+		fn test_bid_setup(
+			inst: &mut MockInstantiator,
+			project_id: ProjectId,
+			bidder: AccountIdOf<TestRuntime>,
+			investor_type: InvestorType,
+			u8_multiplier: u8,
+		) -> (UntrustedToken<Empty>, BalanceOf<TestRuntime>, MultiplierOf<TestRuntime>) {
 			let jwt = get_mock_jwt(bidder.clone(), investor_type, generate_did_from_account(BIDDER_1));
 			let amount = 1000 * ASSET_UNIT;
 			let multiplier = Multiplier::force_new(u8_multiplier);
@@ -903,7 +909,8 @@ mod bid_extrinsic {
 			);
 			let project_id = inst.create_auctioning_project(project_metadata.clone(), ISSUER_1, evaluations);
 			// Professional bids: 0x multiplier should fail
-			let (jwt, ct_amount, multiplier) = test_bid_setup(&mut inst, project_id, BIDDER_1, InvestorType::Professional, 0);
+			let (jwt, ct_amount, multiplier) =
+				test_bid_setup(&mut inst, project_id, BIDDER_1, InvestorType::Professional, 0);
 			inst.execute(|| {
 				assert_noop!(
 					Pallet::<TestRuntime>::bid(
@@ -919,7 +926,8 @@ mod bid_extrinsic {
 			});
 			// Professional bids: 1 - 10x multiplier should work
 			for multiplier in 1..=10u8 {
-				let (jwt, ct_amount, multiplier) = test_bid_setup(&mut inst, project_id, BIDDER_1, InvestorType::Professional, multiplier);
+				let (jwt, ct_amount, multiplier) =
+					test_bid_setup(&mut inst, project_id, BIDDER_1, InvestorType::Professional, multiplier);
 				assert_ok!(inst.execute(|| Pallet::<TestRuntime>::bid(
 					RuntimeOrigin::signed(BIDDER_1),
 					jwt,
@@ -931,7 +939,8 @@ mod bid_extrinsic {
 			}
 			// Professional bids: >=11x multiplier should fail
 			for multiplier in 11..=50u8 {
-				let (jwt, ct_amount, multiplier) = test_bid_setup(&mut inst, project_id, BIDDER_1, InvestorType::Professional, multiplier);
+				let (jwt, ct_amount, multiplier) =
+					test_bid_setup(&mut inst, project_id, BIDDER_1, InvestorType::Professional, multiplier);
 				inst.execute(|| {
 					assert_noop!(
 						Pallet::<TestRuntime>::bid(
@@ -948,7 +957,8 @@ mod bid_extrinsic {
 			}
 
 			// Institutional bids: 0x multiplier should fail
-			let (jwt, ct_amount, multiplier) = test_bid_setup(&mut inst, project_id, BIDDER_2, InvestorType::Institutional, 0);
+			let (jwt, ct_amount, multiplier) =
+				test_bid_setup(&mut inst, project_id, BIDDER_2, InvestorType::Institutional, 0);
 			inst.execute(|| {
 				assert_noop!(
 					Pallet::<TestRuntime>::bid(
@@ -964,7 +974,8 @@ mod bid_extrinsic {
 			});
 			// Institutional bids: 1 - 25x multiplier should work
 			for multiplier in 1..=25u8 {
-				let (jwt, ct_amount, multiplier) = test_bid_setup(&mut inst, project_id, BIDDER_2, InvestorType::Institutional, multiplier);
+				let (jwt, ct_amount, multiplier) =
+					test_bid_setup(&mut inst, project_id, BIDDER_2, InvestorType::Institutional, multiplier);
 				assert_ok!(inst.execute(|| Pallet::<TestRuntime>::bid(
 					RuntimeOrigin::signed(BIDDER_2),
 					jwt,
@@ -976,7 +987,8 @@ mod bid_extrinsic {
 			}
 			// Institutional bids: >=26x multiplier should fail
 			for multiplier in 26..=50u8 {
-				let (jwt, ct_amount, multiplier) = test_bid_setup(&mut inst, project_id, BIDDER_2, InvestorType::Institutional, multiplier);
+				let (jwt, ct_amount, multiplier) =
+					test_bid_setup(&mut inst, project_id, BIDDER_2, InvestorType::Institutional, multiplier);
 				inst.execute(|| {
 					assert_noop!(
 						Pallet::<TestRuntime>::bid(
@@ -1193,9 +1205,8 @@ mod bid_extrinsic {
 				vec![100u8],
 			);
 			let max_bids_per_project: u32 = <TestRuntime as Config>::MaxBidsPerProject::get();
-			let bids = (0u32..max_bids_per_project-1)
-				.map(|i| (i as u32 + 420u32, 5000 * ASSET_UNIT).into())
-				.collect_vec();
+			let bids =
+				(0u32..max_bids_per_project - 1).map(|i| (i as u32 + 420u32, 5000 * ASSET_UNIT).into()).collect_vec();
 
 			let project_id = inst.create_auctioning_project(project_metadata.clone(), ISSUER_1, evaluations);
 
@@ -1218,18 +1229,25 @@ mod bid_extrinsic {
 			let remaining_ct = current_bucket.amount_left;
 
 			// This bid should be split in 2, but the second one should fail, making the whole extrinsic fail and roll back storage
-			let failing_bid = BidParams::<TestRuntime>::new(BIDDER_1, remaining_ct + 5000 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT);
-			let plmc_for_failing_bid = MockInstantiator::calculate_auction_plmc_charged_from_all_bids_made_or_with_bucket(
-				&vec![failing_bid.clone()],
-				project_metadata.clone(),
-				Some(current_bucket),
+			let failing_bid = BidParams::<TestRuntime>::new(
+				BIDDER_1,
+				remaining_ct + 5000 * ASSET_UNIT,
+				1u8,
+				AcceptedFundingAsset::USDT,
 			);
+			let plmc_for_failing_bid =
+				MockInstantiator::calculate_auction_plmc_charged_from_all_bids_made_or_with_bucket(
+					&vec![failing_bid.clone()],
+					project_metadata.clone(),
+					Some(current_bucket),
+				);
 			let plmc_existential_deposits = plmc_for_failing_bid.accounts().existential_deposits();
-			let usdt_for_bidding = MockInstantiator::calculate_auction_funding_asset_charged_from_all_bids_made_or_with_bucket(
-				&vec![failing_bid.clone()],
-				project_metadata.clone(),
-				Some(current_bucket),
-			);
+			let usdt_for_bidding =
+				MockInstantiator::calculate_auction_funding_asset_charged_from_all_bids_made_or_with_bucket(
+					&vec![failing_bid.clone()],
+					project_metadata.clone(),
+					Some(current_bucket),
+				);
 
 			inst.mint_plmc_to(plmc_for_failing_bid.clone());
 			inst.mint_plmc_to(plmc_existential_deposits.clone());
@@ -1239,13 +1257,18 @@ mod bid_extrinsic {
 				assert_noop!(
 					PolimecFunding::bid(
 						RuntimeOrigin::signed(failing_bid.bidder),
-						get_mock_jwt(failing_bid.bidder, InvestorType::Professional, generate_did_from_account(failing_bid.bidder)),
+						get_mock_jwt(
+							failing_bid.bidder,
+							InvestorType::Professional,
+							generate_did_from_account(failing_bid.bidder)
+						),
 						project_id,
 						failing_bid.amount,
 						failing_bid.multiplier,
 						failing_bid.asset
 					),
-					Error::<TestRuntime>::TooManyBidsForUser);
+					Error::<TestRuntime>::TooManyBidsForProject
+				);
 			});
 		}
 
@@ -1255,6 +1278,7 @@ mod bid_extrinsic {
 			let mut project_metadata = default_project_metadata(ISSUER_1);
 			project_metadata.mainnet_token_max_supply = 1_000_000_000 * ASSET_UNIT;
 			project_metadata.total_allocation_size = 100_000_000 * ASSET_UNIT;
+			project_metadata.minimum_price = PriceOf::<TestRuntime>::from_float(100.0);
 
 			let evaluations = MockInstantiator::generate_successful_evaluations(
 				project_metadata.clone(),
@@ -1262,10 +1286,9 @@ mod bid_extrinsic {
 				vec![100u8],
 			);
 			let bids = (0u32..<TestRuntime as Config>::MaxBidsPerUser::get())
-				.map(|i| (BIDDER_1, 5000 * ASSET_UNIT).into())
+				.map(|i| (BIDDER_1, 50 * ASSET_UNIT).into())
 				.collect_vec();
-			let failing_bid =
-				BidParams::<TestRuntime>::new(BIDDER_1, 5000 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT);
+			let failing_bid = BidParams::<TestRuntime>::new(BIDDER_1, 50 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT);
 
 			let project_id = inst.create_auctioning_project(project_metadata.clone(), ISSUER_1, evaluations);
 
@@ -1315,9 +1338,7 @@ mod bid_extrinsic {
 				vec![100u8],
 			);
 			let max_bids_per_user: u32 = <TestRuntime as Config>::MaxBidsPerUser::get();
-			let bids = (0u32..max_bids_per_user-1u32)
-				.map(|i| (BIDDER_1, 5000 * ASSET_UNIT).into())
-				.collect_vec();
+			let bids = (0u32..max_bids_per_user - 1u32).map(|i| (BIDDER_1, 5000 * ASSET_UNIT).into()).collect_vec();
 
 			let project_id = inst.create_auctioning_project(project_metadata.clone(), ISSUER_1, evaluations);
 
@@ -1340,18 +1361,25 @@ mod bid_extrinsic {
 			let remaining_ct = current_bucket.amount_left;
 
 			// This bid should be split in 2, but the second one should fail, making the whole extrinsic fail and roll back storage
-			let failing_bid = BidParams::<TestRuntime>::new(BIDDER_1, remaining_ct + 5000 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT);
-			let plmc_for_failing_bid = MockInstantiator::calculate_auction_plmc_charged_from_all_bids_made_or_with_bucket(
-				&vec![failing_bid.clone()],
-				project_metadata.clone(),
-				Some(current_bucket),
+			let failing_bid = BidParams::<TestRuntime>::new(
+				BIDDER_1,
+				remaining_ct + 5000 * ASSET_UNIT,
+				1u8,
+				AcceptedFundingAsset::USDT,
 			);
+			let plmc_for_failing_bid =
+				MockInstantiator::calculate_auction_plmc_charged_from_all_bids_made_or_with_bucket(
+					&vec![failing_bid.clone()],
+					project_metadata.clone(),
+					Some(current_bucket),
+				);
 			let plmc_existential_deposits = plmc_for_failing_bid.accounts().existential_deposits();
-			let usdt_for_bidding = MockInstantiator::calculate_auction_funding_asset_charged_from_all_bids_made_or_with_bucket(
-				&vec![failing_bid.clone()],
-				project_metadata.clone(),
-				Some(current_bucket),
-			);
+			let usdt_for_bidding =
+				MockInstantiator::calculate_auction_funding_asset_charged_from_all_bids_made_or_with_bucket(
+					&vec![failing_bid.clone()],
+					project_metadata.clone(),
+					Some(current_bucket),
+				);
 
 			inst.mint_plmc_to(plmc_for_failing_bid.clone());
 			inst.mint_plmc_to(plmc_existential_deposits.clone());
@@ -1361,13 +1389,18 @@ mod bid_extrinsic {
 				assert_noop!(
 					PolimecFunding::bid(
 						RuntimeOrigin::signed(failing_bid.bidder),
-						get_mock_jwt(failing_bid.bidder, InvestorType::Professional, generate_did_from_account(failing_bid.bidder)),
+						get_mock_jwt(
+							failing_bid.bidder,
+							InvestorType::Professional,
+							generate_did_from_account(failing_bid.bidder)
+						),
 						project_id,
 						failing_bid.amount,
 						failing_bid.multiplier,
 						failing_bid.asset
 					),
-					Error::<TestRuntime>::TooManyBidsForUser);
+					Error::<TestRuntime>::TooManyBidsForUser
+				);
 			});
 		}
 
