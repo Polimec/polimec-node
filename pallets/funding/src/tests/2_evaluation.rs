@@ -641,19 +641,31 @@ mod evaluate_extrinsic {
 		}
 
 		#[test]
-		fn cannot_evaluate_with_0_usd() {
+		fn cannot_evaluate_with_less_than_100_usd() {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 			let issuer = ISSUER_1;
 			let project_metadata = default_project_metadata(issuer);
 			let project_id = inst.create_evaluating_project(project_metadata.clone(), issuer);
-
 			let evaluator = EVALUATOR_1;
-			let evaluation = (evaluator.clone(), 0).into();
+			let jwt = get_mock_jwt(evaluator, InvestorType::Retail, generate_did_from_account(evaluator));
+
 			inst.mint_plmc_to(vec![(evaluator.clone(), 2000 * PLMC).into()]);
-			assert_err!(
-				inst.evaluate_for_users(project_id, vec![evaluation]),
-				Error::<TestRuntime>::EvaluationBondTooLow
-			)
+
+			// Cannot evaluate with 0 USD
+			inst.execute(|| {
+				assert_noop!(
+					Pallet::<TestRuntime>::evaluate(RuntimeOrigin::signed(evaluator.clone()),jwt.clone(), project_id, 0),
+					Error::<TestRuntime>::EvaluationBondTooLow
+				);
+			});
+
+			// Cannot evaluate with less than 99 USD
+			inst.execute(|| {
+				assert_noop!(
+					Pallet::<TestRuntime>::evaluate(RuntimeOrigin::signed(evaluator.clone()),jwt.clone(), project_id, 99 * US_DOLLAR),
+					Error::<TestRuntime>::EvaluationBondTooLow
+				);
+			});
 		}
 	}
 }

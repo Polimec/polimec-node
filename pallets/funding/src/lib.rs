@@ -327,6 +327,9 @@ pub mod pallet {
 		#[pallet::constant]
 		type MaxEvaluationsPerUser: Get<u32>;
 
+		#[pallet::constant]
+		type MinUsdPerEvaluation: Get<BalanceOf<Self>>;
+
 		/// Range of max_message_size values for the hrmp config where we accept the incoming channel request
 		#[pallet::constant]
 		type MaxMessageSizeThresholds: Get<(u32, u32)>;

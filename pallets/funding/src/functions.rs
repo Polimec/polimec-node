@@ -929,7 +929,7 @@ impl<T: Config> Pallet<T> {
 		let evaluations_count = EvaluationCounts::<T>::get(project_id);
 
 		// * Validity Checks *
-		ensure!(usd_amount > Zero::zero(), Error::<T>::EvaluationBondTooLow);
+		ensure!(usd_amount >= T::MinUsdPerEvaluation::get(), Error::<T>::EvaluationBondTooLow);
 		ensure!(project_details.issuer_did != did, Error::<T>::ParticipationToThemselves);
 		ensure!(project_details.status == ProjectStatus::EvaluationRound, Error::<T>::ProjectNotInEvaluationRound);
 		ensure!(evaluations_count < T::MaxEvaluationsPerProject::get(), Error::<T>::TooManyEvaluationsForProject);
