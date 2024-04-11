@@ -17,4 +17,21 @@
 // the generated files do not pass clippy
 #![allow(clippy::all)]
 
+pub mod cumulus_pallet_dmp_queue;
+pub mod cumulus_pallet_parachain_system;
+pub mod cumulus_pallet_xcmp_queue;
+pub mod frame_system;
+pub mod pallet_assets;
+pub mod pallet_balances;
+pub mod pallet_collective;
+pub mod pallet_democracy;
 pub mod pallet_elections_phragmen;
+pub mod pallet_message_queue;
+pub mod pallet_multisig;
+pub mod pallet_preimage;
+pub mod pallet_proxy;
+pub mod pallet_scheduler;
+pub mod pallet_session;
+pub mod pallet_timestamp;
+pub mod pallet_utility;
+pub mod pallet_vesting;
