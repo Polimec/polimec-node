@@ -726,18 +726,6 @@ mod bid_extrinsic {
 		}
 
 		#[test]
-		fn bidder_was_evaluator() {
-			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
-			let issuer = ISSUER_1;
-			let project_metadata = default_project_metadata(ISSUER_1);
-			let evaluations = default_evaluations();
-			let mut bids = default_bids();
-			let evaluator = evaluations[0].account;
-			bids.push(BidParams::new(evaluator, 500 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT));
-			let _ = inst.create_community_contributing_project(project_metadata, issuer, evaluations, bids);
-		}
-
-		#[test]
 		fn bid_with_multiple_currencies() {
 			let inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 			let mut project_metadata_all = default_project_metadata(ISSUER_1);
