@@ -235,25 +235,28 @@ mod community_contribute_extrinsic {
 				default_bids(),
 			);
 
-			let bobs_evaluation_bond = inst.execute(|| {Balances::balance_on_hold(&HoldReason::Evaluation(project_id).into(), &BOB)});
+			let bobs_evaluation_bond =
+				inst.execute(|| Balances::balance_on_hold(&HoldReason::Evaluation(project_id).into(), &BOB));
 			let bobs_slashable_bond = <TestRuntime as Config>::EvaluatorSlash::get() * bobs_evaluation_bond;
 			let bobs_usable_bond = bobs_evaluation_bond - bobs_slashable_bond;
 
 			let plmc_price = <TestRuntime as Config>::PriceProvider::get_price(PLMC_FOREIGN_ID).unwrap();
+			let ct_price = inst.get_project_details(project_id).weighted_average_price.unwrap();
 
 			let usable_usd = plmc_price.saturating_mul_int(bobs_usable_bond);
-			let usable_ct = plmc_price.reciprocal().unwrap().saturating_mul_int(usable_usd);
+			let usable_ct = ct_price.reciprocal().unwrap().saturating_mul_int(usable_usd);
 
 			let slashable_usd = plmc_price.saturating_mul_int(bobs_slashable_bond);
-			let slashable_ct = plmc_price.reciprocal().unwrap().saturating_mul_int(slashable_usd);
+			let slashable_ct = ct_price.reciprocal().unwrap().saturating_mul_int(slashable_usd);
 
+			// Can't contribute with only the evaluation bond
 			inst.execute(|| {
 				assert_noop!(
 					Pallet::<TestRuntime>::community_contribute(
 						RuntimeOrigin::signed(BOB),
 						get_mock_jwt(BOB, InvestorType::Retail, generate_did_from_account(BOB)),
 						project_id,
-						usable_ct + 1,
+						usable_ct + slashable_ct,
 						1u8.try_into().unwrap(),
 						AcceptedFundingAsset::USDT,
 					),
@@ -261,9 +264,44 @@ mod community_contribute_extrinsic {
 				);
 			});
 
+			// Can use half of the usable evaluation bond
+			let contribution_usdt = MockInstantiator::calculate_contributed_funding_asset_spent(
+				vec![(BOB, usable_ct / 2).into()],
+				ct_price,
+			);
+			inst.mint_foreign_asset_to(contribution_usdt.clone());
+			inst.execute(|| {
+				assert_ok!(Pallet::<TestRuntime>::community_contribute(
+					RuntimeOrigin::signed(BOB),
+					get_mock_jwt(BOB, InvestorType::Retail, generate_did_from_account(BOB)),
+					project_id,
+					usable_ct / 2,
+					1u8.try_into().unwrap(),
+					AcceptedFundingAsset::USDT,
+				));
+			});
+
+			// If we mint what we just used, and mint what we cannot use due to being a slash deposit, \
+			// then we can use make a contribution that uses the same amount that we originally bonded on the evaluation
+			let spent_usable_plmc = (BOB, bobs_usable_bond / 2).into();
+			let necessary_plmc_mint = (BOB, bobs_slashable_bond).into();
+			inst.mint_plmc_to(vec![spent_usable_plmc, necessary_plmc_mint]);
+			let contribution_usdt = MockInstantiator::calculate_contributed_funding_asset_spent(
+				vec![(BOB, usable_ct + slashable_ct).into()],
+				ct_price,
+			);
+			inst.mint_foreign_asset_to(contribution_usdt.clone());
+			inst.execute(|| {
+				assert_ok!(Pallet::<TestRuntime>::community_contribute(
+					RuntimeOrigin::signed(BOB),
+					get_mock_jwt(BOB, InvestorType::Retail, generate_did_from_account(BOB)),
+					project_id,
+					usable_ct + slashable_ct,
+					1u8.try_into().unwrap(),
+					AcceptedFundingAsset::USDT,
+				));
+			});
 		}
-
-
 
 		#[test]
 		fn per_credential_type_ticket_size_minimums() {
@@ -717,23 +755,24 @@ mod community_contribute_extrinsic {
 				default_bidders(),
 				default_multipliers(),
 			);
-			let project_id = inst.create_community_contributing_project(project_metadata.clone(), ISSUER_1, evaluations, bids);
+			let project_id =
+				inst.create_community_contributing_project(project_metadata.clone(), ISSUER_1, evaluations, bids);
 			let wap = inst.get_project_details(project_id).weighted_average_price.unwrap();
 
 			// Professional bids: 0x multiplier should fail
 			let jwt = get_mock_jwt(BUYER_1, InvestorType::Professional, generate_did_from_account(BUYER_1));
 			inst.execute(|| {
 				assert_noop!(
-			Pallet::<TestRuntime>::community_contribute(
-				RuntimeOrigin::signed(BUYER_1),
-				jwt,
-				project_id,
-				1000 * ASSET_UNIT,
-				Multiplier::force_new(0),
-				AcceptedFundingAsset::USDT
-			),
-			Error::<TestRuntime>::ForbiddenMultiplier
-		);
+					Pallet::<TestRuntime>::community_contribute(
+						RuntimeOrigin::signed(BUYER_1),
+						jwt,
+						project_id,
+						1000 * ASSET_UNIT,
+						Multiplier::force_new(0),
+						AcceptedFundingAsset::USDT
+					),
+					Error::<TestRuntime>::ForbiddenMultiplier
+				);
 			});
 			// Professional bids: 1 - 10x multiplier should work
 			for multiplier in 1..=10u8 {
@@ -751,13 +790,13 @@ mod community_contribute_extrinsic {
 				inst.mint_plmc_to(bidder_plmc);
 				inst.mint_foreign_asset_to(bidder_usdt);
 				assert_ok!(inst.execute(|| Pallet::<TestRuntime>::community_contribute(
-			RuntimeOrigin::signed(BUYER_1),
-			jwt,
-			project_id,
-			1000 * ASSET_UNIT,
-			Multiplier::force_new(multiplier),
-			AcceptedFundingAsset::USDT
-		)));
+					RuntimeOrigin::signed(BUYER_1),
+					jwt,
+					project_id,
+					1000 * ASSET_UNIT,
+					Multiplier::force_new(multiplier),
+					AcceptedFundingAsset::USDT
+				)));
 			}
 			// Professional bids: >=11x multiplier should fail
 			for multiplier in 11..=50u8 {
@@ -776,16 +815,16 @@ mod community_contribute_extrinsic {
 				inst.mint_foreign_asset_to(bidder_usdt);
 				inst.execute(|| {
 					assert_noop!(
-				Pallet::<TestRuntime>::community_contribute(
-					RuntimeOrigin::signed(BUYER_1),
-					jwt,
-					project_id,
-					1000 * ASSET_UNIT,
-					Multiplier::force_new(multiplier),
-					AcceptedFundingAsset::USDT
-				),
-				Error::<TestRuntime>::ForbiddenMultiplier
-			);
+						Pallet::<TestRuntime>::community_contribute(
+							RuntimeOrigin::signed(BUYER_1),
+							jwt,
+							project_id,
+							1000 * ASSET_UNIT,
+							Multiplier::force_new(multiplier),
+							AcceptedFundingAsset::USDT
+						),
+						Error::<TestRuntime>::ForbiddenMultiplier
+					);
 				});
 			}
 
@@ -793,16 +832,16 @@ mod community_contribute_extrinsic {
 			let jwt = get_mock_jwt(BUYER_2, InvestorType::Institutional, generate_did_from_account(BUYER_2));
 			inst.execute(|| {
 				assert_noop!(
-			Pallet::<TestRuntime>::community_contribute(
-				RuntimeOrigin::signed(BUYER_2),
-				jwt,
-				project_id,
-				1000 * ASSET_UNIT,
-				Multiplier::force_new(0),
-				AcceptedFundingAsset::USDT
-			),
-			Error::<TestRuntime>::ForbiddenMultiplier
-		);
+					Pallet::<TestRuntime>::community_contribute(
+						RuntimeOrigin::signed(BUYER_2),
+						jwt,
+						project_id,
+						1000 * ASSET_UNIT,
+						Multiplier::force_new(0),
+						AcceptedFundingAsset::USDT
+					),
+					Error::<TestRuntime>::ForbiddenMultiplier
+				);
 			});
 			// Institutional bids: 1 - 25x multiplier should work
 			for multiplier in 1..=25u8 {
@@ -820,13 +859,13 @@ mod community_contribute_extrinsic {
 				inst.mint_plmc_to(bidder_plmc);
 				inst.mint_foreign_asset_to(bidder_usdt);
 				assert_ok!(inst.execute(|| Pallet::<TestRuntime>::community_contribute(
-			RuntimeOrigin::signed(BUYER_2),
-			jwt,
-			project_id,
-			1000 * ASSET_UNIT,
-			multiplier.try_into().unwrap(),
-			AcceptedFundingAsset::USDT
-		)));
+					RuntimeOrigin::signed(BUYER_2),
+					jwt,
+					project_id,
+					1000 * ASSET_UNIT,
+					multiplier.try_into().unwrap(),
+					AcceptedFundingAsset::USDT
+				)));
 			}
 			// Institutional bids: >=26x multiplier should fail
 			for multiplier in 26..=50u8 {
@@ -845,16 +884,16 @@ mod community_contribute_extrinsic {
 				inst.mint_foreign_asset_to(bidder_usdt);
 				inst.execute(|| {
 					assert_noop!(
-				Pallet::<TestRuntime>::community_contribute(
-					RuntimeOrigin::signed(BUYER_2),
-					jwt,
-					project_id,
-					1000 * ASSET_UNIT,
-					Multiplier::force_new(multiplier),
-					AcceptedFundingAsset::USDT
-				),
-				Error::<TestRuntime>::ForbiddenMultiplier
-			);
+						Pallet::<TestRuntime>::community_contribute(
+							RuntimeOrigin::signed(BUYER_2),
+							jwt,
+							project_id,
+							1000 * ASSET_UNIT,
+							Multiplier::force_new(multiplier),
+							AcceptedFundingAsset::USDT
+						),
+						Error::<TestRuntime>::ForbiddenMultiplier
+					);
 				});
 			}
 		}
@@ -926,16 +965,16 @@ mod community_contribute_extrinsic {
 				// Professional bids: 0x multiplier should fail
 				inst.execute(|| {
 					assert_noop!(
-				Pallet::<TestRuntime>::community_contribute(
-					RuntimeOrigin::signed(BUYER_1),
-					get_mock_jwt(BUYER_1, InvestorType::Retail, generate_did_from_account(BUYER_1)),
-					project_id,
-					1000 * ASSET_UNIT,
-					Multiplier::force_new(0),
-					AcceptedFundingAsset::USDT
-				),
-				Error::<TestRuntime>::ForbiddenMultiplier
-			);
+						Pallet::<TestRuntime>::community_contribute(
+							RuntimeOrigin::signed(BUYER_1),
+							get_mock_jwt(BUYER_1, InvestorType::Retail, generate_did_from_account(BUYER_1)),
+							project_id,
+							1000 * ASSET_UNIT,
+							Multiplier::force_new(0),
+							AcceptedFundingAsset::USDT
+						),
+						Error::<TestRuntime>::ForbiddenMultiplier
+					);
 				});
 
 				// Multipliers that should work
@@ -948,7 +987,10 @@ mod community_contribute_extrinsic {
 				// Multipliers that should NOT work
 				for multiplier in max_allowed_multiplier + 1..=50 {
 					log::debug!("error? - multiplier: {}", multiplier);
-					assert_err!(contribute(&mut inst, project_id, multiplier), Error::<TestRuntime>::ForbiddenMultiplier);
+					assert_err!(
+						contribute(&mut inst, project_id, multiplier),
+						Error::<TestRuntime>::ForbiddenMultiplier
+					);
 				}
 			}
 		}
@@ -1059,12 +1101,18 @@ mod community_contribute_extrinsic {
 				BidParams::new(BIDDER_2, 50_000 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
 			];
 
-			let project_id =
-				inst.create_community_contributing_project(project_metadata.clone(), ISSUER_1, default_evaluations(), bids);
+			let project_id = inst.create_community_contributing_project(
+				project_metadata.clone(),
+				ISSUER_1,
+				default_evaluations(),
+				bids,
+			);
 
 			let bidder_2_jwt = get_mock_jwt(BIDDER_2, InvestorType::Retail, generate_did_from_account(BIDDER_2));
-			let bidder_3_jwt_same_did = get_mock_jwt(BIDDER_3, InvestorType::Retail, generate_did_from_account(BIDDER_2));
-			let bidder_3_jwt_different_did = get_mock_jwt(BIDDER_3, InvestorType::Retail, generate_did_from_account(BIDDER_3));
+			let bidder_3_jwt_same_did =
+				get_mock_jwt(BIDDER_3, InvestorType::Retail, generate_did_from_account(BIDDER_2));
+			let bidder_3_jwt_different_did =
+				get_mock_jwt(BIDDER_3, InvestorType::Retail, generate_did_from_account(BIDDER_3));
 
 			let plmc_mints = vec![(BIDDER_2, 420 * PLMC).into(), (BIDDER_3, 420 * PLMC).into()];
 			inst.mint_plmc_to(plmc_mints);
@@ -1073,44 +1121,42 @@ mod community_contribute_extrinsic {
 
 			inst.execute(|| {
 				assert_noop!(
-			Pallet::<TestRuntime>::community_contribute(
-				RuntimeOrigin::signed(BIDDER_2),
-				bidder_2_jwt,
-				project_id,
-				10 * ASSET_UNIT,
-				1u8.try_into().unwrap(),
-				AcceptedFundingAsset::USDT,
-			),
-			Error::<TestRuntime>::UserHasWinningBids
-		);
+					Pallet::<TestRuntime>::community_contribute(
+						RuntimeOrigin::signed(BIDDER_2),
+						bidder_2_jwt,
+						project_id,
+						10 * ASSET_UNIT,
+						1u8.try_into().unwrap(),
+						AcceptedFundingAsset::USDT,
+					),
+					Error::<TestRuntime>::UserHasWinningBids
+				);
 			});
 
 			inst.execute(|| {
 				assert_noop!(
-			Pallet::<TestRuntime>::community_contribute(
-				RuntimeOrigin::signed(BIDDER_3),
-				bidder_3_jwt_same_did,
-				project_id,
-				10 * ASSET_UNIT,
-				1u8.try_into().unwrap(),
-				AcceptedFundingAsset::USDT,
-			),
-			Error::<TestRuntime>::UserHasWinningBids
-		);
+					Pallet::<TestRuntime>::community_contribute(
+						RuntimeOrigin::signed(BIDDER_3),
+						bidder_3_jwt_same_did,
+						project_id,
+						10 * ASSET_UNIT,
+						1u8.try_into().unwrap(),
+						AcceptedFundingAsset::USDT,
+					),
+					Error::<TestRuntime>::UserHasWinningBids
+				);
 			});
 
 			inst.execute(|| {
 				assert_ok!(Pallet::<TestRuntime>::community_contribute(
-			RuntimeOrigin::signed(BIDDER_3),
-			bidder_3_jwt_different_did,
-			project_id,
-			10 * ASSET_UNIT,
-			1u8.try_into().unwrap(),
-			AcceptedFundingAsset::USDT,
-		));
+					RuntimeOrigin::signed(BIDDER_3),
+					bidder_3_jwt_different_did,
+					project_id,
+					10 * ASSET_UNIT,
+					1u8.try_into().unwrap(),
+					AcceptedFundingAsset::USDT,
+				));
 			});
 		}
 	}
 }
-
-

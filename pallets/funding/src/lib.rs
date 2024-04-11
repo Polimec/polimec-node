@@ -324,6 +324,7 @@ pub mod pallet {
 		type MaxEvaluationsPerProject: Get<u32>;
 
 		/// How many distinct evaluations per user per project
+		#[pallet::constant]
 		type MaxEvaluationsPerUser: Get<u32>;
 
 		/// Range of max_message_size values for the hrmp config where we accept the incoming channel request
