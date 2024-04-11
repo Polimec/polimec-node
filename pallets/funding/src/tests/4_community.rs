@@ -221,12 +221,46 @@ mod community_contribute_extrinsic {
 		fn evaluation_bond_counts_towards_contribution() {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 			let project_metadata = default_project_metadata(ISSUER_1);
+
 			const BOB: AccountId = 42069;
 			let mut evaluations = default_evaluations();
 			let bobs_evaluation: UserToUSDBalance<TestRuntime> = (BOB, 1337 * US_DOLLAR).into();
-			let evaluations_required_plmc = MockInstantiator::calculate_evaluation_plmc_spent(
+			evaluations.push(bobs_evaluation.clone());
+			dbg!(&evaluations);
+
+			let project_id = inst.create_community_contributing_project(
+				project_metadata.clone(),
+				ISSUER_1,
 				evaluations,
+				default_bids(),
 			);
+
+			let bobs_evaluation_bond = inst.execute(|| {Balances::balance_on_hold(&HoldReason::Evaluation(project_id).into(), &BOB)});
+			let bobs_slashable_bond = <TestRuntime as Config>::EvaluatorSlash::get() * bobs_evaluation_bond;
+			let bobs_usable_bond = bobs_evaluation_bond - bobs_slashable_bond;
+
+			let plmc_price = <TestRuntime as Config>::PriceProvider::get_price(PLMC_FOREIGN_ID).unwrap();
+
+			let usable_usd = plmc_price.saturating_mul_int(bobs_usable_bond);
+			let usable_ct = plmc_price.reciprocal().unwrap().saturating_mul_int(usable_usd);
+
+			let slashable_usd = plmc_price.saturating_mul_int(bobs_slashable_bond);
+			let slashable_ct = plmc_price.reciprocal().unwrap().saturating_mul_int(slashable_usd);
+
+			inst.execute(|| {
+				assert_noop!(
+					Pallet::<TestRuntime>::community_contribute(
+						RuntimeOrigin::signed(BOB),
+						get_mock_jwt(BOB, InvestorType::Retail, generate_did_from_account(BOB)),
+						project_id,
+						usable_ct + 1,
+						1u8.try_into().unwrap(),
+						AcceptedFundingAsset::USDT,
+					),
+					TokenError::FundsUnavailable
+				);
+			});
+
 		}
 
 
