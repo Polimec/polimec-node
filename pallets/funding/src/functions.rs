@@ -929,6 +929,7 @@ impl<T: Config> Pallet<T> {
 		let evaluations_count = EvaluationCounts::<T>::get(project_id);
 
 		// * Validity Checks *
+		ensure!(usd_amount > Zero::zero(), Error::<T>::EvaluationBondTooLow);
 		ensure!(project_details.issuer_did != did, Error::<T>::ParticipationToThemselves);
 		ensure!(project_details.status == ProjectStatus::EvaluationRound, Error::<T>::ProjectNotInEvaluationRound);
 		ensure!(evaluations_count < T::MaxEvaluationsPerProject::get(), Error::<T>::TooManyEvaluationsForProject);
@@ -970,33 +971,6 @@ impl<T: Config> Pallet<T> {
 			late_usd_amount,
 			when: now,
 		};
-
-		if caller_existing_evaluations.len() < T::MaxEvaluationsPerUser::get() as usize {
-			T::NativeCurrency::hold(&HoldReason::Evaluation(project_id).into(), evaluator, plmc_bond)?;
-		} else {
-			let (low_id, lowest_evaluation) = caller_existing_evaluations
-				.iter()
-				.min_by_key(|(_, evaluation)| evaluation.original_plmc_bond)
-				.ok_or(Error::<T>::ImpossibleState)?;
-
-			ensure!(lowest_evaluation.original_plmc_bond < plmc_bond, Error::<T>::EvaluationBondTooLow);
-			ensure!(
-				lowest_evaluation.original_plmc_bond == lowest_evaluation.current_plmc_bond,
-				"Using evaluation funds for participating should not be possible in the evaluation round"
-			);
-
-			T::NativeCurrency::release(
-				&HoldReason::Evaluation(project_id).into(),
-				&lowest_evaluation.evaluator,
-				lowest_evaluation.original_plmc_bond,
-				Precision::Exact,
-			)?;
-
-			T::NativeCurrency::hold(&HoldReason::Evaluation(project_id).into(), evaluator, plmc_bond)?;
-
-			Evaluations::<T>::remove((project_id, evaluator, low_id));
-			EvaluationCounts::<T>::mutate(project_id, |c| *c -= 1);
-		}
 
 		Evaluations::<T>::insert((project_id, evaluator, evaluation_id), new_evaluation);
 		NextEvaluationId::<T>::set(evaluation_id.saturating_add(One::one()));

@@ -639,5 +639,18 @@ mod evaluate_extrinsic {
 				);
 			});
 		}
+
+		#[test]
+		fn cannot_evaluate_with_0_usd() {
+			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+			let issuer = ISSUER_1;
+			let project_metadata = default_project_metadata(issuer);
+			let project_id = inst.create_evaluating_project(project_metadata.clone(), issuer);
+
+			let evaluator = EVALUATOR_1;
+            let evaluation = (evaluator.clone(), 0).into();
+            inst.mint_plmc_to(vec![(evaluator.clone(), 2000 * PLMC).into()]);
+			assert_err!(inst.evaluate_for_users(project_id, vec![evaluation]), Error::<TestRuntime>::EvaluationBondTooLow)
+		}
 	}
 }
