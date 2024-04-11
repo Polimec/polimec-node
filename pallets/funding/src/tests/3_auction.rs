@@ -1093,57 +1093,6 @@ mod bid_extrinsic {
 		fn cannot_bid_more_than_project_limit_count() {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 			let mut project_metadata = default_project_metadata(ISSUER_1);
-			project_metadata.minimum_price = PriceOf::<TestRuntime>::from_float(100.0);
-
-			let evaluations = MockInstantiator::generate_successful_evaluations(
-				project_metadata.clone(),
-				vec![EVALUATOR_1],
-				vec![100u8],
-			);
-			let bids = (0u32..<TestRuntime as Config>::MaxBidsPerProject::get())
-				.map(|i| (i as u32 + 420u32, 50 * ASSET_UNIT).into())
-				.collect_vec();
-			let failing_bid = BidParams::<TestRuntime>::new(BIDDER_1, 50 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT);
-
-			let project_id = inst.create_auctioning_project(project_metadata.clone(), ISSUER_1, evaluations);
-
-			let plmc_for_bidding = MockInstantiator::calculate_auction_plmc_charged_with_given_price(
-				&bids.clone(),
-				project_metadata.minimum_price,
-			);
-			let plmc_existential_deposits = bids.accounts().existential_deposits();
-			let usdt_for_bidding = MockInstantiator::calculate_auction_funding_asset_charged_with_given_price(
-				&bids.clone(),
-				project_metadata.minimum_price,
-			);
-
-			inst.mint_plmc_to(plmc_for_bidding.clone());
-			inst.mint_plmc_to(plmc_existential_deposits.clone());
-			inst.mint_foreign_asset_to(usdt_for_bidding.clone());
-
-			inst.bid_for_users(project_id, bids.clone()).unwrap();
-
-			let plmc_for_failing_bid = MockInstantiator::calculate_auction_plmc_charged_with_given_price(
-				&vec![failing_bid.clone()],
-				project_metadata.minimum_price,
-			);
-			let plmc_existential_deposits = plmc_for_failing_bid.accounts().existential_deposits();
-			let usdt_for_bidding = MockInstantiator::calculate_auction_funding_asset_charged_with_given_price(
-				&vec![failing_bid.clone()],
-				project_metadata.minimum_price,
-			);
-
-			inst.mint_plmc_to(plmc_for_failing_bid.clone());
-			inst.mint_plmc_to(plmc_existential_deposits.clone());
-			inst.mint_foreign_asset_to(usdt_for_bidding.clone());
-
-			assert_err!(inst.bid_for_users(project_id, vec![failing_bid]), Error::<TestRuntime>::TooManyBidsForProject);
-		}
-
-		#[test]
-		fn splitted_bids_cannot_exceed_project_limit_count() {
-			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
-			let mut project_metadata = default_project_metadata(ISSUER_1);
 			project_metadata.mainnet_token_max_supply = 1_000_000_000 * ASSET_UNIT;
 			project_metadata.total_allocation_size = 100_000_000 * ASSET_UNIT;
 
@@ -1218,63 +1167,45 @@ mod bid_extrinsic {
 					Error::<TestRuntime>::TooManyBidsForProject
 				);
 			});
+
+			// Now we test that after reaching the limit, just one bid is also not allowed
+			inst.execute(|| {
+				assert_ok!(
+					PolimecFunding::bid(
+						RuntimeOrigin::signed(failing_bid.bidder),
+						get_mock_jwt(
+							failing_bid.bidder,
+							InvestorType::Professional,
+							generate_did_from_account(failing_bid.bidder)
+						),
+						project_id,
+						remaining_ct,
+						failing_bid.multiplier,
+						failing_bid.asset
+					)
+				);
+			});
+			inst.execute(|| {
+				assert_noop!(
+					PolimecFunding::bid(
+						RuntimeOrigin::signed(failing_bid.bidder),
+						get_mock_jwt(
+							failing_bid.bidder,
+							InvestorType::Professional,
+							generate_did_from_account(failing_bid.bidder)
+						),
+						project_id,
+						5000 * ASSET_UNIT,
+						failing_bid.multiplier,
+						failing_bid.asset
+					),
+					Error::<TestRuntime>::TooManyBidsForProject
+				);
+			});
 		}
 
 		#[test]
 		fn cannot_bid_more_than_user_limit_count() {
-			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
-			let mut project_metadata = default_project_metadata(ISSUER_1);
-			project_metadata.mainnet_token_max_supply = 1_000_000_000 * ASSET_UNIT;
-			project_metadata.total_allocation_size = 100_000_000 * ASSET_UNIT;
-			project_metadata.minimum_price = PriceOf::<TestRuntime>::from_float(100.0);
-
-			let evaluations = MockInstantiator::generate_successful_evaluations(
-				project_metadata.clone(),
-				vec![EVALUATOR_1],
-				vec![100u8],
-			);
-			let bids = (0u32..<TestRuntime as Config>::MaxBidsPerUser::get())
-				.map(|i| (BIDDER_1, 50 * ASSET_UNIT).into())
-				.collect_vec();
-			let failing_bid = BidParams::<TestRuntime>::new(BIDDER_1, 50 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT);
-
-			let project_id = inst.create_auctioning_project(project_metadata.clone(), ISSUER_1, evaluations);
-
-			let plmc_for_bidding = MockInstantiator::calculate_auction_plmc_charged_with_given_price(
-				&bids.clone(),
-				project_metadata.minimum_price,
-			);
-			let plmc_existential_deposits = bids.accounts().existential_deposits();
-			let usdt_for_bidding = MockInstantiator::calculate_auction_funding_asset_charged_with_given_price(
-				&bids.clone(),
-				project_metadata.minimum_price,
-			);
-
-			inst.mint_plmc_to(plmc_for_bidding.clone());
-			inst.mint_plmc_to(plmc_existential_deposits.clone());
-			inst.mint_foreign_asset_to(usdt_for_bidding.clone());
-
-			inst.bid_for_users(project_id, bids.clone()).unwrap();
-
-			let plmc_for_failing_bid = MockInstantiator::calculate_auction_plmc_charged_with_given_price(
-				&vec![failing_bid.clone()],
-				project_metadata.minimum_price,
-			);
-			let plmc_existential_deposits = plmc_for_failing_bid.accounts().existential_deposits();
-			let usdt_for_bidding = MockInstantiator::calculate_auction_funding_asset_charged_with_given_price(
-				&vec![failing_bid.clone()],
-				project_metadata.minimum_price,
-			);
-
-			inst.mint_plmc_to(plmc_for_failing_bid.clone());
-			inst.mint_plmc_to(plmc_existential_deposits.clone());
-			inst.mint_foreign_asset_to(usdt_for_bidding.clone());
-
-			assert_err!(inst.bid_for_users(project_id, vec![failing_bid]), Error::<TestRuntime>::TooManyBidsForUser);
-		}
-
-		#[test]
-		fn splitted_bids_cannot_exceed_user_limit_count() {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 			let mut project_metadata = default_project_metadata(ISSUER_1);
 			project_metadata.mainnet_token_max_supply = 1_000_000_000 * ASSET_UNIT;
@@ -1328,7 +1259,6 @@ mod bid_extrinsic {
 					project_metadata.clone(),
 					Some(current_bucket),
 				);
-
 			inst.mint_plmc_to(plmc_for_failing_bid.clone());
 			inst.mint_plmc_to(plmc_existential_deposits.clone());
 			inst.mint_foreign_asset_to(usdt_for_bidding.clone());
@@ -1350,32 +1280,55 @@ mod bid_extrinsic {
 					Error::<TestRuntime>::TooManyBidsForUser
 				);
 			});
+
+			// Now we test that after reaching the limit, just one bid is also not allowed
+			inst.execute(|| {
+				assert_ok!(
+					PolimecFunding::bid(
+						RuntimeOrigin::signed(failing_bid.bidder),
+						get_mock_jwt(
+							failing_bid.bidder,
+							InvestorType::Professional,
+							generate_did_from_account(failing_bid.bidder)
+						),
+						project_id,
+						remaining_ct,
+						failing_bid.multiplier,
+						failing_bid.asset
+					)
+				);
+			});
+			inst.execute(|| {
+				assert_noop!(
+					PolimecFunding::bid(
+						RuntimeOrigin::signed(failing_bid.bidder),
+						get_mock_jwt(
+							failing_bid.bidder,
+							InvestorType::Professional,
+							generate_did_from_account(failing_bid.bidder)
+						),
+						project_id,
+						5000 * ASSET_UNIT,
+						failing_bid.multiplier,
+						failing_bid.asset
+					),
+					Error::<TestRuntime>::TooManyBidsForUser
+				);
+			});
+
 		}
 
 		#[test]
 		fn per_credential_type_ticket_size_minimums() {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
-			let project_metadata = ProjectMetadata {
-				token_information: default_token_information(),
-				mainnet_token_max_supply: 8_000_000 * ASSET_UNIT,
-				total_allocation_size: 100_000 * ASSET_UNIT,
-				auction_round_allocation_percentage: Percent::from_percent(50u8),
-				minimum_price: PriceOf::<TestRuntime>::from_float(10.0),
-				bidding_ticket_sizes: BiddingTicketSizes {
-					professional: TicketSize::new(Some(8_000 * US_DOLLAR), None),
-					institutional: TicketSize::new(Some(20_000 * US_DOLLAR), None),
-					phantom: Default::default(),
-				},
-				contributing_ticket_sizes: ContributingTicketSizes {
-					retail: TicketSize::new(None, None),
-					professional: TicketSize::new(None, None),
-					institutional: TicketSize::new(None, None),
-					phantom: Default::default(),
-				},
-				participation_currencies: vec![AcceptedFundingAsset::USDT].try_into().unwrap(),
-				funding_destination_account: ISSUER_1,
-				offchain_information_hash: Some(hashed(METADATA)),
+			let mut project_metadata = default_project_metadata(ISSUER_1);
+			project_metadata.total_allocation_size = 100_000 * ASSET_UNIT;
+			project_metadata.bidding_ticket_sizes = BiddingTicketSizes {
+				professional: TicketSize::new(Some(8_000 * US_DOLLAR), None),
+				institutional: TicketSize::new(Some(20_000 * US_DOLLAR), None),
+				phantom: Default::default(),
 			};
+
 			let evaluations = default_evaluations();
 
 			let project_id = inst.create_auctioning_project(project_metadata.clone(), ISSUER_1, evaluations.clone());
