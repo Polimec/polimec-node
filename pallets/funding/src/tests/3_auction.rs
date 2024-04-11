@@ -661,6 +661,7 @@ mod bid_extrinsic {
 	#[cfg(test)]
 	mod success {
 		use super::*;
+		use frame_support::dispatch::DispatchResultWithPostInfo;
 		use polimec_common::credentials::Empty;
 
 		#[test]
@@ -866,38 +867,45 @@ mod bid_extrinsic {
 			bidder: AccountIdOf<TestRuntime>,
 			investor_type: InvestorType,
 			u8_multiplier: u8,
-		) -> (UntrustedToken<Empty>, BalanceOf<TestRuntime>, MultiplierOf<TestRuntime>) {
+		) -> DispatchResultWithPostInfo {
 			let jwt = get_mock_jwt(bidder.clone(), investor_type, generate_did_from_account(BIDDER_1));
 			let amount = 1000 * ASSET_UNIT;
 			let multiplier = Multiplier::force_new(u8_multiplier);
 
-			if u8_multiplier == 0 {
-				return (jwt, amount, multiplier)
+			if u8_multiplier > 0 {
+				let bid = BidParams::<TestRuntime> {
+					bidder: bidder.clone(),
+					amount,
+					multiplier,
+					asset: AcceptedFundingAsset::USDT,
+				};
+
+				let necessary_plmc = MockInstantiator::calculate_auction_plmc_charged_with_given_price(
+					&vec![bid.clone()],
+					inst.get_project_metadata(project_id).minimum_price,
+				);
+				let plmc_existential_amounts = necessary_plmc.accounts().existential_deposits();
+				let necessary_usdt = MockInstantiator::calculate_auction_funding_asset_charged_with_given_price(
+					&vec![bid.clone()],
+					inst.get_project_metadata(project_id).minimum_price,
+				);
+
+				inst.mint_plmc_to(necessary_plmc.clone());
+				inst.mint_plmc_to(plmc_existential_amounts.clone());
+				inst.mint_foreign_asset_to(necessary_usdt.clone());
 			}
-
-			let bid = BidParams::<TestRuntime> {
-				bidder: bidder.clone(),
-				amount,
-				multiplier,
-				asset: AcceptedFundingAsset::USDT,
-			};
-
-			let necessary_plmc = MockInstantiator::calculate_auction_plmc_charged_with_given_price(
-				&vec![bid.clone()],
-				inst.get_project_metadata(project_id).minimum_price,
-			);
-			let plmc_existential_amounts = necessary_plmc.accounts().existential_deposits();
-			let necessary_usdt = MockInstantiator::calculate_auction_funding_asset_charged_with_given_price(
-				&vec![bid.clone()],
-				inst.get_project_metadata(project_id).minimum_price,
-			);
-
-			inst.mint_plmc_to(necessary_plmc.clone());
-			inst.mint_plmc_to(plmc_existential_amounts.clone());
-			inst.mint_foreign_asset_to(necessary_usdt.clone());
-
-			(jwt, amount, multiplier)
+			inst.execute(|| {
+				Pallet::<TestRuntime>::bid(
+					RuntimeOrigin::signed(bidder),
+					jwt,
+					project_id,
+					amount,
+					multiplier,
+					AcceptedFundingAsset::USDT,
+				)
+			})
 		}
+
 		#[test]
 		fn multiplier_limits() {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
@@ -909,99 +917,37 @@ mod bid_extrinsic {
 			);
 			let project_id = inst.create_auctioning_project(project_metadata.clone(), ISSUER_1, evaluations);
 			// Professional bids: 0x multiplier should fail
-			let (jwt, ct_amount, multiplier) =
-				test_bid_setup(&mut inst, project_id, BIDDER_1, InvestorType::Professional, 0);
-			inst.execute(|| {
-				assert_noop!(
-					Pallet::<TestRuntime>::bid(
-						RuntimeOrigin::signed(BIDDER_1),
-						jwt,
-						project_id,
-						ct_amount,
-						multiplier,
-						AcceptedFundingAsset::USDT
-					),
-					Error::<TestRuntime>::ForbiddenMultiplier
-				);
-			});
+			assert_err!(
+				test_bid_setup(&mut inst, project_id, BIDDER_1, InvestorType::Professional, 0),
+				Error::<TestRuntime>::ForbiddenMultiplier
+			);
 			// Professional bids: 1 - 10x multiplier should work
 			for multiplier in 1..=10u8 {
-				let (jwt, ct_amount, multiplier) =
-					test_bid_setup(&mut inst, project_id, BIDDER_1, InvestorType::Professional, multiplier);
-				assert_ok!(inst.execute(|| Pallet::<TestRuntime>::bid(
-					RuntimeOrigin::signed(BIDDER_1),
-					jwt,
-					project_id,
-					ct_amount,
-					multiplier,
-					AcceptedFundingAsset::USDT
-				)));
+				assert_ok!(test_bid_setup(&mut inst, project_id, BIDDER_1, InvestorType::Professional, multiplier));
 			}
 			// Professional bids: >=11x multiplier should fail
 			for multiplier in 11..=50u8 {
-				let (jwt, ct_amount, multiplier) =
-					test_bid_setup(&mut inst, project_id, BIDDER_1, InvestorType::Professional, multiplier);
-				inst.execute(|| {
-					assert_noop!(
-						Pallet::<TestRuntime>::bid(
-							RuntimeOrigin::signed(BIDDER_1),
-							jwt,
-							project_id,
-							ct_amount,
-							multiplier,
-							AcceptedFundingAsset::USDT
-						),
-						Error::<TestRuntime>::ForbiddenMultiplier
-					);
-				});
+				assert_err!(
+					test_bid_setup(&mut inst, project_id, BIDDER_1, InvestorType::Professional, multiplier),
+					Error::<TestRuntime>::ForbiddenMultiplier
+				);
 			}
 
 			// Institutional bids: 0x multiplier should fail
-			let (jwt, ct_amount, multiplier) =
-				test_bid_setup(&mut inst, project_id, BIDDER_2, InvestorType::Institutional, 0);
-			inst.execute(|| {
-				assert_noop!(
-					Pallet::<TestRuntime>::bid(
-						RuntimeOrigin::signed(BIDDER_2),
-						jwt,
-						project_id,
-						ct_amount,
-						multiplier,
-						AcceptedFundingAsset::USDT
-					),
-					Error::<TestRuntime>::ForbiddenMultiplier
-				);
-			});
+			assert_err!(
+				test_bid_setup(&mut inst, project_id, BIDDER_2, InvestorType::Institutional, 0),
+				Error::<TestRuntime>::ForbiddenMultiplier
+			);
 			// Institutional bids: 1 - 25x multiplier should work
 			for multiplier in 1..=25u8 {
-				let (jwt, ct_amount, multiplier) =
-					test_bid_setup(&mut inst, project_id, BIDDER_2, InvestorType::Institutional, multiplier);
-				assert_ok!(inst.execute(|| Pallet::<TestRuntime>::bid(
-					RuntimeOrigin::signed(BIDDER_2),
-					jwt,
-					project_id,
-					ct_amount,
-					multiplier,
-					AcceptedFundingAsset::USDT
-				)));
+				assert_ok!(test_bid_setup(&mut inst, project_id, BIDDER_2, InvestorType::Institutional, multiplier));
 			}
 			// Institutional bids: >=26x multiplier should fail
 			for multiplier in 26..=50u8 {
-				let (jwt, ct_amount, multiplier) =
-					test_bid_setup(&mut inst, project_id, BIDDER_2, InvestorType::Institutional, multiplier);
-				inst.execute(|| {
-					assert_noop!(
-						Pallet::<TestRuntime>::bid(
-							RuntimeOrigin::signed(BIDDER_2),
-							jwt,
-							project_id,
-							ct_amount,
-							multiplier,
-							AcceptedFundingAsset::USDT
-						),
-						Error::<TestRuntime>::ForbiddenMultiplier
-					);
-				});
+				assert_err!(
+					test_bid_setup(&mut inst, project_id, BIDDER_2, InvestorType::Institutional, multiplier),
+					Error::<TestRuntime>::ForbiddenMultiplier
+				);
 			}
 		}
 
