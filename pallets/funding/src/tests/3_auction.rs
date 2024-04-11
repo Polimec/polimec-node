@@ -1035,6 +1035,8 @@ mod bid_extrinsic {
 			);
 			let current_bucket = inst.execute(|| Buckets::<TestRuntime>::get(project_id)).unwrap();
 			assert_eq!(current_bucket.current_price, PriceOf::<TestRuntime>::from_float(1.3));
+			assert_eq!(current_bucket.amount_left, Percent::from_percent(2) * project_metadata.total_allocation_size);
+			assert_eq!(current_bucket.delta_price, PriceOf::<TestRuntime>::from_float(0.1));
 		}
 	}
 
