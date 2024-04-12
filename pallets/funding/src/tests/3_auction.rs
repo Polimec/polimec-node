@@ -7,8 +7,7 @@ mod round_flow {
 	#[cfg(test)]
 	mod success {
 		use super::*;
-		use sp_arithmetic::PerThing;
-		use sp_core::{bounded_vec, ConstU32};
+		use sp_core::bounded_vec;
 		use std::ops::Not;
 
 		#[test]
@@ -327,7 +326,6 @@ mod round_flow {
 			.unwrap();
 
 			inst.bid_for_users(project_id, vec![after_random_end_bid]).unwrap();
-			let stored_bids = inst.execute(|| Bids::<TestRuntime>::iter_prefix_values((project_id,)).collect_vec());
 			inst.do_free_plmc_assertions(vec![
 				UserToPLMCBalance::new(BIDDER_1, MockInstantiator::get_ed()),
 				UserToPLMCBalance::new(BIDDER_2, MockInstantiator::get_ed()),
@@ -357,7 +355,6 @@ mod round_flow {
 				vec![plmc_returned.clone(), plmc_existential_amounts, vec![rejected_bid_necessary_plmc.clone()]],
 				MergeOperation::Add,
 			);
-			let stored_bids = inst.execute(|| Bids::<TestRuntime>::iter_prefix_values((project_id,)).collect_vec());
 			inst.do_free_plmc_assertions(expected_free);
 			let expected_reserved = MockInstantiator::generic_map_operation(
 				vec![necessary_plmc.clone(), plmc_returned.clone(), vec![rejected_bid_necessary_plmc.clone()]],
@@ -662,7 +659,6 @@ mod bid_extrinsic {
 	mod success {
 		use super::*;
 		use frame_support::dispatch::DispatchResultWithPostInfo;
-		use polimec_common::credentials::Empty;
 
 		#[test]
 		fn evaluation_bond_counts_towards_bid() {
@@ -1203,7 +1199,7 @@ mod bid_extrinsic {
 				vec![100u8],
 			);
 			let max_bids_per_user: u32 = <TestRuntime as Config>::MaxBidsPerUser::get();
-			let bids = (0u32..max_bids_per_user - 1u32).map(|i| (BIDDER_1, 5000 * ASSET_UNIT).into()).collect_vec();
+			let bids = (0u32..max_bids_per_user - 1u32).map(|_| (BIDDER_1, 5000 * ASSET_UNIT).into()).collect_vec();
 
 			let project_id = inst.create_auctioning_project(project_metadata.clone(), ISSUER_1, evaluations);
 
