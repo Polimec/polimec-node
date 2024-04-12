@@ -1573,7 +1573,10 @@ mod bid_extrinsic {
 					investor_type,
 				)
 			});
-			frame_support::assert_err!(outcome, Error::<TestRuntime>::ParticipationFailed(ParticipationError::FundingAssetNotAccepted));
+			frame_support::assert_err!(
+				outcome,
+				Error::<TestRuntime>::ParticipationFailed(ParticipationError::FundingAssetNotAccepted)
+			);
 		}
 	}
 }

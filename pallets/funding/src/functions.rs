@@ -1115,7 +1115,8 @@ impl<T: Config> Pallet<T> {
 		let plmc_usd_price = T::PriceProvider::get_price(PLMC_FOREIGN_ID).ok_or(Error::<T>::PriceNotFound)?;
 
 		// Fetch current bucket details and other required info
-		let mut current_bucket = Buckets::<T>::get(project_id).ok_or(Error::<T>::ProjectError(ProjectErrorReason::BucketNotFound))?;
+		let mut current_bucket =
+			Buckets::<T>::get(project_id).ok_or(Error::<T>::ProjectError(ProjectErrorReason::BucketNotFound))?;
 		let now = <frame_system::Pallet<T>>::block_number();
 		let mut amount_to_bid = ct_amount;
 		let total_bids_for_project = BidCounts::<T>::get(project_id);
@@ -1247,8 +1248,14 @@ impl<T: Config> Pallet<T> {
 				.usd_ticket_below_maximum_per_did(total_usd_bid_by_did.saturating_add(ticket_size)),
 			Error::<T>::ParticipationFailed(ParticipationError::TooHigh)
 		);
-		ensure!(total_bids_by_bidder < T::MaxBidsPerUser::get(), Error::<T>::ParticipationFailed(ParticipationError::TooManyUserParticipations));
-		ensure!(total_bids_for_project < T::MaxBidsPerProject::get(), Error::<T>::ParticipationFailed(ParticipationError::TooManyProjectParticipations));
+		ensure!(
+			total_bids_by_bidder < T::MaxBidsPerUser::get(),
+			Error::<T>::ParticipationFailed(ParticipationError::TooManyUserParticipations)
+		);
+		ensure!(
+			total_bids_for_project < T::MaxBidsPerProject::get(),
+			Error::<T>::ParticipationFailed(ParticipationError::TooManyProjectParticipations)
+		);
 
 		let funding_asset_usd_price =
 			T::PriceProvider::get_price(funding_asset.to_assethub_id()).ok_or(Error::<T>::PriceNotFound)?;
