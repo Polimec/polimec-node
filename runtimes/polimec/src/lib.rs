@@ -882,10 +882,7 @@ impl pallet_identity::Config for Runtime {
 	type ForceOrigin = EnsureRoot<AccountId>;
 	type IdentityInformation = pallet_identity::legacy::IdentityInfo<MaxAdditionalFields>;
 	type MaxRegistrars = MaxRegistrars;
-	#[cfg(not(feature = "runtime-benchmarks"))]
 	type MaxSubAccounts = MaxSubAccounts;
-	#[cfg(feature = "runtime-benchmarks")]
-	type MaxSubAccounts = ConstU32<100>;
 	type MaxSuffixLength = MaxSuffixLength;
 	type MaxUsernameLength = MaxUsernameLength;
 	type OffchainSignature = Signature;

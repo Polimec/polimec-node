@@ -914,18 +914,9 @@ impl pallet_identity::Config for Runtime {
 	type ForceOrigin = EnsureRoot<AccountId>;
 	type IdentityInformation = pallet_identity::legacy::IdentityInfo<MaxAdditionalFields>;
 	type MaxRegistrars = MaxRegistrars;
-	#[cfg(not(feature = "runtime-benchmarks"))]
 	type MaxSubAccounts = MaxSubAccounts;
-	#[cfg(feature = "runtime-benchmarks")]
-	type MaxSubAccounts = ConstU32<1>;
-	#[cfg(not(feature = "runtime-benchmarks"))]
 	type MaxSuffixLength = MaxSuffixLength;
-	#[cfg(feature = "runtime-benchmarks")]
-	type MaxSuffixLength = ConstU32<24>;
-	#[cfg(not(feature = "runtime-benchmarks"))]
 	type MaxUsernameLength = MaxUsernameLength;
-	#[cfg(feature = "runtime-benchmarks")]
-	type MaxUsernameLength = ConstU32<32>;
 	type OffchainSignature = Signature;
 	type PendingUsernameExpiration = PendingUsernameExpiration;
 	type RegistrarOrigin = EnsureRoot<AccountId>;
@@ -934,7 +925,7 @@ impl pallet_identity::Config for Runtime {
 	type Slashed = Treasury;
 	type SubAccountDeposit = SubAccountDeposit;
 	type UsernameAuthorityOrigin = UsernameAuthorityOrigin;
-	type WeightInfo = pallet_identity::weights::SubstrateWeight<Runtime>;
+	type WeightInfo = ();
 }
 
 // Politest specific pallets
