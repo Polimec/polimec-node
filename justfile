@@ -21,12 +21,12 @@ test-runtime-features:
 test-integration:
     cargo test -p integration-tests
 
-dry-run-benchmarks:
+dry-run-benchmarks pallet="*":
     cargo run --features runtime-benchmarks --release -p polimec-node benchmark pallet \
         --chain=politest-local \
         --steps=2 \
         --repeat=1 \
-        --pallet="*" \
+        --pallet={{ pallet }} \
         --extrinsic=* \
         --wasm-execution=compiled \
         --heap-pages=4096 && \

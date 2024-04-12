@@ -19,7 +19,7 @@ use crate::{
 	Balance,
 };
 use frame_support::{parameter_types, PalletId};
-use parachains_common::BlockNumber;
+use parachains_common::{AccountId, BlockNumber};
 #[cfg(not(any(feature = "fast-mode", feature = "instant-mode")))]
 use parachains_common::{DAYS, HOURS};
 #[cfg(feature = "fast-mode")]
@@ -141,4 +141,33 @@ parameter_types! {
 	pub const MaxCandidates: u32 = 30;
 	pub const MaxVoters: u32 = 200;
 	pub const MaxVotesPerVoter: u32 = 8;
+}
+
+// Disabled, no spending allowed.
+#[cfg(not(feature = "runtime-benchmarks"))]
+pub type SpendOrigin = frame_support::traits::NeverEnsureOrigin<Balance>;
+
+#[cfg(feature = "runtime-benchmarks")]
+pub type SpendOrigin = frame_system::EnsureWithSuccess<frame_system::EnsureRoot<AccountId>, AccountId, MaxBalance>;
+
+#[cfg(feature = "runtime-benchmarks")]
+frame_support::parameter_types! {
+	pub const MaxBalance: Balance = Balance::max_value();
+}
+
+#[cfg(feature = "runtime-benchmarks")]
+use pallet_treasury::ArgumentsFactory;
+
+#[cfg(feature = "runtime-benchmarks")]
+pub struct TreasuryBenchmarkHelper;
+
+#[cfg(feature = "runtime-benchmarks")]
+impl ArgumentsFactory<(), AccountId> for TreasuryBenchmarkHelper {
+	fn create_asset_kind(_seed: u32) -> () {
+		()
+	}
+
+	fn create_beneficiary(seed: [u8; 32]) -> AccountId {
+		AccountId::from(seed)
+	}
 }
