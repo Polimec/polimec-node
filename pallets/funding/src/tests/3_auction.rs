@@ -1158,20 +1158,18 @@ mod bid_extrinsic {
 
 			// Now we test that after reaching the limit, just one bid is also not allowed
 			inst.execute(|| {
-				assert_ok!(
-					PolimecFunding::bid(
-						RuntimeOrigin::signed(failing_bid.bidder),
-						get_mock_jwt(
-							failing_bid.bidder,
-							InvestorType::Professional,
-							generate_did_from_account(failing_bid.bidder)
-						),
-						project_id,
-						remaining_ct,
-						failing_bid.multiplier,
-						failing_bid.asset
-					)
-				);
+				assert_ok!(PolimecFunding::bid(
+					RuntimeOrigin::signed(failing_bid.bidder),
+					get_mock_jwt(
+						failing_bid.bidder,
+						InvestorType::Professional,
+						generate_did_from_account(failing_bid.bidder)
+					),
+					project_id,
+					remaining_ct,
+					failing_bid.multiplier,
+					failing_bid.asset
+				));
 			});
 			inst.execute(|| {
 				assert_noop!(
@@ -1271,20 +1269,18 @@ mod bid_extrinsic {
 
 			// Now we test that after reaching the limit, just one bid is also not allowed
 			inst.execute(|| {
-				assert_ok!(
-					PolimecFunding::bid(
-						RuntimeOrigin::signed(failing_bid.bidder),
-						get_mock_jwt(
-							failing_bid.bidder,
-							InvestorType::Professional,
-							generate_did_from_account(failing_bid.bidder)
-						),
-						project_id,
-						remaining_ct,
-						failing_bid.multiplier,
-						failing_bid.asset
-					)
-				);
+				assert_ok!(PolimecFunding::bid(
+					RuntimeOrigin::signed(failing_bid.bidder),
+					get_mock_jwt(
+						failing_bid.bidder,
+						InvestorType::Professional,
+						generate_did_from_account(failing_bid.bidder)
+					),
+					project_id,
+					remaining_ct,
+					failing_bid.multiplier,
+					failing_bid.asset
+				));
 			});
 			inst.execute(|| {
 				assert_noop!(
@@ -1303,7 +1299,6 @@ mod bid_extrinsic {
 					Error::<TestRuntime>::TooManyBidsForUser
 				);
 			});
-
 		}
 
 		#[test]
