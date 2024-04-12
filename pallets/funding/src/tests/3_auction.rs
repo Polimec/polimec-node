@@ -620,7 +620,10 @@ fn cannot_bid_more_than_project_limit_count() {
 	inst.mint_plmc_to(plmc_existential_deposits.clone());
 	inst.mint_foreign_asset_to(usdt_for_bidding.clone());
 
-	assert_err!(inst.bid_for_users(project_id, vec![failing_bid]), Error::<TestRuntime>::ParticipationFailed(ParticipationError::TooManyProjectParticipations));
+	assert_err!(
+		inst.bid_for_users(project_id, vec![failing_bid]),
+		Error::<TestRuntime>::ParticipationFailed(ParticipationError::TooManyProjectParticipations)
+	);
 }
 
 #[test]
@@ -666,7 +669,10 @@ fn bid_with_asset_not_accepted() {
 			investor_type,
 		)
 	});
-	frame_support::assert_err!(outcome, Error::<TestRuntime>::ParticipationFailed(ParticipationError::FundingAssetNotAccepted));
+	frame_support::assert_err!(
+		outcome,
+		Error::<TestRuntime>::ParticipationFailed(ParticipationError::FundingAssetNotAccepted)
+	);
 }
 
 #[test]

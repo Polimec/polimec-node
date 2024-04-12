@@ -916,7 +916,10 @@ fn retail_multiplier_limits() {
 		// Multipliers that should NOT work
 		for multiplier in max_allowed_multiplier + 1..=50 {
 			log::debug!("error? - multiplier: {}", multiplier);
-			assert_err!(contribute(&mut inst, project_id, multiplier), Error::<TestRuntime>::ParticipationFailed(ParticipationError::ForbiddenMultiplier));
+			assert_err!(
+				contribute(&mut inst, project_id, multiplier),
+				Error::<TestRuntime>::ParticipationFailed(ParticipationError::ForbiddenMultiplier)
+			);
 		}
 	}
 }

@@ -67,15 +67,23 @@ impl<T: Config> Pallet<T> {
 	#[transactional]
 	pub fn do_start_evaluation(caller: AccountIdOf<T>, project_id: ProjectId) -> DispatchResultWithPostInfo {
 		// * Get variables *
-		let project_metadata = ProjectsMetadata::<T>::get(project_id).ok_or(Error::<T>::ProjectError(ProjectErrorReason::ProjectMetadataNotFound))?;
-		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectError(ProjectErrorReason::ProjectDetailsNotFound))?;
+		let project_metadata = ProjectsMetadata::<T>::get(project_id)
+			.ok_or(Error::<T>::ProjectError(ProjectErrorReason::ProjectMetadataNotFound))?;
+		let mut project_details = ProjectsDetails::<T>::get(project_id)
+			.ok_or(Error::<T>::ProjectError(ProjectErrorReason::ProjectDetailsNotFound))?;
 		let now = <frame_system::Pallet<T>>::block_number();
 
 		// * Validity checks *
 		ensure!(project_details.issuer_account == caller, Error::<T>::IssuerError(IssuerErrorReason::NotIssuer));
-		ensure!(project_details.status == ProjectStatus::Application, Error::<T>::ProjectRoundError(RoundError::IncorrectRound));
+		ensure!(
+			project_details.status == ProjectStatus::Application,
+			Error::<T>::ProjectRoundError(RoundError::IncorrectRound)
+		);
 		ensure!(!project_details.is_frozen, Error::<T>::ProjectError(ProjectErrorReason::ProjectAlreadyFrozen));
-		ensure!(project_metadata.offchain_information_hash.is_some(), Error::<T>::BadMetadata(MetadataError::MetadataNotProvided));
+		ensure!(
+			project_metadata.offchain_information_hash.is_some(),
+			Error::<T>::BadMetadata(MetadataError::MetadataNotProvided)
+		);
 
 		// * Calculate new variables *
 		let evaluation_end_block = now + T::EvaluationDuration::get();
@@ -141,14 +149,21 @@ impl<T: Config> Pallet<T> {
 	#[transactional]
 	pub fn do_evaluation_end(project_id: ProjectId) -> DispatchResultWithPostInfo {
 		// * Get variables *
-		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectError(ProjectErrorReason::ProjectDetailsNotFound))?;
+		let mut project_details = ProjectsDetails::<T>::get(project_id)
+			.ok_or(Error::<T>::ProjectError(ProjectErrorReason::ProjectDetailsNotFound))?;
 		let now = <frame_system::Pallet<T>>::block_number();
-		let evaluation_end_block =
-			project_details.phase_transition_points.evaluation.end().ok_or(Error::<T>::ProjectRoundError(RoundError::TransitionPointNotSet))?;
+		let evaluation_end_block = project_details
+			.phase_transition_points
+			.evaluation
+			.end()
+			.ok_or(Error::<T>::ProjectRoundError(RoundError::TransitionPointNotSet))?;
 		let fundraising_target_usd = project_details.fundraising_target;
 
 		// * Validity checks *
-		ensure!(project_details.status == ProjectStatus::EvaluationRound, Error::<T>::ProjectRoundError(RoundError::IncorrectRound));
+		ensure!(
+			project_details.status == ProjectStatus::EvaluationRound,
+			Error::<T>::ProjectRoundError(RoundError::IncorrectRound)
+		);
 		ensure!(now > evaluation_end_block, Error::<T>::ProjectRoundError(RoundError::TooEarlyForRound));
 
 		// * Calculate new variables *
@@ -177,7 +192,8 @@ impl<T: Config> Pallet<T> {
 				(&project_id, UpdateType::AuctionOpeningStart),
 			) {
 				Ok(insertions) => insertions,
-				Err(_insertions) => return Err(Error::<T>::ProjectRoundError(RoundError::TooManyInsertionAttempts).into()),
+				Err(_insertions) =>
+					return Err(Error::<T>::ProjectRoundError(RoundError::TooManyInsertionAttempts).into()),
 			};
 
 			// * Emit events *
@@ -238,7 +254,8 @@ impl<T: Config> Pallet<T> {
 	#[transactional]
 	pub fn do_auction_opening(caller: AccountIdOf<T>, project_id: ProjectId) -> DispatchResultWithPostInfo {
 		// * Get variables *
-		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectError(ProjectErrorReason::ProjectDetailsNotFound))?;
+		let mut project_details = ProjectsDetails::<T>::get(project_id)
+			.ok_or(Error::<T>::ProjectError(ProjectErrorReason::ProjectDetailsNotFound))?;
 		let now = <frame_system::Pallet<T>>::block_number();
 		let auction_initialize_period_start_block = project_details
 			.phase_transition_points
@@ -252,7 +269,10 @@ impl<T: Config> Pallet<T> {
 			Error::<T>::IssuerError(IssuerErrorReason::NotIssuer)
 		);
 
-		ensure!(now >= auction_initialize_period_start_block, Error::<T>::ProjectRoundError(RoundError::TooEarlyForRound));
+		ensure!(
+			now >= auction_initialize_period_start_block,
+			Error::<T>::ProjectRoundError(RoundError::TooEarlyForRound)
+		);
 		// If the auction is first manually started, the automatic transition fails here. This
 		// behaviour is intended, as it gracefully skips the automatic transition if the
 		// auction was started manually.
@@ -325,14 +345,21 @@ impl<T: Config> Pallet<T> {
 	#[transactional]
 	pub fn do_auction_closing(project_id: ProjectId) -> DispatchResultWithPostInfo {
 		// * Get variables *
-		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectError(ProjectErrorReason::ProjectDetailsNotFound))?;
+		let mut project_details = ProjectsDetails::<T>::get(project_id)
+			.ok_or(Error::<T>::ProjectError(ProjectErrorReason::ProjectDetailsNotFound))?;
 		let now = <frame_system::Pallet<T>>::block_number();
-		let opening_end_block =
-			project_details.phase_transition_points.auction_opening.end().ok_or(Error::<T>::ProjectRoundError(RoundError::TransitionPointNotSet))?;
+		let opening_end_block = project_details
+			.phase_transition_points
+			.auction_opening
+			.end()
+			.ok_or(Error::<T>::ProjectRoundError(RoundError::TransitionPointNotSet))?;
 
 		// * Validity checks *
 		ensure!(now > opening_end_block, Error::<T>::ProjectRoundError(RoundError::TooEarlyForRound));
-		ensure!(project_details.status == ProjectStatus::AuctionOpening, Error::<T>::ProjectRoundError(RoundError::IncorrectRound));
+		ensure!(
+			project_details.status == ProjectStatus::AuctionOpening,
+			Error::<T>::ProjectRoundError(RoundError::IncorrectRound)
+		);
 
 		// * Calculate new variables *
 		let closing_start_block = now + 1u32.into();
@@ -388,17 +415,28 @@ impl<T: Config> Pallet<T> {
 	#[transactional]
 	pub fn do_community_funding(project_id: ProjectId) -> DispatchResultWithPostInfo {
 		// * Get variables *
-		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectError(ProjectErrorReason::ProjectDetailsNotFound))?;
-		let project_metadata = ProjectsMetadata::<T>::get(project_id).ok_or(Error::<T>::ProjectError(ProjectErrorReason::ProjectMetadataNotFound))?;
+		let project_details = ProjectsDetails::<T>::get(project_id)
+			.ok_or(Error::<T>::ProjectError(ProjectErrorReason::ProjectDetailsNotFound))?;
+		let project_metadata = ProjectsMetadata::<T>::get(project_id)
+			.ok_or(Error::<T>::ProjectError(ProjectErrorReason::ProjectMetadataNotFound))?;
 		let now = <frame_system::Pallet<T>>::block_number();
-		let auction_closing_start_block =
-			project_details.phase_transition_points.auction_closing.start().ok_or(Error::<T>::ProjectRoundError(RoundError::TransitionPointNotSet))?;
-		let auction_closing_end_block =
-			project_details.phase_transition_points.auction_closing.end().ok_or(Error::<T>::ProjectRoundError(RoundError::TransitionPointNotSet))?;
+		let auction_closing_start_block = project_details
+			.phase_transition_points
+			.auction_closing
+			.start()
+			.ok_or(Error::<T>::ProjectRoundError(RoundError::TransitionPointNotSet))?;
+		let auction_closing_end_block = project_details
+			.phase_transition_points
+			.auction_closing
+			.end()
+			.ok_or(Error::<T>::ProjectRoundError(RoundError::TransitionPointNotSet))?;
 
 		// * Validity checks *
 		ensure!(now > auction_closing_end_block, Error::<T>::ProjectRoundError(RoundError::TooEarlyForRound));
-		ensure!(project_details.status == ProjectStatus::AuctionClosing, Error::<T>::ProjectRoundError(RoundError::IncorrectRound));
+		ensure!(
+			project_details.status == ProjectStatus::AuctionClosing,
+			Error::<T>::ProjectRoundError(RoundError::IncorrectRound)
+		);
 
 		// * Calculate new variables *
 		let end_block = Self::select_random_block(auction_closing_start_block, auction_closing_end_block);
@@ -410,7 +448,8 @@ impl<T: Config> Pallet<T> {
 			end_block,
 			project_metadata.auction_round_allocation_percentage * project_metadata.total_allocation_size,
 		);
-		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectError(ProjectErrorReason::ProjectDetailsNotFound))?;
+		let mut project_details = ProjectsDetails::<T>::get(project_id)
+			.ok_or(Error::<T>::ProjectError(ProjectErrorReason::ProjectDetailsNotFound))?;
 		match calculation_result {
 			Err(e) => return Err(DispatchErrorWithPostInfo { post_info: ().into(), error: e }),
 			Ok((accepted_bids_count, rejected_bids_count)) => {
@@ -428,7 +467,8 @@ impl<T: Config> Pallet<T> {
 					(&project_id, UpdateType::RemainderFundingStart),
 				) {
 					Ok(iterations) => iterations,
-					Err(_iterations) => return Err(Error::<T>::ProjectRoundError(RoundError::TooManyInsertionAttempts).into()),
+					Err(_iterations) =>
+						return Err(Error::<T>::ProjectRoundError(RoundError::TooManyInsertionAttempts).into()),
 				};
 
 				// * Emit events *
@@ -473,14 +513,21 @@ impl<T: Config> Pallet<T> {
 	#[transactional]
 	pub fn do_remainder_funding(project_id: ProjectId) -> DispatchResultWithPostInfo {
 		// * Get variables *
-		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectError(ProjectErrorReason::ProjectDetailsNotFound))?;
+		let mut project_details = ProjectsDetails::<T>::get(project_id)
+			.ok_or(Error::<T>::ProjectError(ProjectErrorReason::ProjectDetailsNotFound))?;
 		let now = <frame_system::Pallet<T>>::block_number();
-		let community_end_block =
-			project_details.phase_transition_points.community.end().ok_or(Error::<T>::ProjectRoundError(RoundError::TransitionPointNotSet))?;
+		let community_end_block = project_details
+			.phase_transition_points
+			.community
+			.end()
+			.ok_or(Error::<T>::ProjectRoundError(RoundError::TransitionPointNotSet))?;
 
 		// * Validity checks *
 		ensure!(now > community_end_block, Error::<T>::ProjectRoundError(RoundError::TooEarlyForRound));
-		ensure!(project_details.status == ProjectStatus::CommunityRound, Error::<T>::ProjectRoundError(RoundError::IncorrectRound));
+		ensure!(
+			project_details.status == ProjectStatus::CommunityRound,
+			Error::<T>::ProjectRoundError(RoundError::IncorrectRound)
+		);
 
 		// Transition to remainder round was initiated by `do_community_funding`, but the ct
 		// tokens where already sold in the community round. This transition is obsolete.
@@ -504,7 +551,8 @@ impl<T: Config> Pallet<T> {
 		let insertion_iterations =
 			match Self::add_to_update_store(remainder_end_block + 1u32.into(), (&project_id, UpdateType::FundingEnd)) {
 				Ok(iterations) => iterations,
-				Err(_iterations) => return Err(Error::<T>::ProjectRoundError(RoundError::TooManyInsertionAttempts).into()),
+				Err(_iterations) =>
+					return Err(Error::<T>::ProjectRoundError(RoundError::TooManyInsertionAttempts).into()),
 			};
 
 		// * Emit events *
@@ -548,8 +596,10 @@ impl<T: Config> Pallet<T> {
 	#[transactional]
 	pub fn do_end_funding(project_id: ProjectId) -> DispatchResultWithPostInfo {
 		// * Get variables *
-		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectError(ProjectErrorReason::ProjectDetailsNotFound))?;
-		let project_metadata = ProjectsMetadata::<T>::get(project_id).ok_or(Error::<T>::ProjectError(ProjectErrorReason::ProjectMetadataNotFound))?;
+		let mut project_details = ProjectsDetails::<T>::get(project_id)
+			.ok_or(Error::<T>::ProjectError(ProjectErrorReason::ProjectDetailsNotFound))?;
+		let project_metadata = ProjectsMetadata::<T>::get(project_id)
+			.ok_or(Error::<T>::ProjectError(ProjectErrorReason::ProjectMetadataNotFound))?;
 		let remaining_cts = project_details.remaining_contribution_tokens;
 		let remainder_end_block = project_details.phase_transition_points.remainder.end();
 		let now = <frame_system::Pallet<T>>::block_number();
@@ -605,7 +655,8 @@ impl<T: Config> Pallet<T> {
 				(&project_id, UpdateType::ProjectDecision(FundingOutcomeDecision::AcceptFunding)),
 			) {
 				Ok(iterations) => iterations,
-				Err(_iterations) => return Err(Error::<T>::ProjectRoundError(RoundError::TooManyInsertionAttempts).into()),
+				Err(_iterations) =>
+					return Err(Error::<T>::ProjectRoundError(RoundError::TooManyInsertionAttempts).into()),
 			};
 			ProjectsDetails::<T>::insert(project_id, project_details);
 			Ok(PostDispatchInfo {
@@ -622,7 +673,8 @@ impl<T: Config> Pallet<T> {
 				(&project_id, UpdateType::ProjectDecision(FundingOutcomeDecision::AcceptFunding)),
 			) {
 				Ok(iterations) => iterations,
-				Err(_iterations) => return Err(Error::<T>::ProjectRoundError(RoundError::TooManyInsertionAttempts).into()),
+				Err(_iterations) =>
+					return Err(Error::<T>::ProjectRoundError(RoundError::TooManyInsertionAttempts).into()),
 			};
 			ProjectsDetails::<T>::insert(project_id, project_details);
 			Ok(PostDispatchInfo {
@@ -654,7 +706,8 @@ impl<T: Config> Pallet<T> {
 	#[transactional]
 	pub fn do_project_decision(project_id: ProjectId, decision: FundingOutcomeDecision) -> DispatchResultWithPostInfo {
 		// * Get variables *
-		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectError(ProjectErrorReason::ProjectDetailsNotFound))?;
+		let project_details = ProjectsDetails::<T>::get(project_id)
+			.ok_or(Error::<T>::ProjectError(ProjectErrorReason::ProjectDetailsNotFound))?;
 		ensure!(
 			project_details.status == ProjectStatus::AwaitingProjectDecision,
 			Error::<T>::ProjectRoundError(RoundError::RoundTransitionAlreadyHappened)
@@ -672,9 +725,11 @@ impl<T: Config> Pallet<T> {
 	#[transactional]
 	pub fn do_start_settlement(project_id: ProjectId) -> DispatchResultWithPostInfo {
 		// * Get variables *
-		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectError(ProjectErrorReason::ProjectDetailsNotFound))?;
-		let token_information =
-			ProjectsMetadata::<T>::get(project_id).ok_or(Error::<T>::ProjectError(ProjectErrorReason::ProjectMetadataNotFound))?.token_information;
+		let mut project_details = ProjectsDetails::<T>::get(project_id)
+			.ok_or(Error::<T>::ProjectError(ProjectErrorReason::ProjectDetailsNotFound))?;
+		let token_information = ProjectsMetadata::<T>::get(project_id)
+			.ok_or(Error::<T>::ProjectError(ProjectErrorReason::ProjectMetadataNotFound))?
+			.token_information;
 		let now = <frame_system::Pallet<T>>::block_number();
 
 		// * Validity checks *
@@ -850,7 +905,8 @@ impl<T: Config> Pallet<T> {
 	#[transactional]
 	pub fn do_remove_project(issuer: AccountIdOf<T>, project_id: ProjectId, did: Did) -> DispatchResult {
 		// * Get variables *
-		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectError(ProjectErrorReason::ProjectDetailsNotFound))?;
+		let project_details = ProjectsDetails::<T>::get(project_id)
+			.ok_or(Error::<T>::ProjectError(ProjectErrorReason::ProjectDetailsNotFound))?;
 
 		// * Validity checks *
 		ensure!(project_details.issuer_account == issuer, Error::<T>::IssuerError(IssuerErrorReason::NotIssuer));
@@ -885,7 +941,8 @@ impl<T: Config> Pallet<T> {
 		new_project_metadata: ProjectMetadataOf<T>,
 	) -> DispatchResult {
 		// * Get variables *
-		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectError(ProjectErrorReason::ProjectDetailsNotFound))?;
+		let project_details = ProjectsDetails::<T>::get(project_id)
+			.ok_or(Error::<T>::ProjectError(ProjectErrorReason::ProjectDetailsNotFound))?;
 
 		// * Validity checks *
 		ensure!(project_details.issuer_account == issuer, Error::<T>::IssuerError(IssuerErrorReason::NotIssuer));
@@ -916,7 +973,8 @@ impl<T: Config> Pallet<T> {
 		investor_type: InvestorType,
 	) -> DispatchResultWithPostInfo {
 		// * Get variables *
-		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectError(ProjectErrorReason::ProjectDetailsNotFound))?;
+		let mut project_details = ProjectsDetails::<T>::get(project_id)
+			.ok_or(Error::<T>::ProjectError(ProjectErrorReason::ProjectDetailsNotFound))?;
 		let now = <frame_system::Pallet<T>>::block_number();
 		let evaluation_id = NextEvaluationId::<T>::get();
 		let caller_existing_evaluations: Vec<(u32, EvaluationInfoOf<T>)> =
@@ -928,9 +986,18 @@ impl<T: Config> Pallet<T> {
 		let evaluations_count = EvaluationCounts::<T>::get(project_id);
 
 		// * Validity Checks *
-		ensure!(project_details.issuer_did != did, Error::<T>::IssuerError(IssuerErrorReason::ParticipationToOwnProject));
-		ensure!(project_details.status == ProjectStatus::EvaluationRound, Error::<T>::ProjectRoundError(RoundError::IncorrectRound));
-		ensure!(evaluations_count < T::MaxEvaluationsPerProject::get(), Error::<T>::ParticipationFailed(ParticipationError::TooManyProjectParticipations));
+		ensure!(
+			project_details.issuer_did != did,
+			Error::<T>::IssuerError(IssuerErrorReason::ParticipationToOwnProject)
+		);
+		ensure!(
+			project_details.status == ProjectStatus::EvaluationRound,
+			Error::<T>::ProjectRoundError(RoundError::IncorrectRound)
+		);
+		ensure!(
+			evaluations_count < T::MaxEvaluationsPerProject::get(),
+			Error::<T>::ParticipationFailed(ParticipationError::TooManyProjectParticipations)
+		);
 
 		// * Calculate new variables *
 		if investor_type == InvestorType::Retail {
@@ -978,7 +1045,10 @@ impl<T: Config> Pallet<T> {
 				.min_by_key(|(_, evaluation)| evaluation.original_plmc_bond)
 				.ok_or(Error::<T>::ImpossibleState)?;
 
-			ensure!(lowest_evaluation.original_plmc_bond < plmc_bond, Error::<T>::ParticipationFailed(ParticipationError::TooLow));
+			ensure!(
+				lowest_evaluation.original_plmc_bond < plmc_bond,
+				Error::<T>::ParticipationFailed(ParticipationError::TooLow)
+			);
 			ensure!(
 				lowest_evaluation.original_plmc_bond == lowest_evaluation.current_plmc_bond,
 				"Using evaluation funds for participating should not be possible in the evaluation round"
@@ -1045,8 +1115,10 @@ impl<T: Config> Pallet<T> {
 		investor_type: InvestorType,
 	) -> DispatchResultWithPostInfo {
 		// * Get variables *
-		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectError(ProjectErrorReason::ProjectDetailsNotFound))?;
-		let project_metadata = ProjectsMetadata::<T>::get(project_id).ok_or(Error::<T>::ProjectError(ProjectErrorReason::ProjectMetadataNotFound))?;
+		let project_details = ProjectsDetails::<T>::get(project_id)
+			.ok_or(Error::<T>::ProjectError(ProjectErrorReason::ProjectDetailsNotFound))?;
+		let project_metadata = ProjectsMetadata::<T>::get(project_id)
+			.ok_or(Error::<T>::ProjectError(ProjectErrorReason::ProjectMetadataNotFound))?;
 		let plmc_usd_price = T::PriceProvider::get_price(PLMC_FOREIGN_ID).ok_or(Error::<T>::PriceNotFound)?;
 		let existing_bids = Bids::<T>::iter_prefix_values((project_id, bidder)).collect::<Vec<_>>();
 		let bid_count = BidCounts::<T>::get(project_id);
@@ -1075,8 +1147,14 @@ impl<T: Config> Pallet<T> {
 		);
 
 		ensure!(ct_amount > Zero::zero(), Error::<T>::ParticipationFailed(ParticipationError::TooLow));
-		ensure!(bid_count < T::MaxBidsPerProject::get(), Error::<T>::ParticipationFailed(ParticipationError::TooManyProjectParticipations));
-		ensure!(did != project_details.issuer_did, Error::<T>::IssuerError(IssuerErrorReason::ParticipationToOwnProject));
+		ensure!(
+			bid_count < T::MaxBidsPerProject::get(),
+			Error::<T>::ParticipationFailed(ParticipationError::TooManyProjectParticipations)
+		);
+		ensure!(
+			did != project_details.issuer_did,
+			Error::<T>::IssuerError(IssuerErrorReason::ParticipationToOwnProject)
+		);
 		ensure!(
 			matches!(project_details.status, ProjectStatus::AuctionOpening | ProjectStatus::AuctionClosing),
 			Error::<T>::ProjectRoundError(RoundError::IncorrectRound)
@@ -1090,17 +1168,24 @@ impl<T: Config> Pallet<T> {
 			metadata_bidder_ticket_size_bounds.usd_ticket_above_minimum_per_participation(min_total_ticket_size),
 			Error::<T>::ParticipationFailed(ParticipationError::TooLow)
 		);
-		ensure!(multiplier.into() <= max_multiplier && multiplier.into() > 0u8, Error::<T>::ParticipationFailed(ParticipationError::ForbiddenMultiplier));
+		ensure!(
+			multiplier.into() <= max_multiplier && multiplier.into() > 0u8,
+			Error::<T>::ParticipationFailed(ParticipationError::ForbiddenMultiplier)
+		);
 
 		// Note: We limit the CT Amount to the auction allocation size, to avoid long running loops.
 		ensure!(
 			ct_amount <= project_metadata.auction_round_allocation_percentage * project_metadata.total_allocation_size,
 			Error::<T>::ParticipationFailed(ParticipationError::TooHigh)
 		);
-		ensure!(existing_bids.len() < T::MaxBidsPerUser::get() as usize, Error::<T>::ParticipationFailed(ParticipationError::TooManyUserParticipations));
+		ensure!(
+			existing_bids.len() < T::MaxBidsPerUser::get() as usize,
+			Error::<T>::ParticipationFailed(ParticipationError::TooManyUserParticipations)
+		);
 
 		// Fetch current bucket details and other required info
-		let mut current_bucket = Buckets::<T>::get(project_id).ok_or(Error::<T>::ProjectError(ProjectErrorReason::BucketNotFound))?;
+		let mut current_bucket =
+			Buckets::<T>::get(project_id).ok_or(Error::<T>::ProjectError(ProjectErrorReason::BucketNotFound))?;
 		let now = <frame_system::Pallet<T>>::block_number();
 		let mut amount_to_bid = ct_amount;
 
@@ -1238,10 +1323,14 @@ impl<T: Config> Pallet<T> {
 		did: Did,
 		investor_type: InvestorType,
 	) -> DispatchResultWithPostInfo {
-		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectError(ProjectErrorReason::ProjectDetailsNotFound))?;
+		let mut project_details = ProjectsDetails::<T>::get(project_id)
+			.ok_or(Error::<T>::ProjectError(ProjectErrorReason::ProjectDetailsNotFound))?;
 		let did_has_winning_bid = DidWithWinningBids::<T>::get(project_id, did.clone());
 
-		ensure!(project_details.status == ProjectStatus::CommunityRound, Error::<T>::ProjectRoundError(RoundError::IncorrectRound));
+		ensure!(
+			project_details.status == ProjectStatus::CommunityRound,
+			Error::<T>::ProjectRoundError(RoundError::IncorrectRound)
+		);
 		ensure!(!did_has_winning_bid, Error::<T>::ParticipationFailed(ParticipationError::UserHasWinningBid));
 
 		let buyable_tokens = token_amount.min(project_details.remaining_contribution_tokens);
@@ -1278,9 +1367,13 @@ impl<T: Config> Pallet<T> {
 		did: Did,
 		investor_type: InvestorType,
 	) -> DispatchResultWithPostInfo {
-		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectError(ProjectErrorReason::ProjectDetailsNotFound))?;
+		let mut project_details = ProjectsDetails::<T>::get(project_id)
+			.ok_or(Error::<T>::ProjectError(ProjectErrorReason::ProjectDetailsNotFound))?;
 
-		ensure!(project_details.status == ProjectStatus::RemainderRound, Error::<T>::ProjectRoundError(RoundError::IncorrectRound));
+		ensure!(
+			project_details.status == ProjectStatus::RemainderRound,
+			Error::<T>::ProjectRoundError(RoundError::IncorrectRound)
+		);
 		let buyable_tokens = token_amount.min(project_details.remaining_contribution_tokens);
 
 		let before = project_details.remaining_contribution_tokens;
@@ -1310,12 +1403,14 @@ impl<T: Config> Pallet<T> {
 		investor_type: InvestorType,
 		did: Did,
 	) -> DispatchResultWithPostInfo {
-		let project_metadata = ProjectsMetadata::<T>::get(project_id).ok_or(Error::<T>::ProjectError(ProjectErrorReason::ProjectMetadataNotFound))?;
+		let project_metadata = ProjectsMetadata::<T>::get(project_id)
+			.ok_or(Error::<T>::ProjectError(ProjectErrorReason::ProjectMetadataNotFound))?;
 		let caller_existing_contributions =
 			Contributions::<T>::iter_prefix_values((project_id, contributor)).collect::<Vec<_>>();
 		let total_usd_bought_by_did = ContributionBoughtUSD::<T>::get((project_id, did.clone()));
 		let now = <frame_system::Pallet<T>>::block_number();
-		let ct_usd_price = project_details.weighted_average_price.ok_or(Error::<T>::ProjectError(ProjectErrorReason::WapNotSet))?;
+		let ct_usd_price =
+			project_details.weighted_average_price.ok_or(Error::<T>::ProjectError(ProjectErrorReason::WapNotSet))?;
 		let plmc_usd_price = T::PriceProvider::get_price(PLMC_FOREIGN_ID).ok_or(Error::<T>::PriceNotFound)?;
 		let funding_asset_usd_price =
 			T::PriceProvider::get_price(funding_asset.to_assethub_id()).ok_or(Error::<T>::PriceNotFound)?;
@@ -1341,12 +1436,18 @@ impl<T: Config> Pallet<T> {
 			InvestorType::Institutional => INSTITUTIONAL_MAX_MULTIPLIER,
 		};
 		// * Validity checks *
-		ensure!(multiplier.into() <= max_multiplier && multiplier.into() > 0u8, Error::<T>::ParticipationFailed(ParticipationError::ForbiddenMultiplier));
+		ensure!(
+			multiplier.into() <= max_multiplier && multiplier.into() > 0u8,
+			Error::<T>::ParticipationFailed(ParticipationError::ForbiddenMultiplier)
+		);
 		ensure!(
 			project_metadata.participation_currencies.contains(&funding_asset),
 			Error::<T>::ParticipationFailed(ParticipationError::FundingAssetNotAccepted)
 		);
-		ensure!(did.clone() != project_details.issuer_did, Error::<T>::IssuerError(IssuerErrorReason::ParticipationToOwnProject));
+		ensure!(
+			did.clone() != project_details.issuer_did,
+			Error::<T>::IssuerError(IssuerErrorReason::ParticipationToOwnProject)
+		);
 		ensure!(
 			caller_existing_contributions.len() < T::MaxContributionsPerUser::get() as usize,
 			Error::<T>::ParticipationFailed(ParticipationError::TooManyUserParticipations)
@@ -1363,7 +1464,10 @@ impl<T: Config> Pallet<T> {
 			project_metadata.participation_currencies.contains(&funding_asset),
 			Error::<T>::ParticipationFailed(ParticipationError::FundingAssetNotAccepted)
 		);
-		ensure!(did.clone() != project_details.issuer_did, Error::<T>::IssuerError(IssuerErrorReason::ParticipationToOwnProject));
+		ensure!(
+			did.clone() != project_details.issuer_did,
+			Error::<T>::IssuerError(IssuerErrorReason::ParticipationToOwnProject)
+		);
 		ensure!(
 			caller_existing_contributions.len() < T::MaxContributionsPerUser::get() as usize,
 			Error::<T>::ParticipationFailed(ParticipationError::TooManyUserParticipations)
@@ -1413,7 +1517,8 @@ impl<T: Config> Pallet<T> {
 			let fully_filled_vecs_from_insertion =
 				match Self::add_to_update_store(now + 1u32.into(), (&project_id, UpdateType::FundingEnd)) {
 					Ok(iterations) => iterations,
-					Err(_iterations) => return Err(Error::<T>::ProjectRoundError(RoundError::TooManyInsertionAttempts).into()),
+					Err(_iterations) =>
+						return Err(Error::<T>::ProjectRoundError(RoundError::TooManyInsertionAttempts).into()),
 				};
 
 			weight_round_end_flag = Some(fully_filled_vecs_from_insertion);
@@ -1450,12 +1555,16 @@ impl<T: Config> Pallet<T> {
 		decision: FundingOutcomeDecision,
 	) -> DispatchResultWithPostInfo {
 		// * Get variables *
-		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectError(ProjectErrorReason::ProjectDetailsNotFound))?;
+		let project_details = ProjectsDetails::<T>::get(project_id)
+			.ok_or(Error::<T>::ProjectError(ProjectErrorReason::ProjectDetailsNotFound))?;
 		let now = <frame_system::Pallet<T>>::block_number();
 
 		// * Validity checks *
 		ensure!(project_details.issuer_account == issuer, Error::<T>::IssuerError(IssuerErrorReason::NotIssuer));
-		ensure!(project_details.status == ProjectStatus::AwaitingProjectDecision, Error::<T>::ProjectRoundError(RoundError::IncorrectRound));
+		ensure!(
+			project_details.status == ProjectStatus::AwaitingProjectDecision,
+			Error::<T>::ProjectRoundError(RoundError::IncorrectRound)
+		);
 
 		// * Update storage *
 		let insertion_attempts: u32;
@@ -1486,7 +1595,8 @@ impl<T: Config> Pallet<T> {
 		para_id: ParaId,
 	) -> DispatchResult {
 		// * Get variables *
-		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectError(ProjectErrorReason::ProjectDetailsNotFound))?;
+		let mut project_details = ProjectsDetails::<T>::get(project_id)
+			.ok_or(Error::<T>::ProjectError(ProjectErrorReason::ProjectDetailsNotFound))?;
 
 		// * Validity checks *
 		ensure!(&(project_details.issuer_account) == caller, Error::<T>::IssuerError(IssuerErrorReason::NotIssuer));
@@ -1626,7 +1736,8 @@ impl<T: Config> Pallet<T> {
 	#[transactional]
 	pub fn do_start_migration_readiness_check(caller: &AccountIdOf<T>, project_id: ProjectId) -> DispatchResult {
 		// * Get variables *
-		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectError(ProjectErrorReason::ProjectDetailsNotFound))?;
+		let mut project_details = ProjectsDetails::<T>::get(project_id)
+			.ok_or(Error::<T>::ProjectError(ProjectErrorReason::ProjectDetailsNotFound))?;
 		let parachain_id: u32 = project_details.parachain_id.ok_or(Error::<T>::ImpossibleState)?.into();
 		let project_multilocation = ParentThen(X1(Parachain(parachain_id)));
 		let now = <frame_system::Pallet<T>>::block_number();
@@ -1635,7 +1746,10 @@ impl<T: Config> Pallet<T> {
 		let max_weight = Weight::from_parts(700_000_000, 10_000);
 
 		// * Validity checks *
-		ensure!(project_details.status == ProjectStatus::FundingSuccessful, Error::<T>::ProjectRoundError(RoundError::IncorrectRound));
+		ensure!(
+			project_details.status == ProjectStatus::FundingSuccessful,
+			Error::<T>::ProjectRoundError(RoundError::IncorrectRound)
+		);
 		ensure!(
 			project_details.hrmp_channel_status ==
 				HRMPChannelStatus {
@@ -1703,7 +1817,8 @@ impl<T: Config> Pallet<T> {
 			},
 			DepositAsset { assets: Wild(All), beneficiary: ParentThen(Parachain(POLIMEC_PARA_ID).into()).into() },
 		]);
-		<pallet_xcm::Pallet<T>>::send_xcm(Here, project_multilocation, xcm).map_err(|_| Error::<T>::MigrationFailed(MigrationError::XcmFailed))?;
+		<pallet_xcm::Pallet<T>>::send_xcm(Here, project_multilocation, xcm)
+			.map_err(|_| Error::<T>::MigrationFailed(MigrationError::XcmFailed))?;
 
 		// * Emit events *
 		Self::deposit_event(Event::<T>::MigrationReadinessCheckStarted { project_id, caller: caller.clone() });
@@ -1738,10 +1853,14 @@ impl<T: Config> Pallet<T> {
 			return Err(Error::<T>::MigrationFailed(MigrationError::WrongParaId).into());
 		};
 
-		let project_metadata = ProjectsMetadata::<T>::get(project_id).ok_or(Error::<T>::ProjectError(ProjectErrorReason::ProjectMetadataNotFound))?;
+		let project_metadata = ProjectsMetadata::<T>::get(project_id)
+			.ok_or(Error::<T>::ProjectError(ProjectErrorReason::ProjectMetadataNotFound))?;
 		let contribution_tokens_sold =
 			project_metadata.total_allocation_size.saturating_sub(project_details.remaining_contribution_tokens);
-		ensure!(project_details.parachain_id == Some(para_id), Error::<T>::MigrationFailed(MigrationError::WrongParaId));
+		ensure!(
+			project_details.parachain_id == Some(para_id),
+			Error::<T>::MigrationFailed(MigrationError::WrongParaId)
+		);
 
 		match (response.clone(), migration_check) {
 			(
@@ -1796,13 +1915,19 @@ impl<T: Config> Pallet<T> {
 	#[transactional]
 	pub fn do_migrate_one_participant(project_id: ProjectId, participant: AccountIdOf<T>) -> DispatchResult {
 		// * Get variables *
-		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectError(ProjectErrorReason::ProjectDetailsNotFound))?;
-		let migration_readiness_check = project_details.migration_readiness_check.ok_or(Error::<T>::MigrationFailed(MigrationError::ChannelNotReady))?;
+		let project_details = ProjectsDetails::<T>::get(project_id)
+			.ok_or(Error::<T>::ProjectError(ProjectErrorReason::ProjectDetailsNotFound))?;
+		let migration_readiness_check = project_details
+			.migration_readiness_check
+			.ok_or(Error::<T>::MigrationFailed(MigrationError::ChannelNotReady))?;
 		let project_para_id = project_details.parachain_id.ok_or(Error::<T>::ImpossibleState)?;
 		let now = <frame_system::Pallet<T>>::block_number();
-		ensure!(Self::user_has_no_participations(project_id, participant.clone()), Error::<T>::MigrationFailed(MigrationError::ParticipationsNotSettled));
-		let (_, migrations) =
-			UserMigrations::<T>::get(project_id, participant.clone()).ok_or(Error::<T>::MigrationFailed(MigrationError::NoMigrationsFound))?;
+		ensure!(
+			Self::user_has_no_participations(project_id, participant.clone()),
+			Error::<T>::MigrationFailed(MigrationError::ParticipationsNotSettled)
+		);
+		let (_, migrations) = UserMigrations::<T>::get(project_id, participant.clone())
+			.ok_or(Error::<T>::MigrationFailed(MigrationError::NoMigrationsFound))?;
 
 		// * Validity Checks *
 		ensure!(migration_readiness_check.is_ready(), Error::<T>::MigrationFailed(MigrationError::ChannelNotReady));
@@ -1818,7 +1943,8 @@ impl<T: Config> Pallet<T> {
 		// * Process Data *
 		let xcm = Self::construct_migration_xcm_message(migrations.into(), query_id);
 
-		<pallet_xcm::Pallet<T>>::send_xcm(Here, project_multilocation, xcm).map_err(|_| Error::<T>::MigrationFailed(MigrationError::XcmFailed))?;
+		<pallet_xcm::Pallet<T>>::send_xcm(Here, project_multilocation, xcm)
+			.map_err(|_| Error::<T>::MigrationFailed(MigrationError::XcmFailed))?;
 		ActiveMigrationQueue::<T>::insert(query_id, (project_id, participant.clone()));
 
 		Self::deposit_event(Event::<T>::MigrationStatusUpdated {
@@ -1833,8 +1959,10 @@ impl<T: Config> Pallet<T> {
 	#[transactional]
 	pub fn do_confirm_migrations(location: MultiLocation, query_id: QueryId, response: Response) -> DispatchResult {
 		use xcm::v3::prelude::*;
-		let (project_id, participant) = ActiveMigrationQueue::<T>::take(query_id).ok_or(Error::<T>::MigrationFailed(MigrationError::NoActiveMigrationsFound))?;
-		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectError(ProjectErrorReason::ProjectDetailsNotFound))?;
+		let (project_id, participant) = ActiveMigrationQueue::<T>::take(query_id)
+			.ok_or(Error::<T>::MigrationFailed(MigrationError::NoActiveMigrationsFound))?;
+		let project_details = ProjectsDetails::<T>::get(project_id)
+			.ok_or(Error::<T>::ProjectError(ProjectErrorReason::ProjectDetailsNotFound))?;
 
 		ensure!(
 			matches!(location, MultiLocation { parents: 1, interior: X1(Parachain(para_id))} if Some(ParaId::from(para_id)) == project_details.parachain_id),
@@ -2007,8 +2135,10 @@ impl<T: Config> Pallet<T> {
 
 		// lastly, sum all the weighted prices to get the final weighted price for the next funding round
 		// 3 + 10.6 + 2.6 = 16.333...
-		let current_bucket = Buckets::<T>::get(project_id).ok_or(Error::<T>::ProjectError(ProjectErrorReason::BucketNotFound))?;
-		let project_metadata = ProjectsMetadata::<T>::get(project_id).ok_or(Error::<T>::ProjectError(ProjectErrorReason::ProjectMetadataNotFound))?;
+		let current_bucket =
+			Buckets::<T>::get(project_id).ok_or(Error::<T>::ProjectError(ProjectErrorReason::BucketNotFound))?;
+		let project_metadata = ProjectsMetadata::<T>::get(project_id)
+			.ok_or(Error::<T>::ProjectError(ProjectErrorReason::ProjectMetadataNotFound))?;
 		let is_first_bucket = current_bucket.current_price == project_metadata.minimum_price;
 
 		let calc_weighted_price_fn = |bid: &BidInfoOf<T>| -> PriceOf<T> {
@@ -2252,8 +2382,10 @@ impl<T: Config> Pallet<T> {
 	/// reusable, not just for evaluator rewards.
 	pub fn generate_evaluator_rewards_info(project_id: ProjectId) -> Result<(RewardInfoOf<T>, u32), DispatchError> {
 		// Fetching the necessary data for a specific project.
-		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectError(ProjectErrorReason::ProjectDetailsNotFound))?;
-		let project_metadata = ProjectsMetadata::<T>::get(project_id).ok_or(Error::<T>::ProjectError(ProjectErrorReason::ProjectMetadataNotFound))?;
+		let project_details = ProjectsDetails::<T>::get(project_id)
+			.ok_or(Error::<T>::ProjectError(ProjectErrorReason::ProjectDetailsNotFound))?;
+		let project_metadata = ProjectsMetadata::<T>::get(project_id)
+			.ok_or(Error::<T>::ProjectError(ProjectErrorReason::ProjectMetadataNotFound))?;
 		let evaluations = Evaluations::<T>::iter_prefix((project_id,)).collect::<Vec<_>>();
 		// used for weight calculation
 		let evaluations_count = evaluations.len() as u32;
@@ -2311,8 +2443,10 @@ impl<T: Config> Pallet<T> {
 		project_id: ProjectId,
 	) -> Result<(BalanceOf<T>, BalanceOf<T>), DispatchError> {
 		// Fetching the necessary data for a specific project.
-		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectError(ProjectErrorReason::ProjectDetailsNotFound))?;
-		let project_metadata = ProjectsMetadata::<T>::get(project_id).ok_or(Error::<T>::ProjectError(ProjectErrorReason::ProjectMetadataNotFound))?;
+		let project_details = ProjectsDetails::<T>::get(project_id)
+			.ok_or(Error::<T>::ProjectError(ProjectErrorReason::ProjectDetailsNotFound))?;
+		let project_metadata = ProjectsMetadata::<T>::get(project_id)
+			.ok_or(Error::<T>::ProjectError(ProjectErrorReason::ProjectMetadataNotFound))?;
 
 		// Determine how much funding has been achieved.
 		let funding_amount_reached = project_details.funding_amount_reached;
@@ -2364,7 +2498,8 @@ impl<T: Config> Pallet<T> {
 		let insertion_iterations =
 			match Self::add_to_update_store(now + settlement_delta, (&project_id, UpdateType::StartSettlement)) {
 				Ok(iterations) => iterations,
-				Err(_iterations) => return Err(Error::<T>::ProjectRoundError(RoundError::TooManyInsertionAttempts).into()),
+				Err(_iterations) =>
+					return Err(Error::<T>::ProjectRoundError(RoundError::TooManyInsertionAttempts).into()),
 			};
 		Self::deposit_event(Event::ProjectPhaseTransition {
 			project_id,
@@ -2438,8 +2573,8 @@ impl<T: Config> Pallet<T> {
 	}
 
 	fn change_migration_status(project_id: ProjectId, user: T::AccountId, status: MigrationStatus) -> DispatchResult {
-		let (current_status, migrations) =
-			UserMigrations::<T>::get(project_id, user.clone()).ok_or(Error::<T>::MigrationFailed(MigrationError::NoMigrationsFound))?;
+		let (current_status, migrations) = UserMigrations::<T>::get(project_id, user.clone())
+			.ok_or(Error::<T>::MigrationFailed(MigrationError::NoMigrationsFound))?;
 		let status = match status {
 			MigrationStatus::Sent(_)
 				if matches!(current_status, MigrationStatus::NotStarted | MigrationStatus::Failed) =>

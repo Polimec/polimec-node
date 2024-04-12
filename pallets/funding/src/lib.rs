@@ -566,12 +566,7 @@ pub mod pallet {
 	}
 
 	#[pallet::storage]
-	pub type ActiveMigrationQueue<T: Config> = StorageMap<
-		_,
-		Blake2_128Concat,
-		QueryId,
-		(ProjectId, T::AccountId),
-	>;
+	pub type ActiveMigrationQueue<T: Config> = StorageMap<_, Blake2_128Concat, QueryId, (ProjectId, T::AccountId)>;
 
 	/// A map to keep track of what issuer's did has an active project. It prevents one issuer having multiple active projects
 	#[pallet::storage]
@@ -711,8 +706,8 @@ pub mod pallet {
 		NotAllowed,
 		/// Checked math failed
 		BadMath,
-        /// Could not get the price in USD for an asset/PLMC
-        PriceNotFound,
+		/// Could not get the price in USD for an asset/PLMC
+		PriceNotFound,
 		/// Tried to retrieve a evaluation, bid or contribution but it does not exist
 		ParticipationNotFound,
 		/// The user has the incorrect investor type for the action.
@@ -720,15 +715,15 @@ pub mod pallet {
 
 		ProjectError(ProjectErrorReason),
 
-        ProjectRoundError(RoundError),
-		
-        IssuerError(IssuerErrorReason),
+		ProjectRoundError(RoundError),
 
-        BadMetadata(MetadataError),
-        
-        ParticipationFailed(ParticipationError),
+		IssuerError(IssuerErrorReason),
 
-        MigrationFailed(MigrationError),
+		BadMetadata(MetadataError),
+
+		ParticipationFailed(ParticipationError),
+
+		MigrationFailed(MigrationError),
 	}
 
 	#[pallet::call]

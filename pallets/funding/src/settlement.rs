@@ -22,8 +22,12 @@ use sp_runtime::{
 
 impl<T: Config> Pallet<T> {
 	pub fn do_settle_successful_evaluation(evaluation: EvaluationInfoOf<T>, project_id: ProjectId) -> DispatchResult {
-		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectError(ProjectErrorReason::ProjectDetailsNotFound))?;
-		ensure!(matches!(project_details.status, ProjectStatus::FundingSuccessful), Error::<T>::ProjectRoundError(RoundError::IncorrectRound));
+		let project_details = ProjectsDetails::<T>::get(project_id)
+			.ok_or(Error::<T>::ProjectError(ProjectErrorReason::ProjectDetailsNotFound))?;
+		ensure!(
+			matches!(project_details.status, ProjectStatus::FundingSuccessful),
+			Error::<T>::ProjectRoundError(RoundError::IncorrectRound)
+		);
 
 		// Based on the results of the funding round, the evaluator is either:
 		// 1. Slashed
@@ -71,8 +75,12 @@ impl<T: Config> Pallet<T> {
 	}
 
 	pub fn do_settle_failed_evaluation(evaluation: EvaluationInfoOf<T>, project_id: ProjectId) -> DispatchResult {
-		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectError(ProjectErrorReason::ProjectDetailsNotFound))?;
-		ensure!(matches!(project_details.status, ProjectStatus::FundingFailed), Error::<T>::ProjectRoundError(RoundError::IncorrectRound));
+		let project_details = ProjectsDetails::<T>::get(project_id)
+			.ok_or(Error::<T>::ProjectError(ProjectErrorReason::ProjectDetailsNotFound))?;
+		ensure!(
+			matches!(project_details.status, ProjectStatus::FundingFailed),
+			Error::<T>::ProjectRoundError(RoundError::IncorrectRound)
+		);
 
 		let bond = if matches!(project_details.evaluation_round_info.evaluators_outcome, EvaluatorsOutcome::Slashed) {
 			Self::slash_evaluator(project_id, &evaluation)?
@@ -102,11 +110,21 @@ impl<T: Config> Pallet<T> {
 	}
 
 	pub fn do_settle_successful_bid(bid: BidInfoOf<T>, project_id: ProjectId) -> DispatchResult {
-		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectError(ProjectErrorReason::ProjectDetailsNotFound))?;
+		let project_details = ProjectsDetails::<T>::get(project_id)
+			.ok_or(Error::<T>::ProjectError(ProjectErrorReason::ProjectDetailsNotFound))?;
 
-		ensure!(project_details.status == ProjectStatus::FundingSuccessful,  Error::<T>::ProjectRoundError(RoundError::IncorrectRound));
-		ensure!(matches!(bid.status, BidStatus::Accepted | BidStatus::PartiallyAccepted(..)), Error::<T>::ImpossibleState);
-		ensure!(T::ContributionTokenCurrency::asset_exists(project_id), Error::<T>::ProjectRoundError(RoundError::TooEarlyForRound));
+		ensure!(
+			project_details.status == ProjectStatus::FundingSuccessful,
+			Error::<T>::ProjectRoundError(RoundError::IncorrectRound)
+		);
+		ensure!(
+			matches!(bid.status, BidStatus::Accepted | BidStatus::PartiallyAccepted(..)),
+			Error::<T>::ImpossibleState
+		);
+		ensure!(
+			T::ContributionTokenCurrency::asset_exists(project_id),
+			Error::<T>::ProjectRoundError(RoundError::TooEarlyForRound)
+		);
 
 		let bidder = bid.bidder;
 
@@ -162,8 +180,12 @@ impl<T: Config> Pallet<T> {
 	}
 
 	pub fn do_settle_failed_bid(bid: BidInfoOf<T>, project_id: ProjectId) -> DispatchResult {
-		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectError(ProjectErrorReason::ProjectDetailsNotFound))?;
-		ensure!(matches!(project_details.status, ProjectStatus::FundingFailed), Error::<T>::ProjectRoundError(RoundError::IncorrectRound));
+		let project_details = ProjectsDetails::<T>::get(project_id)
+			.ok_or(Error::<T>::ProjectError(ProjectErrorReason::ProjectDetailsNotFound))?;
+		ensure!(
+			matches!(project_details.status, ProjectStatus::FundingFailed),
+			Error::<T>::ProjectRoundError(RoundError::IncorrectRound)
+		);
 
 		let bidder = bid.bidder;
 
@@ -185,12 +207,19 @@ impl<T: Config> Pallet<T> {
 		contribution: ContributionInfoOf<T>,
 		project_id: ProjectId,
 	) -> DispatchResult {
-		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectError(ProjectErrorReason::ProjectDetailsNotFound))?;
+		let project_details = ProjectsDetails::<T>::get(project_id)
+			.ok_or(Error::<T>::ProjectError(ProjectErrorReason::ProjectDetailsNotFound))?;
 		// Ensure that:
 		// 1. The project is in the FundingSuccessful state
 		// 2. The contribution token exists
-		ensure!(project_details.status == ProjectStatus::FundingSuccessful, Error::<T>::ProjectRoundError(RoundError::IncorrectRound));
-		ensure!(T::ContributionTokenCurrency::asset_exists(project_id), Error::<T>::ProjectRoundError(RoundError::TooEarlyForRound));
+		ensure!(
+			project_details.status == ProjectStatus::FundingSuccessful,
+			Error::<T>::ProjectRoundError(RoundError::IncorrectRound)
+		);
+		ensure!(
+			T::ContributionTokenCurrency::asset_exists(project_id),
+			Error::<T>::ProjectRoundError(RoundError::TooEarlyForRound)
+		);
 
 		let contributor = contribution.contributor;
 
@@ -246,8 +275,12 @@ impl<T: Config> Pallet<T> {
 	}
 
 	pub fn do_settle_failed_contribution(contribution: ContributionInfoOf<T>, project_id: ProjectId) -> DispatchResult {
-		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectError(ProjectErrorReason::ProjectDetailsNotFound))?;
-		ensure!(matches!(project_details.status, ProjectStatus::FundingFailed), Error::<T>::ProjectRoundError(RoundError::IncorrectRound));
+		let project_details = ProjectsDetails::<T>::get(project_id)
+			.ok_or(Error::<T>::ProjectError(ProjectErrorReason::ProjectDetailsNotFound))?;
+		ensure!(
+			matches!(project_details.status, ProjectStatus::FundingFailed),
+			Error::<T>::ProjectRoundError(RoundError::IncorrectRound)
+		);
 
 		// Check if the bidder has a future deposit held
 		let contributor = contribution.contributor;
@@ -379,10 +412,14 @@ impl<T: Config> Pallet<T> {
 			let migration_info: MigrationInfo = (ct_amount.into(), vesting_time.into()).into();
 			let migration = Migration::new(migration_origin, migration_info);
 			if let Some((_, migrations)) = maybe_migrations {
-				migrations.try_push(migration).map_err(|_| Error::<T>::MigrationFailed(MigrationError::TooManyMigrations))?;
+				migrations
+					.try_push(migration)
+					.map_err(|_| Error::<T>::MigrationFailed(MigrationError::TooManyMigrations))?;
 			} else {
 				let mut migrations = BoundedVec::<_, MaxParticipationsPerUser<T>>::new();
-				migrations.try_push(migration).map_err(|_| Error::<T>::MigrationFailed(MigrationError::TooManyMigrations))?;
+				migrations
+					.try_push(migration)
+					.map_err(|_| Error::<T>::MigrationFailed(MigrationError::TooManyMigrations))?;
 				*maybe_migrations = Some((MigrationStatus::NotStarted, migrations))
 			}
 

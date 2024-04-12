@@ -668,46 +668,46 @@ pub mod inner_types {
 	}
 
 	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen, PalletError)]
-    pub enum RoundError {
-        IncorrectRound,
-        TooEarlyForRound,
-        RoundTransitionAlreadyHappened,
-        TransitionPointNotSet,
-        TooManyInsertionAttempts,
-    }
+	pub enum RoundError {
+		IncorrectRound,
+		TooEarlyForRound,
+		RoundTransitionAlreadyHappened,
+		TransitionPointNotSet,
+		TooManyInsertionAttempts,
+	}
 
-    #[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen, PalletError)]
-    pub enum ParticipationError {
-        TooLow,
-        TooHigh,
-        FundingAssetNotAccepted,
-        TooManyUserParticipations,
-        TooManyProjectParticipations,
-        ForbiddenMultiplier,
-        UserHasWinningBid,
-        WrongInvestorType,
-        NotEnoughFunds,
-    }
+	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen, PalletError)]
+	pub enum ParticipationError {
+		TooLow,
+		TooHigh,
+		FundingAssetNotAccepted,
+		TooManyUserParticipations,
+		TooManyProjectParticipations,
+		ForbiddenMultiplier,
+		UserHasWinningBid,
+		WrongInvestorType,
+		NotEnoughFunds,
+	}
 
-    #[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen, PalletError)]
-    pub enum ProjectErrorReason {
-        ProjectDetailsNotFound,
-        ProjectMetadataNotFound,
+	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen, PalletError)]
+	pub enum ProjectErrorReason {
+		ProjectDetailsNotFound,
+		ProjectMetadataNotFound,
 		BucketNotFound,
-        ProjectAlreadyFrozen,
-        ProjectIsFrozen,
+		ProjectAlreadyFrozen,
+		ProjectIsFrozen,
 		WapNotSet,
-    }
+	}
 
-    #[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen, PalletError)]
-    pub enum IssuerErrorReason {
-        NotIssuer,
-        HasActiveProject,
-        ParticipationToOwnProject,
-        NotEnoughFunds,
-    }
+	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen, PalletError)]
+	pub enum IssuerErrorReason {
+		NotIssuer,
+		HasActiveProject,
+		ParticipationToOwnProject,
+		NotEnoughFunds,
+	}
 
-    #[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen, PalletError)]
+	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen, PalletError)]
 	pub enum MetadataError {
 		PriceTooLow,
 		TicketSizeError,
@@ -715,12 +715,12 @@ pub mod inner_types {
 		AllocationSizeError,
 		AuctionRoundPercentageError,
 		FundingTargetTooLow,
-        MetadataNotProvided,
+		MetadataNotProvided,
 	}
 
-    #[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen, PalletError)]
-    pub enum MigrationError {
-        /// Tried to start a migration check but the bidirectional channel is not yet open
+	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen, PalletError)]
+	pub enum MigrationError {
+		/// Tried to start a migration check but the bidirectional channel is not yet open
 		ChannelNotOpen,
 		XcmFailed,
 		/// Reached bid limit for this user on this project
@@ -735,7 +735,7 @@ pub mod inner_types {
 		ChannelNotReady,
 		/// User still has participations that need to be settled before migration.
 		ParticipationsNotSettled,
-    }
+	}
 
 	#[derive(Default, Clone, Copy, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
 	pub enum BidStatus<Balance: BalanceT> {
