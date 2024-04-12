@@ -16,27 +16,45 @@
 
 use crate::{deposit, Balance, PLMC};
 use frame_support::parameter_types;
+use parachains_common::AccountId;
 
 parameter_types! {
 	/// The basic deposit to create an identity.
 	pub const BasicDeposit: Balance = 20 * PLMC;
 	/// Deposit for each additional field.
 	pub const ByteDeposit: Balance = deposit(0, 1);
-
+	/// The number of blocks within which a username grant must be accepted.
 	pub const PendingUsernameExpiration: u32 = 0;
 	/// The deposit needed to create a sub-account.
 	/// We do not allow sub-accounts so can be 0.
 	/// Should be set to a non-zero value if sub-accounts are allowed.
 	pub const SubAccountDeposit: Balance = 0;
-	/// Max number of sub-accounts that can be created.
-	/// We do not allow sub-accounts so set to 0.
-	pub const MaxSubAccounts: u32 = 0;
 	/// Max number of additional fields that can be created.
 	pub const MaxAdditionalFields: u32 = 100;
 	/// Max number of registrars that can be set.
 	pub const MaxRegistrars: u32 = 3;
+}
+
+#[cfg(not(feature = "runtime-benchmarks"))]
+parameter_types! {
+	/// Max number of sub-accounts that can be created.
+	/// We do not allow sub-accounts so set to 0.
+	pub const MaxSubAccounts: u32 = 0;
 	/// Max length of username suffix.
 	pub const MaxSuffixLength: u32 = 0;
 	/// Max length of username.
 	pub const MaxUsernameLength: u32 = 0;
 }
+
+#[cfg(feature = "runtime-benchmarks")]
+parameter_types! {
+	pub const MaxSubAccounts: u32 = 1;
+	pub const MaxSuffixLength: u32 = 24;
+	pub const MaxUsernameLength: u32 = 32;
+}
+
+#[cfg(not(feature = "runtime-benchmarks"))]
+pub type UsernameAuthorityOrigin = frame_system::EnsureNever<AccountId>;
+
+#[cfg(feature = "runtime-benchmarks")]
+pub type UsernameAuthorityOrigin = frame_system::EnsureRoot<AccountId>;
