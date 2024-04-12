@@ -210,9 +210,9 @@ pub mod storage_types {
 		/// - Minimum price is not zero
 		/// - Minimum bidding ticket sizes are higher than 5k USD
 		/// - Specified participation currencies are unique
-		pub fn is_valid(&self) -> Result<(), ValidityError> {
+		pub fn is_valid(&self) -> Result<(), MetadataError> {
 			if self.minimum_price == Price::zero() {
-				return Err(ValidityError::PriceTooLow);
+				return Err(MetadataError::PriceTooLow);
 			}
 			let min_bidder_bound_usd: Balance = (5000 * (US_DOLLAR as u64)).into();
 			self.bidding_ticket_sizes.is_valid(vec![
@@ -222,27 +222,27 @@ pub mod storage_types {
 			self.contributing_ticket_sizes.is_valid(vec![])?;
 
 			if self.total_allocation_size > self.mainnet_token_max_supply {
-				return Err(ValidityError::AllocationSizeError);
+				return Err(MetadataError::AllocationSizeError);
 			}
 
 			if self.total_allocation_size <= 0u64.into() {
-				return Err(ValidityError::AllocationSizeError);
+				return Err(MetadataError::AllocationSizeError);
 			}
 
 			if self.auction_round_allocation_percentage <= Percent::from_percent(0) {
-				return Err(ValidityError::AuctionRoundPercentageError);
+				return Err(MetadataError::AuctionRoundPercentageError);
 			}
 
 			let mut deduped = self.participation_currencies.clone().to_vec();
 			deduped.sort();
 			deduped.dedup();
 			if deduped.len() != self.participation_currencies.len() {
-				return Err(ValidityError::ParticipationCurrenciesError);
+				return Err(MetadataError::ParticipationCurrenciesError);
 			}
 
 			let target_funding = self.minimum_price.saturating_mul_int(self.total_allocation_size);
 			if target_funding < (1000u64 * US_DOLLAR as u64).into() {
-				return Err(ValidityError::FundingTargetTooLow);
+				return Err(MetadataError::FundingTargetTooLow);
 			}
 			Ok(())
 		}
@@ -508,16 +508,16 @@ pub mod inner_types {
 		pub phantom: PhantomData<(Price, Balance)>,
 	}
 	impl<Price: FixedPointNumber, Balance: PartialOrd + Copy> BiddingTicketSizes<Price, Balance> {
-		pub fn is_valid(&self, usd_bounds: Vec<InvestorTypeUSDBounds<Balance>>) -> Result<(), ValidityError> {
+		pub fn is_valid(&self, usd_bounds: Vec<InvestorTypeUSDBounds<Balance>>) -> Result<(), MetadataError> {
 			for bound in usd_bounds {
 				match bound {
 					InvestorTypeUSDBounds::Professional(bound) =>
 						if !self.professional.check_valid(bound) {
-							return Err(ValidityError::TicketSizeError);
+							return Err(MetadataError::TicketSizeError);
 						},
 					InvestorTypeUSDBounds::Institutional(bound) =>
 						if !self.institutional.check_valid(bound) {
-							return Err(ValidityError::TicketSizeError);
+							return Err(MetadataError::TicketSizeError);
 						},
 					_ => {},
 				}
@@ -535,20 +535,20 @@ pub mod inner_types {
 		pub phantom: PhantomData<(Price, Balance)>,
 	}
 	impl<Price: FixedPointNumber, Balance: PartialOrd + Copy> ContributingTicketSizes<Price, Balance> {
-		pub fn is_valid(&self, usd_bounds: Vec<InvestorTypeUSDBounds<Balance>>) -> Result<(), ValidityError> {
+		pub fn is_valid(&self, usd_bounds: Vec<InvestorTypeUSDBounds<Balance>>) -> Result<(), MetadataError> {
 			for bound in usd_bounds {
 				match bound {
 					InvestorTypeUSDBounds::Professional(bound) =>
 						if !self.professional.check_valid(bound) {
-							return Err(ValidityError::TicketSizeError);
+							return Err(MetadataError::TicketSizeError);
 						},
 					InvestorTypeUSDBounds::Institutional(bound) =>
 						if !self.institutional.check_valid(bound) {
-							return Err(ValidityError::TicketSizeError);
+							return Err(MetadataError::TicketSizeError);
 						},
 					InvestorTypeUSDBounds::Retail(bound) =>
 						if !self.retail.check_valid(bound) {
-							return Err(ValidityError::TicketSizeError);
+							return Err(MetadataError::TicketSizeError);
 						},
 				}
 			}
@@ -655,16 +655,6 @@ pub mod inner_types {
 		pub fn force_update(&mut self, start: Option<BlockNumber>, end: Option<BlockNumber>) -> Self {
 			Self { start, end }
 		}
-	}
-
-	#[derive(Debug)]
-	pub enum ValidityError {
-		PriceTooLow,
-		TicketSizeError,
-		ParticipationCurrenciesError,
-		AllocationSizeError,
-		AuctionRoundPercentageError,
-		FundingTargetTooLow,
 	}
 
 	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen, PalletError)]

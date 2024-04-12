@@ -798,15 +798,7 @@ impl<T: Config> Pallet<T> {
 		did: Did,
 	) -> Result<(ProjectDetailsOf<T>, BucketOf<T>), DispatchError> {
 		if let Err(error) = metadata.is_valid() {
-			let metadata_error = match error {
-				ValidityError::PriceTooLow => MetadataError::PriceTooLow,
-				ValidityError::TicketSizeError => MetadataError::TicketSizeError,
-				ValidityError::ParticipationCurrenciesError => MetadataError::ParticipationCurrenciesError,
-				ValidityError::AllocationSizeError => MetadataError::AllocationSizeError,
-				ValidityError::AuctionRoundPercentageError => MetadataError::AuctionRoundPercentageError,
-				ValidityError::FundingTargetTooLow => MetadataError::FundingTargetTooLow,
-			};
-			return Err(Error::<T>::BadMetadata(metadata_error).into());
+			return Err(Error::<T>::BadMetadata(error).into());
 		}
 		let total_allocation_size = metadata.total_allocation_size;
 
