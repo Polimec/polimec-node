@@ -210,7 +210,7 @@ impl<
 		for UserToPLMCBalance { account, plmc_amount } in correct_funds {
 			self.execute(|| {
 				let reserved = <T as Config>::NativeCurrency::balance_on_hold(&reserve_type, &account);
-				assert_eq!(reserved, plmc_amount);
+				assert_eq!(reserved, plmc_amount, "account has unexpected reserved plmc balance");
 			});
 		}
 	}
@@ -289,7 +289,7 @@ impl<
 						.fold(Zero::zero(), |a, b| a + b);
 				assert_eq!(
 					contribution_total, asset_amount,
-					"Wrong foreign asset balance expected for stored auction info on user {:?}",
+					"Wrong funding balance expected for stored auction info on user {:?}",
 					account
 				);
 			});
@@ -2730,7 +2730,7 @@ pub enum MergeOperation {
 	Add,
 	Subtract,
 }
-pub trait AccountMerge {
+pub trait AccountMerge: Accounts + Sized {
 	/// The inner type of the Vec implementing this Trait.
 	type Inner;
 	/// Merge accounts in the list based on the operation.
@@ -2738,6 +2738,8 @@ pub trait AccountMerge {
 	/// Subtract amount of the matching accounts in the other list from the current list.
 	/// If the account is not present in the current list, it is ignored.
 	fn subtract_accounts(&self, other_list: Self) -> Self;
+
+	fn sum_accounts(&self, other_list: Self) -> Self;
 }
 
 pub trait Deposits<T: Config> {
@@ -2804,6 +2806,12 @@ impl<T: Config> AccountMerge for Vec<UserToPLMCBalance<T>> {
 		new_list.extend(filtered_list);
 		new_list.merge_accounts(MergeOperation::Subtract)
 	}
+
+	fn sum_accounts(&self, mut other_list: Self) -> Self {
+		let mut output = self.clone();
+		output.append(&mut other_list);
+		output.merge_accounts(MergeOperation::Add)
+	}
 }
 
 #[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
@@ -2862,6 +2870,12 @@ impl<T: Config> AccountMerge for Vec<UserToUSDBalance<T>> {
 		let mut new_list = self.clone();
 		new_list.extend(filtered_list);
 		new_list.merge_accounts(MergeOperation::Subtract)
+	}
+
+	fn sum_accounts(&self, mut other_list: Self) -> Self {
+		let mut output = self.clone();
+		output.append(&mut other_list);
+		output.merge_accounts(MergeOperation::Add)
 	}
 }
 
@@ -2923,6 +2937,12 @@ impl<T: Config> AccountMerge for Vec<UserToForeignAssets<T>> {
 		new_list.extend(filtered_list);
 		new_list.merge_accounts(MergeOperation::Subtract)
 	}
+
+	fn sum_accounts(&self, mut other_list: Self) -> Self {
+		let mut output = self.clone();
+		output.append(&mut other_list);
+		output.merge_accounts(MergeOperation::Add)
+	}
 }
 
 #[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
@@ -2961,16 +2981,24 @@ impl<T: Config> From<(AccountIdOf<T>, BalanceOf<T>)> for BidParams<T> {
 		}
 	}
 }
-impl<T: Config> From<(AccountIdOf<T>, BalanceOf<T>, MultiplierOf<T>)> for BidParams<T> {
-	fn from((bidder, amount, multiplier): (AccountIdOf<T>, BalanceOf<T>, MultiplierOf<T>)) -> Self {
-		Self { bidder, amount, multiplier, asset: AcceptedFundingAsset::USDT }
+impl<T: Config> From<(AccountIdOf<T>, BalanceOf<T>, u8)> for BidParams<T> {
+	fn from((bidder, amount, multiplier): (AccountIdOf<T>, BalanceOf<T>, u8)) -> Self {
+		Self {
+			bidder,
+			amount,
+			multiplier: multiplier.try_into().unwrap_or_else(|_| panic!("Failed to create multiplier")),
+			asset: AcceptedFundingAsset::USDT,
+		}
 	}
 }
-impl<T: Config> From<(AccountIdOf<T>, BalanceOf<T>, MultiplierOf<T>, AcceptedFundingAsset)> for BidParams<T> {
-	fn from(
-		(bidder, amount, multiplier, asset): (AccountIdOf<T>, BalanceOf<T>, MultiplierOf<T>, AcceptedFundingAsset),
-	) -> Self {
-		Self { bidder, amount, multiplier, asset }
+impl<T: Config> From<(AccountIdOf<T>, BalanceOf<T>, u8, AcceptedFundingAsset)> for BidParams<T> {
+	fn from((bidder, amount, multiplier, asset): (AccountIdOf<T>, BalanceOf<T>, u8, AcceptedFundingAsset)) -> Self {
+		Self {
+			bidder,
+			amount,
+			multiplier: multiplier.try_into().unwrap_or_else(|_| panic!("Failed to create multiplier")),
+			asset,
+		}
 	}
 }
 
