@@ -1129,8 +1129,8 @@ impl<T: Config> Pallet<T> {
 				plmc_usd_price,
 				did.clone(),
 				metadata_bidder_ticket_size_bounds,
-				existing_bids_amount + perform_bid_calls,
-				total_bids_for_project + perform_bid_calls,
+				existing_bids_amount.saturating_add(perform_bid_calls),
+				total_bids_for_project.saturating_add(perform_bid_calls),
 			)?;
 
 			perform_bid_calls += 1;
