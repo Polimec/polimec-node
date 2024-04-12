@@ -52,7 +52,8 @@ fn create_funded_user<T: Config>(string: &'static str, n: u32, extra: BalanceOf<
 	let user = account(string, n, SEED);
 	let min_candidate_stk = min_candidate_stk::<T>();
 	let total = min_candidate_stk + extra;
-	T::Currency::set_balance(&user, total + 1u32.into());
+	let existential_deposit: BalanceOf<T> = T::Currency::minimum_balance();
+	T::Currency::set_balance(&user, total + existential_deposit);
 	(user, total)
 }
 
