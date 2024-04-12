@@ -51,13 +51,13 @@ std = [
 	"pallet-oracle-ocw/std",
 	"pallet-parachain-staking/std",
 	"pallet-transaction-payment/std",
+	"pallet-treasury?/std",
 	"parachains-common/std",
 	"parity-scale-codec/std",
 	"scale-info/std",
 	"sp-arithmetic/std",
 	"sp-runtime/std",
 	"sp-std/std",
-	"pallet-treasury?/std"
 ]
 runtime-benchmarks = [
 	"frame-support/runtime-benchmarks",
@@ -66,9 +66,9 @@ runtime-benchmarks = [
 	"pallet-funding/runtime-benchmarks",
 	"pallet-oracle-ocw/runtime-benchmarks",
 	"pallet-parachain-staking/runtime-benchmarks",
+	"pallet-treasury/runtime-benchmarks",
 	"parachains-common/runtime-benchmarks",
 	"sp-runtime/runtime-benchmarks",
-	"pallet-treasury?/runtime-benchmarks"
 ]
 try-runtime = [
 	"frame-support/try-runtime",
@@ -79,6 +79,6 @@ try-runtime = [
 	"pallet-oracle-ocw/try-runtime",
 	"pallet-parachain-staking/try-runtime",
 	"pallet-transaction-payment/try-runtime",
+	"pallet-treasury?/try-runtime",
 	"sp-runtime/try-runtime",
-	"pallet-treasury?/try-runtime"
 ]
