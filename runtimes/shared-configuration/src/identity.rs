@@ -23,7 +23,7 @@ parameter_types! {
 	pub const BasicDeposit: Balance = 20 * PLMC;
 	/// Deposit for each additional field.
 	pub const ByteDeposit: Balance = deposit(0, 1);
-	/// The deposit needed to create a registrar.
+	/// The number of blocks within which a username grant must be accepted.
 	pub const PendingUsernameExpiration: u32 = 0;
 	/// The deposit needed to create a sub-account.
 	/// We do not allow sub-accounts so can be 0.
