@@ -43,7 +43,7 @@ dry-run-benchmarks:
 # Benchmark a specific pallet on the "Polimec" Runtime
 # Use mode="production" to generate production weights.
 benchmark-runtime chain="polimec-local" pallet="pallet-elections-phragmen" mode="release":
-    cargo run --features runtime-benchmarks --{{mode}} -p polimec-node benchmark pallet \
+    cargo run --features runtime-benchmarks --profile {{mode}} -p polimec-node benchmark pallet \
       --chain={{ chain }} \
       --steps=50 \
       --repeat=20 \
@@ -55,7 +55,6 @@ benchmark-runtime chain="polimec-local" pallet="pallet-elections-phragmen" mode=
 
 # src: https://github.com/paritytech/polkadot-sdk/blob/bc2e5e1fe26e2c2c8ee766ff9fe7be7e212a0c62/substrate/frame/nfts/src/weights.rs
 # Run the Runtime benchmarks for a specific pallet
-# Use mode="production" to generate production weights.
 benchmark-pallet chain="politest-local"  pallet="pallet-dispenser":
     cargo run --features runtime-benchmarks --release -p polimec-node benchmark pallet \
       --chain={{ chain }} \
