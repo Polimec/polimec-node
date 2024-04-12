@@ -32,7 +32,7 @@ use frame_support::{
 	},
 	weights::{ConstantMultiplier, Weight},
 };
-use frame_system::{EnsureNever, EnsureRoot, EnsureRootWithSuccess, EnsureSigned};
+use frame_system::{EnsureRoot, EnsureRootWithSuccess, EnsureSigned};
 use pallet_democracy::GetElectorate;
 
 use parachains_common::{
@@ -892,7 +892,7 @@ impl pallet_identity::Config for Runtime {
 	type SigningPublicKey = <Signature as Verify>::Signer;
 	type Slashed = Treasury;
 	type SubAccountDeposit = SubAccountDeposit;
-	type UsernameAuthorityOrigin = EnsureNever<AccountId>;
+	type UsernameAuthorityOrigin = UsernameAuthorityOrigin;
 	type WeightInfo = pallet_identity::weights::SubstrateWeight<Runtime>;
 }
 
