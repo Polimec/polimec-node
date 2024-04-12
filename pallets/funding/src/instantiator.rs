@@ -210,7 +210,7 @@ impl<
 		for UserToPLMCBalance { account, plmc_amount } in correct_funds {
 			self.execute(|| {
 				let reserved = <T as Config>::NativeCurrency::balance_on_hold(&reserve_type, &account);
-				assert_eq!(reserved, plmc_amount, "account {account} has unexpected reserved plmc balance");
+				assert_eq!(reserved, plmc_amount, "account has unexpected reserved plmc balance");
 			});
 		}
 	}
@@ -261,7 +261,7 @@ impl<
 		for UserToPLMCBalance { account, plmc_amount } in correct_funds {
 			self.execute(|| {
 				let free = <T as Config>::NativeCurrency::balance(&account);
-				assert_eq!(free, plmc_amount, "account {account} has unexpected free plmc balance");
+				assert_eq!(free, plmc_amount, "account has unexpected free plmc balance");
 			});
 		}
 	}
