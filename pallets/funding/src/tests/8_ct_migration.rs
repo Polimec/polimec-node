@@ -41,15 +41,15 @@ fn para_id_for_project_cannot_be_set_by_anyone_but_issuer() {
 	inst.execute(|| {
 		assert_err!(
 			crate::Pallet::<TestRuntime>::do_set_para_id_for_project(&EVALUATOR_1, project_id, ParaId::from(2006u32),),
-			Error::<TestRuntime>::NotAllowed
+			Error::<TestRuntime>::IssuerError(IssuerErrorReason::NotIssuer)
 		);
 		assert_err!(
 			crate::Pallet::<TestRuntime>::do_set_para_id_for_project(&BIDDER_1, project_id, ParaId::from(2006u32),),
-			Error::<TestRuntime>::NotAllowed
+			Error::<TestRuntime>::IssuerError(IssuerErrorReason::NotIssuer)
 		);
 		assert_err!(
 			crate::Pallet::<TestRuntime>::do_set_para_id_for_project(&BUYER_1, project_id, ParaId::from(2006u32),),
-			Error::<TestRuntime>::NotAllowed
+			Error::<TestRuntime>::IssuerError(IssuerErrorReason::NotIssuer)
 		);
 	});
 	let project_details = inst.get_project_details(project_id);

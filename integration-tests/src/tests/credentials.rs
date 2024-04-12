@@ -33,7 +33,7 @@ fn test_jwt_for_create() {
 		let retail_jwt = get_test_jwt(PolitestAccountId::from(ISSUER), InvestorType::Retail);
 		assert_noop!(
 			PolitestFundingPallet::create_project(PolitestOrigin::signed(ISSUER.into()), retail_jwt, project.clone()),
-			pallet_funding::Error::<PolitestRuntime>::NotAllowed
+			pallet_funding::Error::<PolitestRuntime>::WrongInvestorType
 		);
 		let inst_jwt = get_test_jwt(PolitestAccountId::from(ISSUER), InvestorType::Institutional);
 		assert_ok!(PolitestFundingPallet::create_project(

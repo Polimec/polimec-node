@@ -227,7 +227,7 @@ mod start_evaluation_extrinsic {
 						get_mock_jwt(issuer, InvestorType::Professional, generate_did_from_account(issuer)),
 						project_id
 					),
-					Error::<TestRuntime>::NotAllowed
+					Error::<TestRuntime>::WrongInvestorType
 				);
 			});
 
@@ -238,7 +238,7 @@ mod start_evaluation_extrinsic {
 						get_mock_jwt(issuer, InvestorType::Retail, generate_did_from_account(issuer)),
 						project_id
 					),
-					Error::<TestRuntime>::NotAllowed
+					Error::<TestRuntime>::WrongInvestorType
 				);
 			});
 		}
@@ -262,7 +262,7 @@ mod start_evaluation_extrinsic {
 			inst.execute(|| {
 				assert_noop!(
 					PolimecFunding::start_evaluation(RuntimeOrigin::signed(issuer), jwt, project_id),
-					Error::<TestRuntime>::ProjectNotInApplicationRound
+					Error::<TestRuntime>::ProjectRoundError(RoundError::IncorrectRound)
 				);
 			});
 		}
@@ -280,7 +280,7 @@ mod start_evaluation_extrinsic {
 			inst.execute(|| {
 				assert_noop!(
 					PolimecFunding::start_evaluation(RuntimeOrigin::signed(issuer), jwt, project_id),
-					Error::<TestRuntime>::MetadataNotProvided
+					Error::<TestRuntime>::BadMetadata(MetadataError::MetadataNotProvided)
 				);
 			});
 		}
@@ -307,7 +307,7 @@ mod start_evaluation_extrinsic {
 						get_mock_jwt(ISSUER_2, InvestorType::Institutional, generate_did_from_account(ISSUER_2)),
 						project_id
 					),
-					Error::<TestRuntime>::NotAllowed
+					Error::<TestRuntime>::IssuerError(IssuerErrorReason::NotIssuer)
 				);
 			});
 		}
@@ -459,7 +459,7 @@ mod evaluate_extrinsic {
 						project_id,
 						500 * US_DOLLAR,
 					),
-					Error::<TestRuntime>::ProjectNotInEvaluationRound
+					Error::<TestRuntime>::ProjectRoundError(RoundError::IncorrectRound)
 				);
 			});
 		}
@@ -535,7 +535,7 @@ mod evaluate_extrinsic {
 
 			assert_err!(
 				inst.evaluate_for_users(project_id, vec![failing_evaluation]),
-				Error::<TestRuntime>::TooManyEvaluationsForProject
+				Error::<TestRuntime>::ParticipationFailed(ParticipationError::TooManyProjectParticipations)
 			);
 		}
 
@@ -592,7 +592,7 @@ mod evaluate_extrinsic {
 					generate_did_from_account(ISSUER_1),
 					InvestorType::Institutional
 				)),
-				Error::<TestRuntime>::ParticipationToThemselves
+				Error::<TestRuntime>::IssuerError(IssuerErrorReason::ParticipationToOwnProject)
 			);
 		}
 

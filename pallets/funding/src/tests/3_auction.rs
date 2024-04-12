@@ -306,7 +306,7 @@ fn stranger_cannot_start_auction_manually() {
 	for account in 6000..6010 {
 		inst.execute(|| {
 			let response = Pallet::<TestRuntime>::do_auction_opening(account, project_id);
-			assert_noop!(response, Error::<TestRuntime>::NotAllowed);
+			assert_noop!(response, Error::<TestRuntime>::IssuerError(IssuerErrorReason::NotIssuer));
 		});
 	}
 }
@@ -530,7 +530,7 @@ fn cannot_start_auction_before_evaluation_finishes() {
 	inst.execute(|| {
 		assert_noop!(
 			PolimecFunding::do_auction_opening(ISSUER_1, project_id),
-			Error::<TestRuntime>::EvaluationPeriodNotEnded
+			Error::<TestRuntime>::ProjectRoundError(RoundError::TransitionPointNotSet)
 		);
 	});
 }
@@ -552,7 +552,7 @@ fn cannot_bid_before_auction_round() {
 				did,
 				investor_type
 			),
-			Error::<TestRuntime>::AuctionNotStarted
+			Error::<TestRuntime>::ProjectRoundError(RoundError::IncorrectRound)
 		);
 	});
 }
@@ -620,7 +620,7 @@ fn cannot_bid_more_than_project_limit_count() {
 	inst.mint_plmc_to(plmc_existential_deposits.clone());
 	inst.mint_foreign_asset_to(usdt_for_bidding.clone());
 
-	assert_err!(inst.bid_for_users(project_id, vec![failing_bid]), Error::<TestRuntime>::TooManyBidsForProject);
+	assert_err!(inst.bid_for_users(project_id, vec![failing_bid]), Error::<TestRuntime>::ParticipationFailed(ParticipationError::TooManyProjectParticipations));
 }
 
 #[test]
@@ -640,7 +640,7 @@ fn contribute_does_not_work() {
 				did,
 				investor_type
 			),
-			Error::<TestRuntime>::AuctionNotStarted
+			Error::<TestRuntime>::ProjectRoundError(RoundError::IncorrectRound)
 		);
 	});
 }
@@ -666,7 +666,7 @@ fn bid_with_asset_not_accepted() {
 			investor_type,
 		)
 	});
-	frame_support::assert_err!(outcome, Error::<TestRuntime>::FundingAssetNotAccepted);
+	frame_support::assert_err!(outcome, Error::<TestRuntime>::ParticipationFailed(ParticipationError::FundingAssetNotAccepted));
 }
 
 #[test]
@@ -851,7 +851,7 @@ fn per_credential_type_ticket_size_minimums() {
 				generate_did_from_account(BIDDER_1),
 				InvestorType::Professional
 			),
-			Error::<TestRuntime>::BidTooLow
+			Error::<TestRuntime>::ParticipationFailed(ParticipationError::TooLow)
 		);
 	});
 	// bid below 2000 CT (20k USD) should fail for institutionals
@@ -866,7 +866,7 @@ fn per_credential_type_ticket_size_minimums() {
 				generate_did_from_account(BIDDER_1),
 				InvestorType::Institutional
 			),
-			Error::<TestRuntime>::BidTooLow
+			Error::<TestRuntime>::ParticipationFailed(ParticipationError::TooLow)
 		);
 	});
 }
@@ -936,7 +936,7 @@ fn per_credential_type_ticket_size_maximums() {
 				1u8.try_into().unwrap(),
 				AcceptedFundingAsset::USDT
 			),
-			Error::<TestRuntime>::BidTooHigh
+			Error::<TestRuntime>::ParticipationFailed(ParticipationError::TooHigh)
 		);
 	});
 	// bidding 10k total works
@@ -975,7 +975,7 @@ fn per_credential_type_ticket_size_maximums() {
 				1u8.try_into().unwrap(),
 				AcceptedFundingAsset::USDT,
 			),
-			Error::<TestRuntime>::BidTooHigh
+			Error::<TestRuntime>::ParticipationFailed(ParticipationError::TooHigh)
 		);
 	});
 	// bidding 50k total works
@@ -1083,30 +1083,30 @@ fn bid_with_multiple_currencies() {
 	assert_ok!(inst.bid_for_users(project_id_usdt, vec![usdt_bid.clone()]));
 	assert_err!(
 		inst.bid_for_users(project_id_usdt, vec![usdc_bid.clone()]),
-		Error::<TestRuntime>::FundingAssetNotAccepted
+		Error::<TestRuntime>::ParticipationFailed(ParticipationError::FundingAssetNotAccepted)
 	);
 	assert_err!(
 		inst.bid_for_users(project_id_usdt, vec![dot_bid.clone()]),
-		Error::<TestRuntime>::FundingAssetNotAccepted
+		Error::<TestRuntime>::ParticipationFailed(ParticipationError::FundingAssetNotAccepted)
 	);
 
 	assert_err!(
 		inst.bid_for_users(project_id_usdc, vec![usdt_bid.clone()]),
-		Error::<TestRuntime>::FundingAssetNotAccepted
+		Error::<TestRuntime>::ParticipationFailed(ParticipationError::FundingAssetNotAccepted)
 	);
 	assert_ok!(inst.bid_for_users(project_id_usdc, vec![usdc_bid.clone()]));
 	assert_err!(
 		inst.bid_for_users(project_id_usdc, vec![dot_bid.clone()]),
-		Error::<TestRuntime>::FundingAssetNotAccepted
+		Error::<TestRuntime>::ParticipationFailed(ParticipationError::FundingAssetNotAccepted)
 	);
 
 	assert_err!(
 		inst.bid_for_users(project_id_dot, vec![usdt_bid.clone()]),
-		Error::<TestRuntime>::FundingAssetNotAccepted
+		Error::<TestRuntime>::ParticipationFailed(ParticipationError::FundingAssetNotAccepted)
 	);
 	assert_err!(
 		inst.bid_for_users(project_id_dot, vec![usdc_bid.clone()]),
-		Error::<TestRuntime>::FundingAssetNotAccepted
+		Error::<TestRuntime>::ParticipationFailed(ParticipationError::FundingAssetNotAccepted)
 	);
 	assert_ok!(inst.bid_for_users(project_id_dot, vec![dot_bid.clone()]));
 }
@@ -1126,7 +1126,7 @@ fn issuer_cannot_bid_his_project() {
 			generate_did_from_account(ISSUER_1),
 			InvestorType::Institutional
 		)),
-		Error::<TestRuntime>::ParticipationToThemselves
+		Error::<TestRuntime>::IssuerError(IssuerErrorReason::ParticipationToOwnProject)
 	);
 }
 
@@ -1172,7 +1172,7 @@ fn multiplier_limits() {
 				Multiplier::force_new(0),
 				AcceptedFundingAsset::USDT
 			),
-			Error::<TestRuntime>::ForbiddenMultiplier
+			Error::<TestRuntime>::ParticipationFailed(ParticipationError::ForbiddenMultiplier)
 		);
 	});
 	// Professional bids: 1 - 10x multiplier should work
@@ -1224,7 +1224,7 @@ fn multiplier_limits() {
 					Multiplier::force_new(multiplier),
 					AcceptedFundingAsset::USDT
 				),
-				Error::<TestRuntime>::ForbiddenMultiplier
+				Error::<TestRuntime>::ParticipationFailed(ParticipationError::ForbiddenMultiplier)
 			);
 		});
 	}
@@ -1241,7 +1241,7 @@ fn multiplier_limits() {
 				Multiplier::force_new(0),
 				AcceptedFundingAsset::USDT
 			),
-			Error::<TestRuntime>::ForbiddenMultiplier
+			Error::<TestRuntime>::ParticipationFailed(ParticipationError::ForbiddenMultiplier)
 		);
 	});
 	// Institutional bids: 1 - 25x multiplier should work
@@ -1293,7 +1293,7 @@ fn multiplier_limits() {
 					Multiplier::force_new(multiplier),
 					AcceptedFundingAsset::USDT
 				),
-				Error::<TestRuntime>::ForbiddenMultiplier
+				Error::<TestRuntime>::ParticipationFailed(ParticipationError::ForbiddenMultiplier)
 			);
 		});
 	}
