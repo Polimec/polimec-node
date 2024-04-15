@@ -512,7 +512,7 @@ impl pallet_treasury::Config for Runtime {
 	type AssetKind = ();
 	type BalanceConverter = UnityAssetBalanceConversion;
 	#[cfg(feature = "runtime-benchmarks")]
-	type BenchmarkHelper = ();
+	type BenchmarkHelper = TreasuryBenchmarkHelper;
 	type Beneficiary = AccountId;
 	type BeneficiaryLookup = IdentityLookup<Self::Beneficiary>;
 	type Burn = Burn;
@@ -532,7 +532,7 @@ impl pallet_treasury::Config for Runtime {
 	>;
 	type RuntimeEvent = RuntimeEvent;
 	type SpendFunds = ();
-	type SpendOrigin = frame_support::traits::NeverEnsureOrigin<Balance>;
+	type SpendOrigin = SpendOrigin;
 	type SpendPeriod = SpendPeriod;
 	type WeightInfo = ();
 }

@@ -35,6 +35,7 @@ pallet-balances.workspace = true
 pallet-authorship.workspace = true
 pallet-parachain-staking.workspace = true
 pallet-oracle-ocw.workspace = true
+pallet-treasury = {workspace = true, optional = true}
 
 [features]
 default = [ "std" ]
@@ -50,6 +51,7 @@ std = [
 	"pallet-oracle-ocw/std",
 	"pallet-parachain-staking/std",
 	"pallet-transaction-payment/std",
+	"pallet-treasury?/std",
 	"parachains-common/std",
 	"parity-scale-codec/std",
 	"scale-info/std",
@@ -64,6 +66,7 @@ runtime-benchmarks = [
 	"pallet-funding/runtime-benchmarks",
 	"pallet-oracle-ocw/runtime-benchmarks",
 	"pallet-parachain-staking/runtime-benchmarks",
+	"pallet-treasury/runtime-benchmarks",
 	"parachains-common/runtime-benchmarks",
 	"sp-runtime/runtime-benchmarks",
 ]
@@ -76,5 +79,6 @@ try-runtime = [
 	"pallet-oracle-ocw/try-runtime",
 	"pallet-parachain-staking/try-runtime",
 	"pallet-transaction-payment/try-runtime",
+	"pallet-treasury?/try-runtime",
 	"sp-runtime/try-runtime",
 ]
