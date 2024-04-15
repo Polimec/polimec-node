@@ -20,10 +20,9 @@ use pallet_funding::types::AcceptedFundingAsset;
 use parachains_common::AssetIdForTrustBackedAssets;
 use sp_arithmetic::{FixedU128, Percent};
 use sp_std::{collections::btree_map::BTreeMap, vec, vec::Vec};
-use crate::governance::MINUTES;
 
 #[cfg(feature = "fast-mode")]
-use parachains_common::HOURS;
+use parachains_common::MINUTES;
 
 #[cfg(feature = "instant-mode")]
 pub const EVALUATION_DURATION: BlockNumber = 3;
@@ -70,7 +69,7 @@ pub const REMAINDER_FUNDING_DURATION: BlockNumber = crate::DAYS;
 #[cfg(feature = "instant-mode")]
 pub const CONTRIBUTION_VESTING_DURATION: BlockNumber = 5;
 #[cfg(feature = "fast-mode")]
-pub const CONTRIBUTION_VESTING_DURATION: BlockNumber = 10 * crate::MINUTES;
+pub const CONTRIBUTION_VESTING_DURATION: BlockNumber = 10 * MINUTES;
 #[cfg(not(any(feature = "fast-mode", feature = "instant-mode")))]
 pub const CONTRIBUTION_VESTING_DURATION: BlockNumber = 365 * crate::DAYS;
 
