@@ -1259,7 +1259,7 @@ benchmarks! {
 		)?;
 		let original_free_balance = T::Currency::balance(&collator);
 		let pay_master = T::PayMaster::get();
-		T::Currency::set_balance(&pay_master, 100u32.into());
+		T::Currency::set_balance(&pay_master, T::Currency::minimum_balance() + 50u32.into());
 
 	}: {
 		Pallet::<T>::mint_collator_reward(1u32.into(), collator.clone(), 50u32.into())
