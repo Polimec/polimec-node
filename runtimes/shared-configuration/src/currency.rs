@@ -53,10 +53,20 @@ parameter_types! {
 	pub const TransactionByteFee: Balance = 10 * MICRO_PLMC;
 	pub const DepositBase: Balance = DEPOSIT_STORAGE_ITEM;
 	pub const DepositFactor: Balance = DEPOSIT_STORAGE_BYTE;
-	pub const ExistentialDeposit: Balance = EXISTENTIAL_DEPOSIT;
 	pub const MaxSignatories: u32 = 64;
 	pub const MaxLocks: u32 = 50;
 	pub const MaxReserves: u32 = 50;
+}
+
+/// Required for the treasury payout benchmark, as it does a transfer under the normal ED.
+#[cfg(feature = "runtime-benchmarks")]
+parameter_types! {
+	pub const ExistentialDeposit: Balance = 1;
+}
+
+#[cfg(not(feature = "runtime-benchmarks"))]
+parameter_types! {
+	pub const ExistentialDeposit: Balance = EXISTENTIAL_DEPOSIT;
 }
 
 pub mod vesting {

@@ -129,7 +129,6 @@ parameter_types! {
 	pub const SpendPeriod: BlockNumber = SPEND_PERIOD;
 	pub const Burn: Permill = Permill::zero();
 	pub const MaxApprovals: u32 = 100;
-	pub const PayoutPeriod: BlockNumber = 0;
 	pub const TreasuryId: PalletId = PalletId(*b"plmc/tsy");
 
 	// Elections phragmen
@@ -141,6 +140,17 @@ parameter_types! {
 	pub const MaxCandidates: u32 = 30;
 	pub const MaxVoters: u32 = 200;
 	pub const MaxVotesPerVoter: u32 = 8;
+}
+
+/// Required for the treasury spend benchmark.
+#[cfg(feature = "runtime-benchmarks")]
+parameter_types! {
+	pub const PayoutPeriod: BlockNumber = 5;
+}
+
+#[cfg(not(feature = "runtime-benchmarks"))]
+parameter_types! {
+	pub const PayoutPeriod: BlockNumber = 0;
 }
 
 // Disabled, no spending allowed.
