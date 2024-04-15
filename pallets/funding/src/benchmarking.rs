@@ -2428,7 +2428,7 @@ mod benchmarks {
 
 		let mut evaluations = (0..y.saturating_sub(1))
 			.map(|i| {
-				UserToUSDBalance::<T>::new(account::<AccountIdOf<T>>("evaluator", 0, i), (10u128 * ASSET_UNIT).into())
+				UserToUSDBalance::<T>::new(account::<AccountIdOf<T>>("evaluator", 0, i), (100u128 * US_DOLLAR).into())
 			})
 			.collect_vec();
 
