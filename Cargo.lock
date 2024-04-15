@@ -12530,6 +12530,7 @@ dependencies = [
  "pallet-oracle-ocw",
  "pallet-parachain-staking",
  "pallet-transaction-payment",
+ "pallet-treasury",
  "parachains-common",
  "parity-scale-codec",
  "scale-info",
