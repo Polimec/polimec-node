@@ -925,7 +925,7 @@ impl pallet_identity::Config for Runtime {
 	type Slashed = Treasury;
 	type SubAccountDeposit = SubAccountDeposit;
 	type UsernameAuthorityOrigin = UsernameAuthorityOrigin;
-	type WeightInfo = ();
+	type WeightInfo = pallet_identity::weights::SubstrateWeight<Runtime>;
 }
 
 // Politest specific pallets

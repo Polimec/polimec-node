@@ -52,7 +52,8 @@ fn create_funded_user<T: Config>(string: &'static str, n: u32, extra: BalanceOf<
 	let user = account(string, n, SEED);
 	let min_candidate_stk = min_candidate_stk::<T>();
 	let total = min_candidate_stk + extra;
-	T::Currency::set_balance(&user, total + 1u32.into());
+	let existential_deposit: BalanceOf<T> = T::Currency::minimum_balance();
+	T::Currency::set_balance(&user, total + existential_deposit);
 	(user, total)
 }
 
@@ -290,7 +291,8 @@ benchmarks! {
 			RawOrigin::Signed(candidate.clone()).into(),
 			3u32
 		)?;
-		roll_to_and_author::<T>(2, candidate.clone());
+		let candidate_leave_delay = T::LeaveCandidatesDelay::get();
+		roll_to_and_author::<T>(candidate_leave_delay, candidate.clone());
 	}: _(RawOrigin::Signed(candidate.clone()), candidate.clone(), col_del_count)
 	verify {
 		assert!(Pallet::<T>::candidate_info(&candidate).is_none());
@@ -394,7 +396,7 @@ benchmarks! {
 			state.request,
 			Some(CandidateBondLessRequest {
 				amount: min_candidate_stk,
-				when_executable: 3,
+				when_executable: T::CandidateBondLessDelay::get() + 1,
 			})
 		);
 	}
@@ -412,7 +414,7 @@ benchmarks! {
 			RawOrigin::Signed(caller.clone()).into(),
 			min_candidate_stk
 		)?;
-		roll_to_and_author::<T>(2, caller.clone());
+		roll_to_and_author::<T>(T::CandidateBondLessDelay::get(), caller.clone());
 	}: {
 		Pallet::<T>::execute_candidate_bond_less(
 			RawOrigin::Signed(caller.clone()).into(),
@@ -575,7 +577,7 @@ benchmarks! {
 			delegation_count += 1u32;
 		}
 		Pallet::<T>::schedule_leave_delegators(RawOrigin::Signed(caller.clone()).into())?;
-		roll_to_and_author::<T>(2, author);
+		roll_to_and_author::<T>(T::DelegationBondLessDelay::get(), author);
 	}: _(RawOrigin::Signed(caller.clone()), caller.clone(), delegation_count)
 	verify {
 		assert!(Pallet::<T>::delegator_state(&caller).is_none());
@@ -627,7 +629,7 @@ benchmarks! {
 			Pallet::<T>::delegation_scheduled_requests(&collator),
 			vec![ScheduledRequest {
 				delegator: caller,
-				when_executable: 3,
+				when_executable: T::RevokeDelegationDelay::get() + 1,
 				action: DelegationAction::Revoke(bond),
 			}],
 		);
@@ -684,7 +686,7 @@ benchmarks! {
 			Pallet::<T>::delegation_scheduled_requests(&collator),
 			vec![ScheduledRequest {
 				delegator: caller,
-				when_executable: 3,
+				when_executable: T::DelegationBondLessDelay::get() + 1,
 				action: DelegationAction::Decrease(bond_less),
 			}],
 		);
@@ -711,7 +713,7 @@ benchmarks! {
 			caller.clone()).into(),
 			collator.clone()
 		)?;
-		roll_to_and_author::<T>(2, collator.clone());
+		roll_to_and_author::<T>(T::RevokeDelegationDelay::get(), collator.clone());
 	}: {
 		Pallet::<T>::execute_delegation_request(
 			RawOrigin::Signed(caller.clone()).into(),
@@ -746,7 +748,7 @@ benchmarks! {
 			collator.clone(),
 			bond_less
 		)?;
-		roll_to_and_author::<T>(2, collator.clone());
+		roll_to_and_author::<T>(T::DelegationBondLessDelay::get(), collator.clone());
 	}: {
 		Pallet::<T>::execute_delegation_request(
 			RawOrigin::Signed(caller.clone()).into(),
@@ -1257,7 +1259,7 @@ benchmarks! {
 		)?;
 		let original_free_balance = T::Currency::balance(&collator);
 		let pay_master = T::PayMaster::get();
-		T::Currency::set_balance(&pay_master, 100u32.into());
+		T::Currency::set_balance(&pay_master, T::Currency::minimum_balance() + 50u32.into());
 
 	}: {
 		Pallet::<T>::mint_collator_reward(1u32.into(), collator.clone(), 50u32.into())
