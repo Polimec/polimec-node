@@ -682,7 +682,7 @@ mod benchmarks {
 		let project_metadata = default_project::<T>(inst.get_new_nonce(), issuer.clone());
 		let test_project_id = inst.create_evaluating_project(project_metadata, issuer);
 
-		let existing_evaluation = UserToUSDBalance::new(test_evaluator.clone(), (100 * US_DOLLAR).into());
+		let existing_evaluation = UserToUSDBalance::new(test_evaluator.clone(), (200 * US_DOLLAR).into());
 		let extrinsic_evaluation = UserToUSDBalance::new(test_evaluator.clone(), (1_000 * US_DOLLAR).into());
 		let existing_evaluations = vec![existing_evaluation; x as usize];
 
@@ -774,37 +774,6 @@ mod benchmarks {
 		// How many other evaluations the user did for that same project
 		x: Linear<0, { T::MaxEvaluationsPerUser::get() - 1 }>,
 	) {
-		let (inst, project_id, extrinsic_evaluation, extrinsic_plmc_bonded, total_expected_plmc_bonded) =
-			evaluation_setup::<T>(x);
-
-		let jwt = get_mock_jwt(
-			extrinsic_evaluation.account.clone(),
-			InvestorType::Institutional,
-			generate_did_from_account(extrinsic_evaluation.account.clone()),
-		);
-		#[extrinsic_call]
-		evaluate(
-			RawOrigin::Signed(extrinsic_evaluation.account.clone()),
-			jwt,
-			project_id,
-			extrinsic_evaluation.usd_amount,
-		);
-
-		evaluation_verification::<T>(
-			inst,
-			project_id,
-			extrinsic_evaluation,
-			extrinsic_plmc_bonded,
-			total_expected_plmc_bonded,
-		);
-	}
-
-	// - We know how many iterations it does in storage
-	// - We know that it requires to unbond the lowest evaluation
-	#[benchmark]
-	fn evaluation_over_limit() {
-		// How many other evaluations the user did for that same project
-		let x = <T as Config>::MaxEvaluationsPerUser::get();
 		let (inst, project_id, extrinsic_evaluation, extrinsic_plmc_bonded, total_expected_plmc_bonded) =
 			evaluation_setup::<T>(x);
 
@@ -2682,13 +2651,6 @@ mod benchmarks {
 		fn bench_evaluation_to_limit() {
 			new_test_ext().execute_with(|| {
 				assert_ok!(PalletFunding::<TestRuntime>::test_evaluation_to_limit());
-			});
-		}
-
-		#[test]
-		fn bench_evaluation_over_limit() {
-			new_test_ext().execute_with(|| {
-				assert_ok!(PalletFunding::<TestRuntime>::test_evaluation_over_limit());
 			});
 		}
 

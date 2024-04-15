@@ -512,7 +512,7 @@ mod evaluate_extrinsic {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 			let project_metadata = default_project_metadata(ISSUER_1);
 			let evaluations = (0u32..<TestRuntime as Config>::MaxEvaluationsPerProject::get())
-				.map(|i| UserToUSDBalance::<TestRuntime>::new(i as u32 + 420u32, (10u128 * ASSET_UNIT).into()))
+				.map(|i| UserToUSDBalance::<TestRuntime>::new(i as u32 + 420u32, (100u128 * ASSET_UNIT).into()))
 				.collect_vec();
 			let failing_evaluation = UserToUSDBalance::new(EVALUATOR_1, 1000 * ASSET_UNIT);
 

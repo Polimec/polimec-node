@@ -908,6 +908,13 @@ mod community_contribute_extrinsic {
 				institutional: TicketSize::new(Some(20_000 * US_DOLLAR), None),
 				phantom: Default::default(),
 			};
+			project_metadata.contributing_ticket_sizes = ContributingTicketSizes {
+				retail: TicketSize::new(Some(10 * US_DOLLAR), None),
+				professional: TicketSize::new(Some(100_000 * US_DOLLAR), None),
+				institutional: TicketSize::new(Some(200_000 * US_DOLLAR), None),
+				phantom: Default::default(),
+			};
+
 
 			let project_id = inst.create_community_contributing_project(
 				project_metadata.clone(),
