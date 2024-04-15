@@ -35,3 +35,6 @@ pub mod pallet_session;
 pub mod pallet_timestamp;
 pub mod pallet_utility;
 pub mod pallet_vesting;
+pub mod pallet_identity;
+pub mod pallet_treasury;
+pub mod pallet_parachain_staking;
