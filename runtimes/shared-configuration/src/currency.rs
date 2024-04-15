@@ -58,7 +58,7 @@ parameter_types! {
 	pub const MaxReserves: u32 = 50;
 }
 
-/// Required for the treasury payout benchmark, as it does a transfer under the normal ED.
+// Required for the treasury payout benchmark, as it does a transfer under the normal ED.
 #[cfg(feature = "runtime-benchmarks")]
 parameter_types! {
 	pub const ExistentialDeposit: Balance = 1;

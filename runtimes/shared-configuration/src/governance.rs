@@ -142,7 +142,7 @@ parameter_types! {
 	pub const MaxVotesPerVoter: u32 = 8;
 }
 
-/// Required for the treasury spend benchmark.
+// Required for the treasury spend benchmark.
 #[cfg(feature = "runtime-benchmarks")]
 parameter_types! {
 	pub const PayoutPeriod: BlockNumber = 5;
