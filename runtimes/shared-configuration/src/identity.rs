@@ -48,7 +48,7 @@ parameter_types! {
 
 #[cfg(feature = "runtime-benchmarks")]
 parameter_types! {
-	pub const MaxSubAccounts: u32 = 1;
+	pub const MaxSubAccounts: u32 = 2;
 	pub const MaxSuffixLength: u32 = 24;
 	pub const MaxUsernameLength: u32 = 32;
 }
