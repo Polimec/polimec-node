@@ -700,29 +700,30 @@ pub mod pallet {
 
 	#[pallet::error]
 	pub enum Error<T> {
-		/// Something in storage has a state which should never be possible at this point. Programming error
+		/// Something in storage has a state which should never be possible at this point. Programming error.
 		ImpossibleState,
 		/// Action is not allowed.
 		NotAllowed,
-		/// Checked math failed
+		/// Checked math failed.
 		BadMath,
-		/// Could not get the price in USD for an asset/PLMC
+		/// Could not get the price in USD for an asset/PLMC.
 		PriceNotFound,
-		/// Tried to retrieve a evaluation, bid or contribution but it does not exist
+		/// Tried to retrieve a evaluation, bid or contribution but it does not exist.
 		ParticipationNotFound,
 		/// The user has the incorrect investor type for the action.
 		WrongInvestorType,
-
+		/// Project Error. Project information not found, or project has an incorrect state.
 		ProjectError(ProjectErrorReason),
-
+		/// A round related error. The project did not have the correct state to execute the action.
 		ProjectRoundError(RoundError),
-
+		/// Issuer related error. E.g. the action was not executed by the issuer, or the issuer
+		/// did not have the correct state to execute an action.
 		IssuerError(IssuerErrorReason),
-
+		/// The project's metadata is incorrect.
 		BadMetadata(MetadataError),
-
+		/// Error related to an participation action. Evaluation, bid or contribution failed.
 		ParticipationFailed(ParticipationError),
-
+		/// A error related to the migration process.
 		MigrationFailed(MigrationError),
 	}
 

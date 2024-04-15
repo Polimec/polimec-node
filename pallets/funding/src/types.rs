@@ -657,63 +657,114 @@ pub mod inner_types {
 		}
 	}
 
+	/// Errors related to round transitions and round state.
 	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen, PalletError)]
 	pub enum RoundError {
+		/// The project is not in the correct round to execute the action.
 		IncorrectRound,
+		/// Too early to execute the action. The action can likely be called again at a later stage.
 		TooEarlyForRound,
+		/// A round transition was already executed, so the transition cannot be
+		/// executed again. This is likely to happen when the issuer manually transitions the project,
+		/// after which the automatic transition is executed.
 		RoundTransitionAlreadyHappened,
+		/// A project's transition point (block number) was not set.
 		TransitionPointNotSet,
+		/// Too many insertion attempts were made while inserting a project's round transition
+		/// in the `ProjectsToUpdate` storage. This should not happen in practice.
 		TooManyInsertionAttempts,
 	}
 
+	/// Errors related to the participation actions. This can either be evaluate, bid or
+	/// contribute. If any of these errors are thrown, the participation failed.
 	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen, PalletError)]
 	pub enum ParticipationError {
+		/// The participation amount is too low.
 		TooLow,
+		/// The participation amount is too high.
 		TooHigh,
+		/// The funding asset is not accepted for this project.
 		FundingAssetNotAccepted,
+		/// The user has too many participations in this project.
 		TooManyUserParticipations,
+		/// The project has too many participations.
 		TooManyProjectParticipations,
+		/// The user is not allowed to use this multiplier.
 		ForbiddenMultiplier,
+		/// The user has a winning bid in the auction round and is not allowed to participate
+		/// in the community round.
 		UserHasWinningBid,
-		WrongInvestorType,
+		/// The user does not have enough funds (funding asset or PLMC) to cover the participation.
 		NotEnoughFunds,
 	}
 
+	/// Errors related to the project state. This can either be project info not found, or
+	/// incorrect project state.
 	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen, PalletError)]
 	pub enum ProjectErrorReason {
+		/// The project details were not found. Happens when the project with provided ID does
+		/// not exist in the `ProjectsDetails` storage.
 		ProjectDetailsNotFound,
+		/// The project metadata was not found. Happens when the project with provided ID does
+		/// not exist in the `ProjectsMetadata` storage.
 		ProjectMetadataNotFound,
+		/// The project's bucket info was not found. Happens when the project with provided ID does
+		/// not exist in the `Buckets` storage.
 		BucketNotFound,
+		/// The project is already frozen, so cannot be frozen again. Happens when
+		/// `do_start_evaluation` is called on a project that has already started the
+		/// evaluation round.
 		ProjectAlreadyFrozen,
+		/// The project is frozen, so no changes to the metadata are allowed and the project
+		/// cannot be deleted anymore.
 		ProjectIsFrozen,
+		/// The project's weighted average price is not set while in the community round.
+		/// Should not happen in practice.
 		WapNotSet,
 	}
 
+	/// Errors related to the issuer actions.
 	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen, PalletError)]
 	pub enum IssuerErrorReason {
+		/// The action's caller is not the issuer of the project and is not allowed to execute
+		/// this action.
 		NotIssuer,
+		/// The issuer already has an active project. The issuer can only have one active project.
 		HasActiveProject,
+		/// The issuer tries to participate to their own project.
 		ParticipationToOwnProject,
+		/// The issuer has not enough funds to cover the escrow account costs.
 		NotEnoughFunds,
 	}
 
+	/// Errors related to the project's metadata.
 	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen, PalletError)]
 	pub enum MetadataError {
+		/// The minimum price per token is too low.
 		PriceTooLow,
+		/// The ticket sizes are not valid.
 		TicketSizeError,
+		/// The participation currencies are not unique.
 		ParticipationCurrenciesError,
+		/// The allocation size is invalid. Either zero or higher than the max supply.
 		AllocationSizeError,
+		/// The auction round percentage cannot be zero.
 		AuctionRoundPercentageError,
+		/// The funding target has to be higher then 1000 USD.
 		FundingTargetTooLow,
+		/// The project's metadata hash is not provided while starting the evaluation round.
 		MetadataNotProvided,
 	}
 
+	/// Errors related to the project's migration process.
 	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen, PalletError)]
 	pub enum MigrationError {
 		/// Tried to start a migration check but the bidirectional channel is not yet open
 		ChannelNotOpen,
+		/// The xcm execution/sending failed.
 		XcmFailed,
-		/// Reached bid limit for this user on this project
+		/// Reached limit on maximum number of migrations. In practise this should not happen,
+		/// as the max migrations is set to the sum of max evaluations, bids and contributions.
 		TooManyMigrations,
 		/// User has no migrations to execute.
 		NoMigrationsFound,
