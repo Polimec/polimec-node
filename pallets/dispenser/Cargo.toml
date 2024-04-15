@@ -77,4 +77,5 @@ try-runtime = [
 	"pallet-vesting/try-runtime",
 	"polimec-common/try-runtime",
 	"sp-runtime/try-runtime",
+	"polimec-common-test-utils/try-runtime"
 ]
