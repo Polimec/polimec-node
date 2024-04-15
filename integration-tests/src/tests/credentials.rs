@@ -19,9 +19,12 @@ use frame_support::{assert_err, assert_ok, dispatch::GetDispatchInfo, traits::to
 use macros::generate_accounts;
 use polimec_common::credentials::InvestorType;
 use polimec_common_test_utils::{get_fake_jwt, get_test_jwt};
-use sp_runtime::{generic::Era, traits::SignedExtension, AccountId32, DispatchError};
-use sp_runtime::transaction_validity::InvalidTransaction::Payment;
-use sp_runtime::transaction_validity::TransactionValidityError;
+use sp_runtime::{
+	generic::Era,
+	traits::SignedExtension,
+	transaction_validity::{InvalidTransaction::Payment, TransactionValidityError},
+	AccountId32, DispatchError,
+};
 use tests::defaults::*;
 
 #[test]
@@ -69,7 +72,7 @@ fn dispenser_signed_extensions_pass_for_new_account() {
 
 		let jwt = get_test_jwt(who.clone(), InvestorType::Retail);
 		let free_call = PolitestCall::Dispenser(pallet_dispenser::Call::dispense { jwt: jwt.clone() });
-		let paid_call = PolitestCall::System(frame_system::Call::remark{remark: vec![69, 69]});
+		let paid_call = PolitestCall::System(frame_system::Call::remark { remark: vec![69, 69] });
 		let extra: politest_runtime::SignedExtra = (
 			frame_system::CheckNonZeroSender::<PolitestRuntime>::new(),
 			frame_system::CheckSpecVersion::<PolitestRuntime>::new(),
@@ -80,8 +83,14 @@ fn dispenser_signed_extensions_pass_for_new_account() {
 			frame_system::CheckWeight::<PolitestRuntime>::new(),
 			pallet_transaction_payment::ChargeTransactionPayment::<PolitestRuntime>::from(0u64.into()).into(),
 		);
-		assert_err!(extra.validate(&who, &paid_call, &paid_call.get_dispatch_info(), 0), TransactionValidityError::Invalid(Payment));
-		assert_err!(extra.clone().pre_dispatch(&who, &paid_call, &paid_call.get_dispatch_info(), 0), TransactionValidityError::Invalid(Payment));
+		assert_err!(
+			extra.validate(&who, &paid_call, &paid_call.get_dispatch_info(), 0),
+			TransactionValidityError::Invalid(Payment)
+		);
+		assert_err!(
+			extra.clone().pre_dispatch(&who, &paid_call, &paid_call.get_dispatch_info(), 0),
+			TransactionValidityError::Invalid(Payment)
+		);
 
 		assert_ok!(extra.validate(&who, &free_call, &free_call.get_dispatch_info(), 0));
 		assert_ok!(extra.pre_dispatch(&who, &free_call, &free_call.get_dispatch_info(), 0));

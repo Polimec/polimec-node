@@ -121,5 +121,8 @@ std = [
 	"sp-transaction-pool/std",
 	"xcm/std",
 ]
-on-chain-release-build = []
+on-chain-release-build = [
+	"polimec-runtime/on-chain-release-build",
+	"politest-runtime/on-chain-release-build"
+]
 async-backing = [ "politest-runtime/async-backing" ]
