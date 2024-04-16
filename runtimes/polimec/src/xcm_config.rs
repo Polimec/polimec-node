@@ -42,22 +42,22 @@ use xcm_builder::{
 	SiblingParachainConvertsVia, SignedAccountId32AsNative, SignedToAccountId32, SovereignSignedViaLocation,
 	TakeWeightCredit, UsingComponents, WithComputedOrigin,
 };
-// TODO: Check these numbers
+
 const DOT_ASSET_ID: AssetId = Concrete(RelayLocation::get());
-const DOT_PER_SECOND_EXECUTION: u128 = 0_0_000_001_000; // 0.0000001 DOT per second of execution time
-const DOT_PER_MB_PROOF: u128 = 0_0_000_001_000; // 0.0000001 DOT per Megabyte of proof size
+const DOT_PER_SECOND_EXECUTION: u128 = 0_2_000_000_000; // 0.2 DOT per second of execution time
+const DOT_PER_MB_PROOF: u128 = 0_2_000_000_000; // 0.0000001 DOT per Megabyte of proof size
 
 const USDT_ASSET_ID: AssetId =
 	Concrete(MultiLocation { parents: 1, interior: X3(Parachain(1000), PalletInstance(50), GeneralIndex(1984)) });
 #[allow(unused)]
-const USDT_PER_SECOND_EXECUTION: u128 = 0_0_000_001_000; // 0.0000001 USDT per second of execution time
-const USDT_PER_MB_PROOF: u128 = 0_0_000_001_000; // 0.0000001 USDT per Megabyte of proof size
+const USDT_PER_SECOND_EXECUTION: u128 = 1_000_000; // 1 USDT per second of execution time
+const USDT_PER_MB_PROOF: u128 = 1_000_000; // 1 USDT per Megabyte of proof size
 
 const USDC_ASSET_ID: AssetId =
 	Concrete(MultiLocation { parents: 1, interior: X3(Parachain(1000), PalletInstance(50), GeneralIndex(1337)) });
 #[allow(unused)]
-const USDC_PER_SECOND_EXECUTION: u128 = 0_0_000_001_000; // 0.0000001 USDC per second of execution time
-const USDC_PER_MB_PROOF: u128 = 0_0_000_001_000; // 0.0000001 USDC per Megabyte of proof size
+const USDC_PER_SECOND_EXECUTION: u128 = 1_000_000; // 1 USDC per second of execution time
+const USDC_PER_MB_PROOF: u128 = 1_000_000; // 1 USDC per Megabyte of proof size
 
 parameter_types! {
 	pub const RelayLocation: MultiLocation = MultiLocation::parent();
@@ -313,6 +313,87 @@ pub type XcmRouter = (
 	XcmpQueue,
 );
 
+/// Conservative weight values for XCM extrinsics. Should eventually be adjusted by benchmarking.
+pub struct XcmWeightInfo;
+impl pallet_xcm::WeightInfo for XcmWeightInfo {
+	fn send() -> Weight {
+		Weight::from_parts(500_000_000, 10000)
+	}
+
+	fn teleport_assets() -> Weight {
+		Weight::from_parts(100_000_000, 10000)
+	}
+
+	fn reserve_transfer_assets() -> Weight {
+		Weight::from_parts(100_000_000, 10000)
+	}
+
+	fn transfer_assets() -> Weight {
+		Weight::from_parts(1_500_000_000, 10000)
+	}
+
+	// Disables any custom local execution of XCM messages. Same value as system parachains.
+	fn execute() -> Weight {
+		Weight::from_parts(18_446_744_073_709_551_000, 0)
+	}
+
+	fn force_xcm_version() -> Weight {
+		Weight::from_parts(200_000_000, 10000)
+	}
+
+	fn force_default_xcm_version() -> Weight {
+		Weight::from_parts(200_000_000, 10000)
+	}
+
+	fn force_subscribe_version_notify() -> Weight {
+		Weight::from_parts(1_000_000_000, 10000)
+	}
+
+	fn force_unsubscribe_version_notify() -> Weight {
+		Weight::from_parts(1_000_000_000, 10000)
+	}
+
+	fn force_suspension() -> Weight {
+		Weight::from_parts(200_000_000, 10000)
+	}
+
+	fn migrate_supported_version() -> Weight {
+		Weight::from_parts(500_000_000, 20000)
+	}
+
+	fn migrate_version_notifiers() -> Weight {
+		Weight::from_parts(500_000_000, 20000)
+	}
+
+	fn already_notified_target() -> Weight {
+		Weight::from_parts(500_000_000, 20000)
+	}
+
+	fn notify_current_targets() -> Weight {
+		Weight::from_parts(1_000_000_000, 20000)
+	}
+
+	fn notify_target_migration_fail() -> Weight {
+		Weight::from_parts(500_000_000, 20000)
+	}
+
+	fn migrate_version_notify_targets() -> Weight {
+		Weight::from_parts(500_000_000, 20000)
+	}
+
+	fn migrate_and_notify_old_targets() -> Weight {
+		Weight::from_parts(1_000_000_000, 20000)
+	}
+
+	fn new_query() -> Weight {
+		Weight::from_parts(500_000_000, 10000)
+	}
+
+	fn take_response() -> Weight {
+		Weight::from_parts(500_000_000, 20000)
+	}
+}
+
 impl pallet_xcm::Config for Runtime {
 	type AdminOrigin = EnsureRoot<AccountId>;
 	// ^ Override for AdvertisedXcmVersion default
@@ -331,7 +412,7 @@ impl pallet_xcm::Config for Runtime {
 	type TrustedLockers = ();
 	type UniversalLocation = UniversalLocation;
 	type Weigher = FixedWeightBounds<UnitWeightCost, RuntimeCall, MaxInstructions>;
-	type WeightInfo = pallet_xcm::TestWeightInfo;
+	type WeightInfo = XcmWeightInfo;
 	type XcmExecuteFilter = Nothing;
 	// ^ Disable dispatchable execute on the XCM pallet.
 	// Needs to be `Everything` for local testing.

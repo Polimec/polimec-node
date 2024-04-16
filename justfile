@@ -21,7 +21,7 @@ test-runtime-features:
 test-integration:
     cargo test -p integration-tests
 
-dry-run-benchmarks pallet="*":
+dry-run-benchmarks pallet="pallet-xcm":
     cargo run --features runtime-benchmarks --release -p polimec-node benchmark pallet \
         --chain=politest-local \
         --steps=2 \
