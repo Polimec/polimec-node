@@ -1224,7 +1224,7 @@ impl<T: Config> Pallet<T> {
 		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 		let did_has_winning_bid = DidWithWinningBids::<T>::get(project_id, did.clone());
 
-		ensure!(project_details.status == ProjectStatus::CommunityRound, Error::<T>::AuctionNotStarted);
+		ensure!(project_details.status == ProjectStatus::CommunityRound, Error::<T>::ProjectNotInCommunityRound);
 		ensure!(!did_has_winning_bid, Error::<T>::UserHasWinningBids);
 
 		let buyable_tokens = token_amount.min(project_details.remaining_contribution_tokens);

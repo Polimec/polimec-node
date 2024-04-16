@@ -1085,7 +1085,7 @@ impl<
 			let evaluation_end = project_details.phase_transition_points.evaluation.end().unwrap();
 			let auction_start = evaluation_end.saturating_add(2u32.into());
 			let blocks_to_start = auction_start.saturating_sub(self.current_block());
-			self.advance_time(blocks_to_start).unwrap();
+			self.advance_time(blocks_to_start + 1u32.into()).unwrap();
 		};
 
 		assert_eq!(self.get_project_details(project_id).status, ProjectStatus::AuctionInitializePeriod);

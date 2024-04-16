@@ -259,7 +259,7 @@ mod community_contribute_extrinsic {
 						1u8.try_into().unwrap(),
 						AcceptedFundingAsset::USDT,
 					),
-					TokenError::FundsUnavailable
+					Error::<TestRuntime>::NotEnoughFunds
 				);
 			});
 
@@ -1379,6 +1379,7 @@ mod community_contribute_extrinsic {
 			let projects =
 				vec![created_project, evaluating_project, auctioning_project, remaining_project, finished_project];
 			for project in projects {
+				dbg!(&project);
 				inst.execute(|| {
 					assert_noop!(
 						PolimecFunding::community_contribute(
