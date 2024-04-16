@@ -17,7 +17,7 @@
 use crate::{currency::MILLI_PLMC, Balance, StakingPalletId};
 use frame_support::{
 	ord_parameter_types,
-	pallet_prelude::{InvalidTransaction, PhantomData, TransactionValidityError},
+	pallet_prelude::{InvalidTransaction, PhantomData, TransactionValidityError, Weight},
 	parameter_types,
 	sp_runtime::traits::{AccountIdConversion, DispatchInfoOf, PostDispatchInfoOf},
 	traits::{
@@ -25,7 +25,10 @@ use frame_support::{
 		tokens::Precision,
 		Imbalance, OnUnbalanced,
 	},
-	weights::{constants::ExtrinsicBaseWeight, WeightToFeeCoefficient, WeightToFeeCoefficients, WeightToFeePolynomial},
+	weights::{
+		constants::ExtrinsicBaseWeight, FeePolynomial, WeightToFeeCoefficient, WeightToFeeCoefficients,
+		WeightToFeePolynomial,
+	},
 };
 use pallet_transaction_payment::OnChargeTransaction;
 use parachains_common::{AccountId, SLOT_DURATION};
@@ -37,13 +40,48 @@ use sp_arithmetic::{
 use sp_std::prelude::*;
 
 pub struct WeightToFee;
-impl WeightToFeePolynomial for WeightToFee {
+impl frame_support::weights::WeightToFee for WeightToFee {
+	type Balance = Balance;
+
+	fn weight_to_fee(weight: &Weight) -> Self::Balance {
+		let time_poly: FeePolynomial<Balance> = RefTimeToFee::polynomial().into();
+		let proof_poly: FeePolynomial<Balance> = ProofSizeToFee::polynomial().into();
+
+		// Take the maximum instead of the sum to charge by the more scarce resource.
+		time_poly.eval(weight.ref_time()).max(proof_poly.eval(weight.proof_size()))
+	}
+}
+
+/// Maps the reference time component of `Weight` to a fee.
+pub struct RefTimeToFee;
+impl WeightToFeePolynomial for RefTimeToFee {
 	type Balance = Balance;
 
 	fn polynomial() -> WeightToFeeCoefficients<Self::Balance> {
-		// extrinsic base weight (smallest non-zero weight) is mapped to 1/10 CENT:
+		// In Kusama, extrinsic base weight (smallest non-zero weight) is mapped to 1/10 CENT:
+		// The standard system parachain configuration is 1/10 of that, as in 1/100 CENT.
 		let p = 10 * MILLI_PLMC;
-		let q = Balance::from(ExtrinsicBaseWeight::get().ref_time());
+		let q = 100 * Balance::from(ExtrinsicBaseWeight::get().ref_time());
+
+		smallvec![WeightToFeeCoefficient {
+			degree: 1,
+			negative: false,
+			coeff_frac: Perbill::from_rational(p % q, q),
+			coeff_integer: p / q,
+		}]
+	}
+}
+
+/// Maps the proof size component of `Weight` to a fee.
+pub struct ProofSizeToFee;
+impl WeightToFeePolynomial for ProofSizeToFee {
+	type Balance = Balance;
+
+	fn polynomial() -> WeightToFeeCoefficients<Self::Balance> {
+		// Map 10kb proof to 1 CENT.
+		let p = 10 * MILLI_PLMC;
+		let q = 10_000;
+
 		smallvec![WeightToFeeCoefficient {
 			degree: 1,
 			negative: false,

@@ -562,7 +562,7 @@ pub mod polimec {
 					(usdc_asset_id, alice_account.clone(), true, 0_0_010_000_000u128),
 				],
 				metadata: vec![
-					(dot_asset_id, "Local DOT".as_bytes().to_vec(), "DOT".as_bytes().to_vec(), 12),
+					(dot_asset_id, "Local DOT".as_bytes().to_vec(), "DOT".as_bytes().to_vec(), 10),
 					(usdt_asset_id, "Local USDT".as_bytes().to_vec(), "USDT".as_bytes().to_vec(), 6),
 					(usdc_asset_id, "Local USDC".as_bytes().to_vec(), "USDC".as_bytes().to_vec(), 6),
 				],
