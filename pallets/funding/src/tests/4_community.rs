@@ -776,7 +776,6 @@ mod community_contribute_extrinsic {
 				);
 			inst.mint_foreign_asset_to(foreign_funding.clone());
 
-
 			inst.bid_for_users(project_id, failing_bids_sold_out).unwrap();
 			inst.bid_for_users(project_id, successful_bids).unwrap();
 			inst.advance_time(
@@ -867,6 +866,11 @@ mod community_contribute_extrinsic {
 	#[cfg(test)]
 	mod failure {
 		use super::*;
+		use frame_support::traits::{
+			fungible::Mutate as MutateFungible,
+			fungibles::Mutate as MutateFungibles,
+			tokens::{Fortitude, Precision},
+		};
 
 		#[test]
 		fn contribution_errors_if_user_limit_is_reached() {
@@ -1274,7 +1278,121 @@ mod community_contribute_extrinsic {
 
 		#[test]
 		fn insufficient_funds() {
-			todo!()
+			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+			let project_id = inst.create_community_contributing_project(
+				default_project_metadata(ISSUER_1),
+				ISSUER_1,
+				default_evaluations(),
+				default_bids(),
+			);
+
+			let jwt = get_mock_jwt(BUYER_1, InvestorType::Retail, generate_did_from_account(BUYER_1));
+			let contribution = ContributionParams::new(BUYER_1, 1_000 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT);
+			let wap = inst.get_project_details(project_id).weighted_average_price.unwrap();
+			dbg!(&wap);
+
+			// 1 unit less native asset than needed
+			let plmc_funding = MockInstantiator::calculate_contributed_plmc_spent(vec![contribution.clone()], wap);
+			let plmc_existential_deposits = plmc_funding.accounts().existential_deposits();
+			inst.mint_plmc_to(plmc_funding.clone());
+			inst.mint_plmc_to(plmc_existential_deposits.clone());
+			inst.execute(|| Balances::burn_from(&BUYER_1, 1, Precision::BestEffort, Fortitude::Force)).unwrap();
+			let foreign_funding =
+				MockInstantiator::calculate_contributed_funding_asset_spent(vec![contribution.clone()], wap);
+			inst.mint_foreign_asset_to(foreign_funding.clone());
+			inst.execute(|| {
+				assert_noop!(
+					Pallet::<TestRuntime>::community_contribute(
+						RuntimeOrigin::signed(BUYER_1),
+						jwt.clone(),
+						project_id,
+						1_000 * ASSET_UNIT,
+						1u8.try_into().unwrap(),
+						AcceptedFundingAsset::USDT,
+					),
+					Error::<TestRuntime>::NotEnoughFunds
+				);
+			});
+
+			// 1 unit less funding asset than needed
+			let plmc_funding = MockInstantiator::calculate_contributed_plmc_spent(vec![contribution.clone()], wap);
+			let plmc_existential_deposits = plmc_funding.accounts().existential_deposits();
+			inst.mint_plmc_to(plmc_funding.clone());
+			inst.mint_plmc_to(plmc_existential_deposits.clone());
+			let foreign_funding =
+				MockInstantiator::calculate_contributed_funding_asset_spent(vec![contribution.clone()], wap);
+
+			inst.execute(|| ForeignAssets::set_balance(AcceptedFundingAsset::USDT.to_assethub_id(), &BUYER_1, 0));
+			inst.mint_foreign_asset_to(foreign_funding.clone());
+			let usdt_balance =
+				inst.execute(|| <TestRuntime as Config>::FundingCurrency::balance(USDT_FOREIGN_ID, &BUYER_1));
+			inst.execute(|| {
+				ForeignAssets::burn_from(
+					AcceptedFundingAsset::USDT.to_assethub_id(),
+					&BUYER_1,
+					100,
+					Precision::BestEffort,
+					Fortitude::Force,
+				)
+			})
+			.unwrap();
+			let usdt_balance =
+				inst.execute(|| <TestRuntime as Config>::FundingCurrency::balance(USDT_FOREIGN_ID, &BUYER_1));
+			inst.execute(|| {
+				assert_noop!(
+					Pallet::<TestRuntime>::community_contribute(
+						RuntimeOrigin::signed(BUYER_1),
+						jwt,
+						project_id,
+						1_000 * ASSET_UNIT,
+						1u8.try_into().unwrap(),
+						AcceptedFundingAsset::USDT,
+					),
+					Error::<TestRuntime>::NotEnoughFunds
+				);
+			});
+		}
+
+		#[test]
+		fn called_outside_community_round() {
+			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+			let created_project = inst.create_new_project(default_project_metadata(ISSUER_1), ISSUER_1);
+			let evaluating_project = inst.create_evaluating_project(default_project_metadata(ISSUER_2), ISSUER_2);
+			let auctioning_project =
+				inst.create_auctioning_project(default_project_metadata(ISSUER_3), ISSUER_3, default_evaluations());
+			let remaining_project = inst.create_remainder_contributing_project(
+				default_project_metadata(ISSUER_4),
+				ISSUER_4,
+				default_evaluations(),
+				default_bids(),
+				default_community_buys(),
+			);
+			let finished_project = inst.create_finished_project(
+				default_project_metadata(ISSUER_5),
+				ISSUER_5,
+				default_evaluations(),
+				default_bids(),
+				default_community_buys(),
+				default_remainder_buys(),
+			);
+
+			let projects =
+				vec![created_project, evaluating_project, auctioning_project, remaining_project, finished_project];
+			for project in projects {
+				inst.execute(|| {
+					assert_noop!(
+						PolimecFunding::community_contribute(
+							RuntimeOrigin::signed(BUYER_1),
+							get_mock_jwt(BUYER_1, InvestorType::Retail, generate_did_from_account(BUYER_1)),
+							project,
+							1000 * ASSET_UNIT,
+							1u8.try_into().unwrap(),
+							AcceptedFundingAsset::USDT
+						),
+						Error::<TestRuntime>::ProjectNotInCommunityRound
+					);
+				});
+			}
 		}
 	}
 }

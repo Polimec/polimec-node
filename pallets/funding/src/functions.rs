@@ -1342,23 +1342,6 @@ impl<T: Config> Pallet<T> {
 			contributor_ticket_size.usd_ticket_below_maximum_per_did(total_usd_bought_by_did + ticket_size),
 			Error::<T>::ContributionTooHigh
 		);
-		ensure!(
-			project_metadata.participation_currencies.contains(&funding_asset),
-			Error::<T>::FundingAssetNotAccepted
-		);
-		ensure!(did.clone() != project_details.issuer_did, Error::<T>::ParticipationToThemselves);
-		ensure!(
-			caller_existing_contributions.len() < T::MaxContributionsPerUser::get() as usize,
-			Error::<T>::TooManyContributionsForUser
-		);
-		ensure!(
-			contributor_ticket_size.usd_ticket_above_minimum_per_participation(ticket_size),
-			Error::<T>::ContributionTooLow
-		);
-		ensure!(
-			contributor_ticket_size.usd_ticket_below_maximum_per_did(total_usd_bought_by_did + ticket_size),
-			Error::<T>::ContributionTooHigh
-		);
 
 		let plmc_bond = Self::calculate_plmc_bond(ticket_size, multiplier, plmc_usd_price)?;
 		let funding_asset_amount =
@@ -2183,7 +2166,8 @@ impl<T: Config> Pallet<T> {
 			to_convert = to_convert.saturating_sub(converted)
 		}
 
-		T::NativeCurrency::hold(&HoldReason::Participation(project_id).into(), who, to_convert)?;
+		T::NativeCurrency::hold(&HoldReason::Participation(project_id).into(), who, to_convert)
+			.map_err(|_| Error::<T>::NotEnoughFunds)?;
 
 		Ok(())
 	}
