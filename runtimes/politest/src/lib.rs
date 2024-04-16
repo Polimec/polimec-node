@@ -1006,6 +1006,7 @@ impl pallet_funding::Config for Runtime {
 	type MaxMessageSizeThresholds = MaxMessageSizeThresholds;
 	type MaxProjectsToUpdateInsertionAttempts = ConstU32<100>;
 	type MaxProjectsToUpdatePerBlock = ConstU32<1>;
+	type MinUsdPerEvaluation = MinUsdPerEvaluation;
 	type Multiplier = pallet_funding::types::Multiplier;
 	type NativeCurrency = Balances;
 	type PalletId = FundingPalletId;
@@ -1029,7 +1030,6 @@ impl pallet_funding::Config for Runtime {
 	type VerifierPublicKey = VerifierPublicKey;
 	type Vesting = LinearRelease;
 	type WeightInfo = pallet_funding::weights::SubstrateWeight<Runtime>;
-	type MinUsdPerEvaluation = MinUsdPerEvaluation;
 }
 
 #[cfg(feature = "runtime-benchmarks")]

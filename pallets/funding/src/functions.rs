@@ -25,7 +25,7 @@ use frame_support::{
 	pallet_prelude::*,
 	traits::{
 		fungible::{Mutate, MutateHold as FungibleMutateHold},
-		fungibles::{metadata::Mutate as MetadataMutate, Create, Mutate as FungiblesMutate},
+		fungibles::{metadata::Mutate as MetadataMutate, Create, Inspect, Mutate as FungiblesMutate},
 		tokens::{Precision, Preservation},
 		Get,
 	},
@@ -2000,7 +2000,7 @@ impl<T: Config> Pallet<T> {
 			let weighted_price = bid.original_ct_usd_price.saturating_mul(bid_weight);
 			weighted_price
 		};
-		let weighted_token_price = if is_first_bucket || accepted_bids.is_empty() {
+		let mut weighted_token_price = if is_first_bucket || accepted_bids.is_empty() {
 			project_metadata.minimum_price
 		} else {
 			accepted_bids
@@ -2008,6 +2008,10 @@ impl<T: Config> Pallet<T> {
 				.map(calc_weighted_price_fn)
 				.fold(Zero::zero(), |a: T::Price, b: T::Price| a.saturating_add(b))
 		};
+		// If the first bucket was sold out with rejected bids, the wap might be slightly lower than min_price due to rounding.
+		if weighted_token_price < project_metadata.minimum_price {
+			weighted_token_price = project_metadata.minimum_price;
+		}
 
 		let mut final_total_funding_reached_by_bids = BalanceOf::<T>::zero();
 
@@ -2030,15 +2034,20 @@ impl<T: Config> Pallet<T> {
 					.checked_mul_int(new_ticket_size)
 					.ok_or(Error::<T>::BadMath)?;
 
-				T::FundingCurrency::transfer(
-					bid.funding_asset.to_assethub_id(),
-					&project_account,
-					&bid.bidder,
-					bid.funding_asset_amount_locked.saturating_sub(funding_asset_amount_needed),
-					Preservation::Preserve,
-				)?;
-
-				bid.funding_asset_amount_locked = funding_asset_amount_needed;
+				let amount_returned = bid.funding_asset_amount_locked.saturating_sub(funding_asset_amount_needed);
+				let asset_id = bid.funding_asset.to_assethub_id();
+				let min_amount = T::FundingCurrency::minimum_balance(asset_id);
+				// Transfers of less than min_amount return an error
+				if amount_returned > min_amount {
+					T::FundingCurrency::transfer(
+						bid.funding_asset.to_assethub_id(),
+						&project_account,
+						&bid.bidder,
+						bid.funding_asset_amount_locked.saturating_sub(funding_asset_amount_needed),
+						Preservation::Preserve,
+					)?;
+					bid.funding_asset_amount_locked = funding_asset_amount_needed;
+				}
 
 				let usd_bond_needed = bid
 					.multiplier
@@ -2050,12 +2059,16 @@ impl<T: Config> Pallet<T> {
 					.checked_mul_int(usd_bond_needed)
 					.ok_or(Error::<T>::BadMath)?;
 
-				T::NativeCurrency::release(
-					&HoldReason::Participation(project_id).into(),
-					&bid.bidder,
-					bid.plmc_bond.saturating_sub(plmc_bond_needed),
-					Precision::Exact,
-				)?;
+				let plmc_bond_returned = bid.plmc_bond.saturating_sub(plmc_bond_needed);
+				// If the free balance of a user is zero and we want to send him less than ED, it will fail.
+				if plmc_bond_returned > T::ExistentialDeposit::get() {
+					T::NativeCurrency::release(
+						&HoldReason::Participation(project_id).into(),
+						&bid.bidder,
+						plmc_bond_returned,
+						Precision::Exact,
+					)?;
+				}
 
 				bid.plmc_bond = plmc_bond_needed;
 			}

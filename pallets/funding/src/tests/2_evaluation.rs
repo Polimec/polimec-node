@@ -654,7 +654,12 @@ mod evaluate_extrinsic {
 			// Cannot evaluate with 0 USD
 			inst.execute(|| {
 				assert_noop!(
-					Pallet::<TestRuntime>::evaluate(RuntimeOrigin::signed(evaluator.clone()),jwt.clone(), project_id, 0),
+					Pallet::<TestRuntime>::evaluate(
+						RuntimeOrigin::signed(evaluator.clone()),
+						jwt.clone(),
+						project_id,
+						0
+					),
 					Error::<TestRuntime>::EvaluationBondTooLow
 				);
 			});
@@ -662,7 +667,12 @@ mod evaluate_extrinsic {
 			// Cannot evaluate with less than 99 USD
 			inst.execute(|| {
 				assert_noop!(
-					Pallet::<TestRuntime>::evaluate(RuntimeOrigin::signed(evaluator.clone()),jwt.clone(), project_id, 99 * US_DOLLAR),
+					Pallet::<TestRuntime>::evaluate(
+						RuntimeOrigin::signed(evaluator.clone()),
+						jwt.clone(),
+						project_id,
+						99 * US_DOLLAR
+					),
 					Error::<TestRuntime>::EvaluationBondTooLow
 				);
 			});

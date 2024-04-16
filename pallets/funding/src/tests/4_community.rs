@@ -226,7 +226,6 @@ mod community_contribute_extrinsic {
 			let mut evaluations = default_evaluations();
 			let bobs_evaluation: UserToUSDBalance<TestRuntime> = (BOB, 1337 * US_DOLLAR).into();
 			evaluations.push(bobs_evaluation.clone());
-			dbg!(&evaluations);
 
 			let project_id = inst.create_community_contributing_project(
 				project_metadata.clone(),
@@ -722,7 +721,6 @@ mod community_contribute_extrinsic {
 					log::debug!("success? - multiplier: {}", multiplier);
 					assert_ok!(contribute(&mut inst, project_id, multiplier));
 				}
-				// dbg!
 
 				// Multipliers that should NOT work
 				for multiplier in max_allowed_multiplier + 1..=50 {
@@ -733,6 +731,136 @@ mod community_contribute_extrinsic {
 					);
 				}
 			}
+		}
+
+		#[test]
+		fn did_with_losing_bid_can_contribute() {
+			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+			let project_metadata = default_project_metadata(ISSUER_1);
+			let mut evaluations = default_evaluations();
+			evaluations.push((BIDDER_4, 1337 * US_DOLLAR).into());
+
+			let successful_bids = vec![
+				BidParams::new(BIDDER_1, 400_000 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
+				BidParams::new(BIDDER_2, 100_000 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
+			];
+			let failing_bids_after_random_end =
+				vec![(BIDDER_3, 25_000 * ASSET_UNIT).into(), (BIDDER_4, 25_000 * ASSET_UNIT).into()];
+			// This bids should fill the first bucket.
+			let failing_bids_sold_out =
+				vec![(BIDDER_5, 250_000 * ASSET_UNIT).into(), (BIDDER_6, 250_000 * ASSET_UNIT).into()];
+
+			let all_bids = failing_bids_sold_out
+				.iter()
+				.chain(successful_bids.iter())
+				.chain(failing_bids_after_random_end.iter())
+				.cloned()
+				.collect_vec();
+
+			let project_id = inst.create_auctioning_project(project_metadata.clone(), ISSUER_1, default_evaluations());
+
+			let plmc_fundings = MockInstantiator::calculate_auction_plmc_charged_from_all_bids_made_or_with_bucket(
+				&all_bids.clone(),
+				project_metadata.clone(),
+				None,
+			);
+			let plmc_existential_deposits = plmc_fundings.accounts().existential_deposits();
+			inst.mint_plmc_to(plmc_fundings.clone());
+			inst.mint_plmc_to(plmc_existential_deposits.clone());
+
+			let foreign_funding =
+				MockInstantiator::calculate_auction_funding_asset_charged_from_all_bids_made_or_with_bucket(
+					&all_bids.clone(),
+					project_metadata.clone(),
+					None,
+				);
+			inst.mint_foreign_asset_to(foreign_funding.clone());
+
+
+			inst.bid_for_users(project_id, failing_bids_sold_out).unwrap();
+			inst.bid_for_users(project_id, successful_bids).unwrap();
+			inst.advance_time(
+				<TestRuntime as Config>::AuctionOpeningDuration::get() +
+					<TestRuntime as Config>::AuctionClosingDuration::get() +
+					1,
+			)
+			.unwrap();
+			inst.bid_for_users(project_id, failing_bids_after_random_end).unwrap();
+			inst.advance_time(2).unwrap();
+			assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::CommunityRound);
+
+			// Some low amount of plmc and usdt to cover a purchase of 10CTs.
+			let plmc_mints = vec![
+				(BIDDER_3, 42069 * PLMC).into(),
+				(BIDDER_4, 42069 * PLMC).into(),
+				(BIDDER_5, 42069 * PLMC).into(),
+				(BIDDER_6, 42069 * PLMC).into(),
+				(BUYER_3, 42069 * PLMC).into(),
+				(BUYER_4, 42069 * PLMC).into(),
+				(BUYER_5, 42069 * PLMC).into(),
+				(BUYER_6, 42069 * PLMC).into(),
+			];
+			inst.mint_plmc_to(plmc_mints);
+			let usdt_mints = vec![
+				(BIDDER_3, 42069 * ASSET_UNIT).into(),
+				(BIDDER_4, 42069 * ASSET_UNIT).into(),
+				(BIDDER_5, 42069 * ASSET_UNIT).into(),
+				(BIDDER_6, 42069 * ASSET_UNIT).into(),
+				(BUYER_3, 42069 * ASSET_UNIT).into(),
+				(BUYER_4, 42069 * ASSET_UNIT).into(),
+				(BUYER_5, 42069 * ASSET_UNIT).into(),
+				(BUYER_6, 42069 * ASSET_UNIT).into(),
+			];
+			inst.mint_foreign_asset_to(usdt_mints);
+
+			let stored_bids = inst.execute(|| Bids::<TestRuntime>::iter_prefix_values((project_id,)).collect_vec());
+			dbg!(&stored_bids);
+
+			let mut bid_should_succeed = |account, investor_type, did_acc| {
+				inst.execute(|| {
+					assert_ok!(Pallet::<TestRuntime>::community_contribute(
+						RuntimeOrigin::signed(account),
+						get_mock_jwt(account, investor_type, generate_did_from_account(did_acc)),
+						project_id,
+						10 * ASSET_UNIT,
+						1u8.try_into().unwrap(),
+						AcceptedFundingAsset::USDT,
+					));
+				});
+			};
+
+			// Bidder 3 has a losing bid due to bidding after the random end. His did should be able to contribute regardless of what investor type
+			// or account he uses to sign the transaction
+			bid_should_succeed(BIDDER_3, InvestorType::Institutional, BIDDER_3);
+			bid_should_succeed(BUYER_3, InvestorType::Institutional, BIDDER_3);
+			bid_should_succeed(BIDDER_3, InvestorType::Professional, BIDDER_3);
+			bid_should_succeed(BUYER_3, InvestorType::Professional, BIDDER_3);
+			bid_should_succeed(BIDDER_3, InvestorType::Retail, BIDDER_3);
+			bid_should_succeed(BUYER_3, InvestorType::Retail, BIDDER_3);
+
+			// Bidder 4 has a losing bid due to bidding after the random end, and he was also an evaluator. Same conditions as before should apply.
+			bid_should_succeed(BIDDER_4, InvestorType::Institutional, BIDDER_4);
+			bid_should_succeed(BUYER_4, InvestorType::Institutional, BIDDER_4);
+			bid_should_succeed(BIDDER_4, InvestorType::Professional, BIDDER_4);
+			bid_should_succeed(BUYER_4, InvestorType::Professional, BIDDER_4);
+			bid_should_succeed(BIDDER_4, InvestorType::Retail, BIDDER_4);
+			bid_should_succeed(BUYER_4, InvestorType::Retail, BIDDER_4);
+
+			// Bidder 5 has a losing bid due to CTs being sold out at his price point. Same conditions as before should apply.
+			bid_should_succeed(BIDDER_5, InvestorType::Institutional, BIDDER_5);
+			bid_should_succeed(BUYER_5, InvestorType::Institutional, BIDDER_5);
+			bid_should_succeed(BIDDER_5, InvestorType::Professional, BIDDER_5);
+			bid_should_succeed(BUYER_5, InvestorType::Professional, BIDDER_5);
+			bid_should_succeed(BIDDER_5, InvestorType::Retail, BIDDER_5);
+			bid_should_succeed(BUYER_5, InvestorType::Retail, BIDDER_5);
+
+			// Bidder 6 has a losing bid due to CTs being sold out at his price point, and he was also an evaluator. Same conditions as before should apply.
+			bid_should_succeed(BIDDER_6, InvestorType::Institutional, BIDDER_6);
+			bid_should_succeed(BUYER_6, InvestorType::Institutional, BIDDER_6);
+			bid_should_succeed(BIDDER_6, InvestorType::Professional, BIDDER_6);
+			bid_should_succeed(BUYER_6, InvestorType::Professional, BIDDER_6);
+			bid_should_succeed(BIDDER_6, InvestorType::Retail, BIDDER_6);
+			bid_should_succeed(BUYER_6, InvestorType::Retail, BIDDER_6);
 		}
 	}
 
@@ -836,9 +964,13 @@ mod community_contribute_extrinsic {
 		fn did_with_winning_bid_cannot_contribute() {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 			let project_metadata = default_project_metadata(ISSUER_1);
+			let mut evaluations = default_evaluations();
+			evaluations.push((BIDDER_2, 1337 * US_DOLLAR).into());
 			let bids = vec![
 				BidParams::new(BIDDER_1, 400_000 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
 				BidParams::new(BIDDER_2, 50_000 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
+				// Partially accepted bid. Only the 50k of the second bid will be accepted.
+				BidParams::new(BIDDER_3, 100_000 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
 			];
 
 			let project_id = inst.create_community_contributing_project(
@@ -848,55 +980,46 @@ mod community_contribute_extrinsic {
 				bids,
 			);
 
-			let bidder_2_jwt = get_mock_jwt(BIDDER_2, InvestorType::Retail, generate_did_from_account(BIDDER_2));
-			let bidder_3_jwt_same_did =
-				get_mock_jwt(BIDDER_3, InvestorType::Retail, generate_did_from_account(BIDDER_2));
-			let bidder_3_jwt_different_did =
-				get_mock_jwt(BIDDER_3, InvestorType::Retail, generate_did_from_account(BIDDER_3));
+			let mut bid_should_fail = |account, investor_type, did_acc| {
+				inst.execute(|| {
+					assert_noop!(
+						Pallet::<TestRuntime>::community_contribute(
+							RuntimeOrigin::signed(account),
+							get_mock_jwt(account, investor_type, generate_did_from_account(did_acc)),
+							project_id,
+							10 * ASSET_UNIT,
+							1u8.try_into().unwrap(),
+							AcceptedFundingAsset::USDT,
+						),
+						Error::<TestRuntime>::UserHasWinningBids
+					);
+				});
+			};
 
-			let plmc_mints = vec![(BIDDER_2, 420 * PLMC).into(), (BIDDER_3, 420 * PLMC).into()];
-			inst.mint_plmc_to(plmc_mints);
-			let usdt_mints = vec![(BIDDER_2, 420 * ASSET_UNIT).into(), (BIDDER_3, 420 * ASSET_UNIT).into()];
-			inst.mint_foreign_asset_to(usdt_mints);
+			// Bidder 1 has a winning bid, his did should not be able to contribute regardless of what investor type
+			// or account he uses to sign the transaction
+			bid_should_fail(BIDDER_1, InvestorType::Institutional, BIDDER_1);
+			bid_should_fail(BUYER_1, InvestorType::Institutional, BIDDER_1);
+			bid_should_fail(BIDDER_1, InvestorType::Professional, BIDDER_1);
+			bid_should_fail(BUYER_1, InvestorType::Professional, BIDDER_1);
+			bid_should_fail(BIDDER_1, InvestorType::Retail, BIDDER_1);
+			bid_should_fail(BUYER_1, InvestorType::Retail, BIDDER_1);
 
-			inst.execute(|| {
-				assert_noop!(
-					Pallet::<TestRuntime>::community_contribute(
-						RuntimeOrigin::signed(BIDDER_2),
-						bidder_2_jwt,
-						project_id,
-						10 * ASSET_UNIT,
-						1u8.try_into().unwrap(),
-						AcceptedFundingAsset::USDT,
-					),
-					Error::<TestRuntime>::UserHasWinningBids
-				);
-			});
+			// Bidder 2 has a winning bid, and he was also an evaluator. Same conditions as before should apply.
+			bid_should_fail(BIDDER_2, InvestorType::Institutional, BIDDER_2);
+			bid_should_fail(BUYER_2, InvestorType::Institutional, BIDDER_2);
+			bid_should_fail(BIDDER_2, InvestorType::Professional, BIDDER_2);
+			bid_should_fail(BUYER_2, InvestorType::Professional, BIDDER_2);
+			bid_should_fail(BIDDER_2, InvestorType::Retail, BIDDER_2);
+			bid_should_fail(BUYER_2, InvestorType::Retail, BIDDER_2);
 
-			inst.execute(|| {
-				assert_noop!(
-					Pallet::<TestRuntime>::community_contribute(
-						RuntimeOrigin::signed(BIDDER_3),
-						bidder_3_jwt_same_did,
-						project_id,
-						10 * ASSET_UNIT,
-						1u8.try_into().unwrap(),
-						AcceptedFundingAsset::USDT,
-					),
-					Error::<TestRuntime>::UserHasWinningBids
-				);
-			});
-
-			inst.execute(|| {
-				assert_ok!(Pallet::<TestRuntime>::community_contribute(
-					RuntimeOrigin::signed(BIDDER_3),
-					bidder_3_jwt_different_did,
-					project_id,
-					10 * ASSET_UNIT,
-					1u8.try_into().unwrap(),
-					AcceptedFundingAsset::USDT,
-				));
-			});
+			// Bidder 3 has a partial winning bid. Same conditions as before should apply.
+			bid_should_fail(BIDDER_3, InvestorType::Institutional, BIDDER_3);
+			bid_should_fail(BUYER_3, InvestorType::Institutional, BIDDER_3);
+			bid_should_fail(BIDDER_3, InvestorType::Professional, BIDDER_3);
+			bid_should_fail(BUYER_3, InvestorType::Professional, BIDDER_3);
+			bid_should_fail(BIDDER_3, InvestorType::Retail, BIDDER_3);
+			bid_should_fail(BUYER_3, InvestorType::Retail, BIDDER_3);
 		}
 
 		#[test]
@@ -914,7 +1037,6 @@ mod community_contribute_extrinsic {
 				institutional: TicketSize::new(Some(200_000 * US_DOLLAR), None),
 				phantom: Default::default(),
 			};
-
 
 			let project_id = inst.create_community_contributing_project(
 				project_metadata.clone(),
@@ -1148,6 +1270,11 @@ mod community_contribute_extrinsic {
 					AcceptedFundingAsset::USDT,
 				));
 			});
+		}
+
+		#[test]
+		fn insufficient_funds() {
+			todo!()
 		}
 	}
 }
