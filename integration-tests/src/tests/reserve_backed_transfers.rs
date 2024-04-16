@@ -31,7 +31,7 @@ const MAX_REF_TIME: u64 = 5_000_000_000;
 const MAX_PROOF_SIZE: u64 = 200_000;
 
 fn create_asset_on_asset_hub(asset_id: u32) {
-	if asset_id == 0 {
+	if asset_id == 10 {
 		return;
 	}
 	let admin_account = AssetNet::account_id_of(FERDIE);
@@ -49,7 +49,7 @@ fn create_asset_on_asset_hub(asset_id: u32) {
 fn mint_asset_on_asset_hub_to(asset_id: u32, recipient: &AssetHubAccountId, amount: u128) {
 	AssetNet::execute_with(|| {
 		match asset_id {
-			0 => {
+			10 => {
 				assert_ok!(AssetHubBalances::write_balance(recipient, amount));
 			},
 			_ => {
@@ -74,8 +74,8 @@ fn get_polimec_balances(asset_id: u32, user_account: AccountId) -> (u128, u128, 
 fn get_asset_hub_balances(asset_id: u32, user_account: AccountId, polimec_account: AccountId) -> (u128, u128, u128) {
 	AssetNet::execute_with(|| {
 		match asset_id {
-			// Asset id 0 equals Dot
-			0 => (
+			// Asset id 10 equals Dot
+			10 => (
 				AssetHubBalances::balance(&user_account),
 				AssetHubBalances::balance(&polimec_account),
 				AssetHubBalances::total_issuance(),
@@ -94,7 +94,7 @@ fn get_asset_hub_balances(asset_id: u32, user_account: AccountId, polimec_accoun
 fn test_reserve_to_polimec(asset_id: u32) {
 	create_asset_on_asset_hub(asset_id);
 	let asset_hub_asset_id: MultiLocation = match asset_id {
-		0 => Parent.into(),
+		10 => Parent.into(),
 		_ => (PalletInstance(AssetHubAssets::index() as u8), GeneralIndex(asset_id as u128)).into(),
 	};
 
@@ -211,7 +211,7 @@ fn test_reserve_to_polimec(asset_id: u32) {
 fn test_polimec_to_reserve(asset_id: u32) {
 	create_asset_on_asset_hub(asset_id);
 	let asset_hub_asset_id: MultiLocation = match asset_id {
-		0 => Parent.into(),
+		10 => Parent.into(),
 		_ => ParentThen(X3(
 			Parachain(AssetNet::para_id().into()),
 			PalletInstance(AssetHubAssets::index() as u8),
@@ -349,7 +349,7 @@ fn reserve_usdc_to_polimec() {
 /// Test reserve based transfer of DOT from AssetHub to Polimec.
 #[test]
 fn reserve_dot_to_polimec() {
-	let asset_id = 0;
+	let asset_id = 10;
 	test_reserve_to_polimec(asset_id);
 }
 
@@ -378,7 +378,7 @@ fn polimec_usdc_to_reserve() {
 /// Test transfer of reserve-based DOT from Polimec back to AssetHub.
 #[test]
 fn polimec_dot_to_reserve() {
-	let asset_id = 0;
+	let asset_id = 10;
 	test_polimec_to_reserve(asset_id);
 }
 

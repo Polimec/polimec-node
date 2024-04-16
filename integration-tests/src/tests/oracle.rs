@@ -28,7 +28,7 @@ fn values(
 ) -> BoundedVec<(u32, FixedU128), <politest_runtime::Runtime as orml_oracle::Config<()>>::MaxFeedValues> {
 	let [dot, usdc, usdt, plmc] = values;
 	bounded_vec![
-		(0u32, FixedU128::from_float(dot)),
+		(10u32, FixedU128::from_float(dot)),
 		(1337u32, FixedU128::from_float(usdc)),
 		(1984u32, FixedU128::from_float(usdt)),
 		(3344u32, FixedU128::from_float(plmc))
@@ -52,7 +52,7 @@ fn members_can_feed_data() {
 		assert_ok!(Oracle::feed_values(RuntimeOrigin::signed(charlie.clone()), values([4.84, 1.0, 1.0, 0.4])));
 
 		let expected_values = HashMap::from([
-			(0u32, FixedU128::from_float(4.84)),
+			(10u32, FixedU128::from_float(4.84)),
 			(1337u32, FixedU128::from_float(1.0)),
 			(1984u32, FixedU128::from_float(1.0)),
 			(3344u32, FixedU128::from_float(0.4)),
@@ -94,7 +94,7 @@ fn data_is_correctly_combined() {
 
 		// Default CombineData implementation is the median value
 		let expected_values = HashMap::from([
-			(0u32, FixedU128::from_float(2.0)),
+			(10u32, FixedU128::from_float(2.0)),
 			(1337u32, FixedU128::from_float(1.0)),
 			(1984u32, FixedU128::from_float(1.1)),
 			(3344u32, FixedU128::from_float(0.22222)),
