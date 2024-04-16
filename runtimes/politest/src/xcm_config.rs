@@ -118,7 +118,7 @@ match_types! {
 impl MaybeEquivalence<MultiLocation, AssetIdPalletAssets> for SupportedAssets {
 	fn convert(asset: &MultiLocation) -> Option<AssetIdPalletAssets> {
 		match asset {
-			MultiLocation { parents: 1, interior: Here } => Some(0),
+			MultiLocation { parents: 1, interior: Here } => Some(10),
 			MultiLocation { parents: 1, interior: X3(Parachain(1000), PalletInstance(50), GeneralIndex(1337)) } =>
 				Some(1337),
 			MultiLocation { parents: 1, interior: X3(Parachain(1000), PalletInstance(50), GeneralIndex(1984)) } =>
@@ -129,7 +129,7 @@ impl MaybeEquivalence<MultiLocation, AssetIdPalletAssets> for SupportedAssets {
 
 	fn convert_back(value: &AssetIdPalletAssets) -> Option<MultiLocation> {
 		match value {
-			0 => Some(MultiLocation { parents: 1, interior: Here }),
+			10 => Some(MultiLocation { parents: 1, interior: Here }),
 			1337 => Some(MultiLocation {
 				parents: 1,
 				interior: X3(Parachain(1000), PalletInstance(50), GeneralIndex(1337)),
