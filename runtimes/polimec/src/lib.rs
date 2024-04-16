@@ -736,6 +736,7 @@ impl pallet_membership::Config<pallet_membership::Instance1> for Runtime {
 	type ResetOrigin = EnsureRoot<AccountId>;
 	type RuntimeEvent = RuntimeEvent;
 	type SwapOrigin = EnsureRoot<AccountId>;
+	// TODO: Fix the pallet_membership benchmarks and ad the WeightInfo.
 	type WeightInfo = ();
 }
 
