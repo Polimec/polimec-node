@@ -972,7 +972,7 @@ mod benches {
 
 		// XCM helpers.
 		[cumulus_pallet_xcmp_queue, XcmpQueue]
-		[pallet_xcm, PalletXcmExtrinsiscsBenchmark::<Runtime>]
+		// [pallet_xcm, PalletXcmExtrinsiscsBenchmark::<Runtime>]
 		[cumulus_pallet_dmp_queue, DmpQueue]
 		[pallet_message_queue, MessageQueue]
 
@@ -986,7 +986,7 @@ mod benches {
 		[pallet_scheduler, Scheduler]
 
 		// Oracle
-		[pallet_membership, OracleProvidersMembership]
+		// [pallet_membership, OracleProvidersMembership]
 		// [orml_oracle, Oracle]
 	);
 }
