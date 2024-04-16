@@ -349,7 +349,7 @@ fn reserve_usdc_to_polimec() {
 /// Test reserve based transfer of DOT from AssetHub to Polimec.
 #[test]
 fn reserve_dot_to_polimec() {
-	let asset_id = 0;
+	let asset_id = 10;
 	test_reserve_to_polimec(asset_id);
 }
 
