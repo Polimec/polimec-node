@@ -528,6 +528,7 @@ impl tokens::imbalance::OnUnbalanced<CreditOf<Runtime>> for ToTreasury {
 
 parameter_types! {
 	pub TreasuryAccount: AccountId = Treasury::account_id();
+	pub ContributionTreasuryAccount: AccountId = hex_literal::hex!["ba143e2096e073cb9cddc78e6f4969d8a02160d716a69e08214caf5339d88c42"].into();
 }
 
 impl pallet_treasury::Config for Runtime {
@@ -998,7 +999,7 @@ impl pallet_funding::Config for Runtime {
 	type BlockNumberToBalance = ConvertInto;
 	type CommunityFundingDuration = CommunityFundingDuration;
 	type ContributionTokenCurrency = ContributionTokens;
-	type ContributionTreasury = TreasuryAccount;
+	type ContributionTreasury = ContributionTreasuryAccount;
 	type DaysToBlocks = DaysToBlocks;
 	type EvaluationDuration = EvaluationDuration;
 	type EvaluationSuccessThreshold = EarlyEvaluationThreshold;
