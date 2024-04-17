@@ -187,6 +187,11 @@ fn base_testnet_genesis(
 	const ENDOWMENT: Balance = 10_000_000 * PLMC;
 	const STASH: Balance = ENDOWMENT / 1000;
 
+	#[cfg(not(feature = "runtime-benchmarks"))]
+	let staking_candidates = stakers.iter().map(|(accunt, _, balance)| (accunt.clone(), *balance)).collect::<Vec<_>>();
+	#[cfg(feature = "runtime-benchmarks")]
+	let staking_candidates: Vec<(AccountId, Balance)> = vec![];
+
 	serde_json::json!({
 		"balances": {
 			"balances": endowed_accounts.clone()
@@ -195,7 +200,7 @@ fn base_testnet_genesis(
 			"parachainId": id
 		},
 		"parachainStaking": {
-			"candidates": stakers.iter().map(|(accunt, _, balance)| (accunt.clone(), *balance)).collect::<Vec<_>>(),
+			"candidates": staking_candidates,
 			"inflationConfig": inflation_config,
 			"delegations": [],
 			"collatorCommission": COLLATOR_COMMISSION,
