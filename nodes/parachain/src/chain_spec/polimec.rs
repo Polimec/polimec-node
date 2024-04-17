@@ -177,8 +177,6 @@ pub fn get_rococo_chain_spec() -> GenericChainSpec {
 	.build()
 }
 
-
-
 fn base_testnet_genesis(
 	stakers: Vec<(AccountId, Option<AccountId>, Balance)>,
 	inflation_config: InflationInfo<Balance>,
