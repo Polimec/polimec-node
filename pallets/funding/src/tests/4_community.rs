@@ -155,11 +155,6 @@ mod round_flow {
 			assert_eq!(inst.get_project_details(project_id).remaining_contribution_tokens, 0);
 		}
 	}
-
-	#[cfg(test)]
-	mod failure {
-		use super::*;
-	}
 }
 
 #[cfg(test)]

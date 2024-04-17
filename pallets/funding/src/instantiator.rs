@@ -1160,8 +1160,9 @@ impl<
 			.expect("Auction Opening end point should exist");
 
 		self.execute(|| frame_system::Pallet::<T>::set_block_number(opening_end));
+
 		// run on_initialize
-		self.advance_time(1u32.into()).unwrap();
+		self.advance_time(2u32.into()).unwrap();
 
 		let closing_end = self
 			.get_project_details(project_id)
