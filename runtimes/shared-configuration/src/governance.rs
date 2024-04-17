@@ -19,12 +19,15 @@ use crate::{
 	Balance,
 };
 use frame_support::{parameter_types, PalletId};
-use parachains_common::{AccountId, BlockNumber};
+use parachains_common::BlockNumber;
 #[cfg(not(any(feature = "fast-mode", feature = "instant-mode")))]
 use parachains_common::{DAYS, HOURS};
 #[cfg(feature = "fast-mode")]
 use parachains_common::{HOURS, MINUTES};
 use sp_arithmetic::Permill;
+
+#[cfg(feature = "runtime-benchmarks")]
+use parachains_common::AccountId;
 
 #[cfg(feature = "instant-mode")]
 pub const LAUNCH_PERIOD: BlockNumber = 2;
