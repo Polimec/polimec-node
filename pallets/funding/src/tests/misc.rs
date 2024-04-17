@@ -553,8 +553,7 @@ mod bug_hunting {
 		let automatic_auction_start = auction_initialize_period_end_block + 1u64;
 		for i in 0..max_insertion_attempts {
 			let key: BlockNumberFor<TestRuntime> = automatic_auction_start + i as u64;
-			let val: (ProjectId, UpdateType)=
-				(69u32, UpdateType::EvaluationEnd);
+			let val: (ProjectId, UpdateType) = (69u32, UpdateType::EvaluationEnd);
 			inst.execute(|| crate::ProjectsToUpdate::<TestRuntime>::insert(key, val));
 		}
 

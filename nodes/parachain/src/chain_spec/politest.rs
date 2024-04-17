@@ -19,7 +19,7 @@
 //! Polimec Testnet chain specification
 
 use cumulus_primitives_core::ParaId;
-use frame_benchmarking::__private::traits::fungible::Inspect;
+use frame_support::traits::fungible::Inspect;
 use politest_runtime::{
 	pallet_parachain_staking::{
 		inflation::{perbill_annual_to_perbill_round, BLOCKS_PER_YEAR},
@@ -202,9 +202,18 @@ fn testnet_genesis(
 	let accounts = endowed_accounts.iter().map(|(account, _)| account.clone()).collect::<Vec<_>>();
 
 	let funding_accounts = vec![
-		(<Runtime as pallet_funding::Config>::PalletId::get().into_account_truncating(), <Runtime as pallet_funding::Config>::NativeCurrency::minimum_balance()),
-		(<Runtime as pallet_funding::Config>::ProtocolGrowthTreasury::get(), <Runtime as pallet_funding::Config>::NativeCurrency::minimum_balance()),
-		(<Runtime as pallet_funding::Config>::ContributionTreasury::get(), <Runtime as pallet_funding::Config>::NativeCurrency::minimum_balance()),
+		(
+			<Runtime as pallet_funding::Config>::PalletId::get().into_account_truncating(),
+			<Runtime as pallet_funding::Config>::NativeCurrency::minimum_balance(),
+		),
+		(
+			<Runtime as pallet_funding::Config>::ProtocolGrowthTreasury::get(),
+			<Runtime as pallet_funding::Config>::NativeCurrency::minimum_balance(),
+		),
+		(
+			<Runtime as pallet_funding::Config>::ContributionTreasury::get(),
+			<Runtime as pallet_funding::Config>::NativeCurrency::minimum_balance(),
+		),
 	];
 	endowed_accounts.append(&mut funding_accounts.clone());
 

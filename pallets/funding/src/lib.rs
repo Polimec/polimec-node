@@ -484,12 +484,7 @@ pub mod pallet {
 
 	#[pallet::storage]
 	/// A map to know in which block to update which active projects using on_initialize.
-	pub type ProjectsToUpdate<T: Config> = StorageMap<
-		_,
-		Blake2_128Concat,
-		BlockNumberFor<T>,
-		(ProjectId, UpdateType),
-	>;
+	pub type ProjectsToUpdate<T: Config> = StorageMap<_, Blake2_128Concat, BlockNumberFor<T>, (ProjectId, UpdateType)>;
 
 	#[pallet::storage]
 	/// Keep track of the PLMC bonds made to each project by each evaluator
