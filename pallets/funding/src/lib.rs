@@ -488,8 +488,7 @@ pub mod pallet {
 		_,
 		Blake2_128Concat,
 		BlockNumberFor<T>,
-		BoundedVec<(ProjectId, UpdateType), T::MaxProjectsToUpdatePerBlock>,
-		ValueQuery,
+		(ProjectId, UpdateType),
 	>;
 
 	#[pallet::storage]
