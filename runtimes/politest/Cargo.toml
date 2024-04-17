@@ -26,6 +26,7 @@ scale-info = { workspace = true, default-features = false, features = [
 sp-debug-derive = { workspace = true, features = ["force-debug"]}
 
 # Polimec specific
+pallet-dispenser.workspace = true
 pallet-funding.workspace = true
 pallet-oracle-ocw.workspace = true
 pallet-linear-release.workspace = true
@@ -142,6 +143,7 @@ std = [
 	"pallet-collective/std",
 	"pallet-democracy/std",
 	"pallet-elections-phragmen/std",
+	"pallet-dispenser/std",
 	"pallet-funding/std",
 	"pallet-identity/std",
 	"pallet-insecure-randomness-collective-flip/std",
@@ -209,6 +211,7 @@ runtime-benchmarks = [
 	"pallet-collective/runtime-benchmarks",
 	"pallet-democracy/runtime-benchmarks",
 	"pallet-elections-phragmen/runtime-benchmarks",
+	"pallet-dispenser/runtime-benchmarks",
 	"pallet-funding/runtime-benchmarks",
 	"pallet-identity/runtime-benchmarks",
 	"pallet-linear-release/runtime-benchmarks",
@@ -258,6 +261,7 @@ try-runtime = [
 	"pallet-collective/try-runtime",
 	"pallet-democracy/try-runtime",
 	"pallet-elections-phragmen/try-runtime",
+	"pallet-dispenser/try-runtime",
 	"pallet-funding/try-runtime",
 	"pallet-identity/try-runtime",
 	"pallet-insecure-randomness-collective-flip/try-runtime",

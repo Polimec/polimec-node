@@ -206,6 +206,11 @@ fn testnet_genesis(
 	];
 	endowed_accounts.append(&mut funding_accounts.clone());
 
+	#[cfg(not(feature = "runtime-benchmarks"))]
+	let staking_candidates = stakers.iter().map(|(accunt, _, balance)| (accunt.clone(), *balance)).collect::<Vec<_>>();
+	#[cfg(feature = "runtime-benchmarks")]
+	let staking_candidates: Vec<(AccountId, Balance)> = vec![];
+
 	serde_json::json!({
 		"balances": { "balances": endowed_accounts.clone() },
 		"foreignAssets":  {
@@ -242,7 +247,7 @@ fn testnet_genesis(
 		},
 		"parachainInfo":  { "parachainId": id },
 		"parachainStaking":  {
-			"candidates": stakers.iter().map(|(accunt, _, balance)| (accunt.clone(), *balance)).collect::<Vec<_>>(),
+			"candidates": staking_candidates,
 			"inflationConfig": inflation_config,
 			"collatorCommission": COLLATOR_COMMISSION,
 			"parachainBondReservePercent": PARACHAIN_BOND_RESERVE_PERCENT,

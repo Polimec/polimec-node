@@ -15,10 +15,16 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use crate::*;
-use frame_support::assert_ok;
+use frame_support::{assert_err, assert_ok, dispatch::GetDispatchInfo, traits::tokens::currency::VestingSchedule};
+use macros::generate_accounts;
 use polimec_common::credentials::InvestorType;
 use polimec_common_test_utils::{get_fake_jwt, get_test_jwt};
-use sp_runtime::{AccountId32, DispatchError};
+use sp_runtime::{
+	generic::Era,
+	traits::SignedExtension,
+	transaction_validity::{InvalidTransaction::Payment, TransactionValidityError},
+	AccountId32, DispatchError,
+};
 use tests::defaults::*;
 
 #[test]
@@ -54,4 +60,66 @@ fn test_jwt_verification() {
 			DispatchError::BadOrigin
 		);
 	});
+}
+
+generate_accounts!(EMPTY_ACCOUNT);
+
+#[test]
+fn dispenser_signed_extensions_pass_for_new_account() {
+	PolitestNet::execute_with(|| {
+		let who = PolitestAccountId::from(EMPTY_ACCOUNT);
+		assert_eq!(PolimecBalances::free_balance(who.clone()), 0);
+
+		let jwt = get_test_jwt(who.clone(), InvestorType::Retail);
+		let free_call = PolitestCall::Dispenser(pallet_dispenser::Call::dispense { jwt: jwt.clone() });
+		let paid_call = PolitestCall::System(frame_system::Call::remark { remark: vec![69, 69] });
+		let extra: politest_runtime::SignedExtra = (
+			frame_system::CheckNonZeroSender::<PolitestRuntime>::new(),
+			frame_system::CheckSpecVersion::<PolitestRuntime>::new(),
+			frame_system::CheckTxVersion::<PolitestRuntime>::new(),
+			frame_system::CheckGenesis::<PolitestRuntime>::new(),
+			frame_system::CheckEra::<PolitestRuntime>::from(Era::mortal(0u64, 0u64)),
+			pallet_dispenser::extensions::CheckNonce::<PolitestRuntime>::from(0u32),
+			frame_system::CheckWeight::<PolitestRuntime>::new(),
+			pallet_transaction_payment::ChargeTransactionPayment::<PolitestRuntime>::from(0u64.into()).into(),
+		);
+		assert_err!(
+			extra.validate(&who, &paid_call, &paid_call.get_dispatch_info(), 0),
+			TransactionValidityError::Invalid(Payment)
+		);
+		assert_err!(
+			extra.clone().pre_dispatch(&who, &paid_call, &paid_call.get_dispatch_info(), 0),
+			TransactionValidityError::Invalid(Payment)
+		);
+
+		assert_ok!(extra.validate(&who, &free_call, &free_call.get_dispatch_info(), 0));
+		assert_ok!(extra.pre_dispatch(&who, &free_call, &free_call.get_dispatch_info(), 0));
+	});
+}
+
+#[test]
+fn dispenser_works_with_runtime_values() {
+	PolitestNet::execute_with(|| {
+		let who = PolitestAccountId::from(EMPTY_ACCOUNT);
+		let jwt = get_test_jwt(who.clone(), InvestorType::Retail);
+		PolitestBalances::force_set_balance(
+			PolitestOrigin::root(),
+			PolitestDispenser::dispense_account().into(),
+			1000 * PLMC,
+		)
+		.unwrap();
+		assert_ok!(PolitestDispenser::dispense(PolitestOrigin::signed(who.clone()), jwt));
+		assert_eq!(PolitestBalances::free_balance(&who), 700 * PLMC);
+		assert_eq!(
+			PolitestBalances::usable_balance(who.clone()),
+			<PolitestRuntime as pallet_dispenser::Config>::FreeDispenseAmount::get()
+		);
+		assert_eq!(
+			PolitestVesting::vesting_balance(&who),
+			Some(
+				<PolitestRuntime as pallet_dispenser::Config>::InitialDispenseAmount::get() -
+					<PolitestRuntime as pallet_dispenser::Config>::FreeDispenseAmount::get()
+			)
+		);
+	})
 }

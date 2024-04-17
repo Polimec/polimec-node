@@ -21,12 +21,12 @@ test-runtime-features:
 test-integration:
     cargo test -p integration-tests
 
-dry-run-benchmarks:
+dry-run-benchmarks pallet="*":
     cargo run --features runtime-benchmarks --release -p polimec-node benchmark pallet \
         --chain=politest-local \
         --steps=2 \
         --repeat=1 \
-        --pallet="*" \
+        --pallet={{ pallet }} \
         --extrinsic=* \
         --wasm-execution=compiled \
         --heap-pages=4096 && \
@@ -34,7 +34,7 @@ dry-run-benchmarks:
         --chain=polimec-local \
         --steps=2 \
         --repeat=1 \
-        --pallet="*" \
+        --pallet={{ pallet }} \
         --extrinsic=* \
         --wasm-execution=compiled \
         --heap-pages=4096
@@ -56,8 +56,8 @@ benchmark-runtime chain="polimec-local" pallet="pallet-elections-phragmen" featu
 # src: https://github.com/paritytech/polkadot-sdk/blob/bc2e5e1fe26e2c2c8ee766ff9fe7be7e212a0c62/substrate/frame/nfts/src/weights.rs
 # Run the Runtime benchmarks for a specific pallet
 # TODO: Adjust the `--chain` flag to match the chain you are benchmarking
-benchmark-pallet chain="polimec-local"  pallet="pallet-elections-phragmen" features="runtime-benchmarks":
-    cargo run --features {{ features }} --profile production -p polimec-node benchmark pallet \
+benchmark-pallet chain="politest-local"  pallet="pallet-dispenser" features="runtime-benchmarks":
+    cargo run --features {{ features }} --release -p polimec-node benchmark pallet \
       --chain={{ chain }} \
       --steps=50 \
       --repeat=20 \

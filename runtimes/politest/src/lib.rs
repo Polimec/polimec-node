@@ -35,7 +35,7 @@ use frame_support::{
 	},
 	weights::{ConstantMultiplier, Weight},
 };
-use frame_system::{EnsureNever, EnsureRoot, EnsureRootWithSuccess, EnsureSigned};
+use frame_system::{EnsureRoot, EnsureRootWithSuccess, EnsureSigned};
 use pallet_democracy::GetElectorate;
 use pallet_funding::DaysToBlocks;
 
@@ -145,9 +145,16 @@ pub type SignedExtra = (
 	frame_system::CheckTxVersion<Runtime>,
 	frame_system::CheckGenesis<Runtime>,
 	frame_system::CheckEra<Runtime>,
-	frame_system::CheckNonce<Runtime>,
+	// TODO: Return to parity CheckNonce implementation once
+	// https://github.com/paritytech/polkadot-sdk/issues/3991 is resolved.
+	pallet_dispenser::extensions::CheckNonce<Runtime>,
 	frame_system::CheckWeight<Runtime>,
-	pallet_transaction_payment::ChargeTransactionPayment<Runtime>,
+	// TODO: Use parity's implementation once
+	// https://github.com/paritytech/polkadot-sdk/pull/3993 is available.
+	pallet_dispenser::extensions::SkipCheckIfFeeless<
+		Runtime,
+		pallet_transaction_payment::ChargeTransactionPayment<Runtime>,
+	>,
 );
 
 /// Unchecked extrinsic type as expected by this runtime.
@@ -161,7 +168,6 @@ pub type Migrations = migrations::Unreleased;
 /// The runtime migrations per release.
 #[allow(missing_docs)]
 pub mod migrations {
-	// use crate::Runtime;
 	/// Unreleased migrations. Add new ones here:
 	pub type Unreleased = ();
 }
@@ -209,7 +215,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("politest"),
 	impl_name: create_runtime_str!("politest"),
 	authoring_version: 1,
-	spec_version: 0_006_003,
+	spec_version: 0_006_005,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 2,
@@ -532,7 +538,7 @@ impl pallet_treasury::Config for Runtime {
 	type AssetKind = ();
 	type BalanceConverter = UnityAssetBalanceConversion;
 	#[cfg(feature = "runtime-benchmarks")]
-	type BenchmarkHelper = ();
+	type BenchmarkHelper = TreasuryBenchmarkHelper;
 	type Beneficiary = AccountId;
 	type BeneficiaryLookup = IdentityLookup<Self::Beneficiary>;
 	type Burn = Burn;
@@ -552,7 +558,7 @@ impl pallet_treasury::Config for Runtime {
 	>;
 	type RuntimeEvent = RuntimeEvent;
 	type SpendFunds = ();
-	type SpendOrigin = frame_support::traits::NeverEnsureOrigin<Balance>;
+	type SpendOrigin = SpendOrigin;
 	type SpendPeriod = SpendPeriod;
 	type WeightInfo = pallet_treasury::weights::SubstrateWeight<Runtime>;
 }
@@ -835,9 +841,15 @@ where
 			frame_system::CheckTxVersion::<Runtime>::new(),
 			frame_system::CheckGenesis::<Runtime>::new(),
 			frame_system::CheckEra::<Runtime>::from(generic::Era::mortal(period, current_block)),
-			frame_system::CheckNonce::<Runtime>::from(nonce),
+			// TODO: Return to parity CheckNonce implementation once
+			// https://github.com/paritytech/polkadot-sdk/issues/3991 is resolved.
+			pallet_dispenser::extensions::CheckNonce::<Runtime>::from(nonce),
 			frame_system::CheckWeight::<Runtime>::new(),
-			pallet_transaction_payment::ChargeTransactionPayment::<Runtime>::from(tip),
+			// TODO: Use parity's implementation once
+			// https://github.com/paritytech/polkadot-sdk/pull/3993 is available.
+			pallet_dispenser::extensions::SkipCheckIfFeeless::from(
+				pallet_transaction_payment::ChargeTransactionPayment::<Runtime>::from(tip),
+			),
 		);
 		let raw_payload = generic::SignedPayload::new(call, extra)
 			.map_err(|e| {
@@ -912,7 +924,7 @@ impl pallet_identity::Config for Runtime {
 	type SigningPublicKey = <Signature as Verify>::Signer;
 	type Slashed = Treasury;
 	type SubAccountDeposit = SubAccountDeposit;
-	type UsernameAuthorityOrigin = EnsureNever<AccountId>;
+	type UsernameAuthorityOrigin = UsernameAuthorityOrigin;
 	type WeightInfo = pallet_identity::weights::SubstrateWeight<Runtime>;
 }
 
@@ -1054,6 +1066,22 @@ impl pallet_linear_release::Config for Runtime {
 
 impl pallet_insecure_randomness_collective_flip::Config for Runtime {}
 
+impl pallet_dispenser::Config for Runtime {
+	// TODO: Change this account to an actual admin account.
+	type AdminOrigin = EnsureRoot<AccountId>;
+	type BlockNumberToBalance = ConvertInto;
+	type FreeDispenseAmount = FreeDispenseAmount;
+	type InitialDispenseAmount = InitialDispenseAmount;
+	type InvestorOrigin = EnsureInvestor<Runtime>;
+	type LockPeriod = DispenserLockPeriod;
+	type PalletId = DispenserId;
+	type RuntimeEvent = RuntimeEvent;
+	type VerifierPublicKey = VerifierPublicKey;
+	type VestPeriod = DispenserVestPeriod;
+	type VestingSchedule = Vesting;
+	type WeightInfo = ();
+}
+
 // Create the runtime by composing the FRAME pallets that were previously configured.
 construct_runtime!(
 	pub enum Runtime
@@ -1075,6 +1103,7 @@ construct_runtime!(
 		Vesting: pallet_vesting = 12,
 		ContributionTokens: pallet_assets::<Instance1> = 13,
 		ForeignAssets: pallet_assets::<Instance2> = 14,
+		Dispenser: pallet_dispenser = 15,
 
 		// Collator support. the order of these 5 are important and shall not change.
 		Authorship: pallet_authorship::{Pallet, Storage} = 20,
@@ -1120,10 +1149,16 @@ mod benches {
 		[pallet_utility, Utility]
 		[pallet_multisig, Multisig]
 		[pallet_proxy, Proxy]
+		[cumulus_pallet_parachain_system, ParachainSystem]
+		[pallet_identity, Identity]
+		[pallet_sudo, Sudo]
 
 		// Monetary stuff.
 		[pallet_balances, Balances]
 		[pallet_vesting, Vesting]
+		[pallet_assets, ForeignAssets]
+		[pallet_assets, ContributionTokens]
+		[pallet_dispenser, Dispenser]
 
 		// Collator support.
 		[pallet_session, SessionBench::<Runtime>]
@@ -1132,6 +1167,8 @@ mod benches {
 		// XCM helpers.
 		[cumulus_pallet_xcmp_queue, XcmpQueue]
 		[pallet_xcm, PalletXcmExtrinsiscsBenchmark::<Runtime>]
+		[cumulus_pallet_dmp_queue, DmpQueue]
+		[pallet_message_queue, MessageQueue]
 
 		// Governance
 		[pallet_treasury, Treasury]
@@ -1144,7 +1181,8 @@ mod benches {
 
 		// Oracle
 		[pallet_membership, OracleProvidersMembership]
-		//[orml_oracle, Oracle]
+		// [orml_oracle, Oracle]
+
 		// Funding
 		[pallet_funding, Funding]
 		[pallet_linear_release, LinearRelease]

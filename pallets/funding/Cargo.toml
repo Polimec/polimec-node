@@ -91,6 +91,7 @@ std = [
 	"xcm-builder/std",
 	"xcm-executor/std",
 	"xcm/std",
+	"futures?/std"
 ]
 runtime-benchmarks = [
 	"frame-benchmarking/runtime-benchmarks",

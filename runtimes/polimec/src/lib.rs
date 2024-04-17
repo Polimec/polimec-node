@@ -32,7 +32,7 @@ use frame_support::{
 	},
 	weights::{ConstantMultiplier, Weight},
 };
-use frame_system::{EnsureNever, EnsureRoot, EnsureRootWithSuccess, EnsureSigned};
+use frame_system::{EnsureRoot, EnsureRootWithSuccess, EnsureSigned};
 use pallet_democracy::GetElectorate;
 
 use parachains_common::{
@@ -512,7 +512,7 @@ impl pallet_treasury::Config for Runtime {
 	type AssetKind = ();
 	type BalanceConverter = UnityAssetBalanceConversion;
 	#[cfg(feature = "runtime-benchmarks")]
-	type BenchmarkHelper = ();
+	type BenchmarkHelper = TreasuryBenchmarkHelper;
 	type Beneficiary = AccountId;
 	type BeneficiaryLookup = IdentityLookup<Self::Beneficiary>;
 	type Burn = Burn;
@@ -532,7 +532,7 @@ impl pallet_treasury::Config for Runtime {
 	>;
 	type RuntimeEvent = RuntimeEvent;
 	type SpendFunds = ();
-	type SpendOrigin = frame_support::traits::NeverEnsureOrigin<Balance>;
+	type SpendOrigin = SpendOrigin;
 	type SpendPeriod = SpendPeriod;
 	type WeightInfo = pallet_treasury::weights::SubstrateWeight<Runtime>;
 }
@@ -892,7 +892,7 @@ impl pallet_identity::Config for Runtime {
 	type SigningPublicKey = <Signature as Verify>::Signer;
 	type Slashed = Treasury;
 	type SubAccountDeposit = SubAccountDeposit;
-	type UsernameAuthorityOrigin = EnsureNever<AccountId>;
+	type UsernameAuthorityOrigin = UsernameAuthorityOrigin;
 	type WeightInfo = pallet_identity::weights::SubstrateWeight<Runtime>;
 }
 
@@ -957,10 +957,13 @@ mod benches {
 		[pallet_utility, Utility]
 		[pallet_multisig, Multisig]
 		[pallet_proxy, Proxy]
+		[cumulus_pallet_parachain_system, ParachainSystem]
+		[pallet_identity, Identity]
 
 		// Monetary stuff.
 		[pallet_balances, Balances]
 		[pallet_vesting, Vesting]
+		[pallet_assets, ForeignAssets]
 
 		// Collator support.
 		[pallet_session, SessionBench::<Runtime>]
@@ -969,6 +972,8 @@ mod benches {
 		// XCM helpers.
 		[cumulus_pallet_xcmp_queue, XcmpQueue]
 		[pallet_xcm, PalletXcmExtrinsiscsBenchmark::<Runtime>]
+		[cumulus_pallet_dmp_queue, DmpQueue]
+		[pallet_message_queue, MessageQueue]
 
 		// Governance
 		[pallet_treasury, Treasury]
@@ -981,7 +986,7 @@ mod benches {
 
 		// Oracle
 		[pallet_membership, OracleProvidersMembership]
-		//[orml_oracle, Oracle]
+		// [orml_oracle, Oracle]
 	);
 }
 

@@ -374,10 +374,10 @@ impl ConvertBack<AccountId, [u8; 32]> for DummyConverter {
 }
 thread_local! {
 	pub static PRICE_MAP: RefCell<BTreeMap<AssetId, FixedU128>> = RefCell::new(BTreeMap::from_iter(vec![
-		(0u32, FixedU128::from_float(69f64)), // DOT
-		(1337u32, FixedU128::from_float(0.97f64)), // USDC
-		(1984u32, FixedU128::from_float(1.0f64)), // USDT
-		(3344u32, FixedU128::from_float(8.4f64)), // PLMC
+		(AcceptedFundingAsset::DOT.to_assethub_id(), FixedU128::from_float(69f64)), // DOT
+		(AcceptedFundingAsset::USDC.to_assethub_id(), FixedU128::from_float(0.97f64)), // USDC
+		(AcceptedFundingAsset::USDT.to_assethub_id(), FixedU128::from_float(1.0f64)), // USDT
+		(PLMC_FOREIGN_ID, FixedU128::from_float(8.4f64)), // PLMC
 	]));
 }
 pub struct ConstPriceProvider;
