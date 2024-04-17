@@ -261,7 +261,7 @@ impl<
 		for UserToPLMCBalance { account, plmc_amount } in correct_funds {
 			self.execute(|| {
 				let free = <T as Config>::NativeCurrency::balance(&account);
-				assert_eq!(free, plmc_amount, "account {account} has unexpected free plmc balance");
+				assert_eq!(free, plmc_amount, "account has unexpected free plmc balance");
 			});
 		}
 	}

@@ -1605,6 +1605,10 @@ mod benchmarks {
 		let evaluation_to_settle =
 			inst.execute(|| Evaluations::<T>::iter_prefix_values((project_id, evaluator.clone())).next().unwrap());
 
+		let treasury_account = T::ProtocolGrowthTreasury::get();
+		let free_treasury_plmc = inst.get_free_plmc_balances_for(vec![treasury_account])[0].plmc_amount;
+		assert_eq!(free_treasury_plmc, BenchInstantiator::<T>::get_ed());
+
 		#[extrinsic_call]
 		settle_failed_evaluation(
 			RawOrigin::Signed(evaluator.clone()),
