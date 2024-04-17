@@ -566,13 +566,7 @@ pub mod pallet {
 	}
 
 	#[pallet::storage]
-	pub type ActiveMigrationQueue<T: Config> = StorageMap<
-		_,
-		Blake2_128Concat,
-		QueryId,
-		(ProjectId, T::AccountId),
-		ResultQuery<Error<T>::NoActiveMigrationsFound>,
-	>;
+	pub type ActiveMigrationQueue<T: Config> = StorageMap<_, Blake2_128Concat, QueryId, (ProjectId, T::AccountId)>;
 
 	/// A map to keep track of what issuer's did has an active project. It prevents one issuer having multiple active projects
 	#[pallet::storage]
@@ -706,113 +700,31 @@ pub mod pallet {
 
 	#[pallet::error]
 	pub enum Error<T> {
-		/// Something in storage has a state which should never be possible at this point. Programming error
+		/// Something in storage has a state which should never be possible at this point. Programming error.
 		ImpossibleState,
-		/// The specified project does not exist
-		ProjectNotFound,
-		/// The Evaluation Round of the project has not started yet
-		EvaluationNotStarted,
-		/// The issuer cannot participate to their own project
-		ParticipationToThemselves,
-		/// Only the issuer can start the Evaluation Round
+		/// Action is not allowed.
 		NotAllowed,
-		/// The Metadata Hash of the project was not found
-		MetadataNotProvided,
-		/// The Auction Round of the project has not started yet
-		AuctionNotStarted,
-		/// You cannot edit the metadata of a project that already passed the Evaluation Round
-		Frozen,
-		/// The bid is too low
-		BidTooLow,
-		/// Bid above the ticket size limit
-		BidTooHigh,
-		/// The Funding Round of the project has not ended yet
-		CannotClaimYet,
-		/// Tried to freeze the project to start the Evaluation Round, but the project is already frozen
-		ProjectAlreadyFrozen,
-		/// Tried to move the project from Application to Evaluation round, but the project is not in ApplicationRound
-		ProjectNotInApplicationRound,
-		/// Tried to move the project from Evaluation to EvaluationEnded round, but the project is not in EvaluationRound
-		ProjectNotInEvaluationRound,
-		/// Tried to move the project from AuctionInitializePeriod to AuctionOpeningRound, but the project is not in AuctionInitializePeriodRound
-		ProjectNotInAuctionInitializePeriodRound,
-		/// Tried to move the project to AuctionClosing, but it was not in AuctionOpeningRound before
-		ProjectNotInAuctionOpeningRound,
-		/// Tried to move the project to Community round, but it was not in AuctionClosingRound before
-		ProjectNotInAuctionClosingRound,
-		/// Tried to move the project to RemainderRound, but it was not in CommunityRound before
-		ProjectNotInCommunityRound,
-		/// Tried to move the project to ReadyToLaunch round, but it was not in FundingEnded round before
-		ProjectNotInFundingEndedRound,
-		/// Tried to start an auction before the initialization period
-		TooEarlyForAuctionOpeningStart,
-		/// Tried to move the project to AuctionClosingRound, but its too early for that
-		TooEarlyForAuctionClosingStart,
-		/// Tried to move the project to CommunityRound, but its too early for that
-		TooEarlyForCommunityRoundStart,
-		/// Tried to move the project to RemainderRound, but its too early for that
-		TooEarlyForRemainderRoundStart,
-		/// Tried to move to project to FundingEnded round, but its too early for that
-		TooEarlyForFundingEnd,
-		/// Checks for other projects not copying metadata of others
-		MetadataAlreadyExists,
-		/// The specified project details does not exist
-		ProjectDetailsNotFound,
-		/// Tried to finish an evaluation before its target end block
-		EvaluationPeriodNotEnded,
-		/// Tried to access field that is not set
-		FieldIsNone,
-		/// Checked math failed
+		/// Checked math failed.
 		BadMath,
-		/// Tried to retrieve a evaluation, bid or contribution but it does not exist
-		ParticipationNotFound,
-		/// Tried to contribute but its too low to be accepted
-		ContributionTooLow,
-		/// Contribution is higher than the limit set by the issuer
-		ContributionTooHigh,
-		/// The provided asset is not accepted by the project issuer
-		FundingAssetNotAccepted,
-		/// Could not get the price in USD for PLMC
-		PLMCPriceNotAvailable,
-		/// Could not get the price in USD for the provided asset
+		/// Could not get the price in USD for an asset/PLMC.
 		PriceNotFound,
-		/// Bond is either lower than the minimum set by the issuer, or the vec is full and can't replace an old one with a lower value
-		EvaluationBondTooLow,
-		/// Tried to do an operation on a finalizer that already finished
-		FinalizerFinished,
-		/// Tried to start a migration check but the bidirectional channel is not yet open
-		CommsNotEstablished,
-		XcmFailed,
-		// Tried to convert one type into another and failed. i.e try_into failed
-		BadConversion,
-		/// The issuer doesn't have enough funds (ExistentialDeposit), to create the escrow account
-		NotEnoughFundsForEscrowCreation,
-		/// Too many attempts to insert project in to ProjectsToUpdate storage
-		TooManyInsertionAttempts,
-		/// Reached bid limit for this user on this project
-		TooManyBidsForUser,
-		/// Reached bid limit for this project
-		TooManyBidsForProject,
-		/// Reached evaluation limit for this project
-		TooManyEvaluationsForProject,
-		/// Reached contribution limit for this user on this project
-		TooManyContributionsForUser,
-		/// Reached the migration queue limit for a user.
-		TooManyMigrations,
-		/// User has no migrations to execute.
-		NoMigrationsFound,
-		/// User has no active migrations in the queue.
-		NoActiveMigrationsFound,
-		// Participant tried to do a community contribution but it already had a winning bid on the auction round.
-		UserHasWinningBids,
-		// Round transition already happened.
-		RoundTransitionAlreadyHappened,
-		// User tried to use a multiplier not allowed
-		ForbiddenMultiplier,
-		/// The issuer tried to create a new project but already has an active one
-		IssuerHasActiveProjectAlready,
-		NotEnoughFunds,
+		/// Tried to retrieve a evaluation, bid or contribution but it does not exist.
+		ParticipationNotFound,
+		/// The user has the incorrect investor type for the action.
+		WrongInvestorType,
+		/// Project Error. Project information not found, or project has an incorrect state.
+		ProjectError(ProjectErrorReason),
+		/// A round related error. The project did not have the correct state to execute the action.
+		ProjectRoundError(RoundError),
+		/// Issuer related error. E.g. the action was not executed by the issuer, or the issuer
+		/// did not have the correct state to execute an action.
+		IssuerError(IssuerErrorReason),
+		/// The project's metadata is incorrect.
 		BadMetadata(MetadataError),
+		/// Error related to an participation action. Evaluation, bid or contribution failed.
+		ParticipationFailed(ParticipationError),
+		/// A error related to the migration process.
+		MigrationFailed(MigrationError),
 	}
 
 	#[pallet::call]
@@ -827,7 +739,7 @@ pub mod pallet {
 		) -> DispatchResult {
 			let (account, did, investor_type) =
 				T::InvestorOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get())?;
-			ensure!(investor_type == InvestorType::Institutional, Error::<T>::NotAllowed);
+			ensure!(investor_type == InvestorType::Institutional, Error::<T>::WrongInvestorType);
 			Self::do_create_project(&account, project, did)
 		}
 
@@ -836,7 +748,7 @@ pub mod pallet {
 		pub fn remove_project(origin: OriginFor<T>, jwt: UntrustedToken, project_id: ProjectId) -> DispatchResult {
 			let (account, did, investor_type) =
 				T::InvestorOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get())?;
-			ensure!(investor_type == InvestorType::Institutional, Error::<T>::NotAllowed);
+			ensure!(investor_type == InvestorType::Institutional, Error::<T>::WrongInvestorType);
 			Self::do_remove_project(account, project_id, did)
 		}
 
@@ -851,7 +763,7 @@ pub mod pallet {
 		) -> DispatchResult {
 			let (account, _did, investor_type) =
 				T::InvestorOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get())?;
-			ensure!(investor_type == InvestorType::Institutional, Error::<T>::NotAllowed);
+			ensure!(investor_type == InvestorType::Institutional, Error::<T>::WrongInvestorType);
 			Self::do_edit_project(account, project_id, new_project_metadata)
 		}
 
@@ -865,7 +777,7 @@ pub mod pallet {
 		) -> DispatchResultWithPostInfo {
 			let (account, _did, investor_type) =
 				T::InvestorOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get())?;
-			ensure!(investor_type == InvestorType::Institutional, Error::<T>::NotAllowed);
+			ensure!(investor_type == InvestorType::Institutional, Error::<T>::WrongInvestorType);
 			Self::do_start_evaluation(account, project_id)
 		}
 
@@ -881,7 +793,7 @@ pub mod pallet {
 		) -> DispatchResultWithPostInfo {
 			let (account, _did, investor_type) =
 				T::InvestorOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get())?;
-			ensure!(investor_type == InvestorType::Institutional, Error::<T>::NotAllowed);
+			ensure!(investor_type == InvestorType::Institutional, Error::<T>::WrongInvestorType);
 			Self::do_auction_opening(account, project_id)
 		}
 
@@ -985,7 +897,7 @@ pub mod pallet {
 		) -> DispatchResultWithPostInfo {
 			let (account, _did, investor_type) =
 				T::InvestorOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get())?;
-			ensure!(investor_type == InvestorType::Institutional, Error::<T>::NotAllowed);
+			ensure!(investor_type == InvestorType::Institutional, Error::<T>::WrongInvestorType);
 
 			Self::do_decide_project_outcome(account, project_id, outcome)
 		}
@@ -1082,7 +994,7 @@ pub mod pallet {
 		) -> DispatchResult {
 			let (account, _did, investor_type) =
 				T::InvestorOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get())?;
-			ensure!(investor_type == InvestorType::Institutional, Error::<T>::NotAllowed);
+			ensure!(investor_type == InvestorType::Institutional, Error::<T>::WrongInvestorType);
 
 			Self::do_set_para_id_for_project(&account, project_id, para_id)
 		}
@@ -1096,7 +1008,7 @@ pub mod pallet {
 		) -> DispatchResult {
 			let (account, _did, investor_type) =
 				T::InvestorOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get())?;
-			ensure!(investor_type == InvestorType::Institutional, Error::<T>::NotAllowed);
+			ensure!(investor_type == InvestorType::Institutional, Error::<T>::WrongInvestorType);
 			Self::do_start_migration_readiness_check(&account, project_id)
 		}
 
