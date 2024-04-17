@@ -161,15 +161,7 @@ fn sandbox() {
 			max_insertion_attempts - 1,
 		));
 
-	let experiment = pallet_funding::WeightInfoOf::<PolitestRuntime>::contribution_ends_round(
-		// Last contribution possible before having to remove an old lower one
-		max_contributions_per_user - 1,
-		// Since we didn't remove any previous lower contribution, we can buy all remaining CTs and try to move to the next phase
-		max_insertion_attempts - 1,
-	);
-
-	dbg!(&y.per_class);
-
-	dbg!(x);
+	dbg!(&block_weights.per_class);
+	dbg!(weight_charged);
 	//
 }
