@@ -210,7 +210,7 @@ impl<
 		for UserToPLMCBalance { account, plmc_amount } in correct_funds {
 			self.execute(|| {
 				let reserved = <T as Config>::NativeCurrency::balance_on_hold(&reserve_type, &account);
-				assert_eq!(reserved, plmc_amount, "account has unexpected reserved plmc balance");
+				assert_eq!(reserved, plmc_amount);
 			});
 		}
 	}
@@ -1086,7 +1086,7 @@ impl<
 			let evaluation_end = project_details.phase_transition_points.evaluation.end().unwrap();
 			let auction_start = evaluation_end.saturating_add(2u32.into());
 			let blocks_to_start = auction_start.saturating_sub(self.current_block());
-			self.advance_time(blocks_to_start).unwrap();
+			self.advance_time(blocks_to_start + 1u32.into()).unwrap();
 		};
 
 		assert_eq!(self.get_project_details(project_id).status, ProjectStatus::AuctionInitializePeriod);
@@ -1161,8 +1161,9 @@ impl<
 			.expect("Auction Opening end point should exist");
 
 		self.execute(|| frame_system::Pallet::<T>::set_block_number(opening_end));
+
 		// run on_initialize
-		self.advance_time(1u32.into()).unwrap();
+		self.advance_time(2u32.into()).unwrap();
 
 		let closing_end = self
 			.get_project_details(project_id)

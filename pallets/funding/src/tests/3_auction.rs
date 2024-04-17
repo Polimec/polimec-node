@@ -115,6 +115,9 @@ mod round_flow {
 
 			let desired_price = PriceOf::<TestRuntime>::from_float(11.1818f64).saturating_mul_int(ASSET_UNIT);
 
+			let stored_bids = inst.execute(|| Bids::<TestRuntime>::iter_prefix_values((project_id,)).collect_vec());
+			dbg!(&stored_bids);
+
 			assert_close_enough!(token_price, desired_price, Perquintill::from_float(0.99));
 		}
 
@@ -527,7 +530,7 @@ mod round_flow {
 						did,
 						investor_type
 					),
-					Error::<TestRuntime>::AuctionNotStarted
+					Error::<TestRuntime>::ProjectNotInCommunityRound
 				);
 			});
 		}
@@ -1052,7 +1055,7 @@ mod bid_extrinsic {
 
 			inst.mint_foreign_asset_to(necessary_usdt_for_bid);
 
-			assert_err!(inst.bid_for_users(project_id, vec![evaluator_bid]), TokenError::FundsUnavailable);
+			assert_err!(inst.bid_for_users(project_id, vec![evaluator_bid]), Error::<TestRuntime>::NotEnoughFunds);
 		}
 
 		#[test]

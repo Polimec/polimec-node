@@ -528,6 +528,7 @@ impl tokens::imbalance::OnUnbalanced<CreditOf<Runtime>> for ToTreasury {
 
 parameter_types! {
 	pub TreasuryAccount: AccountId = Treasury::account_id();
+	pub ContributionTreasuryAccount: AccountId = hex_literal::hex!["ba143e2096e073cb9cddc78e6f4969d8a02160d716a69e08214caf5339d88c42"].into();
 }
 
 impl pallet_treasury::Config for Runtime {
@@ -972,6 +973,8 @@ parameter_types! {
 		32, 118, 30, 171, 58, 212, 197, 27, 146, 122, 255, 243, 34, 245, 90, 244, 221, 37, 253,
 		195, 18, 202, 111, 55, 39, 48, 123, 17, 101, 78, 215, 94,
 	];
+	pub MinUsdPerEvaluation: Balance = 100 * US_DOLLAR;
+
 }
 pub struct ConvertSelf;
 impl Convert<AccountId, [u8; 32]> for ConvertSelf {
@@ -998,7 +1001,7 @@ impl pallet_funding::Config for Runtime {
 	type BlockNumberToBalance = ConvertInto;
 	type CommunityFundingDuration = CommunityFundingDuration;
 	type ContributionTokenCurrency = ContributionTokens;
-	type ContributionTreasury = TreasuryAccount;
+	type ContributionTreasury = ContributionTreasuryAccount;
 	type DaysToBlocks = DaysToBlocks;
 	type EvaluationDuration = EvaluationDuration;
 	type EvaluationSuccessThreshold = EarlyEvaluationThreshold;
@@ -1016,6 +1019,7 @@ impl pallet_funding::Config for Runtime {
 	type MaxMessageSizeThresholds = MaxMessageSizeThresholds;
 	type MaxProjectsToUpdateInsertionAttempts = ConstU32<100>;
 	type MaxProjectsToUpdatePerBlock = ConstU32<1>;
+	type MinUsdPerEvaluation = MinUsdPerEvaluation;
 	type Multiplier = pallet_funding::types::Multiplier;
 	type NativeCurrency = Balances;
 	type PalletId = FundingPalletId;
