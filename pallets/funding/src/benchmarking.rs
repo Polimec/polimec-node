@@ -339,9 +339,7 @@ pub fn fill_projects_to_update<T: Config>(
 ) {
 	// fill the `ProjectsToUpdate` vectors from @ expected_insertion_block to @ expected_insertion_block+x, to benchmark all the failed insertion attempts
 	for _ in 0..fully_filled_vecs_from_insertion {
-		while ProjectsToUpdate::<T>::try_append(expected_insertion_block, (&69u32, UpdateType::EvaluationEnd)).is_ok() {
-			continue;
-		}
+		ProjectsToUpdate::<T>::insert(expected_insertion_block, (&69u32, UpdateType::EvaluationEnd));
 		expected_insertion_block += 1u32.into();
 	}
 }
@@ -572,12 +570,7 @@ mod benchmarks {
 		// start_evaluation fn will try to add an automatic transition 1 block after the last evaluation block
 		let mut block_number: BlockNumberFor<T> = inst.current_block() + T::EvaluationDuration::get() + One::one();
 		// fill the `ProjectsToUpdate` vectors from @ block_number to @ block_number+x, to benchmark all the failed insertion attempts
-		for _ in 0..x {
-			while ProjectsToUpdate::<T>::try_append(block_number, (&69u32, UpdateType::EvaluationEnd)).is_ok() {
-				continue;
-			}
-			block_number += 1u32.into();
-		}
+		fill_projects_to_update::<T>(x, block_number);
 		let jwt = get_mock_jwt(issuer.clone(), InvestorType::Institutional, generate_did_from_account(issuer.clone()));
 		#[extrinsic_call]
 		start_evaluation(RawOrigin::Signed(issuer), jwt, project_id);

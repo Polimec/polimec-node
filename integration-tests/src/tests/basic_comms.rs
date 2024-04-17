@@ -145,3 +145,31 @@ fn xcmp() {
 		);
 	});
 }
+
+#[test]
+fn sandbox() {
+	use pallet_funding::WeightInfo;
+	let max_contributions_per_user: u32 = <PolitestRuntime as pallet_funding::Config>::MaxContributionsPerUser::get();
+	let max_insertion_attempts: u32 = <PolitestRuntime as pallet_funding::Config>::MaxProjectsToUpdateInsertionAttempts::get();
+	let block_weights = <PolitestRuntime as frame_system::Config>::BlockWeights::get();
+
+	let weight_charged = pallet_funding::WeightInfoOf::<PolitestRuntime>::contribution( max_contributions_per_user - 1)
+		.max(pallet_funding::WeightInfoOf::<PolitestRuntime>::contribution_ends_round(
+			// Last contribution possible before having to remove an old lower one
+			max_contributions_per_user - 1,
+			// Since we didn't remove any previous lower contribution, we can buy all remaining CTs and try to move to the next phase
+			max_insertion_attempts - 1,
+		));
+
+	let experiment = pallet_funding::WeightInfoOf::<PolitestRuntime>::contribution_ends_round(
+		// Last contribution possible before having to remove an old lower one
+		max_contributions_per_user - 1,
+		// Since we didn't remove any previous lower contribution, we can buy all remaining CTs and try to move to the next phase
+		max_insertion_attempts - 1,
+	);
+
+	dbg!(&y.per_class);
+
+	dbg!(x);
+	//
+}

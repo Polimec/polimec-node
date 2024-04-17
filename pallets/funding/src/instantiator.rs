@@ -1011,11 +1011,12 @@ impl<
 
 	pub fn get_update_block(&mut self, project_id: ProjectId, update_type: &UpdateType) -> Option<BlockNumberFor<T>> {
 		self.execute(|| {
-			ProjectsToUpdate::<T>::iter().find_map(|(block, update_vec)| {
-				update_vec
-					.iter()
-					.find(|(pid, update)| *pid == project_id && update == update_type)
-					.map(|(_pid, _update)| block)
+			ProjectsToUpdate::<T>::iter().find_map(|(block, update_tup)| {
+				if project_id == update_tup.0 && update_type == &update_tup.1 {
+					Some(block)
+				} else {
+					None
+				}
 			})
 		})
 	}

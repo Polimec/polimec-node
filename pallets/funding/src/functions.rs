@@ -1885,9 +1885,10 @@ impl<T: Config> Pallet<T> {
 		// There is a limit for how many projects can update each block, so we need to make sure we don't exceed that limit
 		let mut block_number = block_number;
 		for i in 1..T::MaxProjectsToUpdateInsertionAttempts::get() + 1 {
-			if ProjectsToUpdate::<T>::try_append(block_number, store.clone()).is_err() {
+			if ProjectsToUpdate::<T>::get(block_number).is_some() {
 				block_number += 1u32.into();
 			} else {
+				ProjectsToUpdate::<T>::insert(block_number, store);
 				return Ok(i);
 			}
 		}
