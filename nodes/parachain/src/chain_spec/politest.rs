@@ -26,7 +26,7 @@ use politest_runtime::{
 		InflationInfo, Range,
 	},
 	AccountId, AuraId as AuthorityId, Balance, MinCandidateStk, OracleProvidersMembershipConfig, Runtime,
-	RuntimeGenesisConfig, EXISTENTIAL_DEPOSIT, PLMC,
+	RuntimeGenesisConfig, PLMC,
 };
 use sc_service::ChainType;
 use sp_core::{crypto::UncheckedInto, sr25519};

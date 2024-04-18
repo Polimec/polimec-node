@@ -1243,7 +1243,7 @@ pub mod pallet {
 		fn on_initialize(now: BlockNumberFor<T>) -> Weight {
 			// Get the projects that need to be updated on this block and update them
 			let mut used_weight = Weight::from_parts(0, 0);
-			for (project_id, update_type) in ProjectsToUpdate::<T>::take(now) {
+			if let Some((project_id, update_type)) = ProjectsToUpdate::<T>::take(now) {
 				match update_type {
 					// EvaluationRound -> AuctionInitializePeriod | ProjectFailed
 					UpdateType::EvaluationEnd => {
