@@ -7,8 +7,7 @@ mod round_flow {
 	#[cfg(test)]
 	mod success {
 		use super::*;
-		use sp_arithmetic::PerThing;
-		use sp_core::{bounded_vec, ConstU32};
+		use sp_core::bounded_vec;
 		use std::ops::Not;
 
 		#[test]
@@ -327,7 +326,6 @@ mod round_flow {
 			.unwrap();
 
 			inst.bid_for_users(project_id, vec![after_random_end_bid]).unwrap();
-			let stored_bids = inst.execute(|| Bids::<TestRuntime>::iter_prefix_values((project_id,)).collect_vec());
 			inst.do_free_plmc_assertions(vec![
 				UserToPLMCBalance::new(BIDDER_1, MockInstantiator::get_ed()),
 				UserToPLMCBalance::new(BIDDER_2, MockInstantiator::get_ed()),
@@ -357,7 +355,6 @@ mod round_flow {
 				vec![plmc_returned.clone(), plmc_existential_amounts, vec![rejected_bid_necessary_plmc.clone()]],
 				MergeOperation::Add,
 			);
-			let stored_bids = inst.execute(|| Bids::<TestRuntime>::iter_prefix_values((project_id,)).collect_vec());
 			inst.do_free_plmc_assertions(expected_free);
 			let expected_reserved = MockInstantiator::generic_map_operation(
 				vec![necessary_plmc.clone(), plmc_returned.clone(), vec![rejected_bid_necessary_plmc.clone()]],
@@ -527,7 +524,7 @@ mod round_flow {
 						did,
 						investor_type
 					),
-					Error::<TestRuntime>::AuctionNotStarted
+					Error::<TestRuntime>::ProjectRoundError(RoundError::IncorrectRound)
 				);
 			});
 		}
@@ -593,7 +590,7 @@ mod start_auction_extrinsic {
 			for account in 6000..6010 {
 				inst.execute(|| {
 					let response = Pallet::<TestRuntime>::do_auction_opening(account, project_id);
-					assert_noop!(response, Error::<TestRuntime>::NotAllowed);
+					assert_noop!(response, Error::<TestRuntime>::IssuerError(IssuerErrorReason::NotIssuer));
 				});
 			}
 		}
@@ -610,7 +607,7 @@ mod start_auction_extrinsic {
 			inst.execute(|| {
 				assert_noop!(
 					PolimecFunding::do_auction_opening(ISSUER_1, project_id),
-					Error::<TestRuntime>::EvaluationPeriodNotEnded
+					Error::<TestRuntime>::ProjectRoundError(RoundError::TransitionPointNotSet)
 				);
 			});
 		}
@@ -623,7 +620,7 @@ mod start_auction_extrinsic {
 			inst.execute(|| {
 				assert_noop!(
 					PolimecFunding::do_auction_opening(ISSUER_1, project_id),
-					Error::<TestRuntime>::EvaluationPeriodNotEnded
+					Error::<TestRuntime>::ProjectRoundError(RoundError::TransitionPointNotSet)
 				);
 			});
 			assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::FundingFailed);
@@ -662,7 +659,6 @@ mod bid_extrinsic {
 	mod success {
 		use super::*;
 		use frame_support::dispatch::DispatchResultWithPostInfo;
-		use polimec_common::credentials::Empty;
 
 		#[test]
 		fn evaluation_bond_counts_towards_bid() {
@@ -821,30 +817,30 @@ mod bid_extrinsic {
 			assert_ok!(inst.bid_for_users(project_id_usdt, vec![usdt_bid.clone()]));
 			assert_err!(
 				inst.bid_for_users(project_id_usdt, vec![usdc_bid.clone()]),
-				Error::<TestRuntime>::FundingAssetNotAccepted
+				Error::<TestRuntime>::ParticipationFailed(ParticipationError::FundingAssetNotAccepted)
 			);
 			assert_err!(
 				inst.bid_for_users(project_id_usdt, vec![dot_bid.clone()]),
-				Error::<TestRuntime>::FundingAssetNotAccepted
+				Error::<TestRuntime>::ParticipationFailed(ParticipationError::FundingAssetNotAccepted)
 			);
 
 			assert_err!(
 				inst.bid_for_users(project_id_usdc, vec![usdt_bid.clone()]),
-				Error::<TestRuntime>::FundingAssetNotAccepted
+				Error::<TestRuntime>::ParticipationFailed(ParticipationError::FundingAssetNotAccepted)
 			);
 			assert_ok!(inst.bid_for_users(project_id_usdc, vec![usdc_bid.clone()]));
 			assert_err!(
 				inst.bid_for_users(project_id_usdc, vec![dot_bid.clone()]),
-				Error::<TestRuntime>::FundingAssetNotAccepted
+				Error::<TestRuntime>::ParticipationFailed(ParticipationError::FundingAssetNotAccepted)
 			);
 
 			assert_err!(
 				inst.bid_for_users(project_id_dot, vec![usdt_bid.clone()]),
-				Error::<TestRuntime>::FundingAssetNotAccepted
+				Error::<TestRuntime>::ParticipationFailed(ParticipationError::FundingAssetNotAccepted)
 			);
 			assert_err!(
 				inst.bid_for_users(project_id_dot, vec![usdc_bid.clone()]),
-				Error::<TestRuntime>::FundingAssetNotAccepted
+				Error::<TestRuntime>::ParticipationFailed(ParticipationError::FundingAssetNotAccepted)
 			);
 			assert_ok!(inst.bid_for_users(project_id_dot, vec![dot_bid.clone()]));
 		}
@@ -907,7 +903,7 @@ mod bid_extrinsic {
 			// Professional bids: 0x multiplier should fail
 			assert_err!(
 				test_bid_setup(&mut inst, project_id, BIDDER_1, InvestorType::Professional, 0),
-				Error::<TestRuntime>::ForbiddenMultiplier
+				Error::<TestRuntime>::ParticipationFailed(ParticipationError::ForbiddenMultiplier)
 			);
 			// Professional bids: 1 - 10x multiplier should work
 			for multiplier in 1..=10u8 {
@@ -917,14 +913,14 @@ mod bid_extrinsic {
 			for multiplier in 11..=50u8 {
 				assert_err!(
 					test_bid_setup(&mut inst, project_id, BIDDER_1, InvestorType::Professional, multiplier),
-					Error::<TestRuntime>::ForbiddenMultiplier
+					Error::<TestRuntime>::ParticipationFailed(ParticipationError::ForbiddenMultiplier)
 				);
 			}
 
 			// Institutional bids: 0x multiplier should fail
 			assert_err!(
 				test_bid_setup(&mut inst, project_id, BIDDER_2, InvestorType::Institutional, 0),
-				Error::<TestRuntime>::ForbiddenMultiplier
+				Error::<TestRuntime>::ParticipationFailed(ParticipationError::ForbiddenMultiplier)
 			);
 			// Institutional bids: 1 - 25x multiplier should work
 			for multiplier in 1..=25u8 {
@@ -934,7 +930,7 @@ mod bid_extrinsic {
 			for multiplier in 26..=50u8 {
 				assert_err!(
 					test_bid_setup(&mut inst, project_id, BIDDER_2, InvestorType::Institutional, multiplier),
-					Error::<TestRuntime>::ForbiddenMultiplier
+					Error::<TestRuntime>::ParticipationFailed(ParticipationError::ForbiddenMultiplier)
 				);
 			}
 		}
@@ -1072,7 +1068,7 @@ mod bid_extrinsic {
 						did,
 						investor_type
 					),
-					Error::<TestRuntime>::AuctionNotStarted
+					Error::<TestRuntime>::ProjectRoundError(RoundError::IncorrectRound)
 				);
 			});
 		}
@@ -1152,7 +1148,7 @@ mod bid_extrinsic {
 						failing_bid.multiplier,
 						failing_bid.asset
 					),
-					Error::<TestRuntime>::TooManyBidsForProject
+					Error::<TestRuntime>::ParticipationFailed(ParticipationError::TooManyProjectParticipations)
 				);
 			});
 
@@ -1185,7 +1181,7 @@ mod bid_extrinsic {
 						failing_bid.multiplier,
 						failing_bid.asset
 					),
-					Error::<TestRuntime>::TooManyBidsForProject
+					Error::<TestRuntime>::ParticipationFailed(ParticipationError::TooManyProjectParticipations)
 				);
 			});
 		}
@@ -1203,7 +1199,7 @@ mod bid_extrinsic {
 				vec![100u8],
 			);
 			let max_bids_per_user: u32 = <TestRuntime as Config>::MaxBidsPerUser::get();
-			let bids = (0u32..max_bids_per_user - 1u32).map(|i| (BIDDER_1, 5000 * ASSET_UNIT).into()).collect_vec();
+			let bids = (0u32..max_bids_per_user - 1u32).map(|_| (BIDDER_1, 5000 * ASSET_UNIT).into()).collect_vec();
 
 			let project_id = inst.create_auctioning_project(project_metadata.clone(), ISSUER_1, evaluations);
 
@@ -1263,7 +1259,7 @@ mod bid_extrinsic {
 						failing_bid.multiplier,
 						failing_bid.asset
 					),
-					Error::<TestRuntime>::TooManyBidsForUser
+					Error::<TestRuntime>::ParticipationFailed(ParticipationError::TooManyUserParticipations)
 				);
 			});
 
@@ -1296,7 +1292,7 @@ mod bid_extrinsic {
 						failing_bid.multiplier,
 						failing_bid.asset
 					),
-					Error::<TestRuntime>::TooManyBidsForUser
+					Error::<TestRuntime>::ParticipationFailed(ParticipationError::TooManyUserParticipations)
 				);
 			});
 		}
@@ -1335,7 +1331,7 @@ mod bid_extrinsic {
 						generate_did_from_account(BIDDER_1),
 						InvestorType::Professional
 					),
-					Error::<TestRuntime>::BidTooLow
+					Error::<TestRuntime>::ParticipationFailed(ParticipationError::TooLow)
 				);
 			});
 			// bid below 2000 CT (20k USD) should fail for institutionals
@@ -1350,7 +1346,7 @@ mod bid_extrinsic {
 						generate_did_from_account(BIDDER_1),
 						InvestorType::Institutional
 					),
-					Error::<TestRuntime>::BidTooLow
+					Error::<TestRuntime>::ParticipationFailed(ParticipationError::TooLow)
 				);
 			});
 		}
@@ -1482,7 +1478,7 @@ mod bid_extrinsic {
 						1u8.try_into().unwrap(),
 						AcceptedFundingAsset::USDT
 					),
-					Error::<TestRuntime>::BidTooHigh
+					Error::<TestRuntime>::ParticipationFailed(ParticipationError::TooHigh)
 				);
 			});
 			// bidding 10k total works
@@ -1521,7 +1517,7 @@ mod bid_extrinsic {
 						1u8.try_into().unwrap(),
 						AcceptedFundingAsset::USDT,
 					),
-					Error::<TestRuntime>::BidTooHigh
+					Error::<TestRuntime>::ParticipationFailed(ParticipationError::TooHigh)
 				);
 			});
 			// bidding 50k total works
@@ -1552,7 +1548,7 @@ mod bid_extrinsic {
 					generate_did_from_account(ISSUER_1),
 					InvestorType::Institutional
 				)),
-				Error::<TestRuntime>::ParticipationToThemselves
+				Error::<TestRuntime>::IssuerError(IssuerErrorReason::ParticipationToOwnProject)
 			);
 		}
 
@@ -1577,7 +1573,10 @@ mod bid_extrinsic {
 					investor_type,
 				)
 			});
-			frame_support::assert_err!(outcome, Error::<TestRuntime>::FundingAssetNotAccepted);
+			frame_support::assert_err!(
+				outcome,
+				Error::<TestRuntime>::ParticipationFailed(ParticipationError::FundingAssetNotAccepted)
+			);
 		}
 	}
 }

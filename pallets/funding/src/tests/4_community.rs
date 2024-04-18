@@ -515,7 +515,7 @@ fn per_credential_type_ticket_size_minimums() {
 				1u8.try_into().unwrap(),
 				AcceptedFundingAsset::USDT,
 			),
-			Error::<TestRuntime>::ContributionTooLow
+			Error::<TestRuntime>::ParticipationFailed(ParticipationError::TooLow)
 		);
 	});
 	// contribution below 10_000 CT (100k USD) should fail for professionals
@@ -530,7 +530,7 @@ fn per_credential_type_ticket_size_minimums() {
 				1u8.try_into().unwrap(),
 				AcceptedFundingAsset::USDT,
 			),
-			Error::<TestRuntime>::ContributionTooLow
+			Error::<TestRuntime>::ParticipationFailed(ParticipationError::TooLow)
 		);
 	});
 
@@ -547,7 +547,7 @@ fn per_credential_type_ticket_size_minimums() {
 				1u8.try_into().unwrap(),
 				AcceptedFundingAsset::USDT,
 			),
-			Error::<TestRuntime>::ContributionTooLow
+			Error::<TestRuntime>::ParticipationFailed(ParticipationError::TooLow)
 		);
 	});
 }
@@ -625,7 +625,7 @@ fn per_credential_type_ticket_size_maximums() {
 				1u8.try_into().unwrap(),
 				AcceptedFundingAsset::USDT,
 			),
-			Error::<TestRuntime>::ContributionTooHigh
+			Error::<TestRuntime>::ParticipationFailed(ParticipationError::TooHigh)
 		);
 	});
 	// bidding 2k total works
@@ -663,7 +663,7 @@ fn per_credential_type_ticket_size_maximums() {
 				1u8.try_into().unwrap(),
 				AcceptedFundingAsset::USDT,
 			),
-			Error::<TestRuntime>::ContributionTooHigh
+			Error::<TestRuntime>::ParticipationFailed(ParticipationError::TooHigh)
 		);
 	});
 	// bidding 2k total works
@@ -701,7 +701,7 @@ fn per_credential_type_ticket_size_maximums() {
 				1u8.try_into().unwrap(),
 				AcceptedFundingAsset::USDT,
 			),
-			Error::<TestRuntime>::ContributionTooHigh
+			Error::<TestRuntime>::ParticipationFailed(ParticipationError::TooHigh)
 		);
 	});
 	// bidding 5k total works
@@ -838,30 +838,30 @@ fn contribute_with_multiple_currencies() {
 	assert_ok!(inst.contribute_for_users(project_id_usdt, vec![usdt_contribution.clone()]));
 	assert_err!(
 		inst.contribute_for_users(project_id_usdt, vec![usdc_contribution.clone()]),
-		Error::<TestRuntime>::FundingAssetNotAccepted
+		Error::<TestRuntime>::ParticipationFailed(ParticipationError::FundingAssetNotAccepted)
 	);
 	assert_err!(
 		inst.contribute_for_users(project_id_usdt, vec![dot_contribution.clone()]),
-		Error::<TestRuntime>::FundingAssetNotAccepted
+		Error::<TestRuntime>::ParticipationFailed(ParticipationError::FundingAssetNotAccepted)
 	);
 
 	assert_err!(
 		inst.contribute_for_users(project_id_usdc, vec![usdt_contribution.clone()]),
-		Error::<TestRuntime>::FundingAssetNotAccepted
+		Error::<TestRuntime>::ParticipationFailed(ParticipationError::FundingAssetNotAccepted)
 	);
 	assert_ok!(inst.contribute_for_users(project_id_usdc, vec![usdc_contribution.clone()]));
 	assert_err!(
 		inst.contribute_for_users(project_id_usdc, vec![dot_contribution.clone()]),
-		Error::<TestRuntime>::FundingAssetNotAccepted
+		Error::<TestRuntime>::ParticipationFailed(ParticipationError::FundingAssetNotAccepted)
 	);
 
 	assert_err!(
 		inst.contribute_for_users(project_id_dot, vec![usdt_contribution.clone()]),
-		Error::<TestRuntime>::FundingAssetNotAccepted
+		Error::<TestRuntime>::ParticipationFailed(ParticipationError::FundingAssetNotAccepted)
 	);
 	assert_err!(
 		inst.contribute_for_users(project_id_dot, vec![usdc_contribution.clone()]),
-		Error::<TestRuntime>::FundingAssetNotAccepted
+		Error::<TestRuntime>::ParticipationFailed(ParticipationError::FundingAssetNotAccepted)
 	);
 	assert_ok!(inst.contribute_for_users(project_id_dot, vec![dot_contribution.clone()]));
 }
@@ -886,7 +886,7 @@ fn issuer_cannot_contribute_his_project() {
 			generate_did_from_account(ISSUER_1),
 			InvestorType::Institutional
 		)),
-		Error::<TestRuntime>::ParticipationToThemselves
+		Error::<TestRuntime>::IssuerError(IssuerErrorReason::ParticipationToOwnProject)
 	);
 }
 
@@ -921,7 +921,7 @@ fn did_with_winning_bid_cannot_contribute() {
 				1u8.try_into().unwrap(),
 				AcceptedFundingAsset::USDT,
 			),
-			Error::<TestRuntime>::UserHasWinningBids
+			Error::<TestRuntime>::ParticipationFailed(ParticipationError::UserHasWinningBid)
 		);
 	});
 
@@ -935,7 +935,7 @@ fn did_with_winning_bid_cannot_contribute() {
 				1u8.try_into().unwrap(),
 				AcceptedFundingAsset::USDT,
 			),
-			Error::<TestRuntime>::UserHasWinningBids
+			Error::<TestRuntime>::ParticipationFailed(ParticipationError::UserHasWinningBid)
 		);
 	});
 
@@ -1002,7 +1002,7 @@ fn non_retail_multiplier_limits() {
 				Multiplier::force_new(0),
 				AcceptedFundingAsset::USDT
 			),
-			Error::<TestRuntime>::ForbiddenMultiplier
+			Error::<TestRuntime>::ParticipationFailed(ParticipationError::ForbiddenMultiplier)
 		);
 	});
 	// Professional bids: 1 - 10x multiplier should work
@@ -1054,7 +1054,7 @@ fn non_retail_multiplier_limits() {
 					Multiplier::force_new(multiplier),
 					AcceptedFundingAsset::USDT
 				),
-				Error::<TestRuntime>::ForbiddenMultiplier
+				Error::<TestRuntime>::ParticipationFailed(ParticipationError::ForbiddenMultiplier)
 			);
 		});
 	}
@@ -1071,7 +1071,7 @@ fn non_retail_multiplier_limits() {
 				Multiplier::force_new(0),
 				AcceptedFundingAsset::USDT
 			),
-			Error::<TestRuntime>::ForbiddenMultiplier
+			Error::<TestRuntime>::ParticipationFailed(ParticipationError::ForbiddenMultiplier)
 		);
 	});
 	// Institutional bids: 1 - 25x multiplier should work
@@ -1123,7 +1123,7 @@ fn non_retail_multiplier_limits() {
 					Multiplier::force_new(multiplier),
 					AcceptedFundingAsset::USDT
 				),
-				Error::<TestRuntime>::ForbiddenMultiplier
+				Error::<TestRuntime>::ParticipationFailed(ParticipationError::ForbiddenMultiplier)
 			);
 		});
 	}
@@ -1204,7 +1204,7 @@ fn retail_multiplier_limits() {
 					Multiplier::force_new(0),
 					AcceptedFundingAsset::USDT
 				),
-				Error::<TestRuntime>::ForbiddenMultiplier
+				Error::<TestRuntime>::ParticipationFailed(ParticipationError::ForbiddenMultiplier)
 			);
 		});
 
@@ -1218,7 +1218,10 @@ fn retail_multiplier_limits() {
 		// Multipliers that should NOT work
 		for multiplier in max_allowed_multiplier + 1..=50 {
 			log::debug!("error? - multiplier: {}", multiplier);
-			assert_err!(contribute(&mut inst, project_id, multiplier), Error::<TestRuntime>::ForbiddenMultiplier);
+			assert_err!(
+				contribute(&mut inst, project_id, multiplier),
+				Error::<TestRuntime>::ParticipationFailed(ParticipationError::ForbiddenMultiplier)
+			);
 		}
 	}
 }
