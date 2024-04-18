@@ -568,7 +568,7 @@ mod benchmarks {
 		let project_id = inst.create_new_project(project_metadata, issuer.clone());
 
 		// start_evaluation fn will try to add an automatic transition 1 block after the last evaluation block
-		let mut block_number: BlockNumberFor<T> = inst.current_block() + T::EvaluationDuration::get() + One::one();
+		let block_number: BlockNumberFor<T> = inst.current_block() + T::EvaluationDuration::get() + One::one();
 		// fill the `ProjectsToUpdate` vectors from @ block_number to @ block_number+x, to benchmark all the failed insertion attempts
 		fill_projects_to_update::<T>(x, block_number);
 		let jwt = get_mock_jwt(issuer.clone(), InvestorType::Institutional, generate_did_from_account(issuer.clone()));
