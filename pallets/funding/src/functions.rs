@@ -1292,6 +1292,8 @@ impl<T: Config> Pallet<T> {
 		Bids::<T>::insert((project_id, bidder, bid_id), &new_bid);
 		NextBidId::<T>::set(bid_id.saturating_add(One::one()));
 		BidCounts::<T>::mutate(project_id, |c| *c += 1);
+
+
 		AuctionBoughtUSD::<T>::mutate((project_id, did), |amount| *amount += ticket_size);
 
 		Self::deposit_event(Event::Bid {
