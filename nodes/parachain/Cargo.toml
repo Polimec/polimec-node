@@ -30,6 +30,7 @@ macros = { workspace = true }
 # Substrate
 frame-benchmarking.workspace = true
 frame-benchmarking-cli.workspace = true
+frame-support.workspace = true
 pallet-transaction-payment-rpc.workspace = true
 sc-basic-authorship.workspace = true
 sc-chain-spec.workspace = true

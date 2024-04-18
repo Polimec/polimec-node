@@ -8409,6 +8409,7 @@ dependencies = [
  "cumulus-relay-chain-interface",
  "frame-benchmarking",
  "frame-benchmarking-cli",
+ "frame-support",
  "futures",
  "hex-literal 0.3.4",
  "jsonrpsee",

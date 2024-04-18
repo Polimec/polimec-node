@@ -484,13 +484,7 @@ pub mod pallet {
 
 	#[pallet::storage]
 	/// A map to know in which block to update which active projects using on_initialize.
-	pub type ProjectsToUpdate<T: Config> = StorageMap<
-		_,
-		Blake2_128Concat,
-		BlockNumberFor<T>,
-		BoundedVec<(ProjectId, UpdateType), T::MaxProjectsToUpdatePerBlock>,
-		ValueQuery,
-	>;
+	pub type ProjectsToUpdate<T: Config> = StorageMap<_, Blake2_128Concat, BlockNumberFor<T>, (ProjectId, UpdateType)>;
 
 	#[pallet::storage]
 	/// Keep track of the PLMC bonds made to each project by each evaluator
@@ -1161,7 +1155,7 @@ pub mod pallet {
 		fn on_initialize(now: BlockNumberFor<T>) -> Weight {
 			// Get the projects that need to be updated on this block and update them
 			let mut used_weight = Weight::from_parts(0, 0);
-			for (project_id, update_type) in ProjectsToUpdate::<T>::take(now) {
+			if let Some((project_id, update_type)) = ProjectsToUpdate::<T>::take(now) {
 				match update_type {
 					// EvaluationRound -> AuctionInitializePeriod | ProjectFailed
 					UpdateType::EvaluationEnd => {
