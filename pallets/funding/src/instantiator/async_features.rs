@@ -171,7 +171,6 @@ pub async fn async_create_evaluating_project<
 	let mut inst = instantiator.lock().await;
 
 	inst.start_evaluation(project_id, issuer).unwrap();
-	let now = inst.current_block();
 	project_id
 }
 
@@ -791,7 +790,6 @@ pub async fn async_create_project_at<
 			block_orchestrator.add_awaiting_project(now + time_to_finish - time_to_evaluation, notify.clone()).await;
 			// Wait for the notification that our desired block was reached to continue
 			notify.notified().await;
-			let now = mutex_inst.lock().await.current_block();
 			async_create_evaluating_project(
 				mutex_inst.clone(),
 				test_project_params.metadata,
