@@ -146,8 +146,7 @@ pub mod migrations {
 	use crate::Runtime;
 	/// Unreleased migrations. Add new ones here:
 	pub type Unreleased = (
-		cumulus_pallet_xcmp_queue::migration::v4::MigrationToV4<Runtime>,
-		pallet_identity::migration::versioned::V0ToV1<Runtime, 1000>,
+		
 	);
 }
 
