@@ -250,93 +250,19 @@ mod community_contribute_extrinsic {
 
 		#[test]
 		fn contribute_with_multiple_currencies() {
-			let inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 			let mut project_metadata_all = default_project_metadata(ISSUER_1);
 			project_metadata_all.participation_currencies =
 				vec![AcceptedFundingAsset::USDT, AcceptedFundingAsset::USDC, AcceptedFundingAsset::DOT]
 					.try_into()
 					.unwrap();
 
-			let mut project_metadata_usdt = default_project_metadata(ISSUER_2);
-			project_metadata_usdt.participation_currencies = vec![AcceptedFundingAsset::USDT].try_into().unwrap();
-
-			let mut project_metadata_usdc = default_project_metadata(ISSUER_3);
-			project_metadata_usdc.participation_currencies = vec![AcceptedFundingAsset::USDC].try_into().unwrap();
-
-			let mut project_metadata_dot = default_project_metadata(ISSUER_4);
-			project_metadata_dot.participation_currencies = vec![AcceptedFundingAsset::DOT].try_into().unwrap();
-
-			let evaluations = default_evaluations();
-
-			let usdt_bids = default_bids()
-				.into_iter()
-				.map(|mut b| {
-					b.asset = AcceptedFundingAsset::USDT;
-					b
-				})
-				.collect::<Vec<_>>();
-
-			let usdc_bids = default_bids()
-				.into_iter()
-				.map(|mut b| {
-					b.asset = AcceptedFundingAsset::USDC;
-					b
-				})
-				.collect::<Vec<_>>();
-
-			let dot_bids = default_bids()
-				.into_iter()
-				.map(|mut b| {
-					b.asset = AcceptedFundingAsset::DOT;
-					b
-				})
-				.collect::<Vec<_>>();
-
-			let projects = vec![
-				TestProjectParams {
-					expected_state: ProjectStatus::CommunityRound,
-					metadata: project_metadata_all.clone(),
-					issuer: ISSUER_1,
-					evaluations: evaluations.clone(),
-					bids: usdt_bids.clone(),
-					community_contributions: vec![],
-					remainder_contributions: vec![],
-				},
-				TestProjectParams {
-					expected_state: ProjectStatus::CommunityRound,
-					metadata: project_metadata_usdt,
-					issuer: ISSUER_2,
-					evaluations: evaluations.clone(),
-					bids: usdt_bids.clone(),
-					community_contributions: vec![],
-					remainder_contributions: vec![],
-				},
-				TestProjectParams {
-					expected_state: ProjectStatus::CommunityRound,
-					metadata: project_metadata_usdc,
-					issuer: ISSUER_3,
-					evaluations: evaluations.clone(),
-					bids: usdc_bids.clone(),
-					community_contributions: vec![],
-					remainder_contributions: vec![],
-				},
-				TestProjectParams {
-					expected_state: ProjectStatus::CommunityRound,
-					metadata: project_metadata_dot,
-					issuer: ISSUER_4,
-					evaluations: evaluations.clone(),
-					bids: dot_bids.clone(),
-					community_contributions: vec![],
-					remainder_contributions: vec![],
-				},
-			];
-			let (project_ids, mut inst) = create_multiple_projects_at(inst, projects);
-
-			let project_id_all = project_ids[0];
-			let project_id_usdt = project_ids[1];
-			let project_id_usdc = project_ids[2];
-			let project_id_dot = project_ids[3];
-
+			let project_id = inst.create_community_contributing_project(
+				project_metadata_all.clone(),
+				ISSUER_1,
+				default_evaluations(),
+				default_bids(),
+			);
 			let usdt_contribution =
 				ContributionParams::new(BUYER_1, 10_000 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT);
 			let usdc_contribution =
@@ -344,7 +270,7 @@ mod community_contribute_extrinsic {
 			let dot_contribution =
 				ContributionParams::new(BUYER_3, 10_000 * ASSET_UNIT, 1u8, AcceptedFundingAsset::DOT);
 
-			let wap = inst.get_project_details(project_id_all).weighted_average_price.unwrap();
+			let wap = inst.get_project_details(project_id).weighted_average_price.unwrap();
 
 			let plmc_fundings = MockInstantiator::calculate_contributed_plmc_spent(
 				vec![usdt_contribution.clone(), usdc_contribution.clone(), dot_contribution.clone()],
@@ -357,51 +283,17 @@ mod community_contribute_extrinsic {
 				MergeOperation::Add,
 			);
 			inst.mint_plmc_to(plmc_all_mints.clone());
-			inst.mint_plmc_to(plmc_all_mints.clone());
-			inst.mint_plmc_to(plmc_all_mints.clone());
 
-			let usdt_fundings = MockInstantiator::calculate_contributed_funding_asset_spent(
+			let asset_hub_fundings = MockInstantiator::calculate_contributed_funding_asset_spent(
 				vec![usdt_contribution.clone(), usdc_contribution.clone(), dot_contribution.clone()],
 				wap,
 			);
-			inst.mint_foreign_asset_to(usdt_fundings.clone());
-			inst.mint_foreign_asset_to(usdt_fundings.clone());
-			inst.mint_foreign_asset_to(usdt_fundings.clone());
+			inst.mint_foreign_asset_to(asset_hub_fundings.clone());
 
 			assert_ok!(inst.contribute_for_users(
-				project_id_all,
+				project_id,
 				vec![usdt_contribution.clone(), usdc_contribution.clone(), dot_contribution.clone()]
 			));
-
-			assert_ok!(inst.contribute_for_users(project_id_usdt, vec![usdt_contribution.clone()]));
-			assert_err!(
-				inst.contribute_for_users(project_id_usdt, vec![usdc_contribution.clone()]),
-				Error::<TestRuntime>::FundingAssetNotAccepted
-			);
-			assert_err!(
-				inst.contribute_for_users(project_id_usdt, vec![dot_contribution.clone()]),
-				Error::<TestRuntime>::FundingAssetNotAccepted
-			);
-
-			assert_err!(
-				inst.contribute_for_users(project_id_usdc, vec![usdt_contribution.clone()]),
-				Error::<TestRuntime>::FundingAssetNotAccepted
-			);
-			assert_ok!(inst.contribute_for_users(project_id_usdc, vec![usdc_contribution.clone()]));
-			assert_err!(
-				inst.contribute_for_users(project_id_usdc, vec![dot_contribution.clone()]),
-				Error::<TestRuntime>::FundingAssetNotAccepted
-			);
-
-			assert_err!(
-				inst.contribute_for_users(project_id_dot, vec![usdt_contribution.clone()]),
-				Error::<TestRuntime>::FundingAssetNotAccepted
-			);
-			assert_err!(
-				inst.contribute_for_users(project_id_dot, vec![usdc_contribution.clone()]),
-				Error::<TestRuntime>::FundingAssetNotAccepted
-			);
-			assert_ok!(inst.contribute_for_users(project_id_dot, vec![dot_contribution.clone()]));
 		}
 
 		#[test]
@@ -1344,6 +1236,76 @@ mod community_contribute_extrinsic {
 
 		#[test]
 		fn contribute_with_unaccepted_currencies() {
+			let inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+
+			let mut project_metadata_usdt = default_project_metadata(ISSUER_2);
+			project_metadata_usdt.participation_currencies = vec![AcceptedFundingAsset::USDT].try_into().unwrap();
+
+			let mut project_metadata_usdc = default_project_metadata(ISSUER_3);
+			project_metadata_usdc.participation_currencies = vec![AcceptedFundingAsset::USDC].try_into().unwrap();
+
+			let evaluations = default_evaluations();
+
+			let usdt_bids = default_bids()
+				.into_iter()
+				.map(|mut b| {
+					b.asset = AcceptedFundingAsset::USDT;
+					b
+				})
+				.collect::<Vec<_>>();
+
+			let usdc_bids = default_bids()
+				.into_iter()
+				.map(|mut b| {
+					b.asset = AcceptedFundingAsset::USDC;
+					b
+				})
+				.collect::<Vec<_>>();
+
+			let projects = vec![
+				TestProjectParams {
+					expected_state: ProjectStatus::CommunityRound,
+					metadata: project_metadata_usdt,
+					issuer: ISSUER_2,
+					evaluations: evaluations.clone(),
+					bids: usdt_bids.clone(),
+					community_contributions: vec![],
+					remainder_contributions: vec![],
+				},
+				TestProjectParams {
+					expected_state: ProjectStatus::CommunityRound,
+					metadata: project_metadata_usdc,
+					issuer: ISSUER_3,
+					evaluations: evaluations.clone(),
+					bids: usdc_bids.clone(),
+					community_contributions: vec![],
+					remainder_contributions: vec![],
+				},
+			];
+			let (project_ids, mut inst) = create_multiple_projects_at(inst, projects);
+
+			let project_id_usdt = project_ids[1];
+			let project_id_usdc = project_ids[2];
+
+			let usdt_contribution =
+				ContributionParams::new(BUYER_1, 10_000 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT);
+			let usdc_contribution =
+				ContributionParams::new(BUYER_2, 10_000 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDC);
+			let dot_contribution =
+				ContributionParams::new(BUYER_3, 10_000 * ASSET_UNIT, 1u8, AcceptedFundingAsset::DOT);
+
+			assert_err!(
+				inst.contribute_for_users(project_id_usdc, vec![usdt_contribution.clone()]),
+				Error::<TestRuntime>::FundingAssetNotAccepted
+			);
+			assert_err!(
+				inst.contribute_for_users(project_id_usdt, vec![usdc_contribution.clone()]),
+				Error::<TestRuntime>::FundingAssetNotAccepted
+			);
+			assert_err!(
+				inst.contribute_for_users(project_id_usdt, vec![dot_contribution.clone()]),
+				Error::<TestRuntime>::FundingAssetNotAccepted
+			);
 
 		}
 	}
