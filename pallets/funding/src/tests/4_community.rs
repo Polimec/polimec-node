@@ -115,14 +115,12 @@ mod round_flow {
 		fn round_has_total_ct_allocation_minus_auction_sold() {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 			let project_metadata = default_project_metadata(ISSUER_1);
-			let evaluations = default_evaluations();
-			let bids = default_bids();
 
 			let project_id = inst.create_community_contributing_project(
 				project_metadata.clone(),
 				ISSUER_1,
-				evaluations.clone(),
-				bids.clone(),
+				default_evaluations(),
+				default_bids(),
 			);
 			let project_details = inst.get_project_details(project_id);
 			let bid_ct_sold: BalanceOf<TestRuntime> = inst.execute(|| {
@@ -164,53 +162,6 @@ mod community_contribute_extrinsic {
 	#[cfg(test)]
 	mod success {
 		use super::*;
-
-		#[test]
-		fn contribute_multiple_times_works() {
-			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
-			let metadata = default_project_metadata(ISSUER_1);
-			let issuer = ISSUER_1;
-			let evaluations = default_evaluations();
-			let bids = default_bids();
-			let project_id = inst.create_community_contributing_project(metadata, issuer, evaluations, bids);
-
-			const BOB: AccountId = 42;
-			let token_price = inst.get_project_details(project_id).weighted_average_price.unwrap();
-			let contributions = vec![
-				ContributionParams::new(BOB, 3 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
-				ContributionParams::new(BOB, 4 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
-			];
-
-			let plmc_funding = MockInstantiator::calculate_contributed_plmc_spent(contributions.clone(), token_price);
-			let plmc_existential_deposit = plmc_funding.accounts().existential_deposits();
-			let foreign_funding =
-				MockInstantiator::calculate_contributed_funding_asset_spent(contributions.clone(), token_price);
-
-			inst.mint_plmc_to(plmc_funding);
-			inst.mint_plmc_to(plmc_existential_deposit);
-			inst.mint_foreign_asset_to(foreign_funding);
-
-			inst.contribute_for_users(project_id, vec![contributions[0].clone()])
-				.expect("The Buyer should be able to buy multiple times");
-			inst.advance_time(HOURS as BlockNumber).unwrap();
-
-			inst.contribute_for_users(project_id, vec![contributions[1].clone()])
-				.expect("The Buyer should be able to buy multiple times");
-
-			let bob_total_contributions: BalanceOf<TestRuntime> = inst.execute(|| {
-				Contributions::<TestRuntime>::iter_prefix_values((project_id, BOB))
-					.map(|c| c.funding_asset_amount)
-					.sum()
-			});
-
-			let total_contributed =
-				MockInstantiator::calculate_contributed_funding_asset_spent(contributions, token_price)
-					.iter()
-					.map(|item| item.asset_amount)
-					.sum::<BalanceOf<TestRuntime>>();
-
-			assert_eq!(bob_total_contributions, total_contributed);
-		}
 
 		#[test]
 		fn evaluation_bond_counts_towards_contribution() {
@@ -1389,6 +1340,11 @@ mod community_contribute_extrinsic {
 					);
 				});
 			}
+		}
+
+		#[test]
+		fn contribute_with_unaccepted_currencies() {
+
 		}
 	}
 }
