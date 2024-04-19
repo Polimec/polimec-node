@@ -116,7 +116,6 @@ mod round_flow {
 			let desired_price = PriceOf::<TestRuntime>::from_float(11.1818f64).saturating_mul_int(ASSET_UNIT);
 
 			let stored_bids = inst.execute(|| Bids::<TestRuntime>::iter_prefix_values((project_id,)).collect_vec());
-			dbg!(&stored_bids);
 
 			assert_close_enough!(token_price, desired_price, Perquintill::from_float(0.99));
 		}

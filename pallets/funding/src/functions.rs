@@ -1991,7 +1991,8 @@ impl<T: Config> Pallet<T> {
 				.map(calc_weighted_price_fn)
 				.fold(Zero::zero(), |a: T::Price, b: T::Price| a.saturating_add(b))
 		};
-		// If the first bucket was sold out with rejected bids, the wap might be slightly lower than min_price due to rounding.
+		// If the first bucket is filled with accepted bids, and the second bucket is then filled with rejected bids,
+		// the wap might be slightly lower than min_price due to rounding when trying to calculate weights.
 		if weighted_token_price < project_metadata.minimum_price {
 			weighted_token_price = project_metadata.minimum_price;
 		}
