@@ -1284,8 +1284,8 @@ mod community_contribute_extrinsic {
 			];
 			let (project_ids, mut inst) = create_multiple_projects_at(inst, projects);
 
-			let project_id_usdt = project_ids[1];
-			let project_id_usdc = project_ids[2];
+			let project_id_usdt = project_ids[0];
+			let project_id_usdc = project_ids[1];
 
 			let usdt_contribution =
 				ContributionParams::new(BUYER_1, 10_000 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT);
