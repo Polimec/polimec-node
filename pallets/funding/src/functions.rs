@@ -2027,7 +2027,7 @@ impl<T: Config> Pallet<T> {
 						bid.funding_asset.to_assethub_id(),
 						&project_account,
 						&bid.bidder,
-						bid.funding_asset_amount_locked.saturating_sub(funding_asset_amount_needed),
+						amount_returned,
 						Preservation::Preserve,
 					)?;
 					bid.funding_asset_amount_locked = funding_asset_amount_needed;
