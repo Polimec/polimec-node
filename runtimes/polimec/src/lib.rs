@@ -143,11 +143,12 @@ pub type Migrations = migrations::Unreleased;
 /// The runtime migrations per release.
 #[allow(missing_docs)]
 pub mod migrations {
-	use crate::Runtime;
+	use crate::custom_migrations::init_pallet::InitializePallet;
+	use crate::DmpQueue;
 	/// Unreleased migrations. Add new ones here:
+	#[allow(unused_parens)]
 	pub type Unreleased = (
-		cumulus_pallet_xcmp_queue::migration::v4::MigrationToV4<Runtime>,
-		pallet_identity::migration::versioned::V0ToV1<Runtime, 1000>,
+		InitializePallet<DmpQueue>
 	);
 }
 
@@ -194,7 +195,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("polimec-mainnet"),
 	impl_name: create_runtime_str!("polimec-mainnet"),
 	authoring_version: 1,
-	spec_version: 0_006_000,
+	spec_version: 0_006_001,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 2,
