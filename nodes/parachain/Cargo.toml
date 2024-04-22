@@ -13,7 +13,6 @@ version.workspace = true
 [dependencies]
 clap = { workspace = true, features = ["derive"] }
 log.workspace = true
-parity-scale-codec = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true
 jsonrpsee = { workspace = true, features = ["server"] }
@@ -49,6 +48,7 @@ sc-transaction-pool.workspace = true
 sc-transaction-pool-api.workspace = true
 sc-network-sync.workspace = true
 sp-api.workspace = true
+sp-io.workspace = true
 sp-block-builder.workspace = true
 sp-blockchain.workspace = true
 sp-consensus-aura.workspace = true
@@ -56,7 +56,6 @@ sp-core.workspace = true
 sp-keystore.workspace = true
 sp-runtime.workspace = true
 sp-timestamp.workspace = true
-sp-transaction-pool.workspace = true
 substrate-frame-rpc-system.workspace = true
 substrate-prometheus-endpoint.workspace = true
 
@@ -89,6 +88,7 @@ runtime-benchmarks = [
 	"cumulus-primitives-core/runtime-benchmarks",
 	"frame-benchmarking-cli/runtime-benchmarks",
 	"frame-benchmarking/runtime-benchmarks",
+	"frame-support/runtime-benchmarks",
 	"pallet-funding/runtime-benchmarks",
 	"polimec-runtime/runtime-benchmarks",
 	"politest-runtime/runtime-benchmarks",
@@ -98,6 +98,7 @@ runtime-benchmarks = [
 	"sp-runtime/runtime-benchmarks",
 ]
 try-runtime = [
+	"frame-support/try-runtime",
 	"pallet-funding/try-runtime",
 	"polimec-runtime/try-runtime",
 	"politest-runtime/try-runtime",
@@ -107,19 +108,19 @@ try-runtime = [
 std = [
 	"cumulus-primitives-core/std",
 	"frame-benchmarking/std",
+	"frame-support/std",
 	"log/std",
 	"pallet-funding/std",
-	"parity-scale-codec/std",
 	"polkadot-primitives/std",
 	"serde/std",
 	"sp-api/std",
 	"sp-block-builder/std",
 	"sp-consensus-aura/std",
 	"sp-core/std",
+	"sp-io/std",
 	"sp-keystore/std",
 	"sp-runtime/std",
 	"sp-timestamp/std",
-	"sp-transaction-pool/std",
 	"xcm/std",
 ]
 on-chain-release-build = [
