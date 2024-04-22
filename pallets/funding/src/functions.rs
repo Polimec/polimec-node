@@ -979,7 +979,10 @@ impl<T: Config> Pallet<T> {
 		let evaluations_count = EvaluationCounts::<T>::get(project_id);
 
 		// * Validity Checks *
-		ensure!(usd_amount >= T::MinUsdPerEvaluation::get(), Error::<T>::ParticipationFailed(ParticipationError::TooLow));
+		ensure!(
+			usd_amount >= T::MinUsdPerEvaluation::get(),
+			Error::<T>::ParticipationFailed(ParticipationError::TooLow)
+		);
 		ensure!(
 			project_details.issuer_did != did,
 			Error::<T>::IssuerError(IssuerErrorReason::ParticipationToOwnProject)
@@ -2026,6 +2029,9 @@ impl<T: Config> Pallet<T> {
 		let mut bid_usd_value_sum = BalanceOf::<T>::zero();
 		let project_account = Self::fund_account_id(project_id);
 		let plmc_price = T::PriceProvider::get_price(PLMC_FOREIGN_ID).ok_or(Error::<T>::PriceNotFound)?;
+		let project_metadata = ProjectsMetadata::<T>::get(project_id)
+			.ok_or(Error::<T>::ProjectError(ProjectErrorReason::ProjectMetadataNotFound))?;
+		let mut highest_accepted_price = project_metadata.minimum_price;
 
 		// sort bids by price, and equal prices sorted by id
 		bids.sort_by(|a, b| b.cmp(a));
@@ -2049,6 +2055,7 @@ impl<T: Config> Pallet<T> {
 					DidWithWinningBids::<T>::mutate(project_id, bid.did.clone(), |flag| {
 						*flag = true;
 					});
+					highest_accepted_price = highest_accepted_price.max(bid.original_ct_usd_price);
 				} else {
 					let ticket_size = bid.original_ct_usd_price.saturating_mul_int(buyable_amount);
 					bid_usd_value_sum.saturating_accrue(ticket_size);
@@ -2058,6 +2065,7 @@ impl<T: Config> Pallet<T> {
 						*flag = true;
 					});
 					bid.final_ct_amount = buyable_amount;
+					highest_accepted_price = highest_accepted_price.max(bid.original_ct_usd_price);
 				}
 				bid
 			})
@@ -2092,19 +2100,13 @@ impl<T: Config> Pallet<T> {
 
 		// lastly, sum all the weighted prices to get the final weighted price for the next funding round
 		// 3 + 10.6 + 2.6 = 16.333...
-		let current_bucket =
-			Buckets::<T>::get(project_id).ok_or(Error::<T>::ProjectError(ProjectErrorReason::BucketNotFound))?;
-		let project_metadata = ProjectsMetadata::<T>::get(project_id)
-			.ok_or(Error::<T>::ProjectError(ProjectErrorReason::ProjectMetadataNotFound))?;
-		let is_first_bucket = current_bucket.current_price == project_metadata.minimum_price;
-
 		let calc_weighted_price_fn = |bid: &BidInfoOf<T>| -> PriceOf<T> {
 			let ticket_size = bid.original_ct_usd_price.saturating_mul_int(bid.final_ct_amount);
 			let bid_weight = <T::Price as FixedPointNumber>::saturating_from_rational(ticket_size, bid_usd_value_sum);
 			let weighted_price = bid.original_ct_usd_price.saturating_mul(bid_weight);
 			weighted_price
 		};
-		let mut weighted_token_price = if is_first_bucket || accepted_bids.is_empty() {
+		let mut weighted_token_price = if highest_accepted_price == project_metadata.minimum_price {
 			project_metadata.minimum_price
 		} else {
 			accepted_bids
@@ -2112,8 +2114,8 @@ impl<T: Config> Pallet<T> {
 				.map(calc_weighted_price_fn)
 				.fold(Zero::zero(), |a: T::Price, b: T::Price| a.saturating_add(b))
 		};
-		// If the first bucket is filled with accepted bids, and the second bucket is then filled with rejected bids,
-		// the wap might be slightly lower than min_price due to rounding when trying to calculate weights.
+		// We are 99% sure that the price cannot be less than minimum if some accepted bids have higher price, but rounding
+		// errors are strange, so we keep this just in case.
 		if weighted_token_price < project_metadata.minimum_price {
 			weighted_token_price = project_metadata.minimum_price;
 		}

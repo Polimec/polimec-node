@@ -200,7 +200,6 @@ mod community_contribute_extrinsic {
 			let slashable_usd = plmc_price.saturating_mul_int(slashable_bond);
 			let slashable_ct = ct_price.reciprocal().unwrap().saturating_mul_int(slashable_usd);
 
-
 			// Can't contribute with only the evaluation bond
 			inst.execute(|| {
 				assert_noop!(
@@ -234,10 +233,8 @@ mod community_contribute_extrinsic {
 			});
 
 			// Can use the full evaluation bond
-			let contribution_usdt = MockInstantiator::calculate_contributed_funding_asset_spent(
-				vec![(CARL, usable_ct).into()],
-				ct_price,
-			);
+			let contribution_usdt =
+				MockInstantiator::calculate_contributed_funding_asset_spent(vec![(CARL, usable_ct).into()], ct_price);
 			inst.mint_foreign_asset_to(contribution_usdt.clone());
 			inst.execute(|| {
 				assert_ok!(Pallet::<TestRuntime>::community_contribute(
@@ -259,11 +256,7 @@ mod community_contribute_extrinsic {
 			let bob_bid: BidParams<TestRuntime> = (BOB, 1337 * ASSET_UNIT).into();
 			let all_bids = bids.iter().chain(vec![bob_bid.clone()].iter()).cloned().collect_vec();
 
-			let project_id = inst.create_auctioning_project(
-				default_project_metadata(ISSUER_2),
-				ISSUER_2,
-				evaluations,
-			);
+			let project_id = inst.create_auctioning_project(default_project_metadata(ISSUER_2), ISSUER_2, evaluations);
 			let bids_plmc = MockInstantiator::calculate_auction_plmc_charged_from_all_bids_made_or_with_bucket(
 				&all_bids,
 				project_metadata.clone(),
@@ -273,16 +266,18 @@ mod community_contribute_extrinsic {
 			inst.mint_plmc_to(bids_plmc.clone());
 			inst.mint_plmc_to(bids_existential_deposits.clone());
 
-			let bids_foreign = MockInstantiator::calculate_auction_funding_asset_charged_from_all_bids_made_or_with_bucket(
-				&all_bids,
-				project_metadata.clone(),
-				None,
-			);
+			let bids_foreign =
+				MockInstantiator::calculate_auction_funding_asset_charged_from_all_bids_made_or_with_bucket(
+					&all_bids,
+					project_metadata.clone(),
+					None,
+				);
 			inst.mint_foreign_asset_to(bids_foreign.clone());
 
 			inst.bid_for_users(project_id, bids).unwrap();
 
-			let auction_end = <TestRuntime as Config>::AuctionOpeningDuration::get() + <TestRuntime as Config>::AuctionClosingDuration::get();
+			let auction_end = <TestRuntime as Config>::AuctionOpeningDuration::get() +
+				<TestRuntime as Config>::AuctionClosingDuration::get();
 			inst.advance_time(auction_end - 1).unwrap();
 			assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::AuctionClosing);
 			inst.bid_for_users(project_id, vec![bob_bid]).unwrap();
@@ -292,10 +287,8 @@ mod community_contribute_extrinsic {
 
 			let bob_contribution = (BOB, 1337 * ASSET_UNIT).into();
 			let wap = inst.get_project_details(project_id).weighted_average_price.unwrap();
-			let contribution_usdt = MockInstantiator::calculate_contributed_funding_asset_spent(
-				vec![bob_contribution],
-				wap,
-			);
+			let contribution_usdt =
+				MockInstantiator::calculate_contributed_funding_asset_spent(vec![bob_contribution], wap);
 			inst.mint_foreign_asset_to(contribution_usdt.clone());
 			inst.execute(|| {
 				assert_ok!(Pallet::<TestRuntime>::community_contribute(
@@ -307,8 +300,6 @@ mod community_contribute_extrinsic {
 					AcceptedFundingAsset::USDT,
 				));
 			});
-
-
 		}
 
 		#[test]
@@ -1249,11 +1240,6 @@ mod community_contribute_extrinsic {
 				inst.contribute_for_users(project_id_usdt, vec![dot_contribution.clone()]),
 				Error::<TestRuntime>::ParticipationFailed(ParticipationError::FundingAssetNotAccepted)
 			);
-		}
-
-		#[test]
-		fn sandbox() {
-
 		}
 	}
 }

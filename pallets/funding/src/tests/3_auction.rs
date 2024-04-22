@@ -1048,7 +1048,10 @@ mod bid_extrinsic {
 
 			inst.mint_foreign_asset_to(necessary_usdt_for_bid);
 
-			assert_err!(inst.bid_for_users(project_id, vec![evaluator_bid]), Error::<TestRuntime>::ParticipationFailed(ParticipationError::NotEnoughFunds));
+			assert_err!(
+				inst.bid_for_users(project_id, vec![evaluator_bid]),
+				Error::<TestRuntime>::ParticipationFailed(ParticipationError::NotEnoughFunds)
+			);
 		}
 
 		#[test]

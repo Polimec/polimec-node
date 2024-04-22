@@ -563,4 +563,39 @@ mod bug_hunting {
 		let new_project_details = inst.get_project_details(project_id);
 		assert_eq!(old_project_details, new_project_details);
 	}
+
+	// POC showing why the price calculation can be wrong when correct calculation would require more decimals than available
+	#[test]
+	fn wap_less_than_min() {
+		const BID_1_CT: u128 = 100_000_000 * ASSET_UNIT;
+		const BID_1_PRICE: FixedU128 = FixedU128::from_rational(10, 1);
+
+		const BID_2_CT: u128 = 1 * ASSET_UNIT;
+		const BID_2_PRICE: FixedU128 = FixedU128::from_rational(10, 1);
+
+		const BID_3_CT: u128 = 100_000_000 * ASSET_UNIT;
+		const BID_3_PRICE: FixedU128 = FixedU128::from_rational(10, 1);
+
+		let total_ct = BID_1_CT + BID_2_CT + BID_3_CT;
+		let bid_1_weight = FixedU128::from_rational(BID_1_CT, total_ct);
+		let bid_2_weight = FixedU128::from_rational(BID_2_CT, total_ct);
+		let bid_3_weight = FixedU128::from_rational(BID_3_CT, total_ct);
+
+		let bid_1_wap = BID_1_PRICE.saturating_mul(bid_1_weight);
+		let bid_2_wap = BID_2_PRICE.saturating_mul(bid_2_weight);
+		let bid_3_wap = BID_3_PRICE.saturating_mul(bid_3_weight);
+
+		let wap = bid_1_wap + bid_2_wap + bid_3_wap;
+
+		dbg!(BID_1_PRICE);
+		dbg!(BID_2_PRICE);
+		dbg!(BID_3_PRICE);
+
+		dbg!(bid_1_weight);
+		dbg!(bid_2_weight);
+		dbg!(bid_3_weight);
+
+		dbg!(BID_1_PRICE);
+		dbg!(wap);
+	}
 }
