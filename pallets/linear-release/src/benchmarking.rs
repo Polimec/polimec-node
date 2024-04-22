@@ -207,11 +207,11 @@ mod benches {
 	#[benchmark]
 	fn vested_transfer(l: Linear<0, 9>, s: Linear<1, { T::MAX_VESTING_SCHEDULES - 1 }>) -> Result<(), BenchmarkError> {
 		let caller: T::AccountId = whitelisted_caller();
-		T::Currency::set_balance(&caller, T::Currency::minimum_balance().saturating_mul(1024u32.into()));
+		T::Currency::set_balance(&caller, T::Currency::minimum_balance() + T::MinVestedTransfer::get());
 
 		let target: T::AccountId = account("target", 0, SEED);
 		// Give target existing locks
-		T::Currency::set_balance(&target, T::Currency::minimum_balance().saturating_mul(1024u32.into()));
+		T::Currency::set_balance(&target, T::Currency::minimum_balance() + (256 * l).into());
 		add_holds::<T>(&target, l);
 
 		// Add one vesting schedules.

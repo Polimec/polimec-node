@@ -139,7 +139,7 @@ mod create_project_extrinsic {
 						jwt.clone(),
 						project_metadata.clone()
 					),
-					Error::<TestRuntime>::IssuerHasActiveProjectAlready
+					Error::<TestRuntime>::IssuerError(IssuerErrorReason::HasActiveProject)
 				);
 			});
 
@@ -152,7 +152,7 @@ mod create_project_extrinsic {
 						jwt.clone(),
 						project_metadata.clone()
 					),
-					Error::<TestRuntime>::IssuerHasActiveProjectAlready
+					Error::<TestRuntime>::IssuerError(IssuerErrorReason::HasActiveProject)
 				);
 			});
 			inst.advance_time(<TestRuntime as Config>::EvaluationDuration::get() + 1).unwrap();
@@ -178,7 +178,7 @@ mod create_project_extrinsic {
 						jwt.clone(),
 						project_metadata.clone()
 					),
-					Error::<TestRuntime>::IssuerHasActiveProjectAlready
+					Error::<TestRuntime>::IssuerError(IssuerErrorReason::HasActiveProject)
 				);
 			});
 			inst.finish_funding(1).unwrap();
@@ -251,7 +251,7 @@ mod create_project_extrinsic {
 						jwt,
 						project_metadata.clone()
 					),
-					Error::<TestRuntime>::NotAllowed
+					Error::<TestRuntime>::WrongInvestorType
 				);
 			});
 
@@ -263,7 +263,7 @@ mod create_project_extrinsic {
 						jwt,
 						project_metadata
 					),
-					Error::<TestRuntime>::NotAllowed
+					Error::<TestRuntime>::WrongInvestorType
 				);
 			});
 		}
@@ -294,7 +294,7 @@ mod create_project_extrinsic {
 						jwt.clone(),
 						project_metadata.clone()
 					),
-					Error::<TestRuntime>::IssuerHasActiveProjectAlready
+					Error::<TestRuntime>::IssuerError(IssuerErrorReason::HasActiveProject)
 				);
 			});
 		}
@@ -309,7 +309,7 @@ mod create_project_extrinsic {
 			inst.execute(|| {
 				assert_noop!(
 					Pallet::<TestRuntime>::create_project(RuntimeOrigin::signed(ISSUER_1), jwt, project_metadata,),
-					Error::<TestRuntime>::NotEnoughFundsForEscrowCreation
+					Error::<TestRuntime>::IssuerError(IssuerErrorReason::NotEnoughFunds)
 				);
 			});
 		}
@@ -691,7 +691,7 @@ mod edit_project_extrinsic {
 						project_id_1,
 						project_metadata_2
 					),
-					Error::<TestRuntime>::NotAllowed
+					Error::<TestRuntime>::IssuerError(IssuerErrorReason::NotIssuer)
 				);
 				assert_noop!(
 					Pallet::<TestRuntime>::edit_project(
@@ -700,7 +700,7 @@ mod edit_project_extrinsic {
 						project_id_2,
 						project_metadata_1
 					),
-					Error::<TestRuntime>::NotAllowed
+					Error::<TestRuntime>::IssuerError(IssuerErrorReason::NotIssuer)
 				);
 			});
 		}
@@ -721,7 +721,7 @@ mod edit_project_extrinsic {
 						project_id,
 						project_metadata.clone()
 					),
-					Error::<TestRuntime>::Frozen
+					Error::<TestRuntime>::ProjectError(ProjectErrorReason::ProjectIsFrozen)
 				);
 			});
 		}
@@ -743,7 +743,7 @@ mod edit_project_extrinsic {
 						project_id,
 						project_metadata.clone()
 					),
-					Error::<TestRuntime>::NotAllowed
+					Error::<TestRuntime>::WrongInvestorType
 				);
 			});
 
@@ -756,7 +756,7 @@ mod edit_project_extrinsic {
 						project_id,
 						project_metadata
 					),
-					Error::<TestRuntime>::NotAllowed
+					Error::<TestRuntime>::WrongInvestorType
 				);
 			});
 		}
@@ -817,7 +817,7 @@ mod remove_project_extrinsic {
 						jwt.clone(),
 						project_metadata.clone()
 					),
-					Error::<TestRuntime>::IssuerHasActiveProjectAlready
+					Error::<TestRuntime>::IssuerError(IssuerErrorReason::HasActiveProject)
 				);
 			});
 
@@ -855,7 +855,7 @@ mod remove_project_extrinsic {
 						jwt.clone(),
 						project_id
 					),
-					Error::<TestRuntime>::NotAllowed
+					Error::<TestRuntime>::WrongInvestorType
 				);
 			});
 		}
@@ -876,7 +876,7 @@ mod remove_project_extrinsic {
 						jwt.clone(),
 						project_id
 					),
-					Error::<TestRuntime>::NotAllowed
+					Error::<TestRuntime>::IssuerError(IssuerErrorReason::NotIssuer)
 				);
 			});
 		}
@@ -896,7 +896,7 @@ mod remove_project_extrinsic {
 						jwt.clone(),
 						project_id,
 					),
-					Error::<TestRuntime>::Frozen
+					Error::<TestRuntime>::ProjectError(ProjectErrorReason::ProjectIsFrozen)
 				);
 			});
 		}
