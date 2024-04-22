@@ -53,6 +53,7 @@ use sp_std::{
 };
 
 pub mod macros;
+#[cfg(any(test, feature = "std", feature = "runtime-benchmarks"))]
 pub use macros::*;
 pub mod types;
 pub use types::*;

@@ -1,5 +1,3 @@
-use super::*;
-
 #[macro_export]
 /// Example:
 /// ```
