@@ -324,7 +324,11 @@ pub mod pallet {
 		type MaxEvaluationsPerProject: Get<u32>;
 
 		/// How many distinct evaluations per user per project
+		#[pallet::constant]
 		type MaxEvaluationsPerUser: Get<u32>;
+
+		#[pallet::constant]
+		type MinUsdPerEvaluation: Get<BalanceOf<Self>>;
 
 		/// Range of max_message_size values for the hrmp config where we accept the incoming channel request
 		#[pallet::constant]
@@ -822,13 +826,13 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			jwt: UntrustedToken,
 			project_id: ProjectId,
-			#[pallet::compact] amount: BalanceOf<T>,
+			#[pallet::compact] ct_amount: BalanceOf<T>,
 			multiplier: T::Multiplier,
 			asset: AcceptedFundingAsset,
 		) -> DispatchResultWithPostInfo {
 			let (account, did, investor_type) =
 				T::InvestorOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get())?;
-			Self::do_bid(&account, project_id, amount, multiplier, asset, did, investor_type)
+			Self::do_bid(&account, project_id, ct_amount, multiplier, asset, did, investor_type)
 		}
 
 		/// Buy tokens in the Community or Remainder round at the price set in the Auction Round

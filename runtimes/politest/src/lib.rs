@@ -1004,6 +1004,8 @@ parameter_types! {
 		32, 118, 30, 171, 58, 212, 197, 27, 146, 122, 255, 243, 34, 245, 90, 244, 221, 37, 253,
 		195, 18, 202, 111, 55, 39, 48, 123, 17, 101, 78, 215, 94,
 	];
+	pub MinUsdPerEvaluation: Balance = 100 * US_DOLLAR;
+
 }
 pub struct ConvertSelf;
 impl Convert<AccountId, [u8; 32]> for ConvertSelf {
@@ -1048,6 +1050,7 @@ impl pallet_funding::Config for Runtime {
 	type MaxMessageSizeThresholds = MaxMessageSizeThresholds;
 	type MaxProjectsToUpdateInsertionAttempts = ConstU32<100>;
 	type MaxProjectsToUpdatePerBlock = ConstU32<1>;
+	type MinUsdPerEvaluation = MinUsdPerEvaluation;
 	type Multiplier = pallet_funding::types::Multiplier;
 	type NativeCurrency = Balances;
 	type PalletId = FundingPalletId;

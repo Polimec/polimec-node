@@ -512,7 +512,7 @@ mod evaluate_extrinsic {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 			let project_metadata = default_project_metadata(ISSUER_1);
 			let evaluations = (0u32..<TestRuntime as Config>::MaxEvaluationsPerProject::get())
-				.map(|i| UserToUSDBalance::<TestRuntime>::new(i as u32 + 420u32, (10u128 * ASSET_UNIT).into()))
+				.map(|i| UserToUSDBalance::<TestRuntime>::new(i as u32 + 420u32, (100u128 * ASSET_UNIT).into()))
 				.collect_vec();
 			let failing_evaluation = UserToUSDBalance::new(EVALUATOR_1, 1000 * ASSET_UNIT);
 
@@ -636,6 +636,44 @@ mod evaluate_extrinsic {
 						evaluation.usd_amount,
 					),
 					TokenError::FundsUnavailable
+				);
+			});
+		}
+
+		#[test]
+		fn cannot_evaluate_with_less_than_100_usd() {
+			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+			let issuer = ISSUER_1;
+			let project_metadata = default_project_metadata(issuer);
+			let project_id = inst.create_evaluating_project(project_metadata.clone(), issuer);
+			let evaluator = EVALUATOR_1;
+			let jwt = get_mock_jwt(evaluator, InvestorType::Retail, generate_did_from_account(evaluator));
+
+			inst.mint_plmc_to(vec![(evaluator.clone(), 2000 * PLMC).into()]);
+
+			// Cannot evaluate with 0 USD
+			inst.execute(|| {
+				assert_noop!(
+					Pallet::<TestRuntime>::evaluate(
+						RuntimeOrigin::signed(evaluator.clone()),
+						jwt.clone(),
+						project_id,
+						0
+					),
+					Error::<TestRuntime>::ParticipationFailed(ParticipationError::TooLow)
+				);
+			});
+
+			// Cannot evaluate with less than 99 USD
+			inst.execute(|| {
+				assert_noop!(
+					Pallet::<TestRuntime>::evaluate(
+						RuntimeOrigin::signed(evaluator.clone()),
+						jwt.clone(),
+						project_id,
+						99 * US_DOLLAR
+					),
+					Error::<TestRuntime>::ParticipationFailed(ParticipationError::TooLow)
 				);
 			});
 		}

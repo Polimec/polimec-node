@@ -25,7 +25,7 @@ use frame_support::{
 	pallet_prelude::*,
 	traits::{
 		fungible::{Mutate, MutateHold as FungibleMutateHold},
-		fungibles::{metadata::Mutate as MetadataMutate, Create, Mutate as FungiblesMutate},
+		fungibles::{metadata::Mutate as MetadataMutate, Create, Inspect, Mutate as FungiblesMutate},
 		tokens::{Precision, Preservation},
 		Get,
 	},
@@ -980,6 +980,10 @@ impl<T: Config> Pallet<T> {
 
 		// * Validity Checks *
 		ensure!(
+			usd_amount >= T::MinUsdPerEvaluation::get(),
+			Error::<T>::ParticipationFailed(ParticipationError::TooLow)
+		);
+		ensure!(
 			project_details.issuer_did != did,
 			Error::<T>::IssuerError(IssuerErrorReason::ParticipationToOwnProject)
 		);
@@ -1030,36 +1034,7 @@ impl<T: Config> Pallet<T> {
 			when: now,
 		};
 
-		if caller_existing_evaluations.len() < T::MaxEvaluationsPerUser::get() as usize {
-			T::NativeCurrency::hold(&HoldReason::Evaluation(project_id).into(), evaluator, plmc_bond)?;
-		} else {
-			let (low_id, lowest_evaluation) = caller_existing_evaluations
-				.iter()
-				.min_by_key(|(_, evaluation)| evaluation.original_plmc_bond)
-				.ok_or(Error::<T>::ImpossibleState)?;
-
-			ensure!(
-				lowest_evaluation.original_plmc_bond < plmc_bond,
-				Error::<T>::ParticipationFailed(ParticipationError::TooLow)
-			);
-			ensure!(
-				lowest_evaluation.original_plmc_bond == lowest_evaluation.current_plmc_bond,
-				"Using evaluation funds for participating should not be possible in the evaluation round"
-			);
-
-			T::NativeCurrency::release(
-				&HoldReason::Evaluation(project_id).into(),
-				&lowest_evaluation.evaluator,
-				lowest_evaluation.original_plmc_bond,
-				Precision::Exact,
-			)?;
-
-			T::NativeCurrency::hold(&HoldReason::Evaluation(project_id).into(), evaluator, plmc_bond)?;
-
-			Evaluations::<T>::remove((project_id, evaluator, low_id));
-			EvaluationCounts::<T>::mutate(project_id, |c| *c -= 1);
-		}
-
+		T::NativeCurrency::hold(&HoldReason::Evaluation(project_id).into(), evaluator, plmc_bond)?;
 		Evaluations::<T>::insert((project_id, evaluator, evaluation_id), new_evaluation);
 		NextEvaluationId::<T>::set(evaluation_id.saturating_add(One::one()));
 		evaluation_round_info.total_bonded_usd += usd_amount;
@@ -1443,26 +1418,6 @@ impl<T: Config> Pallet<T> {
 		ensure!(
 			multiplier.into() <= max_multiplier && multiplier.into() > 0u8,
 			Error::<T>::ParticipationFailed(ParticipationError::ForbiddenMultiplier)
-		);
-		ensure!(
-			project_metadata.participation_currencies.contains(&funding_asset),
-			Error::<T>::ParticipationFailed(ParticipationError::FundingAssetNotAccepted)
-		);
-		ensure!(
-			did.clone() != project_details.issuer_did,
-			Error::<T>::IssuerError(IssuerErrorReason::ParticipationToOwnProject)
-		);
-		ensure!(
-			caller_existing_contributions.len() < T::MaxContributionsPerUser::get() as usize,
-			Error::<T>::ParticipationFailed(ParticipationError::TooManyUserParticipations)
-		);
-		ensure!(
-			contributor_ticket_size.usd_ticket_above_minimum_per_participation(ticket_size),
-			Error::<T>::ParticipationFailed(ParticipationError::TooLow)
-		);
-		ensure!(
-			contributor_ticket_size.usd_ticket_below_maximum_per_did(total_usd_bought_by_did + ticket_size),
-			Error::<T>::ParticipationFailed(ParticipationError::TooHigh)
 		);
 		ensure!(
 			project_metadata.participation_currencies.contains(&funding_asset),
@@ -2074,6 +2029,9 @@ impl<T: Config> Pallet<T> {
 		let mut bid_usd_value_sum = BalanceOf::<T>::zero();
 		let project_account = Self::fund_account_id(project_id);
 		let plmc_price = T::PriceProvider::get_price(PLMC_FOREIGN_ID).ok_or(Error::<T>::PriceNotFound)?;
+		let project_metadata = ProjectsMetadata::<T>::get(project_id)
+			.ok_or(Error::<T>::ProjectError(ProjectErrorReason::ProjectMetadataNotFound))?;
+		let mut highest_accepted_price = project_metadata.minimum_price;
 
 		// sort bids by price, and equal prices sorted by id
 		bids.sort_by(|a, b| b.cmp(a));
@@ -2097,6 +2055,7 @@ impl<T: Config> Pallet<T> {
 					DidWithWinningBids::<T>::mutate(project_id, bid.did.clone(), |flag| {
 						*flag = true;
 					});
+					highest_accepted_price = highest_accepted_price.max(bid.original_ct_usd_price);
 				} else {
 					let ticket_size = bid.original_ct_usd_price.saturating_mul_int(buyable_amount);
 					bid_usd_value_sum.saturating_accrue(ticket_size);
@@ -2106,6 +2065,7 @@ impl<T: Config> Pallet<T> {
 						*flag = true;
 					});
 					bid.final_ct_amount = buyable_amount;
+					highest_accepted_price = highest_accepted_price.max(bid.original_ct_usd_price);
 				}
 				bid
 			})
@@ -2140,19 +2100,13 @@ impl<T: Config> Pallet<T> {
 
 		// lastly, sum all the weighted prices to get the final weighted price for the next funding round
 		// 3 + 10.6 + 2.6 = 16.333...
-		let current_bucket =
-			Buckets::<T>::get(project_id).ok_or(Error::<T>::ProjectError(ProjectErrorReason::BucketNotFound))?;
-		let project_metadata = ProjectsMetadata::<T>::get(project_id)
-			.ok_or(Error::<T>::ProjectError(ProjectErrorReason::ProjectMetadataNotFound))?;
-		let is_first_bucket = current_bucket.current_price == project_metadata.minimum_price;
-
 		let calc_weighted_price_fn = |bid: &BidInfoOf<T>| -> PriceOf<T> {
 			let ticket_size = bid.original_ct_usd_price.saturating_mul_int(bid.final_ct_amount);
 			let bid_weight = <T::Price as FixedPointNumber>::saturating_from_rational(ticket_size, bid_usd_value_sum);
 			let weighted_price = bid.original_ct_usd_price.saturating_mul(bid_weight);
 			weighted_price
 		};
-		let weighted_token_price = if is_first_bucket || accepted_bids.is_empty() {
+		let mut weighted_token_price = if highest_accepted_price == project_metadata.minimum_price {
 			project_metadata.minimum_price
 		} else {
 			accepted_bids
@@ -2160,6 +2114,11 @@ impl<T: Config> Pallet<T> {
 				.map(calc_weighted_price_fn)
 				.fold(Zero::zero(), |a: T::Price, b: T::Price| a.saturating_add(b))
 		};
+		// We are 99% sure that the price cannot be less than minimum if some accepted bids have higher price, but rounding
+		// errors are strange, so we keep this just in case.
+		if weighted_token_price < project_metadata.minimum_price {
+			weighted_token_price = project_metadata.minimum_price;
+		}
 
 		let mut final_total_funding_reached_by_bids = BalanceOf::<T>::zero();
 
@@ -2182,15 +2141,20 @@ impl<T: Config> Pallet<T> {
 					.checked_mul_int(new_ticket_size)
 					.ok_or(Error::<T>::BadMath)?;
 
-				T::FundingCurrency::transfer(
-					bid.funding_asset.to_assethub_id(),
-					&project_account,
-					&bid.bidder,
-					bid.funding_asset_amount_locked.saturating_sub(funding_asset_amount_needed),
-					Preservation::Preserve,
-				)?;
-
-				bid.funding_asset_amount_locked = funding_asset_amount_needed;
+				let amount_returned = bid.funding_asset_amount_locked.saturating_sub(funding_asset_amount_needed);
+				let asset_id = bid.funding_asset.to_assethub_id();
+				let min_amount = T::FundingCurrency::minimum_balance(asset_id);
+				// Transfers of less than min_amount return an error
+				if amount_returned > min_amount {
+					T::FundingCurrency::transfer(
+						bid.funding_asset.to_assethub_id(),
+						&project_account,
+						&bid.bidder,
+						amount_returned,
+						Preservation::Preserve,
+					)?;
+					bid.funding_asset_amount_locked = funding_asset_amount_needed;
+				}
 
 				let usd_bond_needed = bid
 					.multiplier
@@ -2202,12 +2166,16 @@ impl<T: Config> Pallet<T> {
 					.checked_mul_int(usd_bond_needed)
 					.ok_or(Error::<T>::BadMath)?;
 
-				T::NativeCurrency::release(
-					&HoldReason::Participation(project_id).into(),
-					&bid.bidder,
-					bid.plmc_bond.saturating_sub(plmc_bond_needed),
-					Precision::Exact,
-				)?;
+				let plmc_bond_returned = bid.plmc_bond.saturating_sub(plmc_bond_needed);
+				// If the free balance of a user is zero and we want to send him less than ED, it will fail.
+				if plmc_bond_returned > T::ExistentialDeposit::get() {
+					T::NativeCurrency::release(
+						&HoldReason::Participation(project_id).into(),
+						&bid.bidder,
+						plmc_bond_returned,
+						Precision::Exact,
+					)?;
+				}
 
 				bid.plmc_bond = plmc_bond_needed;
 			}
@@ -2322,7 +2290,8 @@ impl<T: Config> Pallet<T> {
 			to_convert = to_convert.saturating_sub(converted)
 		}
 
-		T::NativeCurrency::hold(&HoldReason::Participation(project_id).into(), who, to_convert)?;
+		T::NativeCurrency::hold(&HoldReason::Participation(project_id).into(), who, to_convert)
+			.map_err(|_| Error::<T>::ParticipationFailed(ParticipationError::NotEnoughFunds))?;
 
 		Ok(())
 	}
