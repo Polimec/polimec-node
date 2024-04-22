@@ -660,7 +660,7 @@ mod evaluate_extrinsic {
 						project_id,
 						0
 					),
-					Error::<TestRuntime>::EvaluationBondTooLow
+					Error::<TestRuntime>::ParticipationFailed(ParticipationError::TooLow)
 				);
 			});
 
@@ -673,7 +673,7 @@ mod evaluate_extrinsic {
 						project_id,
 						99 * US_DOLLAR
 					),
-					Error::<TestRuntime>::EvaluationBondTooLow
+					Error::<TestRuntime>::ParticipationFailed(ParticipationError::TooLow)
 				);
 			});
 		}

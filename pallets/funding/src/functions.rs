@@ -979,7 +979,7 @@ impl<T: Config> Pallet<T> {
 		let evaluations_count = EvaluationCounts::<T>::get(project_id);
 
 		// * Validity Checks *
-		ensure!(usd_amount >= T::MinUsdPerEvaluation::get(), Error::<T>::ParticipationFailed(ParticipationError::));
+		ensure!(usd_amount >= T::MinUsdPerEvaluation::get(), Error::<T>::ParticipationFailed(ParticipationError::TooLow));
 		ensure!(
 			project_details.issuer_did != did,
 			Error::<T>::IssuerError(IssuerErrorReason::ParticipationToOwnProject)
@@ -2289,7 +2289,7 @@ impl<T: Config> Pallet<T> {
 		}
 
 		T::NativeCurrency::hold(&HoldReason::Participation(project_id).into(), who, to_convert)
-			.map_err(|_| Error::<T>::NotEnoughFunds)?;
+			.map_err(|_| Error::<T>::ParticipationFailed(ParticipationError::NotEnoughFunds))?;
 
 		Ok(())
 	}
