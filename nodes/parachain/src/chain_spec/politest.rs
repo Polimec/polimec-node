@@ -355,7 +355,7 @@ mod testing_helpers {
 			},
 			participation_currencies: vec![AcceptedFundingAsset::USDT].try_into().unwrap(),
 			funding_destination_account: issuer,
-			offchain_information_hash: Some(metadata_hash(nonce)),
+			policy_ipfs_cid: Some(metadata_hash(nonce)),
 		}
 	}
 	pub fn default_evaluations() -> Vec<UserToUSDBalance<politest_runtime::Runtime>> {

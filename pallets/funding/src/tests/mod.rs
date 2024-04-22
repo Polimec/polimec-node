@@ -25,14 +25,7 @@ use std::iter::zip;
 type MockInstantiator =
 	Instantiator<TestRuntime, <TestRuntime as crate::Config>::AllPalletsWithoutSystem, RuntimeEvent>;
 
-const METADATA: &str = r#"METADATA
-            {
-                "whitepaper":"ipfs_url",
-                "team_description":"ipfs_url",
-                "tokenomics":"ipfs_url",
-                "roadmap":"ipfs_url",
-                "usage_of_founds":"ipfs_url"
-            }"#;
+const METADATA: &str = "QmeuJ24ffwLAZppQcgcggJs3n689bewednYkuc8Bx5Gngz";
 const ASSET_DECIMALS: u8 = 10;
 const ISSUER_1: AccountId = 11;
 const ISSUER_2: AccountId = 12;
@@ -97,7 +90,7 @@ pub mod defaults {
 	pub fn default_project_metadata(issuer: AccountId) -> ProjectMetadataOf<TestRuntime> {
 		let bounded_name = BoundedVec::try_from("Contribution Token TEST".as_bytes().to_vec()).unwrap();
 		let bounded_symbol = BoundedVec::try_from("CTEST".as_bytes().to_vec()).unwrap();
-		let metadata_hash = hashed(METADATA.to_string());
+		let metadata_hash = BoundedVec::try_from(METADATA.as_bytes().to_vec()).unwrap();
 		ProjectMetadata {
 			token_information: CurrencyMetadata {
 				name: bounded_name,
@@ -121,14 +114,14 @@ pub mod defaults {
 			},
 			participation_currencies: vec![AcceptedFundingAsset::USDT].try_into().unwrap(),
 			funding_destination_account: issuer,
-			offchain_information_hash: Some(metadata_hash),
+			policy_ipfs_cid: Some(metadata_hash),
 		}
 	}
 
 	pub fn knowledge_hub_project(nonce: u64) -> ProjectMetadataOf<TestRuntime> {
 		let bounded_name = BoundedVec::try_from("Contribution Token TEST".as_bytes().to_vec()).unwrap();
 		let bounded_symbol = BoundedVec::try_from("CTEST".as_bytes().to_vec()).unwrap();
-		let metadata_hash = hashed(format!("{}-{}", METADATA, nonce));
+		let metadata_hash = BoundedVec::try_from(METADATA.as_bytes().to_vec()).unwrap();
 		let project_metadata = ProjectMetadataOf::<TestRuntime> {
 			token_information: CurrencyMetadata {
 				name: bounded_name,
@@ -152,7 +145,7 @@ pub mod defaults {
 			},
 			participation_currencies: vec![AcceptedFundingAsset::USDT].try_into().unwrap(),
 			funding_destination_account: ISSUER_1,
-			offchain_information_hash: Some(metadata_hash),
+			policy_ipfs_cid: Some(metadata_hash),
 		};
 		project_metadata
 	}

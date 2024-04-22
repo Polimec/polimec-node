@@ -68,7 +68,7 @@ where
 {
 	let bounded_name = BoundedVec::try_from("Contribution Token TEST".as_bytes().to_vec()).unwrap();
 	let bounded_symbol = BoundedVec::try_from("CTEST".as_bytes().to_vec()).unwrap();
-	let metadata_hash = hashed(format!("{}-{}", METADATA, nonce));
+	let metadata_hash = BoundedVec::try_from(METADATA.as_bytes().to_vec()).unwrap();
 	ProjectMetadata {
 		token_information: CurrencyMetadata { name: bounded_name, symbol: bounded_symbol, decimals: ASSET_DECIMALS },
 		mainnet_token_max_supply: BalanceOf::<T>::try_from(800_000_000_0_000_000_000u128)
@@ -100,7 +100,7 @@ where
 		},
 		participation_currencies: vec![AcceptedFundingAsset::USDT].try_into().unwrap(),
 		funding_destination_account: issuer,
-		offchain_information_hash: Some(metadata_hash.into()),
+		policy_ipfs_cid: Some(metadata_hash.into()),
 	}
 }
 
@@ -530,7 +530,7 @@ mod benchmarks {
 			},
 			participation_currencies: vec![AcceptedFundingAsset::USDT, AcceptedFundingAsset::USDC].try_into().unwrap(),
 			funding_destination_account: issuer_funding.clone().clone(),
-			offchain_information_hash: Some(hashed(format!("{}-{}", METADATA, 69)).into()),
+			policy_ipfs_cid: Some(hashed(format!("{}-{}", METADATA, 69)).into()),
 		};
 
 		let jwt = get_mock_jwt(issuer.clone(), InvestorType::Institutional, generate_did_from_account(issuer.clone()));
@@ -2080,7 +2080,7 @@ mod benchmarks {
 			},
 			participation_currencies: vec![AcceptedFundingAsset::USDT].try_into().unwrap(),
 			funding_destination_account: issuer.clone(),
-			offchain_information_hash: Some(metadata_hash.into()),
+			policy_ipfs_cid: Some(metadata_hash.into()),
 		};
 		let project_id =
 			inst.create_auctioning_project(project_metadata.clone(), issuer.clone(), default_evaluations());

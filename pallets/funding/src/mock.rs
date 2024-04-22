@@ -517,7 +517,3 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
 	});
 	ext
 }
-
-pub fn hashed(data: impl AsRef<[u8]>) -> H256 {
-	<BlakeTwo256 as sp_runtime::traits::Hash>::hash(data.as_ref())
-}

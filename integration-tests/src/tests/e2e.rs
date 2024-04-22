@@ -38,7 +38,7 @@ generate_accounts!(
 pub fn excel_project(nonce: u64) -> ProjectMetadataOf<PolitestRuntime> {
 	let bounded_name = BoundedVec::try_from("Polimec".as_bytes().to_vec()).unwrap();
 	let bounded_symbol = BoundedVec::try_from("PLMC".as_bytes().to_vec()).unwrap();
-	let metadata_hash = hashed(format!("{}-{}", METADATA, nonce));
+	let metadata_hash = BoundedVec::try_from(METADATA.as_bytes().to_vec()).unwrap();;
 	ProjectMetadata {
 		token_information: CurrencyMetadata { name: bounded_name, symbol: bounded_symbol, decimals: 10 },
 		mainnet_token_max_supply: 10_000_000_0_000_000_000, // Made up, not in the Sheet.
@@ -61,7 +61,7 @@ pub fn excel_project(nonce: u64) -> ProjectMetadataOf<PolitestRuntime> {
 		},
 		participation_currencies: vec![AcceptedFundingAsset::USDT].try_into().unwrap(),
 		funding_destination_account: ISSUER.into(),
-		offchain_information_hash: Some(metadata_hash),
+		policy_ipfs_cid: Some(metadata_hash),
 	}
 }
 

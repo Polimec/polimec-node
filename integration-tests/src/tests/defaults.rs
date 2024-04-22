@@ -21,20 +21,12 @@ use pallet_funding::{
 	ProjectMetadataOf, TicketSize,
 };
 use sp_arithmetic::{FixedPointNumber, Percent};
-use sp_core::H256;
 
 use macros::generate_accounts;
 use politest_runtime::AccountId;
 use sp_runtime::{traits::ConstU32, Perquintill};
 
-pub const METADATA: &str = r#"METADATA
-        {
-            "whitepaper":"ipfs_url",
-            "team_description":"ipfs_url",
-            "tokenomics":"ipfs_url",
-            "roadmap":"ipfs_url",
-            "usage_of_founds":"ipfs_url"
-        }"#;
+pub const METADATA: &str = "QmeuJ24ffwLAZppQcgcggJs3n689bewednYkuc8Bx5Gngz";
 pub const ASSET_DECIMALS: u8 = 10;
 pub const ASSET_UNIT: u128 = 10_u128.pow(10 as u32);
 pub const PLMC: u128 = 10u128.pow(10);
@@ -60,8 +52,8 @@ pub fn bounded_name() -> BoundedVec<u8, ConstU32<64>> {
 pub fn bounded_symbol() -> BoundedVec<u8, ConstU32<64>> {
 	BoundedVec::try_from("CTEST".as_bytes().to_vec()).unwrap()
 }
-pub fn metadata_hash(nonce: u32) -> H256 {
-	hashed(format!("{}-{}", METADATA, nonce))
+pub fn metadata_hash() -> BoundedVec<u8, ConstU32<64>>  {
+	BoundedVec::try_from(METADATA.as_bytes().to_vec()).unwrap()
 }
 pub fn default_weights() -> Vec<u8> {
 	vec![20u8, 15u8, 10u8, 25u8, 30u8]
@@ -97,7 +89,7 @@ pub fn default_project_metadata(nonce: u32, issuer: AccountId) -> ProjectMetadat
 		},
 		participation_currencies: vec![AcceptedFundingAsset::USDT].try_into().unwrap(),
 		funding_destination_account: issuer,
-		offchain_information_hash: Some(metadata_hash(nonce)),
+		policy_ipfs_cid: Some(metadata_hash()),
 	}
 }
 pub fn default_evaluations() -> Vec<UserToUSDBalance<PolitestRuntime>> {

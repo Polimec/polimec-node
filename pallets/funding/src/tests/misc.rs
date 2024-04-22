@@ -105,7 +105,7 @@ mod helper_functions {
 			},
 			participation_currencies: vec![AcceptedFundingAsset::USDT].try_into().unwrap(),
 			funding_destination_account: ISSUER_1,
-			offchain_information_hash: Some(hashed(METADATA)),
+			policy_ipfs_cid: Some(BoundedVec::try_from(METADATA.as_bytes().to_vec()).unwrap()),
 		};
 
 		let project_id = inst.create_community_contributing_project(

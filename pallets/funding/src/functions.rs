@@ -81,7 +81,7 @@ impl<T: Config> Pallet<T> {
 		);
 		ensure!(!project_details.is_frozen, Error::<T>::ProjectError(ProjectErrorReason::ProjectAlreadyFrozen));
 		ensure!(
-			project_metadata.offchain_information_hash.is_some(),
+			project_metadata.policy_ipfs_cid.is_some(),
 			Error::<T>::BadMetadata(MetadataError::MetadataNotProvided)
 		);
 

@@ -51,7 +51,7 @@ mod round_flow {
 
 			let bounded_name = BoundedVec::try_from("Contribution Token TEST".as_bytes().to_vec()).unwrap();
 			let bounded_symbol = BoundedVec::try_from("CTEST".as_bytes().to_vec()).unwrap();
-			let metadata_hash = hashed(format!("{}-{}", METADATA, 0));
+			let metadata_hash = BoundedVec::try_from(METADATA.as_bytes().to_vec()).unwrap();
 			let project_metadata = ProjectMetadata {
 				token_information: CurrencyMetadata {
 					name: bounded_name,
@@ -75,7 +75,7 @@ mod round_flow {
 				},
 				participation_currencies: vec![AcceptedFundingAsset::USDT].try_into().unwrap(),
 				funding_destination_account: ISSUER_1,
-				offchain_information_hash: Some(metadata_hash),
+				policy_ipfs_cid: Some(metadata_hash),
 			};
 
 			// overfund with plmc
