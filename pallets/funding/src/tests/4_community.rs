@@ -246,7 +246,13 @@ mod community_contribute_extrinsic {
 					AcceptedFundingAsset::USDT,
 				));
 			});
+		}
 
+		#[test]
+		fn evaluation_bond_used_on_failed_bid_can_be_reused_on_contribution() {
+			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+			let BOB = 42069;
+			let project_metadata = default_project_metadata(ISSUER_1);
 			// An evaluator that did a bid but it was not accepted at the end of the auction, can use that PLMC for contributing
 			let mut evaluations = default_evaluations();
 			let bob_evaluation = (BOB, 1337 * US_DOLLAR).into();
@@ -257,6 +263,12 @@ mod community_contribute_extrinsic {
 			let all_bids = bids.iter().chain(vec![bob_bid.clone()].iter()).cloned().collect_vec();
 
 			let project_id = inst.create_auctioning_project(default_project_metadata(ISSUER_2), ISSUER_2, evaluations);
+
+			let evaluation_bond =
+				inst.execute(|| Balances::balance_on_hold(&HoldReason::Evaluation(project_id).into(), &BOB));
+			let slashable_bond = <TestRuntime as Config>::EvaluatorSlash::get() * evaluation_bond;
+			let usable_bond = evaluation_bond - slashable_bond;
+
 			let bids_plmc = MockInstantiator::calculate_auction_plmc_charged_from_all_bids_made_or_with_bucket(
 				&all_bids,
 				project_metadata.clone(),
@@ -285,8 +297,16 @@ mod community_contribute_extrinsic {
 			inst.start_community_funding(project_id).unwrap();
 			assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::CommunityRound);
 
-			let bob_contribution = (BOB, 1337 * ASSET_UNIT).into();
+			let plmc_price = <TestRuntime as Config>::PriceProvider::get_price(PLMC_FOREIGN_ID).unwrap();
 			let wap = inst.get_project_details(project_id).weighted_average_price.unwrap();
+
+			let usable_usd = plmc_price.saturating_mul_int(usable_bond);
+			let usable_ct = wap.reciprocal().unwrap().saturating_mul_int(usable_usd);
+
+			let slashable_usd = plmc_price.saturating_mul_int(slashable_bond);
+			let slashable_ct = wap.reciprocal().unwrap().saturating_mul_int(slashable_usd);
+
+			let bob_contribution = (BOB, 1337 * ASSET_UNIT).into();
 			let contribution_usdt =
 				MockInstantiator::calculate_contributed_funding_asset_spent(vec![bob_contribution], wap);
 			inst.mint_foreign_asset_to(contribution_usdt.clone());
