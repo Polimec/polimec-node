@@ -22,7 +22,7 @@
 use cumulus_pallet_parachain_system::RelayNumberMonotonicallyIncreases;
 #[cfg(not(feature = "async-backing"))]
 use cumulus_pallet_parachain_system::RelayNumberStrictlyIncreases;
-use cumulus_primitives_core::{AggregateMessageOrigin, ParaId};
+use cumulus_primitives_core::{AggregateMessageOrigin, ChannelStatus, ParaId};
 use frame_support::{
 	construct_runtime,
 	genesis_builder_helper::{build_config, create_default_config},
@@ -456,8 +456,39 @@ parameter_types! {
 	pub const RelayOrigin: AggregateMessageOrigin = AggregateMessageOrigin::Parent;
 }
 
+// TODO: remove after upgrading pallet-xcm.
+// We need this mock for now which is used on parity's parachains that use our version of pallet-xcm.
+// This is due to the channel to AssetHub not being ready at genesis, and requiring a complex setup that is not relevant for benchmarking.
+pub struct MockedChannelInfo;
+impl cumulus_primitives_core::GetChannelInfo for MockedChannelInfo {
+	fn get_channel_status(id: ParaId) -> ChannelStatus {
+		if id == 1000.into() {
+			return ChannelStatus::Ready(usize::MAX, usize::MAX)
+		}
+
+		ParachainSystem::get_channel_status(id)
+	}
+
+	fn get_channel_info(id: ParaId) -> Option<cumulus_primitives_core::ChannelInfo> {
+		if id == 1000.into() {
+			return Some(cumulus_primitives_core::ChannelInfo {
+				max_capacity: u32::MAX,
+				max_total_size: u32::MAX,
+				max_message_size: u32::MAX,
+				msg_count: 0,
+				total_size: 0,
+			})
+		}
+
+		ParachainSystem::get_channel_info(id)
+	}
+}
+
 impl cumulus_pallet_xcmp_queue::Config for Runtime {
+	#[cfg(not(feature = "runtime-benchmarks"))]
 	type ChannelInfo = ParachainSystem;
+	#[cfg(feature = "runtime-benchmarks")]
+	type ChannelInfo = MockedChannelInfo;
 	type ControllerOrigin = EnsureRoot<AccountId>;
 	type ControllerOriginConverter = XcmOriginToTransactDispatchOrigin;
 	type MaxInboundSuspended = sp_core::ConstU32<1_000>;
@@ -1164,7 +1195,7 @@ mod benches {
 
 		// XCM helpers.
 		[cumulus_pallet_xcmp_queue, XcmpQueue]
-		// [pallet_xcm, PalletXcmExtrinsiscsBenchmark::<Runtime>]
+		[pallet_xcm, PalletXcmExtrinsiscsBenchmark::<Runtime>]
 		[cumulus_pallet_dmp_queue, DmpQueue]
 		[pallet_message_queue, MessageQueue]
 
@@ -1401,17 +1432,28 @@ impl_runtime_apis! {
 			use cumulus_pallet_session_benchmarking::Pallet as SessionBench;
 			use xcm::latest::prelude::*;
 			use pallet_xcm::benchmarking::Pallet as PalletXcmExtrinsiscsBenchmark;
-			/// TODO: Update these benchmarks once we enable PLMC Teleportation
+			/// TODO: Update these benchmarks once we enable PLMC Teleportation and upgrade pallet_xcm. New version has
+			/// a better and quite different trait
 			impl pallet_xcm::benchmarking::Config for Runtime {
 				fn reachable_dest() -> Option<MultiLocation> {
+					PolkadotXcm::force_xcm_version(
+						RuntimeOrigin::root(),
+						Box::new(crate::xcm_config::AssetHubLocation::get()),
+						xcm::prelude::XCM_VERSION
+					).unwrap();
 					Some(crate::xcm_config::AssetHubLocation::get())
 				}
 
 				fn reserve_transferable_asset_and_dest() -> Option<(MultiAsset, MultiLocation)> {
+					PolkadotXcm::force_xcm_version(
+						RuntimeOrigin::root(),
+						Box::new(crate::xcm_config::AssetHubLocation::get()),
+						xcm::prelude::XCM_VERSION
+					).unwrap();
 					Some((
 						MultiAsset {
-							fun: Fungible(EXISTENTIAL_DEPOSIT),
-							id: Concrete(Parent.into())
+							fun: Fungible(ExistentialDeposit::get()),
+							id: Concrete(Here.into())
 						},
 						crate::xcm_config::AssetHubLocation::get(),
 					))
