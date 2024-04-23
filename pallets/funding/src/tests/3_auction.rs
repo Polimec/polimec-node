@@ -1055,6 +1055,66 @@ mod bid_extrinsic {
 		}
 
 		#[test]
+		fn cannot_use_evaluation_bond_on_another_project_bid() {
+			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+			let project_metadata_1 = default_project_metadata(ISSUER_1);
+			let project_metadata_2 = default_project_metadata(ISSUER_2);
+
+
+			let mut evaluations_1 = default_evaluations();
+			let evaluations_2 = default_evaluations();
+
+			let evaluator_bidder = 69;
+			let evaluation_amount = 420 * US_DOLLAR;
+			let evaluator_bid = BidParams::new(evaluator_bidder, 600 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT);
+			evaluations_1.push((evaluator_bidder, evaluation_amount).into());
+
+			let project_id_1 = inst.create_auctioning_project(project_metadata_1.clone(), ISSUER_1, evaluations_1);
+			let project_id_2 = inst.create_auctioning_project(project_metadata_2.clone(), ISSUER_2, evaluations_2);
+
+
+			// Necessary Mints
+			let already_bonded_plmc =
+				MockInstantiator::calculate_evaluation_plmc_spent(vec![(evaluator_bidder, evaluation_amount).into()])
+					[0]
+					.plmc_amount;
+			let usable_evaluation_plmc =
+				already_bonded_plmc - <TestRuntime as Config>::EvaluatorSlash::get() * already_bonded_plmc;
+			let necessary_plmc_for_bid = MockInstantiator::calculate_auction_plmc_charged_with_given_price(
+				&vec![evaluator_bid.clone()],
+				project_metadata_2.minimum_price,
+			)[0]
+				.plmc_amount;
+			let necessary_usdt_for_bid = MockInstantiator::calculate_auction_funding_asset_charged_with_given_price(
+				&vec![evaluator_bid.clone()],
+				project_metadata_2.minimum_price,
+			);
+			inst.mint_plmc_to(vec![UserToPLMCBalance::new(
+				evaluator_bidder,
+				necessary_plmc_for_bid - usable_evaluation_plmc,
+			)]);
+			inst.mint_foreign_asset_to(necessary_usdt_for_bid);
+
+			inst.execute(|| {
+				assert_noop!(
+					PolimecFunding::bid(
+						RuntimeOrigin::signed(evaluator_bidder),
+						get_mock_jwt(
+							evaluator_bidder,
+							InvestorType::Professional,
+							generate_did_from_account(evaluator_bidder)
+						),
+						project_id_2,
+						evaluator_bid.amount,
+						evaluator_bid.multiplier,
+						evaluator_bid.asset
+					),
+					Error::<TestRuntime>::ParticipationFailed(ParticipationError::NotEnoughFunds)
+				);
+			});
+		}
+
+		#[test]
 		fn cannot_bid_before_auction_round() {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 			let _ = inst.create_evaluating_project(default_project_metadata(ISSUER_1), ISSUER_1);
