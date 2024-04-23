@@ -39,16 +39,7 @@ use sp_core::H256;
 use sp_io::hashing::blake2_256;
 use sp_runtime::traits::{BlakeTwo256, Get, Member, TrailingZeroInput, Zero};
 
-const METADATA: &str = r#"
-{
-    "whitepaper":"ipfs_url",
-    "team_description":"ipfs_url",
-    "tokenomics":"ipfs_url",
-    "roadmap":"ipfs_url",
-    "usage_of_founds":"ipfs_url"
-}
-"#;
-
+const METADATA: &str = "QmbvsJBhQtu9uAGVp7x4H77JkwAQxV7TA6xTfdeALuDiYB";
 const ASSET_DECIMALS: u8 = 10;
 const US_DOLLAR: u128 = 1_0_000_000_000u128;
 const ASSET_UNIT: u128 = 1_0_000_000_000u128;
@@ -530,7 +521,7 @@ mod benchmarks {
 			},
 			participation_currencies: vec![AcceptedFundingAsset::USDT, AcceptedFundingAsset::USDC].try_into().unwrap(),
 			funding_destination_account: issuer_funding.clone().clone(),
-			policy_ipfs_cid: Some(hashed(format!("{}-{}", METADATA, 69)).into()),
+			policy_ipfs_cid: Some(BoundedVec::try_from(METADATA.as_bytes().to_vec()).unwrap()),
 		};
 
 		let jwt = get_mock_jwt(issuer.clone(), InvestorType::Institutional, generate_did_from_account(issuer.clone()));
@@ -2041,7 +2032,7 @@ mod benchmarks {
 		whitelist_account!(issuer);
 		let bounded_name = BoundedVec::try_from("Contribution Token TEST".as_bytes().to_vec()).unwrap();
 		let bounded_symbol = BoundedVec::try_from("CTEST".as_bytes().to_vec()).unwrap();
-		let metadata_hash = hashed(format!("{}-{}", METADATA, 69));
+		let metadata_hash = BoundedVec::try_from(METADATA.as_bytes().to_vec()).unwrap();
 
 		let project_metadata = ProjectMetadata {
 			token_information: CurrencyMetadata {
