@@ -113,7 +113,7 @@ pub mod defaults {
 		}
 	}
 
-	pub fn knowledge_hub_project(nonce: u64) -> ProjectMetadataOf<TestRuntime> {
+	pub fn knowledge_hub_project() -> ProjectMetadataOf<TestRuntime> {
 		let bounded_name = bounded_name();
 		let bounded_symbol = bounded_symbol();
 		let metadata_hash = ipfs_hash();

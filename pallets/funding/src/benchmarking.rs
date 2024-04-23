@@ -37,7 +37,7 @@ use scale_info::prelude::format;
 use sp_arithmetic::Percent;
 use sp_core::H256;
 use sp_io::hashing::blake2_256;
-use sp_runtime::traits::{BlakeTwo256, Get, Member, TrailingZeroInput, Zero};
+use sp_runtime::traits::{Get, Member, TrailingZeroInput, Zero};
 
 const IPFS_CID: &str = "QmbvsJBhQtu9uAGVp7x4H77JkwAQxV7TA6xTfdeALuDiYB";
 const ASSET_DECIMALS: u8 = 10;
@@ -47,9 +47,6 @@ type BenchInstantiator<T> = Instantiator<T, <T as Config>::AllPalletsWithoutSyst
 
 pub fn usdt_id() -> u32 {
 	AcceptedFundingAsset::USDT.to_assethub_id()
-}
-pub fn hashed(data: impl AsRef<[u8]>) -> H256 {
-	<BlakeTwo256 as sp_runtime::traits::Hash>::hash(data.as_ref())
 }
 
 pub fn default_project<T: Config>(issuer: AccountIdOf<T>) -> ProjectMetadataOf<T>
@@ -659,7 +656,7 @@ mod benchmarks {
 		whitelist_account!(test_evaluator);
 
 		let project_metadata = default_project::<T>(issuer.clone());
-		let test_project_id = inst.create_evaluating_project(project_metadata, issuer);
+		let project_id = inst.create_evaluating_project(project_metadata, issuer);
 
 		let existing_evaluation = UserToUSDBalance::new(test_evaluator.clone(), (200 * US_DOLLAR).into());
 		let extrinsic_evaluation = UserToUSDBalance::new(test_evaluator.clone(), (1_000 * US_DOLLAR).into());
@@ -682,7 +679,7 @@ mod benchmarks {
 		inst.evaluate_for_users(project_id, existing_evaluations).expect("All evaluations are accepted");
 
 		let extrinsic_plmc_bonded = plmc_for_extrinsic_evaluation[0].plmc_amount;
-		let mut total_expected_plmc_bonded = BenchInstantiator::<T>::sum_balance_mappings(vec![
+		let total_expected_plmc_bonded = BenchInstantiator::<T>::sum_balance_mappings(vec![
 			plmc_for_existing_evaluations.clone(),
 			plmc_for_extrinsic_evaluation.clone(),
 		]);

@@ -354,7 +354,7 @@ mod remaining_contribute_extrinsic {
 				},
 				participation_currencies: vec![AcceptedFundingAsset::USDT].try_into().unwrap(),
 				funding_destination_account: ISSUER_1,
-				offchain_information_hash: Some(hashed(METADATA)),
+				policy_ipfs_cid: Some(ipfs_hash()),
 			};
 			let evaluations = MockInstantiator::generate_successful_evaluations(
 				project_metadata.clone(),
@@ -665,7 +665,7 @@ mod remaining_contribute_extrinsic {
 				},
 				participation_currencies: vec![AcceptedFundingAsset::USDT].try_into().unwrap(),
 				funding_destination_account: ISSUER_1,
-				offchain_information_hash: Some(hashed(METADATA)),
+				policy_ipfs_cid: Some(ipfs_hash()),
 			};
 
 			let project_id = inst.create_remainder_contributing_project(
@@ -758,7 +758,7 @@ mod remaining_contribute_extrinsic {
 				},
 				participation_currencies: vec![AcceptedFundingAsset::USDT].try_into().unwrap(),
 				funding_destination_account: ISSUER_1,
-				offchain_information_hash: Some(hashed(METADATA)),
+				policy_ipfs_cid: Some(ipfs_hash()),
 			};
 
 			let project_id = inst.create_remainder_contributing_project(
