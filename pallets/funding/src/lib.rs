@@ -164,7 +164,6 @@ pub type MultiplierOf<T> = <T as Config>::Multiplier;
 pub type BalanceOf<T> = <T as Config>::Balance;
 pub type PriceOf<T> = <T as Config>::Price;
 pub type StringLimitOf<T> = <T as Config>::StringLimit;
-pub type HashOf<T> = <T as frame_system::Config>::Hash;
 pub type AssetIdOf<T> =
 	<<T as Config>::FundingCurrency as fungibles::Inspect<<T as frame_system::Config>::AccountId>>::AssetId;
 pub type RewardInfoOf<T> = RewardInfo<BalanceOf<T>>;
@@ -172,7 +171,7 @@ pub type EvaluatorsOutcomeOf<T> = EvaluatorsOutcome<BalanceOf<T>>;
 
 pub type TicketSizeOf<T> = TicketSize<BalanceOf<T>>;
 pub type ProjectMetadataOf<T> =
-	ProjectMetadata<BoundedVec<u8, StringLimitOf<T>>, BalanceOf<T>, PriceOf<T>, AccountIdOf<T>, HashOf<T>>;
+	ProjectMetadata<BoundedVec<u8, StringLimitOf<T>>, BalanceOf<T>, PriceOf<T>, AccountIdOf<T>>;
 pub type ProjectDetailsOf<T> =
 	ProjectDetails<AccountIdOf<T>, Did, BlockNumberFor<T>, PriceOf<T>, BalanceOf<T>, EvaluationRoundInfoOf<T>>;
 pub type EvaluationRoundInfoOf<T> = EvaluationRoundInfo<BalanceOf<T>>;

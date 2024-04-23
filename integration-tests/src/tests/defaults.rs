@@ -21,20 +21,12 @@ use pallet_funding::{
 	ProjectMetadataOf, TicketSize,
 };
 use sp_arithmetic::{FixedPointNumber, Percent};
-use sp_core::H256;
 
 use macros::generate_accounts;
 use politest_runtime::AccountId;
 use sp_runtime::{traits::ConstU32, Perquintill};
 
-pub const METADATA: &str = r#"METADATA
-        {
-            "whitepaper":"ipfs_url",
-            "team_description":"ipfs_url",
-            "tokenomics":"ipfs_url",
-            "roadmap":"ipfs_url",
-            "usage_of_founds":"ipfs_url"
-        }"#;
+pub const IPFS_CID: &str = "QmeuJ24ffwLAZppQcgcggJs3n689bewednYkuc8Bx5Gngz";
 pub const ASSET_DECIMALS: u8 = 10;
 pub const ASSET_UNIT: u128 = 10_u128.pow(10 as u32);
 pub const PLMC: u128 = 10u128.pow(10);
@@ -45,9 +37,6 @@ pub type IntegrationInstantiator = pallet_funding::instantiator::Instantiator<
 	<PolitestRuntime as pallet_funding::Config>::AllPalletsWithoutSystem,
 	<PolitestRuntime as pallet_funding::Config>::RuntimeEvent,
 >;
-pub fn hashed(data: impl AsRef<[u8]>) -> sp_core::H256 {
-	<sp_runtime::traits::BlakeTwo256 as sp_runtime::traits::Hash>::hash(data.as_ref())
-}
 
 generate_accounts!(
 	ISSUER, EVAL_1, EVAL_2, EVAL_3, EVAL_4, BIDDER_1, BIDDER_2, BIDDER_3, BIDDER_4, BIDDER_5, BIDDER_6, BUYER_1,
@@ -60,8 +49,8 @@ pub fn bounded_name() -> BoundedVec<u8, ConstU32<64>> {
 pub fn bounded_symbol() -> BoundedVec<u8, ConstU32<64>> {
 	BoundedVec::try_from("CTEST".as_bytes().to_vec()).unwrap()
 }
-pub fn metadata_hash(nonce: u32) -> H256 {
-	hashed(format!("{}-{}", METADATA, nonce))
+pub fn ipfs_hash() -> BoundedVec<u8, ConstU32<64>> {
+	BoundedVec::try_from(IPFS_CID.as_bytes().to_vec()).unwrap()
 }
 pub fn default_weights() -> Vec<u8> {
 	vec![20u8, 15u8, 10u8, 25u8, 30u8]
@@ -73,7 +62,7 @@ pub fn default_contributor_multipliers() -> Vec<u8> {
 	vec![1u8, 1u8, 1u8, 1u8, 1u8]
 }
 
-pub fn default_project_metadata(nonce: u32, issuer: AccountId) -> ProjectMetadataOf<politest_runtime::Runtime> {
+pub fn default_project_metadata(issuer: AccountId) -> ProjectMetadataOf<politest_runtime::Runtime> {
 	ProjectMetadata {
 		token_information: CurrencyMetadata {
 			name: bounded_name(),
@@ -97,7 +86,7 @@ pub fn default_project_metadata(nonce: u32, issuer: AccountId) -> ProjectMetadat
 		},
 		participation_currencies: vec![AcceptedFundingAsset::USDT].try_into().unwrap(),
 		funding_destination_account: issuer,
-		offchain_information_hash: Some(metadata_hash(nonce)),
+		policy_ipfs_cid: Some(ipfs_hash()),
 	}
 }
 pub fn default_evaluations() -> Vec<UserToUSDBalance<PolitestRuntime>> {
@@ -112,7 +101,7 @@ pub fn default_bidders() -> Vec<AccountId> {
 }
 
 pub fn default_bids() -> Vec<BidParams<PolitestRuntime>> {
-	let default_metadata = default_project_metadata(0u32, ISSUER.into());
+	let default_metadata = default_project_metadata(ISSUER.into());
 	let auction_allocation =
 		default_metadata.auction_round_allocation_percentage * default_metadata.total_allocation_size;
 	let auction_90_percent = Perquintill::from_percent(90) * auction_allocation;
@@ -128,7 +117,7 @@ pub fn default_bids() -> Vec<BidParams<PolitestRuntime>> {
 }
 
 pub fn default_community_contributions() -> Vec<ContributionParams<PolitestRuntime>> {
-	let default_metadata = default_project_metadata(0u32, ISSUER.into());
+	let default_metadata = default_project_metadata(ISSUER.into());
 
 	let auction_allocation =
 		default_metadata.auction_round_allocation_percentage * default_metadata.total_allocation_size;
@@ -147,7 +136,7 @@ pub fn default_community_contributions() -> Vec<ContributionParams<PolitestRunti
 }
 
 pub fn default_remainder_contributions() -> Vec<ContributionParams<PolitestRuntime>> {
-	let default_metadata = default_project_metadata(0u32, ISSUER.into());
+	let default_metadata = default_project_metadata(ISSUER.into());
 
 	let auction_allocation =
 		default_metadata.auction_round_allocation_percentage * default_metadata.total_allocation_size;

@@ -29,7 +29,7 @@ use tests::defaults::*;
 
 #[test]
 fn test_jwt_for_create() {
-	let project = default_project_metadata(0, ISSUER.into());
+	let project = default_project_metadata(ISSUER.into());
 	PolitestNet::execute_with(|| {
 		let issuer = AccountId32::from(ISSUER);
 		assert_ok!(PolitestBalances::force_set_balance(PolitestOrigin::root(), issuer.into(), 10_000 * PLMC));
@@ -49,7 +49,7 @@ fn test_jwt_for_create() {
 
 #[test]
 fn test_jwt_verification() {
-	let project = default_project_metadata(0, ISSUER.into());
+	let project = default_project_metadata(ISSUER.into());
 	PolitestNet::execute_with(|| {
 		let issuer = AccountId32::from(ISSUER);
 		assert_ok!(PolitestBalances::force_set_balance(PolitestOrigin::root(), issuer.into(), 1000 * PLMC));

@@ -63,7 +63,7 @@
 // }
 
 // const ASSET_DECIMALS: u8 = 12;
-// const METADATA: &str = r#"
+// const IPFS_CID: &str = r#"
 // {
 // 	"whitepaper":"ipfs_url",
 // 	"team_description":"ipfs_url",
@@ -73,9 +73,9 @@
 // }"#;
 
 // pub fn default_project(nonce: u64) -> pallet_funding::ProjectMetadataOf<TestRuntime> {
-// 	let bounded_name = BoundedVec::try_from("Contribution Token TEST".as_bytes().to_vec()).unwrap();
-// 	let bounded_symbol = BoundedVec::try_from("CTEST".as_bytes().to_vec()).unwrap();
-// 	let metadata_hash = hashed(format!("{}-{}", METADATA, nonce));
+// 	let bounded_name = bounded_name();
+// 	let bounded_symbol =  bounded_symbol();
+// 	let metadata_hash =  ipfs_hash();
 // 	ProjectMetadata {
 // 		total_allocation_size: 1_000_000,
 // 		minimum_price: 1 * PLMC,
@@ -84,7 +84,7 @@
 // 		funding_thresholds: Default::default(),
 // 		conversion_rate: 0,
 // 		participation_currencies: Default::default(),
-// 		offchain_information_hash: Some(metadata_hash),
+// 		policy_ipfs_cid: Some(metadata_hash),
 // 		token_information: CurrencyMetadata { name: bounded_name, symbol: bounded_symbol, decimals: ASSET_DECIMALS },
 // 	}
 // }

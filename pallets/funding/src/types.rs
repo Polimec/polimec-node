@@ -173,7 +173,7 @@ pub mod storage_types {
 
 	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
 	#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
-	pub struct ProjectMetadata<BoundedString, Balance: PartialOrd + Copy, Price: FixedPointNumber, AccountId, Hash> {
+	pub struct ProjectMetadata<BoundedString, Balance: PartialOrd + Copy, Price: FixedPointNumber, AccountId> {
 		/// Token Metadata
 		pub token_information: CurrencyMetadata<BoundedString>,
 		/// Mainnet Token Max Supply
@@ -195,16 +195,15 @@ pub mod storage_types {
 			BoundedVec<AcceptedFundingAsset, ConstU32<{ AcceptedFundingAsset::VARIANT_COUNT as u32 }>>,
 		pub funding_destination_account: AccountId,
 		/// Additional metadata
-		pub offchain_information_hash: Option<Hash>,
+		pub policy_ipfs_cid: Option<BoundedString>,
 	}
 
 	impl<
 			BoundedString,
 			Balance: From<u64> + PartialOrd + Copy + FixedPointOperand,
 			Price: FixedPointNumber,
-			Hash,
 			AccountId,
-		> ProjectMetadata<BoundedString, Balance, Price, Hash, AccountId>
+		> ProjectMetadata<BoundedString, Balance, Price, AccountId>
 	{
 		/// Validate issuer metadata for the following checks:
 		/// - Minimum price is not zero
@@ -753,7 +752,7 @@ pub mod inner_types {
 		/// The funding target has to be higher then 1000 USD.
 		FundingTargetTooLow,
 		/// The project's metadata hash is not provided while starting the evaluation round.
-		MetadataNotProvided,
+		CidNotProvided,
 	}
 
 	/// Errors related to the project's migration process.

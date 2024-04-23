@@ -272,7 +272,7 @@ mod start_evaluation_extrinsic {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 			let issuer = ISSUER_1;
 			let mut project_metadata = default_project_metadata(issuer);
-			project_metadata.offchain_information_hash = None;
+			project_metadata.policy_ipfs_cid = None;
 
 			let project_id = inst.create_new_project(project_metadata, issuer);
 			let jwt = get_mock_jwt(issuer, InvestorType::Institutional, generate_did_from_account(issuer));
@@ -280,7 +280,7 @@ mod start_evaluation_extrinsic {
 			inst.execute(|| {
 				assert_noop!(
 					PolimecFunding::start_evaluation(RuntimeOrigin::signed(issuer), jwt, project_id),
-					Error::<TestRuntime>::BadMetadata(MetadataError::MetadataNotProvided)
+					Error::<TestRuntime>::BadMetadata(MetadataError::CidNotProvided)
 				);
 			});
 		}
