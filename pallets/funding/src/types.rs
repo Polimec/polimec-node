@@ -752,7 +752,7 @@ pub mod inner_types {
 		/// The funding target has to be higher then 1000 USD.
 		FundingTargetTooLow,
 		/// The project's metadata hash is not provided while starting the evaluation round.
-		MetadataNotProvided,
+		CidNotProvided,
 	}
 
 	/// Errors related to the project's migration process.

@@ -280,7 +280,7 @@ mod start_evaluation_extrinsic {
 			inst.execute(|| {
 				assert_noop!(
 					PolimecFunding::start_evaluation(RuntimeOrigin::signed(issuer), jwt, project_id),
-					Error::<TestRuntime>::BadMetadata(MetadataError::MetadataNotProvided)
+					Error::<TestRuntime>::BadMetadata(MetadataError::CidNotProvided)
 				);
 			});
 		}
