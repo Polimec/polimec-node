@@ -300,7 +300,7 @@ mod testing_helpers {
 		BoundedVec, FixedPointNumber,
 	};
 
-	pub const METADATA: &str = "QmeuJ24ffwLAZppQcgcggJs3n689bewednYkuc8Bx5Gngz";
+	pub const IPFS_CID: &str = "QmeuJ24ffwLAZppQcgcggJs3n689bewednYkuc8Bx5Gngz";
 	pub const ASSET_DECIMALS: u8 = 10;
 	pub const ASSET_UNIT: u128 = 10_u128.pow(10 as u32);
 
@@ -317,7 +317,7 @@ mod testing_helpers {
 		BoundedVec::try_from("CTEST".as_bytes().to_vec()).unwrap()
 	}
 	pub fn ipfs_hash() -> BoundedVec<u8, ConstU32<64>> {
-		BoundedVec::try_from(METADATA.as_bytes().to_vec()).unwrap()
+		BoundedVec::try_from(IPFS_CID.as_bytes().to_vec()).unwrap()
 	}
 	pub fn default_weights() -> Vec<u8> {
 		vec![20u8, 15u8, 10u8, 25u8, 30u8]

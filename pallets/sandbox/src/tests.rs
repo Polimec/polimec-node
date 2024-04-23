@@ -63,7 +63,7 @@
 // }
 
 // const ASSET_DECIMALS: u8 = 12;
-// const METADATA: &str = r#"
+// const IPFS_CID: &str = r#"
 // {
 // 	"whitepaper":"ipfs_url",
 // 	"team_description":"ipfs_url",
