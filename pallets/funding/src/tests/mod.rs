@@ -5,7 +5,6 @@ use crate::{
 	traits::{ProvideAssetPrice, VestingDurationCalculation},
 	CurrencyMetadata, Error, ProjectMetadata, TicketSize,
 };
-use assert_matches2::assert_matches;
 use defaults::*;
 use frame_support::{
 	assert_err, assert_noop, assert_ok,

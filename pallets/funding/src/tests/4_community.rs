@@ -1,5 +1,4 @@
 use super::*;
-pub const HOURS: BlockNumber = 300u64;
 
 #[cfg(test)]
 mod round_flow {
@@ -171,10 +170,8 @@ mod community_contribute_extrinsic {
 
 			const BOB: AccountId = 42069;
 			const CARL: AccountId = 420691;
-			const DENNIS: AccountId = 4206910;
 			let mut evaluations = default_evaluations();
 			let bob_evaluation: UserToUSDBalance<TestRuntime> = (BOB, 1337 * US_DOLLAR).into();
-			let carl_evaluation: UserToUSDBalance<TestRuntime> = (CARL, 1337 * US_DOLLAR).into();
 			let carl_evaluation: UserToUSDBalance<TestRuntime> = (CARL, 1337 * US_DOLLAR).into();
 			evaluations.push(bob_evaluation.clone());
 			evaluations.push(carl_evaluation.clone());
@@ -251,21 +248,21 @@ mod community_contribute_extrinsic {
 		#[test]
 		fn evaluation_bond_used_on_failed_bid_can_be_reused_on_contribution() {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
-			let BOB = 42069;
+			let bob = 42069;
 			let project_metadata = default_project_metadata(ISSUER_1);
 			// An evaluator that did a bid but it was not accepted at the end of the auction, can use that PLMC for contributing
 			let mut evaluations = default_evaluations();
-			let bob_evaluation = (BOB, 1337 * US_DOLLAR).into();
+			let bob_evaluation = (bob, 1337 * US_DOLLAR).into();
 			evaluations.push(bob_evaluation);
 
 			let bids = default_bids();
-			let bob_bid: BidParams<TestRuntime> = (BOB, 1337 * ASSET_UNIT).into();
+			let bob_bid: BidParams<TestRuntime> = (bob, 1337 * ASSET_UNIT).into();
 			let all_bids = bids.iter().chain(vec![bob_bid.clone()].iter()).cloned().collect_vec();
 
 			let project_id = inst.create_auctioning_project(default_project_metadata(ISSUER_2), ISSUER_2, evaluations);
 
 			let evaluation_bond =
-				inst.execute(|| Balances::balance_on_hold(&HoldReason::Evaluation(project_id).into(), &BOB));
+				inst.execute(|| Balances::balance_on_hold(&HoldReason::Evaluation(project_id).into(), &bob));
 			let slashable_bond = <TestRuntime as Config>::EvaluatorSlash::get() * evaluation_bond;
 			let usable_bond = evaluation_bond - slashable_bond;
 
@@ -303,17 +300,14 @@ mod community_contribute_extrinsic {
 			let usable_usd = plmc_price.saturating_mul_int(usable_bond);
 			let usable_ct = wap.reciprocal().unwrap().saturating_mul_int(usable_usd);
 
-			let slashable_usd = plmc_price.saturating_mul_int(slashable_bond);
-			let slashable_ct = wap.reciprocal().unwrap().saturating_mul_int(slashable_usd);
-
-			let bob_contribution = (BOB, 1337 * ASSET_UNIT).into();
+			let bob_contribution = (bob, 1337 * ASSET_UNIT).into();
 			let contribution_usdt =
 				MockInstantiator::calculate_contributed_funding_asset_spent(vec![bob_contribution], wap);
 			inst.mint_foreign_asset_to(contribution_usdt.clone());
 			inst.execute(|| {
 				assert_ok!(Pallet::<TestRuntime>::community_contribute(
-					RuntimeOrigin::signed(BOB),
-					get_mock_jwt(BOB, InvestorType::Retail, generate_did_from_account(BOB)),
+					RuntimeOrigin::signed(bob),
+					get_mock_jwt(bob, InvestorType::Retail, generate_did_from_account(bob)),
 					project_id,
 					usable_ct,
 					1u8.try_into().unwrap(),
@@ -443,7 +437,6 @@ mod community_contribute_extrinsic {
 			);
 			let project_id =
 				inst.create_community_contributing_project(project_metadata.clone(), ISSUER_1, evaluations, bids);
-			let wap = inst.get_project_details(project_id).weighted_average_price.unwrap();
 
 			// Professional contributions: 0x multiplier should fail
 			assert_err!(
@@ -624,8 +617,6 @@ mod community_contribute_extrinsic {
 				(BUYER_6, 42069 * ASSET_UNIT).into(),
 			];
 			inst.mint_foreign_asset_to(usdt_mints);
-
-			let stored_bids = inst.execute(|| Bids::<TestRuntime>::iter_prefix_values((project_id,)).collect_vec());
 
 			let mut bid_should_succeed = |account, investor_type, did_acc| {
 				inst.execute(|| {
@@ -1117,8 +1108,7 @@ mod community_contribute_extrinsic {
 
 			inst.execute(|| ForeignAssets::set_balance(AcceptedFundingAsset::USDT.to_assethub_id(), &BUYER_1, 0));
 			inst.mint_foreign_asset_to(foreign_funding.clone());
-			let usdt_balance =
-				inst.execute(|| <TestRuntime as Config>::FundingCurrency::balance(USDT_FOREIGN_ID, &BUYER_1));
+
 			inst.execute(|| {
 				ForeignAssets::burn_from(
 					AcceptedFundingAsset::USDT.to_assethub_id(),
@@ -1129,8 +1119,7 @@ mod community_contribute_extrinsic {
 				)
 			})
 			.unwrap();
-			let usdt_balance =
-				inst.execute(|| <TestRuntime as Config>::FundingCurrency::balance(USDT_FOREIGN_ID, &BUYER_1));
+
 			inst.execute(|| {
 				assert_noop!(
 					Pallet::<TestRuntime>::community_contribute(
