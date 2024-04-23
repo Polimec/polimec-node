@@ -798,8 +798,7 @@ pub mod pallet {
 		/// Bond PLMC for a project in the evaluation stage
 		#[pallet::call_index(4)]
 		#[pallet::weight(
-			WeightInfoOf::<T>::evaluation_to_limit(T::MaxEvaluationsPerUser::get() - 1)
-			.max(WeightInfoOf::<T>::evaluation_over_limit())
+			WeightInfoOf::<T>::evaluation(T::MaxEvaluationsPerUser::get() - 1)
 		)]
 		pub fn evaluate(
 			origin: OriginFor<T>,
