@@ -27,28 +27,28 @@ use parachains_common::MINUTES;
 #[cfg(feature = "instant-mode")]
 pub const EVALUATION_DURATION: BlockNumber = 3;
 #[cfg(feature = "fast-mode")]
-pub const EVALUATION_DURATION: BlockNumber = 10 * MINUTES;
+pub const EVALUATION_DURATION: BlockNumber = 5 * MINUTES;
 #[cfg(not(any(feature = "fast-mode", feature = "instant-mode")))]
 pub const EVALUATION_DURATION: BlockNumber = 28 * crate::DAYS;
 
 #[cfg(feature = "instant-mode")]
 pub const AUCTION_INITIALIZE_PERIOD_DURATION: BlockNumber = 3;
 #[cfg(feature = "fast-mode")]
-pub const AUCTION_INITIALIZE_PERIOD_DURATION: BlockNumber = 10 * MINUTES;
+pub const AUCTION_INITIALIZE_PERIOD_DURATION: BlockNumber = 5 * MINUTES;
 #[cfg(not(any(feature = "fast-mode", feature = "instant-mode")))]
 pub const AUCTION_INITIALIZE_PERIOD_DURATION: BlockNumber = 7 * crate::DAYS;
 
 #[cfg(feature = "instant-mode")]
 pub const AUCTION_OPENING_DURATION: BlockNumber = 2;
 #[cfg(feature = "fast-mode")]
-pub const AUCTION_OPENING_DURATION: BlockNumber = 10 * MINUTES;
+pub const AUCTION_OPENING_DURATION: BlockNumber = 5 * MINUTES;
 #[cfg(not(any(feature = "fast-mode", feature = "instant-mode")))]
 pub const AUCTION_OPENING_DURATION: BlockNumber = 2 * crate::DAYS;
 
 #[cfg(feature = "instant-mode")]
 pub const AUCTION_CLOSING_DURATION: BlockNumber = 2;
 #[cfg(feature = "fast-mode")]
-pub const AUCTION_CLOSING_DURATION: BlockNumber = 10 * MINUTES;
+pub const AUCTION_CLOSING_DURATION: BlockNumber = 5 * MINUTES;
 #[cfg(not(any(feature = "fast-mode", feature = "instant-mode")))]
 pub const AUCTION_CLOSING_DURATION: BlockNumber = 3 * crate::DAYS;
 
