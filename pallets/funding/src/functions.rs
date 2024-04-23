@@ -80,10 +80,7 @@ impl<T: Config> Pallet<T> {
 			Error::<T>::ProjectRoundError(RoundError::IncorrectRound)
 		);
 		ensure!(!project_details.is_frozen, Error::<T>::ProjectError(ProjectErrorReason::ProjectAlreadyFrozen));
-		ensure!(
-			project_metadata.policy_ipfs_cid.is_some(),
-			Error::<T>::BadMetadata(MetadataError::CidNotProvided)
-		);
+		ensure!(project_metadata.policy_ipfs_cid.is_some(), Error::<T>::BadMetadata(MetadataError::CidNotProvided));
 
 		// * Calculate new variables *
 		let evaluation_end_block = now + T::EvaluationDuration::get();

@@ -73,9 +73,9 @@
 // }"#;
 
 // pub fn default_project(nonce: u64) -> pallet_funding::ProjectMetadataOf<TestRuntime> {
-// 	let bounded_name = BoundedVec::try_from("Contribution Token TEST".as_bytes().to_vec()).unwrap();
-// 	let bounded_symbol = BoundedVec::try_from("CTEST".as_bytes().to_vec()).unwrap();
-// 	let metadata_hash = BoundedVec::try_from(METADATA.as_bytes().to_vec()).unwrap();
+// 	let bounded_name = bounded_name();
+// 	let bounded_symbol =  bounded_symbol();
+// 	let metadata_hash =  ipfs_hash();
 // 	ProjectMetadata {
 // 		total_allocation_size: 1_000_000,
 // 		minimum_price: 1 * PLMC,

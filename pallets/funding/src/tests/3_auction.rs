@@ -49,9 +49,9 @@ mod round_flow {
 
 			let accounts = vec![ADAM, TOM, SOFIA, FRED, ANNA, DAMIAN];
 
-			let bounded_name = BoundedVec::try_from("Contribution Token TEST".as_bytes().to_vec()).unwrap();
-			let bounded_symbol = BoundedVec::try_from("CTEST".as_bytes().to_vec()).unwrap();
-			let metadata_hash = BoundedVec::try_from(METADATA.as_bytes().to_vec()).unwrap();
+			let bounded_name = bounded_name();
+			let bounded_symbol = bounded_symbol();
+			let metadata_hash = ipfs_hash();
 			let project_metadata = ProjectMetadata {
 				token_information: CurrencyMetadata {
 					name: bounded_name,

@@ -25,7 +25,7 @@ use std::iter::zip;
 type MockInstantiator =
 	Instantiator<TestRuntime, <TestRuntime as crate::Config>::AllPalletsWithoutSystem, RuntimeEvent>;
 
-const METADATA: &str = "QmeuJ24ffwLAZppQcgcggJs3n689bewednYkuc8Bx5Gngz";
+const IPFS_CID: &str = "QmeuJ24ffwLAZppQcgcggJs3n689bewednYkuc8Bx5Gngz";
 const ASSET_DECIMALS: u8 = 10;
 const ISSUER_1: AccountId = 11;
 const ISSUER_2: AccountId = 12;
@@ -81,16 +81,12 @@ pub mod defaults {
 	use super::*;
 
 	pub fn default_token_information() -> CurrencyMetadata<BoundedVec<u8, StringLimitOf<TestRuntime>>> {
-		CurrencyMetadata {
-			name: BoundedVec::try_from("Contribution Token TEST".as_bytes().to_vec()).unwrap(),
-			symbol: BoundedVec::try_from("CTEST".as_bytes().to_vec()).unwrap(),
-			decimals: ASSET_DECIMALS,
-		}
+		CurrencyMetadata { name: bounded_name(), symbol: bounded_symbol(), decimals: ASSET_DECIMALS }
 	}
 	pub fn default_project_metadata(issuer: AccountId) -> ProjectMetadataOf<TestRuntime> {
-		let bounded_name = BoundedVec::try_from("Contribution Token TEST".as_bytes().to_vec()).unwrap();
-		let bounded_symbol = BoundedVec::try_from("CTEST".as_bytes().to_vec()).unwrap();
-		let metadata_hash = BoundedVec::try_from(METADATA.as_bytes().to_vec()).unwrap();
+		let bounded_name = bounded_name();
+		let bounded_symbol = bounded_symbol();
+		let metadata_hash = ipfs_hash();
 		ProjectMetadata {
 			token_information: CurrencyMetadata {
 				name: bounded_name,
@@ -119,9 +115,9 @@ pub mod defaults {
 	}
 
 	pub fn knowledge_hub_project(nonce: u64) -> ProjectMetadataOf<TestRuntime> {
-		let bounded_name = BoundedVec::try_from("Contribution Token TEST".as_bytes().to_vec()).unwrap();
-		let bounded_symbol = BoundedVec::try_from("CTEST".as_bytes().to_vec()).unwrap();
-		let metadata_hash = BoundedVec::try_from(METADATA.as_bytes().to_vec()).unwrap();
+		let bounded_name = bounded_name();
+		let bounded_symbol = bounded_symbol();
+		let metadata_hash = ipfs_hash();
 		let project_metadata = ProjectMetadataOf::<TestRuntime> {
 			token_information: CurrencyMetadata {
 				name: bounded_name,
@@ -249,6 +245,16 @@ pub mod defaults {
 			ContributionParams::new(BUYER_6, 5_000 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
 			ContributionParams::new(BUYER_7, 2_000 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
 		]
+	}
+
+	pub fn bounded_name() -> BoundedVec<u8, sp_core::ConstU32<64>> {
+		BoundedVec::try_from("Contribution Token TEST".as_bytes().to_vec()).unwrap()
+	}
+	pub fn bounded_symbol() -> BoundedVec<u8, sp_core::ConstU32<64>> {
+		BoundedVec::try_from("CTEST".as_bytes().to_vec()).unwrap()
+	}
+	pub fn ipfs_hash() -> BoundedVec<u8, sp_core::ConstU32<64>> {
+		BoundedVec::try_from(IPFS_CID.as_bytes().to_vec()).unwrap()
 	}
 
 	pub fn default_weights() -> Vec<u8> {

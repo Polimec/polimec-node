@@ -142,7 +142,7 @@ fn create_settled_project() -> (ProjectId, Vec<AccountId>) {
 	let mut inst = IntegrationInstantiator::new(None);
 	PolitestNet::execute_with(|| {
 		let project_id = inst.create_finished_project(
-			default_project_metadata(0, ISSUER.into()),
+			default_project_metadata(ISSUER.into()),
 			ISSUER.into(),
 			default_evaluations(),
 			default_bids(),

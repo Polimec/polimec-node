@@ -228,7 +228,7 @@ fn per_credential_type_ticket_size_minimums() {
 		},
 		participation_currencies: vec![AcceptedFundingAsset::USDT].try_into().unwrap(),
 		funding_destination_account: ISSUER_1,
-		policy_ipfs_cid: Some(BoundedVec::try_from(METADATA.as_bytes().to_vec()).unwrap()),
+		policy_ipfs_cid: Some(ipfs_hash()),
 	};
 
 	let project_id = inst.create_remainder_contributing_project(
@@ -321,7 +321,7 @@ fn per_credential_type_ticket_size_maximums() {
 		},
 		participation_currencies: vec![AcceptedFundingAsset::USDT].try_into().unwrap(),
 		funding_destination_account: ISSUER_1,
-		policy_ipfs_cid: Some(BoundedVec::try_from(METADATA.as_bytes().to_vec()).unwrap()),
+		policy_ipfs_cid: Some(ipfs_hash()),
 	};
 
 	let project_id = inst.create_remainder_contributing_project(
@@ -670,7 +670,7 @@ fn non_retail_multiplier_limits() {
 		},
 		participation_currencies: vec![AcceptedFundingAsset::USDT].try_into().unwrap(),
 		funding_destination_account: ISSUER_1,
-		policy_ipfs_cid: Some(BoundedVec::try_from(METADATA.as_bytes().to_vec()).unwrap()),
+		policy_ipfs_cid: Some(ipfs_hash()),
 	};
 	let evaluations = MockInstantiator::generate_successful_evaluations(
 		project_metadata.clone(),

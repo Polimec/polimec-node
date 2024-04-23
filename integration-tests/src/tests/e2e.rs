@@ -38,7 +38,7 @@ generate_accounts!(
 pub fn excel_project() -> ProjectMetadataOf<PolitestRuntime> {
 	let bounded_name = BoundedVec::try_from("Polimec".as_bytes().to_vec()).unwrap();
 	let bounded_symbol = BoundedVec::try_from("PLMC".as_bytes().to_vec()).unwrap();
-	let metadata_hash = metadata_hash();
+	let metadata_hash = ipfs_hash();
 	ProjectMetadata {
 		token_information: CurrencyMetadata { name: bounded_name, symbol: bounded_symbol, decimals: 10 },
 		mainnet_token_max_supply: 10_000_000_0_000_000_000, // Made up, not in the Sheet.

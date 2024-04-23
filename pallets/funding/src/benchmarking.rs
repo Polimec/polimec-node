@@ -39,7 +39,7 @@ use sp_core::H256;
 use sp_io::hashing::blake2_256;
 use sp_runtime::traits::{BlakeTwo256, Get, Member, TrailingZeroInput, Zero};
 
-const METADATA: &str = "QmbvsJBhQtu9uAGVp7x4H77JkwAQxV7TA6xTfdeALuDiYB";
+const IPFS_CID: &str = "QmbvsJBhQtu9uAGVp7x4H77JkwAQxV7TA6xTfdeALuDiYB";
 const ASSET_DECIMALS: u8 = 10;
 const US_DOLLAR: u128 = 1_0_000_000_000u128;
 const ASSET_UNIT: u128 = 1_0_000_000_000u128;
@@ -52,14 +52,14 @@ pub fn hashed(data: impl AsRef<[u8]>) -> H256 {
 	<BlakeTwo256 as sp_runtime::traits::Hash>::hash(data.as_ref())
 }
 
-pub fn default_project<T: Config>(nonce: u64, issuer: AccountIdOf<T>) -> ProjectMetadataOf<T>
+pub fn default_project<T: Config>(issuer: AccountIdOf<T>) -> ProjectMetadataOf<T>
 where
 	T::Price: From<u128>,
 	T::Hash: From<H256>,
 {
 	let bounded_name = BoundedVec::try_from("Contribution Token TEST".as_bytes().to_vec()).unwrap();
 	let bounded_symbol = BoundedVec::try_from("CTEST".as_bytes().to_vec()).unwrap();
-	let metadata_hash = BoundedVec::try_from(METADATA.as_bytes().to_vec()).unwrap();
+	let metadata_hash = BoundedVec::try_from(IPFS_CID.as_bytes().to_vec()).unwrap();
 	ProjectMetadata {
 		token_information: CurrencyMetadata { name: bounded_name, symbol: bounded_symbol, decimals: ASSET_DECIMALS },
 		mainnet_token_max_supply: BalanceOf::<T>::try_from(800_000_000_0_000_000_000u128)
@@ -103,7 +103,7 @@ where
 {
 	let threshold = <T as Config>::EvaluationSuccessThreshold::get();
 	let default_project_metadata: ProjectMetadataOf<T> =
-		default_project::<T>(0, account::<AccountIdOf<T>>("issuer", 0, 0));
+		default_project::<T>(account::<AccountIdOf<T>>("issuer", 0, 0));
 	let funding_target =
 		default_project_metadata.minimum_price.saturating_mul_int(default_project_metadata.total_allocation_size);
 	let evaluation_target = threshold * funding_target;
@@ -130,7 +130,7 @@ where
 	<T as Config>::Balance: From<u128>,
 	T::Hash: From<H256>,
 {
-	let default_project_metadata = default_project::<T>(0, account::<AccountIdOf<T>>("issuer", 0, 0));
+	let default_project_metadata = default_project::<T>(account::<AccountIdOf<T>>("issuer", 0, 0));
 	let auction_funding_target = default_project_metadata.minimum_price.saturating_mul_int(
 		default_project_metadata.auction_round_allocation_percentage * default_project_metadata.total_allocation_size,
 	);
@@ -151,7 +151,7 @@ where
 	<T as Config>::Balance: From<u128>,
 	T::Hash: From<H256>,
 {
-	let default_project = default_project::<T>(0, account::<AccountIdOf<T>>("issuer", 0, 0));
+	let default_project = default_project::<T>(account::<AccountIdOf<T>>("issuer", 0, 0));
 	let total_ct_for_bids = default_project.auction_round_allocation_percentage * default_project.total_allocation_size;
 	let total_usd_for_bids = default_project.minimum_price.checked_mul_int(total_ct_for_bids).unwrap();
 	BenchInstantiator::<T>::generate_bids_from_total_usd(
@@ -169,7 +169,7 @@ where
 	<T as Config>::Balance: From<u128>,
 	T::Hash: From<H256>,
 {
-	let default_project_metadata = default_project::<T>(0, account::<AccountIdOf<T>>("issuer", 0, 0));
+	let default_project_metadata = default_project::<T>(account::<AccountIdOf<T>>("issuer", 0, 0));
 
 	let funding_target =
 		default_project_metadata.minimum_price.saturating_mul_int(default_project_metadata.total_allocation_size);
@@ -194,7 +194,7 @@ where
 	<T as Config>::Balance: From<u128>,
 	T::Hash: From<H256>,
 {
-	let default_project_metadata = default_project::<T>(0, account::<AccountIdOf<T>>("issuer", 0, 0));
+	let default_project_metadata = default_project::<T>(account::<AccountIdOf<T>>("issuer", 0, 0));
 
 	let funding_target =
 		default_project_metadata.minimum_price.saturating_mul_int(default_project_metadata.total_allocation_size);
@@ -310,7 +310,7 @@ where
 			let issuer = string_account::<AccountIdOf<T>>(issuer_name, 0, 0);
 			TestProjectParams::<T> {
 				expected_state: state,
-				metadata: default_project::<T>(inst.get_new_nonce(), issuer.clone()),
+				metadata: default_project::<T>(issuer.clone()),
 				issuer: issuer.clone(),
 				evaluations: default_evaluations::<T>(),
 				bids: default_bids::<T>(),
@@ -376,7 +376,7 @@ mod benchmarks {
 
 		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
 		whitelist_account!(issuer);
-		let project_metadata = default_project::<T>(inst.get_new_nonce(), issuer.clone());
+		let project_metadata = default_project::<T>(issuer.clone());
 
 		let metadata_deposit = T::ContributionTokenCurrency::calc_metadata_deposit(
 			project_metadata.token_information.name.as_slice(),
@@ -420,7 +420,7 @@ mod benchmarks {
 		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
 		whitelist_account!(issuer);
 
-		let project_metadata = default_project::<T>(inst.get_new_nonce(), issuer.clone());
+		let project_metadata = default_project::<T>(issuer.clone());
 		let project_id = inst.create_new_project(project_metadata.clone(), issuer.clone());
 		let jwt = get_mock_jwt(issuer.clone(), InvestorType::Institutional, generate_did_from_account(issuer.clone()));
 
@@ -448,7 +448,7 @@ mod benchmarks {
 		let issuer_funding = account::<AccountIdOf<T>>("issuer_funding", 0, 0);
 		whitelist_account!(issuer);
 
-		let project_metadata = default_project::<T>(inst.get_new_nonce(), issuer.clone());
+		let project_metadata = default_project::<T>(issuer.clone());
 		let project_id = inst.create_new_project(project_metadata.clone(), issuer.clone());
 
 		let project_metadata = ProjectMetadataOf::<T> {
@@ -521,7 +521,7 @@ mod benchmarks {
 			},
 			participation_currencies: vec![AcceptedFundingAsset::USDT, AcceptedFundingAsset::USDC].try_into().unwrap(),
 			funding_destination_account: issuer_funding.clone().clone(),
-			policy_ipfs_cid: Some(BoundedVec::try_from(METADATA.as_bytes().to_vec()).unwrap()),
+			policy_ipfs_cid: Some(BoundedVec::try_from(IPFS_CID.as_bytes().to_vec()).unwrap()),
 		};
 
 		let jwt = get_mock_jwt(issuer.clone(), InvestorType::Institutional, generate_did_from_account(issuer.clone()));
@@ -555,7 +555,7 @@ mod benchmarks {
 		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
 		whitelist_account!(issuer);
 
-		let project_metadata = default_project::<T>(inst.get_new_nonce(), issuer.clone());
+		let project_metadata = default_project::<T>(issuer.clone());
 		let project_id = inst.create_new_project(project_metadata, issuer.clone());
 
 		// start_evaluation fn will try to add an automatic transition 1 block after the last evaluation block
@@ -603,7 +603,7 @@ mod benchmarks {
 		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
 		whitelist_account!(issuer);
 
-		let project_metadata = default_project::<T>(inst.get_new_nonce(), issuer.clone());
+		let project_metadata = default_project::<T>(issuer.clone());
 		let project_id = inst.create_evaluating_project(project_metadata, issuer.clone());
 
 		let evaluations = default_evaluations();
@@ -663,7 +663,7 @@ mod benchmarks {
 		let test_evaluator = account::<AccountIdOf<T>>("evaluator", 0, 0);
 		whitelist_account!(test_evaluator);
 
-		let project_metadata = default_project::<T>(inst.get_new_nonce(), issuer.clone());
+		let project_metadata = default_project::<T>(issuer.clone());
 		let test_project_id = inst.create_evaluating_project(project_metadata, issuer);
 
 		let existing_evaluation = UserToUSDBalance::new(test_evaluator.clone(), (200 * US_DOLLAR).into());
@@ -816,7 +816,7 @@ mod benchmarks {
 		let bidder = account::<AccountIdOf<T>>("bidder", 0, 0);
 		whitelist_account!(bidder);
 
-		let mut project_metadata = default_project::<T>(inst.get_new_nonce(), issuer.clone());
+		let mut project_metadata = default_project::<T>(issuer.clone());
 		project_metadata.mainnet_token_max_supply =
 			(1_000_000_000 * ASSET_UNIT).try_into().unwrap_or_else(|_| panic!("Failed to create BalanceOf"));
 		project_metadata.total_allocation_size =
@@ -1148,7 +1148,7 @@ mod benchmarks {
 		let contributor = account::<AccountIdOf<T>>("contributor", 0, 0);
 		whitelist_account!(contributor);
 
-		let project_metadata = default_project::<T>(inst.get_new_nonce(), issuer.clone());
+		let project_metadata = default_project::<T>(issuer.clone());
 
 		let project_id = inst.create_community_contributing_project(
 			project_metadata.clone(),
@@ -1438,7 +1438,7 @@ mod benchmarks {
 		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
 		whitelist_account!(issuer);
 
-		let project_metadata = default_project::<T>(inst.get_new_nonce(), issuer.clone());
+		let project_metadata = default_project::<T>(issuer.clone());
 		let target_funding_amount: BalanceOf<T> =
 			project_metadata.minimum_price.saturating_mul_int(project_metadata.total_allocation_size);
 
@@ -1499,7 +1499,7 @@ mod benchmarks {
 		whitelist_account!(evaluator);
 
 		let project_id = inst.create_finished_project(
-			default_project::<T>(inst.get_new_nonce(), issuer.clone()),
+			default_project::<T>(issuer.clone()),
 			issuer,
 			evaluations,
 			default_bids::<T>(),
@@ -1561,7 +1561,7 @@ mod benchmarks {
 		let evaluator = evaluations[0].account.clone();
 		whitelist_account!(evaluator);
 
-		let project_metadata = default_project::<T>(inst.get_new_nonce(), issuer.clone());
+		let project_metadata = default_project::<T>(issuer.clone());
 		let target_funding_amount: BalanceOf<T> =
 			project_metadata.minimum_price.saturating_mul_int(project_metadata.total_allocation_size);
 
@@ -1644,7 +1644,7 @@ mod benchmarks {
 		whitelist_account!(bidder);
 
 		let project_id = inst.create_finished_project(
-			default_project::<T>(inst.get_new_nonce(), issuer.clone()),
+			default_project::<T>(issuer.clone()),
 			issuer,
 			default_evaluations::<T>(),
 			bids,
@@ -1687,7 +1687,7 @@ mod benchmarks {
 		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
 		let evaluations = default_evaluations::<T>();
 
-		let project_metadata = default_project::<T>(inst.get_new_nonce(), issuer.clone());
+		let project_metadata = default_project::<T>(issuer.clone());
 		let target_funding_amount: BalanceOf<T> =
 			project_metadata.minimum_price.saturating_mul_int(project_metadata.total_allocation_size);
 
@@ -1749,7 +1749,7 @@ mod benchmarks {
 		whitelist_account!(contributor);
 
 		let project_id = inst.create_finished_project(
-			default_project::<T>(inst.get_new_nonce(), issuer.clone()),
+			default_project::<T>(issuer.clone()),
 			issuer,
 			default_evaluations::<T>(),
 			default_bids::<T>(),
@@ -1803,7 +1803,7 @@ mod benchmarks {
 		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
 		let evaluations = default_evaluations::<T>();
 
-		let project_metadata = default_project::<T>(inst.get_new_nonce(), issuer.clone());
+		let project_metadata = default_project::<T>(issuer.clone());
 		let target_funding_amount: BalanceOf<T> =
 			project_metadata.minimum_price.saturating_mul_int(project_metadata.total_allocation_size);
 
@@ -1879,7 +1879,7 @@ mod benchmarks {
 		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
 		whitelist_account!(issuer);
 
-		let project_metadata = default_project::<T>(inst.get_new_nonce(), issuer.clone());
+		let project_metadata = default_project::<T>(issuer.clone());
 		let project_id = inst.create_evaluating_project(project_metadata, issuer.clone());
 
 		let evaluations = default_evaluations();
@@ -1923,7 +1923,7 @@ mod benchmarks {
 		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
 		whitelist_account!(issuer);
 
-		let project_metadata = default_project::<T>(inst.get_new_nonce(), issuer.clone());
+		let project_metadata = default_project::<T>(issuer.clone());
 		let project_id = inst.create_evaluating_project(project_metadata, issuer.clone());
 		let project_details = inst.get_project_details(project_id);
 
@@ -1984,7 +1984,7 @@ mod benchmarks {
 		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
 		whitelist_account!(issuer);
 
-		let project_metadata = default_project::<T>(inst.get_new_nonce(), issuer.clone());
+		let project_metadata = default_project::<T>(issuer.clone());
 		let project_id = inst.create_auctioning_project(project_metadata, issuer.clone(), default_evaluations());
 
 		let opening_end_block =
@@ -2032,7 +2032,7 @@ mod benchmarks {
 		whitelist_account!(issuer);
 		let bounded_name = BoundedVec::try_from("Contribution Token TEST".as_bytes().to_vec()).unwrap();
 		let bounded_symbol = BoundedVec::try_from("CTEST".as_bytes().to_vec()).unwrap();
-		let metadata_hash = BoundedVec::try_from(METADATA.as_bytes().to_vec()).unwrap();
+		let metadata_hash = BoundedVec::try_from(IPFS_CID.as_bytes().to_vec()).unwrap();
 
 		let project_metadata = ProjectMetadata {
 			token_information: CurrencyMetadata {
@@ -2186,7 +2186,7 @@ mod benchmarks {
 		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
 		whitelist_account!(issuer);
 
-		let project_metadata = default_project::<T>(inst.get_new_nonce(), issuer.clone());
+		let project_metadata = default_project::<T>(issuer.clone());
 		let project_id = inst.create_community_contributing_project(
 			project_metadata,
 			issuer.clone(),
@@ -2233,7 +2233,7 @@ mod benchmarks {
 
 		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
 
-		let project_metadata = default_project::<T>(inst.get_new_nonce(), issuer.clone());
+		let project_metadata = default_project::<T>(issuer.clone());
 		let target_funding_amount: BalanceOf<T> =
 			project_metadata.minimum_price.saturating_mul_int(project_metadata.total_allocation_size);
 
@@ -2290,7 +2290,7 @@ mod benchmarks {
 
 		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
 
-		let project_metadata = default_project::<T>(inst.get_new_nonce(), issuer.clone());
+		let project_metadata = default_project::<T>(issuer.clone());
 		let target_funding_amount: BalanceOf<T> =
 			project_metadata.minimum_price.saturating_mul_int(project_metadata.total_allocation_size);
 
@@ -2348,7 +2348,7 @@ mod benchmarks {
 
 		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
 
-		let project_metadata = default_project::<T>(inst.get_new_nonce(), issuer.clone());
+		let project_metadata = default_project::<T>(issuer.clone());
 		let target_funding_amount: BalanceOf<T> =
 			project_metadata.minimum_price.saturating_mul_int(project_metadata.total_allocation_size);
 
@@ -2408,7 +2408,7 @@ mod benchmarks {
 
 		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
 
-		let project_metadata = default_project::<T>(inst.get_new_nonce(), issuer.clone());
+		let project_metadata = default_project::<T>(issuer.clone());
 		let target_funding_amount: BalanceOf<T> =
 			project_metadata.minimum_price.saturating_mul_int(project_metadata.total_allocation_size);
 
@@ -2482,7 +2482,7 @@ mod benchmarks {
 
 		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
 
-		let project_metadata = default_project::<T>(inst.get_new_nonce(), issuer.clone());
+		let project_metadata = default_project::<T>(issuer.clone());
 		let target_funding_amount: BalanceOf<T> =
 			project_metadata.minimum_price.saturating_mul_int(project_metadata.total_allocation_size);
 		let manual_outcome_threshold = Percent::from_percent(50);
@@ -2531,7 +2531,7 @@ mod benchmarks {
 
 		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
 
-		let project_metadata = default_project::<T>(inst.get_new_nonce(), issuer.clone());
+		let project_metadata = default_project::<T>(issuer.clone());
 		let project_id = inst.create_finished_project(
 			project_metadata,
 			issuer.clone(),
@@ -2561,7 +2561,7 @@ mod benchmarks {
 
 		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
 
-		let project_metadata = default_project::<T>(inst.get_new_nonce(), issuer.clone());
+		let project_metadata = default_project::<T>(issuer.clone());
 		let target_funding_amount: BalanceOf<T> =
 			project_metadata.minimum_price.saturating_mul_int(project_metadata.total_allocation_size);
 

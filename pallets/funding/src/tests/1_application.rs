@@ -547,7 +547,7 @@ mod edit_project_extrinsic {
 			let jwt = get_mock_jwt(ISSUER_1, InvestorType::Institutional, generate_did_from_account(ISSUER_1));
 			let project_id = inst.create_new_project(project_metadata.clone(), ISSUER_1);
 			let mut new_metadata_1 = project_metadata.clone();
-			let new_policy_hash = BoundedVec::try_from(METADATA.as_bytes().to_vec()).unwrap();
+			let new_policy_hash = ipfs_hash();
 			new_metadata_1.minimum_price = PriceOf::<TestRuntime>::from_float(15.0);
 			let new_metadata_2 = ProjectMetadataOf::<TestRuntime> {
 				token_information: CurrencyMetadata {
@@ -623,7 +623,7 @@ mod edit_project_extrinsic {
 			let jwt = get_mock_jwt(ISSUER_1, InvestorType::Institutional, generate_did_from_account(ISSUER_1));
 			let project_id = inst.create_new_project(project_metadata.clone(), ISSUER_1);
 			let mut new_metadata = project_metadata.clone();
-			let new_policy_hash = BoundedVec::try_from(METADATA.as_bytes().to_vec()).unwrap();
+			let new_policy_hash = ipfs_hash();
 			new_metadata.policy_ipfs_cid = Some(new_policy_hash);
 			assert_ok!(inst.execute(|| crate::Pallet::<TestRuntime>::edit_project(
 				RuntimeOrigin::signed(ISSUER_1),
