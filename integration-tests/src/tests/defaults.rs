@@ -52,7 +52,7 @@ pub fn bounded_name() -> BoundedVec<u8, ConstU32<64>> {
 pub fn bounded_symbol() -> BoundedVec<u8, ConstU32<64>> {
 	BoundedVec::try_from("CTEST".as_bytes().to_vec()).unwrap()
 }
-pub fn metadata_hash() -> BoundedVec<u8, ConstU32<64>>  {
+pub fn metadata_hash() -> BoundedVec<u8, ConstU32<64>> {
 	BoundedVec::try_from(METADATA.as_bytes().to_vec()).unwrap()
 }
 pub fn default_weights() -> Vec<u8> {
