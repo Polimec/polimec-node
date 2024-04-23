@@ -294,21 +294,13 @@ fn testnet_genesis(
 mod testing_helpers {
 	use super::*;
 	pub use macros::generate_accounts;
-	pub use pallet_funding::{instantiator::UserToUSDBalance, AuctionPhase, ProjectStatus, *};
-	pub use sp_core::H256;
+	pub use pallet_funding::{instantiator::UserToUSDBalance, ProjectStatus, *};
 	pub use sp_runtime::{
 		traits::{ConstU32, Get, PhantomData},
 		BoundedVec, FixedPointNumber,
 	};
 
-	pub const METADATA: &str = r#"METADATA
-            {
-                "whitepaper":"ipfs_url",
-                "team_description":"ipfs_url",
-                "tokenomics":"ipfs_url",
-                "roadmap":"ipfs_url",
-                "usage_of_founds":"ipfs_url"
-            }"#;
+	pub const METADATA: &str = "QmeuJ24ffwLAZppQcgcggJs3n689bewednYkuc8Bx5Gngz";
 	pub const ASSET_DECIMALS: u8 = 10;
 	pub const ASSET_UNIT: u128 = 10_u128.pow(10 as u32);
 
@@ -324,14 +316,14 @@ mod testing_helpers {
 	pub fn bounded_symbol() -> BoundedVec<u8, ConstU32<64>> {
 		BoundedVec::try_from("CTEST".as_bytes().to_vec()).unwrap()
 	}
-	pub fn metadata_hash(nonce: u32) -> H256 {
-		hashed(format!("{}-{}", METADATA, nonce))
+	pub fn ipfs_hash() -> BoundedVec<u8, ConstU32<64>> {
+		BoundedVec::try_from(METADATA.as_bytes().to_vec()).unwrap()
 	}
 	pub fn default_weights() -> Vec<u8> {
 		vec![20u8, 15u8, 10u8, 25u8, 30u8]
 	}
 
-	pub fn project_metadata(issuer: AccountId, nonce: u32) -> ProjectMetadataOf<politest_runtime::Runtime> {
+	pub fn project_metadata(issuer: AccountId) -> ProjectMetadataOf<politest_runtime::Runtime> {
 		ProjectMetadata {
 			token_information: CurrencyMetadata {
 				name: bounded_name(),
@@ -355,7 +347,7 @@ mod testing_helpers {
 			},
 			participation_currencies: vec![AcceptedFundingAsset::USDT].try_into().unwrap(),
 			funding_destination_account: issuer,
-			policy_ipfs_cid: Some(metadata_hash(nonce)),
+			policy_ipfs_cid: Some(ipfs_hash()),
 		}
 	}
 	pub fn default_evaluations() -> Vec<UserToUSDBalance<politest_runtime::Runtime>> {
@@ -385,9 +377,6 @@ mod testing_helpers {
 	pub fn default_remainder_contributors() -> Vec<AccountId> {
 		vec![EVAL_1.into(), BIDDER_3.into(), BUYER_4.into(), BUYER_6.into(), BIDDER_6.into()]
 	}
-	pub fn hashed(data: impl AsRef<[u8]>) -> sp_core::H256 {
-		<sp_runtime::traits::BlakeTwo256 as sp_runtime::traits::Hash>::hash(data.as_ref())
-	}
 
 	use politest_runtime::Runtime as T;
 	pub type GenesisInstantiator = pallet_funding::instantiator::Instantiator<
@@ -410,13 +399,13 @@ fn testing_genesis(
 	use pallet_funding::instantiator::TestProjectParams;
 	use politest_runtime::{
 		BalancesConfig, CouncilConfig, ForeignAssetsConfig, ParachainInfoConfig, ParachainStakingConfig,
-		PolkadotXcmConfig, SessionConfig, SudoConfig, TechnicalCommitteeConfig,
+		PolkadotXcmConfig, SessionConfig, SudoConfig, TechnicalCommitteeConfig, EXISTENTIAL_DEPOSIT,
 	};
 	use sp_runtime::bounded_vec;
 	use testing_helpers::*;
 
 	// only used to generate some values, and not for chain interactions
-	let default_project_metadata = project_metadata(ISSUER.into(), 0u32);
+	let default_project_metadata = project_metadata(ISSUER.into());
 	let min_price = default_project_metadata.minimum_price;
 	let usdt_funding_amount =
 		default_project_metadata.minimum_price.checked_mul_int(default_project_metadata.total_allocation_size).unwrap();
@@ -461,7 +450,7 @@ fn testing_genesis(
 			starting_projects: vec![
 				TestProjectParams::<Runtime> {
 					expected_state: ProjectStatus::FundingSuccessful,
-					metadata: project_metadata(ISSUER_1.into(), 0u32),
+					metadata: project_metadata(ISSUER_1.into()),
 					issuer: ISSUER_1.into(),
 					evaluations: evaluations.clone(),
 					bids: bids.clone(),
@@ -470,7 +459,7 @@ fn testing_genesis(
 				},
 				TestProjectParams::<Runtime> {
 					expected_state: ProjectStatus::RemainderRound,
-					metadata: project_metadata(ISSUER_2.into(), 1u32),
+					metadata: project_metadata(ISSUER_2.into()),
 					issuer: ISSUER_2.into(),
 					evaluations: evaluations.clone(),
 					bids: bids.clone(),
@@ -479,7 +468,7 @@ fn testing_genesis(
 				},
 				TestProjectParams::<Runtime> {
 					expected_state: ProjectStatus::CommunityRound,
-					metadata: project_metadata(ISSUER_3.into(), 2u32),
+					metadata: project_metadata(ISSUER_3.into()),
 					issuer: ISSUER_3.into(),
 					evaluations: evaluations.clone(),
 					bids: bids.clone(),
@@ -488,7 +477,7 @@ fn testing_genesis(
 				},
 				TestProjectParams::<Runtime> {
 					expected_state: ProjectStatus::AuctionOpening,
-					metadata: project_metadata(ISSUER_4.into(), 3u32),
+					metadata: project_metadata(ISSUER_4.into()),
 					issuer: ISSUER_4.into(),
 					evaluations: evaluations.clone(),
 					bids: vec![],
@@ -497,7 +486,7 @@ fn testing_genesis(
 				},
 				TestProjectParams::<Runtime> {
 					expected_state: ProjectStatus::EvaluationRound,
-					metadata: project_metadata(ISSUER_5.into(), 4u32),
+					metadata: project_metadata(ISSUER_5.into()),
 					issuer: ISSUER_5.into(),
 					evaluations: vec![],
 					bids: vec![],
@@ -506,7 +495,7 @@ fn testing_genesis(
 				},
 				TestProjectParams::<Runtime> {
 					expected_state: ProjectStatus::Application,
-					metadata: project_metadata(ISSUER_6.into(), 5u32),
+					metadata: project_metadata(ISSUER_6.into()),
 					issuer: ISSUER_6.into(),
 					evaluations: vec![],
 					bids: vec![],
