@@ -970,13 +970,12 @@ impl<T: Config> Pallet<T> {
 			.ok_or(Error::<T>::ProjectError(ProjectErrorReason::ProjectDetailsNotFound))?;
 		let now = <frame_system::Pallet<T>>::block_number();
 		let evaluation_id = NextEvaluationId::<T>::get();
-		let caller_existing_evaluations: Vec<(u32, EvaluationInfoOf<T>)> =
-			Evaluations::<T>::iter_prefix((project_id, evaluator)).collect();
 		let plmc_usd_price = T::PriceProvider::get_price(PLMC_FOREIGN_ID).ok_or(Error::<T>::PriceNotFound)?;
 		let early_evaluation_reward_threshold_usd =
 			T::EvaluationSuccessThreshold::get() * project_details.fundraising_target;
 		let evaluation_round_info = &mut project_details.evaluation_round_info;
-		let evaluations_count = EvaluationCounts::<T>::get(project_id);
+		let total_evaluations_count = EvaluationCounts::<T>::get(project_id);
+		let user_evaluations_count = Evaluations::<T>::iter_prefix((project_id, evaluator)).count() as u32;
 
 		// * Validity Checks *
 		ensure!(
@@ -992,8 +991,12 @@ impl<T: Config> Pallet<T> {
 			Error::<T>::ProjectRoundError(RoundError::IncorrectRound)
 		);
 		ensure!(
-			evaluations_count < T::MaxEvaluationsPerProject::get(),
+			total_evaluations_count < T::MaxEvaluationsPerProject::get(),
 			Error::<T>::ParticipationFailed(ParticipationError::TooManyProjectParticipations)
+		);
+		ensure!(
+			user_evaluations_count < T::MaxEvaluationsPerUser::get(),
+			Error::<T>::ParticipationFailed(ParticipationError::TooManyUserParticipations)
 		);
 
 		// * Calculate new variables *
@@ -1050,14 +1053,10 @@ impl<T: Config> Pallet<T> {
 			plmc_amount: plmc_bond,
 		});
 
-		let existing_evaluations_count = caller_existing_evaluations.len() as u32;
-		let actual_weight = if existing_evaluations_count < T::MaxEvaluationsPerUser::get() {
-			WeightInfoOf::<T>::evaluation_to_limit(existing_evaluations_count)
-		} else {
-			WeightInfoOf::<T>::evaluation_over_limit()
-		};
-
-		Ok(PostDispatchInfo { actual_weight: Some(actual_weight), pays_fee: Pays::Yes })
+		Ok(PostDispatchInfo {
+			actual_weight: Some(WeightInfoOf::<T>::evaluation(user_evaluations_count)),
+			pays_fee: Pays::Yes,
+		})
 	}
 
 	/// Bid for a project in the bidding stage.

@@ -143,13 +143,10 @@ pub type Migrations = migrations::Unreleased;
 /// The runtime migrations per release.
 #[allow(missing_docs)]
 pub mod migrations {
-	use crate::custom_migrations::init_pallet::InitializePallet;
-	use crate::DmpQueue;
+	use crate::{custom_migrations::init_pallet::InitializePallet, DmpQueue};
 	/// Unreleased migrations. Add new ones here:
 	#[allow(unused_parens)]
-	pub type Unreleased = (
-		InitializePallet<DmpQueue>
-	);
+	pub type Unreleased = (InitializePallet<DmpQueue>);
 }
 
 /// Executive: handles dispatch to the various modules.
