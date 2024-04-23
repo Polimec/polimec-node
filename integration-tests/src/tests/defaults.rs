@@ -37,9 +37,6 @@ pub type IntegrationInstantiator = pallet_funding::instantiator::Instantiator<
 	<PolitestRuntime as pallet_funding::Config>::AllPalletsWithoutSystem,
 	<PolitestRuntime as pallet_funding::Config>::RuntimeEvent,
 >;
-pub fn hashed(data: impl AsRef<[u8]>) -> sp_core::H256 {
-	<sp_runtime::traits::BlakeTwo256 as sp_runtime::traits::Hash>::hash(data.as_ref())
-}
 
 generate_accounts!(
 	ISSUER, EVAL_1, EVAL_2, EVAL_3, EVAL_4, BIDDER_1, BIDDER_2, BIDDER_3, BIDDER_4, BIDDER_5, BIDDER_6, BUYER_1,

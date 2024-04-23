@@ -35,10 +35,10 @@ generate_accounts!(
 	JOEL, POLKA, MALIK, ALEXANDER, SOLOMUN, JOHNNY, GRINGO, JONAS, BUNDI, FELIX,
 );
 
-pub fn excel_project(nonce: u64) -> ProjectMetadataOf<PolitestRuntime> {
+pub fn excel_project() -> ProjectMetadataOf<PolitestRuntime> {
 	let bounded_name = BoundedVec::try_from("Polimec".as_bytes().to_vec()).unwrap();
 	let bounded_symbol = BoundedVec::try_from("PLMC".as_bytes().to_vec()).unwrap();
-	let metadata_hash = BoundedVec::try_from(METADATA.as_bytes().to_vec()).unwrap();
+	let metadata_hash = metadata_hash();
 	ProjectMetadata {
 		token_information: CurrencyMetadata { name: bounded_name, symbol: bounded_symbol, decimals: 10 },
 		mainnet_token_max_supply: 10_000_000_0_000_000_000, // Made up, not in the Sheet.
@@ -264,7 +264,7 @@ fn evaluation_round_completed() {
 	let mut inst = IntegrationInstantiator::new(None);
 
 	let issuer = ISSUER.into();
-	let project = excel_project(inst.get_new_nonce());
+	let project = excel_project();
 	let evaluations = excel_evaluators();
 
 	PolitestNet::execute_with(|| {
@@ -277,7 +277,7 @@ fn auction_round_completed() {
 	let mut inst = IntegrationInstantiator::new(None);
 
 	let issuer = ISSUER.into();
-	let project = excel_project(inst.get_new_nonce());
+	let project = excel_project();
 	let evaluations = excel_evaluators();
 	let bids = excel_bidders();
 
@@ -313,7 +313,7 @@ fn community_round_completed() {
 
 	PolitestNet::execute_with(|| {
 		let _ = inst.create_remainder_contributing_project(
-			excel_project(0),
+			excel_project(),
 			ISSUER.into(),
 			excel_evaluators(),
 			excel_bidders(),
@@ -338,7 +338,7 @@ fn remainder_round_completed() {
 
 	PolitestNet::execute_with(|| {
 		let project_id = inst.create_finished_project(
-			excel_project(0),
+			excel_project(),
 			ISSUER.into(),
 			excel_evaluators(),
 			excel_bidders(),
@@ -375,7 +375,7 @@ fn funds_raised() {
 
 	PolitestNet::execute_with(|| {
 		let project_id = inst.create_finished_project(
-			excel_project(0),
+			excel_project(),
 			ISSUER.into(),
 			excel_evaluators(),
 			excel_bidders(),
@@ -399,7 +399,7 @@ fn ct_minted() {
 
 	PolitestNet::execute_with(|| {
 		let project_id = inst.create_finished_project(
-			excel_project(0),
+			excel_project(),
 			ISSUER.into(),
 			excel_evaluators(),
 			excel_bidders(),
@@ -424,7 +424,7 @@ fn ct_migrated() {
 
 	let project_id = PolitestNet::execute_with(|| {
 		let project_id = inst.create_finished_project(
-			excel_project(0),
+			excel_project(),
 			ISSUER.into(),
 			excel_evaluators(),
 			excel_bidders(),
