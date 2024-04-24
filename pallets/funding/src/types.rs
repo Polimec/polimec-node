@@ -173,7 +173,7 @@ pub mod storage_types {
 
 	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
 	#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
-	pub struct ProjectMetadata<BoundedString, Balance: PartialOrd + Copy, Price: FixedPointNumber, AccountId> {
+	pub struct ProjectMetadata<BoundedString, Balance: PartialOrd + Copy, Price: FixedPointNumber, AccountId, Cid> {
 		/// Token Metadata
 		pub token_information: CurrencyMetadata<BoundedString>,
 		/// Mainnet Token Max Supply
@@ -195,7 +195,7 @@ pub mod storage_types {
 			BoundedVec<AcceptedFundingAsset, ConstU32<{ AcceptedFundingAsset::VARIANT_COUNT as u32 }>>,
 		pub funding_destination_account: AccountId,
 		/// Additional metadata
-		pub policy_ipfs_cid: Option<BoundedString>,
+		pub policy_ipfs_cid: Option<Cid>,
 	}
 
 	impl<
@@ -203,7 +203,8 @@ pub mod storage_types {
 			Balance: From<u64> + PartialOrd + Copy + FixedPointOperand,
 			Price: FixedPointNumber,
 			AccountId,
-		> ProjectMetadata<BoundedString, Balance, Price, AccountId>
+			Cid
+		> ProjectMetadata<BoundedString, Balance, Price, AccountId, Cid>
 	{
 		/// Validate issuer metadata for the following checks:
 		/// - Minimum price is not zero

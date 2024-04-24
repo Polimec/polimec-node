@@ -171,7 +171,7 @@ pub type EvaluatorsOutcomeOf<T> = EvaluatorsOutcome<BalanceOf<T>>;
 
 pub type TicketSizeOf<T> = TicketSize<BalanceOf<T>>;
 pub type ProjectMetadataOf<T> =
-	ProjectMetadata<BoundedVec<u8, StringLimitOf<T>>, BalanceOf<T>, PriceOf<T>, AccountIdOf<T>>;
+	ProjectMetadata<BoundedVec<u8, StringLimitOf<T>>, BalanceOf<T>, PriceOf<T>, AccountIdOf<T>, Cid>;
 pub type ProjectDetailsOf<T> =
 	ProjectDetails<AccountIdOf<T>, Did, BlockNumberFor<T>, PriceOf<T>, BalanceOf<T>, EvaluationRoundInfoOf<T>>;
 pub type EvaluationRoundInfoOf<T> = EvaluationRoundInfo<BalanceOf<T>>;
@@ -805,8 +805,12 @@ pub mod pallet {
 			project_id: ProjectId,
 			#[pallet::compact] usd_amount: BalanceOf<T>,
 		) -> DispatchResultWithPostInfo {
-			let (account, did, investor_type, _cid) =
+			let (account, did, investor_type, cid) =
 				T::InvestorOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get())?;
+
+			// JUST FOR DEMO PURPOSES
+			let project = ProjectsMetadata::<T>::get(project_id).unwrap();
+			ensure!(project.policy_ipfs_cid == Some(cid), Error::<T>::IssuerError(IssuerErrorReason::NotIssuer));
 			Self::do_evaluate(&account, project_id, usd_amount, did, investor_type)
 		}
 
