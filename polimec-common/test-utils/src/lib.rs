@@ -28,7 +28,7 @@ pub fn get_test_jwt<AccountId: core::fmt::Display>(
 ) -> UntrustedToken {
 	// TODO: Accept the DID as a parameter.
 	let did = "did:polimec:0x1234";
-		// TODO: Accept the CID as a parameter.
+	// TODO: Accept the CID as a parameter.
 
 	let cid = "QmeuJ24ffwLAZppQcgcggJs3n689bewednYkuc8Bx5Gngz";
 
@@ -42,65 +42,64 @@ pub fn get_test_jwt<AccountId: core::fmt::Display>(
 	println!("URL: {}", url);
 	// TODO: This should be a POST with everything in the body.
 	let jwt = reqwest::blocking::get(url)
-	.expect("Failed to perform the HTTP GET")
-	.text()
-	.expect("Failed to get the response body (jwt) from the specified endpoint");
+		.expect("Failed to perform the HTTP GET")
+		.text()
+		.expect("Failed to get the response body (jwt) from the specified endpoint");
 	let res = UntrustedToken::new(&jwt).expect("Failed to parse the JWT");
 	res
 }
 
 fn create_jwt<AccountId: frame_support::Serialize>(
-    account_id: AccountId,
-    investor_type: InvestorType,
-    did: BoundedVec<u8, ConstU32<57>>,
-    ipfs_cid: Option<BoundedVec<u8, ConstU32<96>>>,
+	account_id: AccountId,
+	investor_type: InvestorType,
+	did: BoundedVec<u8, ConstU32<57>>,
+	ipfs_cid: Option<BoundedVec<u8, ConstU32<96>>>,
 ) -> UntrustedToken {
-    use chrono::{TimeZone, Utc};
-    use jwt_compact::{alg::SigningKey, Claims};
+	use chrono::{TimeZone, Utc};
+	use jwt_compact::{alg::SigningKey, Claims};
 
-    // Create a signing key from raw bytes.
-    let key = SigningKey::from_slice([
-        80, 168, 164, 18, 76, 133, 92, 116, 50, 20, 155, 28, 33, 89, 151, 207, 199, 247, 113, 185, 127, 156, 2,
-        132, 65, 58, 76, 156, 143, 109, 29, 251,
-    ].as_ref()).unwrap();
+	// Create a signing key from raw bytes.
+	let key = SigningKey::from_slice(
+		[
+			80, 168, 164, 18, 76, 133, 92, 116, 50, 20, 155, 28, 33, 89, 151, 207, 199, 247, 113, 185, 127, 156, 2,
+			132, 65, 58, 76, 156, 143, 109, 29, 251,
+		]
+		.as_ref(),
+	)
+	.unwrap();
 
-    let header: Header = Header::empty();
-    
-    // Handle optional IPFS CID
-    let ipfs_cid = ipfs_cid.unwrap_or_else(|| BoundedVec::with_bounded_capacity(96));
+	let header: Header = Header::empty();
 
-    let custom_claims = SampleClaims {
-        subject: account_id,
-        investor_type,
-        issuer: "verifier".to_string(),
-        did,
-        ipfs_cid,
-    };
+	// Handle optional IPFS CID
+	let ipfs_cid = ipfs_cid.unwrap_or_else(|| BoundedVec::with_bounded_capacity(96));
 
-    let mut claims = Claims::new(custom_claims);
-    claims.expiration = Some(Utc.with_ymd_and_hms(2030, 1, 1, 0, 0, 0).unwrap());
+	let custom_claims =
+		SampleClaims { subject: account_id, investor_type, issuer: "verifier".to_string(), did, ipfs_cid };
 
-    let token_string = Ed25519.token(&header, &claims, &key).unwrap();
-    UntrustedToken::new(&token_string).expect("Failed to parse the JWT")
+	let mut claims = Claims::new(custom_claims);
+	claims.expiration = Some(Utc.with_ymd_and_hms(2030, 1, 1, 0, 0, 0).unwrap());
+
+	let token_string = Ed25519.token(&header, &claims, &key).unwrap();
+	UntrustedToken::new(&token_string).expect("Failed to parse the JWT")
 }
 
 // The `Serialize` trait is needed to serialize the `account_id` into a  `SampleClaims` struct.
 pub fn get_mock_jwt<AccountId: frame_support::Serialize>(
-    account_id: AccountId,
-    investor_type: InvestorType,
-    did: BoundedVec<u8, ConstU32<57>>,
+	account_id: AccountId,
+	investor_type: InvestorType,
+	did: BoundedVec<u8, ConstU32<57>>,
 ) -> UntrustedToken {
-    create_jwt(account_id, investor_type, did, None)
+	create_jwt(account_id, investor_type, did, None)
 }
 
 // The `Serialize` trait is needed to serialize the `account_id` into a  `SampleClaims` struct.
 pub fn get_mock_jwt_with_cid<AccountId: frame_support::Serialize>(
-    account_id: AccountId,
-    investor_type: InvestorType,
-    did: BoundedVec<u8, ConstU32<57>>,
-    ipfs_cid: BoundedVec<u8, ConstU32<96>>,
+	account_id: AccountId,
+	investor_type: InvestorType,
+	did: BoundedVec<u8, ConstU32<57>>,
+	ipfs_cid: BoundedVec<u8, ConstU32<96>>,
 ) -> UntrustedToken {
-    create_jwt(account_id, investor_type, did, Some(ipfs_cid))
+	create_jwt(account_id, investor_type, did, Some(ipfs_cid))
 }
 
 /// Fetches a JWT from a dummy Polimec JWT producer that will return a JWT with the specified
@@ -148,7 +147,7 @@ pub fn do_request(url: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-	use crate::{generate_did_from_account, get_mock_jwt};
+	use crate::{generate_did_from_account, get_mock_jwt, get_mock_jwt_with_cid};
 	use jwt_compact::{
 		alg::{Ed25519, VerifyingKey},
 		AlgorithmExt,
@@ -168,5 +167,29 @@ mod tests {
 		let token = get_mock_jwt("0x1234", InvestorType::Institutional, generate_did_from_account(40u64));
 		let res = Ed25519.validator::<SampleClaims<String>>(&verifying_key).validate(&token);
 		assert!(res.is_ok());
+	}
+
+	#[test]
+	fn test_get_test_jwt_with_cid() {
+		let verifying_key = VerifyingKey::from_slice(
+			[
+				32, 118, 30, 171, 58, 212, 197, 27, 146, 122, 255, 243, 34, 245, 90, 244, 221, 37, 253, 195, 18, 202,
+				111, 55, 39, 48, 123, 17, 101, 78, 215, 94,
+			]
+			.as_ref(),
+		)
+		.unwrap();
+		let cid: &str = "QmeuJ24ffwLAZppQcgcggJs3n689bewednYkuc8Bx5Gngz";
+		let bounded_cid = frame_support::BoundedVec::try_from(cid.as_bytes().to_vec()).unwrap();
+		let token =
+			get_mock_jwt_with_cid("0x1234", InvestorType::Institutional, generate_did_from_account(40u64), bounded_cid.clone());
+		let res = Ed25519.validator::<SampleClaims<String>>(&verifying_key).validate(&token);
+		assert!(res.is_ok());
+		let validated_token = res.unwrap();
+		let claims = validated_token.claims();
+		assert_eq!(claims.custom.ipfs_cid, bounded_cid);
+		let cid_from_token = std::str::from_utf8(&claims.custom.ipfs_cid).unwrap();
+		assert_eq!(cid_from_token, cid);
+
 	}
 }
