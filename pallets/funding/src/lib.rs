@@ -810,7 +810,8 @@ pub mod pallet {
 
 			// JUST FOR DEMO PURPOSES
 			let project = ProjectsMetadata::<T>::get(project_id).unwrap();
-			ensure!(project.policy_ipfs_cid == Some(cid), Error::<T>::IssuerError(IssuerErrorReason::NotIssuer));
+			// Create a new Error to comunicate that the used JWT is not validated against this project's policy.
+			ensure!(project.policy_ipfs_cid == Some(cid), Error::<T>::BadMetadata(MetadataError::CidNotProvided));
 			Self::do_evaluate(&account, project_id, usd_amount, did, investor_type)
 		}
 
