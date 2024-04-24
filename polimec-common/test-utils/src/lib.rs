@@ -26,11 +26,22 @@ pub fn get_test_jwt<AccountId: core::fmt::Display>(
 	account_id: AccountId,
 	investor_type: InvestorType,
 ) -> UntrustedToken {
-	let jwt = reqwest::blocking::get(format!(
-		"http://jws-producer.polimec.workers.dev/mock/{}/{}",
+	// TODO: Accept the DID as a parameter.
+	let did = "did:polimec:0x1234";
+		// TODO: Accept the CID as a parameter.
+
+	let cid = "QmeuJ24ffwLAZppQcgcggJs3n689bewednYkuc8Bx5Gngz";
+
+	let url = format!(
+		"http://jws-producer.polimec.workers.dev/mock/{}/{}/{}/{}",
 		account_id,
-		investor_type.as_str()
-	))
+		investor_type.as_str(),
+		did,
+		cid
+	);
+	println!("URL: {}", url);
+	// TODO: This should be a POST with everything in the body.
+	let jwt = reqwest::blocking::get(url)
 	.expect("Failed to perform the HTTP GET")
 	.text()
 	.expect("Failed to get the response body (jwt) from the specified endpoint");
