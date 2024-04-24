@@ -181,8 +181,12 @@ mod tests {
 		.unwrap();
 		let cid: &str = "QmeuJ24ffwLAZppQcgcggJs3n689bewednYkuc8Bx5Gngz";
 		let bounded_cid = frame_support::BoundedVec::try_from(cid.as_bytes().to_vec()).unwrap();
-		let token =
-			get_mock_jwt_with_cid("0x1234", InvestorType::Institutional, generate_did_from_account(40u64), bounded_cid.clone());
+		let token = get_mock_jwt_with_cid(
+			"0x1234",
+			InvestorType::Institutional,
+			generate_did_from_account(40u64),
+			bounded_cid.clone(),
+		);
 		let res = Ed25519.validator::<SampleClaims<String>>(&verifying_key).validate(&token);
 		assert!(res.is_ok());
 		let validated_token = res.unwrap();
@@ -190,6 +194,5 @@ mod tests {
 		assert_eq!(claims.custom.ipfs_cid, bounded_cid);
 		let cid_from_token = std::str::from_utf8(&claims.custom.ipfs_cid).unwrap();
 		assert_eq!(cid_from_token, cid);
-
 	}
 }

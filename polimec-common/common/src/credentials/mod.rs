@@ -88,7 +88,12 @@ where
 		let Some(date_time) = claims.expiration else { return Err(origin) };
 
 		if claims.custom.subject == who && (date_time.timestamp_millis() as u64) >= now {
-			return Ok((who, claims.custom.did.clone(), claims.custom.investor_type.clone(), claims.custom.ipfs_cid.clone()));
+			return Ok((
+				who,
+				claims.custom.did.clone(),
+				claims.custom.investor_type.clone(),
+				claims.custom.ipfs_cid.clone(),
+			));
 		}
 
 		Err(origin)

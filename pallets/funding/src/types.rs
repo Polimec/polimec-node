@@ -203,7 +203,7 @@ pub mod storage_types {
 			Balance: From<u64> + PartialOrd + Copy + FixedPointOperand,
 			Price: FixedPointNumber,
 			AccountId,
-			Cid
+			Cid,
 		> ProjectMetadata<BoundedString, Balance, Price, AccountId, Cid>
 	{
 		/// Validate issuer metadata for the following checks:
