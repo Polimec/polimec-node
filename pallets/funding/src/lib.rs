@@ -805,14 +805,10 @@ pub mod pallet {
 			project_id: ProjectId,
 			#[pallet::compact] usd_amount: BalanceOf<T>,
 		) -> DispatchResultWithPostInfo {
-			let (account, did, investor_type, cid) =
+			let (account, did, investor_type, whitelisted_policy) =
 				T::InvestorOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get())?;
 
-			// JUST FOR DEMO PURPOSES
-			let project = ProjectsMetadata::<T>::get(project_id).unwrap();
-			// Create a new Error to comunicate that the used JWT is not validated against this project's policy.
-			ensure!(project.policy_ipfs_cid == Some(cid), Error::<T>::BadMetadata(MetadataError::CidNotProvided));
-			Self::do_evaluate(&account, project_id, usd_amount, did, investor_type)
+			Self::do_evaluate(&account, project_id, usd_amount, did, investor_type, whitelisted_policy)
 		}
 
 		/// Bid for a project in the Auction round
@@ -833,9 +829,10 @@ pub mod pallet {
 			multiplier: T::Multiplier,
 			asset: AcceptedFundingAsset,
 		) -> DispatchResultWithPostInfo {
-			let (account, did, investor_type, _cid) =
+			let (account, did, investor_type, whitelisted_policy) =
 				T::InvestorOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get())?;
-			Self::do_bid(&account, project_id, ct_amount, multiplier, asset, did, investor_type)
+
+			Self::do_bid(&account, project_id, ct_amount, multiplier, asset, did, investor_type, whitelisted_policy)
 		}
 
 		/// Buy tokens in the Community or Remainder round at the price set in the Auction Round
@@ -857,9 +854,19 @@ pub mod pallet {
 			multiplier: MultiplierOf<T>,
 			asset: AcceptedFundingAsset,
 		) -> DispatchResultWithPostInfo {
-			let (account, did, investor_type, _cid) =
+			let (account, did, investor_type, whitelisted_policy) =
 				T::InvestorOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get())?;
-			Self::do_community_contribute(&account, project_id, amount, multiplier, asset, did, investor_type)
+
+			Self::do_community_contribute(
+				&account,
+				project_id,
+				amount,
+				multiplier,
+				asset,
+				did,
+				investor_type,
+				whitelisted_policy,
+			)
 		}
 
 		/// Buy tokens in the Community or Remainder round at the price set in the Auction Round
@@ -881,9 +888,19 @@ pub mod pallet {
 			multiplier: MultiplierOf<T>,
 			asset: AcceptedFundingAsset,
 		) -> DispatchResultWithPostInfo {
-			let (account, did, investor_type, _cid) =
+			let (account, did, investor_type, whitelisted_policy) =
 				T::InvestorOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get())?;
-			Self::do_remaining_contribute(&account, project_id, amount, multiplier, asset, did, investor_type)
+
+			Self::do_remaining_contribute(
+				&account,
+				project_id,
+				amount,
+				multiplier,
+				asset,
+				did,
+				investor_type,
+				whitelisted_policy,
+			)
 		}
 
 		#[pallet::call_index(8)]

@@ -696,6 +696,8 @@ pub mod inner_types {
 		UserHasWinningBid,
 		/// The user does not have enough funds (funding asset or PLMC) to cover the participation.
 		NotEnoughFunds,
+		/// The JWT included has a wrong policy for participating in this project. Front-end should ensure this never happens.
+		PolicyMismatch,
 	}
 
 	/// Errors related to the project state. This can either be project info not found, or

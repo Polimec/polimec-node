@@ -510,7 +510,8 @@ mod round_flow {
 		#[test]
 		fn contribute_does_not_work() {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
-			let project_id = inst.create_evaluating_project(default_project_metadata(ISSUER_1), ISSUER_1);
+			let project_metadata = default_project_metadata(ISSUER_1);
+			let project_id = inst.create_evaluating_project(project_metadata.clone(), ISSUER_1);
 			let did = generate_did_from_account(ISSUER_1);
 			let investor_type = InvestorType::Retail;
 			inst.execute(|| {
@@ -522,7 +523,8 @@ mod round_flow {
 						1u8.try_into().unwrap(),
 						AcceptedFundingAsset::USDT,
 						did,
-						investor_type
+						investor_type,
+						project_metadata.clone().policy_ipfs_cid.unwrap(),
 					),
 					Error::<TestRuntime>::ProjectRoundError(RoundError::IncorrectRound)
 				);
@@ -852,7 +854,13 @@ mod bid_extrinsic {
 			investor_type: InvestorType,
 			u8_multiplier: u8,
 		) -> DispatchResultWithPostInfo {
-			let jwt = get_mock_jwt(bidder.clone(), investor_type, generate_did_from_account(BIDDER_1));
+			let project_policy = inst.get_project_metadata(project_id).policy_ipfs_cid.unwrap();
+			let jwt = get_mock_jwt_with_cid(
+				bidder.clone(),
+				investor_type,
+				generate_did_from_account(BIDDER_1),
+				project_policy,
+			);
 			let amount = 1000 * ASSET_UNIT;
 			let multiplier = Multiplier::force_new(u8_multiplier);
 
@@ -1057,9 +1065,11 @@ mod bid_extrinsic {
 		#[test]
 		fn cannot_bid_before_auction_round() {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
-			let _ = inst.create_evaluating_project(default_project_metadata(ISSUER_1), ISSUER_1);
+			let project_metadata = default_project_metadata(ISSUER_1);
+			let _ = inst.create_evaluating_project(project_metadata.clone(), ISSUER_1);
 			let did = generate_did_from_account(BIDDER_2);
 			let investor_type = InvestorType::Institutional;
+
 			inst.execute(|| {
 				assert_noop!(
 					PolimecFunding::do_bid(
@@ -1069,7 +1079,8 @@ mod bid_extrinsic {
 						1u8.try_into().unwrap(),
 						AcceptedFundingAsset::USDT,
 						did,
-						investor_type
+						investor_type,
+						project_metadata.clone().policy_ipfs_cid.unwrap(),
 					),
 					Error::<TestRuntime>::ProjectRoundError(RoundError::IncorrectRound)
 				);
@@ -1125,6 +1136,7 @@ mod bid_extrinsic {
 					project_metadata.clone(),
 					Some(current_bucket),
 				);
+
 			let plmc_existential_deposits = plmc_for_failing_bid.accounts().existential_deposits();
 			let usdt_for_bidding =
 				MockInstantiator::calculate_auction_funding_asset_charged_from_all_bids_made_or_with_bucket(
@@ -1141,10 +1153,11 @@ mod bid_extrinsic {
 				assert_noop!(
 					PolimecFunding::bid(
 						RuntimeOrigin::signed(failing_bid.bidder),
-						get_mock_jwt(
+						get_mock_jwt_with_cid(
 							failing_bid.bidder,
 							InvestorType::Professional,
-							generate_did_from_account(failing_bid.bidder)
+							generate_did_from_account(failing_bid.bidder),
+							project_metadata.clone().policy_ipfs_cid.unwrap()
 						),
 						project_id,
 						failing_bid.amount,
@@ -1159,10 +1172,11 @@ mod bid_extrinsic {
 			inst.execute(|| {
 				assert_ok!(PolimecFunding::bid(
 					RuntimeOrigin::signed(failing_bid.bidder),
-					get_mock_jwt(
+					get_mock_jwt_with_cid(
 						failing_bid.bidder,
 						InvestorType::Professional,
-						generate_did_from_account(failing_bid.bidder)
+						generate_did_from_account(failing_bid.bidder),
+						project_metadata.clone().policy_ipfs_cid.unwrap()
 					),
 					project_id,
 					remaining_ct,
@@ -1174,10 +1188,11 @@ mod bid_extrinsic {
 				assert_noop!(
 					PolimecFunding::bid(
 						RuntimeOrigin::signed(failing_bid.bidder),
-						get_mock_jwt(
+						get_mock_jwt_with_cid(
 							failing_bid.bidder,
 							InvestorType::Professional,
-							generate_did_from_account(failing_bid.bidder)
+							generate_did_from_account(failing_bid.bidder),
+							project_metadata.clone().policy_ipfs_cid.unwrap()
 						),
 						project_id,
 						5000 * ASSET_UNIT,
@@ -1252,10 +1267,11 @@ mod bid_extrinsic {
 				assert_noop!(
 					PolimecFunding::bid(
 						RuntimeOrigin::signed(failing_bid.bidder),
-						get_mock_jwt(
+						get_mock_jwt_with_cid(
 							failing_bid.bidder,
 							InvestorType::Professional,
-							generate_did_from_account(failing_bid.bidder)
+							generate_did_from_account(failing_bid.bidder),
+							project_metadata.clone().policy_ipfs_cid.unwrap()
 						),
 						project_id,
 						failing_bid.amount,
@@ -1270,10 +1286,11 @@ mod bid_extrinsic {
 			inst.execute(|| {
 				assert_ok!(PolimecFunding::bid(
 					RuntimeOrigin::signed(failing_bid.bidder),
-					get_mock_jwt(
+					get_mock_jwt_with_cid(
 						failing_bid.bidder,
 						InvestorType::Professional,
-						generate_did_from_account(failing_bid.bidder)
+						generate_did_from_account(failing_bid.bidder),
+						project_metadata.clone().policy_ipfs_cid.unwrap()
 					),
 					project_id,
 					remaining_ct,
@@ -1285,10 +1302,11 @@ mod bid_extrinsic {
 				assert_noop!(
 					PolimecFunding::bid(
 						RuntimeOrigin::signed(failing_bid.bidder),
-						get_mock_jwt(
+						get_mock_jwt_with_cid(
 							failing_bid.bidder,
 							InvestorType::Professional,
-							generate_did_from_account(failing_bid.bidder)
+							generate_did_from_account(failing_bid.bidder),
+							project_metadata.clone().policy_ipfs_cid.unwrap()
 						),
 						project_id,
 						5000 * ASSET_UNIT,
@@ -1332,7 +1350,8 @@ mod bid_extrinsic {
 						1u8.try_into().unwrap(),
 						AcceptedFundingAsset::USDT,
 						generate_did_from_account(BIDDER_1),
-						InvestorType::Professional
+						InvestorType::Professional,
+						project_metadata.clone().policy_ipfs_cid.unwrap(),
 					),
 					Error::<TestRuntime>::ParticipationFailed(ParticipationError::TooLow)
 				);
@@ -1347,7 +1366,8 @@ mod bid_extrinsic {
 						1u8.try_into().unwrap(),
 						AcceptedFundingAsset::USDT,
 						generate_did_from_account(BIDDER_1),
-						InvestorType::Institutional
+						InvestorType::Institutional,
+						project_metadata.clone().policy_ipfs_cid.unwrap(),
 					),
 					Error::<TestRuntime>::ParticipationFailed(ParticipationError::TooLow)
 				);
@@ -1401,7 +1421,8 @@ mod bid_extrinsic {
 					1u8.try_into().unwrap(),
 					AcceptedFundingAsset::USDT,
 					generate_did_from_account(BIDDER_1),
-					InvestorType::Professional
+					InvestorType::Professional,
+					project_metadata.clone().policy_ipfs_cid.unwrap(),
 				));
 			});
 			let smallest_ct_amount_at_20k_usd = PriceOf::<TestRuntime>::from_float(1.1)
@@ -1419,7 +1440,8 @@ mod bid_extrinsic {
 					1u8.try_into().unwrap(),
 					AcceptedFundingAsset::USDT,
 					generate_did_from_account(BIDDER_1),
-					InvestorType::Institutional
+					InvestorType::Institutional,
+					project_metadata.clone().policy_ipfs_cid.unwrap(),
 				));
 			});
 		}
@@ -1457,9 +1479,18 @@ mod bid_extrinsic {
 				(BIDDER_4, 500_000 * US_DOLLAR).into(),
 			]);
 
-			let bidder_1_jwt = get_mock_jwt(BIDDER_1, InvestorType::Professional, generate_did_from_account(BIDDER_1));
-			let bidder_2_jwt_same_did =
-				get_mock_jwt(BIDDER_2, InvestorType::Professional, generate_did_from_account(BIDDER_1));
+			let bidder_1_jwt = get_mock_jwt_with_cid(
+				BIDDER_1,
+				InvestorType::Professional,
+				generate_did_from_account(BIDDER_1),
+				project_metadata.clone().policy_ipfs_cid.unwrap(),
+			);
+			let bidder_2_jwt_same_did = get_mock_jwt_with_cid(
+				BIDDER_2,
+				InvestorType::Professional,
+				generate_did_from_account(BIDDER_1),
+				project_metadata.clone().policy_ipfs_cid.unwrap(),
+			);
 			// total bids with same DID above 10k CT (100k USD) should fail for professionals
 			inst.execute(|| {
 				assert_ok!(Pallet::<TestRuntime>::bid(
@@ -1496,9 +1527,18 @@ mod bid_extrinsic {
 				));
 			});
 
-			let bidder_3_jwt = get_mock_jwt(BIDDER_3, InvestorType::Institutional, generate_did_from_account(BIDDER_3));
-			let bidder_4_jwt_same_did =
-				get_mock_jwt(BIDDER_4, InvestorType::Institutional, generate_did_from_account(BIDDER_3));
+			let bidder_3_jwt = get_mock_jwt_with_cid(
+				BIDDER_3,
+				InvestorType::Institutional,
+				generate_did_from_account(BIDDER_3),
+				project_metadata.clone().policy_ipfs_cid.unwrap(),
+			);
+			let bidder_4_jwt_same_did = get_mock_jwt_with_cid(
+				BIDDER_4,
+				InvestorType::Institutional,
+				generate_did_from_account(BIDDER_3),
+				project_metadata.clone().policy_ipfs_cid.unwrap(),
+			);
 			// total bids with same DID above 50k CT (500k USD) should fail for institutionals
 			inst.execute(|| {
 				assert_ok!(Pallet::<TestRuntime>::bid(
@@ -1549,7 +1589,8 @@ mod bid_extrinsic {
 					1u8.try_into().unwrap(),
 					AcceptedFundingAsset::USDT,
 					generate_did_from_account(ISSUER_1),
-					InvestorType::Institutional
+					InvestorType::Institutional,
+					project_metadata.clone().policy_ipfs_cid.unwrap(),
 				)),
 				Error::<TestRuntime>::IssuerError(IssuerErrorReason::ParticipationToOwnProject)
 			);
@@ -1558,8 +1599,8 @@ mod bid_extrinsic {
 		#[test]
 		fn bid_with_asset_not_accepted() {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
-			let project_id =
-				inst.create_auctioning_project(default_project_metadata(ISSUER_1), ISSUER_1, default_evaluations());
+			let project_metadata = default_project_metadata(ISSUER_1);
+			let project_id = inst.create_auctioning_project(project_metadata.clone(), ISSUER_1, default_evaluations());
 			let bids = vec![BidParams::<TestRuntime>::new(BIDDER_1, 10_000, 1u8, AcceptedFundingAsset::USDC)];
 
 			let did = generate_did_from_account(bids[0].bidder);
@@ -1574,6 +1615,7 @@ mod bid_extrinsic {
 					bids[0].asset,
 					did,
 					investor_type,
+					project_metadata.clone().policy_ipfs_cid.unwrap(),
 				)
 			});
 			frame_support::assert_err!(

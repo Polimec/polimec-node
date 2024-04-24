@@ -961,8 +961,11 @@ impl<T: Config> Pallet<T> {
 		usd_amount: BalanceOf<T>,
 		did: Did,
 		investor_type: InvestorType,
+		whitelisted_policy: Cid,
 	) -> DispatchResultWithPostInfo {
 		// * Get variables *
+		let project_metadata = ProjectsMetadata::<T>::get(project_id)
+			.ok_or(Error::<T>::ProjectError(ProjectErrorReason::ProjectMetadataNotFound))?;
 		let mut project_details = ProjectsDetails::<T>::get(project_id)
 			.ok_or(Error::<T>::ProjectError(ProjectErrorReason::ProjectDetailsNotFound))?;
 		let now = <frame_system::Pallet<T>>::block_number();
@@ -973,8 +976,13 @@ impl<T: Config> Pallet<T> {
 		let evaluation_round_info = &mut project_details.evaluation_round_info;
 		let total_evaluations_count = EvaluationCounts::<T>::get(project_id);
 		let user_evaluations_count = Evaluations::<T>::iter_prefix((project_id, evaluator)).count() as u32;
+		let project_policy = project_metadata.policy_ipfs_cid.ok_or(Error::<T>::ImpossibleState)?;
 
 		// * Validity Checks *
+		ensure!(
+			project_policy == whitelisted_policy,
+			Error::<T>::ParticipationFailed(ParticipationError::PolicyMismatch)
+		);
 		ensure!(
 			usd_amount >= T::MinUsdPerEvaluation::get(),
 			Error::<T>::ParticipationFailed(ParticipationError::TooLow)
@@ -1077,12 +1085,13 @@ impl<T: Config> Pallet<T> {
 		funding_asset: AcceptedFundingAsset,
 		did: Did,
 		investor_type: InvestorType,
+		whitelisted_policy: Cid,
 	) -> DispatchResultWithPostInfo {
 		// * Get variables *
-		let project_details = ProjectsDetails::<T>::get(project_id)
-			.ok_or(Error::<T>::ProjectError(ProjectErrorReason::ProjectDetailsNotFound))?;
 		let project_metadata = ProjectsMetadata::<T>::get(project_id)
 			.ok_or(Error::<T>::ProjectError(ProjectErrorReason::ProjectMetadataNotFound))?;
+		let project_details = ProjectsDetails::<T>::get(project_id)
+			.ok_or(Error::<T>::ProjectError(ProjectErrorReason::ProjectDetailsNotFound))?;
 		let plmc_usd_price = T::PriceProvider::get_price(PLMC_FOREIGN_ID).ok_or(Error::<T>::PriceNotFound)?;
 
 		// Fetch current bucket details and other required info
@@ -1091,6 +1100,7 @@ impl<T: Config> Pallet<T> {
 		let now = <frame_system::Pallet<T>>::block_number();
 		let mut amount_to_bid = ct_amount;
 		let total_bids_for_project = BidCounts::<T>::get(project_id);
+		let project_policy = project_metadata.policy_ipfs_cid.ok_or(Error::<T>::ImpossibleState)?;
 
 		// User will spend at least this amount of USD for his bid(s). More if the bid gets split into different buckets
 		let min_total_ticket_size =
@@ -1114,6 +1124,10 @@ impl<T: Config> Pallet<T> {
 		};
 
 		// * Validity checks *
+		ensure!(
+			project_policy == whitelisted_policy,
+			Error::<T>::ParticipationFailed(ParticipationError::PolicyMismatch)
+		);
 		ensure!(
 			matches!(investor_type, InvestorType::Institutional | InvestorType::Professional),
 			DispatchError::from("Retail investors are not allowed to bid")
@@ -1297,6 +1311,7 @@ impl<T: Config> Pallet<T> {
 		asset: AcceptedFundingAsset,
 		did: Did,
 		investor_type: InvestorType,
+		whitelisted_policy: Cid,
 	) -> DispatchResultWithPostInfo {
 		let mut project_details = ProjectsDetails::<T>::get(project_id)
 			.ok_or(Error::<T>::ProjectError(ProjectErrorReason::ProjectDetailsNotFound))?;
@@ -1320,6 +1335,7 @@ impl<T: Config> Pallet<T> {
 			asset,
 			investor_type,
 			did,
+			whitelisted_policy,
 		)
 	}
 
@@ -1341,6 +1357,7 @@ impl<T: Config> Pallet<T> {
 		asset: AcceptedFundingAsset,
 		did: Did,
 		investor_type: InvestorType,
+		whitelisted_policy: Cid,
 	) -> DispatchResultWithPostInfo {
 		let mut project_details = ProjectsDetails::<T>::get(project_id)
 			.ok_or(Error::<T>::ProjectError(ProjectErrorReason::ProjectDetailsNotFound))?;
@@ -1364,6 +1381,7 @@ impl<T: Config> Pallet<T> {
 			asset,
 			investor_type,
 			did,
+			whitelisted_policy,
 		)
 	}
 
@@ -1377,6 +1395,7 @@ impl<T: Config> Pallet<T> {
 		funding_asset: AcceptedFundingAsset,
 		investor_type: InvestorType,
 		did: Did,
+		whitelisted_policy: Cid,
 	) -> DispatchResultWithPostInfo {
 		let project_metadata = ProjectsMetadata::<T>::get(project_id)
 			.ok_or(Error::<T>::ProjectError(ProjectErrorReason::ProjectMetadataNotFound))?;
@@ -1389,6 +1408,7 @@ impl<T: Config> Pallet<T> {
 		let plmc_usd_price = T::PriceProvider::get_price(PLMC_FOREIGN_ID).ok_or(Error::<T>::PriceNotFound)?;
 		let funding_asset_usd_price =
 			T::PriceProvider::get_price(funding_asset.to_assethub_id()).ok_or(Error::<T>::PriceNotFound)?;
+		let project_policy = project_metadata.policy_ipfs_cid.ok_or(Error::<T>::ImpossibleState)?;
 
 		let ticket_size = ct_usd_price.checked_mul_int(buyable_tokens).ok_or(Error::<T>::BadMath)?;
 		let contributor_ticket_size = match investor_type {
@@ -1411,6 +1431,10 @@ impl<T: Config> Pallet<T> {
 			InvestorType::Institutional => INSTITUTIONAL_MAX_MULTIPLIER,
 		};
 		// * Validity checks *
+		ensure!(
+			project_policy == whitelisted_policy,
+			Error::<T>::ParticipationFailed(ParticipationError::PolicyMismatch)
+		);
 		ensure!(
 			multiplier.into() <= max_multiplier && multiplier.into() > 0u8,
 			Error::<T>::ParticipationFailed(ParticipationError::ForbiddenMultiplier)
