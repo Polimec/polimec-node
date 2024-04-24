@@ -57,12 +57,15 @@ pub struct SampleClaims<AccountId> {
 	pub subject: AccountId,
 	#[serde(rename = "iss")]
 	pub issuer: String,
+	#[serde(rename = "aud", deserialize_with = "from_bounded_cid")]
+	pub ipfs_cid: Cid,
 	pub investor_type: InvestorType,
-	#[serde(deserialize_with = "from_bounded_vec")]
+	#[serde(deserialize_with = "from_bounded_did")]
 	pub did: Did,
 }
 
 pub type Did = BoundedVec<u8, ConstU32<57>>;
+pub type Cid = BoundedVec<u8, ConstU32<96>>;
 
 pub struct EnsureInvestor<T>(sp_std::marker::PhantomData<T>);
 impl<T> EnsureOriginWithCredentials<T::RuntimeOrigin> for EnsureInvestor<T>
@@ -70,7 +73,7 @@ where
 	T: frame_system::Config + pallet_timestamp::Config,
 {
 	type Claims = SampleClaims<T::AccountId>;
-	type Success = (T::AccountId, Did, InvestorType);
+	type Success = (T::AccountId, Did, InvestorType, Cid);
 
 	fn try_origin(
 		origin: T::RuntimeOrigin,
@@ -85,7 +88,7 @@ where
 		let Some(date_time) = claims.expiration else { return Err(origin) };
 
 		if claims.custom.subject == who && (date_time.timestamp_millis() as u64) >= now {
-			return Ok((who, claims.custom.did.clone(), claims.custom.investor_type.clone()));
+			return Ok((who, claims.custom.did.clone(), claims.custom.investor_type.clone(), claims.custom.ipfs_cid.clone()));
 		}
 
 		Err(origin)
@@ -127,7 +130,16 @@ where
 	}
 }
 
-pub fn from_bounded_vec<'de, D>(deserializer: D) -> Result<BoundedVec<u8, ConstU32<57>>, D::Error>
+pub fn from_bounded_did<'de, D>(deserializer: D) -> Result<Did, D::Error>
+where
+	D: Deserializer<'de>,
+{
+	String::deserialize(deserializer)
+		.map(|string| string.as_bytes().to_vec())
+		.and_then(|vec| vec.try_into().map_err(|_| Error::custom("failed to deserialize")))
+}
+
+pub fn from_bounded_cid<'de, D>(deserializer: D) -> Result<Cid, D::Error>
 where
 	D: Deserializer<'de>,
 {
@@ -145,12 +157,18 @@ where
 		S: Serializer,
 	{
 		// Define how many fields we are serializing.
-		let mut state = serializer.serialize_struct("SampleClaims", 4)?;
+		let mut state = serializer.serialize_struct("SampleClaims", 5)?;
 
 		// Serialize each field.
 		// Fields like `subject`, `issuer`, and `investor_type` can be serialized directly.
 		state.serialize_field("sub", &self.subject)?;
 		state.serialize_field("iss", &self.issuer)?;
+		// For the `ipfs_cid_string` field, you'd use your custom logic to convert it to a string or another format suitable for serialization.
+		// Assuming `cid` is a `BoundedVec<u8, ConstU32<96>>` and you're encoding it as a UTF-8 string.
+		let ipfs_cid_bytes: scale_info::prelude::vec::Vec<u8> = self.ipfs_cid.clone().into(); // Convert BoundedVec to Vec<u8>
+		let ipfs_cid_string = String::from_utf8_lossy(&ipfs_cid_bytes); // Convert Vec<u8> to String
+		state.serialize_field("aud", &ipfs_cid_string)?;
+
 		state.serialize_field("investor_type", &self.investor_type)?;
 
 		// For the `did` field, you'd use your custom logic to convert it to a string or another format suitable for serialization.
