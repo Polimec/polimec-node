@@ -459,12 +459,14 @@ mod evaluate_extrinsic {
 				assert_eq!(Evaluations::<TestRuntime>::iter_values().collect_vec(), vec![]);
 			});
 
+			let did = generate_did_from_account(evaluation.account);
+
 			assert_ok!(inst.execute(|| PolimecFunding::evaluate(
 				RuntimeOrigin::signed(evaluation.account),
 				get_mock_jwt_with_cid(
 					evaluation.account,
 					InvestorType::Retail,
-					generate_did_from_account(evaluation.account),
+					did.clone(),
 					project_metadata.clone().policy_ipfs_cid.unwrap()
 				),
 				project_id,
@@ -477,6 +479,7 @@ mod evaluate_extrinsic {
 				let stored_evaluation = &evaluations[0];
 				let expected_evaluation_item = EvaluationInfoOf::<TestRuntime> {
 					id: 0,
+					did,
 					project_id: 0,
 					evaluator: EVALUATOR_1,
 					original_plmc_bond: necessary_plmc[0].plmc_amount,
