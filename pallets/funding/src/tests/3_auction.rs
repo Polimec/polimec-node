@@ -1623,5 +1623,31 @@ mod bid_extrinsic {
 				Error::<TestRuntime>::ParticipationFailed(ParticipationError::FundingAssetNotAccepted)
 			);
 		}
+
+		#[test]
+		fn wrong_policy_on_jwt() {
+			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+			let project_metadata = default_project_metadata(ISSUER_1);
+			let project_id = inst.create_auctioning_project(project_metadata.clone(), ISSUER_1, default_evaluations());
+
+			inst.execute(|| {
+				assert_noop!(
+					PolimecFunding::bid(
+						RuntimeOrigin::signed(BIDDER_1),
+						get_mock_jwt_with_cid(
+							BIDDER_1,
+							InvestorType::Professional,
+							generate_did_from_account(BIDDER_1),
+							"wrong_cid".as_bytes().to_vec().try_into().unwrap()
+						),
+						project_id,
+						5000 * ASSET_UNIT,
+						1u8.try_into().unwrap(),
+						AcceptedFundingAsset::USDT
+					),
+					Error::<TestRuntime>::ParticipationFailed(ParticipationError::PolicyMismatch)
+				);
+			});
+		}
 	}
 }

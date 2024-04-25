@@ -1342,5 +1342,36 @@ mod community_contribute_extrinsic {
 				Error::<TestRuntime>::ParticipationFailed(ParticipationError::FundingAssetNotAccepted)
 			);
 		}
+
+		#[test]
+		fn wrong_policy_on_jwt() {
+			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+			let project_metadata = default_project_metadata(ISSUER_1);
+			let project_id = inst.create_community_contributing_project(
+				project_metadata.clone(),
+				ISSUER_1,
+				default_evaluations(),
+				default_bids(),
+			);
+
+			inst.execute(|| {
+				assert_noop!(
+					PolimecFunding::community_contribute(
+						RuntimeOrigin::signed(BUYER_1),
+						get_mock_jwt_with_cid(
+							BUYER_1,
+							InvestorType::Retail,
+							generate_did_from_account(BUYER_1),
+							"wrong_cid".as_bytes().to_vec().try_into().unwrap()
+						),
+						project_id,
+						5000 * ASSET_UNIT,
+						1u8.try_into().unwrap(),
+						AcceptedFundingAsset::USDT
+					),
+					Error::<TestRuntime>::ParticipationFailed(ParticipationError::PolicyMismatch)
+				);
+			});
+		}
 	}
 }

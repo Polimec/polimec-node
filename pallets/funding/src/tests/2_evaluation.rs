@@ -294,7 +294,7 @@ mod start_evaluation_extrinsic {
 		}
 
 		#[test]
-		fn no_offchain_hash_provided() {
+		fn no_policy_provided() {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 			let issuer = ISSUER_1;
 			let mut project_metadata = default_project_metadata(issuer);
@@ -770,6 +770,30 @@ mod evaluate_extrinsic {
 						99 * US_DOLLAR
 					),
 					Error::<TestRuntime>::ParticipationFailed(ParticipationError::TooLow)
+				);
+			});
+		}
+
+		#[test]
+		fn wrong_policy_on_jwt() {
+			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+			let project_metadata = default_project_metadata(ISSUER_1);
+			let project_id = inst.create_evaluating_project(project_metadata.clone(), ISSUER_1);
+
+			inst.execute(|| {
+				assert_noop!(
+					PolimecFunding::evaluate(
+						RuntimeOrigin::signed(EVALUATOR_1),
+						get_mock_jwt_with_cid(
+							EVALUATOR_1,
+							InvestorType::Retail,
+							generate_did_from_account(EVALUATOR_1),
+							"wrong_cid".as_bytes().to_vec().try_into().unwrap()
+						),
+						project_id,
+						500 * US_DOLLAR,
+					),
+					Error::<TestRuntime>::ParticipationFailed(ParticipationError::PolicyMismatch)
 				);
 			});
 		}
