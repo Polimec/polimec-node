@@ -165,7 +165,7 @@ pub mod config_types {
 
 pub mod storage_types {
 	use super::*;
-	use crate::US_DOLLAR;
+	use polimec_common::USD_DECIMALS;
 	use sp_arithmetic::{
 		traits::{One, Saturating, Zero},
 		Percent,
@@ -214,7 +214,7 @@ pub mod storage_types {
 			if self.minimum_price == Price::zero() {
 				return Err(MetadataError::PriceTooLow);
 			}
-			let min_bidder_bound_usd: Balance = (5000 * (US_DOLLAR as u64)).into();
+			let min_bidder_bound_usd: Balance = (5000u64 * 10u64.pow(USD_DECIMALS.into())).into();
 			self.bidding_ticket_sizes.is_valid(vec![
 				InvestorTypeUSDBounds::Professional((Some(min_bidder_bound_usd), None).into()),
 				InvestorTypeUSDBounds::Institutional((Some(min_bidder_bound_usd), None).into()),
@@ -241,7 +241,7 @@ pub mod storage_types {
 			}
 
 			let target_funding = self.minimum_price.saturating_mul_int(self.total_allocation_size);
-			if target_funding < (1000u64 * US_DOLLAR as u64).into() {
+			if target_funding < (1000u64 * 10u64.pow(USD_DECIMALS.into())).into() {
 				return Err(MetadataError::FundingTargetTooLow);
 			}
 			Ok(())

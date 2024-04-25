@@ -211,3 +211,5 @@ pub mod migration_types {
 		}
 	}
 }
+
+pub const USD_DECIMALS: u8 = 6;

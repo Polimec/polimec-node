@@ -32,6 +32,22 @@ pub trait ProvideAssetPrice {
 	type AssetId;
 	type Price: FixedPointNumber;
 	fn get_price(asset_id: Self::AssetId) -> Option<Self::Price>;
+
+	fn calculate_decimals_aware_price(
+		original_price: Self::Price,
+		usd_decimals: u8,
+		asset_decimals: u8,
+	) -> Option<Self::Price> {
+		let usd_unit = 10u128.checked_pow(usd_decimals.into())?;
+		let usd_price_with_decimals = original_price.checked_mul_int(usd_unit)?;
+		let asset_unit = 10u128.checked_pow(asset_decimals.into())?;
+		Self::Price::checked_from_rational(usd_price_with_decimals, asset_unit)
+	}
+
+	fn get_decimals_aware_price(asset_id: Self::AssetId, usd_decimals: u8, asset_decimals: u8) -> Option<Self::Price> {
+		let original_price = Self::get_price(asset_id)?;
+		Self::calculate_decimals_aware_price(original_price, usd_decimals, asset_decimals)
+	}
 }
 
 pub trait DoRemainingOperation<T: Config> {

@@ -5,6 +5,21 @@ mod helper_functions {
 	use super::*;
 
 	#[test]
+	fn test_usd_price_decimal_aware() {
+		let submitted_price = FixedU128::from_float(1.85);
+		let asset_decimals = 4;
+		let expected_price = FixedU128::from_float(185.0);
+
+		assert_eq!(PolimecFunding::usd_price_decimal_aware(submitted_price, asset_decimals).unwrap(), expected_price);
+
+		let submitted_price = FixedU128::from_float(1.0);
+		let asset_decimals = 12;
+		let expected_price = FixedU128::from_float(0.000001);
+
+		assert_eq!(PolimecFunding::usd_price_decimal_aware(submitted_price, asset_decimals).unwrap(), expected_price);
+	}
+
+	#[test]
 	fn calculate_evaluation_plmc_spent() {
 		const EVALUATOR_1: AccountIdOf<TestRuntime> = 1u32;
 		const USD_AMOUNT_1: u128 = 150_000_0_000_000_000_u128;
