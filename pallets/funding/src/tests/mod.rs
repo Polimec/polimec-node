@@ -16,7 +16,7 @@ use frame_support::{
 use itertools::Itertools;
 use parachains_common::DAYS;
 use polimec_common::ReleaseSchedule;
-use polimec_common_test_utils::{generate_did_from_account, get_mock_jwt};
+use polimec_common_test_utils::{generate_did_from_account, get_mock_jwt_with_cid};
 use sp_arithmetic::{traits::Zero, Percent, Perquintill};
 use sp_runtime::{BuildStorage, TokenError};
 use sp_std::{cell::RefCell, marker::PhantomData};
@@ -252,7 +252,7 @@ pub mod defaults {
 	pub fn bounded_symbol() -> BoundedVec<u8, sp_core::ConstU32<64>> {
 		BoundedVec::try_from("CTEST".as_bytes().to_vec()).unwrap()
 	}
-	pub fn ipfs_hash() -> BoundedVec<u8, sp_core::ConstU32<64>> {
+	pub fn ipfs_hash() -> BoundedVec<u8, sp_core::ConstU32<96>> {
 		BoundedVec::try_from(IPFS_CID.as_bytes().to_vec()).unwrap()
 	}
 

@@ -26,30 +26,37 @@ pub fn get_test_jwt<AccountId: core::fmt::Display>(
 	account_id: AccountId,
 	investor_type: InvestorType,
 ) -> UntrustedToken {
-	let jwt = reqwest::blocking::get(format!(
-		"http://jws-producer.polimec.workers.dev/mock/{}/{}",
+	// TODO: Accept the DID as a parameter.
+	let did = "did:polimec:0x1234";
+	// TODO: Accept the CID as a parameter.
+
+	let cid = "QmeuJ24ffwLAZppQcgcggJs3n689bewednYkuc8Bx5Gngz";
+
+	let url = format!(
+		"http://jws-producer.polimec.workers.dev/mock/{}/{}/{}/{}",
 		account_id,
-		investor_type.as_str()
-	))
-	.expect("Failed to perform the HTTP GET")
-	.text()
-	.expect("Failed to get the response body (jwt) from the specified endpoint");
+		investor_type.as_str(),
+		did,
+		cid
+	);
+	println!("URL: {}", url);
+	// TODO: This should be a POST with everything in the body.
+	let jwt = reqwest::blocking::get(url)
+		.expect("Failed to perform the HTTP GET")
+		.text()
+		.expect("Failed to get the response body (jwt) from the specified endpoint");
 	let res = UntrustedToken::new(&jwt).expect("Failed to parse the JWT");
 	res
 }
 
-// The `Serialize` trait is needed to serialize the `account_id` into a  `SampleClaims` struct.
-pub fn get_mock_jwt<AccountId: frame_support::Serialize>(
+fn create_jwt<AccountId: frame_support::Serialize>(
 	account_id: AccountId,
 	investor_type: InvestorType,
 	did: BoundedVec<u8, ConstU32<57>>,
+	ipfs_cid: Option<BoundedVec<u8, ConstU32<96>>>,
 ) -> UntrustedToken {
 	use chrono::{TimeZone, Utc};
 	use jwt_compact::{alg::SigningKey, Claims};
-
-	#[allow(unused)]
-	// Needed to convert the "issuer" field to a string.
-	use parity_scale_codec::alloc::string::ToString;
 
 	// Create a signing key from raw bytes.
 	let key = SigningKey::from_slice(
@@ -60,24 +67,39 @@ pub fn get_mock_jwt<AccountId: frame_support::Serialize>(
 		.as_ref(),
 	)
 	.unwrap();
-	// We don't need any custom fields in the header, so we use the empty.
+
 	let header: Header = Header::empty();
 
-	// Create the custom part of the `Claims` struct.
-	let custom_claims: SampleClaims<AccountId> =
-		SampleClaims { subject: account_id, investor_type, issuer: "verifier".to_string(), did };
+	// Handle optional IPFS CID
+	let ipfs_cid = ipfs_cid.unwrap_or_else(|| BoundedVec::with_bounded_capacity(96));
 
-	// Wrap the SampleClaims` struct in the `Claims` struct.
+	let custom_claims =
+		SampleClaims { subject: account_id, investor_type, issuer: "verifier".to_string(), did, ipfs_cid };
+
 	let mut claims = Claims::new(custom_claims);
-	// Set the expiration date to 2030-01-01.
-	// We need to unwrap the `Utc::with_ymd_and_hms` because it returns a `LocalResult<DateTime<Utc>>` but we ned a `DateTime<Utc>.
 	claims.expiration = Some(Utc.with_ymd_and_hms(2030, 1, 1, 0, 0, 0).unwrap());
 
-	// Create a JWT using the Ed25519 algorithm.
 	let token_string = Ed25519.token(&header, &claims, &key).unwrap();
-
-	// Create an `UntrustedToken` from the signed JWT string.
 	UntrustedToken::new(&token_string).expect("Failed to parse the JWT")
+}
+
+// The `Serialize` trait is needed to serialize the `account_id` into a  `SampleClaims` struct.
+pub fn get_mock_jwt<AccountId: frame_support::Serialize>(
+	account_id: AccountId,
+	investor_type: InvestorType,
+	did: BoundedVec<u8, ConstU32<57>>,
+) -> UntrustedToken {
+	create_jwt(account_id, investor_type, did, None)
+}
+
+// The `Serialize` trait is needed to serialize the `account_id` into a  `SampleClaims` struct.
+pub fn get_mock_jwt_with_cid<AccountId: frame_support::Serialize>(
+	account_id: AccountId,
+	investor_type: InvestorType,
+	did: BoundedVec<u8, ConstU32<57>>,
+	ipfs_cid: BoundedVec<u8, ConstU32<96>>,
+) -> UntrustedToken {
+	create_jwt(account_id, investor_type, did, Some(ipfs_cid))
 }
 
 /// Fetches a JWT from a dummy Polimec JWT producer that will return a JWT with the specified
@@ -125,7 +147,7 @@ pub fn do_request(url: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-	use crate::{generate_did_from_account, get_mock_jwt};
+	use crate::{generate_did_from_account, get_mock_jwt, get_mock_jwt_with_cid};
 	use jwt_compact::{
 		alg::{Ed25519, VerifyingKey},
 		AlgorithmExt,
@@ -145,5 +167,32 @@ mod tests {
 		let token = get_mock_jwt("0x1234", InvestorType::Institutional, generate_did_from_account(40u64));
 		let res = Ed25519.validator::<SampleClaims<String>>(&verifying_key).validate(&token);
 		assert!(res.is_ok());
+	}
+
+	#[test]
+	fn test_get_test_jwt_with_cid() {
+		let verifying_key = VerifyingKey::from_slice(
+			[
+				32, 118, 30, 171, 58, 212, 197, 27, 146, 122, 255, 243, 34, 245, 90, 244, 221, 37, 253, 195, 18, 202,
+				111, 55, 39, 48, 123, 17, 101, 78, 215, 94,
+			]
+			.as_ref(),
+		)
+		.unwrap();
+		let cid: &str = "QmeuJ24ffwLAZppQcgcggJs3n689bewednYkuc8Bx5Gngz";
+		let bounded_cid = frame_support::BoundedVec::try_from(cid.as_bytes().to_vec()).unwrap();
+		let token = get_mock_jwt_with_cid(
+			"0x1234",
+			InvestorType::Institutional,
+			generate_did_from_account(40u64),
+			bounded_cid.clone(),
+		);
+		let res = Ed25519.validator::<SampleClaims<String>>(&verifying_key).validate(&token);
+		assert!(res.is_ok());
+		let validated_token = res.unwrap();
+		let claims = validated_token.claims();
+		assert_eq!(claims.custom.ipfs_cid, bounded_cid);
+		let cid_from_token = std::str::from_utf8(&claims.custom.ipfs_cid).unwrap();
+		assert_eq!(cid_from_token, cid);
 	}
 }

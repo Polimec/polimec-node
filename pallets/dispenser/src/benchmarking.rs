@@ -33,7 +33,6 @@ fn assert_last_event<T: Config>(generic_event: <T as Config>::RuntimeEvent) {
 #[benchmarks]
 mod benchmarks {
 	use super::*;
-
 	#[benchmark]
 	fn dispense() {
 		let caller: T::AccountId = whitelisted_caller();

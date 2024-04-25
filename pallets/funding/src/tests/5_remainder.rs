@@ -378,7 +378,12 @@ mod remaining_contribute_extrinsic {
 			let wap = inst.get_project_details(project_id).weighted_average_price.unwrap();
 
 			// Professional bids: 0x multiplier should fail
-			let jwt = get_mock_jwt(BUYER_1, InvestorType::Professional, generate_did_from_account(BUYER_1));
+			let jwt = get_mock_jwt_with_cid(
+				BUYER_1,
+				InvestorType::Professional,
+				generate_did_from_account(BUYER_1),
+				project_metadata.clone().policy_ipfs_cid.unwrap(),
+			);
 			inst.execute(|| {
 				assert_noop!(
 					Pallet::<TestRuntime>::remaining_contribute(
@@ -394,7 +399,12 @@ mod remaining_contribute_extrinsic {
 			});
 			// Professional bids: 1 - 10x multiplier should work
 			for multiplier in 1..=10u8 {
-				let jwt = get_mock_jwt(BUYER_1, InvestorType::Professional, generate_did_from_account(BUYER_1));
+				let jwt = get_mock_jwt_with_cid(
+					BUYER_1,
+					InvestorType::Professional,
+					generate_did_from_account(BUYER_1),
+					project_metadata.clone().policy_ipfs_cid.unwrap(),
+				);
 				let bidder_plmc = MockInstantiator::calculate_contributed_plmc_spent(
 					vec![(BUYER_1, 1_000 * ASSET_UNIT, Multiplier::force_new(multiplier)).into()],
 					wap,
@@ -418,7 +428,12 @@ mod remaining_contribute_extrinsic {
 			}
 			// Professional bids: >=11x multiplier should fail
 			for multiplier in 11..=50u8 {
-				let jwt = get_mock_jwt(BUYER_1, InvestorType::Professional, generate_did_from_account(BUYER_1));
+				let jwt = get_mock_jwt_with_cid(
+					BUYER_1,
+					InvestorType::Professional,
+					generate_did_from_account(BUYER_1),
+					project_metadata.clone().policy_ipfs_cid.unwrap(),
+				);
 				let bidder_plmc = MockInstantiator::calculate_contributed_plmc_spent(
 					vec![(BUYER_1, 1_000 * ASSET_UNIT, Multiplier::force_new(multiplier)).into()],
 					wap,
@@ -447,7 +462,12 @@ mod remaining_contribute_extrinsic {
 			}
 
 			// Institutional bids: 0x multiplier should fail
-			let jwt = get_mock_jwt(BUYER_2, InvestorType::Institutional, generate_did_from_account(BUYER_2));
+			let jwt = get_mock_jwt_with_cid(
+				BUYER_2,
+				InvestorType::Institutional,
+				generate_did_from_account(BUYER_2),
+				project_metadata.clone().policy_ipfs_cid.unwrap(),
+			);
 			inst.execute(|| {
 				assert_noop!(
 					Pallet::<TestRuntime>::remaining_contribute(
@@ -463,7 +483,12 @@ mod remaining_contribute_extrinsic {
 			});
 			// Institutional bids: 1 - 25x multiplier should work
 			for multiplier in 1..=25u8 {
-				let jwt = get_mock_jwt(BUYER_2, InvestorType::Institutional, generate_did_from_account(BUYER_2));
+				let jwt = get_mock_jwt_with_cid(
+					BUYER_2,
+					InvestorType::Institutional,
+					generate_did_from_account(BUYER_2),
+					project_metadata.clone().policy_ipfs_cid.unwrap(),
+				);
 				let bidder_plmc = MockInstantiator::calculate_contributed_plmc_spent(
 					vec![(BUYER_2, 1_000 * ASSET_UNIT, Multiplier::force_new(multiplier)).into()],
 					wap,
@@ -487,7 +512,12 @@ mod remaining_contribute_extrinsic {
 			}
 			// Institutional bids: >=26x multiplier should fail
 			for multiplier in 26..=50u8 {
-				let jwt = get_mock_jwt(BUYER_2, InvestorType::Institutional, generate_did_from_account(BUYER_2));
+				let jwt = get_mock_jwt_with_cid(
+					BUYER_2,
+					InvestorType::Institutional,
+					generate_did_from_account(BUYER_2),
+					project_metadata.clone().policy_ipfs_cid.unwrap(),
+				);
 				let bidder_plmc = MockInstantiator::calculate_contributed_plmc_spent(
 					vec![(BUYER_2, 1_000 * ASSET_UNIT, Multiplier::force_new(multiplier)).into()],
 					wap,
@@ -534,7 +564,13 @@ mod remaining_contribute_extrinsic {
 				)
 			};
 			let contribute = |inst: &mut MockInstantiator, project_id, multiplier| {
-				let jwt = get_mock_jwt(BUYER_1, InvestorType::Retail, generate_did_from_account(BUYER_1));
+				let project_policy = inst.get_project_metadata(project_id).policy_ipfs_cid.unwrap();
+				let jwt = get_mock_jwt_with_cid(
+					BUYER_1,
+					InvestorType::Retail,
+					generate_did_from_account(BUYER_1),
+					project_policy,
+				);
 				let wap = inst.get_project_details(project_id).weighted_average_price.unwrap();
 				let contributor_plmc = MockInstantiator::calculate_contributed_plmc_spent(
 					vec![(BUYER_1, 1_000 * ASSET_UNIT, Multiplier::force_new(multiplier)).into()],
@@ -582,11 +618,17 @@ mod remaining_contribute_extrinsic {
 
 				// 0x multiplier should fail
 				// Professional bids: 0x multiplier should fail
+				let project_policy = inst.get_project_metadata(project_id).policy_ipfs_cid.unwrap();
 				inst.execute(|| {
 					assert_noop!(
 						Pallet::<TestRuntime>::remaining_contribute(
 							RuntimeOrigin::signed(BUYER_1),
-							get_mock_jwt(BUYER_1, InvestorType::Retail, generate_did_from_account(BUYER_1)),
+							get_mock_jwt_with_cid(
+								BUYER_1,
+								InvestorType::Retail,
+								generate_did_from_account(BUYER_1),
+								project_policy
+							),
 							project_id,
 							1000 * ASSET_UNIT,
 							Multiplier::force_new(0),
@@ -637,7 +679,8 @@ mod remaining_contribute_extrinsic {
 					1u8.try_into().unwrap(),
 					AcceptedFundingAsset::USDT,
 					generate_did_from_account(ISSUER_1),
-					InvestorType::Institutional
+					InvestorType::Institutional,
+					project_metadata.clone().policy_ipfs_cid.unwrap(),
 				)),
 				Error::<TestRuntime>::IssuerError(IssuerErrorReason::ParticipationToOwnProject)
 			);
@@ -689,7 +732,12 @@ mod remaining_contribute_extrinsic {
 			]);
 
 			// contribution below 1 CT (10 USD) should fail for retail
-			let jwt = get_mock_jwt(BUYER_4, InvestorType::Retail, generate_did_from_account(BUYER_4));
+			let jwt = get_mock_jwt_with_cid(
+				BUYER_4,
+				InvestorType::Retail,
+				generate_did_from_account(BUYER_4),
+				project_metadata.clone().policy_ipfs_cid.unwrap(),
+			);
 			inst.execute(|| {
 				assert_noop!(
 					Pallet::<TestRuntime>::remaining_contribute(
@@ -704,7 +752,12 @@ mod remaining_contribute_extrinsic {
 				);
 			});
 			// contribution below 10_000 CT (100k USD) should fail for professionals
-			let jwt = get_mock_jwt(BUYER_5, InvestorType::Professional, generate_did_from_account(BUYER_5));
+			let jwt = get_mock_jwt_with_cid(
+				BUYER_5,
+				InvestorType::Professional,
+				generate_did_from_account(BUYER_5),
+				project_metadata.clone().policy_ipfs_cid.unwrap(),
+			);
 			inst.execute(|| {
 				assert_noop!(
 					Pallet::<TestRuntime>::remaining_contribute(
@@ -720,7 +773,12 @@ mod remaining_contribute_extrinsic {
 			});
 
 			// contribution below 20_000 CT (200k USD) should fail for institutionals
-			let jwt = get_mock_jwt(BUYER_6, InvestorType::Institutional, generate_did_from_account(BUYER_6));
+			let jwt = get_mock_jwt_with_cid(
+				BUYER_6,
+				InvestorType::Institutional,
+				generate_did_from_account(BUYER_6),
+				project_metadata.clone().policy_ipfs_cid.unwrap(),
+			);
 			inst.execute(|| {
 				assert_noop!(
 					Pallet::<TestRuntime>::remaining_contribute(
@@ -796,7 +854,8 @@ mod remaining_contribute_extrinsic {
 					1u8.try_into().unwrap(),
 					AcceptedFundingAsset::USDT,
 					generate_did_from_account(BUYER_4),
-					InvestorType::Retail
+					InvestorType::Retail,
+					project_metadata.clone().policy_ipfs_cid.unwrap(),
 				));
 			});
 			inst.execute(|| {
@@ -809,7 +868,8 @@ mod remaining_contribute_extrinsic {
 						AcceptedFundingAsset::USDT,
 						// note we use the same did as bidder 1, on a different account
 						generate_did_from_account(BUYER_4),
-						InvestorType::Retail
+						InvestorType::Retail,
+						project_metadata.clone().policy_ipfs_cid.unwrap(),
 					),
 					Error::<TestRuntime>::ParticipationFailed(ParticipationError::TooHigh)
 				);
@@ -824,7 +884,8 @@ mod remaining_contribute_extrinsic {
 					AcceptedFundingAsset::USDT,
 					// note we use the same did as bidder 1, on a different account
 					generate_did_from_account(BUYER_4),
-					InvestorType::Retail
+					InvestorType::Retail,
+					project_metadata.clone().policy_ipfs_cid.unwrap(),
 				));
 			});
 
@@ -837,7 +898,8 @@ mod remaining_contribute_extrinsic {
 					1u8.try_into().unwrap(),
 					AcceptedFundingAsset::USDT,
 					generate_did_from_account(BUYER_6),
-					InvestorType::Professional
+					InvestorType::Professional,
+					project_metadata.clone().policy_ipfs_cid.unwrap(),
 				));
 			});
 			inst.execute(|| {
@@ -850,7 +912,8 @@ mod remaining_contribute_extrinsic {
 						AcceptedFundingAsset::USDT,
 						// note we use the same did as bidder 1, on a different account
 						generate_did_from_account(BUYER_6),
-						InvestorType::Professional
+						InvestorType::Professional,
+						project_metadata.clone().policy_ipfs_cid.unwrap(),
 					),
 					Error::<TestRuntime>::ParticipationFailed(ParticipationError::TooHigh)
 				);
@@ -865,7 +928,8 @@ mod remaining_contribute_extrinsic {
 					AcceptedFundingAsset::USDT,
 					// note we use the same did as bidder 1, on a different account
 					generate_did_from_account(BUYER_6),
-					InvestorType::Professional
+					InvestorType::Professional,
+					project_metadata.clone().policy_ipfs_cid.unwrap(),
 				));
 			});
 
@@ -878,7 +942,8 @@ mod remaining_contribute_extrinsic {
 					1u8.try_into().unwrap(),
 					AcceptedFundingAsset::USDT,
 					generate_did_from_account(BUYER_8),
-					InvestorType::Institutional
+					InvestorType::Institutional,
+					project_metadata.clone().policy_ipfs_cid.unwrap(),
 				));
 			});
 			inst.execute(|| {
@@ -891,7 +956,8 @@ mod remaining_contribute_extrinsic {
 						AcceptedFundingAsset::USDT,
 						// note we use the same did as bidder 3, on a different account
 						generate_did_from_account(BUYER_8),
-						InvestorType::Institutional
+						InvestorType::Institutional,
+						project_metadata.clone().policy_ipfs_cid.unwrap(),
 					),
 					Error::<TestRuntime>::ParticipationFailed(ParticipationError::TooHigh)
 				);
@@ -906,7 +972,8 @@ mod remaining_contribute_extrinsic {
 					AcceptedFundingAsset::USDT,
 					// note we use the same did as bidder 3, on a different account
 					generate_did_from_account(BUYER_8),
-					InvestorType::Institutional
+					InvestorType::Institutional,
+					project_metadata.clone().policy_ipfs_cid.unwrap(),
 				));
 			});
 		}
@@ -917,36 +984,45 @@ mod remaining_contribute_extrinsic {
 			let project_metadata_1 = default_project_metadata(ISSUER_1);
 			let project_metadata_2 = default_project_metadata(ISSUER_2);
 
-
 			let mut evaluations_1 = default_evaluations();
 			let evaluations_2 = default_evaluations();
 
 			let evaluator_contributor = 69;
 			let evaluation_amount = 420 * US_DOLLAR;
-			let evaluator_contribution = ContributionParams::new(evaluator_contributor, 600 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT);
+			let evaluator_contribution =
+				ContributionParams::new(evaluator_contributor, 600 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT);
 			evaluations_1.push((evaluator_contributor, evaluation_amount).into());
 
-			let project_id_1 = inst.create_remainder_contributing_project(project_metadata_1.clone(), ISSUER_1, evaluations_1, default_bids(), vec![]);
-			let project_id_2 = inst.create_remainder_contributing_project(project_metadata_2.clone(), ISSUER_2, evaluations_2, default_bids(), vec![]);
+			let _project_id_1 = inst.create_remainder_contributing_project(
+				project_metadata_1.clone(),
+				ISSUER_1,
+				evaluations_1,
+				default_bids(),
+				vec![],
+			);
+			let project_id_2 = inst.create_remainder_contributing_project(
+				project_metadata_2.clone(),
+				ISSUER_2,
+				evaluations_2,
+				default_bids(),
+				vec![],
+			);
 
 			let wap = inst.get_project_details(project_id_2).weighted_average_price.unwrap();
 
 			// Necessary Mints
 			let already_bonded_plmc =
-				MockInstantiator::calculate_evaluation_plmc_spent(vec![(evaluator_contributor, evaluation_amount).into()])
-					[0]
+				MockInstantiator::calculate_evaluation_plmc_spent(vec![
+					(evaluator_contributor, evaluation_amount).into()
+				])[0]
 					.plmc_amount;
 			let usable_evaluation_plmc =
 				already_bonded_plmc - <TestRuntime as Config>::EvaluatorSlash::get() * already_bonded_plmc;
-			let necessary_plmc_for_contribution = MockInstantiator::calculate_contributed_plmc_spent(
-				vec![evaluator_contribution.clone()],
-				wap,
-			)[0]
-				.plmc_amount;
-			let necessary_usdt_for_contribution = MockInstantiator::calculate_contributed_funding_asset_spent(
-				vec![evaluator_contribution.clone()],
-				wap,
-			);
+			let necessary_plmc_for_contribution =
+				MockInstantiator::calculate_contributed_plmc_spent(vec![evaluator_contribution.clone()], wap)[0]
+					.plmc_amount;
+			let necessary_usdt_for_contribution =
+				MockInstantiator::calculate_contributed_funding_asset_spent(vec![evaluator_contribution.clone()], wap);
 			inst.mint_plmc_to(vec![UserToPLMCBalance::new(
 				evaluator_contributor,
 				necessary_plmc_for_contribution - usable_evaluation_plmc,
@@ -957,10 +1033,11 @@ mod remaining_contribute_extrinsic {
 				assert_noop!(
 					PolimecFunding::remaining_contribute(
 						RuntimeOrigin::signed(evaluator_contributor),
-						get_mock_jwt(
+						get_mock_jwt_with_cid(
 							evaluator_contributor,
 							InvestorType::Retail,
-							generate_did_from_account(evaluator_contributor)
+							generate_did_from_account(evaluator_contributor),
+							project_metadata_2.clone().policy_ipfs_cid.unwrap(),
 						),
 						project_id_2,
 						evaluator_contribution.amount,
@@ -968,6 +1045,38 @@ mod remaining_contribute_extrinsic {
 						evaluator_contribution.asset
 					),
 					Error::<TestRuntime>::ParticipationFailed(ParticipationError::NotEnoughFunds)
+				);
+			});
+		}
+
+		#[test]
+		fn wrong_policy_on_jwt() {
+			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+			let project_metadata = default_project_metadata(ISSUER_1);
+			let project_id = inst.create_remainder_contributing_project(
+				project_metadata.clone(),
+				ISSUER_1,
+				default_evaluations(),
+				default_bids(),
+				vec![],
+			);
+
+			inst.execute(|| {
+				assert_noop!(
+					PolimecFunding::remaining_contribute(
+						RuntimeOrigin::signed(BUYER_1),
+						get_mock_jwt_with_cid(
+							BUYER_1,
+							InvestorType::Retail,
+							generate_did_from_account(BUYER_1),
+							"wrong_cid".as_bytes().to_vec().try_into().unwrap()
+						),
+						project_id,
+						5000 * ASSET_UNIT,
+						1u8.try_into().unwrap(),
+						AcceptedFundingAsset::USDT
+					),
+					Error::<TestRuntime>::ParticipationFailed(ParticipationError::PolicyMismatch)
 				);
 			});
 		}

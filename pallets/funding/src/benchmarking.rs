@@ -355,7 +355,7 @@ pub fn run_blocks_to_execute_next_transition<T: Config>(
 mod benchmarks {
 	use super::*;
 	use itertools::Itertools;
-	use polimec_common_test_utils::generate_did_from_account;
+	use polimec_common_test_utils::{generate_did_from_account, get_mock_jwt_with_cid};
 
 	impl_benchmark_test_suite!(PalletFunding, crate::mock::new_test_ext(), crate::mock::TestRuntime);
 
@@ -384,7 +384,12 @@ mod benchmarks {
 			issuer.clone(),
 			ed * 2u64.into() + metadata_deposit + ct_treasury_account_deposit,
 		)]);
-		let jwt = get_mock_jwt(issuer.clone(), InvestorType::Institutional, generate_did_from_account(issuer.clone()));
+		let jwt = get_mock_jwt_with_cid(
+			issuer.clone(),
+			InvestorType::Institutional,
+			generate_did_from_account(issuer.clone()),
+			project_metadata.clone().policy_ipfs_cid.unwrap(),
+		);
 
 		#[extrinsic_call]
 		create_project(RawOrigin::Signed(issuer.clone()), jwt, project_metadata.clone());
@@ -419,7 +424,12 @@ mod benchmarks {
 
 		let project_metadata = default_project::<T>(issuer.clone());
 		let project_id = inst.create_new_project(project_metadata.clone(), issuer.clone());
-		let jwt = get_mock_jwt(issuer.clone(), InvestorType::Institutional, generate_did_from_account(issuer.clone()));
+		let jwt = get_mock_jwt_with_cid(
+			issuer.clone(),
+			InvestorType::Institutional,
+			generate_did_from_account(issuer.clone()),
+			project_metadata.clone().policy_ipfs_cid.unwrap(),
+		);
 
 		#[extrinsic_call]
 		remove_project(RawOrigin::Signed(issuer.clone()), jwt, project_id);
@@ -521,7 +531,12 @@ mod benchmarks {
 			policy_ipfs_cid: Some(BoundedVec::try_from(IPFS_CID.as_bytes().to_vec()).unwrap()),
 		};
 
-		let jwt = get_mock_jwt(issuer.clone(), InvestorType::Institutional, generate_did_from_account(issuer.clone()));
+		let jwt = get_mock_jwt_with_cid(
+			issuer.clone(),
+			InvestorType::Institutional,
+			generate_did_from_account(issuer.clone()),
+			project_metadata.clone().policy_ipfs_cid.unwrap(),
+		);
 
 		#[extrinsic_call]
 		edit_project(RawOrigin::Signed(issuer), jwt, project_id, project_metadata.clone());
@@ -553,13 +568,18 @@ mod benchmarks {
 		whitelist_account!(issuer);
 
 		let project_metadata = default_project::<T>(issuer.clone());
-		let project_id = inst.create_new_project(project_metadata, issuer.clone());
+		let project_id = inst.create_new_project(project_metadata.clone(), issuer.clone());
 
 		// start_evaluation fn will try to add an automatic transition 1 block after the last evaluation block
 		let block_number: BlockNumberFor<T> = inst.current_block() + T::EvaluationDuration::get() + One::one();
 		// fill the `ProjectsToUpdate` vectors from @ block_number to @ block_number+x, to benchmark all the failed insertion attempts
 		fill_projects_to_update::<T>(x, block_number);
-		let jwt = get_mock_jwt(issuer.clone(), InvestorType::Institutional, generate_did_from_account(issuer.clone()));
+		let jwt = get_mock_jwt_with_cid(
+			issuer.clone(),
+			InvestorType::Institutional,
+			generate_did_from_account(issuer.clone()),
+			project_metadata.clone().policy_ipfs_cid.unwrap(),
+		);
 		#[extrinsic_call]
 		start_evaluation(RawOrigin::Signed(issuer), jwt, project_id);
 
@@ -601,7 +621,7 @@ mod benchmarks {
 		whitelist_account!(issuer);
 
 		let project_metadata = default_project::<T>(issuer.clone());
-		let project_id = inst.create_evaluating_project(project_metadata, issuer.clone());
+		let project_id = inst.create_evaluating_project(project_metadata.clone(), issuer.clone());
 
 		let evaluations = default_evaluations();
 		let plmc_for_evaluating = BenchInstantiator::<T>::calculate_evaluation_plmc_spent(evaluations.clone());
@@ -624,7 +644,12 @@ mod benchmarks {
 
 		fill_projects_to_update::<T>(x, insertion_block_number);
 
-		let jwt = get_mock_jwt(issuer.clone(), InvestorType::Institutional, generate_did_from_account(issuer.clone()));
+		let jwt = get_mock_jwt_with_cid(
+			issuer.clone(),
+			InvestorType::Institutional,
+			generate_did_from_account(issuer.clone()),
+			project_metadata.clone().policy_ipfs_cid.unwrap(),
+		);
 		#[extrinsic_call]
 		start_auction(RawOrigin::Signed(issuer), jwt, project_id);
 
@@ -656,7 +681,7 @@ mod benchmarks {
 		whitelist_account!(test_evaluator);
 
 		let project_metadata = default_project::<T>(issuer.clone());
-		let project_id = inst.create_evaluating_project(project_metadata, issuer);
+		let project_id = inst.create_evaluating_project(project_metadata.clone(), issuer);
 
 		let existing_evaluation = UserToUSDBalance::new(test_evaluator.clone(), (200 * US_DOLLAR).into());
 		let extrinsic_evaluation = UserToUSDBalance::new(test_evaluator.clone(), (1_000 * US_DOLLAR).into());
@@ -684,10 +709,11 @@ mod benchmarks {
 			plmc_for_extrinsic_evaluation.clone(),
 		]);
 
-		let jwt = get_mock_jwt(
+		let jwt = get_mock_jwt_with_cid(
 			extrinsic_evaluation.account.clone(),
 			InvestorType::Institutional,
 			generate_did_from_account(extrinsic_evaluation.account.clone()),
+			project_metadata.clone().policy_ipfs_cid.unwrap(),
 		);
 		#[extrinsic_call]
 		evaluate(
@@ -1037,10 +1063,11 @@ mod benchmarks {
 			total_usdt_locked,
 		) = bid_setup::<T>(x, y);
 
-		let jwt = get_mock_jwt(
+		let jwt = get_mock_jwt_with_cid(
 			original_extrinsic_bid.bidder.clone(),
 			InvestorType::Institutional,
 			generate_did_from_account(original_extrinsic_bid.bidder.clone()),
+			project_metadata.clone().policy_ipfs_cid.unwrap(),
 		);
 		#[extrinsic_call]
 		bid(
@@ -1296,10 +1323,11 @@ mod benchmarks {
 			total_ct_sold,
 		) = contribution_setup::<T>(x, ends_round);
 
-		let jwt = get_mock_jwt(
+		let jwt = get_mock_jwt_with_cid(
 			extrinsic_contribution.contributor.clone(),
 			InvestorType::Retail,
 			generate_did_from_account(extrinsic_contribution.contributor.clone()),
+			project_metadata.clone().policy_ipfs_cid.unwrap(),
 		);
 
 		#[extrinsic_call]
@@ -1346,10 +1374,11 @@ mod benchmarks {
 			total_ct_sold,
 		) = contribution_setup::<T>(x, ends_round);
 
-		let jwt = get_mock_jwt(
+		let jwt = get_mock_jwt_with_cid(
 			extrinsic_contribution.contributor.clone(),
 			InvestorType::Retail,
 			generate_did_from_account(extrinsic_contribution.contributor.clone()),
+			project_metadata.clone().policy_ipfs_cid.unwrap(),
 		);
 
 		#[extrinsic_call]
@@ -1412,8 +1441,14 @@ mod benchmarks {
 			default_community_contributor_multipliers(),
 		);
 
-		let project_id =
-			inst.create_finished_project(project_metadata, issuer.clone(), evaluations, bids, contributions, vec![]);
+		let project_id = inst.create_finished_project(
+			project_metadata.clone(),
+			issuer.clone(),
+			evaluations,
+			bids,
+			contributions,
+			vec![],
+		);
 
 		inst.advance_time(One::one()).unwrap();
 
@@ -1421,7 +1456,12 @@ mod benchmarks {
 		let insertion_block_number: BlockNumberFor<T> = current_block + One::one();
 
 		fill_projects_to_update::<T>(x, insertion_block_number);
-		let jwt = get_mock_jwt(issuer.clone(), InvestorType::Institutional, generate_did_from_account(issuer.clone()));
+		let jwt = get_mock_jwt_with_cid(
+			issuer.clone(),
+			InvestorType::Institutional,
+			generate_did_from_account(issuer.clone()),
+			project_metadata.clone().policy_ipfs_cid.unwrap(),
+		);
 
 		#[extrinsic_call]
 		decide_project_outcome(RawOrigin::Signed(issuer), jwt, project_id, FundingOutcomeDecision::AcceptFunding);

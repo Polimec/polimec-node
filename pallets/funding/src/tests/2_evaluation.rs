@@ -140,8 +140,13 @@ mod start_evaluation_extrinsic {
 			let issuer = ISSUER_1;
 			let project_metadata = default_project_metadata(issuer);
 
-			let project_id = inst.create_new_project(project_metadata, issuer);
-			let jwt = get_mock_jwt(issuer, InvestorType::Institutional, generate_did_from_account(issuer));
+			let project_id = inst.create_new_project(project_metadata.clone(), issuer);
+			let jwt = get_mock_jwt_with_cid(
+				issuer,
+				InvestorType::Institutional,
+				generate_did_from_account(issuer),
+				project_metadata.clone().policy_ipfs_cid.unwrap(),
+			);
 			assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::Application);
 			assert_ok!(inst.execute(|| PolimecFunding::start_evaluation(
 				RuntimeOrigin::signed(issuer),
@@ -159,7 +164,12 @@ mod start_evaluation_extrinsic {
 			let project_metadata = default_project_metadata(issuer);
 
 			let project_id = inst.create_new_project(project_metadata.clone(), issuer);
-			let jwt = get_mock_jwt(issuer, InvestorType::Institutional, issuer_did.clone());
+			let jwt = get_mock_jwt_with_cid(
+				issuer,
+				InvestorType::Institutional,
+				issuer_did.clone(),
+				project_metadata.clone().policy_ipfs_cid.unwrap(),
+			);
 			let expected_details = ProjectDetailsOf::<TestRuntime> {
 				issuer_account: ISSUER_1,
 				issuer_did,
@@ -210,6 +220,7 @@ mod start_evaluation_extrinsic {
 	#[cfg(test)]
 	mod failure {
 		use super::*;
+		use polimec_common_test_utils::get_mock_jwt;
 
 		#[test]
 		fn non_institutional_jwt() {
@@ -217,15 +228,20 @@ mod start_evaluation_extrinsic {
 			let issuer = ISSUER_1;
 			let project_metadata = default_project_metadata(issuer);
 
-			let project_id = inst.create_new_project(project_metadata, issuer);
+			let project_id = inst.create_new_project(project_metadata.clone(), issuer);
 			assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::Application);
 
 			inst.execute(|| {
 				assert_noop!(
 					PolimecFunding::start_evaluation(
 						RuntimeOrigin::signed(issuer),
-						get_mock_jwt(issuer, InvestorType::Professional, generate_did_from_account(issuer)),
-						project_id
+						get_mock_jwt_with_cid(
+							issuer,
+							InvestorType::Professional,
+							generate_did_from_account(issuer),
+							project_metadata.clone().policy_ipfs_cid.unwrap()
+						),
+						project_id,
 					),
 					Error::<TestRuntime>::WrongInvestorType
 				);
@@ -235,8 +251,13 @@ mod start_evaluation_extrinsic {
 				assert_noop!(
 					PolimecFunding::start_evaluation(
 						RuntimeOrigin::signed(issuer),
-						get_mock_jwt(issuer, InvestorType::Retail, generate_did_from_account(issuer)),
-						project_id
+						get_mock_jwt_with_cid(
+							issuer,
+							InvestorType::Retail,
+							generate_did_from_account(issuer),
+							project_metadata.clone().policy_ipfs_cid.unwrap()
+						),
+						project_id,
 					),
 					Error::<TestRuntime>::WrongInvestorType
 				);
@@ -249,8 +270,13 @@ mod start_evaluation_extrinsic {
 			let issuer = ISSUER_1;
 			let project_metadata = default_project_metadata(issuer);
 
-			let project_id = inst.create_new_project(project_metadata, issuer);
-			let jwt = get_mock_jwt(issuer, InvestorType::Institutional, generate_did_from_account(issuer));
+			let project_id = inst.create_new_project(project_metadata.clone(), issuer);
+			let jwt = get_mock_jwt_with_cid(
+				issuer,
+				InvestorType::Institutional,
+				generate_did_from_account(issuer),
+				project_metadata.clone().policy_ipfs_cid.unwrap(),
+			);
 			assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::Application);
 			assert_ok!(inst.execute(|| PolimecFunding::start_evaluation(
 				RuntimeOrigin::signed(issuer),
@@ -268,13 +294,13 @@ mod start_evaluation_extrinsic {
 		}
 
 		#[test]
-		fn no_offchain_hash_provided() {
+		fn no_policy_provided() {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 			let issuer = ISSUER_1;
 			let mut project_metadata = default_project_metadata(issuer);
 			project_metadata.policy_ipfs_cid = None;
 
-			let project_id = inst.create_new_project(project_metadata, issuer);
+			let project_id = inst.create_new_project(project_metadata.clone(), issuer);
 			let jwt = get_mock_jwt(issuer, InvestorType::Institutional, generate_did_from_account(issuer));
 			assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::Application);
 			inst.execute(|| {
@@ -290,8 +316,13 @@ mod start_evaluation_extrinsic {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 			let project_metadata = default_project_metadata(ISSUER_1);
 
-			let project_id = inst.create_new_project(project_metadata, ISSUER_1);
-			let jwt = get_mock_jwt(ISSUER_1, InvestorType::Institutional, generate_did_from_account(ISSUER_1));
+			let project_id = inst.create_new_project(project_metadata.clone(), ISSUER_1);
+			let jwt = get_mock_jwt_with_cid(
+				ISSUER_1,
+				InvestorType::Institutional,
+				generate_did_from_account(ISSUER_1),
+				project_metadata.clone().policy_ipfs_cid.unwrap(),
+			);
 			assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::Application);
 			assert_ok!(inst.execute(|| PolimecFunding::start_evaluation(
 				RuntimeOrigin::signed(ISSUER_1),
@@ -304,8 +335,13 @@ mod start_evaluation_extrinsic {
 				assert_noop!(
 					PolimecFunding::start_evaluation(
 						RuntimeOrigin::signed(ISSUER_2),
-						get_mock_jwt(ISSUER_2, InvestorType::Institutional, generate_did_from_account(ISSUER_2)),
-						project_id
+						get_mock_jwt_with_cid(
+							ISSUER_2,
+							InvestorType::Institutional,
+							generate_did_from_account(ISSUER_2),
+							project_metadata.clone().policy_ipfs_cid.unwrap()
+						),
+						project_id,
 					),
 					Error::<TestRuntime>::IssuerError(IssuerErrorReason::NotIssuer)
 				);
@@ -342,10 +378,11 @@ mod evaluate_extrinsic {
 
 			assert_ok!(inst.execute(|| PolimecFunding::evaluate(
 				RuntimeOrigin::signed(evaluations[0].account),
-				get_mock_jwt(
+				get_mock_jwt_with_cid(
 					evaluations[0].account,
 					InvestorType::Institutional,
-					generate_did_from_account(evaluations[0].account)
+					generate_did_from_account(evaluations[0].account),
+					project_metadata.clone().policy_ipfs_cid.unwrap()
 				),
 				project_id,
 				evaluations[0].usd_amount,
@@ -353,10 +390,11 @@ mod evaluate_extrinsic {
 
 			assert_ok!(inst.execute(|| PolimecFunding::evaluate(
 				RuntimeOrigin::signed(evaluations[1].account),
-				get_mock_jwt(
+				get_mock_jwt_with_cid(
 					evaluations[1].account,
 					InvestorType::Professional,
-					generate_did_from_account(evaluations[1].account)
+					generate_did_from_account(evaluations[1].account),
+					project_metadata.clone().policy_ipfs_cid.unwrap()
 				),
 				project_id,
 				evaluations[1].usd_amount,
@@ -364,10 +402,11 @@ mod evaluate_extrinsic {
 
 			assert_ok!(inst.execute(|| PolimecFunding::evaluate(
 				RuntimeOrigin::signed(evaluations[2].account),
-				get_mock_jwt(
+				get_mock_jwt_with_cid(
 					evaluations[2].account,
 					InvestorType::Retail,
-					generate_did_from_account(evaluations[2].account)
+					generate_did_from_account(evaluations[2].account),
+					project_metadata.clone().policy_ipfs_cid.unwrap()
 				),
 				project_id,
 				evaluations[2].usd_amount,
@@ -394,16 +433,22 @@ mod evaluate_extrinsic {
 
 			assert_ok!(inst.execute(|| PolimecFunding::evaluate(
 				RuntimeOrigin::signed(evaluation.account),
-				get_mock_jwt(evaluation.account, InvestorType::Retail, generate_did_from_account(evaluation.account)),
+				get_mock_jwt_with_cid(
+					evaluation.account,
+					InvestorType::Retail,
+					generate_did_from_account(evaluation.account),
+					project_metadata.clone().policy_ipfs_cid.unwrap()
+				),
 				project_id,
-				evaluation.usd_amount,
+				evaluation.usd_amount
 			)));
 		}
 
 		#[test]
 		fn storage_check() {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
-			let project_id = inst.create_evaluating_project(default_project_metadata(ISSUER_1), ISSUER_1);
+			let project_metadata = default_project_metadata(ISSUER_1);
+			let project_id = inst.create_evaluating_project(project_metadata.clone(), ISSUER_1);
 			let evaluation = UserToUSDBalance::new(EVALUATOR_1, 500 * US_DOLLAR);
 			let necessary_plmc = MockInstantiator::calculate_evaluation_plmc_spent(vec![evaluation.clone()]);
 			let plmc_existential_deposits = necessary_plmc.accounts().existential_deposits();
@@ -416,9 +461,14 @@ mod evaluate_extrinsic {
 
 			assert_ok!(inst.execute(|| PolimecFunding::evaluate(
 				RuntimeOrigin::signed(evaluation.account),
-				get_mock_jwt(evaluation.account, InvestorType::Retail, generate_did_from_account(evaluation.account)),
+				get_mock_jwt_with_cid(
+					evaluation.account,
+					InvestorType::Retail,
+					generate_did_from_account(evaluation.account),
+					project_metadata.clone().policy_ipfs_cid.unwrap()
+				),
 				project_id,
-				evaluation.usd_amount,
+				evaluation.usd_amount
 			)));
 
 			inst.execute(|| {
@@ -455,7 +505,12 @@ mod evaluate_extrinsic {
 				assert_noop!(
 					PolimecFunding::evaluate(
 						RuntimeOrigin::signed(EVALUATOR_1),
-						get_mock_jwt(EVALUATOR_1, InvestorType::Retail, generate_did_from_account(EVALUATOR_1)),
+						get_mock_jwt_with_cid(
+							EVALUATOR_1,
+							InvestorType::Retail,
+							generate_did_from_account(EVALUATOR_1),
+							project_metadata.clone().policy_ipfs_cid.unwrap()
+						),
 						project_id,
 						500 * US_DOLLAR,
 					),
@@ -598,10 +653,11 @@ mod evaluate_extrinsic {
 				assert_noop!(
 					PolimecFunding::evaluate(
 						RuntimeOrigin::signed(evaluation.account),
-						get_mock_jwt(
+						get_mock_jwt_with_cid(
 							evaluation.account,
 							InvestorType::Retail,
-							generate_did_from_account(evaluation.account)
+							generate_did_from_account(evaluation.account),
+							project_metadata.clone().policy_ipfs_cid.unwrap()
 						),
 						project_id,
 						evaluation.usd_amount,
@@ -622,7 +678,8 @@ mod evaluate_extrinsic {
 					project_id,
 					500 * US_DOLLAR,
 					generate_did_from_account(ISSUER_1),
-					InvestorType::Institutional
+					InvestorType::Institutional,
+					project_metadata.clone().policy_ipfs_cid.unwrap(),
 				)),
 				Error::<TestRuntime>::IssuerError(IssuerErrorReason::ParticipationToOwnProject)
 			);
@@ -645,10 +702,11 @@ mod evaluate_extrinsic {
 			inst.execute(|| {
 				assert_ok!(PolimecFunding::evaluate(
 					RuntimeOrigin::signed(evaluation.account),
-					get_mock_jwt(
+					get_mock_jwt_with_cid(
 						evaluation.account,
 						InvestorType::Retail,
-						generate_did_from_account(evaluation.account)
+						generate_did_from_account(evaluation.account),
+						project_metadata.clone().policy_ipfs_cid.unwrap()
 					),
 					project_id,
 					evaluation.usd_amount,
@@ -659,10 +717,11 @@ mod evaluate_extrinsic {
 				assert_noop!(
 					PolimecFunding::evaluate(
 						RuntimeOrigin::signed(evaluation.account),
-						get_mock_jwt(
+						get_mock_jwt_with_cid(
 							evaluation.account,
 							InvestorType::Retail,
-							generate_did_from_account(evaluation.account)
+							generate_did_from_account(evaluation.account),
+							project_metadata.clone().policy_ipfs_cid.unwrap()
 						),
 						project_id,
 						evaluation.usd_amount,
@@ -679,7 +738,12 @@ mod evaluate_extrinsic {
 			let project_metadata = default_project_metadata(issuer);
 			let project_id = inst.create_evaluating_project(project_metadata.clone(), issuer);
 			let evaluator = EVALUATOR_1;
-			let jwt = get_mock_jwt(evaluator, InvestorType::Retail, generate_did_from_account(evaluator));
+			let jwt = get_mock_jwt_with_cid(
+				evaluator,
+				InvestorType::Retail,
+				generate_did_from_account(evaluator),
+				project_metadata.clone().policy_ipfs_cid.unwrap(),
+			);
 
 			inst.mint_plmc_to(vec![(evaluator.clone(), 2000 * PLMC).into()]);
 
@@ -706,6 +770,30 @@ mod evaluate_extrinsic {
 						99 * US_DOLLAR
 					),
 					Error::<TestRuntime>::ParticipationFailed(ParticipationError::TooLow)
+				);
+			});
+		}
+
+		#[test]
+		fn wrong_policy_on_jwt() {
+			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+			let project_metadata = default_project_metadata(ISSUER_1);
+			let project_id = inst.create_evaluating_project(project_metadata.clone(), ISSUER_1);
+
+			inst.execute(|| {
+				assert_noop!(
+					PolimecFunding::evaluate(
+						RuntimeOrigin::signed(EVALUATOR_1),
+						get_mock_jwt_with_cid(
+							EVALUATOR_1,
+							InvestorType::Retail,
+							generate_did_from_account(EVALUATOR_1),
+							"wrong_cid".as_bytes().to_vec().try_into().unwrap()
+						),
+						project_id,
+						500 * US_DOLLAR,
+					),
+					Error::<TestRuntime>::ParticipationFailed(ParticipationError::PolicyMismatch)
 				);
 			});
 		}

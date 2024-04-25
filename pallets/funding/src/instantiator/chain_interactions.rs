@@ -410,6 +410,7 @@ impl<
 		project_id: ProjectId,
 		bonds: Vec<UserToUSDBalance<T>>,
 	) -> DispatchResultWithPostInfo {
+		let project_policy = self.get_project_metadata(project_id).policy_ipfs_cid.unwrap();
 		for UserToUSDBalance { account, usd_amount } in bonds {
 			self.execute(|| {
 				crate::Pallet::<T>::do_evaluate(
@@ -418,6 +419,7 @@ impl<
 					usd_amount,
 					generate_did_from_account(account),
 					InvestorType::Professional,
+					project_policy.clone(),
 				)
 			})?;
 		}
@@ -480,6 +482,8 @@ impl<
 	}
 
 	pub fn bid_for_users(&mut self, project_id: ProjectId, bids: Vec<BidParams<T>>) -> DispatchResultWithPostInfo {
+		let project_policy = self.get_project_metadata(project_id).policy_ipfs_cid.unwrap();
+
 		for bid in bids {
 			self.execute(|| {
 				let did = generate_did_from_account(bid.bidder.clone());
@@ -491,6 +495,7 @@ impl<
 					bid.asset,
 					did,
 					InvestorType::Institutional,
+					project_policy.clone(),
 				)
 			})?;
 		}
@@ -609,6 +614,8 @@ impl<
 		project_id: ProjectId,
 		contributions: Vec<ContributionParams<T>>,
 	) -> DispatchResultWithPostInfo {
+		let project_policy = self.get_project_metadata(project_id).policy_ipfs_cid.unwrap();
+
 		match self.get_project_details(project_id).status {
 			ProjectStatus::CommunityRound =>
 				for cont in contributions {
@@ -623,6 +630,7 @@ impl<
 							cont.asset,
 							did,
 							investor_type,
+							project_policy.clone(),
 						)
 					})?;
 				},
@@ -639,6 +647,7 @@ impl<
 							cont.asset,
 							did,
 							investor_type,
+							project_policy.clone(),
 						)
 					})?;
 				},

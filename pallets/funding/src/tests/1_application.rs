@@ -1,6 +1,6 @@
 use super::*;
 use polimec_common::credentials::InvestorType;
-use polimec_common_test_utils::{generate_did_from_account, get_mock_jwt};
+use polimec_common_test_utils::{generate_did_from_account, get_mock_jwt_with_cid};
 
 #[cfg(test)]
 mod round_flow {
@@ -29,6 +29,7 @@ mod create_project_extrinsic {
 	#[cfg(test)]
 	mod success {
 		use super::*;
+		use polimec_common_test_utils::get_mock_jwt_with_cid;
 
 		#[test]
 		fn project_id_autoincrement_works() {
@@ -116,8 +117,13 @@ mod create_project_extrinsic {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 			let issuer: AccountId = ISSUER_1;
 			let did: Did = BoundedVec::new();
-			let jwt: UntrustedToken = get_mock_jwt(ISSUER_1, InvestorType::Institutional, did);
 			let project_metadata: ProjectMetadataOf<TestRuntime> = default_project_metadata(issuer);
+			let jwt: UntrustedToken = get_mock_jwt_with_cid(
+				ISSUER_1,
+				InvestorType::Institutional,
+				did,
+				project_metadata.clone().policy_ipfs_cid.unwrap(),
+			);
 
 			let failing_bids = vec![(BIDDER_1, 1000 * ASSET_UNIT).into(), (BIDDER_2, 1000 * ASSET_UNIT).into()];
 
@@ -223,7 +229,12 @@ mod create_project_extrinsic {
 			project_metadata.minimum_price = FixedU128::from_float(LOW_PRICE);
 
 			inst.mint_plmc_to(default_plmc_balances());
-			let jwt = get_mock_jwt(ISSUER_1, InvestorType::Institutional, generate_did_from_account(ISSUER_1));
+			let jwt = get_mock_jwt_with_cid(
+				ISSUER_1,
+				InvestorType::Institutional,
+				generate_did_from_account(ISSUER_1),
+				project_metadata.clone().policy_ipfs_cid.unwrap(),
+			);
 			inst.execute(|| {
 				assert_ok!(crate::Pallet::<TestRuntime>::create_project(
 					RuntimeOrigin::signed(ISSUER_1),
@@ -243,7 +254,12 @@ mod create_project_extrinsic {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 			let project_metadata = default_project_metadata(ISSUER_1);
 			inst.mint_plmc_to(default_plmc_balances());
-			let jwt = get_mock_jwt(ISSUER_1, InvestorType::Retail, generate_did_from_account(ISSUER_1));
+			let jwt = get_mock_jwt_with_cid(
+				ISSUER_1,
+				InvestorType::Retail,
+				generate_did_from_account(ISSUER_1),
+				project_metadata.clone().policy_ipfs_cid.unwrap(),
+			);
 			inst.execute(|| {
 				assert_noop!(
 					crate::Pallet::<TestRuntime>::create_project(
@@ -255,7 +271,12 @@ mod create_project_extrinsic {
 				);
 			});
 
-			let jwt = get_mock_jwt(ISSUER_1, InvestorType::Professional, generate_did_from_account(ISSUER_1));
+			let jwt = get_mock_jwt_with_cid(
+				ISSUER_1,
+				InvestorType::Professional,
+				generate_did_from_account(ISSUER_1),
+				project_metadata.clone().policy_ipfs_cid.unwrap(),
+			);
 			inst.execute(|| {
 				assert_noop!(
 					crate::Pallet::<TestRuntime>::create_project(
@@ -275,7 +296,12 @@ mod create_project_extrinsic {
 			let ed = MockInstantiator::get_ed();
 			let issuer_mint: UserToPLMCBalance<TestRuntime> = (ISSUER_1, ed * 2).into();
 			// Create a first project
-			let jwt = get_mock_jwt(ISSUER_1, InvestorType::Institutional, generate_did_from_account(ISSUER_1));
+			let jwt = get_mock_jwt_with_cid(
+				ISSUER_1,
+				InvestorType::Institutional,
+				generate_did_from_account(ISSUER_1),
+				project_metadata.clone().policy_ipfs_cid.unwrap(),
+			);
 			inst.mint_plmc_to(vec![issuer_mint.clone()]);
 			inst.execute(|| {
 				assert_ok!(Pallet::<TestRuntime>::create_project(
@@ -286,7 +312,12 @@ mod create_project_extrinsic {
 			});
 
 			// different account, same did
-			let jwt = get_mock_jwt(ISSUER_2, InvestorType::Institutional, generate_did_from_account(ISSUER_1));
+			let jwt = get_mock_jwt_with_cid(
+				ISSUER_2,
+				InvestorType::Institutional,
+				generate_did_from_account(ISSUER_1),
+				project_metadata.clone().policy_ipfs_cid.unwrap(),
+			);
 			inst.execute(|| {
 				assert_noop!(
 					Pallet::<TestRuntime>::create_project(
@@ -305,7 +336,12 @@ mod create_project_extrinsic {
 			let project_metadata = default_project_metadata(ISSUER_1);
 			let ed = MockInstantiator::get_ed();
 			inst.mint_plmc_to(vec![UserToPLMCBalance::new(ISSUER_1, ed)]);
-			let jwt = get_mock_jwt(ISSUER_1, InvestorType::Institutional, generate_did_from_account(ISSUER_1));
+			let jwt = get_mock_jwt_with_cid(
+				ISSUER_1,
+				InvestorType::Institutional,
+				generate_did_from_account(ISSUER_1),
+				project_metadata.clone().policy_ipfs_cid.unwrap(),
+			);
 			inst.execute(|| {
 				assert_noop!(
 					Pallet::<TestRuntime>::create_project(RuntimeOrigin::signed(ISSUER_1), jwt, project_metadata,),
@@ -452,7 +488,12 @@ mod create_project_extrinsic {
 			project_metadata.total_allocation_size = 0;
 
 			inst.mint_plmc_to(default_plmc_balances());
-			let jwt = get_mock_jwt(ISSUER_1, InvestorType::Institutional, generate_did_from_account(ISSUER_1));
+			let jwt = get_mock_jwt_with_cid(
+				ISSUER_1,
+				InvestorType::Institutional,
+				generate_did_from_account(ISSUER_1),
+				project_metadata.clone().policy_ipfs_cid.unwrap(),
+			);
 			inst.execute(|| {
 				assert_noop!(
 					Pallet::<TestRuntime>::create_project(RuntimeOrigin::signed(ISSUER_1), jwt, project_metadata),
@@ -468,7 +509,12 @@ mod create_project_extrinsic {
 			project_metadata.auction_round_allocation_percentage = Percent::from_percent(0);
 
 			inst.mint_plmc_to(default_plmc_balances());
-			let jwt = get_mock_jwt(ISSUER_1, InvestorType::Institutional, generate_did_from_account(ISSUER_1));
+			let jwt = get_mock_jwt_with_cid(
+				ISSUER_1,
+				InvestorType::Institutional,
+				generate_did_from_account(ISSUER_1),
+				project_metadata.clone().policy_ipfs_cid.unwrap(),
+			);
 			inst.execute(|| {
 				assert_noop!(
 					Pallet::<TestRuntime>::create_project(RuntimeOrigin::signed(ISSUER_1), jwt, project_metadata),
@@ -485,7 +531,12 @@ mod create_project_extrinsic {
 			project_metadata.total_allocation_size = 999u128;
 
 			inst.mint_plmc_to(default_plmc_balances());
-			let jwt = get_mock_jwt(ISSUER_1, InvestorType::Institutional, generate_did_from_account(ISSUER_1));
+			let jwt = get_mock_jwt_with_cid(
+				ISSUER_1,
+				InvestorType::Institutional,
+				generate_did_from_account(ISSUER_1),
+				project_metadata.clone().policy_ipfs_cid.unwrap(),
+			);
 			inst.execute(|| {
 				assert_noop!(
 					Pallet::<TestRuntime>::create_project(
@@ -516,12 +567,18 @@ mod edit_project_extrinsic {
 	#[cfg(test)]
 	mod success {
 		use super::*;
+		use polimec_common_test_utils::get_mock_jwt;
 		#[test]
 		fn project_id_stays_the_same() {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 			let mut project_metadata = default_project_metadata(ISSUER_1);
 			inst.mint_plmc_to(default_plmc_balances());
-			let jwt = get_mock_jwt(ISSUER_1, InvestorType::Institutional, generate_did_from_account(ISSUER_1));
+			let jwt = get_mock_jwt_with_cid(
+				ISSUER_1,
+				InvestorType::Institutional,
+				generate_did_from_account(ISSUER_1),
+				project_metadata.clone().policy_ipfs_cid.unwrap(),
+			);
 			let project_id = inst.create_new_project(project_metadata.clone(), ISSUER_1);
 
 			project_metadata.minimum_price = PriceOf::<TestRuntime>::from_float(15.0);
@@ -544,7 +601,12 @@ mod edit_project_extrinsic {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 			let project_metadata = default_project_metadata(ISSUER_1);
 			inst.mint_plmc_to(default_plmc_balances());
-			let jwt = get_mock_jwt(ISSUER_1, InvestorType::Institutional, generate_did_from_account(ISSUER_1));
+			let jwt = get_mock_jwt_with_cid(
+				ISSUER_1,
+				InvestorType::Institutional,
+				generate_did_from_account(ISSUER_1),
+				project_metadata.clone().policy_ipfs_cid.unwrap(),
+			);
 			let project_id = inst.create_new_project(project_metadata.clone(), ISSUER_1);
 			let mut new_metadata_1 = project_metadata.clone();
 			let new_policy_hash = ipfs_hash();
@@ -615,7 +677,7 @@ mod edit_project_extrinsic {
 		}
 
 		#[test]
-		fn adding_offchain_hash() {
+		fn adding_project_policy() {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 			let mut project_metadata = default_project_metadata(ISSUER_1);
 			project_metadata.policy_ipfs_cid = None;
@@ -639,7 +701,12 @@ mod edit_project_extrinsic {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 			let project_metadata = default_project_metadata(ISSUER_1);
 			inst.mint_plmc_to(default_plmc_balances());
-			let jwt = get_mock_jwt(ISSUER_1, InvestorType::Institutional, generate_did_from_account(ISSUER_1));
+			let jwt = get_mock_jwt_with_cid(
+				ISSUER_1,
+				InvestorType::Institutional,
+				generate_did_from_account(ISSUER_1),
+				project_metadata.clone().policy_ipfs_cid.unwrap(),
+			);
 			let project_id = inst.create_new_project(project_metadata.clone(), ISSUER_1);
 			let mut new_metadata = project_metadata.clone();
 			new_metadata.total_allocation_size = 100_000 * ASSET_UNIT;
@@ -679,8 +746,18 @@ mod edit_project_extrinsic {
 
 			inst.mint_plmc_to(vec![issuer_1_mint.clone(), issuer_2_mint.clone()]);
 
-			let jwt_1 = get_mock_jwt(ISSUER_1, InvestorType::Institutional, generate_did_from_account(ISSUER_1));
-			let jwt_2 = get_mock_jwt(ISSUER_2, InvestorType::Institutional, generate_did_from_account(ISSUER_2));
+			let jwt_1 = get_mock_jwt_with_cid(
+				ISSUER_1,
+				InvestorType::Institutional,
+				generate_did_from_account(ISSUER_1),
+				project_metadata_1.clone().policy_ipfs_cid.unwrap(),
+			);
+			let jwt_2 = get_mock_jwt_with_cid(
+				ISSUER_2,
+				InvestorType::Institutional,
+				generate_did_from_account(ISSUER_2),
+				project_metadata_2.clone().policy_ipfs_cid.unwrap(),
+			);
 
 			let project_id_1 = inst.create_new_project(project_metadata_1.clone(), ISSUER_1);
 			let project_id_2 = inst.create_new_project(project_metadata_2.clone(), ISSUER_2);
@@ -712,7 +789,12 @@ mod edit_project_extrinsic {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 			let project_metadata = default_project_metadata(ISSUER_1);
 			inst.mint_plmc_to(default_plmc_balances());
-			let jwt = get_mock_jwt(ISSUER_1, InvestorType::Institutional, generate_did_from_account(ISSUER_1));
+			let jwt = get_mock_jwt_with_cid(
+				ISSUER_1,
+				InvestorType::Institutional,
+				generate_did_from_account(ISSUER_1),
+				project_metadata.clone().policy_ipfs_cid.unwrap(),
+			);
 			let project_id = inst.create_new_project(project_metadata.clone(), ISSUER_1);
 			inst.start_evaluation(project_id, ISSUER_1).unwrap();
 			inst.execute(|| {
@@ -733,7 +815,12 @@ mod edit_project_extrinsic {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 			let project_metadata = default_project_metadata(ISSUER_1);
 			inst.mint_plmc_to(default_plmc_balances());
-			let jwt = get_mock_jwt(ISSUER_1, InvestorType::Retail, generate_did_from_account(ISSUER_1));
+			let jwt = get_mock_jwt_with_cid(
+				ISSUER_1,
+				InvestorType::Retail,
+				generate_did_from_account(ISSUER_1),
+				project_metadata.clone().policy_ipfs_cid.unwrap(),
+			);
 
 			let project_id = inst.create_new_project(project_metadata.clone(), ISSUER_1);
 
@@ -749,7 +836,12 @@ mod edit_project_extrinsic {
 				);
 			});
 
-			let jwt = get_mock_jwt(ISSUER_1, InvestorType::Professional, generate_did_from_account(ISSUER_1));
+			let jwt = get_mock_jwt_with_cid(
+				ISSUER_1,
+				InvestorType::Professional,
+				generate_did_from_account(ISSUER_1),
+				project_metadata.clone().policy_ipfs_cid.unwrap(),
+			);
 			inst.execute(|| {
 				assert_noop!(
 					crate::Pallet::<TestRuntime>::edit_project(
@@ -778,7 +870,12 @@ mod remove_project_extrinsic {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 			let project_metadata = default_project_metadata(ISSUER_1);
 			inst.mint_plmc_to(default_plmc_balances());
-			let jwt = get_mock_jwt(ISSUER_1, InvestorType::Institutional, generate_did_from_account(ISSUER_1));
+			let jwt = get_mock_jwt_with_cid(
+				ISSUER_1,
+				InvestorType::Institutional,
+				generate_did_from_account(ISSUER_1),
+				project_metadata.clone().policy_ipfs_cid.unwrap(),
+			);
 			let project_id = inst.create_new_project(project_metadata.clone(), ISSUER_1);
 			assert_ok!(inst.execute(|| crate::Pallet::<TestRuntime>::remove_project(
 				RuntimeOrigin::signed(ISSUER_1),
@@ -800,7 +897,12 @@ mod remove_project_extrinsic {
 			let ed = MockInstantiator::get_ed();
 			let issuer_mint: UserToPLMCBalance<TestRuntime> = (ISSUER_1, ed * 2).into();
 			// Create a first project
-			let jwt = get_mock_jwt(ISSUER_1, InvestorType::Institutional, generate_did_from_account(ISSUER_1));
+			let jwt = get_mock_jwt_with_cid(
+				ISSUER_1,
+				InvestorType::Institutional,
+				generate_did_from_account(ISSUER_1),
+				project_metadata.clone().policy_ipfs_cid.unwrap(),
+			);
 			inst.mint_plmc_to(vec![issuer_mint.clone()]);
 			inst.execute(|| {
 				assert_ok!(Pallet::<TestRuntime>::create_project(
@@ -848,7 +950,12 @@ mod remove_project_extrinsic {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 			let project_metadata = default_project_metadata(ISSUER_1);
 			inst.mint_plmc_to(default_plmc_balances());
-			let jwt = get_mock_jwt(ISSUER_1, InvestorType::Professional, generate_did_from_account(ISSUER_1));
+			let jwt = get_mock_jwt_with_cid(
+				ISSUER_1,
+				InvestorType::Professional,
+				generate_did_from_account(ISSUER_1),
+				project_metadata.clone().policy_ipfs_cid.unwrap(),
+			);
 			let project_id = inst.create_new_project(project_metadata.clone(), ISSUER_1);
 			inst.execute(|| {
 				assert_noop!(
@@ -867,7 +974,12 @@ mod remove_project_extrinsic {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 			let project_metadata = default_project_metadata(ISSUER_1);
 			inst.mint_plmc_to(default_plmc_balances());
-			let jwt = get_mock_jwt(ISSUER_2, InvestorType::Institutional, generate_did_from_account(ISSUER_2));
+			let jwt = get_mock_jwt_with_cid(
+				ISSUER_2,
+				InvestorType::Institutional,
+				generate_did_from_account(ISSUER_2),
+				project_metadata.clone().policy_ipfs_cid.unwrap(),
+			);
 
 			let project_id = inst.create_new_project(project_metadata.clone(), ISSUER_1);
 
@@ -888,7 +1000,12 @@ mod remove_project_extrinsic {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 			let project_metadata = default_project_metadata(ISSUER_1);
 			inst.mint_plmc_to(default_plmc_balances());
-			let jwt = get_mock_jwt(ISSUER_1, InvestorType::Institutional, generate_did_from_account(ISSUER_1));
+			let jwt = get_mock_jwt_with_cid(
+				ISSUER_1,
+				InvestorType::Institutional,
+				generate_did_from_account(ISSUER_1),
+				project_metadata.clone().policy_ipfs_cid.unwrap(),
+			);
 			let project_id = inst.create_new_project(project_metadata.clone(), ISSUER_1);
 			inst.start_evaluation(project_id, ISSUER_1).unwrap();
 			inst.execute(|| {

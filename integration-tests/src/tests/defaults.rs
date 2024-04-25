@@ -49,7 +49,7 @@ pub fn bounded_name() -> BoundedVec<u8, ConstU32<64>> {
 pub fn bounded_symbol() -> BoundedVec<u8, ConstU32<64>> {
 	BoundedVec::try_from("CTEST".as_bytes().to_vec()).unwrap()
 }
-pub fn ipfs_hash() -> BoundedVec<u8, ConstU32<64>> {
+pub fn ipfs_hash() -> BoundedVec<u8, ConstU32<96>> {
 	BoundedVec::try_from(IPFS_CID.as_bytes().to_vec()).unwrap()
 }
 pub fn default_weights() -> Vec<u8> {

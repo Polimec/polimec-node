@@ -23,7 +23,7 @@ pub use frame_support::traits::{
 	tokens::{currency::VestingSchedule, Balance},
 	Currency, ExistenceRequirement,
 };
-pub use polimec_common::credentials::{Did, EnsureOriginWithCredentials, InvestorType, UntrustedToken};
+pub use polimec_common::credentials::{Cid, Did, EnsureOriginWithCredentials, InvestorType, UntrustedToken};
 pub use sp_runtime::traits::Convert;
 
 pub mod extensions;
@@ -77,7 +77,7 @@ pub mod pallet {
 		/// The Origin that can dispense funds from the dispenser. The Origin must contain a valid JWT token.
 		type InvestorOrigin: EnsureOriginWithCredentials<
 			<Self as frame_system::Config>::RuntimeOrigin,
-			Success = (AccountIdOf<Self>, Did, InvestorType),
+			Success = (AccountIdOf<Self>, Did, InvestorType, Cid),
 		>;
 
 		/// The period of time that the dispensed funds are locked. Used to calculate the
@@ -137,7 +137,7 @@ pub mod pallet {
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
 		#[pallet::feeless_if( | origin: &OriginFor<T>, jwt: &UntrustedToken | -> bool {
-            if let Ok((_, did, _)) = T::InvestorOrigin::ensure_origin(origin.clone(), jwt, T::VerifierPublicKey::get()) {
+            if let Ok((_, did, _, _)) = T::InvestorOrigin::ensure_origin(origin.clone(), jwt, T::VerifierPublicKey::get()) {
                 return Dispensed::<T>::get(did).is_none()
             } else {
                 return false
@@ -146,7 +146,7 @@ pub mod pallet {
 		#[pallet::call_index(0)]
 		#[pallet::weight(T::WeightInfo::dispense())]
 		pub fn dispense(origin: OriginFor<T>, jwt: UntrustedToken) -> DispatchResultWithPostInfo {
-			let (who, did, _investor_type) =
+			let (who, did, _investor_type, _) =
 				T::InvestorOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get())?;
 			ensure!(Dispensed::<T>::get(&did).is_none(), Error::<T>::DispensedAlreadyToDid);
 
