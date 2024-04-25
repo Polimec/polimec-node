@@ -1034,7 +1034,7 @@ mod bid_extrinsic {
 
 	#[cfg(test)]
 	mod failure {
-		use super::*;
+	use super::*;
 
 		#[test]
 		fn cannot_use_all_of_evaluation_bond_on_bid() {
@@ -1077,7 +1077,7 @@ mod bid_extrinsic {
 			let evaluator_bid = BidParams::new(evaluator_bidder, 600 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT);
 			evaluations_1.push((evaluator_bidder, evaluation_amount).into());
 
-			let project_id_1 = inst.create_auctioning_project(project_metadata_1.clone(), ISSUER_1, evaluations_1);
+			let _project_id_1 = inst.create_auctioning_project(project_metadata_1.clone(), ISSUER_1, evaluations_1);
 			let project_id_2 = inst.create_auctioning_project(project_metadata_2.clone(), ISSUER_2, evaluations_2);
 
 
@@ -1107,10 +1107,11 @@ mod bid_extrinsic {
 				assert_noop!(
 					PolimecFunding::bid(
 						RuntimeOrigin::signed(evaluator_bidder),
-						get_mock_jwt(
+						get_mock_jwt_with_cid(
 							evaluator_bidder,
 							InvestorType::Professional,
-							generate_did_from_account(evaluator_bidder)
+							generate_did_from_account(evaluator_bidder),
+							project_metadata_2.clone().policy_ipfs_cid.unwrap()
 						),
 						project_id_2,
 						evaluator_bid.amount,

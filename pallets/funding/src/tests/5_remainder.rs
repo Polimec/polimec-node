@@ -993,7 +993,7 @@ mod remaining_contribute_extrinsic {
 			let evaluator_contribution = ContributionParams::new(evaluator_contributor, 600 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT);
 			evaluations_1.push((evaluator_contributor, evaluation_amount).into());
 
-			let project_id_1 = inst.create_remainder_contributing_project(project_metadata_1.clone(), ISSUER_1, evaluations_1, default_bids(), vec![]);
+			let _project_id_1 = inst.create_remainder_contributing_project(project_metadata_1.clone(), ISSUER_1, evaluations_1, default_bids(), vec![]);
 			let project_id_2 = inst.create_remainder_contributing_project(project_metadata_2.clone(), ISSUER_2, evaluations_2, default_bids(), vec![]);
 
 			let wap = inst.get_project_details(project_id_2).weighted_average_price.unwrap();
@@ -1028,6 +1028,7 @@ mod remaining_contribute_extrinsic {
 							evaluator_contributor,
 							InvestorType::Retail,
 							generate_did_from_account(evaluator_contributor),
+							project_metadata_2.clone().policy_ipfs_cid.unwrap(),
 						),
 						project_id_2,
 						evaluator_contribution.amount,
