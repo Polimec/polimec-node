@@ -1034,7 +1034,7 @@ mod bid_extrinsic {
 
 	#[cfg(test)]
 	mod failure {
-	use super::*;
+		use super::*;
 
 		#[test]
 		fn cannot_use_all_of_evaluation_bond_on_bid() {
@@ -1068,7 +1068,6 @@ mod bid_extrinsic {
 			let project_metadata_1 = default_project_metadata(ISSUER_1);
 			let project_metadata_2 = default_project_metadata(ISSUER_2);
 
-
 			let mut evaluations_1 = default_evaluations();
 			let evaluations_2 = default_evaluations();
 
@@ -1080,19 +1079,18 @@ mod bid_extrinsic {
 			let _project_id_1 = inst.create_auctioning_project(project_metadata_1.clone(), ISSUER_1, evaluations_1);
 			let project_id_2 = inst.create_auctioning_project(project_metadata_2.clone(), ISSUER_2, evaluations_2);
 
-
 			// Necessary Mints
 			let already_bonded_plmc =
 				MockInstantiator::calculate_evaluation_plmc_spent(vec![(evaluator_bidder, evaluation_amount).into()])
 					[0]
-					.plmc_amount;
+				.plmc_amount;
 			let usable_evaluation_plmc =
 				already_bonded_plmc - <TestRuntime as Config>::EvaluatorSlash::get() * already_bonded_plmc;
 			let necessary_plmc_for_bid = MockInstantiator::calculate_auction_plmc_charged_with_given_price(
 				&vec![evaluator_bid.clone()],
 				project_metadata_2.minimum_price,
 			)[0]
-				.plmc_amount;
+			.plmc_amount;
 			let necessary_usdt_for_bid = MockInstantiator::calculate_auction_funding_asset_charged_with_given_price(
 				&vec![evaluator_bid.clone()],
 				project_metadata_2.minimum_price,

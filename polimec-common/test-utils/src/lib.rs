@@ -164,11 +164,7 @@ mod tests {
 			.as_ref(),
 		)
 		.unwrap();
-		let token = get_mock_jwt(
-			"0x1234",
-			InvestorType::Institutional,
-			generate_did_from_account(40u64),
-		);
+		let token = get_mock_jwt("0x1234", InvestorType::Institutional, generate_did_from_account(40u64));
 		let res = Ed25519.validator::<SampleClaims<String>>(&verifying_key).validate(&token);
 		assert!(res.is_ok());
 	}
