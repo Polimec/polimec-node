@@ -33,8 +33,6 @@ fn assert_last_event<T: Config>(generic_event: <T as Config>::RuntimeEvent) {
 #[benchmarks]
 mod benchmarks {
 	use super::*;
-	use polimec_common_test_utils::get_mock_jwt_with_cid;
-
 	#[benchmark]
 	fn dispense() {
 		let caller: T::AccountId = whitelisted_caller();
