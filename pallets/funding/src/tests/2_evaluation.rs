@@ -366,9 +366,9 @@ mod evaluate_extrinsic {
 			let project_id = inst.create_evaluating_project(project_metadata.clone(), issuer);
 
 			let evaluations = vec![
-				(EVALUATOR_1, 500 * US_DOLLAR).into(),
-				(EVALUATOR_2, 1000 * US_DOLLAR).into(),
-				(EVALUATOR_3, 20_000 * US_DOLLAR).into(),
+				(EVALUATOR_1, 500 * USD_UNIT).into(),
+				(EVALUATOR_2, 1000 * USD_UNIT).into(),
+				(EVALUATOR_3, 20_000 * USD_UNIT).into(),
 			];
 			let necessary_plmc = MockInstantiator::calculate_evaluation_plmc_spent(evaluations.clone());
 			let plmc_existential_deposits = necessary_plmc.accounts().existential_deposits();
@@ -420,7 +420,7 @@ mod evaluate_extrinsic {
 			let project_metadata = default_project_metadata(issuer);
 			let project_id = inst.create_evaluating_project(project_metadata.clone(), issuer);
 
-			let evaluation = UserToUSDBalance::new(EVALUATOR_1, 500 * US_DOLLAR);
+			let evaluation = UserToUSDBalance::new(EVALUATOR_1, 500 * USD_UNIT);
 			let necessary_plmc = MockInstantiator::calculate_evaluation_plmc_spent(vec![evaluation.clone()]);
 			let plmc_existential_deposits = necessary_plmc.accounts().existential_deposits();
 
@@ -449,7 +449,7 @@ mod evaluate_extrinsic {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 			let project_metadata = default_project_metadata(ISSUER_1);
 			let project_id = inst.create_evaluating_project(project_metadata.clone(), ISSUER_1);
-			let evaluation = UserToUSDBalance::new(EVALUATOR_1, 500 * US_DOLLAR);
+			let evaluation = UserToUSDBalance::new(EVALUATOR_1, 500 * USD_UNIT);
 			let necessary_plmc = MockInstantiator::calculate_evaluation_plmc_spent(vec![evaluation.clone()]);
 			let plmc_existential_deposits = necessary_plmc.accounts().existential_deposits();
 			inst.mint_plmc_to(necessary_plmc.clone());
@@ -512,7 +512,7 @@ mod evaluate_extrinsic {
 							project_metadata.clone().policy_ipfs_cid.unwrap()
 						),
 						project_id,
-						500 * US_DOLLAR,
+						500 * USD_UNIT,
 					),
 					Error::<TestRuntime>::ProjectRoundError(RoundError::IncorrectRound)
 				);
@@ -546,7 +546,7 @@ mod evaluate_extrinsic {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 			let issuer = ISSUER_1;
 			let project_metadata = default_project_metadata(issuer);
-			let evaluations = vec![UserToUSDBalance::new(EVALUATOR_1, 1000 * US_DOLLAR)];
+			let evaluations = vec![UserToUSDBalance::new(EVALUATOR_1, 1000 * USD_UNIT)];
 			let evaluating_plmc = MockInstantiator::calculate_evaluation_plmc_spent(evaluations.clone());
 			let mut plmc_insufficient_existential_deposit = evaluating_plmc.accounts().existential_deposits();
 
@@ -567,9 +567,9 @@ mod evaluate_extrinsic {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 			let project_metadata = default_project_metadata(ISSUER_1);
 			let evaluations = (0u32..<TestRuntime as Config>::MaxEvaluationsPerProject::get())
-				.map(|i| UserToUSDBalance::<TestRuntime>::new(i as u32 + 420u32, (100u128 * ASSET_UNIT).into()))
+				.map(|i| UserToUSDBalance::<TestRuntime>::new(i as u32 + 420u32, (100u128 * CT_UNIT).into()))
 				.collect_vec();
-			let failing_evaluation = UserToUSDBalance::new(EVALUATOR_1, 1000 * ASSET_UNIT);
+			let failing_evaluation = UserToUSDBalance::new(EVALUATOR_1, 1000 * CT_UNIT);
 
 			let project_id = inst.create_evaluating_project(project_metadata.clone(), ISSUER_1);
 
@@ -599,9 +599,9 @@ mod evaluate_extrinsic {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 			let project_metadata = default_project_metadata(ISSUER_1);
 			let evaluations = (0u32..<TestRuntime as Config>::MaxEvaluationsPerUser::get())
-				.map(|_| UserToUSDBalance::<TestRuntime>::new(EVALUATOR_1, (100u128 * US_DOLLAR).into()))
+				.map(|_| UserToUSDBalance::<TestRuntime>::new(EVALUATOR_1, (100u128 * USD_UNIT).into()))
 				.collect_vec();
-			let failing_evaluation = UserToUSDBalance::new(EVALUATOR_1, 100 * US_DOLLAR);
+			let failing_evaluation = UserToUSDBalance::new(EVALUATOR_1, 100 * USD_UNIT);
 
 			let project_id = inst.create_evaluating_project(project_metadata.clone(), ISSUER_1);
 
@@ -633,7 +633,7 @@ mod evaluate_extrinsic {
 			let project_metadata = default_project_metadata(issuer);
 			let project_id = inst.create_evaluating_project(project_metadata.clone(), issuer);
 
-			let evaluation = UserToUSDBalance::new(EVALUATOR_1, 500 * US_DOLLAR);
+			let evaluation = UserToUSDBalance::new(EVALUATOR_1, 500 * USD_UNIT);
 			let necessary_plmc = MockInstantiator::calculate_evaluation_plmc_spent(vec![evaluation.clone()]);
 			let plmc_existential_deposits = necessary_plmc.accounts().existential_deposits();
 
@@ -676,7 +676,7 @@ mod evaluate_extrinsic {
 				inst.execute(|| crate::Pallet::<TestRuntime>::do_evaluate(
 					&(&ISSUER_1 + 1),
 					project_id,
-					500 * US_DOLLAR,
+					500 * USD_UNIT,
 					generate_did_from_account(ISSUER_1),
 					InvestorType::Institutional,
 					project_metadata.clone().policy_ipfs_cid.unwrap(),
@@ -692,7 +692,7 @@ mod evaluate_extrinsic {
 			let project_metadata = default_project_metadata(issuer);
 			let project_id = inst.create_evaluating_project(project_metadata.clone(), issuer);
 
-			let evaluation = UserToUSDBalance::new(EVALUATOR_1, 500 * US_DOLLAR);
+			let evaluation = UserToUSDBalance::new(EVALUATOR_1, 500 * USD_UNIT);
 			let necessary_plmc = MockInstantiator::calculate_evaluation_plmc_spent(vec![evaluation.clone()]);
 			let plmc_existential_deposits = necessary_plmc.accounts().existential_deposits();
 
@@ -767,7 +767,7 @@ mod evaluate_extrinsic {
 						RuntimeOrigin::signed(evaluator.clone()),
 						jwt.clone(),
 						project_id,
-						99 * US_DOLLAR
+						99 * USD_UNIT
 					),
 					Error::<TestRuntime>::ParticipationFailed(ParticipationError::TooLow)
 				);
@@ -791,7 +791,7 @@ mod evaluate_extrinsic {
 							"wrong_cid".as_bytes().to_vec().try_into().unwrap()
 						),
 						project_id,
-						500 * US_DOLLAR,
+						500 * USD_UNIT,
 					),
 					Error::<TestRuntime>::ParticipationFailed(ParticipationError::PolicyMismatch)
 				);

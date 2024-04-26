@@ -15,7 +15,7 @@ use frame_support::{
 };
 use itertools::Itertools;
 use parachains_common::DAYS;
-use polimec_common::ReleaseSchedule;
+use polimec_common::{ReleaseSchedule, USD_DECIMALS};
 use polimec_common_test_utils::{generate_did_from_account, get_mock_jwt_with_cid};
 use sp_arithmetic::{traits::Zero, Percent, Perquintill};
 use sp_runtime::{BuildStorage, TokenError};
@@ -23,9 +23,12 @@ use sp_std::{cell::RefCell, marker::PhantomData};
 use std::iter::zip;
 type MockInstantiator =
 	Instantiator<TestRuntime, <TestRuntime as crate::Config>::AllPalletsWithoutSystem, RuntimeEvent>;
-const US_DOLLAR: u128 = 1_0_000_000_000;
+const USD_UNIT: u128 = 10u128.pow(USD_DECIMALS as u32);
+const USDT_UNIT: u128 = USD_UNIT;
+const CT_DECIMALS: u8 = 15;
+const CT_UNIT: u128 = 10_u128.pow(CT_DECIMALS as u32);
+
 const IPFS_CID: &str = "QmeuJ24ffwLAZppQcgcggJs3n689bewednYkuc8Bx5Gngz";
-const ASSET_DECIMALS: u8 = 10;
 const ISSUER_1: AccountId = 11;
 const ISSUER_2: AccountId = 12;
 const ISSUER_3: AccountId = 13;
@@ -53,11 +56,6 @@ const BUYER_7: AccountId = 47;
 const BUYER_8: AccountId = 48;
 const BUYER_9: AccountId = 49;
 
-const ASSET_UNIT: u128 = 10_u128.pow(10u32);
-
-const USDT_FOREIGN_ID: crate::mock::AssetId = 1984u32;
-const USDT_UNIT: u128 = 1_0_000_000_000_u128;
-
 #[path = "1_application.rs"]
 mod application;
 #[path = "3_auction.rs"]
@@ -80,25 +78,28 @@ pub mod defaults {
 	use super::*;
 
 	pub fn default_token_information() -> CurrencyMetadata<BoundedVec<u8, StringLimitOf<TestRuntime>>> {
-		CurrencyMetadata { name: bounded_name(), symbol: bounded_symbol(), decimals: ASSET_DECIMALS }
+		CurrencyMetadata { name: bounded_name(), symbol: bounded_symbol(), decimals: CT_DECIMALS }
 	}
 	pub fn default_project_metadata(issuer: AccountId) -> ProjectMetadataOf<TestRuntime> {
 		let bounded_name = bounded_name();
 		let bounded_symbol = bounded_symbol();
 		let metadata_hash = ipfs_hash();
+		let base_price = PriceOf::<TestRuntime>::from_float(10.0);
+		let decimal_aware_price = <TestRuntime as Config>::PriceProvider::calculate_decimals_aware_price(
+			base_price,
+			USD_DECIMALS,
+			CT_DECIMALS,
+		)
+		.unwrap();
 		ProjectMetadata {
-			token_information: CurrencyMetadata {
-				name: bounded_name,
-				symbol: bounded_symbol,
-				decimals: ASSET_DECIMALS,
-			},
-			mainnet_token_max_supply: 8_000_000 * ASSET_UNIT,
-			total_allocation_size: 1_000_000 * ASSET_UNIT,
+			token_information: CurrencyMetadata { name: bounded_name, symbol: bounded_symbol, decimals: CT_DECIMALS },
+			mainnet_token_max_supply: 8_000_000 * CT_UNIT,
+			total_allocation_size: 1_000_000 * CT_UNIT,
 			auction_round_allocation_percentage: Percent::from_percent(50u8),
-			minimum_price: PriceOf::<TestRuntime>::from_float(10.0),
+			minimum_price: decimal_aware_price,
 			bidding_ticket_sizes: BiddingTicketSizes {
-				professional: TicketSize::new(Some(5000 * US_DOLLAR), None),
-				institutional: TicketSize::new(Some(5000 * US_DOLLAR), None),
+				professional: TicketSize::new(Some(5000 * USD_UNIT), None),
+				institutional: TicketSize::new(Some(5000 * USD_UNIT), None),
 				phantom: Default::default(),
 			},
 			contributing_ticket_sizes: ContributingTicketSizes {
@@ -117,19 +118,22 @@ pub mod defaults {
 		let bounded_name = bounded_name();
 		let bounded_symbol = bounded_symbol();
 		let metadata_hash = ipfs_hash();
+		let base_price = PriceOf::<TestRuntime>::from_float(10.0);
+		let decimal_aware_price = <TestRuntime as Config>::PriceProvider::calculate_decimals_aware_price(
+			base_price,
+			USD_DECIMALS,
+			CT_DECIMALS,
+		)
+		.unwrap();
 		let project_metadata = ProjectMetadataOf::<TestRuntime> {
-			token_information: CurrencyMetadata {
-				name: bounded_name,
-				symbol: bounded_symbol,
-				decimals: ASSET_DECIMALS,
-			},
-			mainnet_token_max_supply: 8_000_000 * ASSET_UNIT,
-			total_allocation_size: 100_000 * ASSET_UNIT,
+			token_information: CurrencyMetadata { name: bounded_name, symbol: bounded_symbol, decimals: CT_DECIMALS },
+			mainnet_token_max_supply: 8_000_000 * CT_UNIT,
+			total_allocation_size: 100_000 * CT_UNIT,
 			auction_round_allocation_percentage: Percent::from_percent(50u8),
-			minimum_price: PriceOf::<TestRuntime>::from_float(10.0),
+			minimum_price: decimal_aware_price,
 			bidding_ticket_sizes: BiddingTicketSizes {
-				professional: TicketSize::new(Some(5000 * US_DOLLAR), None),
-				institutional: TicketSize::new(Some(5000 * US_DOLLAR), None),
+				professional: TicketSize::new(Some(5000 * USD_UNIT), None),
+				institutional: TicketSize::new(Some(5000 * USD_UNIT), None),
 				phantom: Default::default(),
 			},
 			contributing_ticket_sizes: ContributingTicketSizes {
@@ -163,25 +167,25 @@ pub mod defaults {
 
 	pub fn default_usdt_balances() -> Vec<UserToForeignAssets<TestRuntime>> {
 		vec![
-			(ISSUER_1, 10_000_000 * ASSET_UNIT).into(),
-			(EVALUATOR_1, 10_000_000 * ASSET_UNIT).into(),
-			(EVALUATOR_2, 10_000_000 * ASSET_UNIT).into(),
-			(EVALUATOR_3, 10_000_000 * ASSET_UNIT).into(),
-			(BIDDER_1, 10_000_000 * ASSET_UNIT).into(),
-			(BIDDER_2, 10_000_000 * ASSET_UNIT).into(),
-			(BUYER_1, 10_000_000 * ASSET_UNIT).into(),
-			(BUYER_2, 10_000_000 * ASSET_UNIT).into(),
-			(BUYER_3, 10_000_000 * ASSET_UNIT).into(),
-			(BUYER_4, 10_000_000 * ASSET_UNIT).into(),
-			(BUYER_5, 10_000_000 * ASSET_UNIT).into(),
+			(ISSUER_1, 10_000_000 * USDT_UNIT).into(),
+			(EVALUATOR_1, 10_000_000 * USDT_UNIT).into(),
+			(EVALUATOR_2, 10_000_000 * USDT_UNIT).into(),
+			(EVALUATOR_3, 10_000_000 * USDT_UNIT).into(),
+			(BIDDER_1, 10_000_000 * USDT_UNIT).into(),
+			(BIDDER_2, 10_000_000 * USDT_UNIT).into(),
+			(BUYER_1, 10_000_000 * USDT_UNIT).into(),
+			(BUYER_2, 10_000_000 * USDT_UNIT).into(),
+			(BUYER_3, 10_000_000 * USDT_UNIT).into(),
+			(BUYER_4, 10_000_000 * USDT_UNIT).into(),
+			(BUYER_5, 10_000_000 * USDT_UNIT).into(),
 		]
 	}
 
 	pub fn default_evaluations() -> Vec<UserToUSDBalance<TestRuntime>> {
 		vec![
-			UserToUSDBalance::new(EVALUATOR_1, 500_000 * US_DOLLAR),
-			UserToUSDBalance::new(EVALUATOR_2, 250_000 * US_DOLLAR),
-			UserToUSDBalance::new(EVALUATOR_3, 320_000 * US_DOLLAR),
+			UserToUSDBalance::new(EVALUATOR_1, 500_000 * USD_UNIT),
+			UserToUSDBalance::new(EVALUATOR_2, 250_000 * USD_UNIT),
+			UserToUSDBalance::new(EVALUATOR_3, 320_000 * USD_UNIT),
 		]
 	}
 
@@ -199,50 +203,50 @@ pub mod defaults {
 
 	pub fn default_bids() -> Vec<BidParams<TestRuntime>> {
 		vec![
-			BidParams::new(BIDDER_1, 400_000 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
-			BidParams::new(BIDDER_2, 50_000 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
+			BidParams::new(BIDDER_1, 400_000 * CT_UNIT, 1u8, AcceptedFundingAsset::USDT),
+			BidParams::new(BIDDER_2, 50_000 * CT_UNIT, 1u8, AcceptedFundingAsset::USDT),
 		]
 	}
 
 	pub fn knowledge_hub_bids() -> Vec<BidParams<TestRuntime>> {
 		// This should reflect the bidding currency, which currently is USDT
 		vec![
-			BidParams::new(BIDDER_1, 10_000 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
-			BidParams::new(BIDDER_2, 20_000 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
-			BidParams::new(BIDDER_3, 20_000 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
-			BidParams::new(BIDDER_4, 10_000 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
-			BidParams::new(BIDDER_5, 5_000 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
-			BidParams::new(BIDDER_6, 5_000 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
+			BidParams::new(BIDDER_1, 10_000 * CT_UNIT, 1u8, AcceptedFundingAsset::USDT),
+			BidParams::new(BIDDER_2, 20_000 * CT_UNIT, 1u8, AcceptedFundingAsset::USDT),
+			BidParams::new(BIDDER_3, 20_000 * CT_UNIT, 1u8, AcceptedFundingAsset::USDT),
+			BidParams::new(BIDDER_4, 10_000 * CT_UNIT, 1u8, AcceptedFundingAsset::USDT),
+			BidParams::new(BIDDER_5, 5_000 * CT_UNIT, 1u8, AcceptedFundingAsset::USDT),
+			BidParams::new(BIDDER_6, 5_000 * CT_UNIT, 1u8, AcceptedFundingAsset::USDT),
 		]
 	}
 
 	pub fn default_community_buys() -> Vec<ContributionParams<TestRuntime>> {
 		vec![
-			ContributionParams::new(BUYER_1, 50_000 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
-			ContributionParams::new(BUYER_2, 130_000 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
-			ContributionParams::new(BUYER_3, 30_000 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
-			ContributionParams::new(BUYER_4, 210_000 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
-			ContributionParams::new(BUYER_5, 10_000 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
+			ContributionParams::new(BUYER_1, 50_000 * CT_UNIT, 1u8, AcceptedFundingAsset::USDT),
+			ContributionParams::new(BUYER_2, 130_000 * CT_UNIT, 1u8, AcceptedFundingAsset::USDT),
+			ContributionParams::new(BUYER_3, 30_000 * CT_UNIT, 1u8, AcceptedFundingAsset::USDT),
+			ContributionParams::new(BUYER_4, 210_000 * CT_UNIT, 1u8, AcceptedFundingAsset::USDT),
+			ContributionParams::new(BUYER_5, 10_000 * CT_UNIT, 1u8, AcceptedFundingAsset::USDT),
 		]
 	}
 
 	pub fn default_remainder_buys() -> Vec<ContributionParams<TestRuntime>> {
 		vec![
-			ContributionParams::new(EVALUATOR_2, 20_000 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
-			ContributionParams::new(BUYER_2, 5_000 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
-			ContributionParams::new(BIDDER_1, 30_000 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
+			ContributionParams::new(EVALUATOR_2, 20_000 * CT_UNIT, 1u8, AcceptedFundingAsset::USDT),
+			ContributionParams::new(BUYER_2, 5_000 * CT_UNIT, 1u8, AcceptedFundingAsset::USDT),
+			ContributionParams::new(BIDDER_1, 30_000 * CT_UNIT, 1u8, AcceptedFundingAsset::USDT),
 		]
 	}
 
 	pub fn knowledge_hub_buys() -> Vec<ContributionParams<TestRuntime>> {
 		vec![
-			ContributionParams::new(BUYER_1, 4_000 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
-			ContributionParams::new(BUYER_2, 2_000 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
-			ContributionParams::new(BUYER_3, 2_000 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
-			ContributionParams::new(BUYER_4, 5_000 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
-			ContributionParams::new(BUYER_5, 30_000 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
-			ContributionParams::new(BUYER_6, 5_000 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
-			ContributionParams::new(BUYER_7, 2_000 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
+			ContributionParams::new(BUYER_1, 4_000 * CT_UNIT, 1u8, AcceptedFundingAsset::USDT),
+			ContributionParams::new(BUYER_2, 2_000 * CT_UNIT, 1u8, AcceptedFundingAsset::USDT),
+			ContributionParams::new(BUYER_3, 2_000 * CT_UNIT, 1u8, AcceptedFundingAsset::USDT),
+			ContributionParams::new(BUYER_4, 5_000 * CT_UNIT, 1u8, AcceptedFundingAsset::USDT),
+			ContributionParams::new(BUYER_5, 30_000 * CT_UNIT, 1u8, AcceptedFundingAsset::USDT),
+			ContributionParams::new(BUYER_6, 5_000 * CT_UNIT, 1u8, AcceptedFundingAsset::USDT),
+			ContributionParams::new(BUYER_7, 2_000 * CT_UNIT, 1u8, AcceptedFundingAsset::USDT),
 		]
 	}
 
