@@ -7,6 +7,7 @@ mod round_flow {
 	#[cfg(test)]
 	mod success {
 		use super::*;
+		use std::collections::HashSet;
 
 		#[test]
 		fn evaluation_round_completed() {
@@ -75,6 +76,132 @@ mod round_flow {
 			inst.advance_time(update_block - now + 1).unwrap();
 			let project_status = inst.get_project_details(project_id).status;
 			assert_eq!(project_status, ProjectStatus::FundingFailed);
+		}
+
+		#[test]
+		fn different_decimals_ct_works_as_expected() {
+			// Setup some base values to compare different decimals
+			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+			let ed = MockInstantiator::get_ed();
+			let default_project_metadata = default_project_metadata(ISSUER_1);
+			let original_decimal_aware_price = default_project_metadata.minimum_price;
+			let original_price = <TestRuntime as Config>::PriceProvider::convert_back_to_normal_price(
+				original_decimal_aware_price,
+				USD_DECIMALS,
+				default_project_metadata.token_information.decimals,
+			)
+			.unwrap();
+			let min_evaluation_amount_usd = <TestRuntime as Config>::MinUsdPerEvaluation::get();
+			let stored_plmc_price =
+				inst.execute(|| <TestRuntime as Config>::PriceProvider::get_price(PLMC_FOREIGN_ID).unwrap());
+			let usable_plmc_price = inst.execute(|| {
+				<TestRuntime as Config>::PriceProvider::get_decimals_aware_price(
+					PLMC_FOREIGN_ID,
+					USD_DECIMALS,
+					PLMC_DECIMALS,
+				)
+				.unwrap()
+			});
+			let min_evaluation_amount_plmc =
+				usable_plmc_price.reciprocal().unwrap().checked_mul_int(min_evaluation_amount_usd).unwrap();
+
+			// Test independent of CT decimals - Right PLMC conversion is stored.
+			// We move comma 4 places to the left since PLMC has 4 more decimals than USD.
+			assert_eq!(stored_plmc_price, FixedU128::from_float(8.4));
+			assert_eq!(usable_plmc_price, FixedU128::from_float(0.00084));
+
+			let mut evaluation_ct_thresholds = Vec::new();
+			let mut evaluation_usd_thresholds = Vec::new();
+			let mut evaluation_plmc_thresholds = Vec::new();
+
+			let mut decimal_test = |decimals: u8| {
+				let mut project_metadata = default_project_metadata.clone();
+				project_metadata.token_information.decimals = decimals;
+				project_metadata.minimum_price =
+					<TestRuntime as Config>::PriceProvider::calculate_decimals_aware_price(
+						original_price,
+						USD_DECIMALS,
+						decimals,
+					)
+					.unwrap();
+				project_metadata.total_allocation_size = 1_000_000 * 10u128.pow(decimals as u32);
+				project_metadata.mainnet_token_max_supply = project_metadata.total_allocation_size;
+
+				let issuer: AccountIdOf<TestRuntime> = (10_000 + inst.get_new_nonce()).try_into().unwrap();
+				let project_id = inst.create_evaluating_project(project_metadata.clone(), issuer);
+
+				let evaluation_threshold = inst.execute(|| <TestRuntime as Config>::EvaluationSuccessThreshold::get());
+				let evaluation_threshold_ct = evaluation_threshold * project_metadata.total_allocation_size;
+				evaluation_ct_thresholds.push(evaluation_threshold_ct);
+
+				let evaluation_threshold_usd =
+					project_metadata.minimum_price.saturating_mul_int(evaluation_threshold_ct);
+				evaluation_usd_thresholds.push(evaluation_threshold_usd);
+
+				let evaluation_threshold_plmc =
+					usable_plmc_price.reciprocal().unwrap().checked_mul_int(evaluation_threshold_usd).unwrap();
+				evaluation_plmc_thresholds.push(evaluation_threshold_plmc);
+
+				// CT price should be multiplied or divided by the amount of decimal difference with USD.
+				let decimal_abs_diff = USD_DECIMALS.abs_diff(decimals);
+				let original_price_as_usd = original_price.saturating_mul_int(10u128.pow(USD_DECIMALS as u32));
+				let min_price_as_usd = project_metadata.minimum_price.saturating_mul_int(USD_UNIT);
+				if decimals < USD_DECIMALS {
+					assert_eq!(min_price_as_usd, original_price_as_usd * 10u128.pow(decimal_abs_diff as u32));
+				} else {
+					assert_eq!(min_price_as_usd, original_price_as_usd / 10u128.pow(decimal_abs_diff as u32));
+				}
+
+				// A minimum evaluation goes through. This is a fixed USD/PLMC value, so independent of CT decimals.
+				inst.mint_plmc_to(vec![UserToPLMCBalance::new(EVALUATOR_1, min_evaluation_amount_plmc + ed)]);
+				assert_ok!(inst.execute(|| PolimecFunding::evaluate(
+					RuntimeOrigin::signed(EVALUATOR_1),
+					get_mock_jwt_with_cid(
+						EVALUATOR_1,
+						InvestorType::Retail,
+						generate_did_from_account(EVALUATOR_1),
+						project_metadata.clone().policy_ipfs_cid.unwrap()
+					),
+					project_id,
+					min_evaluation_amount_usd
+				)));
+
+				// Try bonding up to the threshold with a second evaluation
+				inst.mint_plmc_to(vec![UserToPLMCBalance::new(
+					EVALUATOR_2,
+					evaluation_threshold_plmc + ed - min_evaluation_amount_plmc,
+				)]);
+				assert_ok!(inst.execute(|| PolimecFunding::evaluate(
+					RuntimeOrigin::signed(EVALUATOR_2),
+					get_mock_jwt_with_cid(
+						EVALUATOR_2,
+						InvestorType::Retail,
+						generate_did_from_account(EVALUATOR_2),
+						project_metadata.clone().policy_ipfs_cid.unwrap()
+					),
+					project_id,
+					evaluation_threshold_usd - min_evaluation_amount_usd
+				)));
+
+				// The evaluation should succeed when we bond the threshold PLMC amount in total.
+				inst.start_auction(project_id, issuer).unwrap();
+			};
+
+			for decimals in 0..25 {
+				decimal_test(decimals);
+			}
+
+			// Since we use the same original price and allocation size and adjust for decimals,
+			// the USD and PLMC amounts should be the same
+			assert!(evaluation_usd_thresholds.iter().all(|x| *x == evaluation_usd_thresholds[0]));
+			assert!(evaluation_plmc_thresholds.iter().all(|x| *x == evaluation_plmc_thresholds[0]));
+
+			// CT amounts however should be different from each other
+			let mut hash_set = HashSet::new();
+			for amount in evaluation_ct_thresholds {
+				assert!(!hash_set.contains(&amount));
+				hash_set.insert(amount);
+			}
 		}
 	}
 
