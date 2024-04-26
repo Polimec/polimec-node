@@ -36,7 +36,7 @@ pub trait ProvideAssetPrice {
 	/// Prices define the relationship between USD/Asset. When to and from that asset, we need to be aware that they might
 	/// have different decimals. This function calculates the relationship having in mind the decimals. For example:
 	/// if the price is 2.5, our underlying USD unit has 6 decimals, and the asset has 8 decimals, the price will be
-	/// calculated like so: `(2.5USD * 10^6) / (1 * 10^8) = 0.025`. And so if we want to convert 20 of the asset to USD, we would do
+	/// calculated like so: `(2.5USD * 10^6) / (1 * 10^8) = 0.025`. And so if we want to convert 20 of the asset to USD,
 	/// we would do `0.025(USD/Asset)FixedPointNumber * 20_000_000_00(Asset)u128 = 50_000_000` which is 50 USD with 6 decimals
 	fn calculate_decimals_aware_price(
 		original_price: Self::Price,
