@@ -209,10 +209,11 @@ impl<
 		for (bid, price) in self.get_actual_price_charged_for_bucketed_bids(bids, project_metadata, maybe_bucket) {
 			let funding_asset_id = bid.asset.to_assethub_id();
 			let funding_asset_decimals = self.execute(|| T::FundingCurrency::decimals(funding_asset_id));
-			let funding_asset_usd_price =
+			let funding_asset_usd_price = self.execute(|| {
 				T::PriceProvider::get_decimals_aware_price(funding_asset_id, USD_DECIMALS, funding_asset_decimals)
 					.ok_or(Error::<T>::PriceNotFound)
-					.unwrap();
+					.unwrap()
+			});
 			let usd_ticket_size = price.saturating_mul_int(bid.amount);
 			let funding_asset_spent = funding_asset_usd_price.reciprocal().unwrap().saturating_mul_int(usd_ticket_size);
 			output.push(UserToForeignAssets::<T>::new(
