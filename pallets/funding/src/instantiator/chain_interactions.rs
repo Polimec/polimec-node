@@ -299,9 +299,9 @@ impl<
 	) {
 		// just in case we forgot to merge accounts:
 		let expected_free_plmc_balances =
-			Self::generic_map_operation(vec![expected_free_plmc_balances], MergeOperation::Add);
+			self.generic_map_operation(vec![expected_free_plmc_balances], MergeOperation::Add);
 		let expected_reserved_plmc_balances =
-			Self::generic_map_operation(vec![expected_reserved_plmc_balances], MergeOperation::Add);
+			self.generic_map_operation(vec![expected_reserved_plmc_balances], MergeOperation::Add);
 
 		let project_details = self.get_project_details(project_id);
 
@@ -369,7 +369,7 @@ impl<
 	pub fn create_new_project(&mut self, project_metadata: ProjectMetadataOf<T>, issuer: AccountIdOf<T>) -> ProjectId {
 		let now = self.current_block();
 		// one ED for the issuer, one ED for the escrow account
-		self.mint_plmc_to(vec![UserToPLMCBalance::new(issuer.clone(), Self::get_ed() * 2u64.into())]);
+		self.mint_plmc_to(vec![UserToPLMCBalance::new(issuer.clone(), self.get_ed() * 2u64.into())]);
 
 		self.execute(|| {
 			crate::Pallet::<T>::do_create_project(
@@ -457,13 +457,11 @@ impl<
 		let prev_supply = self.get_plmc_total_supply();
 		let prev_plmc_balances = self.get_free_plmc_balances_for(evaluators.clone());
 
-		let plmc_eval_deposits: Vec<UserToPLMCBalance<T>> = Self::calculate_evaluation_plmc_spent(evaluations.clone());
+		let plmc_eval_deposits: Vec<UserToPLMCBalance<T>> = self.calculate_evaluation_plmc_spent(evaluations.clone());
 		let plmc_existential_deposits: Vec<UserToPLMCBalance<T>> = evaluators.existential_deposits();
 
-		let expected_remaining_plmc: Vec<UserToPLMCBalance<T>> = Self::generic_map_operation(
-			vec![prev_plmc_balances, plmc_existential_deposits.clone()],
-			MergeOperation::Add,
-		);
+		let expected_remaining_plmc: Vec<UserToPLMCBalance<T>> = self
+			.generic_map_operation(vec![prev_plmc_balances, plmc_existential_deposits.clone()], MergeOperation::Add);
 
 		self.mint_plmc_to(plmc_eval_deposits.clone());
 		self.mint_plmc_to(plmc_existential_deposits.clone());
@@ -471,7 +469,7 @@ impl<
 		self.evaluate_for_users(project_id, evaluations).unwrap();
 
 		let expected_evaluator_balances =
-			Self::sum_balance_mappings(vec![plmc_eval_deposits.clone(), plmc_existential_deposits.clone()]);
+			self.sum_balance_mappings(vec![plmc_eval_deposits.clone(), plmc_existential_deposits.clone()]);
 
 		let expected_total_supply = prev_supply + expected_evaluator_balances;
 
@@ -549,13 +547,9 @@ impl<
 		let asset_id = bids[0].asset.to_assethub_id();
 		let prev_plmc_balances = self.get_free_plmc_balances_for(bidders.clone());
 		let prev_funding_asset_balances = self.get_free_foreign_asset_balances_for(asset_id, bidders.clone());
-		let plmc_evaluation_deposits: Vec<UserToPLMCBalance<T>> = Self::calculate_evaluation_plmc_spent(evaluations);
-		let plmc_bid_deposits: Vec<UserToPLMCBalance<T>> =
-			Self::calculate_auction_plmc_charged_from_all_bids_made_or_with_bucket(
-				&bids,
-				project_metadata.clone(),
-				None,
-			);
+		let plmc_evaluation_deposits: Vec<UserToPLMCBalance<T>> = self.calculate_evaluation_plmc_spent(evaluations);
+		let plmc_bid_deposits: Vec<UserToPLMCBalance<T>> = self
+			.calculate_auction_plmc_charged_from_all_bids_made_or_with_bucket(&bids, project_metadata.clone(), None);
 		let participation_usable_evaluation_deposits = plmc_evaluation_deposits
 			.into_iter()
 			.map(|mut x| {
@@ -563,25 +557,23 @@ impl<
 				x
 			})
 			.collect::<Vec<UserToPLMCBalance<T>>>();
-		let necessary_plmc_mint = Self::generic_map_operation(
+		let necessary_plmc_mint = self.generic_map_operation(
 			vec![plmc_bid_deposits.clone(), participation_usable_evaluation_deposits],
 			MergeOperation::Subtract,
 		);
 		let total_plmc_participation_locked = plmc_bid_deposits;
 		let plmc_existential_deposits: Vec<UserToPLMCBalance<T>> = bidders.existential_deposits();
-		let funding_asset_deposits = Self::calculate_auction_funding_asset_charged_from_all_bids_made_or_with_bucket(
+		let funding_asset_deposits = self.calculate_auction_funding_asset_charged_from_all_bids_made_or_with_bucket(
 			&bids,
 			project_metadata.clone(),
 			None,
 		);
 
 		let bidder_balances =
-			Self::sum_balance_mappings(vec![necessary_plmc_mint.clone(), plmc_existential_deposits.clone()]);
+			self.sum_balance_mappings(vec![necessary_plmc_mint.clone(), plmc_existential_deposits.clone()]);
 
-		let expected_free_plmc_balances = Self::generic_map_operation(
-			vec![prev_plmc_balances, plmc_existential_deposits.clone()],
-			MergeOperation::Add,
-		);
+		let expected_free_plmc_balances = self
+			.generic_map_operation(vec![prev_plmc_balances, plmc_existential_deposits.clone()], MergeOperation::Add);
 
 		let prev_supply = self.get_plmc_total_supply();
 		let post_supply = prev_supply + bidder_balances;
@@ -699,35 +691,41 @@ impl<
 
 	pub fn settle_project(&mut self, project_id: ProjectId) -> Result<(), DispatchError> {
 		let details = self.get_project_details(project_id);
-		self.execute(|| match details.status {
-			ProjectStatus::FundingSuccessful => Self::settle_successful_project(project_id),
-			ProjectStatus::FundingFailed => Self::settle_failed_project(project_id),
+		match details.status {
+			ProjectStatus::FundingSuccessful => self.settle_successful_project(project_id),
+			ProjectStatus::FundingFailed => self.settle_failed_project(project_id),
 			_ => panic!("Project should be in FundingSuccessful or FundingFailed status"),
+		}
+	}
+
+	fn settle_successful_project(&mut self, project_id: ProjectId) -> Result<(), DispatchError> {
+		self.execute(|| {
+			Evaluations::<T>::iter_prefix((project_id,))
+				.try_for_each(|(_, evaluation)| Pallet::<T>::do_settle_successful_evaluation(evaluation, project_id))?;
+
+			Bids::<T>::iter_prefix((project_id,))
+				.try_for_each(|(_, bid)| Pallet::<T>::do_settle_successful_bid(bid, project_id))?;
+
+			Contributions::<T>::iter_prefix((project_id,)).try_for_each(|(_, contribution)| {
+				Pallet::<T>::do_settle_successful_contribution(contribution, project_id)
+			})
 		})
 	}
 
-	fn settle_successful_project(project_id: ProjectId) -> Result<(), DispatchError> {
-		Evaluations::<T>::iter_prefix((project_id,))
-			.try_for_each(|(_, evaluation)| Pallet::<T>::do_settle_successful_evaluation(evaluation, project_id))?;
+	fn settle_failed_project(&mut self, project_id: ProjectId) -> Result<(), DispatchError> {
+		self.execute(|| {
+			Evaluations::<T>::iter_prefix((project_id,))
+				.try_for_each(|(_, evaluation)| Pallet::<T>::do_settle_failed_evaluation(evaluation, project_id))?;
 
-		Bids::<T>::iter_prefix((project_id,))
-			.try_for_each(|(_, bid)| Pallet::<T>::do_settle_successful_bid(bid, project_id))?;
+			Bids::<T>::iter_prefix((project_id,))
+				.try_for_each(|(_, bid)| Pallet::<T>::do_settle_failed_bid(bid, project_id))?;
 
-		Contributions::<T>::iter_prefix((project_id,))
-			.try_for_each(|(_, contribution)| Pallet::<T>::do_settle_successful_contribution(contribution, project_id))
-	}
+			Contributions::<T>::iter_prefix((project_id,)).try_for_each(|(_, contribution)| {
+				Pallet::<T>::do_settle_failed_contribution(contribution, project_id)
+			})?;
 
-	fn settle_failed_project(project_id: ProjectId) -> Result<(), DispatchError> {
-		Evaluations::<T>::iter_prefix((project_id,))
-			.try_for_each(|(_, evaluation)| Pallet::<T>::do_settle_failed_evaluation(evaluation, project_id))?;
-
-		Bids::<T>::iter_prefix((project_id,))
-			.try_for_each(|(_, bid)| Pallet::<T>::do_settle_failed_bid(bid, project_id))?;
-
-		Contributions::<T>::iter_prefix((project_id,))
-			.try_for_each(|(_, contribution)| Pallet::<T>::do_settle_failed_contribution(contribution, project_id))?;
-
-		Ok(())
+			Ok(())
+		})
 	}
 
 	pub fn get_evaluations(&mut self, project_id: ProjectId) -> Vec<EvaluationInfoOf<T>> {
@@ -753,42 +751,40 @@ impl<
 		let details = self.get_project_details(project_id);
 		assert!(matches!(details.status, ProjectStatus::FundingSuccessful | ProjectStatus::FundingFailed));
 
-		self.execute(|| {
-			for evaluation in evaluations {
-				let reward_info =
-					ProjectsDetails::<T>::get(project_id).unwrap().evaluation_round_info.evaluators_outcome;
-				let account = evaluation.evaluator.clone();
-				assert_eq!(Evaluations::<T>::iter_prefix_values((&project_id, &account)).count(), 0);
+		for evaluation in evaluations {
+			let reward_info = self
+				.execute(|| ProjectsDetails::<T>::get(project_id).unwrap().evaluation_round_info.evaluators_outcome);
+			let account = evaluation.evaluator.clone();
+			assert_eq!(self.execute(|| { Evaluations::<T>::iter_prefix_values((&project_id, &account)).count() }), 0);
 
-				let (amount, should_exist) = match percentage {
-					0..=75 => {
-						assert!(matches!(reward_info, EvaluatorsOutcome::Slashed));
-						(0u64.into(), false)
-					},
-					76..=89 => {
-						assert!(matches!(reward_info, EvaluatorsOutcome::Unchanged));
-						(0u64.into(), false)
-					},
-					90..=100 => {
-						let reward = match reward_info {
-							EvaluatorsOutcome::Rewarded(info) =>
-								Pallet::<T>::calculate_evaluator_reward(&evaluation, &info),
-							_ => panic!("Evaluators should be rewarded"),
-						};
-						(reward, true)
-					},
-					_ => panic!("Percentage should be between 0 and 100"),
-				};
-				Self::assert_migration(
-					project_id,
-					account,
-					amount,
-					evaluation.id,
-					ParticipationType::Evaluation,
-					should_exist,
-				);
-			}
-		});
+			let (amount, should_exist) = match percentage {
+				0..=75 => {
+					assert!(matches!(reward_info, EvaluatorsOutcome::Slashed));
+					(0u64.into(), false)
+				},
+				76..=89 => {
+					assert!(matches!(reward_info, EvaluatorsOutcome::Unchanged));
+					(0u64.into(), false)
+				},
+				90..=100 => {
+					let reward = match reward_info {
+						EvaluatorsOutcome::Rewarded(info) =>
+							Pallet::<T>::calculate_evaluator_reward(&evaluation, &info),
+						_ => panic!("Evaluators should be rewarded"),
+					};
+					(reward, true)
+				},
+				_ => panic!("Percentage should be between 0 and 100"),
+			};
+			self.assert_migration(
+				project_id,
+				account,
+				amount,
+				evaluation.id,
+				ParticipationType::Evaluation,
+				should_exist,
+			);
+		}
 	}
 
 	// Testing if a list of bids are settled correctly.
@@ -798,14 +794,12 @@ impl<
 		bids: Vec<BidInfoOf<T>>,
 		is_successful: bool,
 	) {
-		self.execute(|| {
-			for bid in bids {
-				let account = bid.bidder.clone();
-				assert_eq!(Bids::<T>::iter_prefix_values((&project_id, &account)).count(), 0);
-				let amount: BalanceOf<T> = if is_successful { bid.final_ct_amount } else { 0u64.into() };
-				Self::assert_migration(project_id, account, amount, bid.id, ParticipationType::Bid, is_successful);
-			}
-		});
+		for bid in bids {
+			let account = bid.bidder.clone();
+			assert_eq!(self.execute(|| { Bids::<T>::iter_prefix_values((&project_id, &account)).count() }), 0);
+			let amount: BalanceOf<T> = if is_successful { bid.final_ct_amount } else { 0u64.into() };
+			self.assert_migration(project_id, account, amount, bid.id, ParticipationType::Bid, is_successful);
+		}
 	}
 
 	// Testing if a list of contributions are settled correctly.
@@ -815,24 +809,23 @@ impl<
 		contributions: Vec<ContributionInfoOf<T>>,
 		is_successful: bool,
 	) {
-		self.execute(|| {
-			for contribution in contributions {
-				let account = contribution.contributor.clone();
-				assert_eq!(Bids::<T>::iter_prefix_values((&project_id, &account)).count(), 0);
-				let amount: BalanceOf<T> = if is_successful { contribution.ct_amount } else { 0u64.into() };
-				Self::assert_migration(
-					project_id,
-					account,
-					amount,
-					contribution.id,
-					ParticipationType::Contribution,
-					is_successful,
-				);
-			}
-		});
+		for contribution in contributions {
+			let account = contribution.contributor.clone();
+			assert_eq!(self.execute(|| { Bids::<T>::iter_prefix_values((&project_id, &account)).count() }), 0);
+			let amount: BalanceOf<T> = if is_successful { contribution.ct_amount } else { 0u64.into() };
+			self.assert_migration(
+				project_id,
+				account,
+				amount,
+				contribution.id,
+				ParticipationType::Contribution,
+				is_successful,
+			);
+		}
 	}
 
 	fn assert_migration(
+		&mut self,
 		project_id: ProjectId,
 		account: AccountIdOf<T>,
 		amount: BalanceOf<T>,
@@ -840,7 +833,7 @@ impl<
 		participation_type: ParticipationType,
 		should_exist: bool,
 	) {
-		let correct = match (should_exist, UserMigrations::<T>::get(project_id, account.clone())) {
+		let correct = match (should_exist, self.execute(|| UserMigrations::<T>::get(project_id, account.clone()))) {
 			// User has migrations, so we need to check if any matches our criteria
 			(_, Some((_, migrations))) => {
 				let maybe_migration = migrations.into_iter().find(|migration| {
@@ -890,27 +883,25 @@ impl<
 		let prev_plmc_balances = self.get_free_plmc_balances_for(contributors.clone());
 		let prev_funding_asset_balances = self.get_free_foreign_asset_balances_for(asset_id, contributors.clone());
 
-		let plmc_evaluation_deposits = Self::calculate_evaluation_plmc_spent(evaluations.clone());
-		let plmc_bid_deposits = Self::calculate_auction_plmc_spent_post_wap(&bids, project_metadata.clone(), ct_price);
-		let plmc_contribution_deposits = Self::calculate_contributed_plmc_spent(contributions.clone(), ct_price);
+		let plmc_evaluation_deposits = self.calculate_evaluation_plmc_spent(evaluations.clone());
+		let plmc_bid_deposits = self.calculate_auction_plmc_spent_post_wap(&bids, project_metadata.clone(), ct_price);
+		let plmc_contribution_deposits = self.calculate_contributed_plmc_spent(contributions.clone(), ct_price);
 
-		let reducible_evaluator_balances = Self::slash_evaluator_balances(plmc_evaluation_deposits.clone());
-		let necessary_plmc_mint = Self::generic_map_operation(
+		let reducible_evaluator_balances = self.slash_evaluator_balances(plmc_evaluation_deposits.clone());
+		let necessary_plmc_mint = self.generic_map_operation(
 			vec![plmc_contribution_deposits.clone(), reducible_evaluator_balances],
 			MergeOperation::Subtract,
 		);
 		let total_plmc_participation_locked =
-			Self::generic_map_operation(vec![plmc_bid_deposits, plmc_contribution_deposits], MergeOperation::Add);
+			self.generic_map_operation(vec![plmc_bid_deposits, plmc_contribution_deposits], MergeOperation::Add);
 		let plmc_existential_deposits = contributors.existential_deposits();
 
-		let funding_asset_deposits = Self::calculate_contributed_funding_asset_spent(contributions.clone(), ct_price);
+		let funding_asset_deposits = self.calculate_contributed_funding_asset_spent(contributions.clone(), ct_price);
 		let contributor_balances =
-			Self::sum_balance_mappings(vec![necessary_plmc_mint.clone(), plmc_existential_deposits.clone()]);
+			self.sum_balance_mappings(vec![necessary_plmc_mint.clone(), plmc_existential_deposits.clone()]);
 
-		let expected_free_plmc_balances = Self::generic_map_operation(
-			vec![prev_plmc_balances, plmc_existential_deposits.clone()],
-			MergeOperation::Add,
-		);
+		let expected_free_plmc_balances = self
+			.generic_map_operation(vec![prev_plmc_balances, plmc_existential_deposits.clone()], MergeOperation::Add);
 
 		let prev_supply = self.get_plmc_total_supply();
 		let post_supply = prev_supply + contributor_balances;
@@ -969,32 +960,30 @@ impl<
 		let prev_plmc_balances = self.get_free_plmc_balances_for(contributors.clone());
 		let prev_funding_asset_balances = self.get_free_foreign_asset_balances_for(asset_id, contributors.clone());
 
-		let plmc_evaluation_deposits = Self::calculate_evaluation_plmc_spent(evaluations);
-		let plmc_bid_deposits = Self::calculate_auction_plmc_spent_post_wap(&bids, project_metadata.clone(), ct_price);
+		let plmc_evaluation_deposits = self.calculate_evaluation_plmc_spent(evaluations);
+		let plmc_bid_deposits = self.calculate_auction_plmc_spent_post_wap(&bids, project_metadata.clone(), ct_price);
 		let plmc_community_contribution_deposits =
-			Self::calculate_contributed_plmc_spent(community_contributions.clone(), ct_price);
+			self.calculate_contributed_plmc_spent(community_contributions.clone(), ct_price);
 		let plmc_remainder_contribution_deposits =
-			Self::calculate_contributed_plmc_spent(remainder_contributions.clone(), ct_price);
+			self.calculate_contributed_plmc_spent(remainder_contributions.clone(), ct_price);
 
-		let necessary_plmc_mint = Self::generic_map_operation(
+		let necessary_plmc_mint = self.generic_map_operation(
 			vec![plmc_remainder_contribution_deposits.clone(), plmc_evaluation_deposits],
 			MergeOperation::Subtract,
 		);
-		let total_plmc_participation_locked = Self::generic_map_operation(
+		let total_plmc_participation_locked = self.generic_map_operation(
 			vec![plmc_bid_deposits, plmc_community_contribution_deposits, plmc_remainder_contribution_deposits],
 			MergeOperation::Add,
 		);
 		let plmc_existential_deposits = contributors.existential_deposits();
 		let funding_asset_deposits =
-			Self::calculate_contributed_funding_asset_spent(remainder_contributions.clone(), ct_price);
+			self.calculate_contributed_funding_asset_spent(remainder_contributions.clone(), ct_price);
 
 		let contributor_balances =
-			Self::sum_balance_mappings(vec![necessary_plmc_mint.clone(), plmc_existential_deposits.clone()]);
+			self.sum_balance_mappings(vec![necessary_plmc_mint.clone(), plmc_existential_deposits.clone()]);
 
-		let expected_free_plmc_balances = Self::generic_map_operation(
-			vec![prev_plmc_balances, plmc_existential_deposits.clone()],
-			MergeOperation::Add,
-		);
+		let expected_free_plmc_balances = self
+			.generic_map_operation(vec![prev_plmc_balances, plmc_existential_deposits.clone()], MergeOperation::Add);
 
 		let prev_supply = self.get_plmc_total_supply();
 		let post_supply = prev_supply + contributor_balances;
