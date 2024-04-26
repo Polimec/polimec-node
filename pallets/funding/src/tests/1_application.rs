@@ -125,7 +125,7 @@ mod create_project_extrinsic {
 				project_metadata.clone().policy_ipfs_cid.unwrap(),
 			);
 
-			let failing_bids = vec![(BIDDER_1, 1000 * ASSET_UNIT).into(), (BIDDER_2, 1000 * ASSET_UNIT).into()];
+			let failing_bids = vec![(BIDDER_1, 1000 * CT_UNIT).into(), (BIDDER_2, 1000 * CT_UNIT).into()];
 
 			inst.mint_plmc_to(default_plmc_balances());
 			inst.mint_foreign_asset_to(default_usdt_balances());
@@ -221,7 +221,7 @@ mod create_project_extrinsic {
 			let mut project_metadata = default_project_metadata(ISSUER_1);
 
 			// funding target of 1000 USD at 1quadrillion supply
-			const QUADRILLION_SUPPLY: u128 = 1_000_000_000_000_000 * ASSET_UNIT;
+			const QUADRILLION_SUPPLY: u128 = 1_000_000_000_000_000 * CT_UNIT;
 			const LOW_PRICE: f64 = 0.000_000_000_001f64;
 
 			project_metadata.mainnet_token_max_supply = QUADRILLION_SUPPLY;
@@ -355,8 +355,8 @@ mod create_project_extrinsic {
 		fn mainnet_supply_less_than_allocation() {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 			let mut project_metadata = default_project_metadata(ISSUER_1);
-			project_metadata.total_allocation_size = 100_000_001 * ASSET_UNIT;
-			project_metadata.mainnet_token_max_supply = 100_000_000 * ASSET_UNIT;
+			project_metadata.total_allocation_size = 100_000_001 * CT_UNIT;
+			project_metadata.mainnet_token_max_supply = 100_000_000 * CT_UNIT;
 			inst.mint_plmc_to(default_plmc_balances());
 			inst.execute(|| {
 				assert_noop!(
@@ -376,14 +376,14 @@ mod create_project_extrinsic {
 
 			// min in bidding below 5k
 			let mut wrong_project_1 = correct_project.clone();
-			wrong_project_1.bidding_ticket_sizes.professional = TicketSize::new(Some(4999 * US_DOLLAR), None);
+			wrong_project_1.bidding_ticket_sizes.professional = TicketSize::new(Some(4999 * USD_UNIT), None);
 
 			let mut wrong_project_2 = correct_project.clone();
-			wrong_project_2.bidding_ticket_sizes.institutional = TicketSize::new(Some(4999 * US_DOLLAR), None);
+			wrong_project_2.bidding_ticket_sizes.institutional = TicketSize::new(Some(4999 * USD_UNIT), None);
 
 			let mut wrong_project_3 = correct_project.clone();
-			wrong_project_3.bidding_ticket_sizes.professional = TicketSize::new(Some(3000 * US_DOLLAR), None);
-			wrong_project_3.bidding_ticket_sizes.institutional = TicketSize::new(Some(0 * US_DOLLAR), None);
+			wrong_project_3.bidding_ticket_sizes.professional = TicketSize::new(Some(3000 * USD_UNIT), None);
+			wrong_project_3.bidding_ticket_sizes.institutional = TicketSize::new(Some(0 * USD_UNIT), None);
 
 			let mut wrong_project_4 = correct_project.clone();
 			wrong_project_4.bidding_ticket_sizes.professional = TicketSize::new(None, None);
@@ -392,11 +392,11 @@ mod create_project_extrinsic {
 			// min higher than max
 			let mut wrong_project_5 = correct_project.clone();
 			wrong_project_5.bidding_ticket_sizes.professional =
-				TicketSize::new(Some(5000 * US_DOLLAR), Some(4990 * US_DOLLAR));
+				TicketSize::new(Some(5000 * USD_UNIT), Some(4990 * USD_UNIT));
 
 			let mut wrong_project_6 = correct_project.clone();
 			wrong_project_6.bidding_ticket_sizes.institutional =
-				TicketSize::new(Some(6000 * US_DOLLAR), Some(5500 * US_DOLLAR));
+				TicketSize::new(Some(6000 * USD_UNIT), Some(5500 * USD_UNIT));
 
 			let wrong_projects = vec![
 				wrong_project_1.clone(),
@@ -567,6 +567,7 @@ mod edit_project_extrinsic {
 	#[cfg(test)]
 	mod success {
 		use super::*;
+		use polimec_common::USD_DECIMALS;
 		use polimec_common_test_utils::get_mock_jwt;
 		#[test]
 		fn project_id_stays_the_same() {
@@ -617,19 +618,19 @@ mod edit_project_extrinsic {
 					symbol: BoundedVec::try_from("CN".as_bytes().to_vec()).unwrap(),
 					decimals: 12,
 				},
-				mainnet_token_max_supply: 100_000_000 * ASSET_UNIT,
-				total_allocation_size: 50_000_000 * ASSET_UNIT,
+				mainnet_token_max_supply: 100_000_000 * CT_UNIT,
+				total_allocation_size: 50_000_000 * CT_UNIT,
 				auction_round_allocation_percentage: Percent::from_percent(30u8),
 				minimum_price: PriceOf::<TestRuntime>::from_float(20.0),
 				bidding_ticket_sizes: BiddingTicketSizes {
-					professional: TicketSize::new(Some(10_000 * US_DOLLAR), Some(20_000 * US_DOLLAR)),
-					institutional: TicketSize::new(Some(20_000 * US_DOLLAR), Some(30_000 * US_DOLLAR)),
+					professional: TicketSize::new(Some(10_000 * USD_UNIT), Some(20_000 * USD_UNIT)),
+					institutional: TicketSize::new(Some(20_000 * USD_UNIT), Some(30_000 * USD_UNIT)),
 					phantom: Default::default(),
 				},
 				contributing_ticket_sizes: ContributingTicketSizes {
-					retail: TicketSize::new(Some(1_000 * US_DOLLAR), Some(2_000 * US_DOLLAR)),
-					professional: TicketSize::new(Some(2_000 * US_DOLLAR), Some(3_000 * US_DOLLAR)),
-					institutional: TicketSize::new(Some(3_000 * US_DOLLAR), Some(4_000 * US_DOLLAR)),
+					retail: TicketSize::new(Some(1_000 * USD_UNIT), Some(2_000 * USD_UNIT)),
+					professional: TicketSize::new(Some(2_000 * USD_UNIT), Some(3_000 * USD_UNIT)),
+					institutional: TicketSize::new(Some(3_000 * USD_UNIT), Some(4_000 * USD_UNIT)),
 					phantom: Default::default(),
 				},
 				participation_currencies: vec![AcceptedFundingAsset::USDT, AcceptedFundingAsset::USDC]
@@ -709,8 +710,15 @@ mod edit_project_extrinsic {
 			);
 			let project_id = inst.create_new_project(project_metadata.clone(), ISSUER_1);
 			let mut new_metadata = project_metadata.clone();
-			new_metadata.total_allocation_size = 100_000 * ASSET_UNIT;
-			new_metadata.minimum_price = PriceOf::<TestRuntime>::from_float(1f64);
+
+			let new_price = PriceOf::<TestRuntime>::from_float(1f64);
+			new_metadata.minimum_price = <TestRuntime as Config>::PriceProvider::calculate_decimals_aware_price(
+				new_price,
+				USD_DECIMALS,
+				new_metadata.token_information.decimals,
+			)
+			.unwrap();
+			new_metadata.total_allocation_size = 100_000 * CT_UNIT;
 			assert_ok!(inst.execute(|| crate::Pallet::<TestRuntime>::edit_project(
 				RuntimeOrigin::signed(ISSUER_1),
 				jwt.clone(),
@@ -718,7 +726,7 @@ mod edit_project_extrinsic {
 				new_metadata.clone()
 			)));
 			// Project details reflect changes
-			assert_eq!(inst.get_project_details(project_id).fundraising_target_usd, 100_000 * US_DOLLAR);
+			assert_eq!(inst.get_project_details(project_id).fundraising_target_usd, 100_000 * USD_UNIT);
 			// Bucket reflects changes
 			let new_bucket = Pallet::<TestRuntime>::create_bucket_from_metadata(&new_metadata).unwrap();
 			let stored_bucket = inst.execute(|| Buckets::<TestRuntime>::get(project_id).unwrap());

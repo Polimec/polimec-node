@@ -56,15 +56,15 @@ mod round_flow {
 				token_information: CurrencyMetadata {
 					name: bounded_name,
 					symbol: bounded_symbol,
-					decimals: ASSET_DECIMALS,
+					decimals: CT_DECIMALS,
 				},
-				mainnet_token_max_supply: 8_000_000 * ASSET_UNIT,
-				total_allocation_size: 100_000 * ASSET_UNIT,
+				mainnet_token_max_supply: 8_000_000 * CT_UNIT,
+				total_allocation_size: 100_000 * CT_UNIT,
 				auction_round_allocation_percentage: Percent::from_percent(50u8),
 				minimum_price: PriceOf::<TestRuntime>::from_float(10.0),
 				bidding_ticket_sizes: BiddingTicketSizes {
-					professional: TicketSize::new(Some(5000 * US_DOLLAR), None),
-					institutional: TicketSize::new(Some(5000 * US_DOLLAR), None),
+					professional: TicketSize::new(Some(5000 * USD_UNIT), None),
+					institutional: TicketSize::new(Some(5000 * USD_UNIT), None),
 					phantom: Default::default(),
 				},
 				contributing_ticket_sizes: ContributingTicketSizes {
@@ -87,7 +87,7 @@ mod round_flow {
 				.iter()
 				.map(|acc| UserToForeignAssets {
 					account: acc.clone(),
-					asset_amount: US_DOLLAR * 1_000_000,
+					asset_amount: USD_UNIT * 1_000_000,
 					asset_id: AcceptedFundingAsset::USDT.to_assethub_id(),
 				})
 				.collect_vec();
@@ -97,12 +97,12 @@ mod round_flow {
 			let project_id = inst.create_auctioning_project(project_metadata, ISSUER_1, default_evaluations());
 
 			let bids = vec![
-				(ADAM, 10_000 * ASSET_UNIT).into(),
-				(TOM, 20_000 * ASSET_UNIT).into(),
-				(SOFIA, 20_000 * ASSET_UNIT).into(),
-				(FRED, 10_000 * ASSET_UNIT).into(),
-				(ANNA, 5_000 * ASSET_UNIT).into(),
-				(DAMIAN, 5_000 * ASSET_UNIT).into(),
+				(ADAM, 10_000 * CT_UNIT).into(),
+				(TOM, 20_000 * CT_UNIT).into(),
+				(SOFIA, 20_000 * CT_UNIT).into(),
+				(FRED, 10_000 * CT_UNIT).into(),
+				(ANNA, 5_000 * CT_UNIT).into(),
+				(DAMIAN, 5_000 * CT_UNIT).into(),
 			];
 
 			inst.bid_for_users(project_id, bids).unwrap();
@@ -110,9 +110,9 @@ mod round_flow {
 			inst.start_community_funding(project_id).unwrap();
 
 			let token_price =
-				inst.get_project_details(project_id).weighted_average_price.unwrap().saturating_mul_int(ASSET_UNIT);
+				inst.get_project_details(project_id).weighted_average_price.unwrap().saturating_mul_int(CT_UNIT);
 
-			let desired_price = PriceOf::<TestRuntime>::from_float(11.1818f64).saturating_mul_int(ASSET_UNIT);
+			let desired_price = PriceOf::<TestRuntime>::from_float(11.1818f64).saturating_mul_int(CT_UNIT);
 
 			assert_close_enough!(token_price, desired_price, Perquintill::from_float(0.99));
 		}
@@ -133,7 +133,7 @@ mod round_flow {
 				default_bidder_multipliers(),
 			);
 
-			let second_bucket_bid = (BIDDER_6, 500 * ASSET_UNIT).into();
+			let second_bucket_bid = (BIDDER_6, 500 * CT_UNIT).into();
 			bids.push(second_bucket_bid);
 
 			let project_id = inst.create_community_contributing_project(project_metadata, issuer, evaluations, bids);
@@ -167,7 +167,7 @@ mod round_flow {
 			assert_eq!(bid_info.final_ct_amount, auction_allocation);
 
 			let project_metadata = default_project_metadata(ISSUER_2);
-			let bids = vec![(BIDDER_1, auction_allocation).into(), (BIDDER_1, 1000 * ASSET_UNIT).into()];
+			let bids = vec![(BIDDER_1, auction_allocation).into(), (BIDDER_1, 1000 * CT_UNIT).into()];
 			let project_id = inst.create_community_contributing_project(
 				project_metadata.clone(),
 				ISSUER_2,
@@ -195,11 +195,11 @@ mod round_flow {
 			let project_metadata = default_project_metadata(issuer);
 			let evaluations = default_evaluations();
 
-			let bid_1 = BidParams::new(BIDDER_1, 5000 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT);
-			let bid_2 = BidParams::new(BIDDER_2, 40_000 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT);
-			let bid_3 = BidParams::new(BIDDER_1, 10_000 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT);
-			let bid_4 = BidParams::new(BIDDER_3, 6000 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT);
-			let bid_5 = BidParams::new(BIDDER_4, 2000 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT);
+			let bid_1 = BidParams::new(BIDDER_1, 5000 * CT_UNIT, 1u8, AcceptedFundingAsset::USDT);
+			let bid_2 = BidParams::new(BIDDER_2, 40_000 * CT_UNIT, 1u8, AcceptedFundingAsset::USDT);
+			let bid_3 = BidParams::new(BIDDER_1, 10_000 * CT_UNIT, 1u8, AcceptedFundingAsset::USDT);
+			let bid_4 = BidParams::new(BIDDER_3, 6000 * CT_UNIT, 1u8, AcceptedFundingAsset::USDT);
+			let bid_5 = BidParams::new(BIDDER_4, 2000 * CT_UNIT, 1u8, AcceptedFundingAsset::USDT);
 			// post bucketing, the bids look like this:
 			// (BIDDER_1, 5k) - (BIDDER_2, 40k) - (BIDDER_1, 5k) - (BIDDER_1, 5k) - (BIDDER_3 - 5k) - (BIDDER_3 - 1k) - (BIDDER_4 - 2k)
 			// | -------------------- 1USD ----------------------|---- 1.1 USD ---|---- 1.2 USD ----|----------- 1.3 USD -------------|
@@ -289,8 +289,8 @@ mod round_flow {
 				BidParams::new(BIDDER_1, total_auction_ct_amount, 1u8, AcceptedFundingAsset::USDT);
 			let full_ct_bid_partially_accepted =
 				BidParams::new(BIDDER_2, total_auction_ct_amount, 1u8, AcceptedFundingAsset::USDT);
-			let oversubscription_bid = BidParams::new(BIDDER_3, 100_000 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT);
-			let after_random_end_bid = BidParams::new(BIDDER_4, 100_000 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT);
+			let oversubscription_bid = BidParams::new(BIDDER_3, 100_000 * CT_UNIT, 1u8, AcceptedFundingAsset::USDT);
+			let after_random_end_bid = BidParams::new(BIDDER_4, 100_000 * CT_UNIT, 1u8, AcceptedFundingAsset::USDT);
 
 			let all_bids = vec![
 				full_ct_bid_rejected.clone(),
@@ -454,7 +454,7 @@ mod round_flow {
 
 			let accounts = vec![ADAM, TOM, SOFIA, FRED, ANNA, DAMIAN];
 			let mut project_metadata = default_project_metadata(ISSUER_1);
-			project_metadata.total_allocation_size = 100_000 * ASSET_UNIT;
+			project_metadata.total_allocation_size = 100_000 * CT_UNIT;
 			project_metadata.participation_currencies =
 				bounded_vec![AcceptedFundingAsset::USDT, AcceptedFundingAsset::USDC, AcceptedFundingAsset::DOT,];
 
@@ -472,7 +472,7 @@ mod round_flow {
 				.iter()
 				.map(|acc| UserToForeignAssets {
 					account: acc.clone(),
-					asset_amount: ASSET_UNIT * 1_000_000,
+					asset_amount: CT_UNIT * 1_000_000,
 					asset_id: fundings.next().unwrap().to_assethub_id(),
 				})
 				.collect_vec();
@@ -482,12 +482,12 @@ mod round_flow {
 			let project_id = inst.create_auctioning_project(project_metadata, ISSUER_1, default_evaluations());
 
 			let bids = vec![
-				(ADAM, 10_000 * ASSET_UNIT, 1, AcceptedFundingAsset::USDT).into(),
-				(TOM, 20_000 * ASSET_UNIT, 1, AcceptedFundingAsset::USDC).into(),
-				(SOFIA, 20_000 * ASSET_UNIT, 1, AcceptedFundingAsset::DOT).into(),
-				(FRED, 10_000 * ASSET_UNIT, 1, AcceptedFundingAsset::USDT).into(),
-				(ANNA, 5_000 * ASSET_UNIT, 1, AcceptedFundingAsset::USDC).into(),
-				(DAMIAN, 5_000 * ASSET_UNIT, 1, AcceptedFundingAsset::DOT).into(),
+				(ADAM, 10_000 * CT_UNIT, 1, AcceptedFundingAsset::USDT).into(),
+				(TOM, 20_000 * CT_UNIT, 1, AcceptedFundingAsset::USDC).into(),
+				(SOFIA, 20_000 * CT_UNIT, 1, AcceptedFundingAsset::DOT).into(),
+				(FRED, 10_000 * CT_UNIT, 1, AcceptedFundingAsset::USDT).into(),
+				(ANNA, 5_000 * CT_UNIT, 1, AcceptedFundingAsset::USDC).into(),
+				(DAMIAN, 5_000 * CT_UNIT, 1, AcceptedFundingAsset::DOT).into(),
 			];
 
 			inst.bid_for_users(project_id, bids).unwrap();
@@ -495,9 +495,9 @@ mod round_flow {
 			inst.start_community_funding(project_id).unwrap();
 
 			let token_price =
-				inst.get_project_details(project_id).weighted_average_price.unwrap().saturating_mul_int(ASSET_UNIT);
+				inst.get_project_details(project_id).weighted_average_price.unwrap().saturating_mul_int(CT_UNIT);
 
-			let desired_price = PriceOf::<TestRuntime>::from_float(11.1818f64).saturating_mul_int(ASSET_UNIT);
+			let desired_price = PriceOf::<TestRuntime>::from_float(11.1818f64).saturating_mul_int(CT_UNIT);
 
 			assert_close_enough!(token_price, desired_price, Perquintill::from_float(0.99));
 		}
@@ -669,8 +669,8 @@ mod bid_extrinsic {
 			let project_metadata = default_project_metadata(issuer);
 			let mut evaluations = default_evaluations();
 			let evaluator_bidder = 69;
-			let evaluation_amount = 420 * US_DOLLAR;
-			let evaluator_bid = BidParams::new(evaluator_bidder, 600 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT);
+			let evaluation_amount = 420 * USD_UNIT;
+			let evaluator_bid = BidParams::new(evaluator_bidder, 600 * CT_UNIT, 1u8, AcceptedFundingAsset::USDT);
 			evaluations.push((evaluator_bidder, evaluation_amount).into());
 
 			let project_id = inst.create_auctioning_project(project_metadata.clone(), issuer, evaluations);
@@ -788,9 +788,9 @@ mod bid_extrinsic {
 			let project_id_usdc = project_ids[2];
 			let project_id_dot = project_ids[3];
 
-			let usdt_bid = BidParams::new(BIDDER_1, 10_000 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT);
-			let usdc_bid = BidParams::new(BIDDER_1, 10_000 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDC);
-			let dot_bid = BidParams::new(BIDDER_1, 10_000 * ASSET_UNIT, 1u8, AcceptedFundingAsset::DOT);
+			let usdt_bid = BidParams::new(BIDDER_1, 10_000 * CT_UNIT, 1u8, AcceptedFundingAsset::USDT);
+			let usdc_bid = BidParams::new(BIDDER_1, 10_000 * CT_UNIT, 1u8, AcceptedFundingAsset::USDC);
+			let dot_bid = BidParams::new(BIDDER_1, 10_000 * CT_UNIT, 1u8, AcceptedFundingAsset::DOT);
 
 			let plmc_fundings = MockInstantiator::calculate_auction_plmc_charged_with_given_price(
 				&vec![usdt_bid.clone(), usdc_bid.clone(), dot_bid.clone()],
@@ -861,7 +861,7 @@ mod bid_extrinsic {
 				generate_did_from_account(BIDDER_1),
 				project_policy,
 			);
-			let amount = 1000 * ASSET_UNIT;
+			let amount = 1000 * CT_UNIT;
 			let multiplier = Multiplier::force_new(u8_multiplier);
 
 			if u8_multiplier > 0 {
@@ -1043,8 +1043,8 @@ mod bid_extrinsic {
 			let project_metadata = default_project_metadata(issuer);
 			let mut evaluations = default_evaluations();
 			let evaluator_bidder = 69;
-			let evaluation_amount = 420 * US_DOLLAR;
-			let evaluator_bid = BidParams::new(evaluator_bidder, 600 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT);
+			let evaluation_amount = 420 * USD_UNIT;
+			let evaluator_bid = BidParams::new(evaluator_bidder, 600 * CT_UNIT, 1u8, AcceptedFundingAsset::USDT);
 			evaluations.push((evaluator_bidder, evaluation_amount).into());
 
 			let project_id = inst.create_auctioning_project(project_metadata.clone(), issuer, evaluations);
@@ -1072,8 +1072,8 @@ mod bid_extrinsic {
 			let evaluations_2 = default_evaluations();
 
 			let evaluator_bidder = 69;
-			let evaluation_amount = 420 * US_DOLLAR;
-			let evaluator_bid = BidParams::new(evaluator_bidder, 600 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT);
+			let evaluation_amount = 420 * USD_UNIT;
+			let evaluator_bid = BidParams::new(evaluator_bidder, 600 * CT_UNIT, 1u8, AcceptedFundingAsset::USDT);
 			evaluations_1.push((evaluator_bidder, evaluation_amount).into());
 
 			let _project_id_1 = inst.create_auctioning_project(project_metadata_1.clone(), ISSUER_1, evaluations_1);
@@ -1150,8 +1150,8 @@ mod bid_extrinsic {
 		fn cannot_bid_more_than_project_limit_count() {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 			let mut project_metadata = default_project_metadata(ISSUER_1);
-			project_metadata.mainnet_token_max_supply = 1_000_000_000 * ASSET_UNIT;
-			project_metadata.total_allocation_size = 100_000_000 * ASSET_UNIT;
+			project_metadata.mainnet_token_max_supply = 1_000_000_000 * CT_UNIT;
+			project_metadata.total_allocation_size = 100_000_000 * CT_UNIT;
 
 			let evaluations = MockInstantiator::generate_successful_evaluations(
 				project_metadata.clone(),
@@ -1160,7 +1160,7 @@ mod bid_extrinsic {
 			);
 			let max_bids_per_project: u32 = <TestRuntime as Config>::MaxBidsPerProject::get();
 			let bids =
-				(0u32..max_bids_per_project - 1).map(|i| (i as u32 + 420u32, 5000 * ASSET_UNIT).into()).collect_vec();
+				(0u32..max_bids_per_project - 1).map(|i| (i as u32 + 420u32, 5000 * CT_UNIT).into()).collect_vec();
 
 			let project_id = inst.create_auctioning_project(project_metadata.clone(), ISSUER_1, evaluations);
 
@@ -1183,12 +1183,8 @@ mod bid_extrinsic {
 			let remaining_ct = current_bucket.amount_left;
 
 			// This bid should be split in 2, but the second one should fail, making the whole extrinsic fail and roll back storage
-			let failing_bid = BidParams::<TestRuntime>::new(
-				BIDDER_1,
-				remaining_ct + 5000 * ASSET_UNIT,
-				1u8,
-				AcceptedFundingAsset::USDT,
-			);
+			let failing_bid =
+				BidParams::<TestRuntime>::new(BIDDER_1, remaining_ct + 5000 * CT_UNIT, 1u8, AcceptedFundingAsset::USDT);
 			let plmc_for_failing_bid =
 				MockInstantiator::calculate_auction_plmc_charged_from_all_bids_made_or_with_bucket(
 					&vec![failing_bid.clone()],
@@ -1254,7 +1250,7 @@ mod bid_extrinsic {
 							project_metadata.clone().policy_ipfs_cid.unwrap()
 						),
 						project_id,
-						5000 * ASSET_UNIT,
+						5000 * CT_UNIT,
 						failing_bid.multiplier,
 						failing_bid.asset
 					),
@@ -1267,8 +1263,8 @@ mod bid_extrinsic {
 		fn cannot_bid_more_than_user_limit_count() {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 			let mut project_metadata = default_project_metadata(ISSUER_1);
-			project_metadata.mainnet_token_max_supply = 1_000_000_000 * ASSET_UNIT;
-			project_metadata.total_allocation_size = 100_000_000 * ASSET_UNIT;
+			project_metadata.mainnet_token_max_supply = 1_000_000_000 * CT_UNIT;
+			project_metadata.total_allocation_size = 100_000_000 * CT_UNIT;
 
 			let evaluations = MockInstantiator::generate_successful_evaluations(
 				project_metadata.clone(),
@@ -1276,7 +1272,7 @@ mod bid_extrinsic {
 				vec![100u8],
 			);
 			let max_bids_per_user: u32 = <TestRuntime as Config>::MaxBidsPerUser::get();
-			let bids = (0u32..max_bids_per_user - 1u32).map(|_| (BIDDER_1, 5000 * ASSET_UNIT).into()).collect_vec();
+			let bids = (0u32..max_bids_per_user - 1u32).map(|_| (BIDDER_1, 5000 * CT_UNIT).into()).collect_vec();
 
 			let project_id = inst.create_auctioning_project(project_metadata.clone(), ISSUER_1, evaluations);
 
@@ -1299,12 +1295,8 @@ mod bid_extrinsic {
 			let remaining_ct = current_bucket.amount_left;
 
 			// This bid should be split in 2, but the second one should fail, making the whole extrinsic fail and roll back storage
-			let failing_bid = BidParams::<TestRuntime>::new(
-				BIDDER_1,
-				remaining_ct + 5000 * ASSET_UNIT,
-				1u8,
-				AcceptedFundingAsset::USDT,
-			);
+			let failing_bid =
+				BidParams::<TestRuntime>::new(BIDDER_1, remaining_ct + 5000 * CT_UNIT, 1u8, AcceptedFundingAsset::USDT);
 			let plmc_for_failing_bid =
 				MockInstantiator::calculate_auction_plmc_charged_from_all_bids_made_or_with_bucket(
 					&vec![failing_bid.clone()],
@@ -1368,7 +1360,7 @@ mod bid_extrinsic {
 							project_metadata.clone().policy_ipfs_cid.unwrap()
 						),
 						project_id,
-						5000 * ASSET_UNIT,
+						5000 * CT_UNIT,
 						failing_bid.multiplier,
 						failing_bid.asset
 					),
@@ -1381,10 +1373,10 @@ mod bid_extrinsic {
 		fn per_credential_type_ticket_size_minimums() {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 			let mut project_metadata = default_project_metadata(ISSUER_1);
-			project_metadata.total_allocation_size = 100_000 * ASSET_UNIT;
+			project_metadata.total_allocation_size = 100_000 * CT_UNIT;
 			project_metadata.bidding_ticket_sizes = BiddingTicketSizes {
-				professional: TicketSize::new(Some(8_000 * US_DOLLAR), None),
-				institutional: TicketSize::new(Some(20_000 * US_DOLLAR), None),
+				professional: TicketSize::new(Some(8_000 * USD_UNIT), None),
+				institutional: TicketSize::new(Some(20_000 * USD_UNIT), None),
 				phantom: Default::default(),
 			};
 
@@ -1392,11 +1384,11 @@ mod bid_extrinsic {
 
 			let project_id = inst.create_auctioning_project(project_metadata.clone(), ISSUER_1, evaluations.clone());
 
-			inst.mint_plmc_to(vec![(BIDDER_1, 50_000 * ASSET_UNIT).into(), (BIDDER_2, 50_000 * ASSET_UNIT).into()]);
+			inst.mint_plmc_to(vec![(BIDDER_1, 50_000 * CT_UNIT).into(), (BIDDER_2, 50_000 * CT_UNIT).into()]);
 
 			inst.mint_foreign_asset_to(vec![
-				(BIDDER_1, 50_000 * US_DOLLAR).into(),
-				(BIDDER_2, 50_000 * US_DOLLAR).into(),
+				(BIDDER_1, 50_000 * USD_UNIT).into(),
+				(BIDDER_2, 50_000 * USD_UNIT).into(),
 			]);
 
 			// bid below 800 CT (8k USD) should fail for professionals
@@ -1405,7 +1397,7 @@ mod bid_extrinsic {
 					Pallet::<TestRuntime>::do_bid(
 						&BIDDER_1,
 						project_id,
-						799 * ASSET_UNIT,
+						799 * CT_UNIT,
 						1u8.try_into().unwrap(),
 						AcceptedFundingAsset::USDT,
 						generate_did_from_account(BIDDER_1),
@@ -1421,7 +1413,7 @@ mod bid_extrinsic {
 					Pallet::<TestRuntime>::do_bid(
 						&BIDDER_2,
 						project_id,
-						1999 * ASSET_UNIT,
+						1999 * CT_UNIT,
 						1u8.try_into().unwrap(),
 						AcceptedFundingAsset::USDT,
 						generate_did_from_account(BIDDER_1),
@@ -1437,10 +1429,10 @@ mod bid_extrinsic {
 		fn ticket_size_minimums_use_current_bucket_price() {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 			let mut project_metadata = default_project_metadata(ISSUER_1);
-			project_metadata.total_allocation_size = 100_000 * ASSET_UNIT;
+			project_metadata.total_allocation_size = 100_000 * CT_UNIT;
 			project_metadata.bidding_ticket_sizes = BiddingTicketSizes {
-				professional: TicketSize::new(Some(8_000 * US_DOLLAR), None),
-				institutional: TicketSize::new(Some(20_000 * US_DOLLAR), None),
+				professional: TicketSize::new(Some(8_000 * USD_UNIT), None),
+				institutional: TicketSize::new(Some(20_000 * USD_UNIT), None),
 				phantom: Default::default(),
 			};
 			project_metadata.minimum_price = PriceOf::<TestRuntime>::from_float(1.0);
@@ -1455,23 +1447,23 @@ mod bid_extrinsic {
 				(BIDDER_3, 200_000 * PLMC).into(),
 			]);
 			inst.mint_foreign_asset_to(vec![
-				(BIDDER_1, 200_000 * ASSET_UNIT).into(),
-				(BIDDER_2, 200_000 * ASSET_UNIT).into(),
-				(BIDDER_3, 200_000 * ASSET_UNIT).into(),
+				(BIDDER_1, 200_000 * CT_UNIT).into(),
+				(BIDDER_2, 200_000 * CT_UNIT).into(),
+				(BIDDER_3, 200_000 * CT_UNIT).into(),
 			]);
 
 			// First bucket is covered by one bidder
-			let big_bid: BidParams<TestRuntime> = (BIDDER_1, 50_000 * ASSET_UNIT).into();
+			let big_bid: BidParams<TestRuntime> = (BIDDER_1, 50_000 * CT_UNIT).into();
 			inst.bid_for_users(project_id, vec![big_bid.clone()]).unwrap();
 
 			// A bid at the min price of 1 should require a min of 8k CT, but with a new price of 1.1, we can now bid with less
 			let smallest_ct_amount_at_8k_usd = PriceOf::<TestRuntime>::from_float(1.1)
 				.reciprocal()
 				.unwrap()
-				.checked_mul_int(8000 * US_DOLLAR)
+				.checked_mul_int(8000 * USD_UNIT)
 				// add 1 because result could be .99999 of what we expect
 				.unwrap() + 1;
-			assert!(smallest_ct_amount_at_8k_usd < 8000 * ASSET_UNIT);
+			assert!(smallest_ct_amount_at_8k_usd < 8000 * CT_UNIT);
 			inst.execute(|| {
 				assert_ok!(Pallet::<TestRuntime>::do_bid(
 					&BIDDER_1,
@@ -1487,10 +1479,10 @@ mod bid_extrinsic {
 			let smallest_ct_amount_at_20k_usd = PriceOf::<TestRuntime>::from_float(1.1)
 				.reciprocal()
 				.unwrap()
-				.checked_mul_int(20_000 * US_DOLLAR)
+				.checked_mul_int(20_000 * USD_UNIT)
 				// add 1 because result could be .99999 of what we expect
 				.unwrap() + 1;
-			assert!(smallest_ct_amount_at_20k_usd < 20_000 * ASSET_UNIT);
+			assert!(smallest_ct_amount_at_20k_usd < 20_000 * CT_UNIT);
 			inst.execute(|| {
 				assert_ok!(Pallet::<TestRuntime>::do_bid(
 					&BIDDER_2,
@@ -1510,14 +1502,14 @@ mod bid_extrinsic {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 			let mut project_metadata = default_project_metadata(ISSUER_1);
 			project_metadata.bidding_ticket_sizes = BiddingTicketSizes {
-				professional: TicketSize::new(Some(8_000 * US_DOLLAR), Some(100_000 * US_DOLLAR)),
-				institutional: TicketSize::new(Some(20_000 * US_DOLLAR), Some(500_000 * US_DOLLAR)),
+				professional: TicketSize::new(Some(8_000 * USD_UNIT), Some(100_000 * USD_UNIT)),
+				institutional: TicketSize::new(Some(20_000 * USD_UNIT), Some(500_000 * USD_UNIT)),
 				phantom: Default::default(),
 			};
 			project_metadata.contributing_ticket_sizes = ContributingTicketSizes {
-				retail: TicketSize::new(None, Some(100_000 * US_DOLLAR)),
-				professional: TicketSize::new(None, Some(20_000 * US_DOLLAR)),
-				institutional: TicketSize::new(None, Some(50_000 * US_DOLLAR)),
+				retail: TicketSize::new(None, Some(100_000 * USD_UNIT)),
+				professional: TicketSize::new(None, Some(20_000 * USD_UNIT)),
+				institutional: TicketSize::new(None, Some(50_000 * USD_UNIT)),
 				phantom: Default::default(),
 			};
 			let evaluations = default_evaluations();
@@ -1525,17 +1517,17 @@ mod bid_extrinsic {
 			let project_id = inst.create_auctioning_project(project_metadata.clone(), ISSUER_1, evaluations.clone());
 
 			inst.mint_plmc_to(vec![
-				(BIDDER_1, 500_000 * ASSET_UNIT).into(),
-				(BIDDER_2, 500_000 * ASSET_UNIT).into(),
-				(BIDDER_3, 500_000 * ASSET_UNIT).into(),
-				(BIDDER_4, 500_000 * ASSET_UNIT).into(),
+				(BIDDER_1, 500_000 * CT_UNIT).into(),
+				(BIDDER_2, 500_000 * CT_UNIT).into(),
+				(BIDDER_3, 500_000 * CT_UNIT).into(),
+				(BIDDER_4, 500_000 * CT_UNIT).into(),
 			]);
 
 			inst.mint_foreign_asset_to(vec![
-				(BIDDER_1, 500_000 * US_DOLLAR).into(),
-				(BIDDER_2, 500_000 * US_DOLLAR).into(),
-				(BIDDER_3, 500_000 * US_DOLLAR).into(),
-				(BIDDER_4, 500_000 * US_DOLLAR).into(),
+				(BIDDER_1, 500_000 * USD_UNIT).into(),
+				(BIDDER_2, 500_000 * USD_UNIT).into(),
+				(BIDDER_3, 500_000 * USD_UNIT).into(),
+				(BIDDER_4, 500_000 * USD_UNIT).into(),
 			]);
 
 			let bidder_1_jwt = get_mock_jwt_with_cid(
@@ -1556,7 +1548,7 @@ mod bid_extrinsic {
 					RuntimeOrigin::signed(BIDDER_1),
 					bidder_1_jwt,
 					project_id,
-					8000 * ASSET_UNIT,
+					8000 * CT_UNIT,
 					1u8.try_into().unwrap(),
 					AcceptedFundingAsset::USDT,
 				));
@@ -1567,7 +1559,7 @@ mod bid_extrinsic {
 						RuntimeOrigin::signed(BIDDER_2),
 						bidder_2_jwt_same_did.clone(),
 						project_id,
-						3000 * ASSET_UNIT,
+						3000 * CT_UNIT,
 						1u8.try_into().unwrap(),
 						AcceptedFundingAsset::USDT
 					),
@@ -1580,7 +1572,7 @@ mod bid_extrinsic {
 					RuntimeOrigin::signed(BIDDER_2),
 					bidder_2_jwt_same_did,
 					project_id,
-					2000 * ASSET_UNIT,
+					2000 * CT_UNIT,
 					1u8.try_into().unwrap(),
 					AcceptedFundingAsset::USDT,
 				));
@@ -1604,7 +1596,7 @@ mod bid_extrinsic {
 					RuntimeOrigin::signed(BIDDER_3),
 					bidder_3_jwt,
 					project_id,
-					40_000 * ASSET_UNIT,
+					40_000 * CT_UNIT,
 					1u8.try_into().unwrap(),
 					AcceptedFundingAsset::USDT,
 				));
@@ -1615,7 +1607,7 @@ mod bid_extrinsic {
 						RuntimeOrigin::signed(BIDDER_4),
 						bidder_4_jwt_same_did.clone(),
 						project_id,
-						11_000 * ASSET_UNIT,
+						11_000 * CT_UNIT,
 						1u8.try_into().unwrap(),
 						AcceptedFundingAsset::USDT,
 					),
@@ -1628,7 +1620,7 @@ mod bid_extrinsic {
 					RuntimeOrigin::signed(BIDDER_4),
 					bidder_4_jwt_same_did,
 					project_id,
-					10_000 * ASSET_UNIT,
+					10_000 * CT_UNIT,
 					1u8.try_into().unwrap(),
 					AcceptedFundingAsset::USDT,
 				));
@@ -1644,7 +1636,7 @@ mod bid_extrinsic {
 				inst.execute(|| crate::Pallet::<TestRuntime>::do_bid(
 					&(&ISSUER_1 + 1),
 					project_id,
-					500 * ASSET_UNIT,
+					500 * CT_UNIT,
 					1u8.try_into().unwrap(),
 					AcceptedFundingAsset::USDT,
 					generate_did_from_account(ISSUER_1),
@@ -1700,7 +1692,7 @@ mod bid_extrinsic {
 							"wrong_cid".as_bytes().to_vec().try_into().unwrap()
 						),
 						project_id,
-						5000 * ASSET_UNIT,
+						5000 * CT_UNIT,
 						1u8.try_into().unwrap(),
 						AcceptedFundingAsset::USDT
 					),

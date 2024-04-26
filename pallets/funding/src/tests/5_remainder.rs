@@ -138,9 +138,9 @@ mod remaining_contribute_extrinsic {
 			let mut evaluations = default_evaluations();
 			let community_contributions = default_community_buys();
 			let evaluator_contributor = 69;
-			let evaluation_amount = 420 * US_DOLLAR;
+			let evaluation_amount = 420 * USD_UNIT;
 			let remainder_contribution =
-				ContributionParams::new(evaluator_contributor, 600 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT);
+				ContributionParams::new(evaluator_contributor, 600 * CT_UNIT, 1u8, AcceptedFundingAsset::USDT);
 			evaluations.push(UserToUSDBalance::new(evaluator_contributor, evaluation_amount));
 			let bids = default_bids();
 
@@ -265,12 +265,9 @@ mod remaining_contribute_extrinsic {
 			let project_id_usdc = project_ids[2];
 			let project_id_dot = project_ids[3];
 
-			let usdt_contribution =
-				ContributionParams::new(BUYER_1, 10_000 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT);
-			let usdc_contribution =
-				ContributionParams::new(BUYER_2, 10_000 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDC);
-			let dot_contribution =
-				ContributionParams::new(BUYER_3, 10_000 * ASSET_UNIT, 1u8, AcceptedFundingAsset::DOT);
+			let usdt_contribution = ContributionParams::new(BUYER_1, 10_000 * CT_UNIT, 1u8, AcceptedFundingAsset::USDT);
+			let usdc_contribution = ContributionParams::new(BUYER_2, 10_000 * CT_UNIT, 1u8, AcceptedFundingAsset::USDC);
+			let dot_contribution = ContributionParams::new(BUYER_3, 10_000 * CT_UNIT, 1u8, AcceptedFundingAsset::DOT);
 
 			let wap = inst.get_project_details(project_id_all).weighted_average_price.unwrap();
 
@@ -337,13 +334,13 @@ mod remaining_contribute_extrinsic {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 			let project_metadata = ProjectMetadata {
 				token_information: default_token_information(),
-				mainnet_token_max_supply: 80_000_000 * ASSET_UNIT,
-				total_allocation_size: 10_000_000 * ASSET_UNIT,
+				mainnet_token_max_supply: 80_000_000 * CT_UNIT,
+				total_allocation_size: 10_000_000 * CT_UNIT,
 				auction_round_allocation_percentage: Percent::from_percent(50u8),
 				minimum_price: PriceOf::<TestRuntime>::from_float(10.0),
 				bidding_ticket_sizes: BiddingTicketSizes {
-					professional: TicketSize::new(Some(5000 * US_DOLLAR), None),
-					institutional: TicketSize::new(Some(5000 * US_DOLLAR), None),
+					professional: TicketSize::new(Some(5000 * USD_UNIT), None),
+					institutional: TicketSize::new(Some(5000 * USD_UNIT), None),
 					phantom: Default::default(),
 				},
 				contributing_ticket_sizes: ContributingTicketSizes {
@@ -390,7 +387,7 @@ mod remaining_contribute_extrinsic {
 						RuntimeOrigin::signed(BUYER_1),
 						jwt,
 						project_id,
-						1000 * ASSET_UNIT,
+						1000 * CT_UNIT,
 						Multiplier::force_new(0),
 						AcceptedFundingAsset::USDT
 					),
@@ -406,11 +403,11 @@ mod remaining_contribute_extrinsic {
 					project_metadata.clone().policy_ipfs_cid.unwrap(),
 				);
 				let bidder_plmc = MockInstantiator::calculate_contributed_plmc_spent(
-					vec![(BUYER_1, 1_000 * ASSET_UNIT, Multiplier::force_new(multiplier)).into()],
+					vec![(BUYER_1, 1_000 * CT_UNIT, Multiplier::force_new(multiplier)).into()],
 					wap,
 				);
 				let bidder_usdt = MockInstantiator::calculate_contributed_funding_asset_spent(
-					vec![(BUYER_1, 1_000 * ASSET_UNIT, Multiplier::force_new(multiplier)).into()],
+					vec![(BUYER_1, 1_000 * CT_UNIT, Multiplier::force_new(multiplier)).into()],
 					wap,
 				);
 				let ed = MockInstantiator::get_ed();
@@ -421,7 +418,7 @@ mod remaining_contribute_extrinsic {
 					RuntimeOrigin::signed(BUYER_1),
 					jwt,
 					project_id,
-					1000 * ASSET_UNIT,
+					1000 * CT_UNIT,
 					Multiplier::force_new(multiplier),
 					AcceptedFundingAsset::USDT
 				)));
@@ -435,11 +432,11 @@ mod remaining_contribute_extrinsic {
 					project_metadata.clone().policy_ipfs_cid.unwrap(),
 				);
 				let bidder_plmc = MockInstantiator::calculate_contributed_plmc_spent(
-					vec![(BUYER_1, 1_000 * ASSET_UNIT, Multiplier::force_new(multiplier)).into()],
+					vec![(BUYER_1, 1_000 * CT_UNIT, Multiplier::force_new(multiplier)).into()],
 					wap,
 				);
 				let bidder_usdt = MockInstantiator::calculate_contributed_funding_asset_spent(
-					vec![(BUYER_1, 1_000 * ASSET_UNIT, Multiplier::force_new(multiplier)).into()],
+					vec![(BUYER_1, 1_000 * CT_UNIT, Multiplier::force_new(multiplier)).into()],
 					wap,
 				);
 				let ed = MockInstantiator::get_ed();
@@ -452,7 +449,7 @@ mod remaining_contribute_extrinsic {
 							RuntimeOrigin::signed(BUYER_1),
 							jwt,
 							project_id,
-							1000 * ASSET_UNIT,
+							1000 * CT_UNIT,
 							Multiplier::force_new(multiplier),
 							AcceptedFundingAsset::USDT
 						),
@@ -474,7 +471,7 @@ mod remaining_contribute_extrinsic {
 						RuntimeOrigin::signed(BUYER_2),
 						jwt,
 						project_id,
-						1000 * ASSET_UNIT,
+						1000 * CT_UNIT,
 						Multiplier::force_new(0),
 						AcceptedFundingAsset::USDT
 					),
@@ -490,11 +487,11 @@ mod remaining_contribute_extrinsic {
 					project_metadata.clone().policy_ipfs_cid.unwrap(),
 				);
 				let bidder_plmc = MockInstantiator::calculate_contributed_plmc_spent(
-					vec![(BUYER_2, 1_000 * ASSET_UNIT, Multiplier::force_new(multiplier)).into()],
+					vec![(BUYER_2, 1_000 * CT_UNIT, Multiplier::force_new(multiplier)).into()],
 					wap,
 				);
 				let bidder_usdt = MockInstantiator::calculate_contributed_funding_asset_spent(
-					vec![(BUYER_2, 1_000 * ASSET_UNIT, Multiplier::force_new(multiplier)).into()],
+					vec![(BUYER_2, 1_000 * CT_UNIT, Multiplier::force_new(multiplier)).into()],
 					wap,
 				);
 				let ed = MockInstantiator::get_ed();
@@ -505,7 +502,7 @@ mod remaining_contribute_extrinsic {
 					RuntimeOrigin::signed(BUYER_2),
 					jwt,
 					project_id,
-					1000 * ASSET_UNIT,
+					1000 * CT_UNIT,
 					multiplier.try_into().unwrap(),
 					AcceptedFundingAsset::USDT
 				)));
@@ -519,11 +516,11 @@ mod remaining_contribute_extrinsic {
 					project_metadata.clone().policy_ipfs_cid.unwrap(),
 				);
 				let bidder_plmc = MockInstantiator::calculate_contributed_plmc_spent(
-					vec![(BUYER_2, 1_000 * ASSET_UNIT, Multiplier::force_new(multiplier)).into()],
+					vec![(BUYER_2, 1_000 * CT_UNIT, Multiplier::force_new(multiplier)).into()],
 					wap,
 				);
 				let bidder_usdt = MockInstantiator::calculate_contributed_funding_asset_spent(
-					vec![(BUYER_2, 1_000 * ASSET_UNIT, Multiplier::force_new(multiplier)).into()],
+					vec![(BUYER_2, 1_000 * CT_UNIT, Multiplier::force_new(multiplier)).into()],
 					wap,
 				);
 				let ed = MockInstantiator::get_ed();
@@ -536,7 +533,7 @@ mod remaining_contribute_extrinsic {
 							RuntimeOrigin::signed(BUYER_2),
 							jwt,
 							project_id,
-							1000 * ASSET_UNIT,
+							1000 * CT_UNIT,
 							Multiplier::force_new(multiplier),
 							AcceptedFundingAsset::USDT
 						),
@@ -573,11 +570,11 @@ mod remaining_contribute_extrinsic {
 				);
 				let wap = inst.get_project_details(project_id).weighted_average_price.unwrap();
 				let contributor_plmc = MockInstantiator::calculate_contributed_plmc_spent(
-					vec![(BUYER_1, 1_000 * ASSET_UNIT, Multiplier::force_new(multiplier)).into()],
+					vec![(BUYER_1, 1_000 * CT_UNIT, Multiplier::force_new(multiplier)).into()],
 					wap,
 				);
 				let bidder_usdt = MockInstantiator::calculate_contributed_funding_asset_spent(
-					vec![(BUYER_1, 1_000 * ASSET_UNIT, Multiplier::force_new(multiplier)).into()],
+					vec![(BUYER_1, 1_000 * CT_UNIT, Multiplier::force_new(multiplier)).into()],
 					wap,
 				);
 				let ed = MockInstantiator::get_ed();
@@ -589,7 +586,7 @@ mod remaining_contribute_extrinsic {
 						RuntimeOrigin::signed(BUYER_1),
 						jwt,
 						project_id,
-						1000 * ASSET_UNIT,
+						1000 * CT_UNIT,
 						Multiplier::force_new(multiplier),
 						AcceptedFundingAsset::USDT,
 					)
@@ -630,7 +627,7 @@ mod remaining_contribute_extrinsic {
 								project_policy
 							),
 							project_id,
-							1000 * ASSET_UNIT,
+							1000 * CT_UNIT,
 							Multiplier::force_new(0),
 							AcceptedFundingAsset::USDT
 						),
@@ -675,7 +672,7 @@ mod remaining_contribute_extrinsic {
 				inst.execute(|| crate::Pallet::<TestRuntime>::do_remaining_contribute(
 					&(&ISSUER_1 + 1),
 					project_id,
-					500 * ASSET_UNIT,
+					500 * CT_UNIT,
 					1u8.try_into().unwrap(),
 					AcceptedFundingAsset::USDT,
 					generate_did_from_account(ISSUER_1),
@@ -691,19 +688,19 @@ mod remaining_contribute_extrinsic {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 			let project_metadata = ProjectMetadata {
 				token_information: default_token_information(),
-				mainnet_token_max_supply: 8_000_000 * ASSET_UNIT,
-				total_allocation_size: 1_000_000 * ASSET_UNIT,
+				mainnet_token_max_supply: 8_000_000 * CT_UNIT,
+				total_allocation_size: 1_000_000 * CT_UNIT,
 				auction_round_allocation_percentage: Percent::from_percent(50u8),
 				minimum_price: PriceOf::<TestRuntime>::from_float(10.0),
 				bidding_ticket_sizes: BiddingTicketSizes {
-					professional: TicketSize::new(Some(8000 * US_DOLLAR), None),
-					institutional: TicketSize::new(Some(20_000 * US_DOLLAR), None),
+					professional: TicketSize::new(Some(8000 * USD_UNIT), None),
+					institutional: TicketSize::new(Some(20_000 * USD_UNIT), None),
 					phantom: Default::default(),
 				},
 				contributing_ticket_sizes: ContributingTicketSizes {
-					retail: TicketSize::new(Some(10 * US_DOLLAR), None),
-					professional: TicketSize::new(Some(100_000 * US_DOLLAR), None),
-					institutional: TicketSize::new(Some(200_000 * US_DOLLAR), None),
+					retail: TicketSize::new(Some(10 * USD_UNIT), None),
+					professional: TicketSize::new(Some(100_000 * USD_UNIT), None),
+					institutional: TicketSize::new(Some(200_000 * USD_UNIT), None),
 					phantom: Default::default(),
 				},
 				participation_currencies: vec![AcceptedFundingAsset::USDT].try_into().unwrap(),
@@ -720,15 +717,15 @@ mod remaining_contribute_extrinsic {
 			);
 
 			inst.mint_plmc_to(vec![
-				(BUYER_4, 50_000 * ASSET_UNIT).into(),
-				(BUYER_5, 50_000 * ASSET_UNIT).into(),
-				(BUYER_6, 50_000 * ASSET_UNIT).into(),
+				(BUYER_4, 50_000 * CT_UNIT).into(),
+				(BUYER_5, 50_000 * CT_UNIT).into(),
+				(BUYER_6, 50_000 * CT_UNIT).into(),
 			]);
 
 			inst.mint_foreign_asset_to(vec![
-				(BUYER_4, 50_000 * US_DOLLAR).into(),
-				(BUYER_5, 50_000 * US_DOLLAR).into(),
-				(BUYER_6, 50_000 * US_DOLLAR).into(),
+				(BUYER_4, 50_000 * USD_UNIT).into(),
+				(BUYER_5, 50_000 * USD_UNIT).into(),
+				(BUYER_6, 50_000 * USD_UNIT).into(),
 			]);
 
 			// contribution below 1 CT (10 USD) should fail for retail
@@ -744,7 +741,7 @@ mod remaining_contribute_extrinsic {
 						RuntimeOrigin::signed(BUYER_4),
 						jwt,
 						project_id,
-						ASSET_UNIT / 2,
+						CT_UNIT / 2,
 						1u8.try_into().unwrap(),
 						AcceptedFundingAsset::USDT,
 					),
@@ -799,19 +796,19 @@ mod remaining_contribute_extrinsic {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 			let project_metadata = ProjectMetadata {
 				token_information: default_token_information(),
-				mainnet_token_max_supply: 8_000_000 * ASSET_UNIT,
-				total_allocation_size: 1_000_000 * ASSET_UNIT,
+				mainnet_token_max_supply: 8_000_000 * CT_UNIT,
+				total_allocation_size: 1_000_000 * CT_UNIT,
 				auction_round_allocation_percentage: Percent::from_percent(50u8),
 				minimum_price: PriceOf::<TestRuntime>::from_float(10.0),
 				bidding_ticket_sizes: BiddingTicketSizes {
-					professional: TicketSize::new(Some(5000 * US_DOLLAR), None),
-					institutional: TicketSize::new(Some(5000 * US_DOLLAR), None),
+					professional: TicketSize::new(Some(5000 * USD_UNIT), None),
+					institutional: TicketSize::new(Some(5000 * USD_UNIT), None),
 					phantom: Default::default(),
 				},
 				contributing_ticket_sizes: ContributingTicketSizes {
-					retail: TicketSize::new(None, Some(300_000 * US_DOLLAR)),
-					professional: TicketSize::new(None, Some(20_000 * US_DOLLAR)),
-					institutional: TicketSize::new(None, Some(50_000 * US_DOLLAR)),
+					retail: TicketSize::new(None, Some(300_000 * USD_UNIT)),
+					professional: TicketSize::new(None, Some(20_000 * USD_UNIT)),
+					institutional: TicketSize::new(None, Some(50_000 * USD_UNIT)),
 					phantom: Default::default(),
 				},
 				participation_currencies: vec![AcceptedFundingAsset::USDT].try_into().unwrap(),
@@ -828,21 +825,21 @@ mod remaining_contribute_extrinsic {
 			);
 
 			inst.mint_plmc_to(vec![
-				(BUYER_4, 500_000 * ASSET_UNIT).into(),
-				(BUYER_5, 500_000 * ASSET_UNIT).into(),
-				(BUYER_6, 500_000 * ASSET_UNIT).into(),
-				(BUYER_7, 500_000 * ASSET_UNIT).into(),
-				(BUYER_8, 500_000 * ASSET_UNIT).into(),
-				(BUYER_9, 500_000 * ASSET_UNIT).into(),
+				(BUYER_4, 500_000 * CT_UNIT).into(),
+				(BUYER_5, 500_000 * CT_UNIT).into(),
+				(BUYER_6, 500_000 * CT_UNIT).into(),
+				(BUYER_7, 500_000 * CT_UNIT).into(),
+				(BUYER_8, 500_000 * CT_UNIT).into(),
+				(BUYER_9, 500_000 * CT_UNIT).into(),
 			]);
 
 			inst.mint_foreign_asset_to(vec![
-				(BUYER_4, 500_000 * US_DOLLAR).into(),
-				(BUYER_5, 500_000 * US_DOLLAR).into(),
-				(BUYER_6, 500_000 * US_DOLLAR).into(),
-				(BUYER_7, 500_000 * US_DOLLAR).into(),
-				(BUYER_8, 500_000 * US_DOLLAR).into(),
-				(BUYER_9, 500_000 * US_DOLLAR).into(),
+				(BUYER_4, 500_000 * USD_UNIT).into(),
+				(BUYER_5, 500_000 * USD_UNIT).into(),
+				(BUYER_6, 500_000 * USD_UNIT).into(),
+				(BUYER_7, 500_000 * USD_UNIT).into(),
+				(BUYER_8, 500_000 * USD_UNIT).into(),
+				(BUYER_9, 500_000 * USD_UNIT).into(),
 			]);
 
 			// total contributions with same DID above 30k CT (300k USD) should fail for retail
@@ -850,7 +847,7 @@ mod remaining_contribute_extrinsic {
 				assert_ok!(Pallet::<TestRuntime>::do_remaining_contribute(
 					&BUYER_4,
 					project_id,
-					28_000 * ASSET_UNIT,
+					28_000 * CT_UNIT,
 					1u8.try_into().unwrap(),
 					AcceptedFundingAsset::USDT,
 					generate_did_from_account(BUYER_4),
@@ -863,7 +860,7 @@ mod remaining_contribute_extrinsic {
 					Pallet::<TestRuntime>::do_remaining_contribute(
 						&BUYER_5,
 						project_id,
-						2001 * ASSET_UNIT,
+						2001 * CT_UNIT,
 						1u8.try_into().unwrap(),
 						AcceptedFundingAsset::USDT,
 						// note we use the same did as bidder 1, on a different account
@@ -879,7 +876,7 @@ mod remaining_contribute_extrinsic {
 				assert_ok!(Pallet::<TestRuntime>::do_remaining_contribute(
 					&BUYER_5,
 					project_id,
-					2000 * ASSET_UNIT,
+					2000 * CT_UNIT,
 					1u8.try_into().unwrap(),
 					AcceptedFundingAsset::USDT,
 					// note we use the same did as bidder 1, on a different account
@@ -894,7 +891,7 @@ mod remaining_contribute_extrinsic {
 				assert_ok!(Pallet::<TestRuntime>::do_remaining_contribute(
 					&BUYER_6,
 					project_id,
-					1800 * ASSET_UNIT,
+					1800 * CT_UNIT,
 					1u8.try_into().unwrap(),
 					AcceptedFundingAsset::USDT,
 					generate_did_from_account(BUYER_6),
@@ -907,7 +904,7 @@ mod remaining_contribute_extrinsic {
 					Pallet::<TestRuntime>::do_remaining_contribute(
 						&BUYER_7,
 						project_id,
-						201 * ASSET_UNIT,
+						201 * CT_UNIT,
 						1u8.try_into().unwrap(),
 						AcceptedFundingAsset::USDT,
 						// note we use the same did as bidder 1, on a different account
@@ -923,7 +920,7 @@ mod remaining_contribute_extrinsic {
 				assert_ok!(Pallet::<TestRuntime>::do_remaining_contribute(
 					&BUYER_7,
 					project_id,
-					200 * ASSET_UNIT,
+					200 * CT_UNIT,
 					1u8.try_into().unwrap(),
 					AcceptedFundingAsset::USDT,
 					// note we use the same did as bidder 1, on a different account
@@ -938,7 +935,7 @@ mod remaining_contribute_extrinsic {
 				assert_ok!(Pallet::<TestRuntime>::do_remaining_contribute(
 					&BUYER_8,
 					project_id,
-					4690 * ASSET_UNIT,
+					4690 * CT_UNIT,
 					1u8.try_into().unwrap(),
 					AcceptedFundingAsset::USDT,
 					generate_did_from_account(BUYER_8),
@@ -951,7 +948,7 @@ mod remaining_contribute_extrinsic {
 					Pallet::<TestRuntime>::do_remaining_contribute(
 						&BUYER_9,
 						project_id,
-						311 * ASSET_UNIT,
+						311 * CT_UNIT,
 						1u8.try_into().unwrap(),
 						AcceptedFundingAsset::USDT,
 						// note we use the same did as bidder 3, on a different account
@@ -967,7 +964,7 @@ mod remaining_contribute_extrinsic {
 				assert_ok!(Pallet::<TestRuntime>::do_remaining_contribute(
 					&BUYER_9,
 					project_id,
-					310 * ASSET_UNIT,
+					310 * CT_UNIT,
 					1u8.try_into().unwrap(),
 					AcceptedFundingAsset::USDT,
 					// note we use the same did as bidder 3, on a different account
@@ -988,9 +985,9 @@ mod remaining_contribute_extrinsic {
 			let evaluations_2 = default_evaluations();
 
 			let evaluator_contributor = 69;
-			let evaluation_amount = 420 * US_DOLLAR;
+			let evaluation_amount = 420 * USD_UNIT;
 			let evaluator_contribution =
-				ContributionParams::new(evaluator_contributor, 600 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT);
+				ContributionParams::new(evaluator_contributor, 600 * CT_UNIT, 1u8, AcceptedFundingAsset::USDT);
 			evaluations_1.push((evaluator_contributor, evaluation_amount).into());
 
 			let _project_id_1 = inst.create_remainder_contributing_project(
@@ -1072,7 +1069,7 @@ mod remaining_contribute_extrinsic {
 							"wrong_cid".as_bytes().to_vec().try_into().unwrap()
 						),
 						project_id,
-						5000 * ASSET_UNIT,
+						5000 * CT_UNIT,
 						1u8.try_into().unwrap(),
 						AcceptedFundingAsset::USDT
 					),
