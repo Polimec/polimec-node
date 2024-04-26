@@ -163,6 +163,7 @@ pub type MultiplierOf<T> = <T as Config>::Multiplier;
 
 pub type BalanceOf<T> = <T as Config>::Balance;
 pub type PriceOf<T> = <T as Config>::Price;
+pub type PriceProviderOf<T> = <T as Config>::PriceProvider;
 pub type StringLimitOf<T> = <T as Config>::StringLimit;
 pub type AssetIdOf<T> =
 	<<T as Config>::FundingCurrency as fungibles::Inspect<<T as frame_system::Config>::AccountId>>::AssetId;
