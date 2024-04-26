@@ -284,12 +284,12 @@ pub mod storage_types {
 		pub status: ProjectStatus,
 		/// When the different project phases start and end
 		pub phase_transition_points: PhaseTransitionPoints<BlockNumber>,
-		/// Fundraising target amount in USD equivalent
+		/// Fundraising target amount in USD (6 decimals)
 		pub fundraising_target_usd: Balance,
 		/// The amount of Contribution Tokens that have not yet been sold
 		pub remaining_contribution_tokens: Balance,
-		/// Funding reached amount in USD equivalent
-		pub funding_amount_reached: Balance,
+		/// Funding reached amount in USD (6 decimals)
+		pub funding_amount_reached_usd: Balance,
 		/// Information about the total amount bonded, and the outcome in regards to reward/slash/nothing
 		pub evaluation_round_info: EvaluationRoundInfo,
 		/// When the Funding Round ends

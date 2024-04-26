@@ -637,7 +637,7 @@ impl<T: Config> Pallet<T> {
 			.minimum_price
 			.checked_mul_int(project_metadata.total_allocation_size)
 			.ok_or(Error::<T>::BadMath)?;
-		let funding_reached = project_details.funding_amount_reached;
+		let funding_reached = project_details.funding_amount_reached_usd;
 		let funding_ratio = Perquintill::from_rational(funding_reached, funding_target);
 
 		// * Update Storage *
@@ -798,7 +798,7 @@ impl<T: Config> Pallet<T> {
 // Extrinsics and HRMP interactions
 impl<T: Config> Pallet<T> {
 	fn project_validation(
-		mut project_metadata: ProjectMetadataOf<T>,
+		project_metadata: ProjectMetadataOf<T>,
 		issuer: AccountIdOf<T>,
 		did: Did,
 	) -> Result<(ProjectMetadataOf<T>, ProjectDetailsOf<T>, BucketOf<T>), DispatchError> {
@@ -822,7 +822,7 @@ impl<T: Config> Pallet<T> {
 			status: ProjectStatus::Application,
 			phase_transition_points: PhaseTransitionPoints::new(now),
 			remaining_contribution_tokens: project_metadata.total_allocation_size,
-			funding_amount_reached: BalanceOf::<T>::zero(),
+			funding_amount_reached_usd: BalanceOf::<T>::zero(),
 			evaluation_round_info: EvaluationRoundInfoOf::<T> {
 				total_bonded_usd: Zero::zero(),
 				total_bonded_plmc: Zero::zero(),
@@ -1510,7 +1510,7 @@ impl<T: Config> Pallet<T> {
 		ContributionBoughtUSD::<T>::mutate((project_id, did), |amount| *amount += ticket_size);
 
 		let remaining_cts_after_purchase = project_details.remaining_contribution_tokens;
-		project_details.funding_amount_reached.saturating_accrue(new_contribution.usd_contribution_amount);
+		project_details.funding_amount_reached_usd.saturating_accrue(new_contribution.usd_contribution_amount);
 		ProjectsDetails::<T>::insert(project_id, project_details);
 		// If no CTs remain, end the funding phase
 
@@ -2238,7 +2238,7 @@ impl<T: Config> Pallet<T> {
 			if let Some(info) = maybe_info {
 				info.weighted_average_price = Some(weighted_token_price);
 				info.remaining_contribution_tokens.saturating_reduce(bid_token_amount_sum);
-				info.funding_amount_reached.saturating_accrue(final_total_funding_reached_by_bids);
+				info.funding_amount_reached_usd.saturating_accrue(final_total_funding_reached_by_bids);
 				Ok(())
 			} else {
 				Err(Error::<T>::ProjectError(ProjectErrorReason::ProjectDetailsNotFound).into())
@@ -2414,7 +2414,7 @@ impl<T: Config> Pallet<T> {
 		let evaluations_count = evaluations.len() as u32;
 
 		// Determine how much funding has been achieved.
-		let funding_amount_reached = project_details.funding_amount_reached;
+		let funding_amount_reached = project_details.funding_amount_reached_usd;
 		let fundraising_target = project_details.fundraising_target_usd;
 		let total_issuer_fees = Self::calculate_fees(funding_amount_reached);
 
@@ -2472,7 +2472,7 @@ impl<T: Config> Pallet<T> {
 			.ok_or(Error::<T>::ProjectError(ProjectErrorReason::ProjectMetadataNotFound))?;
 
 		// Determine how much funding has been achieved.
-		let funding_amount_reached = project_details.funding_amount_reached;
+		let funding_amount_reached = project_details.funding_amount_reached_usd;
 		let fundraising_target = project_details.fundraising_target_usd;
 		let total_issuer_fees = Self::calculate_fees(funding_amount_reached);
 

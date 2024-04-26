@@ -193,7 +193,7 @@ mod start_evaluation_extrinsic {
 					.minimum_price
 					.saturating_mul_int(project_metadata.total_allocation_size),
 				remaining_contribution_tokens: project_metadata.total_allocation_size,
-				funding_amount_reached: 0u128,
+				funding_amount_reached_usd: 0u128,
 				evaluation_round_info: EvaluationRoundInfoOf::<TestRuntime> {
 					total_bonded_usd: 0u128,
 					total_bonded_plmc: 0u128,
