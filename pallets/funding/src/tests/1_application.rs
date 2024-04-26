@@ -293,7 +293,7 @@ mod create_project_extrinsic {
 		fn did_cannot_have_2_active_projects() {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 			let project_metadata = default_project_metadata(ISSUER_1);
-			let ed = MockInstantiator::get_ed();
+			let ed = inst.get_ed();
 			let issuer_mint: UserToPLMCBalance<TestRuntime> = (ISSUER_1, ed * 2).into();
 			// Create a first project
 			let jwt = get_mock_jwt_with_cid(
@@ -334,7 +334,7 @@ mod create_project_extrinsic {
 		fn not_enough_plmc_for_escrow_ed() {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 			let project_metadata = default_project_metadata(ISSUER_1);
-			let ed = MockInstantiator::get_ed();
+			let ed = inst.get_ed();
 			inst.mint_plmc_to(vec![UserToPLMCBalance::new(ISSUER_1, ed)]);
 			let jwt = get_mock_jwt_with_cid(
 				ISSUER_1,
@@ -745,7 +745,7 @@ mod edit_project_extrinsic {
 		#[test]
 		fn called_by_different_issuer() {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
-			let ed = MockInstantiator::get_ed();
+			let ed = inst.get_ed();
 			let issuer_1_mint: UserToPLMCBalance<TestRuntime> = (ISSUER_1, ed).into();
 			let issuer_2_mint: UserToPLMCBalance<TestRuntime> = (ISSUER_2, ed).into();
 
@@ -902,7 +902,7 @@ mod remove_project_extrinsic {
 		fn can_create_after_remove() {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 			let project_metadata = default_project_metadata(ISSUER_1);
-			let ed = MockInstantiator::get_ed();
+			let ed = inst.get_ed();
 			let issuer_mint: UserToPLMCBalance<TestRuntime> = (ISSUER_1, ed * 2).into();
 			// Create a first project
 			let jwt = get_mock_jwt_with_cid(

@@ -74,10 +74,10 @@ mod round_flow {
 			let ct_price = inst.get_project_details(project_id).weighted_average_price.expect("CT Price should exist");
 
 			let contributions = vec![ContributionParams::new(BOB, remaining_ct, 1u8, AcceptedFundingAsset::USDT)];
-			let plmc_fundings = MockInstantiator::calculate_contributed_plmc_spent(contributions.clone(), ct_price);
+			let plmc_fundings = inst.calculate_contributed_plmc_spent(contributions.clone(), ct_price);
 			let plmc_existential_deposits = plmc_fundings.accounts().existential_deposits();
 			let foreign_asset_fundings =
-				MockInstantiator::calculate_contributed_funding_asset_spent(contributions.clone(), ct_price);
+				inst.calculate_contributed_funding_asset_spent(contributions.clone(), ct_price);
 
 			inst.mint_plmc_to(plmc_fundings.clone());
 			inst.mint_plmc_to(plmc_existential_deposits.clone());
@@ -133,7 +133,7 @@ mod round_flow {
 
 			let contributions = vec![(BUYER_1, project_details.remaining_contribution_tokens).into()];
 
-			let plmc_contribution_funding = MockInstantiator::calculate_contributed_plmc_spent(
+			let plmc_contribution_funding = inst.calculate_contributed_plmc_spent(
 				contributions.clone(),
 				project_details.weighted_average_price.unwrap(),
 			);
@@ -141,7 +141,7 @@ mod round_flow {
 			inst.mint_plmc_to(plmc_contribution_funding.clone());
 			inst.mint_plmc_to(plmc_existential_deposits.clone());
 
-			let foreign_asset_contribution_funding = MockInstantiator::calculate_contributed_funding_asset_spent(
+			let foreign_asset_contribution_funding = inst.calculate_contributed_funding_asset_spent(
 				contributions.clone(),
 				project_details.weighted_average_price.unwrap(),
 			);
@@ -218,10 +218,8 @@ mod community_contribute_extrinsic {
 			});
 
 			// Can partially use the usable evaluation bond (half in this case)
-			let contribution_usdt = MockInstantiator::calculate_contributed_funding_asset_spent(
-				vec![(BOB, usable_ct / 2).into()],
-				ct_price,
-			);
+			let contribution_usdt =
+				inst.calculate_contributed_funding_asset_spent(vec![(BOB, usable_ct / 2).into()], ct_price);
 			inst.mint_foreign_asset_to(contribution_usdt.clone());
 			inst.execute(|| {
 				assert_ok!(Pallet::<TestRuntime>::community_contribute(
@@ -241,7 +239,7 @@ mod community_contribute_extrinsic {
 
 			// Can use the full evaluation bond
 			let contribution_usdt =
-				MockInstantiator::calculate_contributed_funding_asset_spent(vec![(CARL, usable_ct).into()], ct_price);
+				inst.calculate_contributed_funding_asset_spent(vec![(CARL, usable_ct).into()], ct_price);
 			inst.mint_foreign_asset_to(contribution_usdt.clone());
 			inst.execute(|| {
 				assert_ok!(Pallet::<TestRuntime>::community_contribute(
@@ -281,7 +279,7 @@ mod community_contribute_extrinsic {
 			let slashable_bond = <TestRuntime as Config>::EvaluatorSlash::get() * evaluation_bond;
 			let usable_bond = evaluation_bond - slashable_bond;
 
-			let bids_plmc = MockInstantiator::calculate_auction_plmc_charged_from_all_bids_made_or_with_bucket(
+			let bids_plmc = inst.calculate_auction_plmc_charged_from_all_bids_made_or_with_bucket(
 				&all_bids,
 				project_metadata.clone(),
 				None,
@@ -290,12 +288,11 @@ mod community_contribute_extrinsic {
 			inst.mint_plmc_to(bids_plmc.clone());
 			inst.mint_plmc_to(bids_existential_deposits.clone());
 
-			let bids_foreign =
-				MockInstantiator::calculate_auction_funding_asset_charged_from_all_bids_made_or_with_bucket(
-					&all_bids,
-					project_metadata.clone(),
-					None,
-				);
+			let bids_foreign = inst.calculate_auction_funding_asset_charged_from_all_bids_made_or_with_bucket(
+				&all_bids,
+				project_metadata.clone(),
+				None,
+			);
 			inst.mint_foreign_asset_to(bids_foreign.clone());
 
 			inst.bid_for_users(project_id, bids).unwrap();
@@ -316,8 +313,7 @@ mod community_contribute_extrinsic {
 			let usable_ct = wap.reciprocal().unwrap().saturating_mul_int(usable_usd);
 
 			let bob_contribution = (bob, 1337 * CT_UNIT).into();
-			let contribution_usdt =
-				MockInstantiator::calculate_contributed_funding_asset_spent(vec![bob_contribution], wap);
+			let contribution_usdt = inst.calculate_contributed_funding_asset_spent(vec![bob_contribution], wap);
 			inst.mint_foreign_asset_to(contribution_usdt.clone());
 			inst.execute(|| {
 				assert_ok!(Pallet::<TestRuntime>::community_contribute(
@@ -357,19 +353,17 @@ mod community_contribute_extrinsic {
 
 			let wap = inst.get_project_details(project_id).weighted_average_price.unwrap();
 
-			let plmc_fundings = MockInstantiator::calculate_contributed_plmc_spent(
+			let plmc_fundings = inst.calculate_contributed_plmc_spent(
 				vec![usdt_contribution.clone(), usdc_contribution.clone(), dot_contribution.clone()],
 				wap,
 			);
 			let plmc_existential_deposits = plmc_fundings.accounts().existential_deposits();
 
-			let plmc_all_mints = MockInstantiator::generic_map_operation(
-				vec![plmc_fundings, plmc_existential_deposits],
-				MergeOperation::Add,
-			);
+			let plmc_all_mints =
+				inst.generic_map_operation(vec![plmc_fundings, plmc_existential_deposits], MergeOperation::Add);
 			inst.mint_plmc_to(plmc_all_mints.clone());
 
-			let asset_hub_fundings = MockInstantiator::calculate_contributed_funding_asset_spent(
+			let asset_hub_fundings = inst.calculate_contributed_funding_asset_spent(
 				vec![usdt_contribution.clone(), usdc_contribution.clone(), dot_contribution.clone()],
 				wap,
 			);
@@ -407,11 +401,9 @@ mod community_contribute_extrinsic {
 					asset: AcceptedFundingAsset::USDT,
 				};
 
-				let necessary_plmc =
-					MockInstantiator::calculate_contributed_plmc_spent(vec![contribution.clone()], wap);
+				let necessary_plmc = inst.calculate_contributed_plmc_spent(vec![contribution.clone()], wap);
 				let plmc_existential_amounts = necessary_plmc.accounts().existential_deposits();
-				let necessary_usdt =
-					MockInstantiator::calculate_contributed_funding_asset_spent(vec![contribution.clone()], wap);
+				let necessary_usdt = inst.calculate_contributed_funding_asset_spent(vec![contribution.clone()], wap);
 
 				inst.mint_plmc_to(necessary_plmc.clone());
 				inst.mint_plmc_to(plmc_existential_amounts.clone());
@@ -446,12 +438,9 @@ mod community_contribute_extrinsic {
 				institutional: TicketSize::new(None, None),
 				phantom: Default::default(),
 			};
-			let evaluations = MockInstantiator::generate_successful_evaluations(
-				project_metadata.clone(),
-				default_evaluators(),
-				default_weights(),
-			);
-			let bids = MockInstantiator::generate_bids_from_total_ct_percent(
+			let evaluations =
+				inst.generate_successful_evaluations(project_metadata.clone(), default_evaluators(), default_weights());
+			let bids = inst.generate_bids_from_total_ct_percent(
 				project_metadata.clone(),
 				50,
 				default_weights(),
@@ -588,7 +577,7 @@ mod community_contribute_extrinsic {
 
 			let project_id = inst.create_auctioning_project(project_metadata.clone(), ISSUER_1, default_evaluations());
 
-			let plmc_fundings = MockInstantiator::calculate_auction_plmc_charged_from_all_bids_made_or_with_bucket(
+			let plmc_fundings = inst.calculate_auction_plmc_charged_from_all_bids_made_or_with_bucket(
 				&all_bids.clone(),
 				project_metadata.clone(),
 				None,
@@ -597,12 +586,11 @@ mod community_contribute_extrinsic {
 			inst.mint_plmc_to(plmc_fundings.clone());
 			inst.mint_plmc_to(plmc_existential_deposits.clone());
 
-			let foreign_funding =
-				MockInstantiator::calculate_auction_funding_asset_charged_from_all_bids_made_or_with_bucket(
-					&all_bids.clone(),
-					project_metadata.clone(),
-					None,
-				);
+			let foreign_funding = inst.calculate_auction_funding_asset_charged_from_all_bids_made_or_with_bucket(
+				&all_bids.clone(),
+				project_metadata.clone(),
+				None,
+			);
 			inst.mint_foreign_asset_to(foreign_funding.clone());
 
 			inst.bid_for_users(project_id, failing_bids_sold_out).unwrap();
@@ -724,11 +712,10 @@ mod community_contribute_extrinsic {
 				.map(|_| ContributionParams::new(CONTRIBUTOR, token_amount, 1u8, AcceptedFundingAsset::USDT))
 				.collect();
 
-			let plmc_funding = MockInstantiator::calculate_contributed_plmc_spent(contributions.clone(), token_price);
+			let plmc_funding = inst.calculate_contributed_plmc_spent(contributions.clone(), token_price);
 			let plmc_existential_deposits = plmc_funding.accounts().existential_deposits();
 
-			let foreign_funding =
-				MockInstantiator::calculate_contributed_funding_asset_spent(contributions.clone(), token_price);
+			let foreign_funding = inst.calculate_contributed_funding_asset_spent(contributions.clone(), token_price);
 
 			inst.mint_plmc_to(plmc_funding.clone());
 			inst.mint_plmc_to(plmc_existential_deposits.clone());
@@ -753,7 +740,7 @@ mod community_contribute_extrinsic {
 				)
 			});
 
-			assert_eq!(contributor_post_buy_plmc_balance, MockInstantiator::get_ed());
+			assert_eq!(contributor_post_buy_plmc_balance, inst.get_ed());
 			assert_eq!(contributor_post_buy_foreign_asset_balance, 0);
 
 			let plmc_bond_stored = inst.execute(|| {
@@ -768,11 +755,8 @@ mod community_contribute_extrinsic {
 					.sum::<BalanceOf<TestRuntime>>()
 			});
 
-			assert_eq!(plmc_bond_stored, MockInstantiator::sum_balance_mappings(vec![plmc_funding.clone()]));
-			assert_eq!(
-				foreign_asset_contributions_stored,
-				MockInstantiator::sum_foreign_mappings(vec![foreign_funding.clone()])
-			);
+			assert_eq!(plmc_bond_stored, inst.sum_balance_mappings(vec![plmc_funding.clone()]));
+			assert_eq!(foreign_asset_contributions_stored, inst.sum_foreign_mappings(vec![foreign_funding.clone()]));
 		}
 
 		#[test]
@@ -1162,14 +1146,13 @@ mod community_contribute_extrinsic {
 			let wap = inst.get_project_details(project_id).weighted_average_price.unwrap();
 
 			// 1 unit less native asset than needed
-			let plmc_funding = MockInstantiator::calculate_contributed_plmc_spent(vec![contribution.clone()], wap);
+			let plmc_funding = inst.calculate_contributed_plmc_spent(vec![contribution.clone()], wap);
 			let plmc_existential_deposits = plmc_funding.accounts().existential_deposits();
 			inst.mint_plmc_to(plmc_funding.clone());
 			inst.mint_plmc_to(plmc_existential_deposits.clone());
 			inst.execute(|| Balances::burn_from(&BUYER_1, 1, Precision::BestEffort, Fortitude::Force)).unwrap();
 
-			let foreign_funding =
-				MockInstantiator::calculate_contributed_funding_asset_spent(vec![contribution.clone()], wap);
+			let foreign_funding = inst.calculate_contributed_funding_asset_spent(vec![contribution.clone()], wap);
 			inst.mint_foreign_asset_to(foreign_funding.clone());
 			inst.execute(|| {
 				assert_noop!(
@@ -1186,12 +1169,11 @@ mod community_contribute_extrinsic {
 			});
 
 			// 1 unit less funding asset than needed
-			let plmc_funding = MockInstantiator::calculate_contributed_plmc_spent(vec![contribution.clone()], wap);
+			let plmc_funding = inst.calculate_contributed_plmc_spent(vec![contribution.clone()], wap);
 			let plmc_existential_deposits = plmc_funding.accounts().existential_deposits();
 			inst.mint_plmc_to(plmc_funding.clone());
 			inst.mint_plmc_to(plmc_existential_deposits.clone());
-			let foreign_funding =
-				MockInstantiator::calculate_contributed_funding_asset_spent(vec![contribution.clone()], wap);
+			let foreign_funding = inst.calculate_contributed_funding_asset_spent(vec![contribution.clone()], wap);
 
 			inst.execute(|| ForeignAssets::set_balance(AcceptedFundingAsset::USDT.to_assethub_id(), &BUYER_1, 0));
 			inst.mint_foreign_asset_to(foreign_funding.clone());
@@ -1373,17 +1355,14 @@ mod community_contribute_extrinsic {
 
 			// Necessary Mints
 			let already_bonded_plmc =
-				MockInstantiator::calculate_evaluation_plmc_spent(vec![
-					(evaluator_contributor, evaluation_amount).into()
-				])[0]
+				inst.calculate_evaluation_plmc_spent(vec![(evaluator_contributor, evaluation_amount).into()])[0]
 					.plmc_amount;
 			let usable_evaluation_plmc =
 				already_bonded_plmc - <TestRuntime as Config>::EvaluatorSlash::get() * already_bonded_plmc;
 			let necessary_plmc_for_contribution =
-				MockInstantiator::calculate_contributed_plmc_spent(vec![evaluator_contribution.clone()], wap)[0]
-					.plmc_amount;
+				inst.calculate_contributed_plmc_spent(vec![evaluator_contribution.clone()], wap)[0].plmc_amount;
 			let necessary_usdt_for_contribution =
-				MockInstantiator::calculate_contributed_funding_asset_spent(vec![evaluator_contribution.clone()], wap);
+				inst.calculate_contributed_funding_asset_spent(vec![evaluator_contribution.clone()], wap);
 			inst.mint_plmc_to(vec![UserToPLMCBalance::new(
 				evaluator_contributor,
 				necessary_plmc_for_contribution - usable_evaluation_plmc,

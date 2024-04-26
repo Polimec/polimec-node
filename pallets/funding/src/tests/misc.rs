@@ -65,6 +65,7 @@ mod helper_functions {
 
 	#[test]
 	fn calculate_evaluation_plmc_spent() {
+		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		const EVALUATOR_1: AccountIdOf<TestRuntime> = 1u32;
 		const USD_AMOUNT_1: u128 = 150_000_0_000_000_000_u128;
 		const EXPECTED_PLMC_AMOUNT_1: u128 = 17_857_1_428_571_428_u128;
@@ -108,7 +109,7 @@ mod helper_functions {
 			UserToPLMCBalance::new(EVALUATOR_5, EXPECTED_PLMC_AMOUNT_5),
 		];
 
-		let result = MockInstantiator::calculate_evaluation_plmc_spent(evaluations);
+		let result = inst.calculate_evaluation_plmc_spent(evaluations);
 		assert_eq!(result, expected_plmc_spent);
 	}
 
@@ -184,7 +185,7 @@ mod helper_functions {
 		];
 
 		let mut returned_plmc_mappings =
-			MockInstantiator::calculate_auction_plmc_returned_from_all_bids_made(&bids, project_metadata.clone(), wap);
+			inst.calculate_auction_plmc_returned_from_all_bids_made(&bids, project_metadata.clone(), wap);
 		returned_plmc_mappings.sort_by(|b1, b2| b1.account.cmp(&b2.account));
 
 		let returned_plmc_balances = returned_plmc_mappings.into_iter().map(|map| map.plmc_amount).collect_vec();
@@ -196,6 +197,7 @@ mod helper_functions {
 
 	#[test]
 	fn calculate_contributed_plmc_spent() {
+		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		const PLMC_PRICE: f64 = 8.4f64;
 		const CT_PRICE: f64 = 16.32f64;
 
@@ -250,10 +252,7 @@ mod helper_functions {
 			UserToPLMCBalance::new(CONTRIBUTOR_5, EXPECTED_PLMC_AMOUNT_5),
 		];
 
-		let result = MockInstantiator::calculate_contributed_plmc_spent(
-			contributions,
-			PriceOf::<TestRuntime>::from_float(CT_PRICE),
-		);
+		let result = inst.calculate_contributed_plmc_spent(contributions, PriceOf::<TestRuntime>::from_float(CT_PRICE));
 		assert_eq!(result, expected_plmc_spent);
 	}
 }
@@ -383,6 +382,8 @@ mod async_tests {
 	#[test]
 	fn genesis_parallel_instantiaton() {
 		let mut t = frame_system::GenesisConfig::<TestRuntime>::default().build_storage().unwrap();
+		// only used to generate some values, and not for chain interactions
+		let inst = MockInstantiator::new(None);
 
 		// only used to generate some values, and not for chain interactions
 		let funding_percent = 93u64;
@@ -391,21 +392,21 @@ mod async_tests {
 		let twenty_percent_funding_usd = Perquintill::from_percent(funding_percent) *
 			(project_metadata.minimum_price.checked_mul_int(project_metadata.total_allocation_size).unwrap());
 		let evaluations = default_evaluations();
-		let bids = MockInstantiator::generate_bids_from_total_usd(
+		let bids = inst.generate_bids_from_total_usd(
 			Percent::from_percent(50u8) * twenty_percent_funding_usd,
 			min_price,
 			default_weights(),
 			default_bidders(),
 			default_bidder_multipliers(),
 		);
-		let community_contributions = MockInstantiator::generate_contributions_from_total_usd(
+		let community_contributions = inst.generate_contributions_from_total_usd(
 			Percent::from_percent(30u8) * twenty_percent_funding_usd,
 			min_price,
 			default_weights(),
 			default_community_contributors(),
 			default_community_contributor_multipliers(),
 		);
-		let remainder_contributions = MockInstantiator::generate_contributions_from_total_usd(
+		let remainder_contributions = inst.generate_contributions_from_total_usd(
 			Percent::from_percent(20u8) * twenty_percent_funding_usd,
 			min_price,
 			default_weights(),
@@ -597,7 +598,7 @@ mod bug_hunting {
 		let max_insertion_attempts: u32 = <TestRuntime as Config>::MaxProjectsToUpdateInsertionAttempts::get();
 
 		let project_id = inst.create_evaluating_project(default_project_metadata(ISSUER_1), ISSUER_1);
-		let plmc_balances = MockInstantiator::calculate_evaluation_plmc_spent(default_evaluations());
+		let plmc_balances = inst.calculate_evaluation_plmc_spent(default_evaluations());
 		let ed = plmc_balances.accounts().existential_deposits();
 		inst.mint_plmc_to(plmc_balances);
 		inst.mint_plmc_to(ed);
