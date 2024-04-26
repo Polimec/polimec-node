@@ -182,7 +182,7 @@ pub mod storage_types {
 		pub total_allocation_size: Balance,
 		/// Percentage of the total allocation of Contribution Tokens available for the Auction Round
 		pub auction_round_allocation_percentage: Percent,
-		/// Minimum price per Contribution Tokens
+		/// The minimum price per token in USD, decimal-aware. See [`calculate_decimals_aware_price()`](crate::traits::ProvideAssetPrice::calculate_decimals_aware_price) for more information.
 		pub minimum_price: Price,
 		/// Maximum and minimum ticket sizes for auction round
 		pub bidding_ticket_sizes: BiddingTicketSizes<Price, Balance>,
@@ -285,7 +285,7 @@ pub mod storage_types {
 		/// When the different project phases start and end
 		pub phase_transition_points: PhaseTransitionPoints<BlockNumber>,
 		/// Fundraising target amount in USD equivalent
-		pub fundraising_target: Balance,
+		pub fundraising_target_usd: Balance,
 		/// The amount of Contribution Tokens that have not yet been sold
 		pub remaining_contribution_tokens: Balance,
 		/// Funding reached amount in USD equivalent

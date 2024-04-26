@@ -32,7 +32,6 @@ use frame_support::{
 use pallet::Pallet as PalletFunding;
 use parity_scale_codec::{Decode, Encode};
 use polimec_common::credentials::InvestorType;
-use polimec_common_test_utils::get_mock_jwt;
 use scale_info::prelude::format;
 use sp_arithmetic::Percent;
 use sp_core::H256;
@@ -1921,7 +1920,7 @@ mod benchmarks {
 		let project_details = inst.get_project_details(project_id);
 
 		let evaluation_usd_target =
-			<T as Config>::EvaluationSuccessThreshold::get() * project_details.fundraising_target;
+			<T as Config>::EvaluationSuccessThreshold::get() * project_details.fundraising_target_usd;
 		// we only fund 50% of the minimum threshold for the evaluation round, since we want it to fail
 		let evaluations = vec![
 			UserToUSDBalance::new(

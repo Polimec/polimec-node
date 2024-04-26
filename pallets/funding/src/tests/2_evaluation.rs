@@ -189,7 +189,7 @@ mod start_evaluation_extrinsic {
 					community: BlockNumberPair { start: None, end: None },
 					remainder: BlockNumberPair { start: None, end: None },
 				},
-				fundraising_target: project_metadata
+				fundraising_target_usd: project_metadata
 					.minimum_price
 					.saturating_mul_int(project_metadata.total_allocation_size),
 				remaining_contribution_tokens: project_metadata.total_allocation_size,

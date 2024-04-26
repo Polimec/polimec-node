@@ -23,7 +23,7 @@ use sp_std::{cell::RefCell, marker::PhantomData};
 use std::iter::zip;
 type MockInstantiator =
 	Instantiator<TestRuntime, <TestRuntime as crate::Config>::AllPalletsWithoutSystem, RuntimeEvent>;
-
+const US_DOLLAR: u128 = 1_0_000_000_000;
 const IPFS_CID: &str = "QmeuJ24ffwLAZppQcgcggJs3n689bewednYkuc8Bx5Gngz";
 const ASSET_DECIMALS: u8 = 10;
 const ISSUER_1: AccountId = 11;

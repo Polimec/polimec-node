@@ -3,20 +3,27 @@ use super::*;
 // check that functions created to facilitate testing return the expected results
 mod helper_functions {
 	use super::*;
+	use polimec_common::USD_DECIMALS;
 
 	#[test]
 	fn test_usd_price_decimal_aware() {
 		let submitted_price = FixedU128::from_float(1.85);
 		let asset_decimals = 4;
 		let expected_price = FixedU128::from_float(185.0);
-
-		assert_eq!(PolimecFunding::usd_price_decimal_aware(submitted_price, asset_decimals).unwrap(), expected_price);
+		type PriceProvider = <TestRuntime as Config>::PriceProvider;
+		assert_eq!(
+			PriceProvider::calculate_decimals_aware_price(submitted_price, USD_DECIMALS, asset_decimals).unwrap(),
+			expected_price
+		);
 
 		let submitted_price = FixedU128::from_float(1.0);
 		let asset_decimals = 12;
 		let expected_price = FixedU128::from_float(0.000001);
 
-		assert_eq!(PolimecFunding::usd_price_decimal_aware(submitted_price, asset_decimals).unwrap(), expected_price);
+		assert_eq!(
+			PriceProvider::calculate_decimals_aware_price(submitted_price, USD_DECIMALS, asset_decimals).unwrap(),
+			expected_price
+		);
 	}
 
 	#[test]

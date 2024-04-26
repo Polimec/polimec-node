@@ -161,7 +161,7 @@ impl<T: Config> Pallet<T> {
 			.evaluation
 			.end()
 			.ok_or(Error::<T>::ProjectRoundError(RoundError::TransitionPointNotSet))?;
-		let fundraising_target_usd = project_details.fundraising_target;
+		let fundraising_target_usd = project_details.fundraising_target_usd;
 
 		// * Validity checks *
 		ensure!(
@@ -808,15 +808,17 @@ impl<T: Config> Pallet<T> {
 		let total_allocation_size = project_metadata.total_allocation_size;
 
 		// * Calculate new variables *
+		let now = <frame_system::Pallet<T>>::block_number();
+
 		let fundraising_target =
 			project_metadata.minimum_price.checked_mul_int(total_allocation_size).ok_or(Error::<T>::BadMath)?;
-		let now = <frame_system::Pallet<T>>::block_number();
+
 		let project_details = ProjectDetails {
 			issuer_account: issuer.clone(),
 			issuer_did: did.clone(),
 			is_frozen: false,
 			weighted_average_price: None,
-			fundraising_target,
+			fundraising_target_usd: fundraising_target,
 			status: ProjectStatus::Application,
 			phase_transition_points: PhaseTransitionPoints::new(now),
 			remaining_contribution_tokens: project_metadata.total_allocation_size,
@@ -835,12 +837,7 @@ impl<T: Config> Pallet<T> {
 			},
 		};
 
-		project_metadata.minimum_price = T::PriceProvider::calculate_decimals_aware_price(
-			project_metadata.minimum_price,
-			USD_DECIMALS,
-			project_metadata.token_information.decimals,
-		)
-		.ok_or(Error::<T>::BadMath)?;
+
 
 		let bucket: BucketOf<T> = Self::create_bucket_from_metadata(&project_metadata)?;
 
@@ -988,7 +985,7 @@ impl<T: Config> Pallet<T> {
 		let plmc_usd_price = T::PriceProvider::get_decimals_aware_price(PLMC_FOREIGN_ID, USD_DECIMALS, PLMC_DECIMALS)
 			.ok_or(Error::<T>::PriceNotFound)?;
 		let early_evaluation_reward_threshold_usd =
-			T::EvaluationSuccessThreshold::get() * project_details.fundraising_target;
+			T::EvaluationSuccessThreshold::get() * project_details.fundraising_target_usd;
 		let evaluation_round_info = &mut project_details.evaluation_round_info;
 		let total_evaluations_count = EvaluationCounts::<T>::get(project_id);
 		let user_evaluations_count = Evaluations::<T>::iter_prefix((project_id, evaluator)).count() as u32;
@@ -2418,7 +2415,7 @@ impl<T: Config> Pallet<T> {
 
 		// Determine how much funding has been achieved.
 		let funding_amount_reached = project_details.funding_amount_reached;
-		let fundraising_target = project_details.fundraising_target;
+		let fundraising_target = project_details.fundraising_target_usd;
 		let total_issuer_fees = Self::calculate_fees(funding_amount_reached);
 
 		let initial_token_allocation_size = project_metadata.total_allocation_size;
@@ -2476,7 +2473,7 @@ impl<T: Config> Pallet<T> {
 
 		// Determine how much funding has been achieved.
 		let funding_amount_reached = project_details.funding_amount_reached;
-		let fundraising_target = project_details.fundraising_target;
+		let fundraising_target = project_details.fundraising_target_usd;
 		let total_issuer_fees = Self::calculate_fees(funding_amount_reached);
 
 		let initial_token_allocation_size = project_metadata.total_allocation_size;
