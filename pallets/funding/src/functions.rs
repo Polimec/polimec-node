@@ -837,8 +837,6 @@ impl<T: Config> Pallet<T> {
 			},
 		};
 
-
-
 		let bucket: BucketOf<T> = Self::create_bucket_from_metadata(&project_metadata)?;
 
 		Ok((project_metadata, project_details, bucket))

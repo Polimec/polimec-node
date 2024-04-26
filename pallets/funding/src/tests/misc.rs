@@ -27,6 +27,43 @@ mod helper_functions {
 	}
 
 	#[test]
+	fn test_convert_from_decimal_aware_back_to_normal() {
+		// Test with an asset with less decimals than USD
+		let original_price = FixedU128::from_float(1.85);
+		let asset_decimals = 4;
+		let decimal_aware = <TestRuntime as Config>::PriceProvider::calculate_decimals_aware_price(
+			original_price,
+			USD_DECIMALS,
+			asset_decimals,
+		)
+		.unwrap();
+		let converted_back = <TestRuntime as Config>::PriceProvider::convert_back_to_normal_price(
+			decimal_aware,
+			USD_DECIMALS,
+			asset_decimals,
+		)
+		.unwrap();
+		assert_eq!(converted_back, original_price);
+
+		// Test with an asset with more decimals than USD
+		let original_price = FixedU128::from_float(1.85);
+		let asset_decimals = 12;
+		let decimal_aware = <TestRuntime as Config>::PriceProvider::calculate_decimals_aware_price(
+			original_price,
+			USD_DECIMALS,
+			asset_decimals,
+		)
+		.unwrap();
+		let converted_back = <TestRuntime as Config>::PriceProvider::convert_back_to_normal_price(
+			decimal_aware,
+			USD_DECIMALS,
+			asset_decimals,
+		)
+		.unwrap();
+		assert_eq!(converted_back, original_price);
+	}
+
+	#[test]
 	fn calculate_evaluation_plmc_spent() {
 		const EVALUATOR_1: AccountIdOf<TestRuntime> = 1u32;
 		const USD_AMOUNT_1: u128 = 150_000_0_000_000_000_u128;
