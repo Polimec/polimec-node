@@ -495,7 +495,21 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
 					10,
 				),
 			],
-			metadata: vec![],
+			metadata: vec![
+				(
+					AcceptedFundingAsset::USDT.to_assethub_id(),
+					"USDT".as_bytes().to_vec(),
+					"USDT".as_bytes().to_vec(),
+					6,
+				),
+				(
+					AcceptedFundingAsset::USDC.to_assethub_id(),
+					"USDC".as_bytes().to_vec(),
+					"USDC".as_bytes().to_vec(),
+					6,
+				),
+				(AcceptedFundingAsset::DOT.to_assethub_id(), "DOT".as_bytes().to_vec(), "DOT".as_bytes().to_vec(), 10),
+			],
 			accounts: vec![],
 		},
 		..Default::default()
