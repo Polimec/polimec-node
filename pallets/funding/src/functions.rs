@@ -24,7 +24,7 @@ use frame_support::{
 	ensure,
 	pallet_prelude::*,
 	traits::{
-		fungible::{Mutate, MutateHold as FungibleMutateHold},
+		fungible::{Inspect, InspectHold, Mutate, MutateHold as FungibleMutateHold},
 		fungibles::{
 			metadata::{Inspect as MetadataInspect, Mutate as MetadataMutate},
 			Create, Inspect as FungibleInspect, Mutate as FungiblesMutate,

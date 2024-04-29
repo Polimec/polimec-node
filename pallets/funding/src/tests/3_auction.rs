@@ -7,6 +7,7 @@ mod round_flow {
 	#[cfg(test)]
 	mod success {
 		use super::*;
+		use frame_support::traits::fungibles::metadata::Inspect;
 		use sp_core::bounded_vec;
 		use std::ops::Not;
 
@@ -476,10 +477,12 @@ mod round_flow {
 
 			let usdt_fundings = accounts
 				.iter()
-				.map(|acc| UserToForeignAssets {
-					account: acc.clone(),
-					asset_amount: USDT_UNIT * 1_000_000,
-					asset_id: fundings.next().unwrap().to_assethub_id(),
+				.map(|acc| {
+					let accepted_asset = fundings.next().unwrap();
+					let asset_id = accepted_asset.to_assethub_id();
+					let asset_decimals = inst.execute(|| <TestRuntime as Config>::FundingCurrency::decimals(asset_id));
+					let asset_unit = 10u128.checked_pow(asset_decimals.into()).unwrap();
+					UserToForeignAssets { account: acc.clone(), asset_amount: asset_unit * 1_000_000, asset_id }
 				})
 				.collect_vec();
 			inst.mint_plmc_to(plmc_fundings);

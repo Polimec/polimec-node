@@ -182,19 +182,23 @@ mod community_contribute_extrinsic {
 				evaluations,
 				default_bids(),
 			);
-
-			let evaluation_bond =
-				inst.execute(|| Balances::balance_on_hold(&HoldReason::Evaluation(project_id).into(), &BOB));
-			let slashable_bond = <TestRuntime as Config>::EvaluatorSlash::get() * evaluation_bond;
-			let usable_bond = evaluation_bond - slashable_bond;
-
-			let plmc_price = <TestRuntime as Config>::PriceProvider::get_price(PLMC_FOREIGN_ID).unwrap();
 			let ct_price = inst.get_project_details(project_id).weighted_average_price.unwrap();
+			let plmc_price = <TestRuntime as Config>::PriceProvider::get_decimals_aware_price(
+				PLMC_FOREIGN_ID,
+				USD_DECIMALS,
+				PLMC_DECIMALS,
+			)
+			.unwrap();
 
-			let usable_usd = plmc_price.saturating_mul_int(usable_bond);
+			let evaluation_plmc_bond =
+				inst.execute(|| Balances::balance_on_hold(&HoldReason::Evaluation(project_id).into(), &BOB));
+			let slashable_plmc = <TestRuntime as Config>::EvaluatorSlash::get() * evaluation_plmc_bond;
+			let usable_plmc = evaluation_plmc_bond - slashable_plmc;
+
+			let usable_usd = plmc_price.checked_mul_int(usable_plmc).unwrap();
+			let slashable_usd = plmc_price.checked_mul_int(slashable_plmc).unwrap();
+
 			let usable_ct = ct_price.reciprocal().unwrap().saturating_mul_int(usable_usd);
-
-			let slashable_usd = plmc_price.saturating_mul_int(slashable_bond);
 			let slashable_ct = ct_price.reciprocal().unwrap().saturating_mul_int(slashable_usd);
 
 			// Can't contribute with only the evaluation bond
@@ -274,10 +278,10 @@ mod community_contribute_extrinsic {
 
 			let project_id = inst.create_auctioning_project(default_project_metadata(ISSUER_2), ISSUER_2, evaluations);
 
-			let evaluation_bond =
+			let evaluation_plmc_bond =
 				inst.execute(|| Balances::balance_on_hold(&HoldReason::Evaluation(project_id).into(), &bob));
-			let slashable_bond = <TestRuntime as Config>::EvaluatorSlash::get() * evaluation_bond;
-			let usable_bond = evaluation_bond - slashable_bond;
+			let slashable_plmc_bond = <TestRuntime as Config>::EvaluatorSlash::get() * evaluation_plmc_bond;
+			let usable_plmc_bond = evaluation_plmc_bond - slashable_plmc_bond;
 
 			let bids_plmc = inst.calculate_auction_plmc_charged_from_all_bids_made_or_with_bucket(
 				&all_bids,
@@ -306,10 +310,15 @@ mod community_contribute_extrinsic {
 			inst.start_community_funding(project_id).unwrap();
 			assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::CommunityRound);
 
-			let plmc_price = <TestRuntime as Config>::PriceProvider::get_price(PLMC_FOREIGN_ID).unwrap();
+			let plmc_price = <TestRuntime as Config>::PriceProvider::get_decimals_aware_price(
+				PLMC_FOREIGN_ID,
+				USD_DECIMALS,
+				PLMC_DECIMALS,
+			)
+			.unwrap();
 			let wap = inst.get_project_details(project_id).weighted_average_price.unwrap();
 
-			let usable_usd = plmc_price.saturating_mul_int(usable_bond);
+			let usable_usd = plmc_price.saturating_mul_int(usable_plmc_bond);
 			let usable_ct = wap.reciprocal().unwrap().saturating_mul_int(usable_usd);
 
 			let bob_contribution = (bob, 1337 * CT_UNIT).into();
