@@ -681,7 +681,12 @@ mod remaining_contribute_extrinsic {
 				mainnet_token_max_supply: 8_000_000 * CT_UNIT,
 				total_allocation_size: 1_000_000 * CT_UNIT,
 				auction_round_allocation_percentage: Percent::from_percent(50u8),
-				minimum_price: PriceOf::<TestRuntime>::from_float(10.0),
+				minimum_price: PriceProviderOf::<TestRuntime>::calculate_decimals_aware_price(
+					PriceOf::<TestRuntime>::from_float(10.0),
+					USD_DECIMALS,
+					CT_DECIMALS,
+				)
+				.unwrap(),
 				bidding_ticket_sizes: BiddingTicketSizes {
 					professional: TicketSize::new(Some(8000 * USD_UNIT), None),
 					institutional: TicketSize::new(Some(20_000 * USD_UNIT), None),
@@ -707,15 +712,15 @@ mod remaining_contribute_extrinsic {
 			);
 
 			inst.mint_plmc_to(vec![
-				(BUYER_4, 50_000 * CT_UNIT).into(),
-				(BUYER_5, 50_000 * CT_UNIT).into(),
-				(BUYER_6, 50_000 * CT_UNIT).into(),
+				(BUYER_4, 50_000 * PLMC).into(),
+				(BUYER_5, 50_000 * PLMC).into(),
+				(BUYER_6, 50_000 * PLMC).into(),
 			]);
 
 			inst.mint_foreign_asset_to(vec![
-				(BUYER_4, 50_000 * USD_UNIT).into(),
-				(BUYER_5, 50_000 * USD_UNIT).into(),
-				(BUYER_6, 50_000 * USD_UNIT).into(),
+				(BUYER_4, 50_000 * USDT_UNIT).into(),
+				(BUYER_5, 50_000 * USDT_UNIT).into(),
+				(BUYER_6, 50_000 * USDT_UNIT).into(),
 			]);
 
 			// contribution below 1 CT (10 USD) should fail for retail
@@ -789,7 +794,12 @@ mod remaining_contribute_extrinsic {
 				mainnet_token_max_supply: 8_000_000 * CT_UNIT,
 				total_allocation_size: 1_000_000 * CT_UNIT,
 				auction_round_allocation_percentage: Percent::from_percent(50u8),
-				minimum_price: PriceOf::<TestRuntime>::from_float(10.0),
+				minimum_price: PriceProviderOf::<TestRuntime>::calculate_decimals_aware_price(
+					PriceOf::<TestRuntime>::from_float(10.0),
+					USD_DECIMALS,
+					CT_DECIMALS,
+				)
+				.unwrap(),
 				bidding_ticket_sizes: BiddingTicketSizes {
 					professional: TicketSize::new(Some(5000 * USD_UNIT), None),
 					institutional: TicketSize::new(Some(5000 * USD_UNIT), None),
@@ -815,21 +825,21 @@ mod remaining_contribute_extrinsic {
 			);
 
 			inst.mint_plmc_to(vec![
-				(BUYER_4, 500_000 * CT_UNIT).into(),
-				(BUYER_5, 500_000 * CT_UNIT).into(),
-				(BUYER_6, 500_000 * CT_UNIT).into(),
-				(BUYER_7, 500_000 * CT_UNIT).into(),
-				(BUYER_8, 500_000 * CT_UNIT).into(),
-				(BUYER_9, 500_000 * CT_UNIT).into(),
+				(BUYER_4, 500_000 * PLMC).into(),
+				(BUYER_5, 500_000 * PLMC).into(),
+				(BUYER_6, 500_000 * PLMC).into(),
+				(BUYER_7, 500_000 * PLMC).into(),
+				(BUYER_8, 500_000 * PLMC).into(),
+				(BUYER_9, 500_000 * PLMC).into(),
 			]);
 
 			inst.mint_foreign_asset_to(vec![
-				(BUYER_4, 500_000 * USD_UNIT).into(),
-				(BUYER_5, 500_000 * USD_UNIT).into(),
-				(BUYER_6, 500_000 * USD_UNIT).into(),
-				(BUYER_7, 500_000 * USD_UNIT).into(),
-				(BUYER_8, 500_000 * USD_UNIT).into(),
-				(BUYER_9, 500_000 * USD_UNIT).into(),
+				(BUYER_4, 500_000 * USDT_UNIT).into(),
+				(BUYER_5, 500_000 * USDT_UNIT).into(),
+				(BUYER_6, 500_000 * USDT_UNIT).into(),
+				(BUYER_7, 500_000 * USDT_UNIT).into(),
+				(BUYER_8, 500_000 * USDT_UNIT).into(),
+				(BUYER_9, 500_000 * USDT_UNIT).into(),
 			]);
 
 			// total contributions with same DID above 30k CT (300k USD) should fail for retail
