@@ -310,14 +310,14 @@ pub mod defaults {
 		let usd_to_reach = Perquintill::from_percent(percent) *
 			(project_metadata.minimum_price.checked_mul_int(project_metadata.total_allocation_size).unwrap());
 		let evaluations = default_evaluations();
-		let bids = MockInstantiator::generate_bids_from_total_usd(
+		let bids = instantiator.generate_bids_from_total_usd(
 			Percent::from_percent(50u8) * usd_to_reach,
 			min_price,
 			default_weights(),
 			default_bidders(),
 			default_multipliers(),
 		);
-		let contributions = MockInstantiator::generate_contributions_from_total_usd(
+		let contributions = instantiator.generate_contributions_from_total_usd(
 			Percent::from_percent(50u8) * usd_to_reach,
 			min_price,
 			default_weights(),
@@ -328,8 +328,10 @@ pub mod defaults {
 	}
 
 	pub fn default_bids_from_ct_percent(percent: u8) -> Vec<BidParams<TestRuntime>> {
+		// Used only to generate values, not for chain interactions
+		let inst = MockInstantiator::new(None);
 		let project_metadata = default_project_metadata(ISSUER_1);
-		MockInstantiator::generate_bids_from_total_ct_percent(
+		inst.generate_bids_from_total_ct_percent(
 			project_metadata,
 			percent,
 			default_weights(),
@@ -339,8 +341,10 @@ pub mod defaults {
 	}
 
 	pub fn default_community_contributions_from_ct_percent(percent: u8) -> Vec<ContributionParams<TestRuntime>> {
+		// Used only to generate values, not for chain interactions
+		let inst = MockInstantiator::new(None);
 		let project_metadata = default_project_metadata(ISSUER_1);
-		MockInstantiator::generate_contributions_from_total_ct_percent(
+		inst.generate_contributions_from_total_ct_percent(
 			project_metadata,
 			percent,
 			default_weights(),
@@ -350,8 +354,10 @@ pub mod defaults {
 	}
 
 	pub fn default_remainder_contributions_from_ct_percent(percent: u8) -> Vec<ContributionParams<TestRuntime>> {
+		// Used only to generate values, not for chain interactions
+		let inst = MockInstantiator::new(None);
 		let project_metadata = default_project_metadata(ISSUER_1);
-		MockInstantiator::generate_contributions_from_total_ct_percent(
+		inst.generate_contributions_from_total_ct_percent(
 			project_metadata,
 			percent,
 			default_weights(),
@@ -371,14 +377,14 @@ pub fn create_project_with_funding_percentage(
 	let percentage_funded_usd = Perquintill::from_percent(percentage) *
 		(project_metadata.minimum_price.checked_mul_int(project_metadata.total_allocation_size).unwrap());
 	let evaluations = default_evaluations();
-	let bids = MockInstantiator::generate_bids_from_total_usd(
+	let bids = inst.generate_bids_from_total_usd(
 		Percent::from_percent(50u8) * percentage_funded_usd,
 		min_price,
 		default_weights(),
 		default_bidders(),
 		default_multipliers(),
 	);
-	let contributions = MockInstantiator::generate_contributions_from_total_usd(
+	let contributions = inst.generate_contributions_from_total_usd(
 		Percent::from_percent(50u8) * percentage_funded_usd,
 		min_price,
 		default_weights(),

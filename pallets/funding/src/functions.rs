@@ -2044,7 +2044,6 @@ impl<T: Config> Pallet<T> {
 		multiplier: MultiplierOf<T>,
 		bonded_amount: BalanceOf<T>,
 	) -> Result<VestingInfo<BlockNumberFor<T>, BalanceOf<T>>, DispatchError> {
-		// TODO: duration should depend on `_multiplier` and `_caller` credential
 		let duration: BlockNumberFor<T> = multiplier.calculate_vesting_duration::<T>();
 		let duration_as_balance = T::BlockNumberToBalance::convert(duration);
 		let amount_per_block = if duration_as_balance == Zero::zero() {

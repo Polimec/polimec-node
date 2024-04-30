@@ -130,8 +130,9 @@ where
 	let auction_funding_target = default_project_metadata.minimum_price.saturating_mul_int(
 		default_project_metadata.auction_round_allocation_percentage * default_project_metadata.total_allocation_size,
 	);
+	let inst = BenchInstantiator::<T>::new(None);
 
-	BenchInstantiator::generate_bids_from_total_usd(
+	inst.generate_bids_from_total_usd(
 		Percent::from_percent(95) * auction_funding_target,
 		10u128.into(),
 		default_weights(),
@@ -147,10 +148,11 @@ where
 	<T as Config>::Balance: From<u128>,
 	T::Hash: From<H256>,
 {
+	let inst = BenchInstantiator::<T>::new(None);
 	let default_project = default_project::<T>(account::<AccountIdOf<T>>("issuer", 0, 0));
 	let total_ct_for_bids = default_project.auction_round_allocation_percentage * default_project.total_allocation_size;
 	let total_usd_for_bids = default_project.minimum_price.checked_mul_int(total_ct_for_bids).unwrap();
-	BenchInstantiator::<T>::generate_bids_from_total_usd(
+	inst.generate_bids_from_total_usd(
 		total_usd_for_bids,
 		default_project.minimum_price,
 		default_weights(),
@@ -165,6 +167,7 @@ where
 	<T as Config>::Balance: From<u128>,
 	T::Hash: From<H256>,
 {
+	let inst = BenchInstantiator::<T>::new(None);
 	let default_project_metadata = default_project::<T>(account::<AccountIdOf<T>>("issuer", 0, 0));
 
 	let funding_target =
@@ -175,7 +178,7 @@ where
 
 	let contributing_funding_target = funding_target - auction_funding_target;
 
-	BenchInstantiator::generate_contributions_from_total_usd(
+	inst.generate_contributions_from_total_usd(
 		Percent::from_percent(85) * contributing_funding_target,
 		10u128.into(),
 		default_weights(),
@@ -190,6 +193,7 @@ where
 	<T as Config>::Balance: From<u128>,
 	T::Hash: From<H256>,
 {
+	let inst = BenchInstantiator::<T>::new(None);
 	let default_project_metadata = default_project::<T>(account::<AccountIdOf<T>>("issuer", 0, 0));
 
 	let funding_target =
@@ -200,7 +204,7 @@ where
 
 	let contributing_funding_target = funding_target - auction_funding_target;
 
-	BenchInstantiator::generate_contributions_from_total_usd(
+	inst.generate_contributions_from_total_usd(
 		Percent::from_percent(15) * contributing_funding_target,
 		10u128.into(),
 		default_weights(),
@@ -342,14 +346,14 @@ pub fn run_blocks_to_execute_next_transition<T: Config>(
 }
 
 #[benchmarks(
-	where
-	T: Config + frame_system::Config<RuntimeEvent = <T as Config>::RuntimeEvent> + pallet_balances::Config<Balance = BalanceOf<T>>,
-	<T as Config>::RuntimeEvent: TryInto<Event<T>> + Parameter + Member,
-	<T as Config>::Price: From<u128>,
-	<T as Config>::Balance: From<u128>,
-	T::Hash: From<H256>,
-	<T as frame_system::Config>::AccountId: Into<<<T as frame_system::Config>::RuntimeOrigin as OriginTrait>::AccountId> + sp_std::fmt::Debug,
-	<T as pallet_balances::Config>::Balance: Into<BalanceOf<T>>,
+where
+T: Config + frame_system::Config<RuntimeEvent = <T as Config>::RuntimeEvent> + pallet_balances::Config<Balance = BalanceOf<T>>,
+<T as Config>::RuntimeEvent: TryInto<Event<T>> + Parameter + Member,
+<T as Config>::Price: From<u128>,
+<T as Config>::Balance: From<u128>,
+T::Hash: From<H256>,
+<T as frame_system::Config>::AccountId: Into<<<T as frame_system::Config>::RuntimeOrigin as OriginTrait>::AccountId> + sp_std::fmt::Debug,
+<T as pallet_balances::Config>::Balance: Into<BalanceOf<T>>,
 )]
 mod benchmarks {
 	use super::*;
@@ -368,7 +372,7 @@ mod benchmarks {
 		// real benchmark starts at block 0, and we can't call `events()` at block 0
 		inst.advance_time(1u32.into()).unwrap();
 
-		let ed = BenchInstantiator::<T>::get_ed();
+		let ed = inst.get_ed();
 
 		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
 		whitelist_account!(issuer);
@@ -623,7 +627,7 @@ mod benchmarks {
 		let project_id = inst.create_evaluating_project(project_metadata.clone(), issuer.clone());
 
 		let evaluations = default_evaluations();
-		let plmc_for_evaluating = BenchInstantiator::<T>::calculate_evaluation_plmc_spent(evaluations.clone());
+		let plmc_for_evaluating = inst.calculate_evaluation_plmc_spent(evaluations.clone());
 		let existential_plmc: Vec<UserToPLMCBalance<T>> = plmc_for_evaluating.accounts().existential_deposits();
 
 		inst.mint_plmc_to(existential_plmc);
@@ -686,10 +690,8 @@ mod benchmarks {
 		let extrinsic_evaluation = UserToUSDBalance::new(test_evaluator.clone(), (1_000 * US_DOLLAR).into());
 		let existing_evaluations = vec![existing_evaluation; x as usize];
 
-		let plmc_for_existing_evaluations =
-			BenchInstantiator::<T>::calculate_evaluation_plmc_spent(existing_evaluations.clone());
-		let plmc_for_extrinsic_evaluation =
-			BenchInstantiator::<T>::calculate_evaluation_plmc_spent(vec![extrinsic_evaluation.clone()]);
+		let plmc_for_existing_evaluations = inst.calculate_evaluation_plmc_spent(existing_evaluations.clone());
+		let plmc_for_extrinsic_evaluation = inst.calculate_evaluation_plmc_spent(vec![extrinsic_evaluation.clone()]);
 		let existential_plmc: Vec<UserToPLMCBalance<T>> =
 			plmc_for_extrinsic_evaluation.accounts().existential_deposits();
 
@@ -703,10 +705,8 @@ mod benchmarks {
 		inst.evaluate_for_users(project_id, existing_evaluations).expect("All evaluations are accepted");
 
 		let extrinsic_plmc_bonded = plmc_for_extrinsic_evaluation[0].plmc_amount;
-		let total_expected_plmc_bonded = BenchInstantiator::<T>::sum_balance_mappings(vec![
-			plmc_for_existing_evaluations.clone(),
-			plmc_for_extrinsic_evaluation.clone(),
-		]);
+		let total_expected_plmc_bonded = inst
+			.sum_balance_mappings(vec![plmc_for_existing_evaluations.clone(), plmc_for_extrinsic_evaluation.clone()]);
 
 		let jwt = get_mock_jwt_with_cid(
 			extrinsic_evaluation.account.clone(),
@@ -801,7 +801,7 @@ mod benchmarks {
 			(100_000_000 * ASSET_UNIT).try_into().unwrap_or_else(|_| panic!("Failed to create BalanceOf"));
 		project_metadata.minimum_price = PriceOf::<T>::checked_from_rational(100, 1).unwrap();
 
-		let evaluations = BenchInstantiator::<T>::generate_successful_evaluations(
+		let evaluations = inst.generate_successful_evaluations(
 			project_metadata.clone(),
 			default_evaluators::<T>(),
 			default_weights(),
@@ -812,22 +812,18 @@ mod benchmarks {
 		let existing_bid = BidParams::new(bidder.clone(), (50 * ASSET_UNIT).into(), 5u8, AcceptedFundingAsset::USDT);
 
 		let existing_bids = vec![existing_bid; existing_bids_count as usize];
-		let existing_bids_post_bucketing = BenchInstantiator::<T>::get_actual_price_charged_for_bucketed_bids(
+		let existing_bids_post_bucketing =
+			inst.get_actual_price_charged_for_bucketed_bids(&existing_bids, project_metadata.clone(), None);
+		let plmc_for_existing_bids = inst.calculate_auction_plmc_charged_from_all_bids_made_or_with_bucket(
 			&existing_bids,
 			project_metadata.clone(),
 			None,
 		);
-		let plmc_for_existing_bids =
-			BenchInstantiator::<T>::calculate_auction_plmc_charged_from_all_bids_made_or_with_bucket(
-				&existing_bids,
-				project_metadata.clone(),
-				None,
-			);
 
 		let existential_deposits: Vec<UserToPLMCBalance<T>> = vec![bidder.clone()].existential_deposits();
 
-		let usdt_for_existing_bids: Vec<UserToForeignAssets<T>> =
-			BenchInstantiator::<T>::calculate_auction_funding_asset_charged_from_all_bids_made_or_with_bucket(
+		let usdt_for_existing_bids: Vec<UserToForeignAssets<T>> = inst
+			.calculate_auction_funding_asset_charged_from_all_bids_made_or_with_bucket(
 				&existing_bids,
 				project_metadata.clone(),
 				None,
@@ -860,12 +856,12 @@ mod benchmarks {
 			assert!(new_bidder.clone() != bidder.clone());
 			let bid_params = BidParams::new(new_bidder, current_bucket.amount_left, 1u8, AcceptedFundingAsset::USDT);
 			maybe_filler_bid = Some(bid_params.clone());
-			let plmc_for_new_bidder = BenchInstantiator::<T>::calculate_auction_plmc_charged_with_given_price(
+			let plmc_for_new_bidder = inst.calculate_auction_plmc_charged_with_given_price(
 				&vec![bid_params.clone()],
 				current_bucket.current_price,
 			);
 			let plmc_ed = plmc_for_new_bidder.accounts().existential_deposits();
-			let usdt_for_new_bidder = BenchInstantiator::<T>::calculate_auction_funding_asset_charged_with_given_price(
+			let usdt_for_new_bidder = inst.calculate_auction_funding_asset_charged_with_given_price(
 				&vec![bid_params.clone()],
 				current_bucket.current_price,
 			);
@@ -886,21 +882,21 @@ mod benchmarks {
 		let original_extrinsic_bid = extrinsic_bid.clone();
 		let current_bucket = Buckets::<T>::get(project_id).unwrap();
 		// we need to call this after bidding `x` amount of times, to get the latest bucket from storage
-		let extrinsic_bids_post_bucketing = BenchInstantiator::<T>::get_actual_price_charged_for_bucketed_bids(
+		let extrinsic_bids_post_bucketing = inst.get_actual_price_charged_for_bucketed_bids(
 			&vec![extrinsic_bid.clone()],
 			project_metadata.clone(),
 			Some(current_bucket),
 		);
 		assert_eq!(extrinsic_bids_post_bucketing.len(), (do_perform_bid_calls as usize).max(1usize));
 
-		let plmc_for_extrinsic_bids: Vec<UserToPLMCBalance<T>> =
-			BenchInstantiator::<T>::calculate_auction_plmc_charged_from_all_bids_made_or_with_bucket(
+		let plmc_for_extrinsic_bids: Vec<UserToPLMCBalance<T>> = inst
+			.calculate_auction_plmc_charged_from_all_bids_made_or_with_bucket(
 				&vec![extrinsic_bid.clone()],
 				project_metadata.clone(),
 				Some(current_bucket),
 			);
-		let usdt_for_extrinsic_bids: Vec<UserToForeignAssets<T>> =
-			BenchInstantiator::<T>::calculate_auction_funding_asset_charged_from_all_bids_made_or_with_bucket(
+		let usdt_for_extrinsic_bids: Vec<UserToForeignAssets<T>> = inst
+			.calculate_auction_funding_asset_charged_from_all_bids_made_or_with_bucket(
 				&vec![extrinsic_bid],
 				project_metadata.clone(),
 				Some(current_bucket),
@@ -909,12 +905,10 @@ mod benchmarks {
 		inst.mint_foreign_asset_to(usdt_for_extrinsic_bids.clone());
 
 		let total_free_plmc = existential_deposits[0].plmc_amount;
-		let total_plmc_participation_bonded = BenchInstantiator::<T>::sum_balance_mappings(vec![
-			plmc_for_extrinsic_bids.clone(),
-			plmc_for_existing_bids.clone(),
-		]);
+		let total_plmc_participation_bonded =
+			inst.sum_balance_mappings(vec![plmc_for_extrinsic_bids.clone(), plmc_for_existing_bids.clone()]);
 		let total_free_usdt = Zero::zero();
-		let total_escrow_usdt_locked = BenchInstantiator::<T>::sum_foreign_mappings(vec![
+		let total_escrow_usdt_locked = inst.sum_foreign_mappings(vec![
 			prev_total_escrow_usdt_locked.clone(),
 			usdt_for_extrinsic_bids.clone(),
 			usdt_for_existing_bids.clone(),
@@ -1154,15 +1148,13 @@ mod benchmarks {
 		let mut total_ct_sold: BalanceOf<T> = existing_amount * (x as u128).into() + extrinsic_amount;
 
 		let plmc_for_existing_contributions =
-			BenchInstantiator::<T>::calculate_contributed_plmc_spent(existing_contributions.clone(), price);
+			inst.calculate_contributed_plmc_spent(existing_contributions.clone(), price);
 		let plmc_for_extrinsic_contribution =
-			BenchInstantiator::<T>::calculate_contributed_plmc_spent(vec![extrinsic_contribution.clone()], price);
+			inst.calculate_contributed_plmc_spent(vec![extrinsic_contribution.clone()], price);
 		let usdt_for_existing_contributions =
-			BenchInstantiator::<T>::calculate_contributed_funding_asset_spent(existing_contributions.clone(), price);
-		let usdt_for_extrinsic_contribution = BenchInstantiator::<T>::calculate_contributed_funding_asset_spent(
-			vec![extrinsic_contribution.clone()],
-			price,
-		);
+			inst.calculate_contributed_funding_asset_spent(existing_contributions.clone(), price);
+		let usdt_for_extrinsic_contribution =
+			inst.calculate_contributed_funding_asset_spent(vec![extrinsic_contribution.clone()], price);
 
 		let existential_deposits: Vec<UserToPLMCBalance<T>> =
 			plmc_for_extrinsic_contribution.accounts().existential_deposits();
@@ -1179,11 +1171,11 @@ mod benchmarks {
 		// do "x" contributions for this user
 		inst.contribute_for_users(project_id, existing_contributions).expect("All contributions are accepted");
 
-		let mut total_plmc_bonded = BenchInstantiator::<T>::sum_balance_mappings(vec![
+		let mut total_plmc_bonded = inst.sum_balance_mappings(vec![
 			plmc_for_existing_contributions.clone(),
 			plmc_for_extrinsic_contribution.clone(),
 		]);
-		let mut total_usdt_locked = BenchInstantiator::<T>::sum_foreign_mappings(vec![
+		let mut total_usdt_locked = inst.sum_foreign_mappings(vec![
 			prev_total_usdt_locked,
 			usdt_for_existing_contributions.clone(),
 			usdt_for_extrinsic_contribution.clone(),
@@ -1424,7 +1416,7 @@ mod benchmarks {
 			project_metadata.minimum_price.saturating_mul_int(project_metadata.total_allocation_size);
 
 		let evaluations = default_evaluations::<T>();
-		let bids = BenchInstantiator::generate_bids_from_total_usd(
+		let bids = inst.generate_bids_from_total_usd(
 			Percent::from_percent(30) * target_funding_amount,
 			project_metadata.minimum_price,
 			default_weights(),
@@ -1432,7 +1424,7 @@ mod benchmarks {
 			default_bidder_multipliers(),
 		);
 
-		let contributions = BenchInstantiator::generate_contributions_from_total_usd(
+		let contributions = inst.generate_contributions_from_total_usd(
 			Percent::from_percent(40) * target_funding_amount,
 			project_metadata.minimum_price,
 			default_weights(),
@@ -1557,14 +1549,14 @@ mod benchmarks {
 		let target_funding_amount: BalanceOf<T> =
 			project_metadata.minimum_price.saturating_mul_int(project_metadata.total_allocation_size);
 
-		let bids = BenchInstantiator::generate_bids_from_total_usd(
+		let bids = inst.generate_bids_from_total_usd(
 			Percent::from_percent(15) * target_funding_amount,
 			10u128.into(),
 			default_weights(),
 			default_bidders::<T>(),
 			default_bidder_multipliers(),
 		);
-		let contributions = BenchInstantiator::generate_contributions_from_total_usd(
+		let contributions = inst.generate_contributions_from_total_usd(
 			Percent::from_percent(10) * target_funding_amount,
 			project_metadata.minimum_price,
 			default_weights(),
@@ -1583,7 +1575,7 @@ mod benchmarks {
 
 		let treasury_account = T::ProtocolGrowthTreasury::get();
 		let free_treasury_plmc = inst.get_free_plmc_balances_for(vec![treasury_account])[0].plmc_amount;
-		assert_eq!(free_treasury_plmc, BenchInstantiator::<T>::get_ed());
+		assert_eq!(free_treasury_plmc, inst.get_ed());
 
 		#[extrinsic_call]
 		settle_failed_evaluation(
@@ -1606,7 +1598,7 @@ mod benchmarks {
 
 		let treasury_account = T::ProtocolGrowthTreasury::get();
 		let free_treasury_plmc = inst.get_free_plmc_balances_for(vec![treasury_account])[0].plmc_amount;
-		let ed = BenchInstantiator::<T>::get_ed();
+		let ed = inst.get_ed();
 		assert_eq!(free_treasury_plmc, slashed_amount + ed);
 
 		// Events
@@ -1683,7 +1675,7 @@ mod benchmarks {
 		let target_funding_amount: BalanceOf<T> =
 			project_metadata.minimum_price.saturating_mul_int(project_metadata.total_allocation_size);
 
-		let bids: Vec<BidParams<T>> = BenchInstantiator::generate_bids_from_total_usd(
+		let bids: Vec<BidParams<T>> = inst.generate_bids_from_total_usd(
 			Percent::from_percent(15) * target_funding_amount,
 			10u128.into(),
 			default_weights(),
@@ -1692,7 +1684,7 @@ mod benchmarks {
 		);
 		let bidder = bids[0].bidder.clone();
 		whitelist_account!(bidder);
-		let contributions = BenchInstantiator::generate_contributions_from_total_usd(
+		let contributions = inst.generate_contributions_from_total_usd(
 			Percent::from_percent(10) * target_funding_amount,
 			project_metadata.minimum_price,
 			default_weights(),
@@ -1799,14 +1791,14 @@ mod benchmarks {
 		let target_funding_amount: BalanceOf<T> =
 			project_metadata.minimum_price.saturating_mul_int(project_metadata.total_allocation_size);
 
-		let bids: Vec<BidParams<T>> = BenchInstantiator::generate_bids_from_total_usd(
+		let bids: Vec<BidParams<T>> = inst.generate_bids_from_total_usd(
 			Percent::from_percent(15) * target_funding_amount,
 			project_metadata.minimum_price,
 			default_weights(),
 			default_bidders::<T>(),
 			default_bidder_multipliers(),
 		);
-		let contributions: Vec<ContributionParams<T>> = BenchInstantiator::generate_contributions_from_total_usd(
+		let contributions: Vec<ContributionParams<T>> = inst.generate_contributions_from_total_usd(
 			Percent::from_percent(10) * target_funding_amount,
 			project_metadata.minimum_price,
 			default_weights(),
@@ -1875,7 +1867,7 @@ mod benchmarks {
 		let project_id = inst.create_evaluating_project(project_metadata, issuer.clone());
 
 		let evaluations = default_evaluations();
-		let plmc_for_evaluating = BenchInstantiator::<T>::calculate_evaluation_plmc_spent(evaluations.clone());
+		let plmc_for_evaluating = inst.calculate_evaluation_plmc_spent(evaluations.clone());
 		let existential_plmc: Vec<UserToPLMCBalance<T>> = plmc_for_evaluating.accounts().existential_deposits();
 
 		inst.mint_plmc_to(existential_plmc);
@@ -1936,7 +1928,7 @@ mod benchmarks {
 				(Percent::from_percent(25) * evaluation_usd_target).into(),
 			),
 		];
-		let plmc_for_evaluating = BenchInstantiator::<T>::calculate_evaluation_plmc_spent(evaluations.clone());
+		let plmc_for_evaluating = inst.calculate_evaluation_plmc_spent(evaluations.clone());
 		let existential_plmc: Vec<UserToPLMCBalance<T>> = plmc_for_evaluating.accounts().existential_deposits();
 
 		inst.mint_plmc_to(existential_plmc);
@@ -2092,15 +2084,14 @@ mod benchmarks {
 
 		let all_bids = accepted_bids.iter().chain(rejected_bids.iter()).cloned().collect_vec();
 
-		let plmc_needed_for_bids =
-			BenchInstantiator::<T>::calculate_auction_plmc_charged_from_all_bids_made_or_with_bucket(
-				&all_bids,
-				project_metadata.clone(),
-				None,
-			);
+		let plmc_needed_for_bids = inst.calculate_auction_plmc_charged_from_all_bids_made_or_with_bucket(
+			&all_bids,
+			project_metadata.clone(),
+			None,
+		);
 		let plmc_ed = all_bids.accounts().existential_deposits();
-		let funding_asset_needed_for_bids =
-			BenchInstantiator::<T>::calculate_auction_funding_asset_charged_from_all_bids_made_or_with_bucket(
+		let funding_asset_needed_for_bids = inst
+			.calculate_auction_funding_asset_charged_from_all_bids_made_or_with_bucket(
 				&all_bids,
 				project_metadata.clone(),
 				None,
@@ -2231,14 +2222,14 @@ mod benchmarks {
 
 		let automatically_rejected_threshold = Percent::from_percent(33);
 
-		let bids: Vec<BidParams<T>> = BenchInstantiator::generate_bids_from_total_usd(
+		let bids: Vec<BidParams<T>> = inst.generate_bids_from_total_usd(
 			(automatically_rejected_threshold * target_funding_amount) / 2.into(),
 			project_metadata.minimum_price,
 			default_weights(),
 			default_bidders::<T>(),
 			default_bidder_multipliers(),
 		);
-		let contributions = BenchInstantiator::generate_contributions_from_total_usd(
+		let contributions = inst.generate_contributions_from_total_usd(
 			(automatically_rejected_threshold * target_funding_amount) / 2.into(),
 			project_metadata.minimum_price,
 			default_weights(),
@@ -2288,14 +2279,14 @@ mod benchmarks {
 
 		let automatically_rejected_threshold = Percent::from_percent(75);
 
-		let bids: Vec<BidParams<T>> = BenchInstantiator::generate_bids_from_total_usd(
+		let bids: Vec<BidParams<T>> = inst.generate_bids_from_total_usd(
 			(automatically_rejected_threshold * target_funding_amount) / 2.into(),
 			project_metadata.minimum_price,
 			default_weights(),
 			default_bidders::<T>(),
 			default_bidder_multipliers(),
 		);
-		let contributions = BenchInstantiator::generate_contributions_from_total_usd(
+		let contributions = inst.generate_contributions_from_total_usd(
 			(automatically_rejected_threshold * target_funding_amount) / 2.into(),
 			project_metadata.minimum_price,
 			default_weights(),
@@ -2346,14 +2337,14 @@ mod benchmarks {
 
 		let automatically_rejected_threshold = Percent::from_percent(89);
 
-		let bids: Vec<BidParams<T>> = BenchInstantiator::generate_bids_from_total_usd(
+		let bids: Vec<BidParams<T>> = inst.generate_bids_from_total_usd(
 			(automatically_rejected_threshold * target_funding_amount) / 2.into(),
 			project_metadata.minimum_price,
 			default_weights(),
 			default_bidders::<T>(),
 			default_bidder_multipliers(),
 		);
-		let contributions = BenchInstantiator::generate_contributions_from_total_usd(
+		let contributions = inst.generate_contributions_from_total_usd(
 			(automatically_rejected_threshold * target_funding_amount) / 2.into(),
 			project_metadata.minimum_price,
 			default_weights(),
@@ -2418,20 +2409,20 @@ mod benchmarks {
 			evaluation_target_usd,
 		));
 
-		let plmc_needed_for_evaluating = BenchInstantiator::<T>::calculate_evaluation_plmc_spent(evaluations.clone());
+		let plmc_needed_for_evaluating = inst.calculate_evaluation_plmc_spent(evaluations.clone());
 		let plmc_ed = evaluations.accounts().existential_deposits();
 
 		inst.mint_plmc_to(plmc_needed_for_evaluating);
 		inst.mint_plmc_to(plmc_ed);
 
-		let bids: Vec<BidParams<T>> = BenchInstantiator::generate_bids_from_total_usd(
+		let bids: Vec<BidParams<T>> = inst.generate_bids_from_total_usd(
 			(automatically_rejected_threshold * target_funding_amount) / 2.into(),
 			project_metadata.minimum_price,
 			default_weights(),
 			default_bidders::<T>(),
 			default_bidder_multipliers(),
 		);
-		let contributions = BenchInstantiator::generate_contributions_from_total_usd(
+		let contributions = inst.generate_contributions_from_total_usd(
 			(automatically_rejected_threshold * target_funding_amount) / 2.into(),
 			project_metadata.minimum_price,
 			default_weights(),
@@ -2479,14 +2470,14 @@ mod benchmarks {
 			project_metadata.minimum_price.saturating_mul_int(project_metadata.total_allocation_size);
 		let manual_outcome_threshold = Percent::from_percent(50);
 
-		let bids: Vec<BidParams<T>> = BenchInstantiator::generate_bids_from_total_usd(
+		let bids: Vec<BidParams<T>> = inst.generate_bids_from_total_usd(
 			(manual_outcome_threshold * target_funding_amount) / 2.into(),
 			project_metadata.minimum_price,
 			default_weights(),
 			default_bidders::<T>(),
 			default_bidder_multipliers(),
 		);
-		let contributions = BenchInstantiator::generate_contributions_from_total_usd(
+		let contributions = inst.generate_contributions_from_total_usd(
 			(manual_outcome_threshold * target_funding_amount) / 2.into(),
 			project_metadata.minimum_price,
 			default_weights(),
@@ -2557,7 +2548,7 @@ mod benchmarks {
 		let target_funding_amount: BalanceOf<T> =
 			project_metadata.minimum_price.saturating_mul_int(project_metadata.total_allocation_size);
 
-		let bids: Vec<BidParams<T>> = BenchInstantiator::generate_bids_from_total_usd(
+		let bids: Vec<BidParams<T>> = inst.generate_bids_from_total_usd(
 			Percent::from_percent(15) * target_funding_amount,
 			project_metadata.minimum_price,
 			default_weights(),
@@ -2565,7 +2556,7 @@ mod benchmarks {
 			default_bidder_multipliers(),
 		);
 
-		let contributions = BenchInstantiator::generate_contributions_from_total_usd(
+		let contributions = inst.generate_contributions_from_total_usd(
 			Percent::from_percent(10) * target_funding_amount,
 			project_metadata.minimum_price,
 			default_weights(),

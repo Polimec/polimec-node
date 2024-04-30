@@ -38,10 +38,10 @@ mod round_flow {
 			let ct_price = inst.get_project_details(project_id).weighted_average_price.expect("CT Price should exist");
 
 			let contributions = vec![ContributionParams::new(BOB, remaining_ct, 1u8, AcceptedFundingAsset::USDT)];
-			let plmc_fundings = MockInstantiator::calculate_contributed_plmc_spent(contributions.clone(), ct_price);
+			let plmc_fundings = inst.calculate_contributed_plmc_spent(contributions.clone(), ct_price);
 			let plmc_existential_deposits = contributions.accounts().existential_deposits();
 			let foreign_asset_fundings =
-				MockInstantiator::calculate_contributed_funding_asset_spent(contributions.clone(), ct_price);
+				inst.calculate_contributed_funding_asset_spent(contributions.clone(), ct_price);
 
 			inst.mint_plmc_to(plmc_fundings.clone());
 			inst.mint_plmc_to(plmc_existential_deposits.clone());
@@ -101,7 +101,7 @@ mod round_flow {
 
 			let contributions = vec![(BUYER_1, project_details.remaining_contribution_tokens).into()];
 
-			let plmc_contribution_funding = MockInstantiator::calculate_contributed_plmc_spent(
+			let plmc_contribution_funding = inst.calculate_contributed_plmc_spent(
 				contributions.clone(),
 				project_details.weighted_average_price.unwrap(),
 			);
@@ -109,7 +109,7 @@ mod round_flow {
 			inst.mint_plmc_to(plmc_contribution_funding.clone());
 			inst.mint_plmc_to(plmc_existential_deposits.clone());
 
-			let foreign_asset_contribution_funding = MockInstantiator::calculate_contributed_funding_asset_spent(
+			let foreign_asset_contribution_funding = inst.calculate_contributed_funding_asset_spent(
 				contributions.clone(),
 				project_details.weighted_average_price.unwrap(),
 			);
@@ -152,20 +152,15 @@ mod remaining_contribute_extrinsic {
 				community_contributions,
 			);
 			let ct_price = inst.get_project_details(project_id).weighted_average_price.unwrap();
-			let already_bonded_plmc = MockInstantiator::calculate_evaluation_plmc_spent(vec![UserToUSDBalance::new(
-				evaluator_contributor,
-				evaluation_amount,
-			)])[0]
+			let already_bonded_plmc = inst
+				.calculate_evaluation_plmc_spent(vec![UserToUSDBalance::new(evaluator_contributor, evaluation_amount)])[0]
 				.plmc_amount;
 			let plmc_available_for_contribution =
 				already_bonded_plmc - <TestRuntime as Config>::EvaluatorSlash::get() * already_bonded_plmc;
 			let necessary_plmc_for_buy =
-				MockInstantiator::calculate_contributed_plmc_spent(vec![remainder_contribution.clone()], ct_price)[0]
-					.plmc_amount;
-			let necessary_usdt_for_buy = MockInstantiator::calculate_contributed_funding_asset_spent(
-				vec![remainder_contribution.clone()],
-				ct_price,
-			);
+				inst.calculate_contributed_plmc_spent(vec![remainder_contribution.clone()], ct_price)[0].plmc_amount;
+			let necessary_usdt_for_buy =
+				inst.calculate_contributed_funding_asset_spent(vec![remainder_contribution.clone()], ct_price);
 
 			inst.mint_plmc_to(vec![UserToPLMCBalance::new(
 				evaluator_contributor,
@@ -271,21 +266,19 @@ mod remaining_contribute_extrinsic {
 
 			let wap = inst.get_project_details(project_id_all).weighted_average_price.unwrap();
 
-			let plmc_fundings = MockInstantiator::calculate_contributed_plmc_spent(
+			let plmc_fundings = inst.calculate_contributed_plmc_spent(
 				vec![usdt_contribution.clone(), usdc_contribution.clone(), dot_contribution.clone()],
 				wap,
 			);
 			let plmc_existential_deposits = plmc_fundings.accounts().existential_deposits();
 
-			let plmc_all_mints = MockInstantiator::generic_map_operation(
-				vec![plmc_fundings, plmc_existential_deposits],
-				MergeOperation::Add,
-			);
+			let plmc_all_mints =
+				inst.generic_map_operation(vec![plmc_fundings, plmc_existential_deposits], MergeOperation::Add);
 			inst.mint_plmc_to(plmc_all_mints.clone());
 			inst.mint_plmc_to(plmc_all_mints.clone());
 			inst.mint_plmc_to(plmc_all_mints.clone());
 
-			let usdt_fundings = MockInstantiator::calculate_contributed_funding_asset_spent(
+			let usdt_fundings = inst.calculate_contributed_funding_asset_spent(
 				vec![usdt_contribution.clone(), usdc_contribution.clone(), dot_contribution.clone()],
 				wap,
 			);
@@ -353,12 +346,9 @@ mod remaining_contribute_extrinsic {
 				funding_destination_account: ISSUER_1,
 				policy_ipfs_cid: Some(ipfs_hash()),
 			};
-			let evaluations = MockInstantiator::generate_successful_evaluations(
-				project_metadata.clone(),
-				default_evaluators(),
-				default_weights(),
-			);
-			let bids = MockInstantiator::generate_bids_from_total_ct_percent(
+			let evaluations =
+				inst.generate_successful_evaluations(project_metadata.clone(), default_evaluators(), default_weights());
+			let bids = inst.generate_bids_from_total_ct_percent(
 				project_metadata.clone(),
 				50,
 				default_weights(),
@@ -402,15 +392,15 @@ mod remaining_contribute_extrinsic {
 					generate_did_from_account(BUYER_1),
 					project_metadata.clone().policy_ipfs_cid.unwrap(),
 				);
-				let bidder_plmc = MockInstantiator::calculate_contributed_plmc_spent(
+				let bidder_plmc = inst.calculate_contributed_plmc_spent(
 					vec![(BUYER_1, 1_000 * CT_UNIT, Multiplier::force_new(multiplier)).into()],
 					wap,
 				);
-				let bidder_usdt = MockInstantiator::calculate_contributed_funding_asset_spent(
+				let bidder_usdt = inst.calculate_contributed_funding_asset_spent(
 					vec![(BUYER_1, 1_000 * CT_UNIT, Multiplier::force_new(multiplier)).into()],
 					wap,
 				);
-				let ed = MockInstantiator::get_ed();
+				let ed = inst.get_ed();
 				inst.mint_plmc_to(vec![(BUYER_1, ed).into()]);
 				inst.mint_plmc_to(bidder_plmc);
 				inst.mint_foreign_asset_to(bidder_usdt);
@@ -431,15 +421,15 @@ mod remaining_contribute_extrinsic {
 					generate_did_from_account(BUYER_1),
 					project_metadata.clone().policy_ipfs_cid.unwrap(),
 				);
-				let bidder_plmc = MockInstantiator::calculate_contributed_plmc_spent(
+				let bidder_plmc = inst.calculate_contributed_plmc_spent(
 					vec![(BUYER_1, 1_000 * CT_UNIT, Multiplier::force_new(multiplier)).into()],
 					wap,
 				);
-				let bidder_usdt = MockInstantiator::calculate_contributed_funding_asset_spent(
+				let bidder_usdt = inst.calculate_contributed_funding_asset_spent(
 					vec![(BUYER_1, 1_000 * CT_UNIT, Multiplier::force_new(multiplier)).into()],
 					wap,
 				);
-				let ed = MockInstantiator::get_ed();
+				let ed = inst.get_ed();
 				inst.mint_plmc_to(vec![(BUYER_1, ed).into()]);
 				inst.mint_plmc_to(bidder_plmc);
 				inst.mint_foreign_asset_to(bidder_usdt);
@@ -486,15 +476,15 @@ mod remaining_contribute_extrinsic {
 					generate_did_from_account(BUYER_2),
 					project_metadata.clone().policy_ipfs_cid.unwrap(),
 				);
-				let bidder_plmc = MockInstantiator::calculate_contributed_plmc_spent(
+				let bidder_plmc = inst.calculate_contributed_plmc_spent(
 					vec![(BUYER_2, 1_000 * CT_UNIT, Multiplier::force_new(multiplier)).into()],
 					wap,
 				);
-				let bidder_usdt = MockInstantiator::calculate_contributed_funding_asset_spent(
+				let bidder_usdt = inst.calculate_contributed_funding_asset_spent(
 					vec![(BUYER_2, 1_000 * CT_UNIT, Multiplier::force_new(multiplier)).into()],
 					wap,
 				);
-				let ed = MockInstantiator::get_ed();
+				let ed = inst.get_ed();
 				inst.mint_plmc_to(vec![(BUYER_2, ed).into()]);
 				inst.mint_plmc_to(bidder_plmc);
 				inst.mint_foreign_asset_to(bidder_usdt);
@@ -515,15 +505,15 @@ mod remaining_contribute_extrinsic {
 					generate_did_from_account(BUYER_2),
 					project_metadata.clone().policy_ipfs_cid.unwrap(),
 				);
-				let bidder_plmc = MockInstantiator::calculate_contributed_plmc_spent(
+				let bidder_plmc = inst.calculate_contributed_plmc_spent(
 					vec![(BUYER_2, 1_000 * CT_UNIT, Multiplier::force_new(multiplier)).into()],
 					wap,
 				);
-				let bidder_usdt = MockInstantiator::calculate_contributed_funding_asset_spent(
+				let bidder_usdt = inst.calculate_contributed_funding_asset_spent(
 					vec![(BUYER_2, 1_000 * CT_UNIT, Multiplier::force_new(multiplier)).into()],
 					wap,
 				);
-				let ed = MockInstantiator::get_ed();
+				let ed = inst.get_ed();
 				inst.mint_plmc_to(vec![(BUYER_2, ed).into()]);
 				inst.mint_plmc_to(bidder_plmc);
 				inst.mint_foreign_asset_to(bidder_usdt);
@@ -569,15 +559,15 @@ mod remaining_contribute_extrinsic {
 					project_policy,
 				);
 				let wap = inst.get_project_details(project_id).weighted_average_price.unwrap();
-				let contributor_plmc = MockInstantiator::calculate_contributed_plmc_spent(
+				let contributor_plmc = inst.calculate_contributed_plmc_spent(
 					vec![(BUYER_1, 1_000 * CT_UNIT, Multiplier::force_new(multiplier)).into()],
 					wap,
 				);
-				let bidder_usdt = MockInstantiator::calculate_contributed_funding_asset_spent(
+				let bidder_usdt = inst.calculate_contributed_funding_asset_spent(
 					vec![(BUYER_1, 1_000 * CT_UNIT, Multiplier::force_new(multiplier)).into()],
 					wap,
 				);
-				let ed = MockInstantiator::get_ed();
+				let ed = inst.get_ed();
 				inst.mint_plmc_to(vec![(BUYER_1, ed).into()]);
 				inst.mint_plmc_to(contributor_plmc);
 				inst.mint_foreign_asset_to(bidder_usdt);
@@ -1009,17 +999,14 @@ mod remaining_contribute_extrinsic {
 
 			// Necessary Mints
 			let already_bonded_plmc =
-				MockInstantiator::calculate_evaluation_plmc_spent(vec![
-					(evaluator_contributor, evaluation_amount).into()
-				])[0]
+				inst.calculate_evaluation_plmc_spent(vec![(evaluator_contributor, evaluation_amount).into()])[0]
 					.plmc_amount;
 			let usable_evaluation_plmc =
 				already_bonded_plmc - <TestRuntime as Config>::EvaluatorSlash::get() * already_bonded_plmc;
 			let necessary_plmc_for_contribution =
-				MockInstantiator::calculate_contributed_plmc_spent(vec![evaluator_contribution.clone()], wap)[0]
-					.plmc_amount;
+				inst.calculate_contributed_plmc_spent(vec![evaluator_contribution.clone()], wap)[0].plmc_amount;
 			let necessary_usdt_for_contribution =
-				MockInstantiator::calculate_contributed_funding_asset_spent(vec![evaluator_contribution.clone()], wap);
+				inst.calculate_contributed_funding_asset_spent(vec![evaluator_contribution.clone()], wap);
 			inst.mint_plmc_to(vec![UserToPLMCBalance::new(
 				evaluator_contributor,
 				necessary_plmc_for_contribution - usable_evaluation_plmc,

@@ -36,14 +36,14 @@ fn automatic_acceptance_on_manual_decision_after_time_delta() {
 	let twenty_percent_funding_usd = Perquintill::from_percent(55) *
 		(project_metadata.minimum_price.checked_mul_int(project_metadata.total_allocation_size).unwrap());
 	let evaluations = default_evaluations();
-	let bids = MockInstantiator::generate_bids_from_total_usd(
+	let bids = inst.generate_bids_from_total_usd(
 		Percent::from_percent(50u8) * twenty_percent_funding_usd,
 		min_price,
 		default_weights(),
 		default_bidders(),
 		default_multipliers(),
 	);
-	let contributions = MockInstantiator::generate_contributions_from_total_usd(
+	let contributions = inst.generate_contributions_from_total_usd(
 		Percent::from_percent(50u8) * twenty_percent_funding_usd,
 		min_price,
 		default_weights(),

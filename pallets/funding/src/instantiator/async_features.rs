@@ -138,11 +138,9 @@ pub async fn async_create_new_project<
 	let mut inst = instantiator.lock().await;
 
 	let now = inst.current_block();
+	let ed = inst.get_ed();
 	// One ED for the issuer, one for the escrow account
-	inst.mint_plmc_to(vec![UserToPLMCBalance::new(
-		issuer.clone(),
-		Instantiator::<T, AllPalletsWithoutSystem, RuntimeEvent>::get_ed() * 2u64.into(),
-	)]);
+	inst.mint_plmc_to(vec![UserToPLMCBalance::new(issuer.clone(), ed * 2u64.into())]);
 	inst.execute(|| {
 		crate::Pallet::<T>::do_create_project(
 			&issuer.clone(),
@@ -233,15 +231,11 @@ pub async fn async_create_auctioning_project<
 	let prev_supply = inst.get_plmc_total_supply();
 	let prev_plmc_balances = inst.get_free_plmc_balances_for(evaluators.clone());
 
-	let plmc_eval_deposits: Vec<UserToPLMCBalance<T>> =
-		Instantiator::<T, AllPalletsWithoutSystem, RuntimeEvent>::calculate_evaluation_plmc_spent(evaluations.clone());
+	let plmc_eval_deposits: Vec<UserToPLMCBalance<T>> = inst.calculate_evaluation_plmc_spent(evaluations.clone());
 	let plmc_existential_deposits: Vec<UserToPLMCBalance<T>> = evaluators.existential_deposits();
 
 	let expected_remaining_plmc: Vec<UserToPLMCBalance<T>> =
-		Instantiator::<T, AllPalletsWithoutSystem, RuntimeEvent>::generic_map_operation(
-			vec![prev_plmc_balances, plmc_existential_deposits.clone()],
-			MergeOperation::Add,
-		);
+		inst.generic_map_operation(vec![prev_plmc_balances, plmc_existential_deposits.clone()], MergeOperation::Add);
 
 	inst.mint_plmc_to(plmc_eval_deposits.clone());
 	inst.mint_plmc_to(plmc_existential_deposits.clone());
@@ -249,10 +243,7 @@ pub async fn async_create_auctioning_project<
 	inst.evaluate_for_users(project_id, evaluations).unwrap();
 
 	let expected_evaluator_balances =
-		Instantiator::<T, AllPalletsWithoutSystem, RuntimeEvent>::sum_balance_mappings(vec![
-			plmc_eval_deposits.clone(),
-			plmc_existential_deposits.clone(),
-		]);
+		inst.sum_balance_mappings(vec![plmc_eval_deposits.clone(), plmc_existential_deposits.clone()]);
 
 	let expected_total_supply = prev_supply + expected_evaluator_balances;
 
@@ -264,18 +255,10 @@ pub async fn async_create_auctioning_project<
 
 	inst = instantiator.lock().await;
 	let plmc_for_bids =
-        Instantiator::<T, AllPalletsWithoutSystem, RuntimeEvent>::calculate_auction_plmc_charged_from_all_bids_made_or_with_bucket(
-            &bids,
-            project_metadata.clone(),
-            None
-        );
+		inst.calculate_auction_plmc_charged_from_all_bids_made_or_with_bucket(&bids, project_metadata.clone(), None);
 	let plmc_existential_deposits: Vec<UserToPLMCBalance<T>> = bids.accounts().existential_deposits();
 	let usdt_for_bids =
-        Instantiator::<T, AllPalletsWithoutSystem, RuntimeEvent>::calculate_auction_funding_asset_charged_from_all_bids_made_or_with_bucket(
-            &bids,
-            project_metadata,
-            None
-        );
+		inst.calculate_auction_funding_asset_charged_from_all_bids_made_or_with_bucket(&bids, project_metadata, None);
 
 	inst.mint_plmc_to(plmc_for_bids.clone());
 	inst.mint_plmc_to(plmc_existential_deposits.clone());
@@ -362,14 +345,9 @@ pub async fn async_create_community_contributing_project<
 	let asset_id = bids[0].asset.to_assethub_id();
 	let prev_plmc_balances = inst.get_free_plmc_balances_for(bidders.clone());
 	let prev_funding_asset_balances = inst.get_free_foreign_asset_balances_for(asset_id, bidders.clone());
-	let plmc_evaluation_deposits: Vec<UserToPLMCBalance<T>> =
-		Instantiator::<T, AllPalletsWithoutSystem, RuntimeEvent>::calculate_evaluation_plmc_spent(evaluations);
+	let plmc_evaluation_deposits: Vec<UserToPLMCBalance<T>> = inst.calculate_evaluation_plmc_spent(evaluations);
 	let plmc_bid_deposits: Vec<UserToPLMCBalance<T>> =
-        Instantiator::<T, AllPalletsWithoutSystem, RuntimeEvent>::calculate_auction_plmc_charged_from_all_bids_made_or_with_bucket(
-            &bids,
-            project_metadata.clone(),
-            None
-        );
+		inst.calculate_auction_plmc_charged_from_all_bids_made_or_with_bucket(&bids, project_metadata.clone(), None);
 	let participation_usable_evaluation_deposits = plmc_evaluation_deposits
 		.into_iter()
 		.map(|mut x| {
@@ -377,28 +355,23 @@ pub async fn async_create_community_contributing_project<
 			x
 		})
 		.collect::<Vec<UserToPLMCBalance<T>>>();
-	let necessary_plmc_mint = Instantiator::<T, AllPalletsWithoutSystem, RuntimeEvent>::generic_map_operation(
+	let necessary_plmc_mint = inst.generic_map_operation(
 		vec![plmc_bid_deposits.clone(), participation_usable_evaluation_deposits],
 		MergeOperation::Subtract,
 	);
 	let total_plmc_participation_locked = plmc_bid_deposits;
 	let plmc_existential_deposits: Vec<UserToPLMCBalance<T>> = bidders.existential_deposits();
-	let funding_asset_deposits =
-        Instantiator::<T, AllPalletsWithoutSystem, RuntimeEvent>::calculate_auction_funding_asset_charged_from_all_bids_made_or_with_bucket(
-            &bids,
-            project_metadata.clone(),
-            None
-        );
-
-	let bidder_balances = Instantiator::<T, AllPalletsWithoutSystem, RuntimeEvent>::sum_balance_mappings(vec![
-		necessary_plmc_mint.clone(),
-		plmc_existential_deposits.clone(),
-	]);
-
-	let expected_free_plmc_balances = Instantiator::<T, AllPalletsWithoutSystem, RuntimeEvent>::generic_map_operation(
-		vec![prev_plmc_balances, plmc_existential_deposits.clone()],
-		MergeOperation::Add,
+	let funding_asset_deposits = inst.calculate_auction_funding_asset_charged_from_all_bids_made_or_with_bucket(
+		&bids,
+		project_metadata.clone(),
+		None,
 	);
+
+	let bidder_balances =
+		inst.sum_balance_mappings(vec![necessary_plmc_mint.clone(), plmc_existential_deposits.clone()]);
+
+	let expected_free_plmc_balances =
+		inst.generic_map_operation(vec![prev_plmc_balances, plmc_existential_deposits.clone()], MergeOperation::Add);
 
 	let prev_supply = inst.get_plmc_total_supply();
 	let post_supply = prev_supply + bidder_balances;
@@ -426,7 +399,7 @@ pub async fn async_create_community_contributing_project<
 	let mut inst = instantiator.lock().await;
 
 	let _weighted_price = inst.get_project_details(project_id).weighted_average_price.unwrap();
-	let accepted_bids = Instantiator::<T, AllPalletsWithoutSystem, RuntimeEvent>::filter_bids_after_auction(
+	let accepted_bids = inst.filter_bids_after_auction(
 		bids,
 		project_metadata.auction_round_allocation_percentage * project_metadata.total_allocation_size,
 	);
@@ -519,45 +492,25 @@ pub async fn async_create_remainder_contributing_project<
 	let prev_plmc_balances = inst.get_free_plmc_balances_for(contributors.clone());
 	let prev_funding_asset_balances = inst.get_free_foreign_asset_balances_for(asset_id, contributors.clone());
 
-	let plmc_evaluation_deposits =
-		Instantiator::<T, AllPalletsWithoutSystem, RuntimeEvent>::calculate_evaluation_plmc_spent(evaluations);
-	let plmc_bid_deposits =
-		Instantiator::<T, AllPalletsWithoutSystem, RuntimeEvent>::calculate_auction_plmc_charged_with_given_price(
-			&accepted_bids,
-			ct_price,
-		);
+	let plmc_evaluation_deposits = inst.calculate_evaluation_plmc_spent(evaluations);
+	let plmc_bid_deposits = inst.calculate_auction_plmc_charged_with_given_price(&accepted_bids, ct_price);
 
-	let plmc_contribution_deposits =
-		Instantiator::<T, AllPalletsWithoutSystem, RuntimeEvent>::calculate_contributed_plmc_spent(
-			contributions.clone(),
-			ct_price,
-		);
+	let plmc_contribution_deposits = inst.calculate_contributed_plmc_spent(contributions.clone(), ct_price);
 
-	let necessary_plmc_mint = Instantiator::<T, AllPalletsWithoutSystem, RuntimeEvent>::generic_map_operation(
+	let necessary_plmc_mint = inst.generic_map_operation(
 		vec![plmc_contribution_deposits.clone(), plmc_evaluation_deposits],
 		MergeOperation::Subtract,
 	);
 	let total_plmc_participation_locked =
-		Instantiator::<T, AllPalletsWithoutSystem, RuntimeEvent>::generic_map_operation(
-			vec![plmc_bid_deposits, plmc_contribution_deposits],
-			MergeOperation::Add,
-		);
+		inst.generic_map_operation(vec![plmc_bid_deposits, plmc_contribution_deposits], MergeOperation::Add);
 	let plmc_existential_deposits = contributors.existential_deposits();
 
-	let funding_asset_deposits =
-		Instantiator::<T, AllPalletsWithoutSystem, RuntimeEvent>::calculate_contributed_funding_asset_spent(
-			contributions.clone(),
-			ct_price,
-		);
-	let contributor_balances = Instantiator::<T, AllPalletsWithoutSystem, RuntimeEvent>::sum_balance_mappings(vec![
-		necessary_plmc_mint.clone(),
-		plmc_existential_deposits.clone(),
-	]);
+	let funding_asset_deposits = inst.calculate_contributed_funding_asset_spent(contributions.clone(), ct_price);
+	let contributor_balances =
+		inst.sum_balance_mappings(vec![necessary_plmc_mint.clone(), plmc_existential_deposits.clone()]);
 
-	let expected_free_plmc_balances = Instantiator::<T, AllPalletsWithoutSystem, RuntimeEvent>::generic_map_operation(
-		vec![prev_plmc_balances, plmc_existential_deposits.clone()],
-		MergeOperation::Add,
-	);
+	let expected_free_plmc_balances =
+		inst.generic_map_operation(vec![prev_plmc_balances, plmc_existential_deposits.clone()], MergeOperation::Add);
 
 	let prev_supply = inst.get_plmc_total_supply();
 	let post_supply = prev_supply + contributor_balances;
@@ -658,50 +611,34 @@ pub async fn async_create_finished_project<
 	let prev_plmc_balances = inst.get_free_plmc_balances_for(contributors.clone());
 	let prev_funding_asset_balances = inst.get_free_foreign_asset_balances_for(asset_id, contributors.clone());
 
-	let plmc_evaluation_deposits =
-		Instantiator::<T, AllPalletsWithoutSystem, RuntimeEvent>::calculate_evaluation_plmc_spent(evaluations);
-	let plmc_bid_deposits =
-        Instantiator::<T, AllPalletsWithoutSystem, RuntimeEvent>::calculate_auction_plmc_charged_from_all_bids_made_or_with_bucket(
-            &accepted_bids,
-            project_metadata.clone(),
-            None
-        );
+	let plmc_evaluation_deposits = inst.calculate_evaluation_plmc_spent(evaluations);
+	let plmc_bid_deposits = inst.calculate_auction_plmc_charged_from_all_bids_made_or_with_bucket(
+		&accepted_bids,
+		project_metadata.clone(),
+		None,
+	);
 	let plmc_community_contribution_deposits =
-		Instantiator::<T, AllPalletsWithoutSystem, RuntimeEvent>::calculate_contributed_plmc_spent(
-			community_contributions.clone(),
-			ct_price,
-		);
+		inst.calculate_contributed_plmc_spent(community_contributions.clone(), ct_price);
 	let plmc_remainder_contribution_deposits =
-		Instantiator::<T, AllPalletsWithoutSystem, RuntimeEvent>::calculate_contributed_plmc_spent(
-			remainder_contributions.clone(),
-			ct_price,
-		);
+		inst.calculate_contributed_plmc_spent(remainder_contributions.clone(), ct_price);
 
-	let necessary_plmc_mint = Instantiator::<T, AllPalletsWithoutSystem, RuntimeEvent>::generic_map_operation(
+	let necessary_plmc_mint = inst.generic_map_operation(
 		vec![plmc_remainder_contribution_deposits.clone(), plmc_evaluation_deposits],
 		MergeOperation::Subtract,
 	);
-	let total_plmc_participation_locked =
-		Instantiator::<T, AllPalletsWithoutSystem, RuntimeEvent>::generic_map_operation(
-			vec![plmc_bid_deposits, plmc_community_contribution_deposits, plmc_remainder_contribution_deposits],
-			MergeOperation::Add,
-		);
-	let plmc_existential_deposits = contributors.existential_deposits();
-	let funding_asset_deposits =
-		Instantiator::<T, AllPalletsWithoutSystem, RuntimeEvent>::calculate_contributed_funding_asset_spent(
-			remainder_contributions.clone(),
-			ct_price,
-		);
-
-	let contributor_balances = Instantiator::<T, AllPalletsWithoutSystem, RuntimeEvent>::sum_balance_mappings(vec![
-		necessary_plmc_mint.clone(),
-		plmc_existential_deposits.clone(),
-	]);
-
-	let expected_free_plmc_balances = Instantiator::<T, AllPalletsWithoutSystem, RuntimeEvent>::generic_map_operation(
-		vec![prev_plmc_balances, plmc_existential_deposits.clone()],
+	let total_plmc_participation_locked = inst.generic_map_operation(
+		vec![plmc_bid_deposits, plmc_community_contribution_deposits, plmc_remainder_contribution_deposits],
 		MergeOperation::Add,
 	);
+	let plmc_existential_deposits = contributors.existential_deposits();
+	let funding_asset_deposits =
+		inst.calculate_contributed_funding_asset_spent(remainder_contributions.clone(), ct_price);
+
+	let contributor_balances =
+		inst.sum_balance_mappings(vec![necessary_plmc_mint.clone(), plmc_existential_deposits.clone()]);
+
+	let expected_free_plmc_balances =
+		inst.generic_map_operation(vec![prev_plmc_balances, plmc_existential_deposits.clone()], MergeOperation::Add);
 
 	let prev_supply = inst.get_plmc_total_supply();
 	let post_supply = prev_supply + contributor_balances;
