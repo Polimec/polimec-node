@@ -22,7 +22,9 @@ test-integration:
     cargo test -p integration-tests
 
 dry-run-benchmarks pallet="*" extrinsic="*":
+    echo "Building full node..."
     cargo build --features runtime-benchmarks --release && \
+    echo "Running benchmarks on politest..."
     ./target/release/polimec-node  benchmark pallet \
         --chain=politest-local \
         --steps=2 \
@@ -31,6 +33,7 @@ dry-run-benchmarks pallet="*" extrinsic="*":
         --extrinsic={{ extrinsic }} \
         --wasm-execution=compiled \
         --heap-pages=4096 && \
+    echo "Running benchmarks on polimec..."
     ./target/release/polimec-node benchmark pallet \
         --chain=polimec-local \
         --steps=2 \
