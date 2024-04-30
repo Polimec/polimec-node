@@ -67,24 +67,26 @@ mod helper_functions {
 	fn calculate_evaluation_plmc_spent() {
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		const EVALUATOR_1: AccountIdOf<TestRuntime> = 1u32;
-		const USD_AMOUNT_1: u128 = 150_000_0_000_000_000_u128;
-		const EXPECTED_PLMC_AMOUNT_1: u128 = 17_857_1_428_571_428_u128;
+		const USD_AMOUNT_1: BalanceOf<TestRuntime> = 150_000 * USD_UNIT;
+		const EXPECTED_PLMC_AMOUNT_1: f64 = 17_857.1428571428f64;
 
 		const EVALUATOR_2: AccountIdOf<TestRuntime> = 2u32;
-		const USD_AMOUNT_2: u128 = 50_000_0_000_000_000_u128;
-		const EXPECTED_PLMC_AMOUNT_2: u128 = 5_952_3_809_523_809_u128;
+		const USD_AMOUNT_2: BalanceOf<TestRuntime> = 50_000 * USD_UNIT;
+		const EXPECTED_PLMC_AMOUNT_2: f64 = 5_952.3809523809f64;
 
 		const EVALUATOR_3: AccountIdOf<TestRuntime> = 3u32;
-		const USD_AMOUNT_3: u128 = 75_000_0_000_000_000_u128;
-		const EXPECTED_PLMC_AMOUNT_3: u128 = 8_928_5_714_285_714_u128;
+		const USD_AMOUNT_3: BalanceOf<TestRuntime> = 75_000 * USD_UNIT;
+		const EXPECTED_PLMC_AMOUNT_3: f64 = 8_928.5714285714f64;
 
 		const EVALUATOR_4: AccountIdOf<TestRuntime> = 4u32;
-		const USD_AMOUNT_4: u128 = 100_0_000_000_000_u128;
-		const EXPECTED_PLMC_AMOUNT_4: u128 = 11_9_047_619_047_u128;
+		const USD_AMOUNT_4: BalanceOf<TestRuntime> = 100 * USD_UNIT;
+		const EXPECTED_PLMC_AMOUNT_4: f64 = 11.9047619047f64;
 
 		const EVALUATOR_5: AccountIdOf<TestRuntime> = 5u32;
-		const USD_AMOUNT_5: u128 = 123_7_000_000_000_u128;
-		const EXPECTED_PLMC_AMOUNT_5: u128 = 14_7_261_904_761_u128;
+
+		// 123.7 USD
+		const USD_AMOUNT_5: BalanceOf<TestRuntime> = 1237 * USD_UNIT / 10;
+		const EXPECTED_PLMC_AMOUNT_5: f64 = 14.7261904761f64;
 
 		const PLMC_PRICE: f64 = 8.4f64;
 
@@ -94,23 +96,39 @@ mod helper_functions {
 		);
 
 		let evaluations = vec![
-			UserToUSDBalance::new(EVALUATOR_1, USD_AMOUNT_1),
-			UserToUSDBalance::new(EVALUATOR_2, USD_AMOUNT_2),
-			UserToUSDBalance::new(EVALUATOR_3, USD_AMOUNT_3),
-			UserToUSDBalance::new(EVALUATOR_4, USD_AMOUNT_4),
-			UserToUSDBalance::new(EVALUATOR_5, USD_AMOUNT_5),
+			UserToUSDBalance::<TestRuntime>::new(EVALUATOR_1, USD_AMOUNT_1),
+			UserToUSDBalance::<TestRuntime>::new(EVALUATOR_2, USD_AMOUNT_2),
+			UserToUSDBalance::<TestRuntime>::new(EVALUATOR_3, USD_AMOUNT_3),
+			UserToUSDBalance::<TestRuntime>::new(EVALUATOR_4, USD_AMOUNT_4),
+			UserToUSDBalance::<TestRuntime>::new(EVALUATOR_5, USD_AMOUNT_5),
 		];
 
 		let expected_plmc_spent = vec![
-			UserToPLMCBalance::new(EVALUATOR_1, EXPECTED_PLMC_AMOUNT_1),
-			UserToPLMCBalance::new(EVALUATOR_2, EXPECTED_PLMC_AMOUNT_2),
-			UserToPLMCBalance::new(EVALUATOR_3, EXPECTED_PLMC_AMOUNT_3),
-			UserToPLMCBalance::new(EVALUATOR_4, EXPECTED_PLMC_AMOUNT_4),
-			UserToPLMCBalance::new(EVALUATOR_5, EXPECTED_PLMC_AMOUNT_5),
+			(EVALUATOR_1, EXPECTED_PLMC_AMOUNT_1),
+			(EVALUATOR_2, EXPECTED_PLMC_AMOUNT_2),
+			(EVALUATOR_3, EXPECTED_PLMC_AMOUNT_3),
+			(EVALUATOR_4, EXPECTED_PLMC_AMOUNT_4),
+			(EVALUATOR_5, EXPECTED_PLMC_AMOUNT_5),
 		];
 
-		let result = inst.calculate_evaluation_plmc_spent(evaluations);
-		assert_eq!(result, expected_plmc_spent);
+		let calculated_plmc_spent = inst
+			.calculate_evaluation_plmc_spent(evaluations)
+			.into_iter()
+			.sorted_by(|a, b| a.account.cmp(&b.account))
+			.map(|map| map.plmc_amount)
+			.collect_vec();
+		let expected_plmc_spent = expected_plmc_spent
+			.into_iter()
+			.sorted_by(|a, b| a.0.cmp(&b.0))
+			.map(|map| {
+				let f64_amount = map.1;
+				let fixed_amount = FixedU128::from_float(f64_amount);
+				fixed_amount.checked_mul_int(PLMC).unwrap()
+			})
+			.collect_vec();
+		for (expected, calculated) in zip(expected_plmc_spent, calculated_plmc_spent) {
+			assert_close_enough!(expected, calculated, Perquintill::from_float(0.999));
+		}
 	}
 
 	#[test]
@@ -133,15 +151,15 @@ mod helper_functions {
 		// post wap ~ 1.0557252:
 		// (Accepted, 5k) - (Partially, 32k) - (Rejected, 5k) - (Accepted, 5k) - (Accepted - 5k) - (Accepted - 1k) - (Accepted - 2k)
 
-		const ORIGINAL_PLMC_CHARGED_BIDDER_1: u128 = 18_452_3_809_523_790;
-		const ORIGINAL_PLMC_CHARGED_BIDDER_2: u128 = 47_619_0_476_190_470;
-		const ORIGINAL_PLMC_CHARGED_BIDDER_3: u128 = 86_90_4_761_904_760;
-		const ORIGINAL_PLMC_CHARGED_BIDDER_4: u128 = 30_95_2_380_952_380;
+		const ORIGINAL_PLMC_CHARGED_BIDDER_1: f64 = 18_452.3809523790;
+		const ORIGINAL_PLMC_CHARGED_BIDDER_2: f64 = 47_619.0476190470;
+		const ORIGINAL_PLMC_CHARGED_BIDDER_3: f64 = 86_90.4761904760;
+		const ORIGINAL_PLMC_CHARGED_BIDDER_4: f64 = 30_95.2380952380;
 
-		const FINAL_PLMC_CHARGED_BIDDER_1: u128 = 12_236_4_594_692_840;
-		const FINAL_PLMC_CHARGED_BIDDER_2: u128 = 38_095_2_380_952_380;
-		const FINAL_PLMC_CHARGED_BIDDER_3: u128 = 75_40_8_942_202_840;
-		const FINAL_PLMC_CHARGED_BIDDER_4: u128 = 2_513_6_314_067_610;
+		const FINAL_PLMC_CHARGED_BIDDER_1: f64 = 12_236.4594692840;
+		const FINAL_PLMC_CHARGED_BIDDER_2: f64 = 38_095.2380952380;
+		const FINAL_PLMC_CHARGED_BIDDER_3: f64 = 75_40.8942202840;
+		const FINAL_PLMC_CHARGED_BIDDER_4: f64 = 2_513.6314067610;
 
 		let bids = vec![bid_1, bid_2, bid_3, bid_4, bid_5];
 
@@ -151,7 +169,12 @@ mod helper_functions {
 			mainnet_token_max_supply: 8_000_000 * CT_UNIT,
 			total_allocation_size: 100_000 * CT_UNIT,
 			auction_round_allocation_percentage: Percent::from_percent(50u8),
-			minimum_price: PriceOf::<TestRuntime>::from_float(10.0),
+			minimum_price: PriceProviderOf::<TestRuntime>::calculate_decimals_aware_price(
+				PriceOf::<TestRuntime>::from_float(10.0),
+				USD_DECIMALS,
+				CT_DECIMALS,
+			)
+			.unwrap(),
 			bidding_ticket_sizes: BiddingTicketSizes {
 				professional: TicketSize::new(Some(5000 * USD_UNIT), None),
 				institutional: TicketSize::new(Some(5000 * USD_UNIT), None),
@@ -190,8 +213,12 @@ mod helper_functions {
 
 		let returned_plmc_balances = returned_plmc_mappings.into_iter().map(|map| map.plmc_amount).collect_vec();
 
-		for (expected, calculated) in zip(expected_returns, returned_plmc_balances) {
-			assert_close_enough!(expected, calculated, Perquintill::from_float(0.99));
+		for (expected_return, returned_balance) in zip(expected_returns, returned_plmc_balances) {
+		    let expected_value = FixedU128::from_float(expected_return)
+		        .checked_mul_int(PLMC)
+		        .unwrap();
+
+		    assert_close_enough!(expected_value, returned_balance, Perquintill::from_float(0.99));
 		}
 	}
 
@@ -202,34 +229,35 @@ mod helper_functions {
 		const CT_PRICE: f64 = 16.32f64;
 
 		const CONTRIBUTOR_1: AccountIdOf<TestRuntime> = 1u32;
-		const TOKEN_AMOUNT_1: u128 = 120_0_000_000_000_u128;
+		const TOKEN_AMOUNT_1: u128 = 120 * CT_UNIT;
 		const MULTIPLIER_1: u8 = 1u8;
 		const _TICKET_SIZE_USD_1: u128 = 1_958_4_000_000_000_u128;
-		const EXPECTED_PLMC_AMOUNT_1: u128 = 233_1_428_571_428_u128;
+		const EXPECTED_PLMC_AMOUNT_1: f64 = 233.1_428_571_428f64;
 
 		const CONTRIBUTOR_2: AccountIdOf<TestRuntime> = 2u32;
-		const TOKEN_AMOUNT_2: u128 = 5023_0_000_000_000_u128;
+		const TOKEN_AMOUNT_2: u128 = 5023 * CT_UNIT;
 		const MULTIPLIER_2: u8 = 2u8;
 		const _TICKET_SIZE_USD_2: u128 = 81_975_3_600_000_000_u128;
-		const EXPECTED_PLMC_AMOUNT_2: u128 = 4_879_4_857_142_857_u128;
+		const EXPECTED_PLMC_AMOUNT_2: f64 = 4_879.4_857_142_857f64;
 
 		const CONTRIBUTOR_3: AccountIdOf<TestRuntime> = 3u32;
-		const TOKEN_AMOUNT_3: u128 = 20_000_0_000_000_000_u128;
+		const TOKEN_AMOUNT_3: u128 = 20_000 * CT_UNIT;
 		const MULTIPLIER_3: u8 = 17u8;
 		const _TICKET_SIZE_USD_3: u128 = 326_400_0_000_000_000_u128;
-		const EXPECTED_PLMC_AMOUNT_3: u128 = 2_285_7_142_857_142_u128;
+		const EXPECTED_PLMC_AMOUNT_3: f64 = 2_285.7_142_857_142f64;
 
 		const CONTRIBUTOR_4: AccountIdOf<TestRuntime> = 4u32;
-		const TOKEN_AMOUNT_4: u128 = 1_000_000_0_000_000_000_u128;
+		const TOKEN_AMOUNT_4: u128 = 1_000_000 * CT_UNIT;
 		const MULTIPLIER_4: u8 = 25u8;
 		const _TICKET_SIZE_4: u128 = 16_320_000_0_000_000_000_u128;
-		const EXPECTED_PLMC_AMOUNT_4: u128 = 77_714_2_857_142_857_u128;
+		const EXPECTED_PLMC_AMOUNT_4: f64 = 77_714.2_857_142_857f64;
 
 		const CONTRIBUTOR_5: AccountIdOf<TestRuntime> = 5u32;
-		const TOKEN_AMOUNT_5: u128 = 0_1_233_000_000_u128;
+		// 0.1233 CTs
+		const TOKEN_AMOUNT_5: u128 = 1_233 * CT_UNIT / 10_000;
 		const MULTIPLIER_5: u8 = 10u8;
 		const _TICKET_SIZE_5: u128 = 2_0_122_562_000_u128;
-		const EXPECTED_PLMC_AMOUNT_5: u128 = 0_0_239_554_285_u128;
+		const EXPECTED_PLMC_AMOUNT_5: f64 = 0.0_239_554_285f64;
 
 		assert_eq!(
 			<TestRuntime as Config>::PriceProvider::get_price(PLMC_FOREIGN_ID).unwrap(),
@@ -245,15 +273,38 @@ mod helper_functions {
 		];
 
 		let expected_plmc_spent = vec![
-			UserToPLMCBalance::new(CONTRIBUTOR_1, EXPECTED_PLMC_AMOUNT_1),
-			UserToPLMCBalance::new(CONTRIBUTOR_2, EXPECTED_PLMC_AMOUNT_2),
-			UserToPLMCBalance::new(CONTRIBUTOR_3, EXPECTED_PLMC_AMOUNT_3),
-			UserToPLMCBalance::new(CONTRIBUTOR_4, EXPECTED_PLMC_AMOUNT_4),
-			UserToPLMCBalance::new(CONTRIBUTOR_5, EXPECTED_PLMC_AMOUNT_5),
+			(CONTRIBUTOR_1, EXPECTED_PLMC_AMOUNT_1),
+			(CONTRIBUTOR_2, EXPECTED_PLMC_AMOUNT_2),
+			(CONTRIBUTOR_3, EXPECTED_PLMC_AMOUNT_3),
+			(CONTRIBUTOR_4, EXPECTED_PLMC_AMOUNT_4),
+			(CONTRIBUTOR_5, EXPECTED_PLMC_AMOUNT_5),
 		];
 
-		let result = inst.calculate_contributed_plmc_spent(contributions, PriceOf::<TestRuntime>::from_float(CT_PRICE));
-		assert_eq!(result, expected_plmc_spent);
+		let calculated_plmc_spent = inst
+			.calculate_contributed_plmc_spent(
+				contributions,
+				PriceProviderOf::<TestRuntime>::calculate_decimals_aware_price(
+					PriceOf::<TestRuntime>::from_float(CT_PRICE),
+					USD_DECIMALS,
+					CT_DECIMALS,
+				)
+				.unwrap(),
+			)
+			.into_iter()
+			.sorted_by(|a, b| a.account.cmp(&b.account))
+			.map(|map| map.plmc_amount)
+			.collect_vec();
+		let expected_plmc_spent = expected_plmc_spent
+			.into_iter()
+			.sorted_by(|a, b| a.0.cmp(&b.0))
+			.map(|map| {
+				let fixed_amount = FixedU128::from_float(map.1);
+				fixed_amount.checked_mul_int(PLMC).unwrap()
+			})
+			.collect_vec();
+		for (expected, calculated) in zip(expected_plmc_spent, calculated_plmc_spent) {
+			assert_close_enough!(expected, calculated, Perquintill::from_float(0.999));
+		}
 	}
 }
 
@@ -528,11 +579,13 @@ mod async_tests {
 		let total_allocation_required = auction_allocation_percentage.saturating_reciprocal_mul(auction_ct_required);
 		project_metadata.total_allocation_size = total_allocation_required;
 
+		let min_bid_usd = project_metadata.bidding_ticket_sizes.institutional.usd_minimum_per_participation.unwrap();
+		let min_bid_ct = project_metadata.minimum_price.reciprocal().unwrap().checked_mul_int(min_bid_usd).unwrap();
 		let max_bids = (0u32..max_bids_per_project)
 			.map(|i| {
 				instantiator::BidParams::<TestRuntime>::new(
 					(i + 69).into(),
-					project_metadata.bidding_ticket_sizes.institutional.usd_minimum_per_participation.unwrap(),
+					min_bid_ct,
 					1u8,
 					AcceptedFundingAsset::USDT,
 				)
