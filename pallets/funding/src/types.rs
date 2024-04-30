@@ -315,8 +315,9 @@ pub mod storage_types {
 	}
 
 	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen, Ord, PartialOrd)]
-	pub struct EvaluationInfo<Id, ProjectId, AccountId, Balance, BlockNumber> {
+	pub struct EvaluationInfo<Id, Did, ProjectId, AccountId, Balance, BlockNumber> {
 		pub id: Id,
+		pub did: Did,
 		pub project_id: ProjectId,
 		pub evaluator: AccountId,
 		pub original_plmc_bond: Balance,
@@ -380,8 +381,9 @@ pub mod storage_types {
 	}
 
 	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
-	pub struct ContributionInfo<Id, ProjectId, AccountId, Balance, Multiplier> {
+	pub struct ContributionInfo<Id, Did, ProjectId, AccountId, Balance, Multiplier> {
 		pub id: Id,
+		pub did: Did,
 		pub project_id: ProjectId,
 		pub contributor: AccountId,
 		pub ct_amount: Balance,

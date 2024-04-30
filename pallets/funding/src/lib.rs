@@ -176,11 +176,11 @@ pub type ProjectMetadataOf<T> =
 pub type ProjectDetailsOf<T> =
 	ProjectDetails<AccountIdOf<T>, Did, BlockNumberFor<T>, PriceOf<T>, BalanceOf<T>, EvaluationRoundInfoOf<T>>;
 pub type EvaluationRoundInfoOf<T> = EvaluationRoundInfo<BalanceOf<T>>;
-pub type EvaluationInfoOf<T> = EvaluationInfo<u32, ProjectId, AccountIdOf<T>, BalanceOf<T>, BlockNumberFor<T>>;
+pub type EvaluationInfoOf<T> = EvaluationInfo<u32, Did, ProjectId, AccountIdOf<T>, BalanceOf<T>, BlockNumberFor<T>>;
 pub type BidInfoOf<T> =
 	BidInfo<ProjectId, Did, BalanceOf<T>, PriceOf<T>, AccountIdOf<T>, BlockNumberFor<T>, MultiplierOf<T>>;
 
-pub type ContributionInfoOf<T> = ContributionInfo<u32, ProjectId, AccountIdOf<T>, BalanceOf<T>, MultiplierOf<T>>;
+pub type ContributionInfoOf<T> = ContributionInfo<u32, Did, ProjectId, AccountIdOf<T>, BalanceOf<T>, MultiplierOf<T>>;
 
 pub type BucketOf<T> = Bucket<BalanceOf<T>, PriceOf<T>>;
 pub type WeightInfoOf<T> = <T as Config>::WeightInfo;

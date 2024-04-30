@@ -1044,6 +1044,7 @@ impl<T: Config> Pallet<T> {
 
 		let new_evaluation = EvaluationInfoOf::<T> {
 			id: evaluation_id,
+			did: did.clone(),
 			project_id,
 			evaluator: evaluator.clone(),
 			original_plmc_bond: plmc_bond,
@@ -1488,6 +1489,7 @@ impl<T: Config> Pallet<T> {
 
 		let contribution_id = NextContributionId::<T>::get();
 		let new_contribution = ContributionInfoOf::<T> {
+			did: did.clone(),
 			id: contribution_id,
 			project_id,
 			contributor: contributor.clone(),
