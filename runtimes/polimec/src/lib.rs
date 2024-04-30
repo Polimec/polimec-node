@@ -1177,6 +1177,8 @@ mod benches {
 		[pallet_balances, Balances]
 		[pallet_vesting, Vesting]
 		[pallet_assets, ForeignAssets]
+		[pallet_assets, ContributionTokens]
+		[pallet_dispenser, Dispenser]
 
 		// Collator support.
 		[pallet_session, SessionBench::<Runtime>]
@@ -1200,6 +1202,10 @@ mod benches {
 		// Oracle
 		// [pallet_membership, OracleProvidersMembership]
 		// [orml_oracle, Oracle]
+
+		// Funding
+		[pallet_funding, Funding]
+		[pallet_linear_release, LinearRelease]
 	);
 }
 
