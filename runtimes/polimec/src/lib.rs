@@ -34,12 +34,14 @@ use frame_support::{
 };
 use frame_system::{EnsureRoot, EnsureRootWithSuccess, EnsureSigned};
 use pallet_democracy::GetElectorate;
+use pallet_funding::DaysToBlocks;
 
 use parachains_common::{
 	message_queue::{NarrowOriginToSibling, ParaIdToSibling},
 	AssetIdForTrustBackedAssets as AssetId,
 };
 use parity_scale_codec::Encode;
+use polimec_common::credentials::EnsureInvestor;
 use polkadot_runtime_common::{
 	xcm_sender::NoPriceForMessageDelivery, BlockHashCount, CurrencyToVote, SlowAdjustingFeeUpdate,
 };
@@ -48,7 +50,8 @@ use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
 use sp_runtime::{
 	create_runtime_str, generic, impl_opaque_keys,
 	traits::{
-		AccountIdLookup, BlakeTwo256, Block as BlockT, ConvertInto, IdentifyAccount, IdentityLookup, OpaqueKeys, Verify,
+		AccountIdConversion, AccountIdLookup, BlakeTwo256, Block as BlockT, Convert, ConvertBack, ConvertInto,
+		IdentifyAccount, IdentityLookup, OpaqueKeys, Verify,
 	},
 	transaction_validity::{TransactionSource, TransactionValidity},
 	ApplyExtrinsicResult, MultiSignature, SaturatedConversion,
@@ -79,6 +82,9 @@ use sp_version::NativeVersion;
 
 #[cfg(any(feature = "std", test))]
 pub use sp_runtime::BuildStorage;
+
+#[cfg(any(feature = "runtime-benchmarks", feature = "std"))]
+pub mod benchmarks;
 
 mod custom_migrations;
 mod weights;
@@ -925,6 +931,138 @@ impl pallet_identity::Config for Runtime {
 	type WeightInfo = weights::pallet_identity::WeightInfo<Runtime>;
 }
 
+pub type ContributionTokensInstance = pallet_assets::Instance1;
+impl pallet_assets::Config<ContributionTokensInstance> for Runtime {
+	type ApprovalDeposit = ExistentialDeposit;
+	type AssetAccountDeposit = ZeroDeposit;
+	type AssetDeposit = AssetDeposit;
+	type AssetId = AssetId;
+	type AssetIdParameter = parity_scale_codec::Compact<AssetId>;
+	type Balance = Balance;
+	#[cfg(feature = "runtime-benchmarks")]
+	type BenchmarkHelper = ();
+	type CallbackHandle = ();
+	type CreateOrigin = AsEnsureOriginWithArg<EnsureSigned<AccountId>>;
+	type Currency = Balances;
+	type Extra = ();
+	type ForceOrigin = EnsureRoot<AccountId>;
+	type Freezer = ();
+	type MetadataDepositBase = ZeroDeposit;
+	type MetadataDepositPerByte = ZeroDeposit;
+	type RemoveItemsLimit = frame_support::traits::ConstU32<1000>;
+	type RuntimeEvent = RuntimeEvent;
+	type StringLimit = AssetsStringLimit;
+	type WeightInfo = ();
+}
+
+parameter_types! {
+	pub ContributionTreasuryAccount: AccountId = FundingPalletId::get().into_account_truncating();
+	pub PolimecReceiverInfo: xcm::v3::PalletInfo = xcm::v3::PalletInfo::new(
+		51, "PolimecReceiver".into(), "polimec_receiver".into(), 0, 1, 0
+	).unwrap();
+	pub MaxMessageSizeThresholds: (u32, u32) = (50000, 102_400);
+	pub MaxCapacityThresholds: (u32, u32) = (8, 1000);
+	pub RequiredMaxCapacity: u32 = 1000;
+	pub RequiredMaxMessageSize: u32 = 102_400;
+	// TODO: Changes this to Live key
+	pub VerifierPublicKey: [u8; 32] = [
+		32, 118, 30, 171, 58, 212, 197, 27, 146, 122, 255, 243, 34, 245, 90, 244, 221, 37, 253,
+		195, 18, 202, 111, 55, 39, 48, 123, 17, 101, 78, 215, 94,
+	];
+	pub MinUsdPerEvaluation: Balance = 100 * US_DOLLAR;
+
+}
+pub struct ConvertSelf;
+impl Convert<AccountId, [u8; 32]> for ConvertSelf {
+	fn convert(account_id: AccountId) -> [u8; 32] {
+		account_id.into()
+	}
+}
+impl ConvertBack<AccountId, [u8; 32]> for ConvertSelf {
+	fn convert_back(bytes: [u8; 32]) -> AccountId {
+		bytes.into()
+	}
+}
+
+impl pallet_funding::Config for Runtime {
+	type AccountId32Conversion = ConvertSelf;
+	#[cfg(any(test, feature = "runtime-benchmarks", feature = "std"))]
+	type AllPalletsWithoutSystem =
+		(Balances, ContributionTokens, ForeignAssets, Oracle, Funding, LinearRelease, Random);
+	type AuctionClosingDuration = AuctionClosingDuration;
+	type AuctionInitializePeriodDuration = AuctionInitializePeriodDuration;
+	type AuctionOpeningDuration = AuctionOpeningDuration;
+	type Balance = Balance;
+	type BlockNumber = BlockNumber;
+	type BlockNumberToBalance = ConvertInto;
+	type CommunityFundingDuration = CommunityFundingDuration;
+	type ContributionTokenCurrency = ContributionTokens;
+	type ContributionTreasury = ContributionTreasuryAccount;
+	type DaysToBlocks = DaysToBlocks;
+	type EvaluationDuration = EvaluationDuration;
+	type EvaluationSuccessThreshold = EarlyEvaluationThreshold;
+	type EvaluatorSlash = EvaluatorSlash;
+	type FeeBrackets = FeeBrackets;
+	type FundingCurrency = ForeignAssets;
+	type InvestorOrigin = EnsureInvestor<Runtime>;
+	type ManualAcceptanceDuration = ManualAcceptanceDuration;
+	type MaxBidsPerProject = ConstU32<1024>;
+	type MaxBidsPerUser = ConstU32<16>;
+	type MaxCapacityThresholds = MaxCapacityThresholds;
+	type MaxContributionsPerUser = ConstU32<16>;
+	type MaxEvaluationsPerProject = ConstU32<1024>;
+	type MaxEvaluationsPerUser = ConstU32<16>;
+	type MaxMessageSizeThresholds = MaxMessageSizeThresholds;
+	type MaxProjectsToUpdateInsertionAttempts = ConstU32<100>;
+	type MaxProjectsToUpdatePerBlock = ConstU32<1>;
+	type MinUsdPerEvaluation = MinUsdPerEvaluation;
+	type Multiplier = pallet_funding::types::Multiplier;
+	type NativeCurrency = Balances;
+	type PalletId = FundingPalletId;
+	type PolimecReceiverInfo = PolimecReceiverInfo;
+	type PreImageLimit = ConstU32<1024>;
+	type Price = Price;
+	type PriceProvider = OraclePriceProvider<AssetId, Price, Oracle>;
+	type ProtocolGrowthTreasury = TreasuryAccount;
+	type Randomness = Random;
+	type RemainderFundingDuration = RemainderFundingDuration;
+	type RequiredMaxCapacity = RequiredMaxCapacity;
+	type RequiredMaxMessageSize = RequiredMaxMessageSize;
+	type RuntimeCall = RuntimeCall;
+	type RuntimeEvent = RuntimeEvent;
+	type RuntimeHoldReason = RuntimeHoldReason;
+	type RuntimeOrigin = RuntimeOrigin;
+	#[cfg(any(feature = "runtime-benchmarks", feature = "std"))]
+	type SetPrices = crate::benchmarks::helpers::SetOraclePrices;
+	type StringLimit = ConstU32<64>;
+	type SuccessToSettlementTime = SuccessToSettlementTime;
+	type VerifierPublicKey = VerifierPublicKey;
+	type Vesting = LinearRelease;
+	type WeightInfo = pallet_funding::weights::SubstrateWeight<Runtime>;
+}
+
+#[cfg(feature = "runtime-benchmarks")]
+parameter_types! {
+	pub BenchmarkReason: RuntimeHoldReason = RuntimeHoldReason::Funding(pallet_funding::HoldReason::Participation(0));
+}
+
+impl pallet_linear_release::Config for Runtime {
+	type Balance = Balance;
+	#[cfg(feature = "runtime-benchmarks")]
+	type BenchmarkReason = BenchmarkReason;
+	type BlockNumberToBalance = ConvertInto;
+	type Currency = Balances;
+	type MinVestedTransfer = shared_configuration::vesting::MinVestedTransfer;
+	type RuntimeEvent = RuntimeEvent;
+	type RuntimeHoldReason = RuntimeHoldReason;
+	type UnvestedFundsAllowedWithdrawReasons = shared_configuration::vesting::UnvestedFundsAllowedWithdrawReasons;
+	type WeightInfo = pallet_linear_release::weights::SubstrateWeight<Runtime>;
+
+	const MAX_VESTING_SCHEDULES: u32 = 26;
+}
+
+impl pallet_insecure_randomness_collective_flip::Config for Runtime {}
+
 // Create the runtime by composing the FRAME pallets that were previously configured.
 construct_runtime!(
 	pub enum Runtime
@@ -944,7 +1082,7 @@ construct_runtime!(
 		Balances: pallet_balances = 10,
 		TransactionPayment: pallet_transaction_payment = 11,
 		Vesting: pallet_vesting = 12,
-		// Leave room for ContributionTokens = 13
+		ContributionTokens: pallet_assets::<Instance1> = 13,
 		ForeignAssets: pallet_assets::<Instance2> = 14,
 
 		// Collator support. the order of these 5 are important and shall not change.
@@ -970,10 +1108,15 @@ construct_runtime!(
 		Preimage: pallet_preimage::{Pallet, Call, Storage, Event<T>, HoldReason} = 45,
 		Scheduler: pallet_scheduler::{Pallet, Call, Storage, Event<T>} = 46,
 
+		Random: pallet_insecure_randomness_collective_flip = 50,
+
 		// Oracle
 		Oracle: orml_oracle::{Pallet, Call, Storage, Event<T>} = 70,
 		OracleProvidersMembership: pallet_membership::<Instance1> = 71,
 		OracleOffchainWorker: pallet_oracle_ocw::{Pallet, Event<T>} = 72,
+
+		Funding: pallet_funding = 80,
+		LinearRelease: pallet_linear_release = 81,
 	}
 );
 
