@@ -114,11 +114,11 @@ mod helper_functions {
 
 	#[test]
 	fn calculate_auction_plmc_returned() {
-		const CT_AMOUNT_1: u128 = 5000 * ASSET_UNIT;
-		const CT_AMOUNT_2: u128 = 40_000 * ASSET_UNIT;
-		const CT_AMOUNT_3: u128 = 10_000 * ASSET_UNIT;
-		const CT_AMOUNT_4: u128 = 6000 * ASSET_UNIT;
-		const CT_AMOUNT_5: u128 = 2000 * ASSET_UNIT;
+		const CT_AMOUNT_1: u128 = 5000 * CT_UNIT;
+		const CT_AMOUNT_2: u128 = 40_000 * CT_UNIT;
+		const CT_AMOUNT_3: u128 = 10_000 * CT_UNIT;
+		const CT_AMOUNT_4: u128 = 6000 * CT_UNIT;
+		const CT_AMOUNT_5: u128 = 2000 * CT_UNIT;
 
 		let bid_1 = BidParams::new(BIDDER_1, CT_AMOUNT_1, 1u8, AcceptedFundingAsset::USDT);
 		let bid_2 = BidParams::new(BIDDER_2, CT_AMOUNT_2, 1u8, AcceptedFundingAsset::USDT);
@@ -147,13 +147,13 @@ mod helper_functions {
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		let project_metadata = ProjectMetadata {
 			token_information: default_token_information(),
-			mainnet_token_max_supply: 8_000_000 * ASSET_UNIT,
-			total_allocation_size: 100_000 * ASSET_UNIT,
+			mainnet_token_max_supply: 8_000_000 * CT_UNIT,
+			total_allocation_size: 100_000 * CT_UNIT,
 			auction_round_allocation_percentage: Percent::from_percent(50u8),
 			minimum_price: PriceOf::<TestRuntime>::from_float(10.0),
 			bidding_ticket_sizes: BiddingTicketSizes {
-				professional: TicketSize::new(Some(5000 * US_DOLLAR), None),
-				institutional: TicketSize::new(Some(5000 * US_DOLLAR), None),
+				professional: TicketSize::new(Some(5000 * USD_UNIT), None),
+				institutional: TicketSize::new(Some(5000 * USD_UNIT), None),
 				phantom: Default::default(),
 			},
 			contributing_ticket_sizes: ContributingTicketSizes {

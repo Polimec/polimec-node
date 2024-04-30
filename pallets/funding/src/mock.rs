@@ -20,45 +20,46 @@
 
 use super::*;
 use crate as pallet_funding;
+use crate::traits::ProvideAssetPrice;
 use frame_support::{
 	construct_runtime,
 	pallet_prelude::Weight,
 	parameter_types,
-	traits::{AsEnsureOriginWithArg, ConstU16, ConstU32, ConstU64, WithdrawReasons},
+	traits::{AsEnsureOriginWithArg, ConstU16, ConstU32, ConstU64, Everything, OriginTrait, WithdrawReasons},
 	PalletId,
 };
 use frame_system as system;
-use frame_system::EnsureRoot;
-use polimec_common::credentials::EnsureInvestor;
+use frame_system::{EnsureRoot, RawOrigin as SystemRawOrigin};
+use polimec_common::{credentials::EnsureInvestor, USD_DECIMALS};
+use polkadot_parachain_primitives::primitives::Sibling;
 use sp_arithmetic::Percent;
 use sp_core::H256;
 use sp_runtime::{
-	traits::{BlakeTwo256, ConvertInto, IdentityLookup},
+	traits::{BlakeTwo256, ConvertBack, ConvertInto, Get, IdentityLookup, TryConvert},
 	BuildStorage,
 };
 use sp_std::collections::btree_map::BTreeMap;
 use std::cell::RefCell;
 use system::EnsureSigned;
+use xcm_builder::{EnsureXcmOrigin, FixedWeightBounds, ParentIsPreset, SiblingParachainConvertsVia};
+use xcm_executor::traits::XcmAssetTransfers;
 
-type Block = frame_system::mocking::MockBlock<TestRuntime>;
+pub const PLMC: Balance = 10u128.pow(PLMC_DECIMALS as u32);
+pub const MILLI_PLMC: Balance = PLMC / 10u128.pow(3);
+pub const MICRO_PLMC: Balance = PLMC / 10u128.pow(6);
+pub const EXISTENTIAL_DEPOSIT: Balance = 10 * MILLI_PLMC;
+pub const USD_UNIT: Balance = 10u128.pow(USD_DECIMALS as u32);
 
+pub type Block = frame_system::mocking::MockBlock<TestRuntime>;
 pub type AccountId = u32;
 pub type Balance = u128;
 pub type BlockNumber = u64;
 pub type Identifier = u32;
 pub type Price = FixedU128;
-
-pub const PLMC: u128 = 10_000_000_000_u128;
-pub const MILLI_PLMC: Balance = 10u128.pow(7);
-pub const MICRO_PLMC: Balance = 10u128.pow(4);
-pub const EXISTENTIAL_DEPOSIT: Balance = 10 * MILLI_PLMC;
-
-const US_DOLLAR: u128 = 1_0_000_000_000u128;
-
 pub type ContributionTokensInstance = pallet_assets::Instance1;
 pub type ForeignAssetsInstance = pallet_assets::Instance2;
-
 pub type AssetId = u32;
+
 pub const fn deposit(items: u32, bytes: u32) -> Balance {
 	items as Balance * 15 * MICRO_PLMC + (bytes as Balance) * 6 * MICRO_PLMC
 }
@@ -66,14 +67,6 @@ pub const fn deposit(items: u32, bytes: u32) -> Balance {
 pub const fn free_deposit() -> Balance {
 	0 * MICRO_PLMC
 }
-
-use crate::traits::ProvideAssetPrice;
-use frame_support::traits::{Everything, OriginTrait};
-use frame_system::RawOrigin as SystemRawOrigin;
-use polkadot_parachain_primitives::primitives::Sibling;
-use sp_runtime::traits::{ConvertBack, Get, TryConvert};
-use xcm_builder::{EnsureXcmOrigin, FixedWeightBounds, ParentIsPreset, SiblingParachainConvertsVia};
-use xcm_executor::traits::XcmAssetTransfers;
 
 pub struct SignedToAccountIndex<RuntimeOrigin, AccountId, Network>(PhantomData<(RuntimeOrigin, AccountId, Network)>);
 
@@ -308,8 +301,8 @@ parameter_types! {
 	pub const SuccessToSettlementTime: BlockNumber =(4 * HOURS) as BlockNumber;
 	pub const FundingPalletId: PalletId = PalletId(*b"py/cfund");
 	pub FeeBrackets: Vec<(Percent, Balance)> = vec![
-		(Percent::from_percent(10), 1_000_000 * US_DOLLAR),
-		(Percent::from_percent(8), 5_000_000 * US_DOLLAR),
+		(Percent::from_percent(10), 1_000_000 * USD_UNIT),
+		(Percent::from_percent(8), 5_000_000 * USD_UNIT),
 		(Percent::from_percent(6), u128::MAX), // Making it max signifies the last bracket
 	];
 	pub EarlyEvaluationThreshold: Percent = Percent::from_percent(10);
@@ -355,7 +348,7 @@ parameter_types! {
 		32, 118, 30, 171, 58, 212, 197, 27, 146, 122, 255, 243, 34, 245, 90, 244, 221, 37, 253,
 		195, 18, 202, 111, 55, 39, 48, 123, 17, 101, 78, 215, 94,
 	];
-	pub MinUsdPerEvaluation: Balance = 100 * US_DOLLAR;
+	pub MinUsdPerEvaluation: Balance = 100 * USD_UNIT;
 }
 
 pub struct DummyConverter;
