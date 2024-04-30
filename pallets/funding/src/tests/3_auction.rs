@@ -516,6 +516,11 @@ mod round_flow {
 				Perquintill::from_float(0.99)
 			);
 		}
+
+		#[test]
+		fn new_decimals_test() {
+
+		}
 	}
 
 	#[cfg(test)]
