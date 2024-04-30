@@ -15,6 +15,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use crate::*;
+use frame_support::traits::{fungible::Mutate, fungibles::Inspect};
 use pallet_funding::{assert_close_enough, ProjectId};
 use polimec_common::migration_types::{MigrationStatus, Migrations};
 use politest_runtime::Funding;
@@ -23,6 +24,15 @@ use std::collections::HashMap;
 use tests::defaults::*;
 
 fn mock_hrmp_establishment(project_id: u32) {
+	let ct_issued = PolitestNet::execute_with(|| {
+		<PolitestRuntime as pallet_funding::Config>::ContributionTokenCurrency::total_issuance(project_id)
+	});
+	PenNet::execute_with(|| {
+		let polimec_sovereign_account =
+			<Penpal<PolkadotNet>>::sovereign_account_id_of((Parent, xcm::prelude::Parachain(polimec::PARA_ID)).into());
+		PenpalBalances::set_balance(&polimec_sovereign_account, ct_issued + politest_runtime::EXISTENTIAL_DEPOSIT);
+	});
+
 	PolitestNet::execute_with(|| {
 		assert_ok!(Funding::do_set_para_id_for_project(&ISSUER.into(), project_id, ParaId::from(6969u32)));
 

@@ -24,8 +24,7 @@ use frame_support::{
 	ensure,
 	pallet_prelude::*,
 	traits::{
-		fungible::{
-			Mutate, MutateHold as FungibleMutateHold},
+		fungible::{Mutate, MutateHold as FungibleMutateHold},
 		fungibles::{
 			metadata::{Inspect as MetadataInspect, Mutate as MetadataMutate},
 			Create, Inspect as FungibleInspect, Mutate as FungiblesMutate,
@@ -1737,6 +1736,8 @@ impl<T: Config> Pallet<T> {
 	#[transactional]
 	pub fn do_start_migration_readiness_check(caller: &AccountIdOf<T>, project_id: ProjectId) -> DispatchResult {
 		// * Get variables *
+		let project_metadata = ProjectsMetadata::<T>::get(project_id)
+			.ok_or(Error::<T>::ProjectError(ProjectErrorReason::ProjectMetadataNotFound))?;
 		let mut project_details = ProjectsDetails::<T>::get(project_id)
 			.ok_or(Error::<T>::ProjectError(ProjectErrorReason::ProjectDetailsNotFound))?;
 		let parachain_id: u32 = project_details.parachain_id.ok_or(Error::<T>::ImpossibleState)?.into();
@@ -1792,11 +1793,14 @@ impl<T: Config> Pallet<T> {
 			holding_check: (query_id_holdings, CheckOutcome::AwaitingResponse),
 			pallet_check: (query_id_pallet, CheckOutcome::AwaitingResponse),
 		});
-		ProjectsDetails::<T>::insert(project_id, project_details);
+		ProjectsDetails::<T>::insert(project_id, project_details.clone());
+
+		let total_cts_minted = <T as Config>::ContributionTokenCurrency::total_issuance(project_id);
 
 		// * Send the migration query *
 		let expected_tokens: MultiAsset =
-			(MultiLocation { parents: 0, interior: Here }, 1_000_000_0_000_000_000u128).into(); // 1MM units for migrations
+			(MultiLocation { parents: 0, interior: Here }, total_cts_minted.into()).into();
+		log::info!("expected_tokens sold for migrations: {:?}", total_cts_minted);
 		let xcm = Xcm(vec![
 			UnpaidExecution { weight_limit: WeightLimit::Unlimited, check_origin: None },
 			WithdrawAsset(vec![expected_tokens].into()),

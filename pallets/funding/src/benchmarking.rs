@@ -40,7 +40,7 @@ use sp_runtime::traits::{Get, Member, TrailingZeroInput, Zero};
 
 const IPFS_CID: &str = "QmbvsJBhQtu9uAGVp7x4H77JkwAQxV7TA6xTfdeALuDiYB";
 const ASSET_DECIMALS: u8 = 10;
-const US_DOLLAR: u128 = 1_0_000_000_000u128;
+const USD_UNIT: u128 = 1_0_000_000_000u128;
 const ASSET_UNIT: u128 = 1_0_000_000_000u128;
 type BenchInstantiator<T> = Instantiator<T, <T as Config>::AllPalletsWithoutSystem, <T as Config>::RuntimeEvent>;
 
@@ -67,13 +67,13 @@ where
 		bidding_ticket_sizes: BiddingTicketSizes {
 			professional: TicketSize::new(
 				Some(
-					BalanceOf::<T>::try_from(5000 * US_DOLLAR).unwrap_or_else(|_| panic!("Failed to create BalanceOf")),
+					BalanceOf::<T>::try_from(5000 * USD_UNIT).unwrap_or_else(|_| panic!("Failed to create BalanceOf")),
 				),
 				None,
 			),
 			institutional: TicketSize::new(
 				Some(
-					BalanceOf::<T>::try_from(5000 * US_DOLLAR).unwrap_or_else(|_| panic!("Failed to create BalanceOf")),
+					BalanceOf::<T>::try_from(5000 * USD_UNIT).unwrap_or_else(|_| panic!("Failed to create BalanceOf")),
 				),
 				None,
 			),
@@ -476,21 +476,21 @@ mod benchmarks {
 			bidding_ticket_sizes: BiddingTicketSizes {
 				professional: TicketSize::new(
 					Some(
-						BalanceOf::<T>::try_from(5000 * US_DOLLAR)
+						BalanceOf::<T>::try_from(5000 * USD_UNIT)
 							.unwrap_or_else(|_| panic!("Failed to create BalanceOf")),
 					),
 					Some(
-						BalanceOf::<T>::try_from(10_000 * US_DOLLAR)
+						BalanceOf::<T>::try_from(10_000 * USD_UNIT)
 							.unwrap_or_else(|_| panic!("Failed to create BalanceOf")),
 					),
 				),
 				institutional: TicketSize::new(
 					Some(
-						BalanceOf::<T>::try_from(5000 * US_DOLLAR)
+						BalanceOf::<T>::try_from(5000 * USD_UNIT)
 							.unwrap_or_else(|_| panic!("Failed to create BalanceOf")),
 					),
 					Some(
-						BalanceOf::<T>::try_from(10_000 * US_DOLLAR)
+						BalanceOf::<T>::try_from(10_000 * USD_UNIT)
 							.unwrap_or_else(|_| panic!("Failed to create BalanceOf")),
 					),
 				),
@@ -499,31 +499,31 @@ mod benchmarks {
 			contributing_ticket_sizes: ContributingTicketSizes {
 				retail: TicketSize::new(
 					Some(
-						BalanceOf::<T>::try_from(5000 * US_DOLLAR)
+						BalanceOf::<T>::try_from(5000 * USD_UNIT)
 							.unwrap_or_else(|_| panic!("Failed to create BalanceOf")),
 					),
 					Some(
-						BalanceOf::<T>::try_from(10_000 * US_DOLLAR)
+						BalanceOf::<T>::try_from(10_000 * USD_UNIT)
 							.unwrap_or_else(|_| panic!("Failed to create BalanceOf")),
 					),
 				),
 				professional: TicketSize::new(
 					Some(
-						BalanceOf::<T>::try_from(5000 * US_DOLLAR)
+						BalanceOf::<T>::try_from(5000 * USD_UNIT)
 							.unwrap_or_else(|_| panic!("Failed to create BalanceOf")),
 					),
 					Some(
-						BalanceOf::<T>::try_from(10_000 * US_DOLLAR)
+						BalanceOf::<T>::try_from(10_000 * USD_UNIT)
 							.unwrap_or_else(|_| panic!("Failed to create BalanceOf")),
 					),
 				),
 				institutional: TicketSize::new(
 					Some(
-						BalanceOf::<T>::try_from(5000 * US_DOLLAR)
+						BalanceOf::<T>::try_from(5000 * USD_UNIT)
 							.unwrap_or_else(|_| panic!("Failed to create BalanceOf")),
 					),
 					Some(
-						BalanceOf::<T>::try_from(10_000 * US_DOLLAR)
+						BalanceOf::<T>::try_from(10_000 * USD_UNIT)
 							.unwrap_or_else(|_| panic!("Failed to create BalanceOf")),
 					),
 				),
@@ -686,8 +686,8 @@ mod benchmarks {
 		let project_metadata = default_project::<T>(issuer.clone());
 		let project_id = inst.create_evaluating_project(project_metadata.clone(), issuer);
 
-		let existing_evaluation = UserToUSDBalance::new(test_evaluator.clone(), (200 * US_DOLLAR).into());
-		let extrinsic_evaluation = UserToUSDBalance::new(test_evaluator.clone(), (1_000 * US_DOLLAR).into());
+		let existing_evaluation = UserToUSDBalance::new(test_evaluator.clone(), (200 * USD_UNIT).into());
+		let extrinsic_evaluation = UserToUSDBalance::new(test_evaluator.clone(), (1_000 * USD_UNIT).into());
 		let existing_evaluations = vec![existing_evaluation; x as usize];
 
 		let plmc_for_existing_evaluations = inst.calculate_evaluation_plmc_spent(existing_evaluations.clone());
@@ -2033,14 +2033,14 @@ mod benchmarks {
 			bidding_ticket_sizes: BiddingTicketSizes {
 				professional: TicketSize::new(
 					Some(
-						BalanceOf::<T>::try_from(5000 * US_DOLLAR)
+						BalanceOf::<T>::try_from(5000 * USD_UNIT)
 							.unwrap_or_else(|_| panic!("Failed to create BalanceOf")),
 					),
 					None,
 				),
 				institutional: TicketSize::new(
 					Some(
-						BalanceOf::<T>::try_from(5000 * US_DOLLAR)
+						BalanceOf::<T>::try_from(5000 * USD_UNIT)
 							.unwrap_or_else(|_| panic!("Failed to create BalanceOf")),
 					),
 					None,
@@ -2399,7 +2399,7 @@ mod benchmarks {
 
 		let mut evaluations = (0..y.saturating_sub(1))
 			.map(|i| {
-				UserToUSDBalance::<T>::new(account::<AccountIdOf<T>>("evaluator", 0, i), (100u128 * US_DOLLAR).into())
+				UserToUSDBalance::<T>::new(account::<AccountIdOf<T>>("evaluator", 0, i), (100u128 * USD_UNIT).into())
 			})
 			.collect_vec();
 

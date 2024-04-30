@@ -432,8 +432,8 @@ pub mod politest {
 					(usdt_asset_id, alice_account.clone(), true, 0_0_010_000_000u128),
 				],
 				metadata: vec![
-					(dot_asset_id, "Local DOT".as_bytes().to_vec(), "DOT".as_bytes().to_vec(), 12),
-					(usdt_asset_id, "Local USDT".as_bytes().to_vec(), "USDT".as_bytes().to_vec(), 12),
+					(dot_asset_id, "Local DOT".as_bytes().to_vec(), "DOT".as_bytes().to_vec(), 10),
+					(usdt_asset_id, "Local USDT".as_bytes().to_vec(), "USDT".as_bytes().to_vec(), 6),
 				],
 				accounts: vec![],
 			},
@@ -456,20 +456,12 @@ pub mod penpal {
 	pub const ED: Balance = penpal_runtime::EXISTENTIAL_DEPOSIT;
 
 	pub fn genesis() -> Storage {
-		let mut funded_accounts = vec![
-			(
-				<Penpal<PolkadotNet>>::sovereign_account_id_of(
-					(Parent, xcm::prelude::Parachain(asset_hub::PARA_ID)).into(),
-				),
-				INITIAL_DEPOSIT,
+		let mut funded_accounts = vec![(
+			<Penpal<PolkadotNet>>::sovereign_account_id_of(
+				(Parent, xcm::prelude::Parachain(asset_hub::PARA_ID)).into(),
 			),
-			(
-				<Penpal<PolkadotNet>>::sovereign_account_id_of(
-					(Parent, xcm::prelude::Parachain(polimec::PARA_ID)).into(),
-				),
-				2_000_000_0_000_000_000,
-			), // i.e the CTs sold on polimec
-		];
+			INITIAL_DEPOSIT,
+		)];
 		funded_accounts.extend(accounts::init_balances().iter().cloned().map(|k| (k, INITIAL_DEPOSIT)));
 
 		let genesis_config = penpal_runtime::RuntimeGenesisConfig {
