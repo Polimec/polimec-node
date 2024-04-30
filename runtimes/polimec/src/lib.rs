@@ -23,7 +23,7 @@ use cumulus_primitives_core::{AggregateMessageOrigin, ParaId};
 use frame_support::{
 	construct_runtime,
 	genesis_builder_helper::{build_config, create_default_config},
-	parameter_types,
+	ord_parameter_types, parameter_types,
 	traits::{
 		fungible::{Credit, HoldConsideration, Inspect},
 		tokens::{self, PayFromAccount, UnityAssetBalanceConversion},
@@ -32,7 +32,7 @@ use frame_support::{
 	},
 	weights::{ConstantMultiplier, Weight},
 };
-use frame_system::{EnsureRoot, EnsureRootWithSuccess, EnsureSigned};
+use frame_system::{EnsureRoot, EnsureRootWithSuccess, EnsureSigned, EnsureSignedBy};
 use pallet_democracy::GetElectorate;
 use pallet_funding::DaysToBlocks;
 
@@ -133,9 +133,16 @@ pub type SignedExtra = (
 	frame_system::CheckTxVersion<Runtime>,
 	frame_system::CheckGenesis<Runtime>,
 	frame_system::CheckEra<Runtime>,
-	frame_system::CheckNonce<Runtime>,
+	// TODO: Return to parity CheckNonce implementation once
+	// https://github.com/paritytech/polkadot-sdk/issues/3991 is resolved.
+	pallet_dispenser::extensions::CheckNonce<Runtime>,
 	frame_system::CheckWeight<Runtime>,
-	pallet_transaction_payment::ChargeTransactionPayment<Runtime>,
+	// TODO: Use parity's implementation once
+	// https://github.com/paritytech/polkadot-sdk/pull/3993 is available.
+	pallet_dispenser::extensions::SkipCheckIfFeeless<
+		Runtime,
+		pallet_transaction_payment::ChargeTransactionPayment<Runtime>,
+	>,
 );
 
 /// Unchecked extrinsic type as expected by this runtime.
@@ -850,9 +857,15 @@ where
 			frame_system::CheckTxVersion::<Runtime>::new(),
 			frame_system::CheckGenesis::<Runtime>::new(),
 			frame_system::CheckEra::<Runtime>::from(generic::Era::mortal(period, current_block)),
-			frame_system::CheckNonce::<Runtime>::from(nonce),
+			// TODO: Return to parity CheckNonce implementation once
+			// https://github.com/paritytech/polkadot-sdk/issues/3991 is resolved.
+			pallet_dispenser::extensions::CheckNonce::<Runtime>::from(nonce),
 			frame_system::CheckWeight::<Runtime>::new(),
-			pallet_transaction_payment::ChargeTransactionPayment::<Runtime>::from(tip),
+			// TODO: Use parity's implementation once
+			// https://github.com/paritytech/polkadot-sdk/pull/3993 is available.
+			pallet_dispenser::extensions::SkipCheckIfFeeless::from(
+				pallet_transaction_payment::ChargeTransactionPayment::<Runtime>::from(tip),
+			),
 		);
 		let raw_payload = generic::SignedPayload::new(call, extra)
 			.map_err(|e| {
@@ -1063,6 +1076,33 @@ impl pallet_linear_release::Config for Runtime {
 
 impl pallet_insecure_randomness_collective_flip::Config for Runtime {}
 
+ord_parameter_types! {
+	pub const DispenserAdminAccount: AccountId = AccountId::from(hex_literal::hex!("d85a4f58eb7dba17bc436b16f394b242271237021f7880e1ccaf36cd9a616c99"));
+}
+
+// #[test]
+// fn ensure_admin_account_is_correct() {
+// 	use frame_support::traits::SortedMembers;
+// 	use sp_core::crypto::Ss58Codec;
+// 	let acc = AccountId::from_ss58check("5BAimacvMnhBEoc2g7PaiuEhJwmMZejq6j1ZMCpDZMHGAogz").unwrap();
+// 	assert_eq!(acc, DispenserAdminAccount::sorted_members()[0]);
+// }
+
+impl pallet_dispenser::Config for Runtime {
+	type AdminOrigin = EnsureSignedBy<DispenserAdminAccount, AccountId>;
+	type BlockNumberToBalance = ConvertInto;
+	type FreeDispenseAmount = FreeDispenseAmount;
+	type InitialDispenseAmount = InitialDispenseAmount;
+	type InvestorOrigin = EnsureInvestor<Runtime>;
+	type LockPeriod = DispenserLockPeriod;
+	type PalletId = DispenserId;
+	type RuntimeEvent = RuntimeEvent;
+	type VerifierPublicKey = VerifierPublicKey;
+	type VestPeriod = DispenserVestPeriod;
+	type VestingSchedule = Vesting;
+	type WeightInfo = ();
+}
+
 // Create the runtime by composing the FRAME pallets that were previously configured.
 construct_runtime!(
 	pub enum Runtime
@@ -1084,6 +1124,7 @@ construct_runtime!(
 		Vesting: pallet_vesting = 12,
 		ContributionTokens: pallet_assets::<Instance1> = 13,
 		ForeignAssets: pallet_assets::<Instance2> = 14,
+		Dispenser: pallet_dispenser = 15,
 
 		// Collator support. the order of these 5 are important and shall not change.
 		Authorship: pallet_authorship::{Pallet, Storage} = 20,
