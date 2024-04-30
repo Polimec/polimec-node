@@ -180,7 +180,7 @@ pub fn get_rococo_chain_spec() -> GenericChainSpec {
 }
 
 fn base_testnet_genesis(
-	stakers: Vec<(AccountId, Option<AccountId>, Balance)>,
+	#[allow(unused)] stakers: Vec<(AccountId, Option<AccountId>, Balance)>,
 	inflation_config: InflationInfo<Balance>,
 	initial_authorities: Vec<AccountId>,
 	endowed_accounts: Vec<(AccountId, Balance)>,
