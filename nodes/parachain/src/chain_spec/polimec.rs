@@ -21,7 +21,7 @@
 use cumulus_primitives_core::ParaId;
 use sc_service::ChainType;
 use sp_core::{crypto::UncheckedInto, sr25519};
-use sp_runtime::{traits::ConstU32, BoundedVec, Perbill, Percent};
+use sp_runtime::{traits::AccountIdConversion, Perbill, Percent};
 
 use crate::chain_spec::{get_account_id_from_seed, get_properties, Extensions, GenericChainSpec, DEFAULT_PARA_ID};
 use polimec_runtime::{
@@ -29,7 +29,8 @@ use polimec_runtime::{
 		inflation::{perbill_annual_to_perbill_round, BLOCKS_PER_YEAR},
 		InflationInfo, Range,
 	},
-	AccountId, AuraId as AuthorityId, Balance, MinCandidateStk, RuntimeGenesisConfig, PLMC,
+	AccountId, AuraId as AuthorityId, Balance, MinCandidateStk, OracleProvidersMembershipConfig, Runtime,
+	RuntimeGenesisConfig, PLMC,
 };
 
 pub type ChainSpec = sc_service::GenericChainSpec<RuntimeGenesisConfig, Extensions>;
@@ -88,6 +89,7 @@ pub fn get_local_chain_spec() -> GenericChainSpec {
 		vec![
 			(get_account_id_from_seed::<sr25519::Public>("Alice"), None, MinCandidateStk::get()),
 			(get_account_id_from_seed::<sr25519::Public>("Bob"), None, MinCandidateStk::get()),
+			(get_account_id_from_seed::<sr25519::Public>("Charlie"), None, MinCandidateStk::get()),
 		],
 		polimec_inflation_config(),
 		vec![get_account_id_from_seed::<sr25519::Public>("Alice"), get_account_id_from_seed::<sr25519::Public>("Bob")],
@@ -192,12 +194,46 @@ fn base_testnet_genesis(
 	#[cfg(feature = "runtime-benchmarks")]
 	let staking_candidates: Vec<(AccountId, Balance)> = vec![];
 
+	let accounts = endowed_accounts.iter().map(|(account, _)| account.clone()).collect::<Vec<_>>();
+
 	serde_json::json!({
 		"balances": {
 			"balances": endowed_accounts.clone()
 		},
 		"parachainInfo": {
 			"parachainId": id
+		},
+		"foreignAssets":  {
+			"assets": vec![(
+				pallet_funding::types::AcceptedFundingAsset::USDT.to_assethub_id(),
+				&AccountIdConversion::<AccountId>::into_account_truncating(&<Runtime as pallet_funding::Config>::PalletId::get()),
+				true,
+				70000,
+			),
+			(
+				pallet_funding::types::AcceptedFundingAsset::USDC.to_assethub_id(),
+				&AccountIdConversion::<AccountId>::into_account_truncating(&<Runtime as pallet_funding::Config>::PalletId::get()),
+				true,
+				70000,
+			),
+			(
+				pallet_funding::types::AcceptedFundingAsset::DOT.to_assethub_id(),
+				&AccountIdConversion::<AccountId>::into_account_truncating(&<Runtime as pallet_funding::Config>::PalletId::get()),
+				true,
+				70000,
+			)],
+			// (id, name, symbol, decimals)
+			"metadata": vec![
+				(pallet_funding::types::AcceptedFundingAsset::USDT.to_assethub_id(), b"Local USDT", b"USDT", 6),
+				(pallet_funding::types::AcceptedFundingAsset::USDC.to_assethub_id(), b"Local USDC", b"USDC", 6),
+				(pallet_funding::types::AcceptedFundingAsset::DOT.to_assethub_id(), b"Local DOT ", b"DOT ", 10)
+			],
+			// (id, account_id, amount)
+			"accounts": vec![
+				(pallet_funding::types::AcceptedFundingAsset::USDT.to_assethub_id(), accounts[0].clone(), 1000000000000u64),
+				(pallet_funding::types::AcceptedFundingAsset::USDC.to_assethub_id(), accounts[0].clone(), 1000000000000u64),
+				(pallet_funding::types::AcceptedFundingAsset::DOT.to_assethub_id(), accounts[0].clone(), 1000000000000u64)
+			],
 		},
 		"parachainStaking": {
 			"candidates": staking_candidates,
@@ -220,8 +256,9 @@ fn base_testnet_genesis(
 		"polkadotXcm": {
 			"safeXcmVersion": SAFE_XCM_VERSION
 		},
-		"oracleProvidersMembership": {
-			"members": BoundedVec::<AccountId,ConstU32<50>>::truncate_from(initial_authorities),
+		"oracleProvidersMembership": OracleProvidersMembershipConfig {
+			members:  accounts.clone().into_iter().take(3).collect::<Vec<AccountId>>().try_into().unwrap(),
+			phantom: Default::default(),
 		},
 		"elections": {
 			"members": endowed_accounts.iter().map(|(member, _)| member).take((endowed_accounts.len() + 1) / 2).cloned().map(|member| (member, STASH)).collect::<Vec<_>>()

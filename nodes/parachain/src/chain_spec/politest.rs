@@ -247,7 +247,7 @@ fn testnet_genesis(
 			"metadata": vec![
 				(pallet_funding::types::AcceptedFundingAsset::USDT.to_assethub_id(), b"Local USDT", b"USDT", 6),
 				(pallet_funding::types::AcceptedFundingAsset::USDC.to_assethub_id(), b"Local USDC", b"USDC", 6),
-				(pallet_funding::types::AcceptedFundingAsset::DOT.to_assethub_id(), b"Local DOT ", b"DOT ", 6)
+				(pallet_funding::types::AcceptedFundingAsset::DOT.to_assethub_id(), b"Local DOT ", b"DOT ", 10)
 			],
 			// (id, account_id, amount)
 			"accounts": vec![

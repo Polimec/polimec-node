@@ -26,10 +26,14 @@ scale-info = { workspace= true, default-features = false, features = [
 sp-debug-derive = { workspace = true, features = ["force-debug"]}
 
 
-# Local
-pallet-parachain-staking.workspace = true
+# Polimec specific
+pallet-dispenser.workspace = true
+pallet-funding.workspace = true
 pallet-oracle-ocw.workspace = true
+pallet-linear-release.workspace = true
 shared-configuration.workspace = true
+polimec-common.workspace = true
+pallet-parachain-staking.workspace = true
 
 # Substrate
 frame-benchmarking = { workspace = true, optional = true }
@@ -47,6 +51,7 @@ pallet-collective.workspace = true
 pallet-democracy.workspace = true
 pallet-elections-phragmen.workspace = true
 pallet-identity.workspace = true
+pallet-insecure-randomness-collective-flip.workspace = true
 pallet-membership.workspace = true
 pallet-message-queue.workspace = true
 pallet-multisig.workspace = true
@@ -128,8 +133,12 @@ std = [
 	"pallet-balances/std",
 	"pallet-collective/std",
 	"pallet-democracy/std",
+	"pallet-dispenser/std",
 	"pallet-elections-phragmen/std",
+	"pallet-funding/std",
 	"pallet-identity/std",
+	"pallet-insecure-randomness-collective-flip/std",
+	"pallet-linear-release/std",
 	"pallet-membership/std",
 	"pallet-message-queue/std",
 	"pallet-multisig/std",
@@ -149,6 +158,7 @@ std = [
 	"parachain-info/std",
 	"parachains-common/std",
 	"parity-scale-codec/std",
+	"polimec-common/std",
 	"polimec-xcm-executor/std",
 	"polkadot-parachain-primitives/std",
 	"polkadot-runtime-common/std",
@@ -186,8 +196,11 @@ runtime-benchmarks = [
 	"pallet-balances/runtime-benchmarks",
 	"pallet-collective/runtime-benchmarks",
 	"pallet-democracy/runtime-benchmarks",
+	"pallet-dispenser/runtime-benchmarks",
 	"pallet-elections-phragmen/runtime-benchmarks",
+	"pallet-funding/runtime-benchmarks",
 	"pallet-identity/runtime-benchmarks",
+	"pallet-linear-release/runtime-benchmarks",
 	"pallet-membership/runtime-benchmarks",
 	"pallet-message-queue/runtime-benchmarks",
 	"pallet-multisig/runtime-benchmarks",
@@ -202,6 +215,7 @@ runtime-benchmarks = [
 	"pallet-vesting/runtime-benchmarks",
 	"pallet-xcm/runtime-benchmarks",
 	"parachains-common/runtime-benchmarks",
+	"polimec-common/runtime-benchmarks",
 	"polimec-xcm-executor/runtime-benchmarks",
 	"polkadot-parachain-primitives/runtime-benchmarks",
 	"polkadot-runtime-common/runtime-benchmarks",
@@ -227,8 +241,12 @@ try-runtime = [
 	"pallet-balances/try-runtime",
 	"pallet-collective/try-runtime",
 	"pallet-democracy/try-runtime",
+	"pallet-dispenser/try-runtime",
 	"pallet-elections-phragmen/try-runtime",
+	"pallet-funding/try-runtime",
 	"pallet-identity/try-runtime",
+	"pallet-insecure-randomness-collective-flip/try-runtime",
+	"pallet-linear-release/try-runtime",
 	"pallet-membership/try-runtime",
 	"pallet-message-queue/try-runtime",
 	"pallet-multisig/try-runtime",
@@ -245,6 +263,7 @@ try-runtime = [
 	"pallet-vesting/try-runtime",
 	"pallet-xcm/try-runtime",
 	"parachain-info/try-runtime",
+	"polimec-common/try-runtime",
 	"polimec-xcm-executor/try-runtime",
 	"polkadot-runtime-common/try-runtime",
 	"shared-configuration/try-runtime",
