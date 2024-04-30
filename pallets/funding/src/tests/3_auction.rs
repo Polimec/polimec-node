@@ -52,6 +52,13 @@ mod round_flow {
 			let bounded_name = bounded_name();
 			let bounded_symbol = bounded_symbol();
 			let metadata_hash = ipfs_hash();
+			let normalized_price = PriceOf::<TestRuntime>::from_float(10.0);
+			let decimal_aware_price = PriceProviderOf::<TestRuntime>::calculate_decimals_aware_price(
+				normalized_price,
+				USD_DECIMALS,
+				CT_DECIMALS,
+			)
+			.unwrap();
 			let project_metadata = ProjectMetadata {
 				token_information: CurrencyMetadata {
 					name: bounded_name,
@@ -61,7 +68,7 @@ mod round_flow {
 				mainnet_token_max_supply: 8_000_000 * CT_UNIT,
 				total_allocation_size: 100_000 * CT_UNIT,
 				auction_round_allocation_percentage: Percent::from_percent(50u8),
-				minimum_price: PriceOf::<TestRuntime>::from_float(10.0),
+				minimum_price: decimal_aware_price,
 				bidding_ticket_sizes: BiddingTicketSizes {
 					professional: TicketSize::new(Some(5000 * USD_UNIT), None),
 					institutional: TicketSize::new(Some(5000 * USD_UNIT), None),
@@ -109,12 +116,17 @@ mod round_flow {
 
 			inst.start_community_funding(project_id).unwrap();
 
-			let token_price =
-				inst.get_project_details(project_id).weighted_average_price.unwrap().saturating_mul_int(CT_UNIT);
+			let token_price = inst.get_project_details(project_id).weighted_average_price.unwrap();
+			let normalized_wap =
+				PriceProviderOf::<TestRuntime>::convert_back_to_normal_price(token_price, USD_DECIMALS, CT_DECIMALS)
+					.unwrap();
+			let desired_price = PriceOf::<TestRuntime>::from_float(11.1818f64);
 
-			let desired_price = PriceOf::<TestRuntime>::from_float(11.1818f64).saturating_mul_int(CT_UNIT);
-
-			assert_close_enough!(token_price, desired_price, Perquintill::from_float(0.99));
+			assert_close_enough!(
+				normalized_wap.saturating_mul_int(CT_UNIT),
+				desired_price.saturating_mul_int(CT_UNIT),
+				Perquintill::from_float(0.99)
+			);
 		}
 
 		#[test]
@@ -136,11 +148,18 @@ mod round_flow {
 			let second_bucket_bid = (BIDDER_6, 500 * CT_UNIT).into();
 			bids.push(second_bucket_bid);
 
-			let project_id = inst.create_community_contributing_project(project_metadata, issuer, evaluations, bids);
+			let project_id =
+				inst.create_community_contributing_project(project_metadata.clone(), issuer, evaluations, bids);
 			let bidder_5_bid =
 				inst.execute(|| Bids::<TestRuntime>::iter_prefix_values((project_id, BIDDER_6)).next().unwrap());
 			let wabgp = inst.get_project_details(project_id).weighted_average_price.unwrap();
-			assert_eq!(bidder_5_bid.original_ct_usd_price.to_float(), 11.0);
+			let price_normalized = <TestRuntime as Config>::PriceProvider::convert_back_to_normal_price(
+				bidder_5_bid.original_ct_usd_price,
+				USD_DECIMALS,
+				project_metadata.token_information.decimals,
+			)
+			.unwrap();
+			assert_eq!(price_normalized.to_float(), 11.0);
 			assert_eq!(bidder_5_bid.final_ct_usd_price, wabgp);
 		}
 
@@ -459,7 +478,7 @@ mod round_flow {
 				.iter()
 				.map(|acc| UserToForeignAssets {
 					account: acc.clone(),
-					asset_amount: CT_UNIT * 1_000_000,
+					asset_amount: USDT_UNIT * 1_000_000,
 					asset_id: fundings.next().unwrap().to_assethub_id(),
 				})
 				.collect_vec();
@@ -481,12 +500,18 @@ mod round_flow {
 
 			inst.start_community_funding(project_id).unwrap();
 
-			let token_price =
-				inst.get_project_details(project_id).weighted_average_price.unwrap().saturating_mul_int(CT_UNIT);
+			let token_price = inst.get_project_details(project_id).weighted_average_price.unwrap();
+			let normalized_wap =
+				PriceProviderOf::<TestRuntime>::convert_back_to_normal_price(token_price, USD_DECIMALS, CT_DECIMALS)
+					.unwrap();
 
-			let desired_price = PriceOf::<TestRuntime>::from_float(11.1818f64).saturating_mul_int(CT_UNIT);
+			let desired_price = PriceOf::<TestRuntime>::from_float(11.1818f64);
 
-			assert_close_enough!(token_price, desired_price, Perquintill::from_float(0.99));
+			assert_close_enough!(
+				normalized_wap.saturating_mul_int(USD_UNIT),
+				desired_price.saturating_mul_int(USD_UNIT),
+				Perquintill::from_float(0.99)
+			);
 		}
 	}
 
@@ -924,7 +949,12 @@ mod bid_extrinsic {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 
 			let mut project_metadata = default_project_metadata(ISSUER_1);
-			project_metadata.minimum_price = PriceOf::<TestRuntime>::from_float(1.0);
+			project_metadata.minimum_price = PriceProviderOf::<TestRuntime>::calculate_decimals_aware_price(
+				PriceOf::<TestRuntime>::from_float(1.0),
+				USD_DECIMALS,
+				project_metadata.clone().token_information.decimals,
+			)
+			.unwrap();
 			project_metadata.auction_round_allocation_percentage = Percent::from_percent(50u8);
 
 			let evaluations = default_evaluations();
@@ -978,32 +1008,43 @@ mod bid_extrinsic {
 			// 40% + 10% + 5% + 5% + 3% = 5 total bids
 			assert_eq!(stored_bids.len(), 5);
 
-			assert_eq!(stored_bids[1].original_ct_usd_price, PriceOf::<TestRuntime>::from_float(1.0));
+			let normalize_price = |decimal_aware_price| {
+				PriceProviderOf::<TestRuntime>::convert_back_to_normal_price(
+					decimal_aware_price,
+					USD_DECIMALS,
+					project_metadata.clone().token_information.decimals,
+				)
+				.unwrap()
+			};
+			assert_eq!(normalize_price(stored_bids[1].original_ct_usd_price), PriceOf::<TestRuntime>::from_float(1.0));
 			assert_eq!(
 				stored_bids[1].original_ct_amount,
 				Percent::from_percent(10) * project_metadata.total_allocation_size
 			);
-			assert_eq!(stored_bids[2].original_ct_usd_price, PriceOf::<TestRuntime>::from_rational(11, 10));
+			assert_eq!(
+				normalize_price(stored_bids[2].original_ct_usd_price),
+				PriceOf::<TestRuntime>::from_rational(11, 10)
+			);
 			assert_eq!(
 				stored_bids[2].original_ct_amount,
 				Percent::from_percent(5) * project_metadata.total_allocation_size
 			);
 
-			assert_eq!(stored_bids[3].original_ct_usd_price, PriceOf::<TestRuntime>::from_float(1.2));
+			assert_eq!(normalize_price(stored_bids[3].original_ct_usd_price), PriceOf::<TestRuntime>::from_float(1.2));
 			assert_eq!(
 				stored_bids[3].original_ct_amount,
 				Percent::from_percent(5) * project_metadata.total_allocation_size
 			);
 
-			assert_eq!(stored_bids[4].original_ct_usd_price, PriceOf::<TestRuntime>::from_float(1.3));
+			assert_eq!(normalize_price(stored_bids[4].original_ct_usd_price), PriceOf::<TestRuntime>::from_float(1.3));
 			assert_eq!(
 				stored_bids[4].original_ct_amount,
 				Percent::from_percent(3) * project_metadata.total_allocation_size
 			);
 			let current_bucket = inst.execute(|| Buckets::<TestRuntime>::get(project_id)).unwrap();
-			assert_eq!(current_bucket.current_price, PriceOf::<TestRuntime>::from_float(1.3));
+			assert_eq!(normalize_price(current_bucket.current_price), PriceOf::<TestRuntime>::from_float(1.3));
 			assert_eq!(current_bucket.amount_left, Percent::from_percent(2) * project_metadata.total_allocation_size);
-			assert_eq!(current_bucket.delta_price, PriceOf::<TestRuntime>::from_float(0.1));
+			assert_eq!(normalize_price(current_bucket.delta_price), PriceOf::<TestRuntime>::from_float(0.1));
 		}
 	}
 
@@ -1394,7 +1435,12 @@ mod bid_extrinsic {
 				institutional: TicketSize::new(Some(20_000 * USD_UNIT), None),
 				phantom: Default::default(),
 			};
-			project_metadata.minimum_price = PriceOf::<TestRuntime>::from_float(1.0);
+			project_metadata.minimum_price = PriceProviderOf::<TestRuntime>::calculate_decimals_aware_price(
+				PriceOf::<TestRuntime>::from_float(1.0),
+				USD_DECIMALS,
+				project_metadata.clone().token_information.decimals,
+			)
+			.unwrap();
 
 			let evaluations = default_evaluations();
 
@@ -1406,9 +1452,9 @@ mod bid_extrinsic {
 				(BIDDER_3, 200_000 * PLMC).into(),
 			]);
 			inst.mint_foreign_asset_to(vec![
-				(BIDDER_1, 200_000 * CT_UNIT).into(),
-				(BIDDER_2, 200_000 * CT_UNIT).into(),
-				(BIDDER_3, 200_000 * CT_UNIT).into(),
+				(BIDDER_1, 200_000 * USDT_UNIT).into(),
+				(BIDDER_2, 200_000 * USDT_UNIT).into(),
+				(BIDDER_3, 200_000 * USDT_UNIT).into(),
 			]);
 
 			// First bucket is covered by one bidder
@@ -1416,7 +1462,13 @@ mod bid_extrinsic {
 			inst.bid_for_users(project_id, vec![big_bid.clone()]).unwrap();
 
 			// A bid at the min price of 1 should require a min of 8k CT, but with a new price of 1.1, we can now bid with less
-			let smallest_ct_amount_at_8k_usd = PriceOf::<TestRuntime>::from_float(1.1)
+			let bucket_increase_price = PriceProviderOf::<TestRuntime>::calculate_decimals_aware_price(
+				PriceOf::<TestRuntime>::from_float(1.1),
+				USD_DECIMALS,
+				project_metadata.clone().token_information.decimals,
+			)
+			.unwrap();
+			let smallest_ct_amount_at_8k_usd = bucket_increase_price
 				.reciprocal()
 				.unwrap()
 				.checked_mul_int(8000 * USD_UNIT)
@@ -1435,7 +1487,7 @@ mod bid_extrinsic {
 					project_metadata.clone().policy_ipfs_cid.unwrap(),
 				));
 			});
-			let smallest_ct_amount_at_20k_usd = PriceOf::<TestRuntime>::from_float(1.1)
+			let smallest_ct_amount_at_20k_usd = bucket_increase_price
 				.reciprocal()
 				.unwrap()
 				.checked_mul_int(20_000 * USD_UNIT)
