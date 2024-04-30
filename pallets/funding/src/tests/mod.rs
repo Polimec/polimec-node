@@ -198,7 +198,7 @@ pub mod defaults {
 	}
 
 	pub fn default_failing_evaluations() -> Vec<UserToUSDBalance<TestRuntime>> {
-		vec![UserToUSDBalance::new(EVALUATOR_1, 3_000 * PLMC), UserToUSDBalance::new(EVALUATOR_2, 1_000 * PLMC)]
+		vec![UserToUSDBalance::new(EVALUATOR_1, 3_000 * USD_UNIT), UserToUSDBalance::new(EVALUATOR_2, 1_000 * USD_UNIT)]
 	}
 
 	pub fn default_bids() -> Vec<BidParams<TestRuntime>> {
