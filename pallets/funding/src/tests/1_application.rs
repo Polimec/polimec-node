@@ -718,7 +718,7 @@ mod edit_project_extrinsic {
 				new_metadata.clone()
 			)));
 			// Project details reflect changes
-			assert_eq!(inst.get_project_details(project_id).fundraising_target, 100_000 * US_DOLLAR);
+			assert_eq!(inst.get_project_details(project_id).fundraising_target_usd, 100_000 * US_DOLLAR);
 			// Bucket reflects changes
 			let new_bucket = Pallet::<TestRuntime>::create_bucket_from_metadata(&new_metadata).unwrap();
 			let stored_bucket = inst.execute(|| Buckets::<TestRuntime>::get(project_id).unwrap());

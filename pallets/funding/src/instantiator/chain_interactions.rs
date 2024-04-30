@@ -267,12 +267,12 @@ impl<
 				application: BlockNumberPair { start: Some(creation_start_block), end: None },
 				..Default::default()
 			},
-			fundraising_target: expected_metadata
+			fundraising_target_usd: expected_metadata
 				.minimum_price
 				.checked_mul_int(expected_metadata.total_allocation_size)
 				.unwrap(),
 			remaining_contribution_tokens: expected_metadata.total_allocation_size,
-			funding_amount_reached: BalanceOf::<T>::zero(),
+			funding_amount_reached_usd: BalanceOf::<T>::zero(),
 			evaluation_round_info: EvaluationRoundInfoOf::<T> {
 				total_bonded_usd: Zero::zero(),
 				total_bonded_plmc: Zero::zero(),

@@ -25,14 +25,20 @@ use frame_support::{
 	pallet_prelude::*,
 	traits::{
 		fungible::{Mutate, MutateHold as FungibleMutateHold},
-		fungibles::{metadata::Mutate as MetadataMutate, Create, Inspect, Mutate as FungiblesMutate},
+		fungibles::{
+			metadata::{Inspect as MetadataInspect, Mutate as MetadataMutate},
+			Create, Inspect as FungibleInspect, Mutate as FungiblesMutate,
+		},
 		tokens::{Precision, Preservation},
 		Get,
 	},
 	transactional,
 };
 use frame_system::pallet_prelude::BlockNumberFor;
-use polimec_common::credentials::{Did, InvestorType};
+use polimec_common::{
+	credentials::{Did, InvestorType},
+	USD_DECIMALS,
+};
 use sp_arithmetic::{
 	traits::{CheckedDiv, CheckedSub, Zero},
 	Percent, Perquintill,
@@ -42,6 +48,7 @@ use sp_runtime::traits::Convert;
 use super::*;
 use crate::traits::{BondingRequirementCalculation, ProvideAssetPrice, VestingDurationCalculation};
 use polimec_common::migration_types::{MigrationInfo, Migrations};
+
 const POLIMEC_PARA_ID: u32 = 3344u32;
 const QUERY_RESPONSE_TIME_WINDOW_BLOCKS: u32 = 20u32;
 
@@ -154,7 +161,7 @@ impl<T: Config> Pallet<T> {
 			.evaluation
 			.end()
 			.ok_or(Error::<T>::ProjectRoundError(RoundError::TransitionPointNotSet))?;
-		let fundraising_target_usd = project_details.fundraising_target;
+		let fundraising_target_usd = project_details.fundraising_target_usd;
 
 		// * Validity checks *
 		ensure!(
@@ -630,7 +637,7 @@ impl<T: Config> Pallet<T> {
 			.minimum_price
 			.checked_mul_int(project_metadata.total_allocation_size)
 			.ok_or(Error::<T>::BadMath)?;
-		let funding_reached = project_details.funding_amount_reached;
+		let funding_reached = project_details.funding_amount_reached_usd;
 		let funding_ratio = Perquintill::from_rational(funding_reached, funding_target);
 
 		// * Update Storage *
@@ -791,29 +798,31 @@ impl<T: Config> Pallet<T> {
 // Extrinsics and HRMP interactions
 impl<T: Config> Pallet<T> {
 	fn project_validation(
-		metadata: &ProjectMetadataOf<T>,
+		project_metadata: ProjectMetadataOf<T>,
 		issuer: AccountIdOf<T>,
 		did: Did,
-	) -> Result<(ProjectDetailsOf<T>, BucketOf<T>), DispatchError> {
-		if let Err(error) = metadata.is_valid() {
+	) -> Result<(ProjectMetadataOf<T>, ProjectDetailsOf<T>, BucketOf<T>), DispatchError> {
+		if let Err(error) = project_metadata.is_valid() {
 			return Err(Error::<T>::BadMetadata(error).into());
 		}
-		let total_allocation_size = metadata.total_allocation_size;
+		let total_allocation_size = project_metadata.total_allocation_size;
 
 		// * Calculate new variables *
-		let fundraising_target =
-			metadata.minimum_price.checked_mul_int(total_allocation_size).ok_or(Error::<T>::BadMath)?;
 		let now = <frame_system::Pallet<T>>::block_number();
+
+		let fundraising_target =
+			project_metadata.minimum_price.checked_mul_int(total_allocation_size).ok_or(Error::<T>::BadMath)?;
+
 		let project_details = ProjectDetails {
 			issuer_account: issuer.clone(),
 			issuer_did: did.clone(),
 			is_frozen: false,
 			weighted_average_price: None,
-			fundraising_target,
+			fundraising_target_usd: fundraising_target,
 			status: ProjectStatus::Application,
 			phase_transition_points: PhaseTransitionPoints::new(now),
-			remaining_contribution_tokens: metadata.total_allocation_size,
-			funding_amount_reached: BalanceOf::<T>::zero(),
+			remaining_contribution_tokens: project_metadata.total_allocation_size,
+			funding_amount_reached_usd: BalanceOf::<T>::zero(),
 			evaluation_round_info: EvaluationRoundInfoOf::<T> {
 				total_bonded_usd: Zero::zero(),
 				total_bonded_plmc: Zero::zero(),
@@ -828,9 +837,9 @@ impl<T: Config> Pallet<T> {
 			},
 		};
 
-		let bucket: BucketOf<T> = Self::create_bucket_from_metadata(&metadata)?;
+		let bucket: BucketOf<T> = Self::create_bucket_from_metadata(&project_metadata)?;
 
-		Ok((project_details, bucket))
+		Ok((project_metadata, project_details, bucket))
 	}
 
 	/// Called by user extrinsic
@@ -855,7 +864,7 @@ impl<T: Config> Pallet<T> {
 	#[transactional]
 	pub fn do_create_project(
 		issuer: &AccountIdOf<T>,
-		initial_metadata: ProjectMetadataOf<T>,
+		project_metadata: ProjectMetadataOf<T>,
 		did: Did,
 	) -> DispatchResult {
 		// * Get variables *
@@ -865,7 +874,8 @@ impl<T: Config> Pallet<T> {
 		// * Validity checks *
 		ensure!(maybe_active_project == None, Error::<T>::IssuerError(IssuerErrorReason::HasActiveProject));
 
-		let (project_details, bucket) = Self::project_validation(&initial_metadata, issuer.clone(), did.clone())?;
+		let (project_metadata, project_details, bucket) =
+			Self::project_validation(project_metadata, issuer.clone(), did.clone())?;
 
 		// Each project needs an escrow system account to temporarily hold the USDT/USDC. We need to create it by depositing `ED` amount of PLMC into it.
 		// This should be paid by the issuer.
@@ -880,14 +890,14 @@ impl<T: Config> Pallet<T> {
 		.map_err(|_| Error::<T>::IssuerError(IssuerErrorReason::NotEnoughFunds))?;
 
 		// * Update storage *
-		ProjectsMetadata::<T>::insert(project_id, &initial_metadata);
+		ProjectsMetadata::<T>::insert(project_id, project_metadata.clone());
 		ProjectsDetails::<T>::insert(project_id, project_details);
 		Buckets::<T>::insert(project_id, bucket);
 		NextProjectId::<T>::mutate(|n| n.saturating_inc());
 		DidWithActiveProjects::<T>::set(did, Some(project_id));
 
 		// * Emit events *
-		Self::deposit_event(Event::ProjectCreated { project_id, issuer: issuer.clone(), metadata: initial_metadata });
+		Self::deposit_event(Event::ProjectCreated { project_id, issuer: issuer.clone(), metadata: project_metadata });
 
 		Ok(())
 	}
@@ -939,8 +949,8 @@ impl<T: Config> Pallet<T> {
 		ensure!(!project_details.is_frozen, Error::<T>::ProjectError(ProjectErrorReason::ProjectIsFrozen));
 
 		// * Calculate new variables *
-		let (project_details, bucket) =
-			Self::project_validation(&new_project_metadata, issuer.clone(), project_details.issuer_did.clone())?;
+		let (new_project_metadata, project_details, bucket) =
+			Self::project_validation(new_project_metadata, issuer.clone(), project_details.issuer_did.clone())?;
 
 		// * Update storage *
 		ProjectsMetadata::<T>::insert(project_id, new_project_metadata.clone());
@@ -970,9 +980,10 @@ impl<T: Config> Pallet<T> {
 			.ok_or(Error::<T>::ProjectError(ProjectErrorReason::ProjectDetailsNotFound))?;
 		let now = <frame_system::Pallet<T>>::block_number();
 		let evaluation_id = NextEvaluationId::<T>::get();
-		let plmc_usd_price = T::PriceProvider::get_price(PLMC_FOREIGN_ID).ok_or(Error::<T>::PriceNotFound)?;
+		let plmc_usd_price = T::PriceProvider::get_decimals_aware_price(PLMC_FOREIGN_ID, USD_DECIMALS, PLMC_DECIMALS)
+			.ok_or(Error::<T>::PriceNotFound)?;
 		let early_evaluation_reward_threshold_usd =
-			T::EvaluationSuccessThreshold::get() * project_details.fundraising_target;
+			T::EvaluationSuccessThreshold::get() * project_details.fundraising_target_usd;
 		let evaluation_round_info = &mut project_details.evaluation_round_info;
 		let total_evaluations_count = EvaluationCounts::<T>::get(project_id);
 		let user_evaluations_count = Evaluations::<T>::iter_prefix((project_id, evaluator)).count() as u32;
@@ -1092,7 +1103,8 @@ impl<T: Config> Pallet<T> {
 			.ok_or(Error::<T>::ProjectError(ProjectErrorReason::ProjectMetadataNotFound))?;
 		let project_details = ProjectsDetails::<T>::get(project_id)
 			.ok_or(Error::<T>::ProjectError(ProjectErrorReason::ProjectDetailsNotFound))?;
-		let plmc_usd_price = T::PriceProvider::get_price(PLMC_FOREIGN_ID).ok_or(Error::<T>::PriceNotFound)?;
+		let plmc_usd_price = T::PriceProvider::get_decimals_aware_price(PLMC_FOREIGN_ID, USD_DECIMALS, PLMC_DECIMALS)
+			.ok_or(Error::<T>::PriceNotFound)?;
 
 		// Fetch current bucket details and other required info
 		let mut current_bucket =
@@ -1242,8 +1254,11 @@ impl<T: Config> Pallet<T> {
 			Error::<T>::ParticipationFailed(ParticipationError::TooManyProjectParticipations)
 		);
 
+		let funding_asset_id = funding_asset.to_assethub_id();
+		let funding_asset_decimals = T::FundingCurrency::decimals(funding_asset_id);
 		let funding_asset_usd_price =
-			T::PriceProvider::get_price(funding_asset.to_assethub_id()).ok_or(Error::<T>::PriceNotFound)?;
+			T::PriceProvider::get_decimals_aware_price(funding_asset_id, USD_DECIMALS, funding_asset_decimals)
+				.ok_or(Error::<T>::PriceNotFound)?;
 
 		// * Calculate new variables *
 		let plmc_bond =
@@ -1405,9 +1420,15 @@ impl<T: Config> Pallet<T> {
 		let now = <frame_system::Pallet<T>>::block_number();
 		let ct_usd_price =
 			project_details.weighted_average_price.ok_or(Error::<T>::ProjectError(ProjectErrorReason::WapNotSet))?;
-		let plmc_usd_price = T::PriceProvider::get_price(PLMC_FOREIGN_ID).ok_or(Error::<T>::PriceNotFound)?;
+		let plmc_usd_price = T::PriceProvider::get_decimals_aware_price(PLMC_FOREIGN_ID, USD_DECIMALS, PLMC_DECIMALS)
+			.ok_or(Error::<T>::PriceNotFound)?;
+
+		let funding_asset_id = funding_asset.to_assethub_id();
+		let funding_asset_decimals = T::FundingCurrency::decimals(funding_asset_id);
 		let funding_asset_usd_price =
-			T::PriceProvider::get_price(funding_asset.to_assethub_id()).ok_or(Error::<T>::PriceNotFound)?;
+			T::PriceProvider::get_decimals_aware_price(funding_asset_id, USD_DECIMALS, funding_asset_decimals)
+				.ok_or(Error::<T>::PriceNotFound)?;
+
 		let project_policy = project_metadata.policy_ipfs_cid.ok_or(Error::<T>::ImpossibleState)?;
 
 		let ticket_size = ct_usd_price.checked_mul_int(buyable_tokens).ok_or(Error::<T>::BadMath)?;
@@ -1487,7 +1508,7 @@ impl<T: Config> Pallet<T> {
 		ContributionBoughtUSD::<T>::mutate((project_id, did), |amount| *amount += ticket_size);
 
 		let remaining_cts_after_purchase = project_details.remaining_contribution_tokens;
-		project_details.funding_amount_reached.saturating_accrue(new_contribution.usd_contribution_amount);
+		project_details.funding_amount_reached_usd.saturating_accrue(new_contribution.usd_contribution_amount);
 		ProjectsDetails::<T>::insert(project_id, project_details);
 		// If no CTs remain, end the funding phase
 
@@ -2048,7 +2069,9 @@ impl<T: Config> Pallet<T> {
 		// temp variable to store the total value of the bids (i.e price * amount = Cumulative Ticket Size)
 		let mut bid_usd_value_sum = BalanceOf::<T>::zero();
 		let project_account = Self::fund_account_id(project_id);
-		let plmc_price = T::PriceProvider::get_price(PLMC_FOREIGN_ID).ok_or(Error::<T>::PriceNotFound)?;
+		let plmc_price = T::PriceProvider::get_decimals_aware_price(PLMC_FOREIGN_ID, USD_DECIMALS, PLMC_DECIMALS)
+			.ok_or(Error::<T>::PriceNotFound)?;
+
 		let project_metadata = ProjectsMetadata::<T>::get(project_id)
 			.ok_or(Error::<T>::ProjectError(ProjectErrorReason::ProjectMetadataNotFound))?;
 		let mut highest_accepted_price = project_metadata.minimum_price;
@@ -2153,9 +2176,13 @@ impl<T: Config> Pallet<T> {
 				let new_ticket_size =
 					bid.final_ct_usd_price.checked_mul_int(bid.final_ct_amount).ok_or(Error::<T>::BadMath)?;
 
-				let funding_asset_price =
-					T::PriceProvider::get_price(bid.funding_asset.to_assethub_id()).ok_or(Error::<T>::PriceNotFound)?;
-				let funding_asset_amount_needed = funding_asset_price
+				let funding_asset_id = bid.funding_asset.to_assethub_id();
+				let funding_asset_decimals = T::FundingCurrency::decimals(funding_asset_id);
+				let funding_asset_usd_price =
+					T::PriceProvider::get_decimals_aware_price(funding_asset_id, USD_DECIMALS, funding_asset_decimals)
+						.ok_or(Error::<T>::PriceNotFound)?;
+
+				let funding_asset_amount_needed = funding_asset_usd_price
 					.reciprocal()
 					.ok_or(Error::<T>::BadMath)?
 					.checked_mul_int(new_ticket_size)
@@ -2209,7 +2236,7 @@ impl<T: Config> Pallet<T> {
 			if let Some(info) = maybe_info {
 				info.weighted_average_price = Some(weighted_token_price);
 				info.remaining_contribution_tokens.saturating_reduce(bid_token_amount_sum);
-				info.funding_amount_reached.saturating_accrue(final_total_funding_reached_by_bids);
+				info.funding_amount_reached_usd.saturating_accrue(final_total_funding_reached_by_bids);
 				Ok(())
 			} else {
 				Err(Error::<T>::ProjectError(ProjectErrorReason::ProjectDetailsNotFound).into())
@@ -2385,8 +2412,8 @@ impl<T: Config> Pallet<T> {
 		let evaluations_count = evaluations.len() as u32;
 
 		// Determine how much funding has been achieved.
-		let funding_amount_reached = project_details.funding_amount_reached;
-		let fundraising_target = project_details.fundraising_target;
+		let funding_amount_reached = project_details.funding_amount_reached_usd;
+		let fundraising_target = project_details.fundraising_target_usd;
 		let total_issuer_fees = Self::calculate_fees(funding_amount_reached);
 
 		let initial_token_allocation_size = project_metadata.total_allocation_size;
@@ -2443,8 +2470,8 @@ impl<T: Config> Pallet<T> {
 			.ok_or(Error::<T>::ProjectError(ProjectErrorReason::ProjectMetadataNotFound))?;
 
 		// Determine how much funding has been achieved.
-		let funding_amount_reached = project_details.funding_amount_reached;
-		let fundraising_target = project_details.fundraising_target;
+		let funding_amount_reached = project_details.funding_amount_reached_usd;
+		let fundraising_target = project_details.fundraising_target_usd;
 		let total_issuer_fees = Self::calculate_fees(funding_amount_reached);
 
 		let initial_token_allocation_size = project_metadata.total_allocation_size;

@@ -165,7 +165,7 @@ pub mod config_types {
 
 pub mod storage_types {
 	use super::*;
-	use crate::US_DOLLAR;
+	use polimec_common::USD_DECIMALS;
 	use sp_arithmetic::{
 		traits::{One, Saturating, Zero},
 		Percent,
@@ -182,7 +182,7 @@ pub mod storage_types {
 		pub total_allocation_size: Balance,
 		/// Percentage of the total allocation of Contribution Tokens available for the Auction Round
 		pub auction_round_allocation_percentage: Percent,
-		/// Minimum price per Contribution Tokens
+		/// The minimum price per token in USD, decimal-aware. See [`calculate_decimals_aware_price()`](crate::traits::ProvideAssetPrice::calculate_decimals_aware_price) for more information.
 		pub minimum_price: Price,
 		/// Maximum and minimum ticket sizes for auction round
 		pub bidding_ticket_sizes: BiddingTicketSizes<Price, Balance>,
@@ -214,7 +214,7 @@ pub mod storage_types {
 			if self.minimum_price == Price::zero() {
 				return Err(MetadataError::PriceTooLow);
 			}
-			let min_bidder_bound_usd: Balance = (5000 * (US_DOLLAR as u64)).into();
+			let min_bidder_bound_usd: Balance = (5000u64 * 10u64.pow(USD_DECIMALS.into())).into();
 			self.bidding_ticket_sizes.is_valid(vec![
 				InvestorTypeUSDBounds::Professional((Some(min_bidder_bound_usd), None).into()),
 				InvestorTypeUSDBounds::Institutional((Some(min_bidder_bound_usd), None).into()),
@@ -241,7 +241,7 @@ pub mod storage_types {
 			}
 
 			let target_funding = self.minimum_price.saturating_mul_int(self.total_allocation_size);
-			if target_funding < (1000u64 * US_DOLLAR as u64).into() {
+			if target_funding < (1000u64 * 10u64.pow(USD_DECIMALS.into())).into() {
 				return Err(MetadataError::FundingTargetTooLow);
 			}
 			Ok(())
@@ -284,12 +284,12 @@ pub mod storage_types {
 		pub status: ProjectStatus,
 		/// When the different project phases start and end
 		pub phase_transition_points: PhaseTransitionPoints<BlockNumber>,
-		/// Fundraising target amount in USD equivalent
-		pub fundraising_target: Balance,
+		/// Fundraising target amount in USD (6 decimals)
+		pub fundraising_target_usd: Balance,
 		/// The amount of Contribution Tokens that have not yet been sold
 		pub remaining_contribution_tokens: Balance,
-		/// Funding reached amount in USD equivalent
-		pub funding_amount_reached: Balance,
+		/// Funding reached amount in USD (6 decimals)
+		pub funding_amount_reached_usd: Balance,
 		/// Information about the total amount bonded, and the outcome in regards to reward/slash/nothing
 		pub evaluation_round_info: EvaluationRoundInfo,
 		/// When the Funding Round ends

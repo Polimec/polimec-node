@@ -3,6 +3,65 @@ use super::*;
 // check that functions created to facilitate testing return the expected results
 mod helper_functions {
 	use super::*;
+	use polimec_common::USD_DECIMALS;
+
+	#[test]
+	fn test_usd_price_decimal_aware() {
+		let submitted_price = FixedU128::from_float(1.85);
+		let asset_decimals = 4;
+		let expected_price = FixedU128::from_float(185.0);
+		type PriceProvider = <TestRuntime as Config>::PriceProvider;
+		assert_eq!(
+			PriceProvider::calculate_decimals_aware_price(submitted_price, USD_DECIMALS, asset_decimals).unwrap(),
+			expected_price
+		);
+
+		let submitted_price = FixedU128::from_float(1.0);
+		let asset_decimals = 12;
+		let expected_price = FixedU128::from_float(0.000001);
+
+		assert_eq!(
+			PriceProvider::calculate_decimals_aware_price(submitted_price, USD_DECIMALS, asset_decimals).unwrap(),
+			expected_price
+		);
+	}
+
+	#[test]
+	fn test_convert_from_decimal_aware_back_to_normal() {
+		// Test with an asset with less decimals than USD
+		let original_price = FixedU128::from_float(1.85);
+		let asset_decimals = 4;
+		let decimal_aware = <TestRuntime as Config>::PriceProvider::calculate_decimals_aware_price(
+			original_price,
+			USD_DECIMALS,
+			asset_decimals,
+		)
+		.unwrap();
+		let converted_back = <TestRuntime as Config>::PriceProvider::convert_back_to_normal_price(
+			decimal_aware,
+			USD_DECIMALS,
+			asset_decimals,
+		)
+		.unwrap();
+		assert_eq!(converted_back, original_price);
+
+		// Test with an asset with more decimals than USD
+		let original_price = FixedU128::from_float(1.85);
+		let asset_decimals = 12;
+		let decimal_aware = <TestRuntime as Config>::PriceProvider::calculate_decimals_aware_price(
+			original_price,
+			USD_DECIMALS,
+			asset_decimals,
+		)
+		.unwrap();
+		let converted_back = <TestRuntime as Config>::PriceProvider::convert_back_to_normal_price(
+			decimal_aware,
+			USD_DECIMALS,
+			asset_decimals,
+		)
+		.unwrap();
+		assert_eq!(converted_back, original_price);
+	}
 
 	#[test]
 	fn calculate_evaluation_plmc_spent() {
