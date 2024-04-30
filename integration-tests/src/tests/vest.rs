@@ -23,7 +23,7 @@ use frame_support::traits::fungible::Mutate;
 use macros::generate_accounts;
 use pallet_funding::assert_close_enough;
 use pallet_vesting::VestingInfo;
-use polimec_runtime::{Balances, ParachainStaking, PayMaster, RuntimeOrigin, Vesting};
+use polimec_runtime::{Balances, ParachainStaking, PayMaster, RuntimeOrigin, Vesting, PLMC};
 use sp_runtime::Perquintill;
 use tests::defaults::*;
 use xcm_emulator::helpers::get_account_id_from_seed;

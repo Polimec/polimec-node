@@ -19,6 +19,7 @@ use frame_support::{assert_err, assert_ok, dispatch::GetDispatchInfo, traits::to
 use macros::generate_accounts;
 use polimec_common::credentials::InvestorType;
 use polimec_common_test_utils::{get_fake_jwt, get_test_jwt};
+use polimec_runtime::PLMC;
 use sp_runtime::{
 	generic::Era,
 	traits::SignedExtension,

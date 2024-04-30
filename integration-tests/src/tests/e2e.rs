@@ -15,15 +15,27 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use crate::{tests::defaults::*, *};
-use frame_support::BoundedVec;
+use frame_support::{
+	traits::{
+		fungible::Mutate,
+		fungibles::{metadata::Inspect, Inspect as OtherInspect},
+	},
+	BoundedVec,
+};
 use itertools::Itertools;
 use macros::generate_accounts;
-use pallet_funding::*;
-use politest_runtime::US_DOLLAR;
-use sp_arithmetic::{Percent, Perquintill};
-use sp_runtime::{traits::CheckedSub, FixedU128};
+use pallet_funding::{traits::ProvideAssetPrice, *};
+use polimec_common::USD_DECIMALS;
+use polimec_runtime::PLMC;
+use politest_runtime::USD_UNIT;
+use sp_arithmetic::{
+	traits::{Saturating, Zero},
+	Percent, Perquintill,
+};
+use sp_runtime::{traits::CheckedSub, FixedPointNumber, FixedU128};
+use xcm_emulator::log;
 
-type UserToCTBalance = Vec<(AccountId, BalanceOf<PolitestRuntime>, ProjectId)>;
+type UserToCTBalance = Vec<(AccountId, FixedU128, ProjectId)>;
 
 generate_accounts!(
 	LINA, MIA, ALEXEY, PAUL, MARIA, GEORGE, CLARA, RAMONA, PASCAL, EMMA, BIBI, AHMED, HERBERT, LENI, XI, TOM, ADAMS,
@@ -41,16 +53,21 @@ pub fn excel_project() -> ProjectMetadataOf<PolitestRuntime> {
 	let metadata_hash = ipfs_hash();
 	ProjectMetadata {
 		token_information: CurrencyMetadata { name: bounded_name, symbol: bounded_symbol, decimals: 10 },
-		mainnet_token_max_supply: 10_000_000_0_000_000_000, // Made up, not in the Sheet.
+		mainnet_token_max_supply: 10_000_000 * CT_UNIT, // Made up, not in the Sheet.
 		// Total Allocation of Contribution Tokens Available for the Funding Round
-		total_allocation_size: 100_000_0_000_000_000,
+		total_allocation_size: 100_000 * CT_UNIT,
 		auction_round_allocation_percentage: Percent::from_percent(50u8),
 
 		// Minimum Price per Contribution Token (in USDT)
-		minimum_price: PriceOf::<PolitestRuntime>::from(10),
+		minimum_price: PriceProviderOf::<PolitestRuntime>::calculate_decimals_aware_price(
+			PriceOf::<PolitestRuntime>::from(10),
+			USD_DECIMALS,
+			CT_DECIMALS,
+		)
+		.unwrap(),
 		bidding_ticket_sizes: BiddingTicketSizes {
-			professional: TicketSize::new(Some(5000 * US_DOLLAR), None),
-			institutional: TicketSize::new(Some(5000 * US_DOLLAR), None),
+			professional: TicketSize::new(Some(5000 * USD_UNIT), None),
+			institutional: TicketSize::new(Some(5000 * USD_UNIT), None),
 			phantom: Default::default(),
 		},
 		contributing_ticket_sizes: ContributingTicketSizes {
@@ -67,195 +84,193 @@ pub fn excel_project() -> ProjectMetadataOf<PolitestRuntime> {
 
 fn excel_evaluators() -> Vec<UserToUSDBalance<PolitestRuntime>> {
 	vec![
-		(LINA.into(), 93754 * US_DOLLAR).into(),
-		(MIA.into(), 162 * US_DOLLAR).into(),
-		(ALEXEY.into(), 7454 * US_DOLLAR).into(),
-		(PAUL.into(), 8192 * US_DOLLAR).into(),
-		(MARIA.into(), 11131 * US_DOLLAR).into(),
-		(GEORGE.into(), 4765 * US_DOLLAR).into(),
-		(CLARA.into(), 4363 * US_DOLLAR).into(),
-		(RAMONA.into(), 4120 * US_DOLLAR).into(),
-		(PASCAL.into(), 1626 * US_DOLLAR).into(),
-		(EMMA.into(), 3996 * US_DOLLAR).into(),
-		(BIBI.into(), 3441 * US_DOLLAR).into(),
-		(AHMED.into(), 8048 * US_DOLLAR).into(),
-		(HERBERT.into(), 2538 * US_DOLLAR).into(),
-		(LENI.into(), 5803 * US_DOLLAR).into(),
-		(XI.into(), 1669 * US_DOLLAR).into(),
-		(TOM.into(), 6526 * US_DOLLAR).into(),
+		(LINA.into(), 93754 * USD_UNIT).into(),
+		(MIA.into(), 162 * USD_UNIT).into(),
+		(ALEXEY.into(), 7454 * USD_UNIT).into(),
+		(PAUL.into(), 8192 * USD_UNIT).into(),
+		(MARIA.into(), 11131 * USD_UNIT).into(),
+		(GEORGE.into(), 4765 * USD_UNIT).into(),
+		(CLARA.into(), 4363 * USD_UNIT).into(),
+		(RAMONA.into(), 4120 * USD_UNIT).into(),
+		(PASCAL.into(), 1626 * USD_UNIT).into(),
+		(EMMA.into(), 3996 * USD_UNIT).into(),
+		(BIBI.into(), 3441 * USD_UNIT).into(),
+		(AHMED.into(), 8048 * USD_UNIT).into(),
+		(HERBERT.into(), 2538 * USD_UNIT).into(),
+		(LENI.into(), 5803 * USD_UNIT).into(),
+		(XI.into(), 1669 * USD_UNIT).into(),
+		(TOM.into(), 6526 * USD_UNIT).into(),
 	]
 }
 
 fn excel_bidders() -> Vec<BidParams<PolitestRuntime>> {
 	vec![
-		(ADAMS.into(), 700 * ASSET_UNIT).into(),
-		(POLK.into(), 4000 * ASSET_UNIT).into(),
-		(MARKUS.into(), 3000 * ASSET_UNIT).into(),
-		(ELLA.into(), 700 * ASSET_UNIT).into(),
-		(SKR.into(), 3400 * ASSET_UNIT).into(),
-		(ARTHUR.into(), 1000 * ASSET_UNIT).into(),
-		(MILA.into(), 8400 * ASSET_UNIT).into(),
-		(LINCOLN.into(), 800 * ASSET_UNIT).into(),
-		(MONROE.into(), 1300 * ASSET_UNIT).into(),
-		(ARBRESHA.into(), 5000 * ASSET_UNIT).into(),
-		(ELDIN.into(), 600 * ASSET_UNIT).into(),
-		(HARDING.into(), 800 * ASSET_UNIT).into(),
-		(SOFIA.into(), 3000 * ASSET_UNIT).into(),
-		(DOMINIK.into(), 8000 * ASSET_UNIT).into(),
-		(NOLAND.into(), 900 * ASSET_UNIT).into(),
-		(LINA.into(), 8400 * ASSET_UNIT).into(),
-		(LINA.into(), 1000 * ASSET_UNIT).into(),
-		(HANNAH.into(), 500 * ASSET_UNIT).into(),
-		(HOOVER.into(), 1900 * ASSET_UNIT).into(),
-		(GIGI.into(), 600 * ASSET_UNIT).into(),
-		(JEFFERSON.into(), 1000 * ASSET_UNIT).into(),
-		(JEFFERSON.into(), 2000 * ASSET_UNIT).into(),
+		(ADAMS.into(), 700 * CT_UNIT).into(),
+		(POLK.into(), 4000 * CT_UNIT).into(),
+		(MARKUS.into(), 3000 * CT_UNIT).into(),
+		(ELLA.into(), 700 * CT_UNIT).into(),
+		(SKR.into(), 3400 * CT_UNIT).into(),
+		(ARTHUR.into(), 1000 * CT_UNIT).into(),
+		(MILA.into(), 8400 * CT_UNIT).into(),
+		(LINCOLN.into(), 800 * CT_UNIT).into(),
+		(MONROE.into(), 1300 * CT_UNIT).into(),
+		(ARBRESHA.into(), 5000 * CT_UNIT).into(),
+		(ELDIN.into(), 600 * CT_UNIT).into(),
+		(HARDING.into(), 800 * CT_UNIT).into(),
+		(SOFIA.into(), 3000 * CT_UNIT).into(),
+		(DOMINIK.into(), 8000 * CT_UNIT).into(),
+		(NOLAND.into(), 900 * CT_UNIT).into(),
+		(LINA.into(), 8400 * CT_UNIT).into(),
+		(LINA.into(), 1000 * CT_UNIT).into(),
+		(HANNAH.into(), 500 * CT_UNIT).into(),
+		(HOOVER.into(), 1900 * CT_UNIT).into(),
+		(GIGI.into(), 600 * CT_UNIT).into(),
+		(JEFFERSON.into(), 1000 * CT_UNIT).into(),
+		(JEFFERSON.into(), 2000 * CT_UNIT).into(),
 	]
 }
 
 fn excel_contributions() -> Vec<ContributionParams<PolitestRuntime>> {
 	vec![
-		(XI.into(), 692 * ASSET_UNIT).into(),
-		(PARI.into(), 236 * ASSET_UNIT).into(),
-		(TUTI.into(), 24 * ASSET_UNIT).into(),
-		(BENITO.into(), 688 * ASSET_UNIT).into(),
-		(VANESSA.into(), 33 * ASSET_UNIT).into(),
-		(ENES.into(), 1148 * ASSET_UNIT).into(),
-		(RUDOLF.into(), 35 * ASSET_UNIT).into(),
-		(CERTO.into(), 840 * ASSET_UNIT).into(),
-		(TIESTO.into(), 132 * ASSET_UNIT).into(),
-		(DAVID.into(), 21 * ASSET_UNIT).into(),
-		(ATAKAN.into(), 59 * ASSET_UNIT).into(),
-		(YANN.into(), 89 * ASSET_UNIT).into(),
-		(ENIS.into(), 332 * ASSET_UNIT).into(),
-		(ALFREDO.into(), 8110 * ASSET_UNIT).into(),
-		(QENDRIM.into(), 394 * ASSET_UNIT).into(),
-		(LEONARDO.into(), 840 * ASSET_UNIT).into(),
-		(KEN.into(), 352 * ASSET_UNIT).into(),
-		(LUCA.into(), 640 * ASSET_UNIT).into(),
-		(FLAVIO.into(), 792 * ASSET_UNIT).into(),
-		(FREDI.into(), 993 * ASSET_UNIT).into(),
-		(ALI.into(), 794 * ASSET_UNIT).into(),
-		(DILARA.into(), 256 * ASSET_UNIT).into(),
-		(DAMIAN.into(), 431 * ASSET_UNIT).into(),
-		(KAYA.into(), 935 * ASSET_UNIT).into(),
-		(IAZI.into(), 174 * ASSET_UNIT).into(),
-		(CHRIGI.into(), 877 * ASSET_UNIT).into(),
-		(VALENTINA.into(), 961 * ASSET_UNIT).into(),
-		(ALMA.into(), 394 * ASSET_UNIT).into(),
-		(ALENA.into(), 442 * ASSET_UNIT).into(),
-		(PATRICK.into(), 486 * ASSET_UNIT).into(),
-		(ONTARIO.into(), 17 * ASSET_UNIT).into(),
-		(RAKIA.into(), 9424 * ASSET_UNIT).into(),
-		(HUBERT.into(), 14 * ASSET_UNIT).into(),
-		(UTUS.into(), 4906 * ASSET_UNIT).into(),
-		(TOME.into(), 68 * ASSET_UNIT).into(),
-		(ZUBER.into(), 9037 * ASSET_UNIT).into(),
-		(ADAM.into(), 442 * ASSET_UNIT).into(),
-		(STANI.into(), 40 * ASSET_UNIT).into(),
-		(BETI.into(), 68 * ASSET_UNIT).into(),
-		(HALIT.into(), 68 * ASSET_UNIT).into(),
-		(DRAGAN.into(), 98 * ASSET_UNIT).into(),
-		(LEA.into(), 17 * ASSET_UNIT).into(),
-		(LUIS.into(), 422 * ASSET_UNIT).into(),
+		(XI.into(), 692 * CT_UNIT).into(),
+		(PARI.into(), 236 * CT_UNIT).into(),
+		(TUTI.into(), 24 * CT_UNIT).into(),
+		(BENITO.into(), 688 * CT_UNIT).into(),
+		(VANESSA.into(), 33 * CT_UNIT).into(),
+		(ENES.into(), 1148 * CT_UNIT).into(),
+		(RUDOLF.into(), 35 * CT_UNIT).into(),
+		(CERTO.into(), 840 * CT_UNIT).into(),
+		(TIESTO.into(), 132 * CT_UNIT).into(),
+		(DAVID.into(), 21 * CT_UNIT).into(),
+		(ATAKAN.into(), 59 * CT_UNIT).into(),
+		(YANN.into(), 89 * CT_UNIT).into(),
+		(ENIS.into(), 332 * CT_UNIT).into(),
+		(ALFREDO.into(), 8110 * CT_UNIT).into(),
+		(QENDRIM.into(), 394 * CT_UNIT).into(),
+		(LEONARDO.into(), 840 * CT_UNIT).into(),
+		(KEN.into(), 352 * CT_UNIT).into(),
+		(LUCA.into(), 640 * CT_UNIT).into(),
+		(FLAVIO.into(), 792 * CT_UNIT).into(),
+		(FREDI.into(), 993 * CT_UNIT).into(),
+		(ALI.into(), 794 * CT_UNIT).into(),
+		(DILARA.into(), 256 * CT_UNIT).into(),
+		(DAMIAN.into(), 431 * CT_UNIT).into(),
+		(KAYA.into(), 935 * CT_UNIT).into(),
+		(IAZI.into(), 174 * CT_UNIT).into(),
+		(CHRIGI.into(), 877 * CT_UNIT).into(),
+		(VALENTINA.into(), 961 * CT_UNIT).into(),
+		(ALMA.into(), 394 * CT_UNIT).into(),
+		(ALENA.into(), 442 * CT_UNIT).into(),
+		(PATRICK.into(), 486 * CT_UNIT).into(),
+		(ONTARIO.into(), 17 * CT_UNIT).into(),
+		(RAKIA.into(), 9424 * CT_UNIT).into(),
+		(HUBERT.into(), 14 * CT_UNIT).into(),
+		(UTUS.into(), 4906 * CT_UNIT).into(),
+		(TOME.into(), 68 * CT_UNIT).into(),
+		(ZUBER.into(), 9037 * CT_UNIT).into(),
+		(ADAM.into(), 442 * CT_UNIT).into(),
+		(STANI.into(), 40 * CT_UNIT).into(),
+		(BETI.into(), 68 * CT_UNIT).into(),
+		(HALIT.into(), 68 * CT_UNIT).into(),
+		(DRAGAN.into(), 98 * CT_UNIT).into(),
+		(LEA.into(), 17 * CT_UNIT).into(),
+		(LUIS.into(), 422 * CT_UNIT).into(),
 	]
 }
-
 fn excel_remainders() -> Vec<ContributionParams<PolitestRuntime>> {
 	vec![
-		(JOEL.into(), 692 * ASSET_UNIT).into(),
-		(POLK.into(), 236 * ASSET_UNIT).into(),
-		(MALIK.into(), 24 * ASSET_UNIT).into(),
-		(LEA.into(), 688 * ASSET_UNIT).into(),
-		(RAMONA.into(), 35 * ASSET_UNIT).into(),
-		(SOLOMUN.into(), 840 * ASSET_UNIT).into(),
-		(JONAS.into(), 59 * ASSET_UNIT).into(),
+		(JOEL.into(), 692 * CT_UNIT).into(),
+		(POLK.into(), 236 * CT_UNIT).into(),
+		(MALIK.into(), 24 * CT_UNIT).into(),
+		(LEA.into(), 688 * CT_UNIT).into(),
+		(RAMONA.into(), 35 * CT_UNIT).into(),
+		(SOLOMUN.into(), 840 * CT_UNIT).into(),
+		(JONAS.into(), 59 * CT_UNIT).into(),
 	]
 }
-
 fn excel_ct_amounts() -> UserToCTBalance {
 	vec![
-		(LINA.into(), 4292_3_120_710_000, 0),
-		(MIA.into(), 3_2_697_757_490, 0),
-		(ALEXEY.into(), 142_2_854_836_000, 0),
-		(PAUL.into(), 116_5_251_535_000, 0),
-		(MARIA.into(), 158_3_302_593_000, 0),
-		(GEORGE.into(), 67_7_786_079_900, 0),
-		(CLARA.into(), 62_0_604_547_000, 0),
-		(RAMONA.into(), 93_6_039_590_600, 0),
-		(PASCAL.into(), 23_1_286_498_600, 0),
-		(EMMA.into(), 56_8_401_505_800, 0),
-		(BIBI.into(), 48_9_456_852_200, 0),
-		(AHMED.into(), 114_4_768_598_000, 0),
-		(HERBERT.into(), 36_1_011_767_200, 0),
-		(LENI.into(), 82_5_433_918_500, 0),
-		(XI.into(), 715_7_402_931_000, 0),
-		(TOM.into(), 92_8_275_332_100, 0),
-		(ADAMS.into(), 700 * ASSET_UNIT, 0),
-		(POLK.into(), 4236 * ASSET_UNIT, 0),
-		(MARKUS.into(), 3000 * ASSET_UNIT, 0),
-		(ELLA.into(), 700 * ASSET_UNIT, 0),
-		(SKR.into(), 3400 * ASSET_UNIT, 0),
-		(ARTHUR.into(), 1000 * ASSET_UNIT, 0),
-		(MILA.into(), 8400 * ASSET_UNIT, 0),
-		(LINCOLN.into(), 800 * ASSET_UNIT, 0),
-		(MONROE.into(), 1300 * ASSET_UNIT, 0),
-		(ARBRESHA.into(), 5000 * ASSET_UNIT, 0),
-		(ELDIN.into(), 600 * ASSET_UNIT, 0),
-		(HARDING.into(), 800 * ASSET_UNIT, 0),
-		(SOFIA.into(), 3000 * ASSET_UNIT, 0),
-		(DOMINIK.into(), 8000 * ASSET_UNIT, 0),
-		(NOLAND.into(), 900 * ASSET_UNIT, 0),
-		(HANNAH.into(), 500 * ASSET_UNIT, 0),
-		(HOOVER.into(), 1900 * ASSET_UNIT, 0),
-		(GIGI.into(), 600 * ASSET_UNIT, 0),
-		(JEFFERSON.into(), 3000 * ASSET_UNIT, 0),
-		(PARI.into(), 236 * ASSET_UNIT, 0),
-		(TUTI.into(), 24 * ASSET_UNIT, 0),
-		(BENITO.into(), 688 * ASSET_UNIT, 0),
-		(VANESSA.into(), 33 * ASSET_UNIT, 0),
-		(ENES.into(), 1148 * ASSET_UNIT, 0),
-		(RUDOLF.into(), 35 * ASSET_UNIT, 0),
-		(CERTO.into(), 840 * ASSET_UNIT, 0),
-		(TIESTO.into(), 132 * ASSET_UNIT, 0),
-		(DAVID.into(), 21 * ASSET_UNIT, 0),
-		(ATAKAN.into(), 59 * ASSET_UNIT, 0),
-		(YANN.into(), 89 * ASSET_UNIT, 0),
-		(ENIS.into(), 332 * ASSET_UNIT, 0),
-		(ALFREDO.into(), 8110 * ASSET_UNIT, 0),
-		(QENDRIM.into(), 394 * ASSET_UNIT, 0),
-		(LEONARDO.into(), 840 * ASSET_UNIT, 0),
-		(KEN.into(), 352 * ASSET_UNIT, 0),
-		(LUCA.into(), 640 * ASSET_UNIT, 0),
-		(FLAVIO.into(), 792 * ASSET_UNIT, 0),
-		(FREDI.into(), 993 * ASSET_UNIT, 0),
-		(ALI.into(), 794 * ASSET_UNIT, 0),
-		(DILARA.into(), 256 * ASSET_UNIT, 0),
-		(DAMIAN.into(), 431 * ASSET_UNIT, 0),
-		(KAYA.into(), 935 * ASSET_UNIT, 0),
-		(IAZI.into(), 174 * ASSET_UNIT, 0),
-		(CHRIGI.into(), 877 * ASSET_UNIT, 0),
-		(VALENTINA.into(), 961 * ASSET_UNIT, 0),
-		(ALMA.into(), 394 * ASSET_UNIT, 0),
-		(ALENA.into(), 442 * ASSET_UNIT, 0),
-		(PATRICK.into(), 486 * ASSET_UNIT, 0),
-		(ONTARIO.into(), 17 * ASSET_UNIT, 0),
-		(RAKIA.into(), 9424 * ASSET_UNIT, 0),
-		(HUBERT.into(), 14 * ASSET_UNIT, 0),
-		(UTUS.into(), 4906 * ASSET_UNIT, 0),
-		(TOME.into(), 68 * ASSET_UNIT, 0),
-		(ZUBER.into(), 9037 * ASSET_UNIT, 0),
-		(ADAM.into(), 442 * ASSET_UNIT, 0),
-		(STANI.into(), 40 * ASSET_UNIT, 0),
-		(BETI.into(), 68 * ASSET_UNIT, 0),
-		(HALIT.into(), 68 * ASSET_UNIT, 0),
-		(DRAGAN.into(), 98 * ASSET_UNIT, 0),
-		(LEA.into(), 705 * ASSET_UNIT, 0),
-		(LUIS.into(), 422 * ASSET_UNIT, 0),
-		(JOEL.into(), 692 * ASSET_UNIT, 0),
-		(MALIK.into(), 24 * ASSET_UNIT, 0),
-		(SOLOMUN.into(), 840 * ASSET_UNIT, 0),
-		(JONAS.into(), 59 * ASSET_UNIT, 0),
+		(LINA.into(), FixedU128::from_float(4292.3_120_710_000f64), 0),
+		(MIA.into(), FixedU128::from_float(3.2_697_757_490f64), 0),
+		(ALEXEY.into(), FixedU128::from_float(142.2_854_836_000f64), 0),
+		(PAUL.into(), FixedU128::from_float(116.5_251_535_000f64), 0),
+		(MARIA.into(), FixedU128::from_float(158.3_302_593_000f64), 0),
+		(GEORGE.into(), FixedU128::from_float(67.7_786_079_900f64), 0),
+		(CLARA.into(), FixedU128::from_float(62.0_604_547_000f64), 0),
+		(RAMONA.into(), FixedU128::from_float(93.6_039_590_600f64), 0),
+		(PASCAL.into(), FixedU128::from_float(23.1_286_498_600f64), 0),
+		(EMMA.into(), FixedU128::from_float(56.8_401_505_800f64), 0),
+		(BIBI.into(), FixedU128::from_float(48.9_456_852_200f64), 0),
+		(AHMED.into(), FixedU128::from_float(114.4_768_598_000f64), 0),
+		(HERBERT.into(), FixedU128::from_float(36.1_011_767_200f64), 0),
+		(LENI.into(), FixedU128::from_float(82.5_433_918_500f64), 0),
+		(XI.into(), FixedU128::from_float(715.7_402_931_000f64), 0),
+		(TOM.into(), FixedU128::from_float(92.8_275_332_100f64), 0),
+		(ADAMS.into(), FixedU128::from_float(700f64), 0),
+		(POLK.into(), FixedU128::from_float(4236f64), 0),
+		(MARKUS.into(), FixedU128::from_float(3000f64), 0),
+		(ELLA.into(), FixedU128::from_float(700f64), 0),
+		(SKR.into(), FixedU128::from_float(3400f64), 0),
+		(ARTHUR.into(), FixedU128::from_float(1000f64), 0),
+		(MILA.into(), FixedU128::from_float(8400f64), 0),
+		(LINCOLN.into(), FixedU128::from_float(800f64), 0),
+		(MONROE.into(), FixedU128::from_float(1300f64), 0),
+		(ARBRESHA.into(), FixedU128::from_float(5000f64), 0),
+		(ELDIN.into(), FixedU128::from_float(600f64), 0),
+		(HARDING.into(), FixedU128::from_float(800f64), 0),
+		(SOFIA.into(), FixedU128::from_float(3000f64), 0),
+		(DOMINIK.into(), FixedU128::from_float(8000f64), 0),
+		(NOLAND.into(), FixedU128::from_float(900f64), 0),
+		(HANNAH.into(), FixedU128::from_float(500f64), 0),
+		(HOOVER.into(), FixedU128::from_float(1900f64), 0),
+		(GIGI.into(), FixedU128::from_float(600f64), 0),
+		(JEFFERSON.into(), FixedU128::from_float(3000f64), 0),
+		(PARI.into(), FixedU128::from_float(236f64), 0),
+		(TUTI.into(), FixedU128::from_float(24f64), 0),
+		(BENITO.into(), FixedU128::from_float(688f64), 0),
+		(VANESSA.into(), FixedU128::from_float(33f64), 0),
+		(ENES.into(), FixedU128::from_float(1148f64), 0),
+		(RUDOLF.into(), FixedU128::from_float(35f64), 0),
+		(CERTO.into(), FixedU128::from_float(840f64), 0),
+		(TIESTO.into(), FixedU128::from_float(132f64), 0),
+		(DAVID.into(), FixedU128::from_float(21f64), 0),
+		(ATAKAN.into(), FixedU128::from_float(59f64), 0),
+		(YANN.into(), FixedU128::from_float(89f64), 0),
+		(ENIS.into(), FixedU128::from_float(332f64), 0),
+		(ALFREDO.into(), FixedU128::from_float(8110f64), 0),
+		(QENDRIM.into(), FixedU128::from_float(394f64), 0),
+		(LEONARDO.into(), FixedU128::from_float(840f64), 0),
+		(KEN.into(), FixedU128::from_float(352f64), 0),
+		(LUCA.into(), FixedU128::from_float(640f64), 0),
+		(FLAVIO.into(), FixedU128::from_float(792f64), 0),
+		(FREDI.into(), FixedU128::from_float(993f64), 0),
+		(ALI.into(), FixedU128::from_float(794f64), 0),
+		(DILARA.into(), FixedU128::from_float(256f64), 0),
+		(DAMIAN.into(), FixedU128::from_float(431f64), 0),
+		(KAYA.into(), FixedU128::from_float(935f64), 0),
+		(IAZI.into(), FixedU128::from_float(174f64), 0),
+		(CHRIGI.into(), FixedU128::from_float(877f64), 0),
+		(VALENTINA.into(), FixedU128::from_float(961f64), 0),
+		(ALMA.into(), FixedU128::from_float(394f64), 0),
+		(ALENA.into(), FixedU128::from_float(442f64), 0),
+		(PATRICK.into(), FixedU128::from_float(486f64), 0),
+		(ONTARIO.into(), FixedU128::from_float(17f64), 0),
+		(RAKIA.into(), FixedU128::from_float(9424f64), 0),
+		(HUBERT.into(), FixedU128::from_float(14f64), 0),
+		(UTUS.into(), FixedU128::from_float(4906f64), 0),
+		(TOME.into(), FixedU128::from_float(68f64), 0),
+		(ZUBER.into(), FixedU128::from_float(9037f64), 0),
+		(ADAM.into(), FixedU128::from_float(442f64), 0),
+		(STANI.into(), FixedU128::from_float(40f64), 0),
+		(BETI.into(), FixedU128::from_float(68f64), 0),
+		(HALIT.into(), FixedU128::from_float(68f64), 0),
+		(DRAGAN.into(), FixedU128::from_float(98f64), 0),
+		(LEA.into(), FixedU128::from_float(705f64), 0),
+		(LUIS.into(), FixedU128::from_float(422f64), 0),
+		(JOEL.into(), FixedU128::from_float(692f64), 0),
+		(MALIK.into(), FixedU128::from_float(24f64), 0),
+		(SOLOMUN.into(), FixedU128::from_float(840f64), 0),
+		(JONAS.into(), FixedU128::from_float(59f64), 0),
 	]
 }
 
@@ -283,15 +298,20 @@ fn auction_round_completed() {
 
 	PolitestNet::execute_with(|| {
 		let project_id = inst.create_community_contributing_project(project, issuer, evaluations, bids);
-		let wavgp_from_excel = 10.202357561;
-		// Convert the float to a FixedU128
-		let wavgp_to_substrate = FixedU128::from_float(wavgp_from_excel);
-		dbg!(wavgp_to_substrate);
-		let wavgp_from_chain = inst.get_project_details(project_id).weighted_average_price.unwrap();
-		dbg!(wavgp_from_chain);
-		let res = wavgp_from_chain.checked_sub(&wavgp_to_substrate).unwrap();
+		let excel_wap_fixed = FixedU128::from_float(10.202357561f64);
+		let excel_wap_usd = excel_wap_fixed.saturating_mul_int(USD_UNIT);
+
+		let stored_wap_fixed = inst.get_project_details(project_id).weighted_average_price.unwrap();
+		let stored_wap_fixed_decimal_unaware = PriceProviderOf::<PolitestRuntime>::convert_back_to_normal_price(
+			stored_wap_fixed,
+			USD_DECIMALS,
+			CT_DECIMALS,
+		)
+		.unwrap();
+		let stored_wap_usd = stored_wap_fixed_decimal_unaware.saturating_mul_int(USD_UNIT);
+
 		// We are more precise than Excel. From the 11th decimal onwards, the difference should be less than 0.00001.
-		assert!(res < FixedU128::from_float(0.00001));
+		assert_close_enough!(stored_wap_usd, excel_wap_usd, Perquintill::from_float(0.999));
 		let names = names();
 		inst.execute(|| {
 			let bids =
@@ -347,10 +367,8 @@ fn remainder_round_completed() {
 		);
 
 		let price = inst.get_project_details(project_id).weighted_average_price.unwrap();
-		let funding_necessary_1 =
-			IntegrationInstantiator::calculate_contributed_funding_asset_spent(excel_contributions(), price);
-		let funding_necessary_2 =
-			IntegrationInstantiator::calculate_contributed_funding_asset_spent(excel_remainders(), price);
+		let funding_necessary_1 = inst.calculate_contributed_funding_asset_spent(excel_contributions(), price);
+		let funding_necessary_2 = inst.calculate_contributed_funding_asset_spent(excel_remainders(), price);
 		let mut total = 0u128;
 		for item in funding_necessary_1 {
 			total += item.asset_amount;
@@ -363,9 +381,15 @@ fn remainder_round_completed() {
 			.collect_vec();
 		let total_stored =
 			contributions.into_iter().fold(0, |acc, contribution| acc + contribution.funding_asset_amount);
-		let total_from_excel = 503_945_4_517_000_000u128;
 
-		assert_close_enough!(total_stored, total_from_excel, Perquintill::from_float(0.999));
+		let usdt_decimals = <PolitestRuntime as pallet_funding::Config>::FundingCurrency::decimals(
+			AcceptedFundingAsset::USDT.to_assethub_id(),
+		);
+		let usdt_total_from_excel_f64 = 503_945.4_517_000_000f64;
+		let usdt_total_from_excel_fixed = FixedU128::from_float(usdt_total_from_excel_f64);
+		let usdt_total_from_excel = usdt_total_from_excel_fixed.saturating_mul_int(10u128.pow(usdt_decimals as u32));
+
+		assert_close_enough!(total_stored, usdt_total_from_excel, Perquintill::from_float(0.999));
 	});
 }
 
@@ -387,7 +411,12 @@ fn funds_raised() {
 			let project_specific_account: AccountId = PolitestFundingPallet::fund_account_id(project_id);
 			let stored_usdt_funded =
 				PolitestForeignAssets::balance(AcceptedFundingAsset::USDT.to_assethub_id(), project_specific_account);
-			let excel_usdt_funded = 1_004_256_0_140_000_000;
+			let excel_usdt_funded_f64 = 1_004_256.0_140_000_000f64;
+			let excet_usdt_funding_fixed = FixedU128::from_float(excel_usdt_funded_f64);
+			let usdt_decimals = <PolitestRuntime as pallet_funding::Config>::FundingCurrency::decimals(
+				AcceptedFundingAsset::USDT.to_assethub_id(),
+			);
+			let excel_usdt_funded = excet_usdt_funding_fixed.saturating_mul_int(10u128.pow(usdt_decimals as u32));
 			assert_close_enough!(stored_usdt_funded, excel_usdt_funded, Perquintill::from_float(0.99));
 		})
 	});
@@ -410,9 +439,10 @@ fn ct_minted() {
 
 		inst.settle_project(project_id).unwrap();
 
-		for (contributor, expected_amount, project_id) in excel_ct_amounts() {
+		for (contributor, expected_amount_fixed, project_id) in excel_ct_amounts() {
 			let minted = inst
 				.execute(|| <PolitestRuntime as Config>::ContributionTokenCurrency::balance(project_id, &contributor));
+			let expected_amount = expected_amount_fixed.saturating_mul_int(CT_UNIT);
 			assert_close_enough!(minted, expected_amount, Perquintill::from_float(0.99));
 		}
 	});
@@ -435,9 +465,10 @@ fn ct_migrated() {
 
 		inst.settle_project(project_id).unwrap();
 
-		for (contributor, expected_amount, project_id) in excel_ct_amounts() {
+		for (contributor, expected_amount_fixed, project_id) in excel_ct_amounts() {
 			let minted = inst
 				.execute(|| <PolitestRuntime as Config>::ContributionTokenCurrency::balance(project_id, &contributor));
+			let expected_amount = expected_amount_fixed.saturating_mul_int(CT_UNIT);
 			assert_close_enough!(minted, expected_amount, Perquintill::from_float(0.99));
 		}
 
@@ -446,6 +477,15 @@ fn ct_migrated() {
 
 	let project_details = PolitestNet::execute_with(|| inst.get_project_details(project_id));
 	assert!(matches!(project_details.evaluation_round_info.evaluators_outcome, EvaluatorsOutcome::Rewarded(_)));
+	let ct_issued = PolitestNet::execute_with(|| {
+		<PolitestRuntime as Config>::ContributionTokenCurrency::total_issuance(project_id)
+	});
+
+	PenNet::execute_with(|| {
+		let polimec_sovereign_account =
+			<Penpal<PolkadotNet>>::sovereign_account_id_of((Parent, xcm::prelude::Parachain(polimec::PARA_ID)).into());
+		PenpalBalances::set_balance(&polimec_sovereign_account, ct_issued + inst.get_ed());
+	});
 
 	// Mock HRMP establishment
 	PolitestNet::execute_with(|| {
@@ -477,14 +517,14 @@ fn ct_migrated() {
 		assert!(project_details.migration_readiness_check.unwrap().is_ready())
 	});
 
-	excel_ct_amounts().iter().unique().for_each(|item| {
-		let data = PenNet::account_data_of(item.0.clone());
+	excel_ct_amounts().iter().map(|tup| tup.0.clone()).unique().for_each(|account| {
+		let data = PenNet::account_data_of(account.clone());
 		assert_eq!(data.free, 0u128, "Participant balances should be 0 before ct migration");
 	});
 
 	// Migrate CTs
 	let accounts = excel_ct_amounts().iter().map(|item| item.0.clone()).unique().collect::<Vec<_>>();
-	let total_ct_sold = excel_ct_amounts().iter().fold(0, |acc, item| acc + item.1);
+	let total_ct_sold = excel_ct_amounts().iter().fold(FixedU128::zero(), |acc, item| acc + item.1);
 	dbg!(total_ct_sold);
 	let polimec_sov_acc = PenNet::sovereign_account_id_of((Parent, Parachain(polimec::PARA_ID)).into());
 	let polimec_fund_balance = PenNet::account_data_of(polimec_sov_acc);
@@ -509,15 +549,18 @@ fn ct_migrated() {
 		dbg!(PenNet::events());
 	});
 
+	let total_ct_amounts = excel_ct_amounts().iter().fold(FixedU128::zero(), |acc, item| acc + item.1);
+	log::info!("excel ct amounts total: {}", total_ct_amounts);
 	// Check balances after migration, before vesting
-	excel_ct_amounts().iter().unique().for_each(|item| {
+	excel_ct_amounts().iter().for_each(|item| {
 		let data = PenNet::account_data_of(item.0.clone());
 		let key: [u8; 32] = item.0.clone().into();
 		println!("Participant {} has {} CTs. Expected {}", names[&key], data.free.clone(), item.1);
 		dbg!(data.clone());
+		let amount_as_balance = item.1.saturating_mul_int(CT_UNIT);
 		assert_close_enough!(
 			data.free,
-			item.1,
+			amount_as_balance,
 			Perquintill::from_float(0.99),
 			"Participant balances should be transfered to each account after ct migration"
 		);

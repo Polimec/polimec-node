@@ -19,7 +19,6 @@
 /// Learn more about FRAME and the core library of Substrate FRAME pallets:
 /// <https://docs.substrate.io/v3/runtime/frame>
 pub use pallet::*;
-
 #[frame_support::pallet]
 pub mod pallet {
 	use frame_support::{

@@ -18,6 +18,7 @@
 
 use frame_support::{sp_runtime::app_crypto::sp_core::bytes::to_hex, traits::ConstU32, BoundedVec, Parameter};
 use jwt_compact::{alg::Ed25519, AlgorithmExt, Header};
+use parity_scale_codec::alloc::string::ToString;
 use polimec_common::credentials::{Did, InvestorType, SampleClaims, UntrustedToken};
 
 /// Fetches a JWT from a dummy Polimec JWT producer that will return a JWT with the specified investor type
@@ -72,7 +73,6 @@ fn create_jwt<AccountId: frame_support::Serialize>(
 
 	// Handle optional IPFS CID
 	let ipfs_cid = ipfs_cid.unwrap_or_else(|| BoundedVec::with_bounded_capacity(96));
-
 	let custom_claims =
 		SampleClaims { subject: account_id, investor_type, issuer: "verifier".to_string(), did, ipfs_cid };
 

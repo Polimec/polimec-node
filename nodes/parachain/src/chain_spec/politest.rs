@@ -335,8 +335,8 @@ mod testing_helpers {
 			auction_round_allocation_percentage: Percent::from_percent(50u8),
 			minimum_price: PriceOf::<politest_runtime::Runtime>::from_float(10.0),
 			bidding_ticket_sizes: BiddingTicketSizes {
-				professional: TicketSize::new(Some(5000 * US_DOLLAR), None),
-				institutional: TicketSize::new(Some(5000 * US_DOLLAR), None),
+				professional: TicketSize::new(Some(5000 * USD_UNIT), None),
+				institutional: TicketSize::new(Some(5000 * USD_UNIT), None),
 				phantom: Default::default(),
 			},
 			contributing_ticket_sizes: ContributingTicketSizes {

@@ -214,11 +214,9 @@ mod helper_functions {
 		let returned_plmc_balances = returned_plmc_mappings.into_iter().map(|map| map.plmc_amount).collect_vec();
 
 		for (expected_return, returned_balance) in zip(expected_returns, returned_plmc_balances) {
-		    let expected_value = FixedU128::from_float(expected_return)
-		        .checked_mul_int(PLMC)
-		        .unwrap();
+			let expected_value = FixedU128::from_float(expected_return).checked_mul_int(PLMC).unwrap();
 
-		    assert_close_enough!(expected_value, returned_balance, Perquintill::from_float(0.99));
+			assert_close_enough!(expected_value, returned_balance, Perquintill::from_float(0.99));
 		}
 	}
 

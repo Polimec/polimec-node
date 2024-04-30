@@ -40,7 +40,7 @@
 // pub type Identifier = u32;
 // pub type AssetId = u32;
 // pub const PLMC: u128 = 10_000_000_000_u128;
-// const US_DOLLAR: u128 = 1_0_000_000_000u128;
+// const USD_UNIT: u128 = 1_0_000_000_000u128;
 //
 // // Configure a mock runtime to test the pallet.
 // frame_support::construct_runtime!(
@@ -154,8 +154,8 @@
 // 		(3344u32, FixedU128::from_float(8.4f64)), // PLMC
 // 	]);
 // 	pub FeeBrackets: Vec<(Percent, Balance)> = vec![
-// 		(Percent::from_percent(10), 1_000_000 * US_DOLLAR),
-// 		(Percent::from_percent(8), 5_000_000 * US_DOLLAR),
+// 		(Percent::from_percent(10), 1_000_000 * USD_UNIT),
+// 		(Percent::from_percent(8), 5_000_000 * USD_UNIT),
 // 		(Percent::from_percent(6), u128::MAX), // Making it max signifies the last bracket
 // 	];
 // 	pub EarlyEvaluationThreshold: Percent = Percent::from_percent(10);

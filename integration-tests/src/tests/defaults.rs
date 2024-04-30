@@ -17,20 +17,21 @@ use crate::PolitestRuntime;
 use frame_support::BoundedVec;
 pub use pallet_funding::instantiator::{BidParams, ContributionParams, UserToUSDBalance};
 use pallet_funding::{
-	AcceptedFundingAsset, BiddingTicketSizes, ContributingTicketSizes, CurrencyMetadata, ProjectMetadata,
-	ProjectMetadataOf, TicketSize,
+	AcceptedFundingAsset, BiddingTicketSizes, ContributingTicketSizes, CurrencyMetadata, PriceProviderOf,
+	ProjectMetadata, ProjectMetadataOf, TicketSize,
 };
 use sp_arithmetic::{FixedPointNumber, Percent};
 
 use macros::generate_accounts;
+use pallet_funding::traits::ProvideAssetPrice;
+use polimec_common::USD_DECIMALS;
+use polimec_runtime::{PLMC, USD_UNIT};
 use politest_runtime::AccountId;
 use sp_runtime::{traits::ConstU32, Perquintill};
 
 pub const IPFS_CID: &str = "QmeuJ24ffwLAZppQcgcggJs3n689bewednYkuc8Bx5Gngz";
-pub const ASSET_DECIMALS: u8 = 10;
-pub const ASSET_UNIT: u128 = 10_u128.pow(10 as u32);
-pub const PLMC: u128 = 10u128.pow(10);
-pub const US_DOLLAR: u128 = 1_0_000_000_000;
+pub const CT_DECIMALS: u8 = 18;
+pub const CT_UNIT: u128 = 10_u128.pow(CT_DECIMALS as u32);
 
 pub type IntegrationInstantiator = pallet_funding::instantiator::Instantiator<
 	PolitestRuntime,
@@ -64,18 +65,19 @@ pub fn default_contributor_multipliers() -> Vec<u8> {
 
 pub fn default_project_metadata(issuer: AccountId) -> ProjectMetadataOf<politest_runtime::Runtime> {
 	ProjectMetadata {
-		token_information: CurrencyMetadata {
-			name: bounded_name(),
-			symbol: bounded_symbol(),
-			decimals: ASSET_DECIMALS,
-		},
-		mainnet_token_max_supply: 8_000_000 * ASSET_UNIT,
-		total_allocation_size: 1_000_000 * ASSET_UNIT,
+		token_information: CurrencyMetadata { name: bounded_name(), symbol: bounded_symbol(), decimals: CT_DECIMALS },
+		mainnet_token_max_supply: 8_000_000 * CT_UNIT,
+		total_allocation_size: 1_000_000 * CT_UNIT,
 		auction_round_allocation_percentage: Percent::from_percent(50u8),
-		minimum_price: sp_runtime::FixedU128::from_float(10.0),
+		minimum_price: PriceProviderOf::<PolitestRuntime>::calculate_decimals_aware_price(
+			sp_runtime::FixedU128::from_float(10.0),
+			USD_DECIMALS,
+			CT_DECIMALS,
+		)
+		.unwrap(),
 		bidding_ticket_sizes: BiddingTicketSizes {
-			professional: TicketSize::new(Some(5000 * US_DOLLAR), None),
-			institutional: TicketSize::new(Some(5000 * US_DOLLAR), None),
+			professional: TicketSize::new(Some(5000 * USD_UNIT), None),
+			institutional: TicketSize::new(Some(5000 * USD_UNIT), None),
 			phantom: Default::default(),
 		},
 		contributing_ticket_sizes: ContributingTicketSizes {
@@ -101,13 +103,14 @@ pub fn default_bidders() -> Vec<AccountId> {
 }
 
 pub fn default_bids() -> Vec<BidParams<PolitestRuntime>> {
+	let inst = IntegrationInstantiator::new(None);
 	let default_metadata = default_project_metadata(ISSUER.into());
 	let auction_allocation =
 		default_metadata.auction_round_allocation_percentage * default_metadata.total_allocation_size;
 	let auction_90_percent = Perquintill::from_percent(90) * auction_allocation;
 	let auction_usd_funding = default_metadata.minimum_price.saturating_mul_int(auction_90_percent);
 
-	IntegrationInstantiator::generate_bids_from_total_usd(
+	inst.generate_bids_from_total_usd(
 		auction_usd_funding,
 		default_metadata.minimum_price,
 		default_weights(),
@@ -117,6 +120,8 @@ pub fn default_bids() -> Vec<BidParams<PolitestRuntime>> {
 }
 
 pub fn default_community_contributions() -> Vec<ContributionParams<PolitestRuntime>> {
+	let inst = IntegrationInstantiator::new(None);
+
 	let default_metadata = default_project_metadata(ISSUER.into());
 
 	let auction_allocation =
@@ -126,7 +131,7 @@ pub fn default_community_contributions() -> Vec<ContributionParams<PolitestRunti
 	let eighty_percent_funding_ct = Perquintill::from_percent(80) * contribution_allocation;
 	let eighty_percent_funding_usd = default_metadata.minimum_price.saturating_mul_int(eighty_percent_funding_ct);
 
-	IntegrationInstantiator::generate_contributions_from_total_usd(
+	inst.generate_contributions_from_total_usd(
 		eighty_percent_funding_usd,
 		default_metadata.minimum_price,
 		default_weights(),
@@ -136,6 +141,8 @@ pub fn default_community_contributions() -> Vec<ContributionParams<PolitestRunti
 }
 
 pub fn default_remainder_contributions() -> Vec<ContributionParams<PolitestRuntime>> {
+	let inst = IntegrationInstantiator::new(None);
+
 	let default_metadata = default_project_metadata(ISSUER.into());
 
 	let auction_allocation =
@@ -147,7 +154,7 @@ pub fn default_remainder_contributions() -> Vec<ContributionParams<PolitestRunti
 	let ten_percent_contribution = Perquintill::from_percent(10) * contribution_allocation;
 	let ten_percent_contribution_usd = default_metadata.minimum_price.saturating_mul_int(ten_percent_contribution);
 
-	IntegrationInstantiator::generate_contributions_from_total_usd(
+	inst.generate_contributions_from_total_usd(
 		ten_percent_auction_usd + ten_percent_contribution_usd,
 		default_metadata.minimum_price,
 		vec![20u8, 15u8, 10u8, 25u8, 23u8, 7u8],
