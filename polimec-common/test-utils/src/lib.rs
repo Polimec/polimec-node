@@ -20,7 +20,7 @@ use frame_support::{sp_runtime::app_crypto::sp_core::bytes::to_hex, traits::Cons
 use jwt_compact::{alg::Ed25519, AlgorithmExt, Header};
 use polimec_common::credentials::{Did, InvestorType, SampleClaims, UntrustedToken};
 
-// This is actually used while parsing the DIO and the CID.
+// This is actually used while parsing the DID and the CID.
 #[allow(unused_imports)]
 use parity_scale_codec::alloc::string::ToString;
 /// Fetches a JWT from a dummy Polimec JWT producer that will return a JWT with the specified investor type
