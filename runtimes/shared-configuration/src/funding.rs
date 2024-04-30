@@ -27,7 +27,7 @@ use parachains_common::HOURS;
 #[cfg(feature = "instant-mode")]
 pub const EVALUATION_DURATION: BlockNumber = 3;
 #[cfg(feature = "fast-mode")]
-pub const EVALUATION_DURATION: BlockNumber = 1 * HOURS;
+pub const EVALUATION_DURATION: BlockNumber = 3 * HOURS;
 #[cfg(not(any(feature = "fast-mode", feature = "instant-mode")))]
 pub const EVALUATION_DURATION: BlockNumber = 28 * crate::DAYS;
 
