@@ -21,9 +21,6 @@ use jwt_compact::{alg::Ed25519, AlgorithmExt, Header};
 use parity_scale_codec::alloc::string::ToString;
 use polimec_common::credentials::{Did, InvestorType, SampleClaims, UntrustedToken};
 
-// This is actually used while parsing the DID and the CID.
-#[allow(unused_imports)]
-use parity_scale_codec::alloc::string::ToString;
 /// Fetches a JWT from a dummy Polimec JWT producer that will return a JWT with the specified investor type
 #[cfg(feature = "std")]
 pub fn get_test_jwt<AccountId: core::fmt::Display>(

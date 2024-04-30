@@ -547,6 +547,8 @@ pub mod polimec {
 		let genesis_config = polimec_runtime::RuntimeGenesisConfig {
 			system: Default::default(),
 			balances: polimec_runtime::BalancesConfig { balances: funded_accounts },
+			contribution_tokens: Default::default(),
+			funding: Default::default(),
 			foreign_assets: polimec_runtime::ForeignAssetsConfig {
 				assets: vec![
 					(dot_asset_id, alice_account.clone(), true, 0_0_010_000_000u128),

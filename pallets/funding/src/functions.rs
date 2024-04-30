@@ -1738,8 +1738,6 @@ impl<T: Config> Pallet<T> {
 	#[transactional]
 	pub fn do_start_migration_readiness_check(caller: &AccountIdOf<T>, project_id: ProjectId) -> DispatchResult {
 		// * Get variables *
-		let project_metadata = ProjectsMetadata::<T>::get(project_id)
-			.ok_or(Error::<T>::ProjectError(ProjectErrorReason::ProjectMetadataNotFound))?;
 		let mut project_details = ProjectsDetails::<T>::get(project_id)
 			.ok_or(Error::<T>::ProjectError(ProjectErrorReason::ProjectDetailsNotFound))?;
 		let parachain_id: u32 = project_details.parachain_id.ok_or(Error::<T>::ImpossibleState)?.into();
