@@ -557,6 +557,68 @@ mod create_project_extrinsic {
 				);
 			});
 		}
+
+		#[test]
+		fn unaccepted_decimal_ranges() {
+			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+
+			let mut fail_with_decimals = |decimals: u8| {
+				let mut project_metadata = default_project_metadata(ISSUER_1);
+				project_metadata.token_information.decimals = decimals;
+				let jwt = get_mock_jwt_with_cid(
+					ISSUER_1,
+					InvestorType::Institutional,
+					generate_did_from_account(ISSUER_1),
+					project_metadata.clone().policy_ipfs_cid.unwrap(),
+				);
+				inst.execute(|| {
+					assert_noop!(
+						Pallet::<TestRuntime>::create_project(
+							RuntimeOrigin::signed(ISSUER_1),
+							jwt.clone(),
+							project_metadata.clone()
+						),
+						Error::<TestRuntime>::BadMetadata(MetadataError::BadDecimals)
+					);
+				});
+			};
+
+			// less than 4 should fail
+			for i in 0..=3 {
+				fail_with_decimals(i);
+			}
+
+			// more than 20 should fail
+			for i in 21..=30 {
+				fail_with_decimals(i);
+			}
+
+			let mut issuer = ISSUER_2;
+			let mut succeed_with_decimals = |decimals: u8| {
+				let mut project_metadata = default_project_metadata(issuer);
+				project_metadata.token_information.decimals = decimals;
+				let jwt = get_mock_jwt_with_cid(
+					issuer,
+					InvestorType::Institutional,
+					generate_did_from_account(issuer),
+					project_metadata.clone().policy_ipfs_cid.unwrap(),
+				);
+
+				inst.mint_plmc_to(vec![(issuer, 1000 * PLMC).into()]);
+				inst.execute(|| {
+					assert_ok!(Pallet::<TestRuntime>::create_project(
+						RuntimeOrigin::signed(issuer),
+						jwt.clone(),
+						project_metadata.clone()
+					));
+				});
+				issuer +=1 ;
+			};
+			// 5 to 20 succeeds
+			for i in 5..=20 {
+				succeed_with_decimals(i);
+			}
+		}
 	}
 }
 
