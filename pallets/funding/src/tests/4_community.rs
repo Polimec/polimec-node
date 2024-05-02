@@ -292,7 +292,7 @@ mod round_flow {
 			for decimals in 0..25 {
 				decimal_test(decimals);
 			}
-gt
+
 			// Since we use the same original price and allocation size and adjust for decimals,
 			// the USD and PLMC amounts should be the same
 			assert!(total_fundings_usd.iter().all(|x| *x == total_fundings_usd[0]));

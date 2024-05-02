@@ -244,6 +244,10 @@ pub mod storage_types {
 			if target_funding < (1000u64 * 10u64.pow(USD_DECIMALS.into())).into() {
 				return Err(MetadataError::FundingTargetTooLow);
 			}
+
+			if self.token_information.decimals < 4 || self.token_information.decimals > 20 {
+				return Err(MetadataError::BadDecimals);
+			}
 			Ok(())
 		}
 	}
@@ -758,6 +762,8 @@ pub mod inner_types {
 		FundingTargetTooLow,
 		/// The project's metadata hash is not provided while starting the evaluation round.
 		CidNotProvided,
+		/// The ct decimals specified for the CT is outside the 4 to 20 range.
+		BadDecimals,
 	}
 
 	/// Errors related to the project's migration process.
