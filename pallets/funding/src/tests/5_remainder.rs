@@ -1,5 +1,8 @@
 use super::*;
 use crate::instantiator::async_features::create_multiple_projects_at;
+use std::collections::HashSet;
+use frame_support::traits::fungibles::metadata::Inspect;
+use sp_runtime::bounded_vec;
 
 #[cfg(test)]
 mod round_flow {
@@ -7,6 +10,7 @@ mod round_flow {
 
 	#[cfg(test)]
 	mod success {
+
 		use super::*;
 
 		#[test]
@@ -118,6 +122,162 @@ mod round_flow {
 			inst.contribute_for_users(project_id, contributions).unwrap();
 
 			assert_eq!(inst.get_project_details(project_id).remaining_contribution_tokens, 0);
+		}
+
+		#[test]
+		fn different_decimals_ct_works_as_expected() {
+			// Setup some base values to compare different decimals
+			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+			let ed = inst.get_ed();
+			let default_project_metadata = default_project_metadata(ISSUER_1);
+			let original_decimal_aware_price = default_project_metadata.minimum_price;
+			let original_price = <TestRuntime as Config>::PriceProvider::convert_back_to_normal_price(
+				original_decimal_aware_price,
+				USD_DECIMALS,
+				default_project_metadata.token_information.decimals,
+			)
+				.unwrap();
+			let usable_plmc_price = inst.execute(|| {
+				<TestRuntime as Config>::PriceProvider::get_decimals_aware_price(
+					PLMC_FOREIGN_ID,
+					USD_DECIMALS,
+					PLMC_DECIMALS,
+				)
+					.unwrap()
+			});
+			let usdt_price = inst.execute(|| {
+				<TestRuntime as Config>::PriceProvider::get_decimals_aware_price(
+					AcceptedFundingAsset::USDT.to_assethub_id(),
+					USD_DECIMALS,
+					ForeignAssets::decimals(AcceptedFundingAsset::USDT.to_assethub_id()),
+				)
+					.unwrap()
+			});
+			let usdc_price = inst.execute(|| {
+				<TestRuntime as Config>::PriceProvider::get_decimals_aware_price(
+					AcceptedFundingAsset::USDC.to_assethub_id(),
+					USD_DECIMALS,
+					ForeignAssets::decimals(AcceptedFundingAsset::USDC.to_assethub_id()),
+				)
+					.unwrap()
+			});
+			let dot_price = inst.execute(|| {
+				<TestRuntime as Config>::PriceProvider::get_decimals_aware_price(
+					AcceptedFundingAsset::DOT.to_assethub_id(),
+					USD_DECIMALS,
+					ForeignAssets::decimals(AcceptedFundingAsset::DOT.to_assethub_id()),
+				)
+					.unwrap()
+			});
+
+			let mut funding_assets_cycle =
+				vec![AcceptedFundingAsset::USDT, AcceptedFundingAsset::USDC, AcceptedFundingAsset::DOT]
+					.into_iter()
+					.cycle();
+
+			let mut total_fundings_ct = Vec::new();
+			let mut total_fundings_usd = Vec::new();
+			let mut total_fundings_plmc = Vec::new();
+
+			let mut decimal_test = |decimals: u8| {
+				let funding_asset = funding_assets_cycle.next().unwrap();
+				let funding_asset_usd_price = match funding_asset {
+					AcceptedFundingAsset::USDT => usdt_price,
+					AcceptedFundingAsset::USDC => usdc_price,
+					AcceptedFundingAsset::DOT => dot_price,
+				};
+
+				let mut project_metadata = default_project_metadata.clone();
+				project_metadata.token_information.decimals = decimals;
+				project_metadata.minimum_price =
+					<TestRuntime as Config>::PriceProvider::calculate_decimals_aware_price(
+						original_price,
+						USD_DECIMALS,
+						decimals,
+					)
+						.unwrap();
+
+				project_metadata.total_allocation_size = 1_000_000 * 10u128.pow(decimals as u32);
+				project_metadata.mainnet_token_max_supply = project_metadata.total_allocation_size;
+				project_metadata.participation_currencies = bounded_vec!(funding_asset);
+
+				let issuer: AccountIdOf<TestRuntime> = (10_000 + inst.get_new_nonce()).try_into().unwrap();
+				let evaluations = inst.generate_successful_evaluations(
+					project_metadata.clone(),
+					default_evaluators(),
+					default_weights(),
+				);
+				let project_id = inst.create_remainder_contributing_project(
+					project_metadata.clone(),
+					issuer,
+					evaluations,
+					vec![],
+					vec![],
+				);
+
+				let total_funding_ct = project_metadata.total_allocation_size;
+				let total_funding_usd = project_metadata.minimum_price.saturating_mul_int(total_funding_ct);
+				let total_funding_plmc = usable_plmc_price.reciprocal().unwrap().saturating_mul_int(total_funding_usd);
+				let total_funding_funding_asset =
+					funding_asset_usd_price.reciprocal().unwrap().saturating_mul_int(total_funding_usd);
+
+				total_fundings_ct.push(total_funding_ct);
+				total_fundings_usd.push(total_funding_usd);
+				total_fundings_plmc.push(total_funding_plmc);
+
+				// Every project should want to raise 10MM USD
+				assert_eq!(total_funding_usd, 10_000_000 * USD_UNIT);
+
+				// Every project should produce the same PLMC bond when having the full funding at multiplier 1.
+				assert_close_enough!(total_funding_plmc, 1_190_476 * PLMC, Perquintill::from_float(0.999));
+
+				// Every project should have a different amount of CTs to raise, depending on their decimals
+				assert_eq!(total_funding_ct, 1_000_000 * 10u128.pow(decimals as u32));
+
+				// Buying all the remaining tokens. This is a fixed USD value, but the extrinsic amount depends on CT decimals.
+				inst.mint_plmc_to(vec![UserToPLMCBalance::new(BUYER_1, total_funding_plmc + ed)]);
+				inst.mint_foreign_asset_to(vec![UserToForeignAssets::new(
+					BUYER_1,
+					total_funding_funding_asset,
+					funding_asset.to_assethub_id(),
+				)]);
+
+				assert_ok!(inst.execute(|| PolimecFunding::remaining_contribute(
+					RuntimeOrigin::signed(BUYER_1),
+					get_mock_jwt_with_cid(
+						BUYER_1,
+						InvestorType::Retail,
+						generate_did_from_account(BUYER_1),
+						project_metadata.clone().policy_ipfs_cid.unwrap()
+					),
+					project_id,
+					total_funding_ct,
+					1u8.try_into().unwrap(),
+					funding_asset,
+				)));
+
+				// the remaining tokens should be zero
+				assert_eq!(inst.get_project_details(project_id).remaining_contribution_tokens, 0);
+
+				// We can successfully finish the project
+				inst.finish_funding(project_id).unwrap();
+			};
+
+			for decimals in 0..25 {
+				decimal_test(decimals);
+			}
+
+			// Since we use the same original price and allocation size and adjust for decimals,
+			// the USD and PLMC amounts should be the same
+			assert!(total_fundings_usd.iter().all(|x| *x == total_fundings_usd[0]));
+			assert!(total_fundings_plmc.iter().all(|x| *x == total_fundings_plmc[0]));
+
+			// CT amounts however should be different from each other
+			let mut hash_set_1 = HashSet::new();
+			for amount in total_fundings_ct {
+				assert!(!hash_set_1.contains(&amount));
+				hash_set_1.insert(amount);
+			}
 		}
 	}
 }
