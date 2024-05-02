@@ -9,7 +9,7 @@ mod round_flow {
 		use super::*;
 		use frame_support::traits::fungibles::metadata::Inspect;
 		use sp_core::bounded_vec;
-		use std::ops::Not;
+		use std::{collections::HashSet, ops::Not};
 
 		#[test]
 		fn auction_round_completed() {
@@ -515,6 +515,162 @@ mod round_flow {
 				desired_price.saturating_mul_int(USD_UNIT),
 				Perquintill::from_float(0.99)
 			);
+		}
+
+		#[test]
+		fn different_decimals_ct_works_as_expected() {
+			// Setup some base values to compare different decimals
+			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+			let ed = inst.get_ed();
+			let default_project_metadata = default_project_metadata(ISSUER_1);
+			let original_decimal_aware_price = default_project_metadata.minimum_price;
+			let original_price = <TestRuntime as Config>::PriceProvider::convert_back_to_normal_price(
+				original_decimal_aware_price,
+				USD_DECIMALS,
+				default_project_metadata.token_information.decimals,
+			)
+			.unwrap();
+			let usable_plmc_price = inst.execute(|| {
+				<TestRuntime as Config>::PriceProvider::get_decimals_aware_price(
+					PLMC_FOREIGN_ID,
+					USD_DECIMALS,
+					PLMC_DECIMALS,
+				)
+				.unwrap()
+			});
+			let usdt_price = inst.execute(|| {
+				<TestRuntime as Config>::PriceProvider::get_decimals_aware_price(
+					AcceptedFundingAsset::USDT.to_assethub_id(),
+					USD_DECIMALS,
+					ForeignAssets::decimals(AcceptedFundingAsset::USDT.to_assethub_id()),
+				)
+				.unwrap()
+			});
+			let usdc_price = inst.execute(|| {
+				<TestRuntime as Config>::PriceProvider::get_decimals_aware_price(
+					AcceptedFundingAsset::USDC.to_assethub_id(),
+					USD_DECIMALS,
+					ForeignAssets::decimals(AcceptedFundingAsset::USDC.to_assethub_id()),
+				)
+				.unwrap()
+			});
+			let dot_price = inst.execute(|| {
+				<TestRuntime as Config>::PriceProvider::get_decimals_aware_price(
+					AcceptedFundingAsset::DOT.to_assethub_id(),
+					USD_DECIMALS,
+					ForeignAssets::decimals(AcceptedFundingAsset::DOT.to_assethub_id()),
+				)
+				.unwrap()
+			});
+
+			let mut funding_assets_cycle =
+				vec![AcceptedFundingAsset::USDT, AcceptedFundingAsset::USDC, AcceptedFundingAsset::DOT]
+					.into_iter()
+					.cycle();
+
+			let mut min_bid_amounts_ct = Vec::new();
+			let mut min_bid_amounts_usd = Vec::new();
+			let mut auction_allocations_ct = Vec::new();
+			let mut auction_allocations_usd = Vec::new();
+
+			let mut decimal_test = |decimals: u8| {
+				let funding_asset = funding_assets_cycle.next().unwrap();
+				let funding_asset_usd_price = match funding_asset {
+					AcceptedFundingAsset::USDT => usdt_price,
+					AcceptedFundingAsset::USDC => usdc_price,
+					AcceptedFundingAsset::DOT => dot_price,
+				};
+
+				let mut project_metadata = default_project_metadata.clone();
+				project_metadata.token_information.decimals = decimals;
+				project_metadata.minimum_price =
+					<TestRuntime as Config>::PriceProvider::calculate_decimals_aware_price(
+						original_price,
+						USD_DECIMALS,
+						decimals,
+					)
+					.unwrap();
+
+				project_metadata.total_allocation_size = 1_000_000 * 10u128.pow(decimals as u32);
+				project_metadata.mainnet_token_max_supply = project_metadata.total_allocation_size;
+				project_metadata.participation_currencies = bounded_vec!(funding_asset);
+
+				let issuer: AccountIdOf<TestRuntime> = (10_000 + inst.get_new_nonce()).try_into().unwrap();
+				let evaluations = inst.generate_successful_evaluations(
+					project_metadata.clone(),
+					default_evaluators(),
+					default_weights(),
+				);
+				let project_id = inst.create_auctioning_project(project_metadata.clone(), issuer, evaluations);
+
+				let auction_allocation_percentage = project_metadata.auction_round_allocation_percentage;
+				let auction_allocation_ct = auction_allocation_percentage * project_metadata.total_allocation_size;
+				auction_allocations_ct.push(auction_allocation_ct);
+				let auction_allocation_usd = project_metadata.minimum_price.saturating_mul_int(auction_allocation_ct);
+				auction_allocations_usd.push(auction_allocation_usd);
+
+				let min_professional_bid_usd =
+					project_metadata.bidding_ticket_sizes.professional.usd_minimum_per_participation.unwrap();
+				min_bid_amounts_usd.push(min_professional_bid_usd);
+				let min_professional_bid_ct =
+					project_metadata.minimum_price.reciprocal().unwrap().saturating_mul_int(min_professional_bid_usd);
+				let min_professional_bid_plmc =
+					usable_plmc_price.reciprocal().unwrap().saturating_mul_int(min_professional_bid_usd);
+				min_bid_amounts_ct.push(min_professional_bid_ct);
+				let min_professional_bid_funding_asset =
+					funding_asset_usd_price.reciprocal().unwrap().saturating_mul_int(min_professional_bid_usd);
+
+				// Every project should want to raise 5MM USD on the auction round regardless of CT decimals
+				assert_eq!(auction_allocation_usd, 5_000_000 * USD_UNIT);
+
+				// A minimum bid goes through. This is a fixed USD value, but the extrinsic amount depends on CT decimals.
+				inst.mint_plmc_to(vec![UserToPLMCBalance::new(BIDDER_1, min_professional_bid_plmc + ed)]);
+				inst.mint_foreign_asset_to(vec![UserToForeignAssets::new(
+					BIDDER_1,
+					min_professional_bid_funding_asset,
+					funding_asset.to_assethub_id(),
+				)]);
+
+
+				assert_ok!(inst.execute(|| PolimecFunding::bid(
+					RuntimeOrigin::signed(BIDDER_1),
+					get_mock_jwt_with_cid(
+						BIDDER_1,
+						InvestorType::Professional,
+						generate_did_from_account(BIDDER_1),
+						project_metadata.clone().policy_ipfs_cid.unwrap()
+					),
+					project_id,
+					min_professional_bid_ct,
+					1u8.try_into().unwrap(),
+					funding_asset,
+				)));
+
+				// The bucket should have 50% of 1MM * 10^decimals CT minus what we just bid
+				let bucket = inst.execute(|| Buckets::<TestRuntime>::get(project_id).unwrap());
+				assert_eq!(bucket.amount_left, 500_000u128 * 10u128.pow(decimals as u32) - min_professional_bid_ct);
+			};
+
+			for decimals in 0..25 {
+				decimal_test(decimals);
+			}
+
+			// Since we use the same original price and allocation size and adjust for decimals,
+			// the USD amounts should be the same
+			assert!(min_bid_amounts_usd.iter().all(|x| *x == min_bid_amounts_usd[0]));
+			assert!(auction_allocations_usd.iter().all(|x| *x == auction_allocations_usd[0]));
+
+			// CT amounts however should be different from each other
+			let mut hash_set_1 = HashSet::new();
+			for amount in min_bid_amounts_ct {
+				assert!(!hash_set_1.contains(&amount));
+				hash_set_1.insert(amount);
+			}
+			let mut hash_set_2 = HashSet::new();
+			for amount in auction_allocations_ct {
+				assert!(!hash_set_2.contains(&amount));
+				hash_set_2.insert(amount);
+			}
 		}
 	}
 

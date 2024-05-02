@@ -192,7 +192,7 @@ pub fn get_live_chain_spec() -> GenericChainSpec {
 
 #[allow(clippy::too_many_arguments)]
 fn testnet_genesis(
-	stakers: Vec<(AccountId, Option<AccountId>, Balance)>,
+	#[allow(unused)] stakers: Vec<(AccountId, Option<AccountId>, Balance)>,
 	inflation_config: InflationInfo<Balance>,
 	initial_authorities: Vec<AccountId>,
 	mut endowed_accounts: Vec<(AccountId, Balance)>,
