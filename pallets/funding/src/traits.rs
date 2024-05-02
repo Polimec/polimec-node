@@ -49,6 +49,7 @@ pub trait ProvideAssetPrice {
 		let usd_unit = 10u128.checked_pow(usd_decimals.into())?;
 		let usd_price_with_decimals = original_price.checked_mul_int(usd_unit)?;
 		let asset_unit = 10u128.checked_pow(asset_decimals.into())?;
+
 		Self::Price::checked_from_rational(usd_price_with_decimals, asset_unit)
 	}
 
@@ -58,7 +59,7 @@ pub trait ProvideAssetPrice {
 		asset_decimals: u8,
 	) -> Option<Self::Price> {
 		let abs_diff: u32 = asset_decimals.abs_diff(usd_decimals).into();
-		let abs_diff_unit = 10u128.pow(abs_diff);
+		let abs_diff_unit = 10u128.checked_pow(abs_diff)?;
 		// We are pretty sure this is going to be representable because the number size is not the size of the asset decimals, but the difference between the asset and usd decimals
 		let abs_diff_fixed = Self::Price::checked_from_rational(abs_diff_unit, 1)?;
 		if usd_decimals > asset_decimals {

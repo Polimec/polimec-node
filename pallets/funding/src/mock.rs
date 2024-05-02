@@ -30,7 +30,7 @@ use frame_support::{
 };
 use frame_system as system;
 use frame_system::{EnsureRoot, RawOrigin as SystemRawOrigin};
-use polimec_common::{credentials::EnsureInvestor, USD_DECIMALS};
+use polimec_common::{credentials::EnsureInvestor, USD_UNIT};
 use polkadot_parachain_primitives::primitives::Sibling;
 use sp_arithmetic::Percent;
 use sp_core::H256;
@@ -48,7 +48,6 @@ pub const PLMC: Balance = 10u128.pow(PLMC_DECIMALS as u32);
 pub const MILLI_PLMC: Balance = PLMC / 10u128.pow(3);
 pub const MICRO_PLMC: Balance = PLMC / 10u128.pow(6);
 pub const EXISTENTIAL_DEPOSIT: Balance = 10 * MILLI_PLMC;
-pub const USD_UNIT: Balance = 10u128.pow(USD_DECIMALS as u32);
 
 pub type Block = frame_system::mocking::MockBlock<TestRuntime>;
 pub type AccountId = u32;

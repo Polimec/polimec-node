@@ -25,14 +25,10 @@ use frame_support::{
 use itertools::Itertools;
 use macros::generate_accounts;
 use pallet_funding::{traits::ProvideAssetPrice, *};
-use polimec_common::USD_DECIMALS;
+use polimec_common::{USD_DECIMALS, USD_UNIT};
 use polimec_runtime::PLMC;
-use politest_runtime::USD_UNIT;
-use sp_arithmetic::{
-	traits::{Saturating, Zero},
-	Percent, Perquintill,
-};
-use sp_runtime::{traits::CheckedSub, FixedPointNumber, FixedU128};
+use sp_arithmetic::{traits::Zero, Percent, Perquintill};
+use sp_runtime::{FixedPointNumber, FixedU128};
 use xcm_emulator::log;
 
 type UserToCTBalance = Vec<(AccountId, FixedU128, ProjectId)>;
@@ -52,7 +48,7 @@ pub fn excel_project() -> ProjectMetadataOf<PolitestRuntime> {
 	let bounded_symbol = BoundedVec::try_from("PLMC".as_bytes().to_vec()).unwrap();
 	let metadata_hash = ipfs_hash();
 	ProjectMetadata {
-		token_information: CurrencyMetadata { name: bounded_name, symbol: bounded_symbol, decimals: 10 },
+		token_information: CurrencyMetadata { name: bounded_name, symbol: bounded_symbol, decimals: CT_DECIMALS },
 		mainnet_token_max_supply: 10_000_000 * CT_UNIT, // Made up, not in the Sheet.
 		// Total Allocation of Contribution Tokens Available for the Funding Round
 		total_allocation_size: 100_000 * CT_UNIT,
@@ -60,7 +56,7 @@ pub fn excel_project() -> ProjectMetadataOf<PolitestRuntime> {
 
 		// Minimum Price per Contribution Token (in USDT)
 		minimum_price: PriceProviderOf::<PolitestRuntime>::calculate_decimals_aware_price(
-			PriceOf::<PolitestRuntime>::from(10),
+			PriceOf::<PolitestRuntime>::from_float(10.0f64),
 			USD_DECIMALS,
 			CT_DECIMALS,
 		)
@@ -321,8 +317,6 @@ fn auction_round_completed() {
 				let key: [u8; 32] = bid.bidder.clone().into();
 				println!("{}: {}", names[&key], bid.funding_asset_amount_locked);
 			}
-			let total_participation = bids.into_iter().fold(0, |acc, bid| acc + bid.funding_asset_amount_locked);
-			dbg!(total_participation);
 		})
 	});
 }
@@ -347,7 +341,6 @@ fn community_round_completed() {
 			let total_contribution =
 				contributions.clone().into_iter().fold(0, |acc, bid| acc + bid.funding_asset_amount);
 			let total_contribution_as_fixed = FixedU128::from_rational(total_contribution, PLMC);
-			dbg!(total_contribution_as_fixed);
 		})
 	});
 }

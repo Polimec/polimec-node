@@ -80,6 +80,7 @@ include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 #[cfg(feature = "std")]
 use sp_version::NativeVersion;
 
+use polimec_common::USD_UNIT;
 #[cfg(any(feature = "std", test))]
 pub use sp_runtime::BuildStorage;
 

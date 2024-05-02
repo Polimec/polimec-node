@@ -12538,6 +12538,7 @@ dependencies = [
  "pallet-treasury",
  "parachains-common",
  "parity-scale-codec",
+ "polimec-common",
  "scale-info",
  "smallvec",
  "sp-arithmetic",

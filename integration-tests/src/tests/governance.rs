@@ -21,7 +21,6 @@ use polimec_runtime::{
 	Balances, Council, Democracy, Elections, ParachainStaking, Preimage, RuntimeOrigin, TechnicalCommittee, Treasury,
 	Vesting, PLMC,
 };
-use tests::defaults::*;
 use xcm_emulator::helpers::get_account_id_from_seed;
 generate_accounts!(PEPE, CARLOS,);
 
