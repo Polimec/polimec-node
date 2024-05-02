@@ -538,11 +538,12 @@ impl<
 		evaluations: Vec<UserToUSDBalance<T>>,
 		bids: Vec<BidParams<T>>,
 	) -> ProjectId {
+		let project_id = self.create_auctioning_project(project_metadata.clone(), issuer, evaluations.clone());
 		if bids.is_empty() {
-			panic!("Cannot start community funding without bids")
+			self.start_community_funding(project_id).unwrap();
+			return project_id
 		}
 
-		let project_id = self.create_auctioning_project(project_metadata.clone(), issuer, evaluations.clone());
 		let bidders = bids.accounts();
 		let asset_id = bids[0].asset.to_assethub_id();
 		let prev_plmc_balances = self.get_free_plmc_balances_for(bidders.clone());
