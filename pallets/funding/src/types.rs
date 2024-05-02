@@ -225,7 +225,9 @@ pub mod storage_types {
 				return Err(MetadataError::AllocationSizeError);
 			}
 
-			if self.total_allocation_size <= 0u64.into() {
+			if self.total_allocation_size <= 0u64.into() ||
+				self.total_allocation_size < 10u64.pow(self.token_information.decimals as u32).into()
+			{
 				return Err(MetadataError::AllocationSizeError);
 			}
 

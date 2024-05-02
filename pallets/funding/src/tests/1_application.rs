@@ -619,6 +619,39 @@ mod create_project_extrinsic {
 				succeed_with_decimals(i);
 			}
 		}
+
+		#[test]
+		fn allocation_smaller_than_decimals() {
+			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+			let mut project_metadata = default_project_metadata(ISSUER_1);
+			project_metadata.total_allocation_size = 2_000_000;
+			project_metadata.token_information.decimals = 8;
+			project_metadata.minimum_price = <TestRuntime as Config>::PriceProvider::calculate_decimals_aware_price(
+				PriceOf::<TestRuntime>::from_float(100_000.0f64),
+				USD_DECIMALS,
+				project_metadata.token_information.decimals,
+			)
+			.unwrap();
+
+			inst.mint_plmc_to(default_plmc_balances());
+			let jwt = get_mock_jwt_with_cid(
+				ISSUER_1,
+				InvestorType::Institutional,
+				generate_did_from_account(ISSUER_1),
+				project_metadata.clone().policy_ipfs_cid.unwrap(),
+			);
+
+			inst.execute(|| {
+				assert_noop!(
+					Pallet::<TestRuntime>::create_project(
+						RuntimeOrigin::signed(ISSUER_1),
+						jwt.clone(),
+						project_metadata.clone()
+					),
+					Error::<TestRuntime>::BadMetadata(MetadataError::AllocationSizeError)
+				);
+			});
+		}
 	}
 }
 
