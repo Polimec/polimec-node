@@ -1,0 +1,91 @@
+db: ./db.sqlite
+mock-signature-host: true
+endpoint: wss://rpc.polimec.org
+import-storage:
+  System:
+    Account:
+      # Politest Sudo
+      [
+        [
+          [
+            "0xba143e2096e073cb9cddc78e6f4969d8a02160d716a69e08214caf5339d88c42",
+          ],
+          { providers: 1, data: { free: "10000000000000000" } },
+        ],
+      ]
+  # This will be deleted once Polimec has all funding assets registered in ForeignAssets pallet
+  ForeignAssets:
+    Asset:
+      [
+        [
+          [1984],
+          {
+            owner: "0xba143e2096e073cb9cddc78e6f4969d8a02160d716a69e08214caf5339d88c42",
+            issuer: "0xba143e2096e073cb9cddc78e6f4969d8a02160d716a69e08214caf5339d88c42",
+            admin: "0xba143e2096e073cb9cddc78e6f4969d8a02160d716a69e08214caf5339d88c42",
+            freezer: "0xba143e2096e073cb9cddc78e6f4969d8a02160d716a69e08214caf5339d88c42",
+            supply: 1000000000,
+            deposit: 10,
+            minBalance: 10,
+            isSufficient: false,
+            accounts: 1,
+            sufficients: 1,
+            approvals: 0,
+            status: Live,
+          },
+        ],
+        [
+          [10],
+          {
+            owner: "0xba143e2096e073cb9cddc78e6f4969d8a02160d716a69e08214caf5339d88c42",
+            issuer: "0xba143e2096e073cb9cddc78e6f4969d8a02160d716a69e08214caf5339d88c42",
+            admin: "0xba143e2096e073cb9cddc78e6f4969d8a02160d716a69e08214caf5339d88c42",
+            freezer: "0xba143e2096e073cb9cddc78e6f4969d8a02160d716a69e08214caf5339d88c42",
+            supply: 1000000000,
+            deposit: 10,
+            minBalance: 10,
+            isSufficient: false,
+            accounts: 1,
+            sufficients: 1,
+            approvals: 0,
+            status: Live,
+          },
+        ],
+        [
+          [1337],
+          {
+            owner: "0xba143e2096e073cb9cddc78e6f4969d8a02160d716a69e08214caf5339d88c42",
+            issuer: "0xba143e2096e073cb9cddc78e6f4969d8a02160d716a69e08214caf5339d88c42",
+            admin: "0xba143e2096e073cb9cddc78e6f4969d8a02160d716a69e08214caf5339d88c42",
+            freezer: "0xba143e2096e073cb9cddc78e6f4969d8a02160d716a69e08214caf5339d88c42",
+            supply: 1000000000,
+            deposit: 10,
+            minBalance: 10,
+            isSufficient: false,
+            accounts: 1,
+            sufficients: 1,
+            approvals: 0,
+            status: Live,
+          },
+        ],
+      ]
+
+    Metadata:
+      [
+        [[1984], { symbol: "USDT", name: USDT, decimals: 6, isFrozen: false }],
+        [[10], { symbol: "DOT", name: DOT, decimals: 10, isFrozen: false }],
+        [[1337], { symbol: "USDC", name: USDC, decimals: 6, isFrozen: false }],
+      ]
+
+    Account:
+      [
+        [
+          [1984, 15CyvMWHKwbAPQ3ekqRFWLyq3kcjU8ypMuuGfsMnxanW85WZ],
+          { balance: 1000000000 },
+        ],
+        [
+          [10, 15CyvMWHKwbAPQ3ekqRFWLyq3kcjU8ypMuuGfsMnxanW85WZ],
+          { balance: 1000000000 },
+        ],
+      ]
+
