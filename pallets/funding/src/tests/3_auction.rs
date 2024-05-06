@@ -71,14 +71,14 @@ mod round_flow {
 				auction_round_allocation_percentage: Percent::from_percent(50u8),
 				minimum_price: decimal_aware_price,
 				bidding_ticket_sizes: BiddingTicketSizes {
-					professional: TicketSize::new(Some(5000 * USD_UNIT), None),
-					institutional: TicketSize::new(Some(5000 * USD_UNIT), None),
+					professional: TicketSize::new(5000 * USD_UNIT, None),
+					institutional: TicketSize::new(5000 * USD_UNIT, None),
 					phantom: Default::default(),
 				},
 				contributing_ticket_sizes: ContributingTicketSizes {
-					retail: TicketSize::new(None, None),
-					professional: TicketSize::new(None, None),
-					institutional: TicketSize::new(None, None),
+					retail: TicketSize::new(USD_UNIT, None),
+					professional: TicketSize::new(USD_UNIT, None),
+					institutional: TicketSize::new(USD_UNIT, None),
 					phantom: Default::default(),
 				},
 				participation_currencies: vec![AcceptedFundingAsset::USDT].try_into().unwrap(),
@@ -610,7 +610,7 @@ mod round_flow {
 				auction_allocations_usd.push(auction_allocation_usd);
 
 				let min_professional_bid_usd =
-					project_metadata.bidding_ticket_sizes.professional.usd_minimum_per_participation.unwrap();
+					project_metadata.bidding_ticket_sizes.professional.usd_minimum_per_participation;
 				min_bid_amounts_usd.push(min_professional_bid_usd);
 				let min_professional_bid_ct =
 					project_metadata.minimum_price.reciprocal().unwrap().saturating_mul_int(min_professional_bid_usd);
@@ -1533,8 +1533,8 @@ mod bid_extrinsic {
 			let mut project_metadata = default_project_metadata(ISSUER_1);
 			project_metadata.total_allocation_size = 100_000 * CT_UNIT;
 			project_metadata.bidding_ticket_sizes = BiddingTicketSizes {
-				professional: TicketSize::new(Some(8_000 * USD_UNIT), None),
-				institutional: TicketSize::new(Some(20_000 * USD_UNIT), None),
+				professional: TicketSize::new(8_000 * USD_UNIT, None),
+				institutional: TicketSize::new(20_000 * USD_UNIT, None),
 				phantom: Default::default(),
 			};
 
@@ -1589,8 +1589,8 @@ mod bid_extrinsic {
 			let mut project_metadata = default_project_metadata(ISSUER_1);
 			project_metadata.total_allocation_size = 100_000 * CT_UNIT;
 			project_metadata.bidding_ticket_sizes = BiddingTicketSizes {
-				professional: TicketSize::new(Some(8_000 * USD_UNIT), None),
-				institutional: TicketSize::new(Some(20_000 * USD_UNIT), None),
+				professional: TicketSize::new(8_000 * USD_UNIT, None),
+				institutional: TicketSize::new(20_000 * USD_UNIT, None),
 				phantom: Default::default(),
 			};
 			project_metadata.minimum_price = PriceProviderOf::<TestRuntime>::calculate_decimals_aware_price(
@@ -1671,14 +1671,14 @@ mod bid_extrinsic {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 			let mut project_metadata = default_project_metadata(ISSUER_1);
 			project_metadata.bidding_ticket_sizes = BiddingTicketSizes {
-				professional: TicketSize::new(Some(8_000 * USD_UNIT), Some(100_000 * USD_UNIT)),
-				institutional: TicketSize::new(Some(20_000 * USD_UNIT), Some(500_000 * USD_UNIT)),
+				professional: TicketSize::new(8_000 * USD_UNIT, Some(100_000 * USD_UNIT)),
+				institutional: TicketSize::new(20_000 * USD_UNIT, Some(500_000 * USD_UNIT)),
 				phantom: Default::default(),
 			};
 			project_metadata.contributing_ticket_sizes = ContributingTicketSizes {
-				retail: TicketSize::new(None, Some(100_000 * USD_UNIT)),
-				professional: TicketSize::new(None, Some(20_000 * USD_UNIT)),
-				institutional: TicketSize::new(None, Some(50_000 * USD_UNIT)),
+				retail: TicketSize::new(USD_UNIT, Some(100_000 * USD_UNIT)),
+				professional: TicketSize::new(USD_UNIT, Some(20_000 * USD_UNIT)),
+				institutional: TicketSize::new(USD_UNIT, Some(50_000 * USD_UNIT)),
 				phantom: Default::default(),
 			};
 			let evaluations = default_evaluations();

@@ -62,14 +62,14 @@ pub fn excel_project() -> ProjectMetadataOf<PolitestRuntime> {
 		)
 		.unwrap(),
 		bidding_ticket_sizes: BiddingTicketSizes {
-			professional: TicketSize::new(Some(5000 * USD_UNIT), None),
-			institutional: TicketSize::new(Some(5000 * USD_UNIT), None),
+			professional: TicketSize::new(5000 * USD_UNIT, None),
+			institutional: TicketSize::new(5000 * USD_UNIT, None),
 			phantom: Default::default(),
 		},
 		contributing_ticket_sizes: ContributingTicketSizes {
-			retail: TicketSize::new(None, None),
-			professional: TicketSize::new(None, None),
-			institutional: TicketSize::new(None, None),
+			retail: TicketSize::new(USD_UNIT, None),
+			professional: TicketSize::new(USD_UNIT, None),
+			institutional: TicketSize::new(USD_UNIT, None),
 			phantom: Default::default(),
 		},
 		participation_currencies: vec![AcceptedFundingAsset::USDT].try_into().unwrap(),
