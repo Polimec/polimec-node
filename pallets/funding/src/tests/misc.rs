@@ -176,14 +176,14 @@ mod helper_functions {
 			)
 			.unwrap(),
 			bidding_ticket_sizes: BiddingTicketSizes {
-				professional: TicketSize::new(Some(5000 * USD_UNIT), None),
-				institutional: TicketSize::new(Some(5000 * USD_UNIT), None),
+				professional: TicketSize::new(5000 * USD_UNIT, None),
+				institutional: TicketSize::new(5000 * USD_UNIT, None),
 				phantom: Default::default(),
 			},
 			contributing_ticket_sizes: ContributingTicketSizes {
-				retail: TicketSize::new(None, None),
-				professional: TicketSize::new(None, None),
-				institutional: TicketSize::new(None, None),
+				retail: TicketSize::new(USD_UNIT, None),
+				professional: TicketSize::new(USD_UNIT, None),
+				institutional: TicketSize::new(USD_UNIT, None),
 				phantom: Default::default(),
 			},
 			participation_currencies: vec![AcceptedFundingAsset::USDT].try_into().unwrap(),
@@ -571,13 +571,13 @@ mod async_tests {
 		let mut project_metadata = default_project_metadata(ISSUER_1.into());
 		let evaluations = default_evaluations();
 		let max_bids_per_project: u32 = <TestRuntime as Config>::MaxBidsPerProject::get();
-		let min_bid = project_metadata.bidding_ticket_sizes.institutional.usd_minimum_per_participation.unwrap();
+		let min_bid = project_metadata.bidding_ticket_sizes.institutional.usd_minimum_per_participation;
 		let auction_allocation_percentage = project_metadata.auction_round_allocation_percentage;
 		let auction_ct_required = min_bid.saturating_mul(max_bids_per_project as u128);
 		let total_allocation_required = auction_allocation_percentage.saturating_reciprocal_mul(auction_ct_required);
 		project_metadata.total_allocation_size = total_allocation_required;
 
-		let min_bid_usd = project_metadata.bidding_ticket_sizes.institutional.usd_minimum_per_participation.unwrap();
+		let min_bid_usd = project_metadata.bidding_ticket_sizes.institutional.usd_minimum_per_participation;
 		let min_bid_ct = project_metadata.minimum_price.reciprocal().unwrap().checked_mul_int(min_bid_usd).unwrap();
 		let max_bids = (0u32..max_bids_per_project)
 			.map(|i| {

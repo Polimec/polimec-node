@@ -67,23 +67,28 @@ where
 
 		bidding_ticket_sizes: BiddingTicketSizes {
 			professional: TicketSize::new(
-				Some(
-					BalanceOf::<T>::try_from(5000 * USD_UNIT).unwrap_or_else(|_| panic!("Failed to create BalanceOf")),
-				),
+				BalanceOf::<T>::try_from(5000 * USD_UNIT).unwrap_or_else(|_| panic!("Failed to create BalanceOf")),
 				None,
 			),
 			institutional: TicketSize::new(
-				Some(
-					BalanceOf::<T>::try_from(5000 * USD_UNIT).unwrap_or_else(|_| panic!("Failed to create BalanceOf")),
-				),
+				BalanceOf::<T>::try_from(5000 * USD_UNIT).unwrap_or_else(|_| panic!("Failed to create BalanceOf")),
 				None,
 			),
 			phantom: Default::default(),
 		},
 		contributing_ticket_sizes: ContributingTicketSizes {
-			retail: TicketSize::new(None, None),
-			professional: TicketSize::new(None, None),
-			institutional: TicketSize::new(None, None),
+			retail: TicketSize::new(
+				BalanceOf::<T>::try_from(USD_UNIT).unwrap_or_else(|_| panic!("Failed to create BalanceOf")),
+				None,
+			),
+			professional: TicketSize::new(
+				BalanceOf::<T>::try_from(USD_UNIT).unwrap_or_else(|_| panic!("Failed to create BalanceOf")),
+				None,
+			),
+			institutional: TicketSize::new(
+				BalanceOf::<T>::try_from(USD_UNIT).unwrap_or_else(|_| panic!("Failed to create BalanceOf")),
+				None,
+			),
 			phantom: Default::default(),
 		},
 		participation_currencies: vec![AcceptedFundingAsset::USDT].try_into().unwrap(),
@@ -481,20 +486,14 @@ mod benchmarks {
 			.unwrap(),
 			bidding_ticket_sizes: BiddingTicketSizes {
 				professional: TicketSize::new(
-					Some(
-						BalanceOf::<T>::try_from(5000 * USD_UNIT)
-							.unwrap_or_else(|_| panic!("Failed to create BalanceOf")),
-					),
+					BalanceOf::<T>::try_from(5000 * USD_UNIT).unwrap_or_else(|_| panic!("Failed to create BalanceOf")),
 					Some(
 						BalanceOf::<T>::try_from(10_000 * USD_UNIT)
 							.unwrap_or_else(|_| panic!("Failed to create BalanceOf")),
 					),
 				),
 				institutional: TicketSize::new(
-					Some(
-						BalanceOf::<T>::try_from(5000 * USD_UNIT)
-							.unwrap_or_else(|_| panic!("Failed to create BalanceOf")),
-					),
+					BalanceOf::<T>::try_from(5000 * USD_UNIT).unwrap_or_else(|_| panic!("Failed to create BalanceOf")),
 					Some(
 						BalanceOf::<T>::try_from(10_000 * USD_UNIT)
 							.unwrap_or_else(|_| panic!("Failed to create BalanceOf")),
@@ -504,30 +503,21 @@ mod benchmarks {
 			},
 			contributing_ticket_sizes: ContributingTicketSizes {
 				retail: TicketSize::new(
-					Some(
-						BalanceOf::<T>::try_from(5000 * USD_UNIT)
-							.unwrap_or_else(|_| panic!("Failed to create BalanceOf")),
-					),
+					BalanceOf::<T>::try_from(5000 * USD_UNIT).unwrap_or_else(|_| panic!("Failed to create BalanceOf")),
 					Some(
 						BalanceOf::<T>::try_from(10_000 * USD_UNIT)
 							.unwrap_or_else(|_| panic!("Failed to create BalanceOf")),
 					),
 				),
 				professional: TicketSize::new(
-					Some(
-						BalanceOf::<T>::try_from(5000 * USD_UNIT)
-							.unwrap_or_else(|_| panic!("Failed to create BalanceOf")),
-					),
+					BalanceOf::<T>::try_from(5000 * USD_UNIT).unwrap_or_else(|_| panic!("Failed to create BalanceOf")),
 					Some(
 						BalanceOf::<T>::try_from(10_000 * USD_UNIT)
 							.unwrap_or_else(|_| panic!("Failed to create BalanceOf")),
 					),
 				),
 				institutional: TicketSize::new(
-					Some(
-						BalanceOf::<T>::try_from(5000 * USD_UNIT)
-							.unwrap_or_else(|_| panic!("Failed to create BalanceOf")),
-					),
+					BalanceOf::<T>::try_from(5000 * USD_UNIT).unwrap_or_else(|_| panic!("Failed to create BalanceOf")),
 					Some(
 						BalanceOf::<T>::try_from(10_000 * USD_UNIT)
 							.unwrap_or_else(|_| panic!("Failed to create BalanceOf")),
@@ -2044,25 +2034,28 @@ mod benchmarks {
 			.unwrap(),
 			bidding_ticket_sizes: BiddingTicketSizes {
 				professional: TicketSize::new(
-					Some(
-						BalanceOf::<T>::try_from(5000 * USD_UNIT)
-							.unwrap_or_else(|_| panic!("Failed to create BalanceOf")),
-					),
+					BalanceOf::<T>::try_from(5000 * USD_UNIT).unwrap_or_else(|_| panic!("Failed to create BalanceOf")),
 					None,
 				),
 				institutional: TicketSize::new(
-					Some(
-						BalanceOf::<T>::try_from(5000 * USD_UNIT)
-							.unwrap_or_else(|_| panic!("Failed to create BalanceOf")),
-					),
+					BalanceOf::<T>::try_from(5000 * USD_UNIT).unwrap_or_else(|_| panic!("Failed to create BalanceOf")),
 					None,
 				),
 				phantom: Default::default(),
 			},
 			contributing_ticket_sizes: ContributingTicketSizes {
-				retail: TicketSize::new(None, None),
-				professional: TicketSize::new(None, None),
-				institutional: TicketSize::new(None, None),
+				retail: TicketSize::new(
+					BalanceOf::<T>::try_from(USD_UNIT).unwrap_or_else(|_| panic!("Failed to create BalanceOf")),
+					None,
+				),
+				professional: TicketSize::new(
+					BalanceOf::<T>::try_from(USD_UNIT).unwrap_or_else(|_| panic!("Failed to create BalanceOf")),
+					None,
+				),
+				institutional: TicketSize::new(
+					BalanceOf::<T>::try_from(USD_UNIT).unwrap_or_else(|_| panic!("Failed to create BalanceOf")),
+					None,
+				),
 				phantom: Default::default(),
 			},
 			participation_currencies: vec![AcceptedFundingAsset::USDT].try_into().unwrap(),

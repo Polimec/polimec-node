@@ -591,14 +591,14 @@ mod community_contribute_extrinsic {
 			project_metadata.mainnet_token_max_supply = 80_000_000 * CT_UNIT;
 			project_metadata.total_allocation_size = 10_000_000 * CT_UNIT;
 			project_metadata.bidding_ticket_sizes = BiddingTicketSizes {
-				professional: TicketSize::new(Some(5000 * USD_UNIT), None),
-				institutional: TicketSize::new(Some(5000 * USD_UNIT), None),
+				professional: TicketSize::new(5000 * USD_UNIT, None),
+				institutional: TicketSize::new(5000 * USD_UNIT, None),
 				phantom: Default::default(),
 			};
 			project_metadata.contributing_ticket_sizes = ContributingTicketSizes {
-				retail: TicketSize::new(None, None),
-				professional: TicketSize::new(None, None),
-				institutional: TicketSize::new(None, None),
+				retail: TicketSize::new(USD_UNIT, None),
+				professional: TicketSize::new(USD_UNIT, None),
+				institutional: TicketSize::new(USD_UNIT, None),
 				phantom: Default::default(),
 			};
 			let evaluations =
@@ -1019,9 +1019,9 @@ mod community_contribute_extrinsic {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 			let mut project_metadata = default_project_metadata(ISSUER_1);
 			project_metadata.contributing_ticket_sizes = ContributingTicketSizes {
-				retail: TicketSize::new(Some(10 * USD_UNIT), None),
-				professional: TicketSize::new(Some(100_000 * USD_UNIT), None),
-				institutional: TicketSize::new(Some(200_000 * USD_UNIT), None),
+				retail: TicketSize::new(10 * USD_UNIT, None),
+				professional: TicketSize::new(100_000 * USD_UNIT, None),
+				institutional: TicketSize::new(200_000 * USD_UNIT, None),
 				phantom: Default::default(),
 			};
 
@@ -1112,9 +1112,9 @@ mod community_contribute_extrinsic {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 			let mut project_metadata = default_project_metadata(ISSUER_1);
 			project_metadata.contributing_ticket_sizes = ContributingTicketSizes {
-				retail: TicketSize::new(None, Some(100_000 * USD_UNIT)),
-				professional: TicketSize::new(None, Some(20_000 * USD_UNIT)),
-				institutional: TicketSize::new(None, Some(50_000 * USD_UNIT)),
+				retail: TicketSize::new(USD_UNIT, Some(100_000 * USD_UNIT)),
+				professional: TicketSize::new(USD_UNIT, Some(20_000 * USD_UNIT)),
+				institutional: TicketSize::new(USD_UNIT, Some(50_000 * USD_UNIT)),
 				phantom: Default::default(),
 			};
 

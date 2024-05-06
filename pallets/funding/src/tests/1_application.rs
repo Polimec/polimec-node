@@ -382,27 +382,26 @@ mod create_project_extrinsic {
 
 			// min in bidding below 5k
 			let mut wrong_project_1 = correct_project.clone();
-			wrong_project_1.bidding_ticket_sizes.professional = TicketSize::new(Some(4999 * USD_UNIT), None);
+			wrong_project_1.bidding_ticket_sizes.professional = TicketSize::new(4999 * USD_UNIT, None);
 
 			let mut wrong_project_2 = correct_project.clone();
-			wrong_project_2.bidding_ticket_sizes.institutional = TicketSize::new(Some(4999 * USD_UNIT), None);
+			wrong_project_2.bidding_ticket_sizes.institutional = TicketSize::new(4999 * USD_UNIT, None);
 
 			let mut wrong_project_3 = correct_project.clone();
-			wrong_project_3.bidding_ticket_sizes.professional = TicketSize::new(Some(3000 * USD_UNIT), None);
-			wrong_project_3.bidding_ticket_sizes.institutional = TicketSize::new(Some(0 * USD_UNIT), None);
+			wrong_project_3.bidding_ticket_sizes.professional = TicketSize::new(3000 * USD_UNIT, None);
+			wrong_project_3.bidding_ticket_sizes.institutional = TicketSize::new(0 * USD_UNIT, None);
 
 			let mut wrong_project_4 = correct_project.clone();
-			wrong_project_4.bidding_ticket_sizes.professional = TicketSize::new(None, None);
-			wrong_project_4.bidding_ticket_sizes.institutional = TicketSize::new(None, None);
+			wrong_project_4.bidding_ticket_sizes.professional = TicketSize::new(USD_UNIT, None);
+			wrong_project_4.bidding_ticket_sizes.institutional = TicketSize::new(USD_UNIT, None);
 
 			// min higher than max
 			let mut wrong_project_5 = correct_project.clone();
-			wrong_project_5.bidding_ticket_sizes.professional =
-				TicketSize::new(Some(5000 * USD_UNIT), Some(4990 * USD_UNIT));
+			wrong_project_5.bidding_ticket_sizes.professional = TicketSize::new(5000 * USD_UNIT, Some(4990 * USD_UNIT));
 
 			let mut wrong_project_6 = correct_project.clone();
 			wrong_project_6.bidding_ticket_sizes.institutional =
-				TicketSize::new(Some(6000 * USD_UNIT), Some(5500 * USD_UNIT));
+				TicketSize::new(6000 * USD_UNIT, Some(5500 * USD_UNIT));
 
 			let wrong_projects = vec![
 				wrong_project_1.clone(),
@@ -835,14 +834,14 @@ mod edit_project_extrinsic {
 				)
 				.unwrap(),
 				bidding_ticket_sizes: BiddingTicketSizes {
-					professional: TicketSize::new(Some(10_000 * USD_UNIT), Some(20_000 * USD_UNIT)),
-					institutional: TicketSize::new(Some(20_000 * USD_UNIT), Some(30_000 * USD_UNIT)),
+					professional: TicketSize::new(10_000 * USD_UNIT, Some(20_000 * USD_UNIT)),
+					institutional: TicketSize::new(20_000 * USD_UNIT, Some(30_000 * USD_UNIT)),
 					phantom: Default::default(),
 				},
 				contributing_ticket_sizes: ContributingTicketSizes {
-					retail: TicketSize::new(Some(1_000 * USD_UNIT), Some(2_000 * USD_UNIT)),
-					professional: TicketSize::new(Some(2_000 * USD_UNIT), Some(3_000 * USD_UNIT)),
-					institutional: TicketSize::new(Some(3_000 * USD_UNIT), Some(4_000 * USD_UNIT)),
+					retail: TicketSize::new(1_000 * USD_UNIT, Some(2_000 * USD_UNIT)),
+					professional: TicketSize::new(2_000 * USD_UNIT, Some(3_000 * USD_UNIT)),
+					institutional: TicketSize::new(3_000 * USD_UNIT, Some(4_000 * USD_UNIT)),
 					phantom: Default::default(),
 				},
 				participation_currencies: vec![AcceptedFundingAsset::USDT, AcceptedFundingAsset::USDC]
