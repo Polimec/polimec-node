@@ -1,0 +1,29 @@
+db: ./db.sqlite
+mock-signature-host: true
+endpoint: wss://statemint-rpc.dwellir.com
+import-storage:
+  System:
+    Account:
+      # Polimec sovereign account (sibling - 3344) 1 DOT
+      - - - "0x7369626c100d0000000000000000000000000000000000000000000000000000"
+        - providers: 1
+          data:
+            free: "10000000000"
+      # Politest Sudo, 1MM DOT
+      - - - "0xba143e2096e073cb9cddc78e6f4969d8a02160d716a69e08214caf5339d88c42"
+        - providers: 1
+          data:
+            free: "10000000000000000"
+  Assets:
+    Account:
+      [
+        [
+          [1984, 15CyvMWHKwbAPQ3ekqRFWLyq3kcjU8ypMuuGfsMnxanW85WZ],
+          { balance: 1000000000 },
+        ],
+        [
+          [1337, 15CyvMWHKwbAPQ3ekqRFWLyq3kcjU8ypMuuGfsMnxanW85WZ],
+          { balance: 1000000000 },
+        ],
+      ]
+
