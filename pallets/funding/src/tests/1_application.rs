@@ -395,12 +395,33 @@ mod create_project_extrinsic {
 			wrong_project_4.bidding_ticket_sizes.professional = TicketSize::new(USD_UNIT, None);
 			wrong_project_4.bidding_ticket_sizes.institutional = TicketSize::new(USD_UNIT, None);
 
-			// min higher than max
+			// min in contributing below 1 USD
 			let mut wrong_project_5 = correct_project.clone();
-			wrong_project_5.bidding_ticket_sizes.professional = TicketSize::new(5000 * USD_UNIT, Some(4990 * USD_UNIT));
+			wrong_project_5.contributing_ticket_sizes.retail = TicketSize::new(USD_UNIT / 2, None);
 
 			let mut wrong_project_6 = correct_project.clone();
-			wrong_project_6.bidding_ticket_sizes.institutional =
+			wrong_project_6.contributing_ticket_sizes.professional = TicketSize::new(USD_UNIT / 2, None);
+
+			let mut wrong_project_7 = correct_project.clone();
+			wrong_project_7.contributing_ticket_sizes.institutional = TicketSize::new(USD_UNIT / 2, None);
+
+			// min higher than max
+			let mut wrong_project_8 = correct_project.clone();
+			wrong_project_8.bidding_ticket_sizes.professional = TicketSize::new(5000 * USD_UNIT, Some(4990 * USD_UNIT));
+
+			let mut wrong_project_9 = correct_project.clone();
+			wrong_project_9.bidding_ticket_sizes.institutional =
+				TicketSize::new(6000 * USD_UNIT, Some(5500 * USD_UNIT));
+
+			let mut wrong_project_10 = correct_project.clone();
+			wrong_project_10.contributing_ticket_sizes.retail = TicketSize::new(6000 * USD_UNIT, Some(5500 * USD_UNIT));
+
+			let mut wrong_project_11 = correct_project.clone();
+			wrong_project_11.contributing_ticket_sizes.professional =
+				TicketSize::new(6000 * USD_UNIT, Some(5500 * USD_UNIT));
+
+			let mut wrong_project_12 = correct_project.clone();
+			wrong_project_12.contributing_ticket_sizes.professional =
 				TicketSize::new(6000 * USD_UNIT, Some(5500 * USD_UNIT));
 
 			let wrong_projects = vec![
@@ -410,6 +431,12 @@ mod create_project_extrinsic {
 				wrong_project_4,
 				wrong_project_5,
 				wrong_project_6,
+				wrong_project_7,
+				wrong_project_8,
+				wrong_project_9,
+				wrong_project_10,
+				wrong_project_11,
+				wrong_project_12,
 			];
 
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
