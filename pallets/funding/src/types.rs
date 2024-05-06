@@ -211,13 +211,21 @@ pub mod storage_types {
 			}
 			let usd_unit = sp_arithmetic::traits::checked_pow(Balance::from(10u64), USD_DECIMALS as usize)
 				.ok_or(MetadataError::BadTokenomics)?;
+
 			let min_bidder_bound_usd: Balance =
 				usd_unit.checked_mul(&5000u64.into()).ok_or(MetadataError::BadTokenomics)?;
 			self.bidding_ticket_sizes.is_valid(vec![
-				InvestorTypeUSDBounds::Professional((Some(min_bidder_bound_usd), None).into()),
-				InvestorTypeUSDBounds::Institutional((Some(min_bidder_bound_usd), None).into()),
+				InvestorTypeUSDBounds::Professional((min_bidder_bound_usd, None).into()),
+				InvestorTypeUSDBounds::Institutional((min_bidder_bound_usd, None).into()),
 			])?;
-			self.contributing_ticket_sizes.is_valid(vec![])?;
+
+			let min_contributor_bound_usd: Balance =
+				usd_unit.checked_mul(&1u64.into()).ok_or(MetadataError::BadTokenomics)?;
+			self.contributing_ticket_sizes.is_valid(vec![
+				InvestorTypeUSDBounds::Institutional((min_contributor_bound_usd, None).into()),
+				InvestorTypeUSDBounds::Professional((min_contributor_bound_usd, None).into()),
+				InvestorTypeUSDBounds::Retail((min_contributor_bound_usd, None).into()),
+			])?;
 
 			if self.total_allocation_size == 0u64.into() ||
 				self.total_allocation_size > self.mainnet_token_max_supply ||
@@ -271,12 +279,12 @@ pub mod storage_types {
 	}
 
 	pub struct Bound<Balance> {
-		pub lower: Option<Balance>,
+		pub lower: Balance,
 		pub upper: Option<Balance>,
 	}
 
-	impl<Balance> From<(Option<Balance>, Option<Balance>)> for Bound<Balance> {
-		fn from(value: (Option<Balance>, Option<Balance>)) -> Self {
+	impl<Balance> From<(Balance, Option<Balance>)> for Bound<Balance> {
+		fn from(value: (Balance, Option<Balance>)) -> Self {
 			Self { lower: value.0, upper: value.1 }
 		}
 	}
@@ -480,19 +488,16 @@ pub mod inner_types {
 	#[derive(Clone, Copy, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
 	#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
 	pub struct TicketSize<Balance: PartialOrd + Copy> {
-		pub usd_minimum_per_participation: Option<Balance>,
+		pub usd_minimum_per_participation: Balance,
 		pub usd_maximum_per_did: Option<Balance>,
 	}
 	impl<Balance: PartialOrd + Copy> TicketSize<Balance> {
-		pub fn new(usd_minimum_per_participation: Option<Balance>, usd_maximum_per_did: Option<Balance>) -> Self {
+		pub fn new(usd_minimum_per_participation: Balance, usd_maximum_per_did: Option<Balance>) -> Self {
 			Self { usd_minimum_per_participation, usd_maximum_per_did }
 		}
 
 		pub fn usd_ticket_above_minimum_per_participation(&self, usd_amount: Balance) -> bool {
-			match self.usd_minimum_per_participation {
-				Some(min) => usd_amount >= min,
-				None => true,
-			}
+			usd_amount >= self.usd_minimum_per_participation
 		}
 
 		pub fn usd_ticket_below_maximum_per_did(&self, usd_amount: Balance) -> bool {
@@ -503,17 +508,16 @@ pub mod inner_types {
 		}
 
 		pub fn check_valid(&self, bound: Bound<Balance>) -> bool {
-			if let (Some(min), Some(max)) = (self.usd_minimum_per_participation, self.usd_maximum_per_did) {
+			if let (min, Some(max)) = (self.usd_minimum_per_participation, self.usd_maximum_per_did) {
 				if min > max {
 					return false
 				}
 			}
-			if let Some(lower_bound) = bound.lower {
-				let Some(min_usd) = self.usd_minimum_per_participation else { return false };
-				if min_usd < lower_bound {
-					return false;
-				}
+
+			if self.usd_minimum_per_participation < bound.lower {
+				return false;
 			}
+
 			if let Some(upper_bound) = bound.upper {
 				let Some(max_usd) = self.usd_maximum_per_did else { return false };
 				if max_usd > upper_bound {
