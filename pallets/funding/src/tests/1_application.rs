@@ -220,13 +220,19 @@ mod create_project_extrinsic {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 			let mut project_metadata = default_project_metadata(ISSUER_1);
 
-			// funding target of 1000 USD at 1quadrillion supply
-			const QUADRILLION_SUPPLY: u128 = 1_000_000_000_000_000 * CT_UNIT;
-			const LOW_PRICE: f64 = 0.000_000_000_001f64;
+			// funding target of 1000 USD at 100 trillion supply
+			const QUADRILLION_SUPPLY: u128 = 100_000_000_000_000 * CT_UNIT;
+			// at the lowest possible price, which makes a funding target of 1 bn USD
+			const LOW_PRICE: f64 = 0.00001f64;
 
 			project_metadata.mainnet_token_max_supply = QUADRILLION_SUPPLY;
 			project_metadata.total_allocation_size = QUADRILLION_SUPPLY;
-			project_metadata.minimum_price = FixedU128::from_float(LOW_PRICE);
+			project_metadata.minimum_price = PriceProviderOf::<TestRuntime>::calculate_decimals_aware_price(
+				FixedU128::from_float(LOW_PRICE),
+				USD_DECIMALS,
+				CT_DECIMALS,
+			)
+			.unwrap();
 
 			inst.mint_plmc_to(default_plmc_balances());
 			let jwt = get_mock_jwt_with_cid(
@@ -527,8 +533,14 @@ mod create_project_extrinsic {
 		fn target_funding_less_than_1000_usd() {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 			let mut project_metadata = default_project_metadata(ISSUER_1);
-			project_metadata.minimum_price = PriceOf::<TestRuntime>::from_float(1.0);
-			project_metadata.total_allocation_size = 999u128;
+			project_metadata.minimum_price = <PriceProviderOf<TestRuntime>>::calculate_decimals_aware_price(
+				PriceOf::<TestRuntime>::from_float(1.0),
+				USD_DECIMALS,
+				CT_DECIMALS,
+			)
+			.unwrap();
+			project_metadata.total_allocation_size = 999 * CT_UNIT;
+			project_metadata.mainnet_token_max_supply = 999 * CT_UNIT;
 
 			inst.mint_plmc_to(default_plmc_balances());
 			let jwt = get_mock_jwt_with_cid(
@@ -548,8 +560,14 @@ mod create_project_extrinsic {
 				);
 			});
 
-			project_metadata.minimum_price = PriceOf::<TestRuntime>::from_float(0.00000000001);
-			project_metadata.total_allocation_size = 99999999999999u128;
+			project_metadata.minimum_price = <PriceProviderOf<TestRuntime>>::calculate_decimals_aware_price(
+				PriceOf::<TestRuntime>::from_float(0.0001),
+				USD_DECIMALS,
+				CT_DECIMALS,
+			)
+			.unwrap();
+			project_metadata.total_allocation_size = 9999999u128 * CT_UNIT;
+			project_metadata.mainnet_token_max_supply = 9999999u128 * CT_UNIT;
 			inst.execute(|| {
 				assert_noop!(
 					Pallet::<TestRuntime>::create_project(RuntimeOrigin::signed(ISSUER_1), jwt, project_metadata),
@@ -565,6 +583,16 @@ mod create_project_extrinsic {
 			let mut fail_with_decimals = |decimals: u8| {
 				let mut project_metadata = default_project_metadata(ISSUER_1);
 				project_metadata.token_information.decimals = decimals;
+				project_metadata.total_allocation_size = 100_000 * 10u128.pow(decimals.into());
+				project_metadata.mainnet_token_max_supply = project_metadata.total_allocation_size;
+				project_metadata.minimum_price =
+					<TestRuntime as Config>::PriceProvider::calculate_decimals_aware_price(
+						PriceOf::<TestRuntime>::from_float(10_000.0f64),
+						USD_DECIMALS,
+						project_metadata.token_information.decimals,
+					)
+					.unwrap();
+
 				let jwt = get_mock_jwt_with_cid(
 					ISSUER_1,
 					InvestorType::Institutional,
@@ -583,13 +611,13 @@ mod create_project_extrinsic {
 				});
 			};
 
-			// less than 4 should fail
-			for i in 0..=3 {
+			// less than 6 should fail
+			for i in 0..=5 {
 				fail_with_decimals(i);
 			}
 
-			// more than 20 should fail
-			for i in 21..=30 {
+			// more than 18 should fail
+			for i in 19..=24 {
 				fail_with_decimals(i);
 			}
 
@@ -597,6 +625,15 @@ mod create_project_extrinsic {
 			let mut succeed_with_decimals = |decimals: u8| {
 				let mut project_metadata = default_project_metadata(issuer);
 				project_metadata.token_information.decimals = decimals;
+				project_metadata.total_allocation_size = 100_000 * 10u128.pow(decimals.into());
+				project_metadata.mainnet_token_max_supply = project_metadata.total_allocation_size;
+				project_metadata.minimum_price =
+					<TestRuntime as Config>::PriceProvider::calculate_decimals_aware_price(
+						PriceOf::<TestRuntime>::from_float(1.0),
+						USD_DECIMALS,
+						project_metadata.token_information.decimals,
+					)
+					.unwrap();
 				let jwt = get_mock_jwt_with_cid(
 					issuer,
 					InvestorType::Institutional,
@@ -612,11 +649,76 @@ mod create_project_extrinsic {
 						project_metadata.clone()
 					));
 				});
-				issuer +=1 ;
+				issuer += 1;
 			};
 			// 5 to 20 succeeds
-			for i in 5..=20 {
+			for i in 6..=18 {
 				succeed_with_decimals(i);
+			}
+		}
+
+		#[test]
+		fn unaccepted_prices() {
+			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+			let mut issuer = ISSUER_1;
+			let mut assert_price = |price: f64, fail: bool| {
+				inst.mint_plmc_to(vec![(issuer, 1000 * PLMC).into()]);
+				let mut project_metadata = default_project_metadata(issuer);
+
+				// Need this helper function because the price provider does not allow prices below 10^-6
+				let calculate_decimals_aware_price = |price: f64, decimals: u8| {
+					let price = PriceOf::<TestRuntime>::from_float(price);
+					let usd_unit = 10u128.checked_pow(USD_DECIMALS.into()).unwrap();
+					let usd_price_with_decimals = price.checked_mul_int(usd_unit * 1_000_000).unwrap();
+					let asset_unit = 10u128.checked_pow(decimals.into()).unwrap();
+
+					let divisor = FixedU128::from_float(1_000_000f64);
+
+					FixedU128::checked_from_rational(usd_price_with_decimals, asset_unit).unwrap().div(divisor)
+				};
+
+				project_metadata.minimum_price =
+					calculate_decimals_aware_price(price, project_metadata.token_information.decimals);
+				project_metadata.total_allocation_size =
+					project_metadata.minimum_price.reciprocal().unwrap().saturating_mul_int(100_000 * USD_UNIT);
+				project_metadata.mainnet_token_max_supply = project_metadata.total_allocation_size;
+
+				let jwt = get_mock_jwt_with_cid(
+					issuer,
+					InvestorType::Institutional,
+					generate_did_from_account(issuer),
+					project_metadata.clone().policy_ipfs_cid.unwrap(),
+				);
+
+				let run_extrinsic = || {
+					Pallet::<TestRuntime>::create_project(
+						RuntimeOrigin::signed(issuer),
+						jwt.clone(),
+						project_metadata.clone(),
+					)
+				};
+				inst.execute(|| {
+					if fail {
+						assert_noop!(run_extrinsic(), Error::<TestRuntime>::BadMetadata(MetadataError::BadTokenomics),);
+					} else {
+						assert_ok!(run_extrinsic());
+					}
+				});
+				issuer += 1;
+			};
+
+			let low_prices = vec![0.0000001, 0.000001];
+			let high_prices = vec![10_000f64, 100_000f64];
+			let right_prices = vec![0.00001, 0.001, 0.01, 0.1, 1.0, 10.0, 100f64, 1_000f64];
+
+			for price in low_prices {
+				assert_price(price, true);
+			}
+			for price in high_prices {
+				assert_price(price, true);
+			}
+			for price in right_prices {
+				assert_price(price, false);
 			}
 		}
 
@@ -677,7 +779,12 @@ mod edit_project_extrinsic {
 			);
 			let project_id = inst.create_new_project(project_metadata.clone(), ISSUER_1);
 
-			project_metadata.minimum_price = PriceOf::<TestRuntime>::from_float(15.0);
+			project_metadata.minimum_price = PriceProviderOf::<TestRuntime>::calculate_decimals_aware_price(
+				PriceOf::<TestRuntime>::from_float(15.0),
+				USD_DECIMALS,
+				CT_DECIMALS,
+			)
+			.unwrap();
 			assert_ok!(inst.execute(|| crate::Pallet::<TestRuntime>::edit_project(
 				RuntimeOrigin::signed(ISSUER_1),
 				jwt.clone(),
@@ -706,7 +813,12 @@ mod edit_project_extrinsic {
 			let project_id = inst.create_new_project(project_metadata.clone(), ISSUER_1);
 			let mut new_metadata_1 = project_metadata.clone();
 			let new_policy_hash = ipfs_hash();
-			new_metadata_1.minimum_price = PriceOf::<TestRuntime>::from_float(15.0);
+			new_metadata_1.minimum_price = PriceProviderOf::<TestRuntime>::calculate_decimals_aware_price(
+				PriceOf::<TestRuntime>::from_float(15.0),
+				USD_DECIMALS,
+				CT_DECIMALS,
+			)
+			.unwrap();
 			let new_metadata_2 = ProjectMetadataOf::<TestRuntime> {
 				token_information: CurrencyMetadata {
 					name: BoundedVec::try_from("Changed Name".as_bytes().to_vec()).unwrap(),
@@ -714,9 +826,14 @@ mod edit_project_extrinsic {
 					decimals: 12,
 				},
 				mainnet_token_max_supply: 100_000_000 * CT_UNIT,
-				total_allocation_size: 50_000_000 * CT_UNIT,
+				total_allocation_size: 5_000_000 * CT_UNIT,
 				auction_round_allocation_percentage: Percent::from_percent(30u8),
-				minimum_price: PriceOf::<TestRuntime>::from_float(20.0),
+				minimum_price: PriceProviderOf::<TestRuntime>::calculate_decimals_aware_price(
+					PriceOf::<TestRuntime>::from_float(20.0),
+					USD_DECIMALS,
+					CT_DECIMALS,
+				)
+				.unwrap(),
 				bidding_ticket_sizes: BiddingTicketSizes {
 					professional: TicketSize::new(Some(10_000 * USD_UNIT), Some(20_000 * USD_UNIT)),
 					institutional: TicketSize::new(Some(20_000 * USD_UNIT), Some(30_000 * USD_UNIT)),

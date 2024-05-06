@@ -14,10 +14,11 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use crate::{currency::USD_UNIT, Balance, BlockNumber};
+use crate::{Balance, BlockNumber};
 use frame_support::{parameter_types, PalletId};
 use pallet_funding::types::AcceptedFundingAsset;
 use parachains_common::AssetIdForTrustBackedAssets;
+use polimec_common::USD_UNIT;
 use sp_arithmetic::{FixedU128, Percent};
 use sp_std::{collections::btree_map::BTreeMap, vec, vec::Vec};
 

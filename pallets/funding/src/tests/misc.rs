@@ -674,4 +674,35 @@ mod bug_hunting {
 		let new_project_details = inst.get_project_details(project_id);
 		assert_eq!(old_project_details, new_project_details);
 	}
+
+	// This shows us that "plausible" combination of ct decimals and ct price can lead to unrepresentable usd cents
+	#[test]
+	fn price_too_low_for_usd_conversion_1() {
+		let ct_decimals = 4u8;
+		let original_price = FixedU128::from_float(1000f64);
+		let decimal_aware_price = <TestRuntime as Config>::PriceProvider::calculate_decimals_aware_price(
+			original_price,
+			USD_DECIMALS,
+			ct_decimals,
+		)
+		.unwrap();
+
+		let usd_cent = USD_UNIT / 100;
+		let cent_in_ct = decimal_aware_price.reciprocal().unwrap().checked_mul_int(usd_cent).unwrap();
+		assert_eq!(cent_in_ct, 0u128);
+	}
+
+	// This shows us that even using the lowest possible price with FixedU128, we can still represent 1bn USD
+	#[test]
+	fn billion_saturating() {
+		let decimal_aware_price = FixedU128::from_inner(1u128);
+		dbg!(decimal_aware_price);
+
+		let usd_billion = USD_UNIT * 1_000_000_000;
+		let billion_in_ct = decimal_aware_price.reciprocal().unwrap().checked_mul_int(usd_billion).unwrap();
+		dbg!(billion_in_ct);
+		dbg!(billion_in_ct.checked_ilog10());
+		dbg!(u128::MAX);
+		dbg!(u128::MAX.checked_ilog10());
+	}
 }

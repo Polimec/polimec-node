@@ -133,8 +133,6 @@ fn xcmp() {
 
 	let penpal_account = PolimecNet::sovereign_account_id_of((Parent, Parachain(PenNet::para_id().into())).into());
 	let penpal_balance = PolimecNet::account_data_of(penpal_account.clone()).free;
-	dbg!(penpal_account.clone());
-	dbg!(penpal_balance);
 
 	PolimecNet::execute_with(|| {
 		assert_expected_events!(

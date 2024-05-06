@@ -24,8 +24,8 @@ use sp_arithmetic::{FixedPointNumber, Percent};
 
 use macros::generate_accounts;
 use pallet_funding::traits::ProvideAssetPrice;
-use polimec_common::USD_DECIMALS;
-use polimec_runtime::{PLMC, USD_UNIT};
+use polimec_common::{USD_DECIMALS, USD_UNIT};
+use polimec_runtime::PLMC;
 use politest_runtime::AccountId;
 use sp_runtime::{traits::ConstU32, Perquintill};
 

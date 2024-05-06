@@ -15,7 +15,7 @@ use frame_support::{
 };
 use itertools::Itertools;
 use parachains_common::DAYS;
-use polimec_common::{ReleaseSchedule, USD_DECIMALS};
+use polimec_common::{ReleaseSchedule, USD_DECIMALS, USD_UNIT};
 use polimec_common_test_utils::{generate_did_from_account, get_mock_jwt_with_cid};
 use sp_arithmetic::{traits::Zero, Percent, Perquintill};
 use sp_runtime::{BuildStorage, TokenError};
@@ -23,10 +23,9 @@ use sp_std::{cell::RefCell, marker::PhantomData};
 use std::iter::zip;
 type MockInstantiator =
 	Instantiator<TestRuntime, <TestRuntime as crate::Config>::AllPalletsWithoutSystem, RuntimeEvent>;
-const USD_UNIT: u128 = 10u128.pow(USD_DECIMALS as u32);
-const USDT_UNIT: u128 = USD_UNIT;
 const CT_DECIMALS: u8 = 15;
 const CT_UNIT: u128 = 10_u128.pow(CT_DECIMALS as u32);
+const USDT_UNIT: u128 = USD_UNIT;
 
 const IPFS_CID: &str = "QmeuJ24ffwLAZppQcgcggJs3n689bewednYkuc8Bx5Gngz";
 const ISSUER_1: AccountId = 11;

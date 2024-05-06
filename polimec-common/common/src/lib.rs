@@ -213,3 +213,4 @@ pub mod migration_types {
 }
 
 pub const USD_DECIMALS: u8 = 6;
+pub const USD_UNIT: u128 = 10u128.pow(USD_DECIMALS as u32);

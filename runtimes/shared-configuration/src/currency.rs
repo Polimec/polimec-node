@@ -36,8 +36,6 @@ pub const EXISTENTIAL_DEPOSIT: Balance = 10 * MILLI_PLMC;
 pub const DEPOSIT_STORAGE_ITEM: Balance = 56 * MILLI_PLMC;
 /// Deposit that must be provided for each occupied storage byte.
 pub const DEPOSIT_STORAGE_BYTE: Balance = 100 * MICRO_PLMC;
-pub const USD_DECIMALS: u8 = 6;
-pub const USD_UNIT: Balance = 10u128.pow(USD_DECIMALS as u32);
 
 pub const fn deposit(items: u32, bytes: u32) -> Balance {
 	(items as Balance * DEPOSIT_STORAGE_ITEM + (bytes as Balance) * DEPOSIT_STORAGE_BYTE) / 100

@@ -1,8 +1,8 @@
 use super::*;
 use crate::instantiator::async_features::create_multiple_projects_at;
-use std::collections::HashSet;
 use frame_support::traits::fungibles::metadata::Inspect;
 use sp_runtime::bounded_vec;
+use std::collections::HashSet;
 
 #[cfg(test)]
 mod round_flow {
@@ -136,14 +136,14 @@ mod round_flow {
 				USD_DECIMALS,
 				default_project_metadata.token_information.decimals,
 			)
-				.unwrap();
+			.unwrap();
 			let usable_plmc_price = inst.execute(|| {
 				<TestRuntime as Config>::PriceProvider::get_decimals_aware_price(
 					PLMC_FOREIGN_ID,
 					USD_DECIMALS,
 					PLMC_DECIMALS,
 				)
-					.unwrap()
+				.unwrap()
 			});
 			let usdt_price = inst.execute(|| {
 				<TestRuntime as Config>::PriceProvider::get_decimals_aware_price(
@@ -151,7 +151,7 @@ mod round_flow {
 					USD_DECIMALS,
 					ForeignAssets::decimals(AcceptedFundingAsset::USDT.to_assethub_id()),
 				)
-					.unwrap()
+				.unwrap()
 			});
 			let usdc_price = inst.execute(|| {
 				<TestRuntime as Config>::PriceProvider::get_decimals_aware_price(
@@ -159,7 +159,7 @@ mod round_flow {
 					USD_DECIMALS,
 					ForeignAssets::decimals(AcceptedFundingAsset::USDC.to_assethub_id()),
 				)
-					.unwrap()
+				.unwrap()
 			});
 			let dot_price = inst.execute(|| {
 				<TestRuntime as Config>::PriceProvider::get_decimals_aware_price(
@@ -167,7 +167,7 @@ mod round_flow {
 					USD_DECIMALS,
 					ForeignAssets::decimals(AcceptedFundingAsset::DOT.to_assethub_id()),
 				)
-					.unwrap()
+				.unwrap()
 			});
 
 			let mut funding_assets_cycle =
@@ -195,7 +195,7 @@ mod round_flow {
 						USD_DECIMALS,
 						decimals,
 					)
-						.unwrap();
+					.unwrap();
 
 				project_metadata.total_allocation_size = 1_000_000 * 10u128.pow(decimals as u32);
 				project_metadata.mainnet_token_max_supply = project_metadata.total_allocation_size;
@@ -263,7 +263,7 @@ mod round_flow {
 				inst.finish_funding(project_id).unwrap();
 			};
 
-			for decimals in 0..25 {
+			for decimals in 6..=18 {
 				decimal_test(decimals);
 			}
 
@@ -487,10 +487,15 @@ mod remaining_contribute_extrinsic {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 			let project_metadata = ProjectMetadata {
 				token_information: default_token_information(),
-				mainnet_token_max_supply: 80_000_000 * CT_UNIT,
-				total_allocation_size: 10_000_000 * CT_UNIT,
+				mainnet_token_max_supply: 100_000 * CT_UNIT,
+				total_allocation_size: 100_000 * CT_UNIT,
 				auction_round_allocation_percentage: Percent::from_percent(50u8),
-				minimum_price: PriceOf::<TestRuntime>::from_float(10.0),
+				minimum_price: PriceProviderOf::<TestRuntime>::calculate_decimals_aware_price(
+					PriceOf::<TestRuntime>::from_float(10.0),
+					USD_DECIMALS,
+					CT_DECIMALS,
+				)
+				.unwrap(),
 				bidding_ticket_sizes: BiddingTicketSizes {
 					professional: TicketSize::new(Some(5000 * USD_UNIT), None),
 					institutional: TicketSize::new(Some(5000 * USD_UNIT), None),

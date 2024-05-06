@@ -19,16 +19,16 @@
 //! Types for Funding pallet.
 
 use crate::{traits::BondingRequirementCalculation, BalanceOf};
+pub use config_types::*;
 use frame_support::{pallet_prelude::*, traits::tokens::Balance as BalanceT};
 use frame_system::pallet_prelude::BlockNumberFor;
+pub use inner_types::*;
+use polimec_common::USD_DECIMALS;
 use polkadot_parachain_primitives::primitives::Id as ParaId;
 use serde::{Deserialize, Serialize};
-use sp_arithmetic::{FixedPointNumber, FixedPointOperand};
-use sp_runtime::traits::CheckedDiv;
+use sp_arithmetic::{FixedPointNumber, FixedPointOperand, Percent};
+use sp_runtime::traits::{CheckedDiv, CheckedMul, One, Saturating, Zero};
 use sp_std::{cmp::Eq, prelude::*};
-
-pub use config_types::*;
-pub use inner_types::*;
 pub use storage_types::*;
 
 pub mod config_types {
@@ -165,11 +165,6 @@ pub mod config_types {
 
 pub mod storage_types {
 	use super::*;
-	use polimec_common::USD_DECIMALS;
-	use sp_arithmetic::{
-		traits::{One, Saturating, Zero},
-		Percent,
-	};
 
 	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
 	#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
@@ -200,7 +195,7 @@ pub mod storage_types {
 
 	impl<
 			BoundedString,
-			Balance: From<u64> + PartialOrd + Copy + FixedPointOperand,
+			Balance: From<u64> + PartialOrd + Copy + FixedPointOperand + One + CheckedMul,
 			Price: FixedPointNumber,
 			AccountId,
 			Cid,
@@ -214,19 +209,20 @@ pub mod storage_types {
 			if self.minimum_price == Price::zero() {
 				return Err(MetadataError::PriceTooLow);
 			}
-			let min_bidder_bound_usd: Balance = (5000u64 * 10u64.pow(USD_DECIMALS.into())).into();
+			let usd_unit = sp_arithmetic::traits::checked_pow(Balance::from(10u64), USD_DECIMALS as usize)
+				.ok_or(MetadataError::BadTokenomics)?;
+			let min_bidder_bound_usd: Balance =
+				usd_unit.checked_mul(&5000u64.into()).ok_or(MetadataError::BadTokenomics)?;
 			self.bidding_ticket_sizes.is_valid(vec![
 				InvestorTypeUSDBounds::Professional((Some(min_bidder_bound_usd), None).into()),
 				InvestorTypeUSDBounds::Institutional((Some(min_bidder_bound_usd), None).into()),
 			])?;
 			self.contributing_ticket_sizes.is_valid(vec![])?;
 
-			if self.total_allocation_size > self.mainnet_token_max_supply {
-				return Err(MetadataError::AllocationSizeError);
-			}
-
-			if self.total_allocation_size <= 0u64.into() ||
-				self.total_allocation_size < 10u64.pow(self.token_information.decimals as u32).into()
+			if self.total_allocation_size == 0u64.into() ||
+				self.total_allocation_size > self.mainnet_token_max_supply ||
+				self.total_allocation_size <
+					Balance::from(10u64).saturating_pow(self.token_information.decimals as usize)
 			{
 				return Err(MetadataError::AllocationSizeError);
 			}
@@ -243,13 +239,33 @@ pub mod storage_types {
 			}
 
 			let target_funding = self.minimum_price.saturating_mul_int(self.total_allocation_size);
-			if target_funding < (1000u64 * 10u64.pow(USD_DECIMALS.into())).into() {
+			if target_funding < (1000u64 * 10u64.saturating_pow(USD_DECIMALS.into())).into() {
 				return Err(MetadataError::FundingTargetTooLow);
 			}
+			if target_funding > (1_000_000_000u64 * 10u64.saturating_pow(USD_DECIMALS.into())).into() {
+				return Err(MetadataError::FundingTargetTooHigh);
+			}
 
-			if self.token_information.decimals < 4 || self.token_information.decimals > 20 {
+			if self.token_information.decimals < 6 || self.token_information.decimals > 18 {
 				return Err(MetadataError::BadDecimals);
 			}
+
+			let abs_diff: u32 = self.token_information.decimals.abs_diff(USD_DECIMALS).into();
+			let abs_diff_unit = 10u128.checked_pow(abs_diff).ok_or(MetadataError::BadDecimals)?;
+			let abs_diff_fixed = Price::checked_from_rational(abs_diff_unit, 1).ok_or(MetadataError::BadDecimals)?;
+			let original_price = if USD_DECIMALS > self.token_information.decimals {
+				self.minimum_price.checked_div(&abs_diff_fixed)
+			} else {
+				self.minimum_price.checked_mul(&abs_diff_fixed)
+			}
+			.ok_or(MetadataError::BadDecimals)?;
+
+			let min_price = Price::checked_from_rational(1, 100_000).ok_or(MetadataError::BadTokenomics)?;
+			let max_price = Price::checked_from_rational(1000, 1).ok_or(MetadataError::BadTokenomics)?;
+			if original_price < min_price || original_price > max_price {
+				return Err(MetadataError::BadTokenomics);
+			}
+
 			Ok(())
 		}
 	}
@@ -760,12 +776,17 @@ pub mod inner_types {
 		AllocationSizeError,
 		/// The auction round percentage cannot be zero.
 		AuctionRoundPercentageError,
-		/// The funding target has to be higher then 1000 USD.
+		/// The funding target has to be higher than 1000 USD.
 		FundingTargetTooLow,
+		/// The funding target has to be lower than 1bn USD.
+		FundingTargetTooHigh,
 		/// The project's metadata hash is not provided while starting the evaluation round.
 		CidNotProvided,
 		/// The ct decimals specified for the CT is outside the 4 to 20 range.
 		BadDecimals,
+		// The combination of decimals and price of this project is not representable within our 6 decimals USD system,
+		// and integer space of 128 bits.
+		BadTokenomics,
 	}
 
 	/// Errors related to the project's migration process.

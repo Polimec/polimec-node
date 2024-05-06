@@ -187,7 +187,7 @@ mod round_flow {
 				inst.start_auction(project_id, issuer).unwrap();
 			};
 
-			for decimals in 0..25 {
+			for decimals in 6..=18 {
 				decimal_test(decimals);
 			}
 

@@ -631,7 +631,6 @@ mod round_flow {
 					funding_asset.to_assethub_id(),
 				)]);
 
-
 				assert_ok!(inst.execute(|| PolimecFunding::bid(
 					RuntimeOrigin::signed(BIDDER_1),
 					get_mock_jwt_with_cid(
@@ -651,7 +650,7 @@ mod round_flow {
 				assert_eq!(bucket.amount_left, 500_000u128 * 10u128.pow(decimals as u32) - min_professional_bid_ct);
 			};
 
-			for decimals in 0..25 {
+			for decimals in 6..=18 {
 				decimal_test(decimals);
 			}
 

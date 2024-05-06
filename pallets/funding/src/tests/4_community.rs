@@ -289,7 +289,7 @@ mod round_flow {
 				inst.finish_funding(project_id).unwrap();
 			};
 
-			for decimals in 0..25 {
+			for decimals in 6..=18 {
 				decimal_test(decimals);
 			}
 
