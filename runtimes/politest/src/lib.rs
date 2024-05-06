@@ -169,8 +169,10 @@ pub type Migrations = migrations::Unreleased;
 /// The runtime migrations per release.
 #[allow(missing_docs)]
 pub mod migrations {
+	use crate::Runtime;
+
 	/// Unreleased migrations. Add new ones here:
-	pub type Unreleased = ();
+	pub type Unreleased = (pallet_funding::migration::v2::MigrationToV2<Runtime>);
 }
 
 /// Executive: handles dispatch to the various modules.
@@ -216,7 +218,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("politest"),
 	impl_name: create_runtime_str!("politest"),
 	authoring_version: 1,
-	spec_version: 0_007_003,
+	spec_version: 0_007_004,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 2,
