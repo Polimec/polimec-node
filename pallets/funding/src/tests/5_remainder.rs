@@ -454,30 +454,30 @@ mod remaining_contribute_extrinsic {
 			assert_ok!(inst.contribute_for_users(project_id_usdt, vec![usdt_contribution.clone()]));
 			assert_err!(
 				inst.contribute_for_users(project_id_usdt, vec![usdc_contribution.clone()]),
-				Error::<TestRuntime>::ParticipationFailed(ParticipationError::FundingAssetNotAccepted)
+				Error::<TestRuntime>::FundingAssetNotAccepted
 			);
 			assert_err!(
 				inst.contribute_for_users(project_id_usdt, vec![dot_contribution.clone()]),
-				Error::<TestRuntime>::ParticipationFailed(ParticipationError::FundingAssetNotAccepted)
+				Error::<TestRuntime>::FundingAssetNotAccepted
 			);
 
 			assert_err!(
 				inst.contribute_for_users(project_id_usdc, vec![usdt_contribution.clone()]),
-				Error::<TestRuntime>::ParticipationFailed(ParticipationError::FundingAssetNotAccepted)
+				Error::<TestRuntime>::FundingAssetNotAccepted
 			);
 			assert_ok!(inst.contribute_for_users(project_id_usdc, vec![usdc_contribution.clone()]));
 			assert_err!(
 				inst.contribute_for_users(project_id_usdc, vec![dot_contribution.clone()]),
-				Error::<TestRuntime>::ParticipationFailed(ParticipationError::FundingAssetNotAccepted)
+				Error::<TestRuntime>::FundingAssetNotAccepted
 			);
 
 			assert_err!(
 				inst.contribute_for_users(project_id_dot, vec![usdt_contribution.clone()]),
-				Error::<TestRuntime>::ParticipationFailed(ParticipationError::FundingAssetNotAccepted)
+				Error::<TestRuntime>::FundingAssetNotAccepted
 			);
 			assert_err!(
 				inst.contribute_for_users(project_id_dot, vec![usdc_contribution.clone()]),
-				Error::<TestRuntime>::ParticipationFailed(ParticipationError::FundingAssetNotAccepted)
+				Error::<TestRuntime>::FundingAssetNotAccepted
 			);
 			assert_ok!(inst.contribute_for_users(project_id_dot, vec![dot_contribution.clone()]));
 		}
@@ -546,7 +546,7 @@ mod remaining_contribute_extrinsic {
 						Multiplier::force_new(0),
 						AcceptedFundingAsset::USDT
 					),
-					Error::<TestRuntime>::ParticipationFailed(ParticipationError::ForbiddenMultiplier)
+					Error::<TestRuntime>::ForbiddenMultiplier
 				);
 			});
 			// Professional bids: 1 - 10x multiplier should work
@@ -608,7 +608,7 @@ mod remaining_contribute_extrinsic {
 							Multiplier::force_new(multiplier),
 							AcceptedFundingAsset::USDT
 						),
-						Error::<TestRuntime>::ParticipationFailed(ParticipationError::ForbiddenMultiplier)
+						Error::<TestRuntime>::ForbiddenMultiplier
 					);
 				});
 			}
@@ -630,7 +630,7 @@ mod remaining_contribute_extrinsic {
 						Multiplier::force_new(0),
 						AcceptedFundingAsset::USDT
 					),
-					Error::<TestRuntime>::ParticipationFailed(ParticipationError::ForbiddenMultiplier)
+					Error::<TestRuntime>::ForbiddenMultiplier
 				);
 			});
 			// Institutional bids: 1 - 25x multiplier should work
@@ -692,7 +692,7 @@ mod remaining_contribute_extrinsic {
 							Multiplier::force_new(multiplier),
 							AcceptedFundingAsset::USDT
 						),
-						Error::<TestRuntime>::ParticipationFailed(ParticipationError::ForbiddenMultiplier)
+						Error::<TestRuntime>::ForbiddenMultiplier
 					);
 				});
 			}
@@ -786,7 +786,7 @@ mod remaining_contribute_extrinsic {
 							Multiplier::force_new(0),
 							AcceptedFundingAsset::USDT
 						),
-						Error::<TestRuntime>::ParticipationFailed(ParticipationError::ForbiddenMultiplier)
+						Error::<TestRuntime>::ForbiddenMultiplier
 					);
 				});
 
@@ -801,7 +801,7 @@ mod remaining_contribute_extrinsic {
 					log::debug!("error? - multiplier: {}", multiplier);
 					assert_err!(
 						contribute(&mut inst, project_id, multiplier),
-						Error::<TestRuntime>::ParticipationFailed(ParticipationError::ForbiddenMultiplier)
+						Error::<TestRuntime>::ForbiddenMultiplier
 					);
 				}
 			}
@@ -834,7 +834,7 @@ mod remaining_contribute_extrinsic {
 					InvestorType::Institutional,
 					project_metadata.clone().policy_ipfs_cid.unwrap(),
 				)),
-				Error::<TestRuntime>::IssuerError(IssuerErrorReason::ParticipationToOwnProject)
+				Error::<TestRuntime>::ParticipationToOwnProject
 			);
 		}
 
@@ -905,7 +905,7 @@ mod remaining_contribute_extrinsic {
 						1u8.try_into().unwrap(),
 						AcceptedFundingAsset::USDT,
 					),
-					Error::<TestRuntime>::ParticipationFailed(ParticipationError::TooLow)
+					Error::<TestRuntime>::TooLow
 				);
 			});
 			// contribution below 10_000 CT (100k USD) should fail for professionals
@@ -925,7 +925,7 @@ mod remaining_contribute_extrinsic {
 						1u8.try_into().unwrap(),
 						AcceptedFundingAsset::USDT,
 					),
-					Error::<TestRuntime>::ParticipationFailed(ParticipationError::TooLow)
+					Error::<TestRuntime>::TooLow
 				);
 			});
 
@@ -946,7 +946,7 @@ mod remaining_contribute_extrinsic {
 						1u8.try_into().unwrap(),
 						AcceptedFundingAsset::USDT,
 					),
-					Error::<TestRuntime>::ParticipationFailed(ParticipationError::TooLow)
+					Error::<TestRuntime>::TooLow
 				);
 			});
 		}
@@ -1033,7 +1033,7 @@ mod remaining_contribute_extrinsic {
 						InvestorType::Retail,
 						project_metadata.clone().policy_ipfs_cid.unwrap(),
 					),
-					Error::<TestRuntime>::ParticipationFailed(ParticipationError::TooHigh)
+					Error::<TestRuntime>::TooHigh
 				);
 			});
 			// bidding 2k total works
@@ -1077,7 +1077,7 @@ mod remaining_contribute_extrinsic {
 						InvestorType::Professional,
 						project_metadata.clone().policy_ipfs_cid.unwrap(),
 					),
-					Error::<TestRuntime>::ParticipationFailed(ParticipationError::TooHigh)
+					Error::<TestRuntime>::TooHigh
 				);
 			});
 			// bidding 2k total works
@@ -1121,7 +1121,7 @@ mod remaining_contribute_extrinsic {
 						InvestorType::Institutional,
 						project_metadata.clone().policy_ipfs_cid.unwrap(),
 					),
-					Error::<TestRuntime>::ParticipationFailed(ParticipationError::TooHigh)
+					Error::<TestRuntime>::TooHigh
 				);
 			});
 			// bidding 5k total works
@@ -1203,7 +1203,7 @@ mod remaining_contribute_extrinsic {
 						evaluator_contribution.multiplier,
 						evaluator_contribution.asset
 					),
-					Error::<TestRuntime>::ParticipationFailed(ParticipationError::NotEnoughFunds)
+					Error::<TestRuntime>::ParticipantNotEnoughFunds
 				);
 			});
 		}
@@ -1235,7 +1235,7 @@ mod remaining_contribute_extrinsic {
 						1u8.try_into().unwrap(),
 						AcceptedFundingAsset::USDT
 					),
-					Error::<TestRuntime>::ParticipationFailed(ParticipationError::PolicyMismatch)
+					Error::<TestRuntime>::PolicyMismatch
 				);
 			});
 		}

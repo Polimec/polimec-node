@@ -757,8 +757,7 @@ pub mod pallet {
 		/// The issuer tries to participate to their own project.
 		ParticipationToOwnProject,
 		/// The issuer has not enough funds to cover the escrow account costs.
-		NotEnoughFunds,
-
+		IssuerNotEnoughFunds,
 
 		// * The project's metadata is incorrect. *
 		/// The minimum price per token is too low.
@@ -800,7 +799,7 @@ pub mod pallet {
 		/// in the community round.
 		UserHasWinningBid,
 		/// The user does not have enough funds (funding asset or PLMC) to cover the participation.
-		NotEnoughFunds,
+		ParticipantNotEnoughFunds,
 		/// The JWT included has a wrong policy for participating in this project. Front-end should ensure this never happens.
 		PolicyMismatch,
 

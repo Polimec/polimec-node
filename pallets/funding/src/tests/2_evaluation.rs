@@ -414,7 +414,7 @@ mod start_evaluation_extrinsic {
 			inst.execute(|| {
 				assert_noop!(
 					PolimecFunding::start_evaluation(RuntimeOrigin::signed(issuer), jwt, project_id),
-					Error::<TestRuntime>::ProjectRoundError(RoundError::IncorrectRound)
+					Error::<TestRuntime>::IncorrectRound
 				);
 			});
 		}
@@ -432,7 +432,7 @@ mod start_evaluation_extrinsic {
 			inst.execute(|| {
 				assert_noop!(
 					PolimecFunding::start_evaluation(RuntimeOrigin::signed(issuer), jwt, project_id),
-					Error::<TestRuntime>::BadMetadata(MetadataError::CidNotProvided)
+					Error::<TestRuntime>::CidNotProvided
 				);
 			});
 		}
@@ -469,7 +469,7 @@ mod start_evaluation_extrinsic {
 						),
 						project_id,
 					),
-					Error::<TestRuntime>::IssuerError(IssuerErrorReason::NotIssuer)
+					Error::<TestRuntime>::NotIssuer
 				);
 			});
 		}
@@ -643,7 +643,7 @@ mod evaluate_extrinsic {
 						project_id,
 						500 * USD_UNIT,
 					),
-					Error::<TestRuntime>::ProjectRoundError(RoundError::IncorrectRound)
+					Error::<TestRuntime>::IncorrectRound
 				);
 			});
 		}
@@ -719,7 +719,7 @@ mod evaluate_extrinsic {
 
 			assert_err!(
 				inst.evaluate_for_users(project_id, vec![failing_evaluation]),
-				Error::<TestRuntime>::ParticipationFailed(ParticipationError::TooManyProjectParticipations)
+				Error::<TestRuntime>::TooManyProjectParticipations
 			);
 		}
 
@@ -750,7 +750,7 @@ mod evaluate_extrinsic {
 
 			assert_err!(
 				inst.evaluate_for_users(project_id, vec![failing_evaluation]),
-				Error::<TestRuntime>::ParticipationFailed(ParticipationError::TooManyUserParticipations)
+				Error::<TestRuntime>::TooManyUserParticipations
 			);
 		}
 
@@ -809,7 +809,7 @@ mod evaluate_extrinsic {
 					InvestorType::Institutional,
 					project_metadata.clone().policy_ipfs_cid.unwrap(),
 				)),
-				Error::<TestRuntime>::IssuerError(IssuerErrorReason::ParticipationToOwnProject)
+				Error::<TestRuntime>::ParticipationToOwnProject
 			);
 		}
 
@@ -884,7 +884,7 @@ mod evaluate_extrinsic {
 						project_id,
 						0
 					),
-					Error::<TestRuntime>::ParticipationFailed(ParticipationError::TooLow)
+					Error::<TestRuntime>::TooLow
 				);
 			});
 
@@ -897,7 +897,7 @@ mod evaluate_extrinsic {
 						project_id,
 						99 * USD_UNIT
 					),
-					Error::<TestRuntime>::ParticipationFailed(ParticipationError::TooLow)
+					Error::<TestRuntime>::TooLow
 				);
 			});
 		}
@@ -921,7 +921,7 @@ mod evaluate_extrinsic {
 						project_id,
 						500 * USD_UNIT,
 					),
-					Error::<TestRuntime>::ParticipationFailed(ParticipationError::PolicyMismatch)
+					Error::<TestRuntime>::PolicyMismatch
 				);
 			});
 		}

@@ -6,18 +6,16 @@ pub const STORAGE_VERSION: StorageVersion = StorageVersion::new(2);
 pub const LOG: &str = "runtime::funding::migration";
 
 pub mod v2 {
-	use super::*;
-	use crate::{AccountIdOf, BalanceOf, Config, ProjectMetadata, ProjectsMetadata};
+	use crate::{AccountIdOf, BalanceOf, Config, ProjectsMetadata};
 	use frame_support::{
 		pallet_prelude::{Decode, Encode, MaxEncodedLen, RuntimeDebug, TypeInfo},
 		traits::{Get, OnRuntimeUpgrade},
 		BoundedVec,
 	};
-	use polimec_common::{USD_DECIMALS, USD_UNIT};
-	use sp_arithmetic::{traits::Zero, FixedPointNumber, Percent};
+	use polimec_common::USD_DECIMALS;
+	use sp_arithmetic::{FixedPointNumber, Percent};
 	use sp_core::ConstU32;
 	use sp_std::marker::PhantomData;
-	use xcm::v3::Weight;
 
 	#[derive(Clone, Copy, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
 	#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
