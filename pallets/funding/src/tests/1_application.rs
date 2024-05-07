@@ -145,7 +145,7 @@ mod create_project_extrinsic {
 						jwt.clone(),
 						project_metadata.clone()
 					),
-					Error::<TestRuntime>::IssuerError(IssuerErrorReason::HasActiveProject)
+					Error::<TestRuntime>::HasActiveProject
 				);
 			});
 
@@ -158,7 +158,7 @@ mod create_project_extrinsic {
 						jwt.clone(),
 						project_metadata.clone()
 					),
-					Error::<TestRuntime>::IssuerError(IssuerErrorReason::HasActiveProject)
+					Error::<TestRuntime>::HasActiveProject
 				);
 			});
 			inst.advance_time(<TestRuntime as Config>::EvaluationDuration::get() + 1).unwrap();
@@ -184,7 +184,7 @@ mod create_project_extrinsic {
 						jwt.clone(),
 						project_metadata.clone()
 					),
-					Error::<TestRuntime>::IssuerError(IssuerErrorReason::HasActiveProject)
+					Error::<TestRuntime>::HasActiveProject
 				);
 			});
 			inst.finish_funding(1).unwrap();
@@ -331,7 +331,7 @@ mod create_project_extrinsic {
 						jwt.clone(),
 						project_metadata.clone()
 					),
-					Error::<TestRuntime>::IssuerError(IssuerErrorReason::HasActiveProject)
+					Error::<TestRuntime>::HasActiveProject
 				);
 			});
 		}
@@ -351,7 +351,7 @@ mod create_project_extrinsic {
 			inst.execute(|| {
 				assert_noop!(
 					Pallet::<TestRuntime>::create_project(RuntimeOrigin::signed(ISSUER_1), jwt, project_metadata,),
-					Error::<TestRuntime>::IssuerError(IssuerErrorReason::NotEnoughFunds)
+					Error::<TestRuntime>::IssuerNotEnoughFunds
 				);
 			});
 		}
@@ -371,7 +371,7 @@ mod create_project_extrinsic {
 						project_metadata,
 						generate_did_from_account(ISSUER_1),
 					),
-					Error::<TestRuntime>::BadMetadata(MetadataError::AllocationSizeError)
+					Error::<TestRuntime>::AllocationSizeError
 				);
 			});
 		}
@@ -447,7 +447,7 @@ mod create_project_extrinsic {
 					Pallet::<TestRuntime>::do_create_project(&ISSUER_1, project, generate_did_from_account(ISSUER_1))
 						.unwrap_err()
 				});
-				assert_eq!(project_err, Error::<TestRuntime>::BadMetadata(MetadataError::TicketSizeError).into());
+				assert_eq!(project_err, Error::<TestRuntime>::TicketSizeError.into());
 			}
 		}
 
@@ -488,10 +488,7 @@ mod create_project_extrinsic {
 					Pallet::<TestRuntime>::do_create_project(&issuer, project, generate_did_from_account(issuer))
 						.unwrap_err()
 				});
-				assert_eq!(
-					project_err,
-					Error::<TestRuntime>::BadMetadata(MetadataError::ParticipationCurrenciesError).into()
-				);
+				assert_eq!(project_err, Error::<TestRuntime>::ParticipationCurrenciesError.into());
 			}
 		}
 
@@ -510,7 +507,7 @@ mod create_project_extrinsic {
 				)
 				.unwrap_err()
 			});
-			assert_eq!(project_err, Error::<TestRuntime>::BadMetadata(MetadataError::PriceTooLow).into());
+			assert_eq!(project_err, Error::<TestRuntime>::PriceTooLow.into());
 		}
 
 		#[test]
@@ -529,7 +526,7 @@ mod create_project_extrinsic {
 			inst.execute(|| {
 				assert_noop!(
 					Pallet::<TestRuntime>::create_project(RuntimeOrigin::signed(ISSUER_1), jwt, project_metadata),
-					Error::<TestRuntime>::BadMetadata(MetadataError::AllocationSizeError)
+					Error::<TestRuntime>::AllocationSizeError
 				);
 			});
 		}
@@ -550,7 +547,7 @@ mod create_project_extrinsic {
 			inst.execute(|| {
 				assert_noop!(
 					Pallet::<TestRuntime>::create_project(RuntimeOrigin::signed(ISSUER_1), jwt, project_metadata),
-					Error::<TestRuntime>::BadMetadata(MetadataError::AuctionRoundPercentageError)
+					Error::<TestRuntime>::AuctionRoundPercentageError
 				);
 			});
 		}
@@ -582,7 +579,7 @@ mod create_project_extrinsic {
 						jwt.clone(),
 						project_metadata.clone()
 					),
-					Error::<TestRuntime>::BadMetadata(MetadataError::FundingTargetTooLow)
+					Error::<TestRuntime>::FundingTargetTooLow
 				);
 			});
 
@@ -597,7 +594,7 @@ mod create_project_extrinsic {
 			inst.execute(|| {
 				assert_noop!(
 					Pallet::<TestRuntime>::create_project(RuntimeOrigin::signed(ISSUER_1), jwt, project_metadata),
-					Error::<TestRuntime>::BadMetadata(MetadataError::FundingTargetTooLow)
+					Error::<TestRuntime>::FundingTargetTooLow
 				);
 			});
 		}
@@ -632,7 +629,7 @@ mod create_project_extrinsic {
 							jwt.clone(),
 							project_metadata.clone()
 						),
-						Error::<TestRuntime>::BadMetadata(MetadataError::BadDecimals)
+						Error::<TestRuntime>::BadDecimals
 					);
 				});
 			};
@@ -725,7 +722,7 @@ mod create_project_extrinsic {
 				};
 				inst.execute(|| {
 					if fail {
-						assert_noop!(run_extrinsic(), Error::<TestRuntime>::BadMetadata(MetadataError::BadTokenomics),);
+						assert_noop!(run_extrinsic(), Error::<TestRuntime>::BadTokenomics,);
 					} else {
 						assert_ok!(run_extrinsic());
 					}
@@ -776,7 +773,7 @@ mod create_project_extrinsic {
 						jwt.clone(),
 						project_metadata.clone()
 					),
-					Error::<TestRuntime>::BadMetadata(MetadataError::AllocationSizeError)
+					Error::<TestRuntime>::AllocationSizeError
 				);
 			});
 		}
@@ -1016,7 +1013,7 @@ mod edit_project_extrinsic {
 						project_id_1,
 						project_metadata_2
 					),
-					Error::<TestRuntime>::IssuerError(IssuerErrorReason::NotIssuer)
+					Error::<TestRuntime>::NotIssuer
 				);
 				assert_noop!(
 					Pallet::<TestRuntime>::edit_project(
@@ -1025,7 +1022,7 @@ mod edit_project_extrinsic {
 						project_id_2,
 						project_metadata_1
 					),
-					Error::<TestRuntime>::IssuerError(IssuerErrorReason::NotIssuer)
+					Error::<TestRuntime>::NotIssuer
 				);
 			});
 		}
@@ -1051,7 +1048,7 @@ mod edit_project_extrinsic {
 						project_id,
 						project_metadata.clone()
 					),
-					Error::<TestRuntime>::ProjectError(ProjectErrorReason::ProjectIsFrozen)
+					Error::<TestRuntime>::ProjectIsFrozen
 				);
 			});
 		}
@@ -1167,7 +1164,7 @@ mod remove_project_extrinsic {
 						jwt.clone(),
 						project_metadata.clone()
 					),
-					Error::<TestRuntime>::IssuerError(IssuerErrorReason::HasActiveProject)
+					Error::<TestRuntime>::HasActiveProject
 				);
 			});
 
@@ -1236,7 +1233,7 @@ mod remove_project_extrinsic {
 						jwt.clone(),
 						project_id
 					),
-					Error::<TestRuntime>::IssuerError(IssuerErrorReason::NotIssuer)
+					Error::<TestRuntime>::NotIssuer
 				);
 			});
 		}
@@ -1261,7 +1258,7 @@ mod remove_project_extrinsic {
 						jwt.clone(),
 						project_id,
 					),
-					Error::<TestRuntime>::ProjectError(ProjectErrorReason::ProjectIsFrozen)
+					Error::<TestRuntime>::ProjectIsFrozen
 				);
 			});
 		}

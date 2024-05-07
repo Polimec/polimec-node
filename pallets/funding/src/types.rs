@@ -472,8 +472,32 @@ pub mod storage_types {
 
 pub mod inner_types {
 	use super::*;
-	use frame_support::PalletError;
 	use variant_count::VariantCount;
+
+	pub enum MetadataError {
+		/// The minimum price per token is too low.
+		PriceTooLow,
+		/// The ticket sizes are not valid.
+		TicketSizeError,
+		/// The participation currencies are not unique.
+		ParticipationCurrenciesError,
+		/// The allocation size is invalid. Either zero or higher than the max supply.
+		AllocationSizeError,
+		/// The auction round percentage cannot be zero.
+		AuctionRoundPercentageError,
+		/// The funding target has to be higher than 1000 USD.
+		FundingTargetTooLow,
+		/// The funding target has to be lower than 1bn USD.
+		FundingTargetTooHigh,
+		/// The project's metadata hash is not provided while starting the evaluation round.
+		CidNotProvided,
+		/// The ct decimals specified for the CT is outside the 4 to 20 range.
+		BadDecimals,
+		// The combination of decimals and price of this project is not representable within our 6 decimals USD system,
+		// and integer space of 128 bits.
+		BadTokenomics,
+	}
+
 	#[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
 	#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
 	pub struct CurrencyMetadata<BoundedString> {
