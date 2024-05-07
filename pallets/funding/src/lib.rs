@@ -710,19 +710,118 @@ pub mod pallet {
 		ParticipationNotFound,
 		/// The user has the incorrect investor type for the action.
 		WrongInvestorType,
-		/// Project Error. Project information not found, or project has an incorrect state.
-		ProjectError(ProjectErrorReason),
-		/// A round related error. The project did not have the correct state to execute the action.
-		ProjectRoundError(RoundError),
-		/// Issuer related error. E.g. the action was not executed by the issuer, or the issuer
+
+		// * Project Error. Project information not found, or project has an incorrect state. *
+		/// The project details were not found. Happens when the project with provided ID does
+		/// not exist in the `ProjectsDetails` storage.
+		ProjectDetailsNotFound,
+		/// The project metadata was not found. Happens when the project with provided ID does
+		/// not exist in the `ProjectsMetadata` storage.
+		ProjectMetadataNotFound,
+		/// The project's bucket info was not found. Happens when the project with provided ID does
+		/// not exist in the `Buckets` storage.
+		BucketNotFound,
+		/// The project is already frozen, so cannot be frozen again. Happens when
+		/// `do_start_evaluation` is called on a project that has already started the
+		/// evaluation round.
+		ProjectAlreadyFrozen,
+		/// The project is frozen, so no changes to the metadata are allowed and the project
+		/// cannot be deleted anymore.
+		ProjectIsFrozen,
+		/// The project's weighted average price is not set while in the community round.
+		/// Should not happen in practice.
+		WapNotSet,
+
+		// * A round related error. The project did not have the correct state to execute the action. *
+		/// The project is not in the correct round to execute the action.
+		IncorrectRound,
+		/// Too early to execute the action. The action can likely be called again at a later stage.
+		TooEarlyForRound,
+		/// A round transition was already executed, so the transition cannot be
+		/// executed again. This is likely to happen when the issuer manually transitions the project,
+		/// after which the automatic transition is executed.
+		RoundTransitionAlreadyHappened,
+		/// A project's transition point (block number) was not set.
+		TransitionPointNotSet,
+		/// Too many insertion attempts were made while inserting a project's round transition
+		/// in the `ProjectsToUpdate` storage. This should not happen in practice.
+		TooManyInsertionAttempts,
+
+		// * Issuer related errors. E.g. the action was not executed by the issuer, or the issuer *
 		/// did not have the correct state to execute an action.
-		IssuerError(IssuerErrorReason),
-		/// The project's metadata is incorrect.
-		BadMetadata(MetadataError),
-		/// Error related to an participation action. Evaluation, bid or contribution failed.
-		ParticipationFailed(ParticipationError),
-		/// A error related to the migration process.
-		MigrationFailed(MigrationError),
+		/// The action's caller is not the issuer of the project and is not allowed to execute
+		/// this action.
+		NotIssuer,
+		/// The issuer already has an active project. The issuer can only have one active project.
+		HasActiveProject,
+		/// The issuer tries to participate to their own project.
+		ParticipationToOwnProject,
+		/// The issuer has not enough funds to cover the escrow account costs.
+		NotEnoughFunds,
+
+
+		// * The project's metadata is incorrect. *
+		/// The minimum price per token is too low.
+		PriceTooLow,
+		/// The ticket sizes are not valid.
+		TicketSizeError,
+		/// The participation currencies are not unique.
+		ParticipationCurrenciesError,
+		/// The allocation size is invalid. Either zero or higher than the max supply.
+		AllocationSizeError,
+		/// The auction round percentage cannot be zero.
+		AuctionRoundPercentageError,
+		/// The funding target has to be higher than 1000 USD.
+		FundingTargetTooLow,
+		/// The funding target has to be lower than 1bn USD.
+		FundingTargetTooHigh,
+		/// The project's metadata hash is not provided while starting the evaluation round.
+		CidNotProvided,
+		/// The ct decimals specified for the CT is outside the 4 to 20 range.
+		BadDecimals,
+		// The combination of decimals and price of this project is not representable within our 6 decimals USD system,
+		// and integer space of 128 bits.
+		BadTokenomics,
+
+		// * Error related to an participation action. Evaluation, bid or contribution failed. *
+		/// The participation amount is too low.
+		TooLow,
+		/// The participation amount is too high.
+		TooHigh,
+		/// The funding asset is not accepted for this project.
+		FundingAssetNotAccepted,
+		/// The user has too many participations in this project.
+		TooManyUserParticipations,
+		/// The project has too many participations.
+		TooManyProjectParticipations,
+		/// The user is not allowed to use this multiplier.
+		ForbiddenMultiplier,
+		/// The user has a winning bid in the auction round and is not allowed to participate
+		/// in the community round.
+		UserHasWinningBid,
+		/// The user does not have enough funds (funding asset or PLMC) to cover the participation.
+		NotEnoughFunds,
+		/// The JWT included has a wrong policy for participating in this project. Front-end should ensure this never happens.
+		PolicyMismatch,
+
+		//  * An error related to the migration process. *
+		/// Tried to start a migration check but the bidirectional channel is not yet open
+		ChannelNotOpen,
+		/// The xcm execution/sending failed.
+		XcmFailed,
+		/// Reached limit on maximum number of migrations. In practise this should not happen,
+		/// as the max migrations is set to the sum of max evaluations, bids and contributions.
+		TooManyMigrations,
+		/// User has no migrations to execute.
+		NoMigrationsFound,
+		/// User has no active migrations in the queue.
+		NoActiveMigrationsFound,
+		/// Wrong para_id is provided.
+		WrongParaId,
+		/// Migration channel is not ready for migrations.
+		ChannelNotReady,
+		/// User still has participations that need to be settled before migration.
+		ParticipationsNotSettled,
 	}
 
 	#[pallet::call]
