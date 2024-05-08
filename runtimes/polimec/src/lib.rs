@@ -228,6 +228,13 @@ pub struct BaseCallFilter;
 impl Contains<RuntimeCall> for BaseCallFilter {
 	fn contains(c: &RuntimeCall) -> bool {
 		match c {
+			RuntimeCall::Funding(call) => {
+				matches!(call, 
+					pallet_funding::Call::create_project { .. } | 
+					pallet_funding::Call::edit_project { .. } |
+					pallet_funding::Call::remove_project { .. }
+				)
+			}
 			_ => true,
 		}
 	}
