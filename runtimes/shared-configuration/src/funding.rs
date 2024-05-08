@@ -99,7 +99,7 @@ parameter_types! {
 	pub const RemainderFundingDuration: BlockNumber = REMAINDER_FUNDING_DURATION;
 	pub const ManualAcceptanceDuration: BlockNumber = MANUAL_ACCEPTANCE_DURATION;
 	pub const SuccessToSettlementTime: BlockNumber = SUCCESS_TO_SETTLEMENT_TIME;
-	pub const FundingPalletId: PalletId = PalletId(*b"py/cfund");
+	pub const FundingPalletId: PalletId = PalletId(*b"plmc/fun");
 	pub PriceMap: BTreeMap<AssetIdForTrustBackedAssets, FixedU128> = BTreeMap::from_iter(vec![
 		(AcceptedFundingAsset::DOT.to_assethub_id(), FixedU128::from_rational(69, 1)), // DOT
 		(AcceptedFundingAsset::USDC.to_assethub_id(), FixedU128::from_rational(100, 100)), // USDC

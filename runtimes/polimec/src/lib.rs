@@ -985,14 +985,28 @@ parameter_types! {
 	pub MaxCapacityThresholds: (u32, u32) = (8, 1000);
 	pub RequiredMaxCapacity: u32 = 1000;
 	pub RequiredMaxMessageSize: u32 = 102_400;
-	// TODO: Changes this to Live key
+	pub MinUsdPerEvaluation: Balance = 100 * USD_UNIT;
+
+}
+
+// Development public key
+#[cfg(feature = "development-settings")]
+parameter_types! {
 	pub VerifierPublicKey: [u8; 32] = [
 		32, 118, 30, 171, 58, 212, 197, 27, 146, 122, 255, 243, 34, 245, 90, 244, 221, 37, 253,
 		195, 18, 202, 111, 55, 39, 48, 123, 17, 101, 78, 215, 94,
 	];
-	pub MinUsdPerEvaluation: Balance = 100 * USD_UNIT;
-
 }
+
+// Production public key
+#[cfg(not(feature = "development-settings"))]
+parameter_types! {
+	pub VerifierPublicKey: [u8; 32] = [
+		83,  49,  95, 191,  98, 138,  14,  43, 234, 192, 105, 248,  11,  96, 127, 234, 192,  62,  80,
+		35, 204,   0,  38, 210, 177,  72, 167, 116, 133, 127, 140, 249
+	 ];
+}
+
 pub struct ConvertSelf;
 impl Convert<AccountId, [u8; 32]> for ConvertSelf {
 	fn convert(account_id: AccountId) -> [u8; 32] {
