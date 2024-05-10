@@ -206,7 +206,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("polimec-mainnet"),
 	impl_name: create_runtime_str!("polimec-mainnet"),
 	authoring_version: 1,
-	spec_version: 0_007_000,
+	spec_version: 0_007_001,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 2,
@@ -232,7 +232,9 @@ impl Contains<RuntimeCall> for BaseCallFilter {
 				matches!(call, 
 					pallet_funding::Call::create_project { .. } | 
 					pallet_funding::Call::edit_project { .. } |
-					pallet_funding::Call::remove_project { .. }
+					pallet_funding::Call::remove_project { .. } |
+					pallet_funding::Call::start_evaluation { .. } |
+					pallet_funding::Call::evaluate { .. }
 				)
 			}
 			_ => true,
