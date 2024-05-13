@@ -184,6 +184,7 @@ std = [
 ]
 
 runtime-benchmarks = [
+	"development-settings",
 	"cumulus-pallet-dmp-queue/runtime-benchmarks",
 	"cumulus-pallet-parachain-system/runtime-benchmarks",
 	"cumulus-pallet-session-benchmarking/runtime-benchmarks",

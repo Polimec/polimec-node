@@ -993,7 +993,7 @@ parameter_types! {
 }
 
 // Development public key
-#[cfg(feature = "development-settings")]
+#[cfg(any(feature = "development-settings", test))]
 parameter_types! {
 	pub VerifierPublicKey: [u8; 32] = [
 		32, 118, 30, 171, 58, 212, 197, 27, 146, 122, 255, 243, 34, 245, 90, 244, 221, 37, 253,
@@ -1002,7 +1002,7 @@ parameter_types! {
 }
 
 // Production public key
-#[cfg(not(feature = "development-settings"))]
+#[cfg(not(any(feature = "development-settings", test)))]
 parameter_types! {
 	pub VerifierPublicKey: [u8; 32] = [
 		83,  49,  95, 191,  98, 138,  14,  43, 234, 192, 105, 248,  11,  96, 127, 234, 192,  62,  80,
