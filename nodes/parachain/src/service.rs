@@ -20,15 +20,8 @@
 use std::{sync::Arc, time::Duration};
 
 use cumulus_client_cli::CollatorOptions;
-#[cfg(not(feature = "async-backing"))]
 // Local Runtime Types
 use polimec_runtime::{
-	opaque::{Block, Hash},
-	RuntimeApi,
-};
-
-#[cfg(feature = "async-backing")]
-use politest_runtime::{
 	opaque::{Block, Hash},
 	RuntimeApi,
 };
@@ -41,9 +34,10 @@ use cumulus_client_service::{
 	build_network, build_relay_chain_interface, prepare_node_config, start_relay_chain_tasks, BuildNetworkParams,
 	CollatorSybilResistance, DARecoveryProfile, StartRelayChainTasksParams,
 };
-#[cfg(feature = "async-backing")]
-use cumulus_primitives_core::relay_chain::ValidationCode;
-use cumulus_primitives_core::{relay_chain::CollatorPair, ParaId};
+use cumulus_primitives_core::{
+	relay_chain::{CollatorPair, ValidationCode},
+	ParaId,
+};
 use cumulus_relay_chain_interface::{OverseerHandle, RelayChainInterface};
 
 // Substrate Imports
@@ -238,9 +232,6 @@ async fn start_node_impl(
 		task_manager: &mut task_manager,
 		config: parachain_config,
 		keystore: params.keystore_container.keystore(),
-		#[cfg(not(feature = "async-backing"))]
-		backend,
-		#[cfg(feature = "async-backing")]
 		backend: backend.clone(),
 		network: network.clone(),
 		sync_service: sync_service.clone(),
@@ -297,7 +288,6 @@ async fn start_node_impl(
 	if validator {
 		start_consensus(
 			client.clone(),
-			#[cfg(feature = "async-backing")]
 			backend.clone(),
 			block_import,
 			prometheus_registry.as_ref(),
@@ -352,7 +342,7 @@ fn build_import_queue(
 
 fn start_consensus(
 	client: Arc<ParachainClient>,
-	#[cfg(feature = "async-backing")] backend: Arc<ParachainBackend>,
+	backend: Arc<ParachainBackend>,
 	block_import: ParachainBlockImport,
 	prometheus_registry: Option<&Registry>,
 	telemetry: Option<TelemetryHandle>,
@@ -367,9 +357,6 @@ fn start_consensus(
 	overseer_handle: OverseerHandle,
 	announce_block: Arc<dyn Fn(Hash, Option<Vec<u8>>) + Send + Sync>,
 ) -> Result<(), sc_service::Error> {
-	#[cfg(not(feature = "async-backing"))]
-	use cumulus_client_consensus_aura::collators::basic::{self as basic_aura, Params};
-	#[cfg(feature = "async-backing")]
 	use cumulus_client_consensus_aura::collators::lookahead::{self as aura, Params};
 	// NOTE: because we use Aura here explicitly, we can use
 	// `CollatorSybilResistance::Resistant` when starting the network.
@@ -392,14 +379,9 @@ fn start_consensus(
 	let params = Params {
 		create_inherent_data_providers: move |_, ()| async move { Ok(()) },
 		block_import,
-		#[cfg(not(feature = "async-backing"))]
-		para_client: client,
-		#[cfg(feature = "async-backing")]
 		para_client: client.clone(),
-		#[cfg(feature = "async-backing")]
 		para_backend: backend,
 		relay_client: relay_chain_interface,
-		#[cfg(feature = "async-backing")]
 		code_hash_provider: move |block_hash| client.code_at(block_hash).ok().map(ValidationCode).map(|c| c.hash()),
 		sync_oracle,
 		keystore,
@@ -410,21 +392,13 @@ fn start_consensus(
 		relay_chain_slot_duration,
 		proposer,
 		collator_service,
-		// Very limited proposal time.
-		#[cfg(not(feature = "async-backing"))]
-		authoring_duration: Duration::from_millis(500),
-		#[cfg(feature = "async-backing")]
+		// Very limited proposal time, since we are not allowing async-backing, yet.
 		authoring_duration: Duration::from_millis(500), //  500ms as the not async-backing one at the moment
-		#[cfg(not(feature = "async-backing"))]
-		collation_request_receiver: None,
 		// Added in polkadot-sdk-v1.7.0
 		// #[cfg(feature = "async-backing")]
 		// reinitialize: false,
 	};
 
-	#[cfg(not(feature = "async-backing"))]
-	let fut = basic_aura::run::<Block, sp_consensus_aura::sr25519::AuthorityPair, _, _, _, _, _, _, _>(params);
-	#[cfg(feature = "async-backing")]
 	let fut = aura::run::<Block, sp_consensus_aura::sr25519::AuthorityPair, _, _, _, _, _, _, _, _, _>(params);
 	task_manager.spawn_essential_handle().spawn("aura", None, fut);
 

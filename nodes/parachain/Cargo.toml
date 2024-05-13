@@ -127,7 +127,4 @@ on-chain-release-build = [
 	"polimec-runtime/on-chain-release-build",
 	"politest-runtime/on-chain-release-build",
 ]
-async-backing = [ "politest-runtime/async-backing" ]
-development-settings = [
-	"polimec-runtime/development-settings",
-]
+development-settings = [ "polimec-runtime/development-settings" ]

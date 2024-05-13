@@ -50,6 +50,7 @@ std = [
 	"frame-benchmarking/std",
 	"frame-support/std",
 	"frame-system/std",
+	"log/std",
 	"polimec-common/std",
 	"polkadot-parachain-primitives/std",
 	"polkadot-runtime-parachains/std",
