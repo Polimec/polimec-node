@@ -18,10 +18,7 @@
 // `construct_runtime!` does a lot of recursion and requires us to increase the limit to 256.
 #![recursion_limit = "256"]
 
-#[cfg(feature = "async-backing")]
 use cumulus_pallet_parachain_system::RelayNumberMonotonicallyIncreases;
-#[cfg(not(feature = "async-backing"))]
-use cumulus_pallet_parachain_system::RelayNumberStrictlyIncreases;
 use cumulus_primitives_core::{AggregateMessageOrigin, ChannelStatus, ParaId};
 use frame_support::{
 	construct_runtime,
@@ -433,9 +430,6 @@ type ConsensusHook = cumulus_pallet_aura_ext::FixedVelocityConsensusHook<
 >;
 
 impl cumulus_pallet_parachain_system::Config for Runtime {
-	#[cfg(not(feature = "async-backing"))]
-	type CheckAssociatedRelayNumber = RelayNumberStrictlyIncreases;
-	#[cfg(feature = "async-backing")]
 	type CheckAssociatedRelayNumber = RelayNumberMonotonicallyIncreases;
 	type ConsensusHook = ConsensusHook;
 	type DmpQueue = frame_support::traits::EnqueueWithOrigin<MessageQueue, RelayOrigin>;
@@ -1233,7 +1227,6 @@ impl_runtime_apis! {
 		}
 	}
 
-	#[cfg(feature = "async-backing")]
 	impl cumulus_primitives_aura::AuraUnincludedSegmentApi<Block> for Runtime {
 		fn can_build_upon(
 			included_hash: <Block as BlockT>::Hash,

@@ -55,6 +55,7 @@ std = [
 	"pallet-treasury?/std",
 	"parachains-common/std",
 	"parity-scale-codec/std",
+	"polimec-common/std",
 	"scale-info/std",
 	"sp-arithmetic/std",
 	"sp-runtime/std",
@@ -69,6 +70,7 @@ runtime-benchmarks = [
 	"pallet-parachain-staking/runtime-benchmarks",
 	"pallet-treasury/runtime-benchmarks",
 	"parachains-common/runtime-benchmarks",
+	"polimec-common/runtime-benchmarks",
 	"sp-runtime/runtime-benchmarks",
 ]
 try-runtime = [
@@ -81,5 +83,6 @@ try-runtime = [
 	"pallet-parachain-staking/try-runtime",
 	"pallet-transaction-payment/try-runtime",
 	"pallet-treasury?/try-runtime",
+	"polimec-common/try-runtime",
 	"sp-runtime/try-runtime",
 ]

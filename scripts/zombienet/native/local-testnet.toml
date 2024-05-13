@@ -4,7 +4,7 @@ provider = "native"
 
 # Using Rococo 1.7.0 as relay.
 [relaychain]
-default_command = "/usr/local/bin/polkadot"
+default_command = "./bin/polkadot"
 chain = "rococo-local"
 
 [[relaychain.nodes]]
@@ -21,7 +21,7 @@ name = "dave"
 
 [[parachains]]
 id = 3344
-chain = "politest-local"
+chain = "polimec-local"
 
 [[parachains.collators]]
 name = "alice"
