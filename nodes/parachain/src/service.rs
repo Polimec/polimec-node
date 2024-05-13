@@ -394,9 +394,9 @@ fn start_consensus(
 		collator_service,
 		// Very limited proposal time, since we are not allowing async-backing, yet.
 		authoring_duration: Duration::from_millis(500), //  500ms as the not async-backing one at the moment
-		// Added in polkadot-sdk-v1.7.0
-		// #[cfg(feature = "async-backing")]
-		// reinitialize: false,
+		                                                // Added in polkadot-sdk-v1.7.0
+		                                                // #[cfg(feature = "async-backing")]
+		                                                // reinitialize: false,
 	};
 
 	let fut = aura::run::<Block, sp_consensus_aura::sr25519::AuthorityPair, _, _, _, _, _, _, _, _, _>(params);
