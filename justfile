@@ -21,24 +21,26 @@ test-runtime-features runtime="polimec-runtime":
 test-integration:
     cargo test -p integration-tests
 
-dry-run-benchmarks pallet="*" extrinsic="*":
-    cargo build --features runtime-benchmarks --release && \
-    ./target/release/polimec-node  benchmark pallet \
-        --chain=politest-local \
-        --steps=2 \
-        --repeat=1 \
-        --pallet={{ pallet }} \
-        --extrinsic={{ extrinsic }} \
-        --wasm-execution=compiled \
-        --heap-pages=4096 && \
-    ./target/release/polimec-node benchmark pallet \
-        --chain=polimec-local \
-        --steps=2 \
-        --repeat=1 \
-        --pallet={{ pallet }} \
-        --extrinsic={{ extrinsic }} \
-        --wasm-execution=compiled \
-        --heap-pages=4096
+dry-run-benchmarks runtime="politest,polimec" pallet="*" extrinsic="*" :
+    #!/bin/bash
+    # Set the internal field separator for splitting the runtime variable
+    IFS=','
+    # Read the runtime variable into an array
+    read -ra runtimes <<< "{{runtime}}"
+    # Build the project
+    cargo build --features runtime-benchmarks --release
+    # Loop over each runtime and run the benchmark
+    for runtime in "${runtimes[@]}"; do \
+        echo -e "\033[34mRunning benchmarks for runtime: \033[92m$runtime\033[34m\033[0m"
+        ./target/release/polimec-node benchmark pallet \
+            --chain=${runtime}-local \
+            --steps=2 \
+            --repeat=1 \
+            --pallet={{ pallet }} \
+            --extrinsic={{ extrinsic }} \
+            --wasm-execution=compiled \
+            --heap-pages=4096
+    done
 
 # src: https://github.com/polkadot-fellows/runtimes/blob/48ccfae6141d2924f579d81e8b1877efd208693f/system-parachains/asset-hubs/asset-hub-polkadot/src/weights/cumulus_pallet_xcmp_queue.rs
 # Benchmark a specific pallet on the "Polimec" Runtime
