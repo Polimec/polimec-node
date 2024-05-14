@@ -139,11 +139,10 @@ use sp_std::{marker::PhantomData, prelude::*};
 pub use types::*;
 use xcm::v3::{opaque::Instruction, prelude::*, SendXcm};
 
-pub mod functions;
-pub mod settlement;
 
 #[cfg(test)]
 pub mod mock;
+pub mod storage_migrations;
 pub mod types;
 pub mod weights;
 
@@ -154,8 +153,8 @@ pub mod tests;
 pub mod benchmarking;
 #[cfg(any(feature = "runtime-benchmarks", feature = "std"))]
 pub mod instantiator;
-pub mod migration;
 pub mod traits;
+mod functions;
 
 pub type AccountIdOf<T> = <T as frame_system::Config>::AccountId;
 pub type ProjectId = u32;
@@ -214,7 +213,7 @@ pub mod pallet {
 	}
 
 	#[pallet::pallet]
-	#[pallet::storage_version(migration::STORAGE_VERSION)]
+	#[pallet::storage_version(storage_migrations::STORAGE_VERSION)]
 	pub struct Pallet<T>(_);
 
 	#[pallet::config]
@@ -1204,7 +1203,7 @@ pub mod pallet {
 		)))]
 		pub fn root_do_community_funding(origin: OriginFor<T>, project_id: ProjectId) -> DispatchResultWithPostInfo {
 			ensure_root(origin)?;
-			Self::do_community_funding(project_id)
+			Self::do_start_community_funding(project_id)
 		}
 
 		#[pallet::call_index(31)]
@@ -1213,7 +1212,7 @@ pub mod pallet {
 		))]
 		pub fn root_do_remainder_funding(origin: OriginFor<T>, project_id: ProjectId) -> DispatchResultWithPostInfo {
 			ensure_root(origin)?;
-			Self::do_remainder_funding(project_id)
+			Self::do_start_remainder_funding(project_id)
 		}
 
 		#[pallet::call_index(32)]
@@ -1307,7 +1306,7 @@ pub mod pallet {
 
 					// AuctionClosing -> CommunityRound
 					UpdateType::CommunityFundingStart => {
-						let call = Self::do_community_funding(project_id);
+						let call = Self::do_start_community_funding(project_id);
 						let fallback_weight =
 							Call::<T>::root_do_community_funding { project_id }.get_dispatch_info().weight;
 						update_weight(&mut used_weight, call, fallback_weight);
@@ -1315,7 +1314,7 @@ pub mod pallet {
 
 					// CommunityRound -> RemainderRound
 					UpdateType::RemainderFundingStart => {
-						let call = Self::do_remainder_funding(project_id);
+						let call = Self::do_start_remainder_funding(project_id);
 						let fallback_weight =
 							Call::<T>::root_do_remainder_funding { project_id }.get_dispatch_info().weight;
 						update_weight(&mut used_weight, call, fallback_weight);
