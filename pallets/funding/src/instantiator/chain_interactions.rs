@@ -741,6 +741,55 @@ impl<
 		self.execute(|| Contributions::<T>::iter_prefix_values((project_id,)).collect())
 	}
 
+	// Used to check all the USDT/USDC/DOT was paid to the issuer funding account
+	pub fn assert_total_funding_paid_out(
+		&mut self,
+		project_id: ProjectId,
+		bids: Vec<BidInfoOf<T>>,
+		contributions: Vec<ContributionInfoOf<T>>,
+	) {
+		let project_metadata = self.get_project_metadata(project_id);
+		let mut total_expected_dot: BalanceOf<T> = Zero::zero();
+		let mut total_expected_usdt: BalanceOf<T> = Zero::zero();
+		let mut total_expected_usdc: BalanceOf<T> = Zero::zero();
+
+		for bid in bids {
+			match bid.funding_asset {
+				AcceptedFundingAsset::DOT => total_expected_dot += bid.funding_asset_amount_locked,
+				AcceptedFundingAsset::USDT => total_expected_usdt += bid.funding_asset_amount_locked,
+				AcceptedFundingAsset::USDC => total_expected_usdc += bid.funding_asset_amount_locked,
+			}
+		}
+
+		for contribution in contributions {
+			match contribution.funding_asset {
+				AcceptedFundingAsset::DOT => total_expected_dot += contribution.funding_asset_amount,
+				AcceptedFundingAsset::USDT => total_expected_usdt += contribution.funding_asset_amount,
+				AcceptedFundingAsset::USDC => total_expected_usdc += contribution.funding_asset_amount,
+			}
+		}
+
+		let total_stored_dot = self.get_free_foreign_asset_balances_for(
+			AcceptedFundingAsset::DOT.to_assethub_id(),
+			vec![project_metadata.funding_destination_account.clone()],
+		)[0]
+		.asset_amount;
+		let total_stored_usdt = self.get_free_foreign_asset_balances_for(
+			AcceptedFundingAsset::USDT.to_assethub_id(),
+			vec![project_metadata.funding_destination_account.clone()],
+		)[0]
+		.asset_amount;
+		let total_stored_usdc = self.get_free_foreign_asset_balances_for(
+			AcceptedFundingAsset::USDC.to_assethub_id(),
+			vec![project_metadata.funding_destination_account.clone()],
+		)[0]
+		.asset_amount;
+
+		assert_eq!(total_expected_dot, total_stored_dot, "DOT amount is incorrect");
+		assert_eq!(total_expected_usdt, total_stored_usdt, "USDT amount is incorrect");
+		assert_eq!(total_expected_usdc, total_stored_usdc, "USDC amount is incorrect");
+	}
+
 	// Used to check if all evaluations are settled correctly. We cannot check amount of
 	// contributions minted for the user, as they could have received more tokens from other participations.
 	pub fn assert_evaluations_migrations_created(

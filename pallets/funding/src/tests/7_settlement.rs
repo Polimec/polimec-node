@@ -10,6 +10,7 @@ fn can_settle_accepted_project() {
 
 	inst.settle_project(project_id).unwrap();
 
+	inst.assert_total_funding_paid_out(project_id, bids.clone(), contributions.clone());
 	inst.assert_evaluations_migrations_created(project_id, evaluations, percentage);
 	inst.assert_bids_migrations_created(project_id, bids, true);
 	inst.assert_contributions_migrations_created(project_id, contributions, true);

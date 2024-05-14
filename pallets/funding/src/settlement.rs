@@ -102,6 +102,7 @@ impl<T: Config> Pallet<T> {
 	}
 
 	pub fn do_settle_successful_bid(bid: BidInfoOf<T>, project_id: ProjectId) -> DispatchResult {
+		let project_metadata = ProjectsMetadata::<T>::get(project_id).ok_or(Error::<T>::ProjectMetadataNotFound)?;
 		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 
 		ensure!(project_details.status == ProjectStatus::FundingSuccessful, Error::<T>::IncorrectRound);
@@ -138,7 +139,7 @@ impl<T: Config> Pallet<T> {
 		// Payout the bid funding asset amount to the project account
 		Self::release_funding_asset(
 			project_id,
-			&project_details.issuer_account,
+			&project_metadata.funding_destination_account,
 			bid.funding_asset_amount_locked,
 			bid.funding_asset,
 		)?;
@@ -188,6 +189,7 @@ impl<T: Config> Pallet<T> {
 		contribution: ContributionInfoOf<T>,
 		project_id: ProjectId,
 	) -> DispatchResult {
+		let project_metadata = ProjectsMetadata::<T>::get(project_id).ok_or(Error::<T>::ProjectMetadataNotFound)?;
 		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 		// Ensure that:
 		// 1. The project is in the FundingSuccessful state
@@ -221,7 +223,7 @@ impl<T: Config> Pallet<T> {
 		// Payout the bid funding asset amount to the project account
 		Self::release_funding_asset(
 			project_id,
-			&project_details.issuer_account,
+			&project_metadata.funding_destination_account,
 			contribution.funding_asset_amount,
 			contribution.funding_asset,
 		)?;
