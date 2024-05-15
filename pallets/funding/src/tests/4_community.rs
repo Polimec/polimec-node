@@ -760,7 +760,7 @@ mod community_contribute_extrinsic {
 			inst.bid_for_users(project_id, successful_bids).unwrap();
 			inst.advance_time(
 				<TestRuntime as Config>::AuctionOpeningDuration::get() +
-					<TestRuntime as Config>::AuctionClosingDuration::get() +
+					<TestRuntime as Config>::AuctionClosingDuration::get() -
 					1,
 			)
 			.unwrap();

@@ -639,7 +639,7 @@ mod benchmarks {
 
 		let current_block = inst.current_block();
 		// `do_auction_opening` fn will try to add an automatic transition 1 block after the last opening round block
-		let insertion_block_number: BlockNumberFor<T> = current_block + T::AuctionOpeningDuration::get() + One::one();
+		let insertion_block_number: BlockNumberFor<T> = current_block + T::AuctionOpeningDuration::get();
 
 		fill_projects_to_update::<T>(x, insertion_block_number);
 
@@ -2108,19 +2108,8 @@ mod benchmarks {
 
 		inst.bid_for_users(project_id, accepted_bids).unwrap();
 
-		let now = inst.current_block();
-		frame_system::Pallet::<T>::set_block_number(now + <T as Config>::AuctionOpeningDuration::get());
-		// automatic transition to opening auction
-		inst.advance_time(1u32.into()).unwrap();
-
-		let project_details = inst.get_project_details(project_id);
-		let auction_closing_block_end = project_details.phase_transition_points.auction_closing.end().unwrap();
-		// probably the last block will always be after random end
-		let random_ending: BlockNumberFor<T> = auction_closing_block_end;
-		frame_system::Pallet::<T>::set_block_number(random_ending);
-
-		inst.bid_for_users(project_id, rejected_bids).unwrap();
-
+		let transition_block = inst.get_update_block(project_id, &UpdateType::AuctionClosingStart).unwrap();
+		inst.jump_to_block(transition_block);
 		let auction_closing_end_block =
 			inst.get_project_details(project_id).phase_transition_points.auction_closing.end().unwrap();
 		// we don't use advance time to avoid triggering on_initialize. This benchmark should only measure the fn

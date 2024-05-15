@@ -21,25 +21,31 @@ test-runtime-features runtime="polimec-runtime":
 test-integration:
     cargo test -p integration-tests
 
-dry-run-benchmarks runtime="politest,polimec" pallet="*" extrinsic="*" :
+dry-run-benchmarks mode="fast-mode" runtime="politest,polimec" pallet="*" extrinsic="*" :
     #!/bin/bash
     # Set the internal field separator for splitting the runtime variable
     IFS=','
     # Read the runtime variable into an array
     read -ra runtimes <<< "{{runtime}}"
-    # Build the project
-    cargo build --features runtime-benchmarks --release
-    # Loop over each runtime and run the benchmark
-    for runtime in "${runtimes[@]}"; do \
-        echo -e "\033[34mRunning benchmarks for runtime: \033[92m$runtime\033[34m\033[0m"
-        ./target/release/polimec-node benchmark pallet \
-            --chain=${runtime}-local \
-            --steps=2 \
-            --repeat=1 \
-            --pallet={{ pallet }} \
-            --extrinsic={{ extrinsic }} \
-            --wasm-execution=compiled \
-            --heap-pages=4096
+    read -ra modes <<< "{{mode}}"
+
+    # Build the project with each mode
+    for mode in "${modes[@]}"; do \
+        echo -e "\033[34mBuilding runtime with mode: \033[92m$mode\033[34m\033[0m"
+        cargo build --features runtime-benchmarks,$mode --release
+        # Loop over each runtime and run the benchmark
+        for runtime in "${runtimes[@]}"; do \
+            echo -e "\033[34mRunning benchmarks for runtime: \033[92m$runtime\033[34m\033[0m"
+
+            ./target/release/polimec-node benchmark pallet \
+                --chain=${runtime}-local \
+                --steps=2 \
+                --repeat=1 \
+                --pallet={{ pallet }} \
+                --extrinsic={{ extrinsic }} \
+                --wasm-execution=compiled \
+                --heap-pages=4096
+        done
     done
 
 # src: https://github.com/polkadot-fellows/runtimes/blob/48ccfae6141d2924f579d81e8b1877efd208693f/system-parachains/asset-hubs/asset-hub-polkadot/src/weights/cumulus_pallet_xcmp_queue.rs
