@@ -299,7 +299,6 @@ impl InstanceFilter<RuntimeCall> for ProxyType {
 }
 
 // Configure FRAME pallets to include in runtime.
-
 impl frame_system::Config for Runtime {
 	/// The data to be stored in an account.
 	type AccountData = pallet_balances::AccountData<Balance>;
@@ -1076,7 +1075,7 @@ impl pallet_funding::Config for Runtime {
 	type SuccessToSettlementTime = SuccessToSettlementTime;
 	type VerifierPublicKey = VerifierPublicKey;
 	type Vesting = LinearRelease;
-	type WeightInfo = pallet_funding::weights::SubstrateWeight<Runtime>;
+	type WeightInfo = weights::pallet_funding::WeightInfo<Runtime>;
 }
 
 #[cfg(feature = "runtime-benchmarks")]
@@ -1125,7 +1124,7 @@ impl pallet_dispenser::Config for Runtime {
 	type VerifierPublicKey = VerifierPublicKey;
 	type VestPeriod = DispenserVestPeriod;
 	type VestingSchedule = Vesting;
-	type WeightInfo = ();
+	type WeightInfo = weights::pallet_dispenser::WeightInfo<Runtime>;
 }
 
 // Create the runtime by composing the FRAME pallets that were previously configured.
