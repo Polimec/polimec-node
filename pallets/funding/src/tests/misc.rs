@@ -352,7 +352,7 @@ mod async_tests {
 
 	#[test]
 	fn prototype_2() {
-		let inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 
 		let project_params = vec![
 			TestProjectParams {
@@ -411,8 +411,9 @@ mod async_tests {
 			},
 		];
 
+		dbg!(inst.current_block());
 		let (project_ids, mut inst) = create_multiple_projects_at(inst, project_params);
-		let now = inst.current_block();
+		dbg!(inst.current_block());
 
 		dbg!(inst.get_project_details(project_ids[0]).status);
 		dbg!(inst.get_project_details(project_ids[1]).status);
@@ -633,5 +634,48 @@ mod async_tests {
 		let max_bids_per_project: u32 = <TestRuntime as Config>::MaxBidsPerProject::get();
 		let total_bids_count = inst.execute(|| Bids::<TestRuntime>::iter_values().collect_vec().len());
 		assert_eq!(total_bids_count, max_bids_per_project as usize);
+	}
+
+	#[test]
+	fn weights() {
+		use crate::weights::WeightInfoTest;
+
+		let max_project_to_update_insertion_attempts: u32 =
+			<TestRuntime as Config>::MaxProjectsToUpdateInsertionAttempts::get();
+		let max_bids_per_project: u32 = <TestRuntime as Config>::MaxBidsPerProject::get();
+		let old_community_max = weights::SubstrateWeight::<TestRuntime>::start_community_funding(
+			max_project_to_update_insertion_attempts - 1,
+			max_bids_per_project / 2,
+			max_bids_per_project / 2,
+		)
+		.max(WeightInfoOf::<TestRuntime>::start_community_funding(
+			max_project_to_update_insertion_attempts - 1,
+			max_bids_per_project,
+			0u32,
+		))
+		.max(WeightInfoOf::<TestRuntime>::start_community_funding(
+			max_project_to_update_insertion_attempts - 1,
+			0u32,
+			max_bids_per_project,
+		));
+		dbg!(old_community_max);
+
+		let new_community_max = weights::SubstrateWeightTest::<TestRuntime>::start_community_funding(
+			max_project_to_update_insertion_attempts - 1,
+			max_bids_per_project,
+		);
+		dbg!(new_community_max);
+
+		let new_auction_end_max = weights::SubstrateWeightTest::<TestRuntime>::end_auction_closing(
+			max_project_to_update_insertion_attempts - 1,
+			max_bids_per_project,
+			0,
+		);
+
+		dbg!(new_auction_end_max);
+
+
+		let new_sum = new_community_max + new_auction_end_max;
+		dbg!(new_sum);
 	}
 }

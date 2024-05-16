@@ -325,6 +325,7 @@ mod start_evaluation_extrinsic {
 					total_bonded_plmc: 0u128,
 					evaluators_outcome: EvaluatorsOutcome::Unchanged,
 				},
+				auction_round_info: AuctionRoundInfoOf::<TestRuntime> { is_oversubscribed: IsOversubscribed::No },
 				funding_end_block: None,
 				parachain_id: None,
 				migration_readiness_check: None,

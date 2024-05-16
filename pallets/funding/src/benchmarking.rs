@@ -1984,7 +1984,7 @@ mod benchmarks {
 
 		#[block]
 		{
-			Pallet::<T>::do_auction_closing(project_id).unwrap();
+			Pallet::<T>::do_start_auction_closing(project_id).unwrap();
 		}
 		// * validity checks *
 		// Storage
@@ -1997,10 +1997,8 @@ mod benchmarks {
 		);
 	}
 
-	// do_community_funding
-	// Should be complex due to calling `calculate_weighted_average_price`
 	#[benchmark]
-	fn start_community_funding(
+	fn end_auction_closing(
 		// Insertion attempts in add_to_update_store. Total amount of storage items iterated through in `ProjectsToUpdate`. Leave one free to make the fn succeed
 		x: Linear<1, { <T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1 }>,
 		// Accepted Bids
@@ -2117,7 +2115,147 @@ mod benchmarks {
 		frame_system::Pallet::<T>::set_block_number(auction_closing_end_block + One::one());
 		let now = inst.current_block();
 
-		let community_end_block = now + T::CommunityFundingDuration::get();
+		let community_start_block = now + One::one();
+
+		let insertion_block_number = community_start_block;
+		fill_projects_to_update::<T>(x, insertion_block_number);
+
+		#[block]
+		{
+			Pallet::<T>::do_end_auction_closing(project_id).unwrap();
+		}
+
+		// * validity checks *
+		// Storage
+		let stored_details = ProjectsDetails::<T>::get(project_id).unwrap();
+		assert_eq!(stored_details.status, ProjectStatus::CalculatingWAP);
+		assert!(
+			stored_details.phase_transition_points.random_closing_ending.unwrap() <
+				stored_details.phase_transition_points.auction_closing.end().unwrap()
+		);
+		let accepted_bids_count =
+			Bids::<T>::iter_prefix_values((project_id,)).filter(|b| matches!(b.status, BidStatus::Accepted)).count();
+		let rejected_bids_count =
+			Bids::<T>::iter_prefix_values((project_id,)).filter(|b| matches!(b.status, BidStatus::Rejected(_))).count();
+		assert_eq!(rejected_bids_count, 0);
+		assert_eq!(accepted_bids_count, y as usize);
+
+		// Events
+		frame_system::Pallet::<T>::assert_last_event(
+			Event::<T>::ProjectPhaseTransition { project_id, phase: ProjectPhases::CalculatingWAP }.into(),
+		);
+	}
+
+	// do_community_funding
+	// Should be complex due to calling `calculate_weighted_average_price`
+	#[benchmark]
+	fn start_community_funding(
+		// Insertion attempts in add_to_update_store. Total amount of storage items iterated through in `ProjectsToUpdate`. Leave one free to make the fn succeed
+		x: Linear<1, { <T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1 }>,
+		// Accepted Bids
+		y: Linear<0, { <T as Config>::MaxBidsPerProject::get() }>,
+	) {
+		// * setup *
+		let mut inst = BenchInstantiator::<T>::new(None);
+		// real benchmark starts at block 0, and we can't call `events()` at block 0
+		inst.advance_time(1u32.into()).unwrap();
+
+		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
+		whitelist_account!(issuer);
+		let bounded_name = BoundedVec::try_from("Contribution Token TEST".as_bytes().to_vec()).unwrap();
+		let bounded_symbol = BoundedVec::try_from("CTEST".as_bytes().to_vec()).unwrap();
+		let metadata_hash = BoundedVec::try_from(IPFS_CID.as_bytes().to_vec()).unwrap();
+
+		let project_metadata = ProjectMetadata {
+			token_information: CurrencyMetadata { name: bounded_name, symbol: bounded_symbol, decimals: CT_DECIMALS },
+			mainnet_token_max_supply: BalanceOf::<T>::try_from(2_000_000 * CT_UNIT)
+				.unwrap_or_else(|_| panic!("Failed to create BalanceOf")),
+			total_allocation_size: BalanceOf::<T>::try_from(1_300_000 * CT_UNIT)
+				.unwrap_or_else(|_| panic!("Failed to create BalanceOf")),
+			auction_round_allocation_percentage: Percent::from_percent(50u8),
+			minimum_price: PriceProviderOf::<T>::calculate_decimals_aware_price(
+				10u128.into(),
+				USD_DECIMALS,
+				CT_DECIMALS,
+			)
+			.unwrap(),
+			bidding_ticket_sizes: BiddingTicketSizes {
+				professional: TicketSize::new(
+					BalanceOf::<T>::try_from(5000 * USD_UNIT).unwrap_or_else(|_| panic!("Failed to create BalanceOf")),
+					None,
+				),
+				institutional: TicketSize::new(
+					BalanceOf::<T>::try_from(5000 * USD_UNIT).unwrap_or_else(|_| panic!("Failed to create BalanceOf")),
+					None,
+				),
+				phantom: Default::default(),
+			},
+			contributing_ticket_sizes: ContributingTicketSizes {
+				retail: TicketSize::new(
+					BalanceOf::<T>::try_from(USD_UNIT).unwrap_or_else(|_| panic!("Failed to create BalanceOf")),
+					None,
+				),
+				professional: TicketSize::new(
+					BalanceOf::<T>::try_from(USD_UNIT).unwrap_or_else(|_| panic!("Failed to create BalanceOf")),
+					None,
+				),
+				institutional: TicketSize::new(
+					BalanceOf::<T>::try_from(USD_UNIT).unwrap_or_else(|_| panic!("Failed to create BalanceOf")),
+					None,
+				),
+				phantom: Default::default(),
+			},
+			participation_currencies: vec![AcceptedFundingAsset::USDT].try_into().unwrap(),
+			funding_destination_account: issuer.clone(),
+			policy_ipfs_cid: Some(metadata_hash.into()),
+		};
+		let evaluations = inst.generate_successful_evaluations(
+			project_metadata.clone(),
+			default_evaluators::<T>(),
+			default_weights(),
+		);
+		let project_id = inst.create_auctioning_project(project_metadata.clone(), issuer.clone(), evaluations);
+
+		let accepted_bids = (0..y)
+			.map(|i| {
+				BidParams::<T>::new(
+					account::<AccountIdOf<T>>("bidder", 0, i),
+					(500 * CT_UNIT).into(),
+					1u8,
+					AcceptedFundingAsset::USDT,
+				)
+			})
+			.collect_vec();
+
+		let plmc_needed_for_bids = inst.calculate_auction_plmc_charged_from_all_bids_made_or_with_bucket(
+			&accepted_bids,
+			project_metadata.clone(),
+			None,
+		);
+		let plmc_ed = accepted_bids.accounts().existential_deposits();
+		let funding_asset_needed_for_bids = inst
+			.calculate_auction_funding_asset_charged_from_all_bids_made_or_with_bucket(
+				&accepted_bids,
+				project_metadata.clone(),
+				None,
+			);
+
+		inst.mint_plmc_to(plmc_needed_for_bids);
+		inst.mint_plmc_to(plmc_ed);
+		inst.mint_foreign_asset_to(funding_asset_needed_for_bids);
+
+		inst.bid_for_users(project_id, accepted_bids).unwrap();
+
+		let transition_block = inst.get_update_block(project_id, &UpdateType::AuctionClosingStart).unwrap();
+		inst.jump_to_block(transition_block);
+		let transition_block = inst.get_update_block(project_id, &UpdateType::AuctionClosingEnd).unwrap();
+		inst.jump_to_block(transition_block);
+		let transition_block = inst.get_update_block(project_id, &UpdateType::CommunityFundingStart).unwrap();
+		// Block is at automatic transition, but it's not run with on_initialize, we do it manually
+		frame_system::Pallet::<T>::set_block_number(transition_block);
+
+		let now = inst.current_block();
+		let community_end_block = now + T::CommunityFundingDuration::get() - One::one();
 
 		let insertion_block_number = community_end_block + One::one();
 		fill_projects_to_update::<T>(x, insertion_block_number);
@@ -2131,15 +2269,7 @@ mod benchmarks {
 		// Storage
 		let stored_details = ProjectsDetails::<T>::get(project_id).unwrap();
 		assert_eq!(stored_details.status, ProjectStatus::CommunityRound);
-		assert!(
-			stored_details.phase_transition_points.random_closing_ending.unwrap() <
-				stored_details.phase_transition_points.auction_closing.end().unwrap()
-		);
-		let accepted_bids_count =
-			Bids::<T>::iter_prefix_values((project_id,)).filter(|b| matches!(b.status, BidStatus::Accepted)).count();
-		let rejected_bids_count =
-			Bids::<T>::iter_prefix_values((project_id,)).filter(|b| matches!(b.status, BidStatus::Rejected(_))).count();
-		assert_eq!(rejected_bids_count, 0);
+		let accepted_bids_count = Bids::<T>::iter_prefix_values((project_id,)).count();
 		assert_eq!(accepted_bids_count, y as usize);
 
 		// Events
@@ -2708,6 +2838,13 @@ mod benchmarks {
 		fn bench_start_auction_closing_phase() {
 			new_test_ext().execute_with(|| {
 				assert_ok!(PalletFunding::<TestRuntime>::test_start_auction_closing_phase());
+			});
+		}
+
+		#[test]
+		fn bench_end_auction_closing() {
+			new_test_ext().execute_with(|| {
+				assert_ok!(PalletFunding::<TestRuntime>::test_end_auction_closing());
 			});
 		}
 

@@ -303,6 +303,7 @@ pub mod storage_types {
 		Price: FixedPointNumber,
 		Balance: BalanceT,
 		EvaluationRoundInfo,
+		AuctionRoundInfo,
 	> {
 		pub issuer_account: AccountId,
 		pub issuer_did: Did,
@@ -322,6 +323,7 @@ pub mod storage_types {
 		pub funding_amount_reached_usd: Balance,
 		/// Information about the total amount bonded, and the outcome in regards to reward/slash/nothing
 		pub evaluation_round_info: EvaluationRoundInfo,
+		pub auction_round_info: AuctionRoundInfo,
 		/// When the Funding Round ends
 		pub funding_end_block: Option<BlockNumber>,
 		/// ParaId of project
@@ -337,6 +339,7 @@ pub mod storage_types {
 		EvaluationEnd,
 		AuctionOpeningStart,
 		AuctionClosingStart,
+		AuctionClosingEnd,
 		CommunityFundingStart,
 		RemainderFundingStart,
 		FundingEnd,
@@ -639,6 +642,7 @@ pub mod inner_types {
 		AuctionInitializePeriod,
 		AuctionOpening,
 		AuctionClosing,
+		CalculatingWAP,
 		CommunityRound,
 		RemainderRound,
 		FundingFailed,
@@ -745,6 +749,7 @@ pub mod inner_types {
 		AuctionInitializePeriod,
 		AuctionOpening,
 		AuctionClosing,
+		CalculatingWAP,
 		CommunityFunding,
 		RemainderFunding,
 		DecisionPeriod,
@@ -773,6 +778,18 @@ pub mod inner_types {
 		pub total_bonded_usd: Balance,
 		pub total_bonded_plmc: Balance,
 		pub evaluators_outcome: EvaluatorsOutcome<Balance>,
+	}
+
+	// putting the enum inside a struct in case we need to extend it with other fields later on
+	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+	pub struct AuctionRoundInfo<Balance> {
+		// Will be `Some` after the auction closing phase ends and winning bids are calculated
+		pub is_oversubscribed: IsOversubscribed<Balance>,
+	}
+	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+	pub enum IsOversubscribed<Balance> {
+		Yes { total_usd_bid: Balance },
+		No,
 	}
 
 	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]

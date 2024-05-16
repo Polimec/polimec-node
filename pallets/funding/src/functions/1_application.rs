@@ -44,6 +44,7 @@ impl<T: Config> Pallet<T> {
 				total_bonded_plmc: Zero::zero(),
 				evaluators_outcome: EvaluatorsOutcome::Unchanged,
 			},
+			auction_round_info: AuctionRoundInfoOf::<T> { is_oversubscribed: IsOversubscribed::No },
 			funding_end_block: None,
 			parachain_id: None,
 			migration_readiness_check: None,

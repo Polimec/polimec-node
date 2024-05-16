@@ -745,7 +745,7 @@ mod start_auction_extrinsic {
 			inst.advance_time(<TestRuntime as Config>::EvaluationDuration::get() + 1).unwrap();
 			assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::AuctionInitializePeriod);
 			inst.advance_time(1).unwrap();
-			inst.execute(|| Pallet::<TestRuntime>::do_auction_opening(ISSUER_1, project_id)).unwrap();
+			inst.execute(|| Pallet::<TestRuntime>::do_start_auction_opening(ISSUER_1, project_id)).unwrap();
 			assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::AuctionOpening);
 		}
 
@@ -765,7 +765,7 @@ mod start_auction_extrinsic {
 
 			for account in 6000..6010 {
 				inst.execute(|| {
-					let response = Pallet::<TestRuntime>::do_auction_opening(account, project_id);
+					let response = Pallet::<TestRuntime>::do_start_auction_opening(account, project_id);
 					assert_noop!(response, Error::<TestRuntime>::NotIssuer);
 				});
 			}
@@ -782,7 +782,7 @@ mod start_auction_extrinsic {
 			let project_id = inst.create_evaluating_project(default_project_metadata(ISSUER_1), ISSUER_1);
 			inst.execute(|| {
 				assert_noop!(
-					PolimecFunding::do_auction_opening(ISSUER_1, project_id),
+					PolimecFunding::do_start_auction_opening(ISSUER_1, project_id),
 					Error::<TestRuntime>::TransitionPointNotSet
 				);
 			});
@@ -795,7 +795,7 @@ mod start_auction_extrinsic {
 			inst.advance_time(<TestRuntime as Config>::EvaluationDuration::get() + 1).unwrap();
 			inst.execute(|| {
 				assert_noop!(
-					PolimecFunding::do_auction_opening(ISSUER_1, project_id),
+					PolimecFunding::do_start_auction_opening(ISSUER_1, project_id),
 					Error::<TestRuntime>::TransitionPointNotSet
 				);
 			});

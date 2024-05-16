@@ -1445,3 +1445,159 @@ impl WeightInfo for () {
 			.saturating_add(RocksDbWeight::get().writes(1_u64))
 	}
 }
+
+pub trait TestWeightInfo {
+	fn end_auction_closing(x: u32, y: u32, z: u32, ) -> Weight;
+	fn start_community_funding(x: u32, y: u32, ) -> Weight;
+}
+
+/// Weights for `pallet_funding` using the Substrate node and recommended hardware.
+pub struct TestSubstrateWeight<T>(PhantomData<T>);
+impl<T: frame_system::Config> TestWeightInfo for TestSubstrateWeight<T> {
+	/// Storage: `Funding::ProjectsDetails` (r:1 w:1)
+	/// Proof: `Funding::ProjectsDetails` (`max_values`: None, `max_size`: Some(397), added: 2872, mode: `MaxEncodedLen`)
+	/// Storage: `Funding::ProjectsMetadata` (r:1 w:0)
+	/// Proof: `Funding::ProjectsMetadata` (`max_values`: None, `max_size`: Some(502), added: 2977, mode: `MaxEncodedLen`)
+	/// Storage: `Funding::Nonce` (r:1 w:1)
+	/// Proof: `Funding::Nonce` (`max_values`: Some(1), `max_size`: Some(4), added: 499, mode: `MaxEncodedLen`)
+	/// Storage: `Random::RandomMaterial` (r:1 w:0)
+	/// Proof: `Random::RandomMaterial` (`max_values`: Some(1), `max_size`: Some(2594), added: 3089, mode: `MaxEncodedLen`)
+	/// Storage: `Funding::Bids` (r:513 w:512)
+	/// Proof: `Funding::Bids` (`max_values`: None, `max_size`: Some(306), added: 2781, mode: `MaxEncodedLen`)
+	/// Storage: `Funding::DidWithWinningBids` (r:512 w:512)
+	/// Proof: `Funding::DidWithWinningBids` (`max_values`: None, `max_size`: Some(95), added: 2570, mode: `MaxEncodedLen`)
+	/// Storage: `Funding::ProjectsToUpdate` (r:100 w:1)
+	/// Proof: `Funding::ProjectsToUpdate` (`max_values`: None, `max_size`: Some(26), added: 2501, mode: `MaxEncodedLen`)
+	/// The range of component `x` is `[1, 99]`.
+	/// The range of component `y` is `[0, 512]`.
+	/// The range of component `z` is `[0, 512]`.
+	fn end_auction_closing(x: u32, y: u32, z: u32, ) -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `1146 + x * (28 ±0) + y * (272 ±0)`
+		//  Estimated: `4079 + x * (2501 ±0) + y * (2781 ±0)`
+		// Minimum execution time: 308_810_000 picoseconds.
+		Weight::from_parts(18_800_680, 4079)
+			// Standard Error: 33_795
+			.saturating_add(Weight::from_parts(2_190_348, 0).saturating_mul(x.into()))
+			// Standard Error: 6_461
+			.saturating_add(Weight::from_parts(11_358_946, 0).saturating_mul(y.into()))
+			// Standard Error: 6_461
+			.saturating_add(Weight::from_parts(3_302, 0).saturating_mul(z.into()))
+			.saturating_add(T::DbWeight::get().reads(6_u64))
+			.saturating_add(T::DbWeight::get().reads((1_u64).saturating_mul(x.into())))
+			.saturating_add(T::DbWeight::get().reads((2_u64).saturating_mul(y.into())))
+			.saturating_add(T::DbWeight::get().writes(3_u64))
+			.saturating_add(T::DbWeight::get().writes((2_u64).saturating_mul(y.into())))
+			.saturating_add(Weight::from_parts(0, 2501).saturating_mul(x.into()))
+			.saturating_add(Weight::from_parts(0, 2781).saturating_mul(y.into()))
+	}
+	/// Storage: `Funding::ProjectsDetails` (r:1 w:1)
+	/// Proof: `Funding::ProjectsDetails` (`max_values`: None, `max_size`: Some(397), added: 2872, mode: `MaxEncodedLen`)
+	/// Storage: `Funding::ProjectsMetadata` (r:1 w:0)
+	/// Proof: `Funding::ProjectsMetadata` (`max_values`: None, `max_size`: Some(502), added: 2977, mode: `MaxEncodedLen`)
+	/// Storage: `Funding::Nonce` (r:1 w:1)
+	/// Proof: `Funding::Nonce` (`max_values`: Some(1), `max_size`: Some(4), added: 499, mode: `MaxEncodedLen`)
+	/// Storage: `Random::RandomMaterial` (r:1 w:0)
+	/// Proof: `Random::RandomMaterial` (`max_values`: Some(1), `max_size`: Some(2594), added: 3089, mode: `MaxEncodedLen`)
+	/// Storage: `Funding::Bids` (r:1025 w:1024)
+	/// Proof: `Funding::Bids` (`max_values`: None, `max_size`: Some(306), added: 2781, mode: `MaxEncodedLen`)
+	/// Storage: `Oracle::Values` (r:1 w:0)
+	/// Proof: `Oracle::Values` (`max_values`: None, `max_size`: Some(36), added: 2511, mode: `MaxEncodedLen`)
+	/// Storage: `Funding::ProjectsToUpdate` (r:100 w:1)
+	/// Proof: `Funding::ProjectsToUpdate` (`max_values`: None, `max_size`: Some(26), added: 2501, mode: `MaxEncodedLen`)
+	/// The range of component `x` is `[1, 99]`.
+	/// The range of component `y` is `[0, 1024]`.
+	fn start_community_funding(x: u32, y: u32, ) -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `1417 + x * (28 ±0) + y * (272 ±0)`
+		//  Estimated: `4079 + x * (2501 ±0) + y * (2781 ±0)`
+		// Minimum execution time: 296_110_000 picoseconds.
+		Weight::from_parts(16_431_395, 4079)
+			// Standard Error: 34_714
+			.saturating_add(Weight::from_parts(2_547_873, 0).saturating_mul(x.into()))
+			// Standard Error: 3_320
+			.saturating_add(Weight::from_parts(8_045_382, 0).saturating_mul(y.into()))
+			.saturating_add(T::DbWeight::get().reads(7_u64))
+			.saturating_add(T::DbWeight::get().reads((1_u64).saturating_mul(x.into())))
+			.saturating_add(T::DbWeight::get().reads((1_u64).saturating_mul(y.into())))
+			.saturating_add(T::DbWeight::get().writes(3_u64))
+			.saturating_add(T::DbWeight::get().writes((1_u64).saturating_mul(y.into())))
+			.saturating_add(Weight::from_parts(0, 2501).saturating_mul(x.into()))
+			.saturating_add(Weight::from_parts(0, 2781).saturating_mul(y.into()))
+	}
+}
+
+// For backwards compatibility and tests.
+impl TestWeightInfo for () {
+	/// Storage: `Funding::ProjectsDetails` (r:1 w:1)
+	/// Proof: `Funding::ProjectsDetails` (`max_values`: None, `max_size`: Some(397), added: 2872, mode: `MaxEncodedLen`)
+	/// Storage: `Funding::ProjectsMetadata` (r:1 w:0)
+	/// Proof: `Funding::ProjectsMetadata` (`max_values`: None, `max_size`: Some(502), added: 2977, mode: `MaxEncodedLen`)
+	/// Storage: `Funding::Nonce` (r:1 w:1)
+	/// Proof: `Funding::Nonce` (`max_values`: Some(1), `max_size`: Some(4), added: 499, mode: `MaxEncodedLen`)
+	/// Storage: `Random::RandomMaterial` (r:1 w:0)
+	/// Proof: `Random::RandomMaterial` (`max_values`: Some(1), `max_size`: Some(2594), added: 3089, mode: `MaxEncodedLen`)
+	/// Storage: `Funding::Bids` (r:513 w:512)
+	/// Proof: `Funding::Bids` (`max_values`: None, `max_size`: Some(306), added: 2781, mode: `MaxEncodedLen`)
+	/// Storage: `Funding::DidWithWinningBids` (r:512 w:512)
+	/// Proof: `Funding::DidWithWinningBids` (`max_values`: None, `max_size`: Some(95), added: 2570, mode: `MaxEncodedLen`)
+	/// Storage: `Funding::ProjectsToUpdate` (r:100 w:1)
+	/// Proof: `Funding::ProjectsToUpdate` (`max_values`: None, `max_size`: Some(26), added: 2501, mode: `MaxEncodedLen`)
+	/// The range of component `x` is `[1, 99]`.
+	/// The range of component `y` is `[0, 512]`.
+	/// The range of component `z` is `[0, 512]`.
+	fn end_auction_closing(x: u32, y: u32, z: u32, ) -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `1146 + x * (28 ±0) + y * (272 ±0)`
+		//  Estimated: `4079 + x * (2501 ±0) + y * (2781 ±0)`
+		// Minimum execution time: 308_810_000 picoseconds.
+		Weight::from_parts(18_800_680, 4079)
+			// Standard Error: 33_795
+			.saturating_add(Weight::from_parts(2_190_348, 0).saturating_mul(x.into()))
+			// Standard Error: 6_461
+			.saturating_add(Weight::from_parts(11_358_946, 0).saturating_mul(y.into()))
+			// Standard Error: 6_461
+			.saturating_add(Weight::from_parts(3_302, 0).saturating_mul(z.into()))
+			.saturating_add(RocksDbWeight::get().reads(6_u64))
+			.saturating_add(RocksDbWeight::get().reads((1_u64).saturating_mul(x.into())))
+			.saturating_add(RocksDbWeight::get().reads((2_u64).saturating_mul(y.into())))
+			.saturating_add(RocksDbWeight::get().writes(3_u64))
+			.saturating_add(RocksDbWeight::get().writes((2_u64).saturating_mul(y.into())))
+			.saturating_add(Weight::from_parts(0, 2501).saturating_mul(x.into()))
+			.saturating_add(Weight::from_parts(0, 2781).saturating_mul(y.into()))
+	}
+	/// Storage: `Funding::ProjectsDetails` (r:1 w:1)
+	/// Proof: `Funding::ProjectsDetails` (`max_values`: None, `max_size`: Some(397), added: 2872, mode: `MaxEncodedLen`)
+	/// Storage: `Funding::ProjectsMetadata` (r:1 w:0)
+	/// Proof: `Funding::ProjectsMetadata` (`max_values`: None, `max_size`: Some(502), added: 2977, mode: `MaxEncodedLen`)
+	/// Storage: `Funding::Nonce` (r:1 w:1)
+	/// Proof: `Funding::Nonce` (`max_values`: Some(1), `max_size`: Some(4), added: 499, mode: `MaxEncodedLen`)
+	/// Storage: `Random::RandomMaterial` (r:1 w:0)
+	/// Proof: `Random::RandomMaterial` (`max_values`: Some(1), `max_size`: Some(2594), added: 3089, mode: `MaxEncodedLen`)
+	/// Storage: `Funding::Bids` (r:1025 w:1024)
+	/// Proof: `Funding::Bids` (`max_values`: None, `max_size`: Some(306), added: 2781, mode: `MaxEncodedLen`)
+	/// Storage: `Oracle::Values` (r:1 w:0)
+	/// Proof: `Oracle::Values` (`max_values`: None, `max_size`: Some(36), added: 2511, mode: `MaxEncodedLen`)
+	/// Storage: `Funding::ProjectsToUpdate` (r:100 w:1)
+	/// Proof: `Funding::ProjectsToUpdate` (`max_values`: None, `max_size`: Some(26), added: 2501, mode: `MaxEncodedLen`)
+	/// The range of component `x` is `[1, 99]`.
+	/// The range of component `y` is `[0, 1024]`.
+	fn start_community_funding(x: u32, y: u32, ) -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `1417 + x * (28 ±0) + y * (272 ±0)`
+		//  Estimated: `4079 + x * (2501 ±0) + y * (2781 ±0)`
+		// Minimum execution time: 296_110_000 picoseconds.
+		Weight::from_parts(16_431_395, 4079)
+			// Standard Error: 34_714
+			.saturating_add(Weight::from_parts(2_547_873, 0).saturating_mul(x.into()))
+			// Standard Error: 3_320
+			.saturating_add(Weight::from_parts(8_045_382, 0).saturating_mul(y.into()))
+			.saturating_add(RocksDbWeight::get().reads(7_u64))
+			.saturating_add(RocksDbWeight::get().reads((1_u64).saturating_mul(x.into())))
+			.saturating_add(RocksDbWeight::get().reads((1_u64).saturating_mul(y.into())))
+			.saturating_add(RocksDbWeight::get().writes(3_u64))
+			.saturating_add(RocksDbWeight::get().writes((1_u64).saturating_mul(y.into())))
+			.saturating_add(Weight::from_parts(0, 2501).saturating_mul(x.into()))
+			.saturating_add(Weight::from_parts(0, 2781).saturating_mul(y.into()))
+	}
+}

@@ -1,4 +1,5 @@
 use super::*;
+use itertools::Itertools;
 
 // Helper functions
 // ATTENTION: if this is called directly, it will not be transactional
@@ -69,8 +70,7 @@ impl<T: Config> Pallet<T> {
 		Ok(VestingInfo { total_amount: bonded_amount, amount_per_block, duration })
 	}
 
-	/// Calculates the price (in USD) of contribution tokens for the Community and Remainder Rounds
-	pub fn calculate_weighted_average_price(
+	pub fn decide_winning_bids(
 		project_id: ProjectId,
 		end_block: BlockNumberFor<T>,
 		auction_allocation_size: BalanceOf<T>,
@@ -82,8 +82,6 @@ impl<T: Config> Pallet<T> {
 		// temp variable to store the total value of the bids (i.e price * amount = Cumulative Ticket Size)
 		let mut bid_usd_value_sum = BalanceOf::<T>::zero();
 		let project_account = Self::fund_account_id(project_id);
-		let plmc_price = T::PriceProvider::get_decimals_aware_price(PLMC_FOREIGN_ID, USD_DECIMALS, PLMC_DECIMALS)
-			.ok_or(Error::<T>::PriceNotFound)?;
 
 		let project_metadata = ProjectsMetadata::<T>::get(project_id).ok_or(Error::<T>::ProjectMetadataNotFound)?;
 		let mut highest_accepted_price = project_metadata.minimum_price;
@@ -122,20 +120,48 @@ impl<T: Config> Pallet<T> {
 					bid.final_ct_amount = buyable_amount;
 					highest_accepted_price = highest_accepted_price.max(bid.original_ct_usd_price);
 				}
+				Bids::<T>::insert((project_id, &bid.bidder, &bid.id), &bid);
 				bid
 			})
 			.partition(|bid| matches!(bid.status, BidStatus::Accepted | BidStatus::PartiallyAccepted(..)));
 
-		// Weight calculation variables
-		let accepted_bids_count = accepted_bids.len() as u32;
-		let rejected_bids_count = rejected_bids.len() as u32;
-
 		// Refund rejected bids. We do it here, so we don't have to calculate all the project
 		// prices and then fail to refund the bids.
+		let total_rejected_bids = rejected_bids.len() as u32;
 		for bid in rejected_bids.into_iter() {
 			Self::refund_bid(&bid, project_id, &project_account)?;
 			Bids::<T>::remove((project_id, &bid.bidder, &bid.id));
 		}
+
+		ProjectsDetails::<T>::mutate(project_id, |maybe_info| -> DispatchResult {
+			if let Some(info) = maybe_info {
+				info.remaining_contribution_tokens.saturating_reduce(bid_token_amount_sum);
+				info.auction_round_info = AuctionRoundInfo {
+					is_oversubscribed: if highest_accepted_price == project_metadata.minimum_price {
+						IsOversubscribed::No
+					} else {
+						IsOversubscribed::Yes { total_usd_bid: bid_usd_value_sum }
+					},
+				};
+				Ok(())
+			} else {
+				Err(Error::<T>::ProjectDetailsNotFound.into())
+			}
+		})?;
+
+		Ok((accepted_bids.len() as u32, total_rejected_bids))
+	}
+
+	/// Calculates the price (in USD) of contribution tokens for the Community and Remainder Rounds
+	pub fn calculate_weighted_average_price(project_id: ProjectId) -> Result<u32, DispatchError> {
+		let project_metadata = ProjectsMetadata::<T>::get(project_id).ok_or(Error::<T>::ProjectMetadataNotFound)?;
+		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
+		// Rejected bids were deleted in the previous block.
+		let accepted_bids = Bids::<T>::iter_prefix_values((project_id,)).collect_vec();
+		let project_account = Self::fund_account_id(project_id);
+		let plmc_price = T::PriceProvider::get_decimals_aware_price(PLMC_FOREIGN_ID, USD_DECIMALS, PLMC_DECIMALS)
+			.ok_or(Error::<T>::PriceNotFound)?;
+		let is_oversubscribed = project_details.auction_round_info.is_oversubscribed;
 
 		// Calculate the weighted price of the token for the next funding rounds, using winning bids.
 		// for example: if there are 3 winning bids,
@@ -155,31 +181,38 @@ impl<T: Config> Pallet<T> {
 
 		// lastly, sum all the weighted prices to get the final weighted price for the next funding round
 		// 3 + 10.6 + 2.6 = 16.333...
-		let calc_weighted_price_fn = |bid: &BidInfoOf<T>| -> PriceOf<T> {
-			let ticket_size = bid.original_ct_usd_price.saturating_mul_int(bid.final_ct_amount);
-			let bid_weight = <T::Price as FixedPointNumber>::saturating_from_rational(ticket_size, bid_usd_value_sum);
-			let weighted_price = bid.original_ct_usd_price.saturating_mul(bid_weight);
-			weighted_price
+
+		// After reading from storage all accepted bids when calculating the weighted price of each bid, we store them here
+		let mut weighted_token_price = match is_oversubscribed {
+			IsOversubscribed::No => project_metadata.minimum_price,
+			IsOversubscribed::Yes { total_usd_bid } => {
+				let calc_weighted_price_fn = |bid: &BidInfoOf<T>| -> PriceOf<T> {
+					let ticket_size = bid.original_ct_usd_price.saturating_mul_int(bid.final_ct_amount);
+					let bid_weight =
+						<T::Price as FixedPointNumber>::saturating_from_rational(ticket_size, total_usd_bid);
+					let weighted_price = bid.original_ct_usd_price.saturating_mul(bid_weight);
+					weighted_price
+				};
+
+				accepted_bids
+					.iter()
+					.map(calc_weighted_price_fn)
+					.fold(Zero::zero(), |a: PriceOf<T>, b: PriceOf<T>| a.saturating_add(b))
+			},
 		};
-		let mut weighted_token_price = if highest_accepted_price == project_metadata.minimum_price {
-			project_metadata.minimum_price
-		} else {
-			accepted_bids
-				.iter()
-				.map(calc_weighted_price_fn)
-				.fold(Zero::zero(), |a: T::Price, b: T::Price| a.saturating_add(b))
-		};
-		// We are 99% sure that the price cannot be less than minimum if some accepted bids have higher price, but rounding
+
+		// We are 99% sure that the price cannot be less than the minimum if some accepted bids have higher price, but rounding
 		// errors are strange, so we keep this just in case.
 		if weighted_token_price < project_metadata.minimum_price {
 			weighted_token_price = project_metadata.minimum_price;
-		}
+		};
 
 		let mut final_total_funding_reached_by_bids = BalanceOf::<T>::zero();
 
-		// Update storage
-		// Update the bid in the storage
-		for mut bid in accepted_bids.into_iter() {
+		let mut total_accepted_bids = 0u32;
+		for mut bid in accepted_bids {
+			total_accepted_bids += 1;
+
 			if bid.final_ct_usd_price > weighted_token_price || matches!(bid.status, BidStatus::PartiallyAccepted(..)) {
 				if bid.final_ct_usd_price > weighted_token_price {
 					bid.final_ct_usd_price = weighted_token_price;
@@ -247,7 +280,6 @@ impl<T: Config> Pallet<T> {
 		ProjectsDetails::<T>::mutate(project_id, |maybe_info| -> DispatchResult {
 			if let Some(info) = maybe_info {
 				info.weighted_average_price = Some(weighted_token_price);
-				info.remaining_contribution_tokens.saturating_reduce(bid_token_amount_sum);
 				info.funding_amount_reached_usd.saturating_accrue(final_total_funding_reached_by_bids);
 				Ok(())
 			} else {
@@ -255,7 +287,7 @@ impl<T: Config> Pallet<T> {
 			}
 		})?;
 
-		Ok((accepted_bids_count, rejected_bids_count))
+		Ok(total_accepted_bids)
 	}
 
 	/// Refund a bid because of `reason`.

@@ -290,14 +290,14 @@ pub const HOURS: BlockNumber = 300u64;
 
 // REMARK: In the production configuration we use DAYS instead of HOURS.
 parameter_types! {
-	pub const EvaluationDuration: BlockNumber = 3u64;
-	pub const AuctionInitializePeriodDuration: BlockNumber = 3u64;
-	pub const AuctionOpeningDuration: BlockNumber = 3u64;
-	pub const AuctionClosingDuration: BlockNumber = 3u64;
-	pub const CommunityRoundDuration: BlockNumber = 3u64;
-	pub const RemainderFundingDuration: BlockNumber = 3u64;
-	pub const ManualAcceptanceDuration: BlockNumber = 3u64;
-	pub const SuccessToSettlementTime: BlockNumber = 3u64;
+	pub const EvaluationDuration: BlockNumber = 10u64;
+	pub const AuctionInitialiePeriodDuration: BlockNumber = 10u64;
+	pub const AuctionOpeningDuration: BlockNumber = 10u64;
+	pub const AuctionClosingDuration: BlockNumber = 10u64;
+	pub const CommunityRoundDuration: BlockNumber = 10u64;
+	pub const RemainderFundingDuration: BlockNumber = 10u64;
+	pub const ManualAcceptanceDuration: BlockNumber = 10u64;
+	pub const SuccessToSettlementTime: BlockNumber = 10u64;
 
 	pub const FundingPalletId: PalletId = PalletId(*b"py/cfund");
 	pub FeeBrackets: Vec<(Percent, Balance)> = vec![
@@ -395,7 +395,7 @@ impl Config for TestRuntime {
 	type AllPalletsWithoutSystem =
 		(Balances, ContributionTokens, ForeignAssets, PolimecFunding, Vesting, RandomnessCollectiveFlip);
 	type AuctionClosingDuration = AuctionClosingDuration;
-	type AuctionInitializePeriodDuration = AuctionInitializePeriodDuration;
+	type AuctionInitializePeriodDuration = AuctionInitialiePeriodDuration;
 	type AuctionOpeningDuration = AuctionOpeningDuration;
 	type Balance = Balance;
 	type BlockNumber = BlockNumber;
