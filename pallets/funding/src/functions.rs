@@ -85,9 +85,9 @@ impl<T: Config> Pallet<T> {
 		ensure!(project_metadata.policy_ipfs_cid.is_some(), Error::<T>::CidNotProvided);
 
 		// * Calculate new variables *
-		let evaluation_end_block = now + T::EvaluationDuration::get();
+		let evaluation_end_block = now.saturating_add(T::EvaluationDuration::get()).saturating_sub(One::one());
 		project_details.phase_transition_points.application.update(None, Some(now));
-		project_details.phase_transition_points.evaluation.update(Some(now + 1u32.into()), Some(evaluation_end_block));
+		project_details.phase_transition_points.evaluation.update(Some(now), Some(evaluation_end_block));
 		project_details.is_frozen = true;
 		project_details.status = ProjectStatus::EvaluationRound;
 
@@ -162,9 +162,10 @@ impl<T: Config> Pallet<T> {
 		let usd_total_amount_bonded = project_details.evaluation_round_info.total_bonded_usd;
 		let evaluation_target_usd = <T as Config>::EvaluationSuccessThreshold::get() * fundraising_target_usd;
 
-		let auction_initialize_period_start_block = now + 1u32.into();
-		let auction_initialize_period_end_block =
-			auction_initialize_period_start_block + T::AuctionInitializePeriodDuration::get();
+		let auction_initialize_period_start_block = now;
+		let auction_initialize_period_end_block = auction_initialize_period_start_block
+			.saturating_add(T::AuctionInitializePeriodDuration::get())
+			.saturating_sub(One::one());
 
 		// Check which logic path to follow
 		let is_funded = usd_total_amount_bonded >= evaluation_target_usd;
@@ -267,8 +268,8 @@ impl<T: Config> Pallet<T> {
 		ensure!(project_details.status == ProjectStatus::AuctionInitializePeriod, Error::<T>::IncorrectRound);
 
 		// * Calculate new variables *
-		let opening_start_block = now + 1u32.into();
-		let opening_end_block = now + T::AuctionOpeningDuration::get();
+		let opening_start_block = now;
+		let opening_end_block = now.saturating_add(T::AuctionOpeningDuration::get()).saturating_sub(One::one());
 
 		// * Update Storage *
 		project_details
@@ -340,8 +341,8 @@ impl<T: Config> Pallet<T> {
 		ensure!(project_details.status == ProjectStatus::AuctionOpening, Error::<T>::IncorrectRound);
 
 		// * Calculate new variables *
-		let closing_start_block = now + 1u32.into();
-		let closing_end_block = now + T::AuctionClosingDuration::get();
+		let closing_start_block = now;
+		let closing_end_block = now.saturating_add(T::AuctionClosingDuration::get()).saturating_sub(One::one());
 
 		// * Update Storage *
 		project_details
@@ -407,8 +408,8 @@ impl<T: Config> Pallet<T> {
 
 		// * Calculate new variables *
 		let end_block = Self::select_random_block(auction_closing_start_block, auction_closing_end_block);
-		let community_start_block = now + 1u32.into();
-		let community_end_block = now + T::CommunityFundingDuration::get();
+		let community_start_block = now;
+		let community_end_block = now.saturating_add(T::CommunityFundingDuration::get()).saturating_sub(One::one());
 		// * Update Storage *
 		let calculation_result = Self::calculate_weighted_average_price(
 			project_id,
@@ -495,8 +496,8 @@ impl<T: Config> Pallet<T> {
 		);
 
 		// * Calculate new variables *
-		let remainder_start_block = now + 1u32.into();
-		let remainder_end_block = now + T::RemainderFundingDuration::get();
+		let remainder_start_block = now;
+		let remainder_end_block = now.saturating_add(T::RemainderFundingDuration::get()).saturating_sub(One::one());
 
 		// * Update Storage *
 		project_details

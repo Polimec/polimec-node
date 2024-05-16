@@ -56,6 +56,7 @@ fn automatic_acceptance_on_manual_decision_after_time_delta() {
 	let project_id = project_id;
 	inst.advance_time(1u64 + <TestRuntime as Config>::ManualAcceptanceDuration::get()).unwrap();
 	assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::FundingSuccessful);
+	dbg!(inst.get_project_details(project_id));
 	inst.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get()).unwrap();
 
 	inst.test_ct_created_for(project_id);

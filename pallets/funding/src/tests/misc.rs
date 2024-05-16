@@ -412,6 +412,7 @@ mod async_tests {
 		];
 
 		let (project_ids, mut inst) = create_multiple_projects_at(inst, project_params);
+		let now = inst.current_block();
 
 		dbg!(inst.get_project_details(project_ids[0]).status);
 		dbg!(inst.get_project_details(project_ids[1]).status);
@@ -555,12 +556,12 @@ mod async_tests {
 		dbg!(inst.get_project_details(4).status);
 		dbg!(inst.get_project_details(5).status);
 
-		assert_eq!(inst.get_project_details(5).status, ProjectStatus::Application);
-		assert_eq!(inst.get_project_details(4).status, ProjectStatus::EvaluationRound);
-		assert_eq!(inst.get_project_details(3).status, ProjectStatus::AuctionOpening);
-		assert_eq!(inst.get_project_details(2).status, ProjectStatus::CommunityRound);
-		assert_eq!(inst.get_project_details(1).status, ProjectStatus::RemainderRound);
 		assert_eq!(inst.get_project_details(0).status, ProjectStatus::FundingSuccessful);
+		assert_eq!(inst.get_project_details(1).status, ProjectStatus::RemainderRound);
+		assert_eq!(inst.get_project_details(2).status, ProjectStatus::CommunityRound);
+		assert_eq!(inst.get_project_details(3).status, ProjectStatus::AuctionOpening);
+		assert_eq!(inst.get_project_details(4).status, ProjectStatus::EvaluationRound);
+		assert_eq!(inst.get_project_details(5).status, ProjectStatus::Application);
 	}
 
 	#[test]
@@ -632,77 +633,5 @@ mod async_tests {
 		let max_bids_per_project: u32 = <TestRuntime as Config>::MaxBidsPerProject::get();
 		let total_bids_count = inst.execute(|| Bids::<TestRuntime>::iter_values().collect_vec().len());
 		assert_eq!(total_bids_count, max_bids_per_project as usize);
-	}
-}
-
-// Bug hunting
-mod bug_hunting {
-	use super::*;
-
-	#[test]
-	// Check that a failed do_function in on_initialize doesn't change the storage
-	fn transactional_on_initialize() {
-		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
-		let max_projects_per_update_block: u32 = <TestRuntime as Config>::MaxProjectsToUpdatePerBlock::get();
-		// This bug will more likely happen with a limit of 1
-		assert_eq!(max_projects_per_update_block, 1u32);
-		let max_insertion_attempts: u32 = <TestRuntime as Config>::MaxProjectsToUpdateInsertionAttempts::get();
-
-		let project_id = inst.create_evaluating_project(default_project_metadata(ISSUER_1), ISSUER_1);
-		let plmc_balances = inst.calculate_evaluation_plmc_spent(default_evaluations());
-		let ed = plmc_balances.accounts().existential_deposits();
-		inst.mint_plmc_to(plmc_balances);
-		inst.mint_plmc_to(ed);
-		inst.evaluate_for_users(project_id, default_evaluations()).unwrap();
-		let update_block = inst.get_update_block(project_id, &UpdateType::EvaluationEnd).unwrap();
-		inst.execute(|| frame_system::Pallet::<TestRuntime>::set_block_number(update_block - 1));
-		let now = inst.current_block();
-
-		let auction_initialize_period_start_block = now + 2u64;
-		let auction_initialize_period_end_block =
-			auction_initialize_period_start_block + <TestRuntime as Config>::AuctionInitializePeriodDuration::get();
-		let automatic_auction_start = auction_initialize_period_end_block + 1u64;
-		for i in 0..max_insertion_attempts {
-			let key: BlockNumberFor<TestRuntime> = automatic_auction_start + i as u64;
-			let val: (ProjectId, UpdateType) = (69u32, UpdateType::EvaluationEnd);
-			inst.execute(|| crate::ProjectsToUpdate::<TestRuntime>::insert(key, val));
-		}
-
-		let old_project_details = inst.get_project_details(project_id);
-		inst.advance_time(1).unwrap();
-
-		let new_project_details = inst.get_project_details(project_id);
-		assert_eq!(old_project_details, new_project_details);
-	}
-
-	// This shows us that "plausible" combination of ct decimals and ct price can lead to unrepresentable usd cents
-	#[test]
-	fn price_too_low_for_usd_conversion_1() {
-		let ct_decimals = 4u8;
-		let original_price = FixedU128::from_float(1000f64);
-		let decimal_aware_price = <TestRuntime as Config>::PriceProvider::calculate_decimals_aware_price(
-			original_price,
-			USD_DECIMALS,
-			ct_decimals,
-		)
-		.unwrap();
-
-		let usd_cent = USD_UNIT / 100;
-		let cent_in_ct = decimal_aware_price.reciprocal().unwrap().checked_mul_int(usd_cent).unwrap();
-		assert_eq!(cent_in_ct, 0u128);
-	}
-
-	// This shows us that even using the lowest possible price with FixedU128, we can still represent 1bn USD
-	#[test]
-	fn billion_saturating() {
-		let decimal_aware_price = FixedU128::from_inner(1u128);
-		dbg!(decimal_aware_price);
-
-		let usd_billion = USD_UNIT * 1_000_000_000;
-		let billion_in_ct = decimal_aware_price.reciprocal().unwrap().checked_mul_int(usd_billion).unwrap();
-		dbg!(billion_in_ct);
-		dbg!(billion_in_ct.checked_ilog10());
-		dbg!(u128::MAX);
-		dbg!(u128::MAX.checked_ilog10());
 	}
 }

@@ -305,8 +305,8 @@ mod start_evaluation_extrinsic {
 				phase_transition_points: PhaseTransitionPoints {
 					application: BlockNumberPair { start: Some(1u64), end: Some(1u64) },
 					evaluation: BlockNumberPair {
-						start: Some(2u64),
-						end: Some(1u64 + <TestRuntime as Config>::EvaluationDuration::get()),
+						start: Some(1u64),
+						end: Some(<TestRuntime as Config>::EvaluationDuration::get()),
 					},
 					auction_initialize_period: BlockNumberPair { start: None, end: None },
 					auction_opening: BlockNumberPair { start: None, end: None },

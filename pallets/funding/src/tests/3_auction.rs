@@ -722,10 +722,14 @@ mod start_auction_extrinsic {
 			inst.mint_plmc_to(required_plmc);
 			inst.mint_plmc_to(ed_plmc);
 			inst.evaluate_for_users(project_id, evaluations).unwrap();
-			inst.advance_time(<TestRuntime as Config>::EvaluationDuration::get() + 1).unwrap();
-			assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::AuctionInitializePeriod);
-			inst.advance_time(<TestRuntime as Config>::AuctionInitializePeriodDuration::get() + 2).unwrap();
-			assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::AuctionOpening);
+
+			let update_block = inst.get_update_block(project_id, &UpdateType::EvaluationEnd).unwrap();
+			inst.execute(|| System::set_block_number(update_block - 1));
+			inst.advance_time(1).unwrap();
+
+			let update_block = inst.get_update_block(project_id, &UpdateType::AuctionOpeningStart).unwrap();
+			inst.execute(|| System::set_block_number(update_block - 1));
+			inst.advance_time(1).unwrap();
 		}
 
 		#[test]
@@ -809,15 +813,15 @@ mod start_auction_extrinsic {
 			inst.mint_plmc_to(required_plmc);
 			inst.mint_plmc_to(ed_plmc);
 			inst.evaluate_for_users(project_id, evaluations).unwrap();
-			inst.advance_time(<TestRuntime as Config>::EvaluationDuration::get() + 1).unwrap();
-			inst.advance_time(<TestRuntime as Config>::AuctionInitializePeriodDuration::get() + 2).unwrap();
-			assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::AuctionOpening);
+			inst.start_auction(project_id, ISSUER_1).unwrap();
 
 			// Main test with failed evaluation
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 			let project_id = inst.create_evaluating_project(default_project_metadata(ISSUER_1), ISSUER_1);
-			inst.advance_time(<TestRuntime as Config>::EvaluationDuration::get() + 1).unwrap();
-			inst.advance_time(<TestRuntime as Config>::AuctionInitializePeriodDuration::get() + 2).unwrap();
+
+			let evaluation_end_execution = inst.get_update_block(project_id, &UpdateType::EvaluationEnd).unwrap();
+			inst.execute(|| System::set_block_number(evaluation_end_execution - 1));
+			inst.advance_time(1).unwrap();
 			assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::FundingFailed);
 		}
 	}

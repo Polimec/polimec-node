@@ -398,6 +398,10 @@ pub fn create_project_with_funding_percentage(
 			assert!(maybe_decision.is_some());
 			inst.execute(|| PolimecFunding::do_decide_project_outcome(ISSUER_1, project_id, maybe_decision.unwrap()))
 				.unwrap();
+
+			let decision_execution =
+				inst.get_update_block(project_id, &UpdateType::ProjectDecision(maybe_decision.unwrap())).unwrap();
+			inst.jump_to_block(decision_execution);
 		},
 		ProjectStatus::FundingSuccessful => {
 			assert!(percentage >= 90);
@@ -408,7 +412,9 @@ pub fn create_project_with_funding_percentage(
 		_ => panic!("unexpected project status"),
 	};
 
-	inst.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get() + 1u64).unwrap();
+	let settlement_execution = inst.get_update_block(project_id, &UpdateType::StartSettlement).unwrap();
+	inst.jump_to_block(settlement_execution);
+
 	let funding_sucessful = match percentage {
 		0..=33 => false,
 		34..=89 if matches!(maybe_decision, Some(FundingOutcomeDecision::RejectFunding)) => false,
@@ -426,6 +432,3 @@ pub fn create_project_with_funding_percentage(
 	}
 	(inst, project_id)
 }
-
-// 0xa1151597e1a929babe1dcfc6bc3b90e7f931af4d91f609b105333247ba08ab32
-// 0xa1151597e1a929babe1dcfc6bc3b90e718001f24b6aa0f335e9ef0f5d75a9695

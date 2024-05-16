@@ -171,6 +171,7 @@ pub async fn async_create_evaluating_project<
 	let mut inst = instantiator.lock().await;
 
 	inst.start_evaluation(project_id, issuer).unwrap();
+	let now = inst.current_block();
 	project_id
 }
 
@@ -191,7 +192,7 @@ pub async fn async_start_auction<
 	if project_details.status == ProjectStatus::EvaluationRound {
 		let update_block = inst.get_update_block(project_id, &UpdateType::EvaluationEnd).unwrap();
 		let notify = Arc::new(Notify::new());
-		block_orchestrator.add_awaiting_project(update_block + 1u32.into(), notify.clone()).await;
+		block_orchestrator.add_awaiting_project(update_block, notify.clone()).await;
 
 		// Wait for the notification that our desired block was reached to continue
 		drop(inst);
@@ -282,7 +283,7 @@ pub async fn async_start_community_funding<
 	let mut inst = instantiator.lock().await;
 
 	let update_block = inst.get_update_block(project_id, &UpdateType::AuctionClosingStart).unwrap();
-	let closing_start = update_block + 1u32.into();
+	let closing_start = update_block;
 
 	let notify = Arc::new(Notify::new());
 
@@ -296,7 +297,7 @@ pub async fn async_start_community_funding<
 
 	inst = instantiator.lock().await;
 	let update_block = inst.get_update_block(project_id, &UpdateType::CommunityFundingStart).unwrap();
-	let community_start = update_block + 1u32.into();
+	let community_start = update_block;
 
 	let notify = Arc::new(Notify::new());
 
@@ -433,7 +434,7 @@ pub async fn async_start_remainder_or_end_funding<
 	assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::CommunityRound);
 
 	let update_block = inst.get_update_block(project_id, &UpdateType::RemainderFundingStart).unwrap();
-	let remainder_start = update_block + 1u32.into();
+	let remainder_start = update_block;
 
 	let notify = Arc::new(Notify::new());
 
@@ -550,7 +551,9 @@ pub async fn async_finish_funding<
 	let update_block = inst.get_update_block(project_id, &UpdateType::FundingEnd).unwrap();
 
 	let notify = Arc::new(Notify::new());
-	block_orchestrator.add_awaiting_project(update_block + 1u32.into(), notify.clone()).await;
+	block_orchestrator.add_awaiting_project(update_block, notify.clone()).await;
+	drop(inst);
+	notify.notified().await;
 	Ok(())
 }
 
@@ -768,7 +771,9 @@ pub async fn async_create_project_at<
 	let time_to_community: BlockNumberFor<T> =
 		time_to_auction + <T as Config>::AuctionOpeningDuration::get() + <T as Config>::AuctionClosingDuration::get();
 	let time_to_remainder: BlockNumberFor<T> = time_to_community + <T as Config>::CommunityFundingDuration::get();
-	let time_to_finish: BlockNumberFor<T> = time_to_remainder + <T as Config>::RemainderFundingDuration::get();
+	let time_to_finish: BlockNumberFor<T> = time_to_remainder +
+		<T as Config>::RemainderFundingDuration::get() +
+		<T as Config>::SuccessToSettlementTime::get();
 	let mut inst = mutex_inst.lock().await;
 	let now = inst.current_block();
 	drop(inst);
@@ -786,6 +791,7 @@ pub async fn async_create_project_at<
 			block_orchestrator.add_awaiting_project(now + time_to_finish - time_to_evaluation, notify.clone()).await;
 			// Wait for the notification that our desired block was reached to continue
 			notify.notified().await;
+			let now = mutex_inst.lock().await.current_block();
 			async_create_evaluating_project(
 				mutex_inst.clone(),
 				test_project_params.metadata,

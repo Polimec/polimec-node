@@ -165,6 +165,16 @@ impl<
 		})
 	}
 
+	pub fn jump_to_block(&mut self, block: BlockNumberFor<T>) {
+		let current_block = self.current_block();
+		if block > current_block {
+			self.execute(|| frame_system::Pallet::<T>::set_block_number(block - One::one()));
+			self.advance_time(One::one()).unwrap();
+		} else {
+			panic!("Cannot jump to a block in the present or past")
+		}
+	}
+
 	pub fn do_free_plmc_assertions(&mut self, correct_funds: Vec<UserToPLMCBalance<T>>) {
 		for UserToPLMCBalance { account, plmc_amount } in correct_funds {
 			self.execute(|| {
@@ -230,6 +240,10 @@ impl<
 	pub fn test_ct_created_for(&mut self, project_id: ProjectId) {
 		self.execute(|| {
 			let metadata = ProjectsMetadata::<T>::get(project_id).unwrap();
+			assert!(
+				<T as Config>::ContributionTokenCurrency::asset_exists(project_id),
+				"Asset should exist, since funding was successful"
+			);
 			assert_eq!(
 				<T as Config>::ContributionTokenCurrency::name(project_id),
 				metadata.token_information.name.to_vec()
@@ -430,10 +444,9 @@ impl<
 		let project_details = self.get_project_details(project_id);
 
 		if project_details.status == ProjectStatus::EvaluationRound {
-			let evaluation_end = project_details.phase_transition_points.evaluation.end().unwrap();
-			let auction_start = evaluation_end.saturating_add(2u32.into());
-			let blocks_to_start = auction_start.saturating_sub(self.current_block());
-			self.advance_time(blocks_to_start + 1u32.into()).unwrap();
+			let now = self.current_block();
+			let evaluation_end_execution = self.get_update_block(project_id, &UpdateType::EvaluationEnd).unwrap();
+			self.advance_time(evaluation_end_execution - now).unwrap();
 		};
 
 		assert_eq!(self.get_project_details(project_id).status, ProjectStatus::AuctionInitializePeriod);
@@ -501,26 +514,14 @@ impl<
 	}
 
 	pub fn start_community_funding(&mut self, project_id: ProjectId) -> Result<(), DispatchError> {
-		let opening_end = self
-			.get_project_details(project_id)
-			.phase_transition_points
-			.auction_opening
-			.end()
-			.expect("Auction Opening end point should exist");
-
-		self.execute(|| frame_system::Pallet::<T>::set_block_number(opening_end));
-		// run on_initialize
-		self.advance_time(2u32.into()).unwrap();
-
-		let closing_end = self
-			.get_project_details(project_id)
-			.phase_transition_points
-			.auction_closing
-			.end()
-			.expect("closing end point should exist");
-
-		self.execute(|| frame_system::Pallet::<T>::set_block_number(closing_end));
-		// run on_initialize
+		if let Some(update_block) = self.get_update_block(project_id, &UpdateType::AuctionClosingStart) {
+			self.execute(|| frame_system::Pallet::<T>::set_block_number(update_block - One::one()));
+			self.advance_time(1u32.into()).unwrap();
+		}
+		let Some(update_block) = self.get_update_block(project_id, &UpdateType::CommunityFundingStart) else {
+			unreachable!()
+		};
+		self.execute(|| frame_system::Pallet::<T>::set_block_number(update_block - One::one()));
 		self.advance_time(1u32.into()).unwrap();
 
 		ensure!(
