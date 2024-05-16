@@ -412,14 +412,6 @@ mod async_tests {
 		];
 
 		let (project_ids, mut inst) = create_multiple_projects_at(inst, project_params);
-		let now = inst.current_block();
-
-		dbg!(inst.get_project_details(project_ids[0]).status);
-		dbg!(inst.get_project_details(project_ids[1]).status);
-		dbg!(inst.get_project_details(project_ids[2]).status);
-		dbg!(inst.get_project_details(project_ids[3]).status);
-		dbg!(inst.get_project_details(project_ids[4]).status);
-		dbg!(inst.get_project_details(project_ids[5]).status);
 
 		assert_eq!(inst.get_project_details(project_ids[0]).status, ProjectStatus::Application);
 		assert_eq!(inst.get_project_details(project_ids[1]).status, ProjectStatus::EvaluationRound);
@@ -548,13 +540,6 @@ mod async_tests {
 
 		let ext = sp_io::TestExternalities::new(t);
 		let mut inst = MockInstantiator::new(Some(RefCell::new(ext)));
-
-		dbg!(inst.get_project_details(0).status);
-		dbg!(inst.get_project_details(1).status);
-		dbg!(inst.get_project_details(2).status);
-		dbg!(inst.get_project_details(3).status);
-		dbg!(inst.get_project_details(4).status);
-		dbg!(inst.get_project_details(5).status);
 
 		assert_eq!(inst.get_project_details(0).status, ProjectStatus::FundingSuccessful);
 		assert_eq!(inst.get_project_details(1).status, ProjectStatus::RemainderRound);

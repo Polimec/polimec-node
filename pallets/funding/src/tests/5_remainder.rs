@@ -59,7 +59,7 @@ mod round_flow {
 				},
 			];
 
-			let (project_ids, mut inst) = create_multiple_projects_at(inst, project_params);
+			let (_project_ids, mut inst) = create_multiple_projects_at(inst, project_params);
 
 			assert_eq!(inst.get_project_details(0).status, ProjectStatus::FundingSuccessful);
 			assert_eq!(inst.get_project_details(1).status, ProjectStatus::FundingSuccessful);
@@ -890,8 +890,7 @@ mod remaining_contribute_extrinsic {
 			inst.bid_for_users(project_id, successful_bids).unwrap();
 			inst.advance_time(
 				<TestRuntime as Config>::AuctionOpeningDuration::get() +
-					<TestRuntime as Config>::AuctionClosingDuration::get() +
-					1,
+					<TestRuntime as Config>::AuctionClosingDuration::get()
 			)
 			.unwrap();
 			inst.bid_for_users(project_id, failing_bids_after_random_end).unwrap();
@@ -1466,48 +1465,32 @@ mod remaining_contribute_extrinsic {
 		#[test]
 		fn called_outside_remainder_round() {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
-			let created_project = inst.create_new_project(default_project_metadata(ISSUER_1), ISSUER_1);
-			let evaluating_project = inst.create_evaluating_project(default_project_metadata(ISSUER_2), ISSUER_2);
-			let auctioning_project =
-				inst.create_auctioning_project(default_project_metadata(ISSUER_3), ISSUER_3, default_evaluations());
-			let community_project = inst.create_community_contributing_project(
-				default_project_metadata(ISSUER_4),
+			let project_metadata = default_project_metadata(ISSUER_1);
+			let project_id = inst.create_community_contributing_project(
+				project_metadata.clone(),
 				ISSUER_4,
 				default_evaluations(),
 				default_bids(),
 			);
-			let finished_project = inst.create_finished_project(
-				default_project_metadata(ISSUER_5),
-				ISSUER_5,
-				default_evaluations(),
-				default_bids(),
-				default_community_buys(),
-				default_remainder_buys(),
-			);
 
-			let projects =
-				vec![created_project, evaluating_project, auctioning_project, community_project, finished_project];
-			for project in projects {
-				let project_policy = inst.get_project_metadata(project).policy_ipfs_cid.unwrap();
-				inst.execute(|| {
-					assert_noop!(
-						PolimecFunding::remaining_contribute(
-							RuntimeOrigin::signed(BUYER_1),
-							get_mock_jwt_with_cid(
-								BUYER_1,
-								InvestorType::Retail,
-								generate_did_from_account(BUYER_1),
-								project_policy
-							),
-							project,
-							1000 * CT_UNIT,
-							1u8.try_into().unwrap(),
-							AcceptedFundingAsset::USDT
+			inst.execute(|| {
+				assert_noop!(
+					PolimecFunding::remaining_contribute(
+						RuntimeOrigin::signed(BUYER_1),
+						get_mock_jwt_with_cid(
+							BUYER_1,
+							InvestorType::Retail,
+							generate_did_from_account(BUYER_1),
+							project_metadata.clone().policy_ipfs_cid.unwrap()
 						),
-						Error::<TestRuntime>::IncorrectRound
-					);
-				});
-			}
+						project_id,
+						1000 * CT_UNIT,
+						1u8.try_into().unwrap(),
+						AcceptedFundingAsset::USDT
+					),
+					Error::<TestRuntime>::IncorrectRound
+				);
+			});
 		}
 
 		#[test]

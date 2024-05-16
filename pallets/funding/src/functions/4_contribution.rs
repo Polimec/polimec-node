@@ -27,33 +27,26 @@ impl<T: Config> Pallet<T> {
 	pub fn do_start_community_funding(project_id: ProjectId) -> DispatchResultWithPostInfo {
 		// * Get variables *
 		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
-		let project_metadata = ProjectsMetadata::<T>::get(project_id).ok_or(Error::<T>::ProjectMetadataNotFound)?;
 		let now = <frame_system::Pallet<T>>::block_number();
-		let auction_closing_start_block =
-			project_details.phase_transition_points.auction_closing.start().ok_or(Error::<T>::TransitionPointNotSet)?;
 		let auction_closing_end_block =
 			project_details.phase_transition_points.auction_closing.end().ok_or(Error::<T>::TransitionPointNotSet)?;
 
 		// * Validity checks *
 		ensure!(now > auction_closing_end_block, Error::<T>::TooEarlyForRound);
-		ensure!(project_details.status == ProjectStatus::AuctionClosing, Error::<T>::IncorrectRound);
+		ensure!(project_details.status == ProjectStatus::CalculatingWAP, Error::<T>::IncorrectRound);
 
 		// * Calculate new variables *
-		let end_block = Self::select_random_block(auction_closing_start_block, auction_closing_end_block);
 		let community_start_block = now;
 		let community_end_block = now.saturating_add(T::CommunityFundingDuration::get()).saturating_sub(One::one());
+
 		// * Update Storage *
-		let calculation_result = Self::calculate_weighted_average_price(
-			project_id,
-			end_block,
-			project_metadata.auction_round_allocation_percentage * project_metadata.total_allocation_size,
-		);
+		let wap_result = Self::calculate_weighted_average_price(project_id);
+
 		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
-		match calculation_result {
+		match wap_result {
 			Err(e) => return Err(DispatchErrorWithPostInfo { post_info: ().into(), error: e }),
-			Ok((accepted_bids_count, rejected_bids_count)) => {
+			Ok(winning_bids_count) => {
 				// Get info again after updating it with new price.
-				project_details.phase_transition_points.random_closing_ending = Some(end_block);
 				project_details
 					.phase_transition_points
 					.community
@@ -75,10 +68,12 @@ impl<T: Config> Pallet<T> {
 					phase: ProjectPhases::CommunityFunding,
 				});
 
+				//TODO: address this
+				let rejected_bids_count = 0;
 				Ok(PostDispatchInfo {
 					actual_weight: Some(WeightInfoOf::<T>::start_community_funding(
 						insertion_iterations,
-						accepted_bids_count,
+						winning_bids_count,
 						rejected_bids_count,
 					)),
 					pays_fee: Pays::Yes,

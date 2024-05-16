@@ -47,7 +47,7 @@ pub fn usdt_id() -> u32 {
 	AcceptedFundingAsset::USDT.to_assethub_id()
 }
 
-pub fn default_project<T: Config>(issuer: AccountIdOf<T>) -> ProjectMetadataOf<T>
+pub fn default_project_metadata<T: Config>(issuer: AccountIdOf<T>) -> ProjectMetadataOf<T>
 where
 	T::Price: From<u128>,
 	T::Hash: From<H256>,
@@ -105,7 +105,7 @@ where
 {
 	let threshold = <T as Config>::EvaluationSuccessThreshold::get();
 	let default_project_metadata: ProjectMetadataOf<T> =
-		default_project::<T>(account::<AccountIdOf<T>>("issuer", 0, 0));
+		default_project_metadata::<T>(account::<AccountIdOf<T>>("issuer", 0, 0));
 	let funding_target =
 		default_project_metadata.minimum_price.saturating_mul_int(default_project_metadata.total_allocation_size);
 	let evaluation_target = threshold * funding_target;
@@ -132,7 +132,7 @@ where
 	<T as Config>::Balance: From<u128>,
 	T::Hash: From<H256>,
 {
-	let default_project_metadata = default_project::<T>(account::<AccountIdOf<T>>("issuer", 0, 0));
+	let default_project_metadata = default_project_metadata::<T>(account::<AccountIdOf<T>>("issuer", 0, 0));
 	let auction_funding_target = default_project_metadata.minimum_price.saturating_mul_int(
 		default_project_metadata.auction_round_allocation_percentage * default_project_metadata.total_allocation_size,
 	);
@@ -155,7 +155,7 @@ where
 	T::Hash: From<H256>,
 {
 	let inst = BenchInstantiator::<T>::new(None);
-	let default_project = default_project::<T>(account::<AccountIdOf<T>>("issuer", 0, 0));
+	let default_project = default_project_metadata::<T>(account::<AccountIdOf<T>>("issuer", 0, 0));
 	let total_ct_for_bids = default_project.auction_round_allocation_percentage * default_project.total_allocation_size;
 	let total_usd_for_bids = default_project.minimum_price.checked_mul_int(total_ct_for_bids).unwrap();
 	inst.generate_bids_from_total_usd(
@@ -174,7 +174,7 @@ where
 	T::Hash: From<H256>,
 {
 	let inst = BenchInstantiator::<T>::new(None);
-	let default_project_metadata = default_project::<T>(account::<AccountIdOf<T>>("issuer", 0, 0));
+	let default_project_metadata = default_project_metadata::<T>(account::<AccountIdOf<T>>("issuer", 0, 0));
 
 	let funding_target =
 		default_project_metadata.minimum_price.saturating_mul_int(default_project_metadata.total_allocation_size);
@@ -200,7 +200,7 @@ where
 	T::Hash: From<H256>,
 {
 	let inst = BenchInstantiator::<T>::new(None);
-	let default_project_metadata = default_project::<T>(account::<AccountIdOf<T>>("issuer", 0, 0));
+	let default_project_metadata = default_project_metadata::<T>(account::<AccountIdOf<T>>("issuer", 0, 0));
 
 	let funding_target =
 		default_project_metadata.minimum_price.saturating_mul_int(default_project_metadata.total_allocation_size);
@@ -316,7 +316,7 @@ where
 			let issuer = string_account::<AccountIdOf<T>>(issuer_name, 0, 0);
 			TestProjectParams::<T> {
 				expected_state: state,
-				metadata: default_project::<T>(issuer.clone()),
+				metadata: default_project_metadata::<T>(issuer.clone()),
 				issuer: issuer.clone(),
 				evaluations: default_evaluations::<T>(),
 				bids: default_bids::<T>(),
@@ -382,7 +382,7 @@ mod benchmarks {
 
 		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
 		whitelist_account!(issuer);
-		let project_metadata = default_project::<T>(issuer.clone());
+		let project_metadata = default_project_metadata::<T>(issuer.clone());
 
 		let metadata_deposit = T::ContributionTokenCurrency::calc_metadata_deposit(
 			project_metadata.token_information.name.as_slice(),
@@ -431,7 +431,7 @@ mod benchmarks {
 		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
 		whitelist_account!(issuer);
 
-		let project_metadata = default_project::<T>(issuer.clone());
+		let project_metadata = default_project_metadata::<T>(issuer.clone());
 		let project_id = inst.create_new_project(project_metadata.clone(), issuer.clone());
 		let jwt = get_mock_jwt_with_cid(
 			issuer.clone(),
@@ -464,7 +464,7 @@ mod benchmarks {
 		let issuer_funding = account::<AccountIdOf<T>>("issuer_funding", 0, 0);
 		whitelist_account!(issuer);
 
-		let project_metadata = default_project::<T>(issuer.clone());
+		let project_metadata = default_project_metadata::<T>(issuer.clone());
 		let project_id = inst.create_new_project(project_metadata.clone(), issuer.clone());
 
 		let project_metadata = ProjectMetadataOf::<T> {
@@ -566,7 +566,7 @@ mod benchmarks {
 		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
 		whitelist_account!(issuer);
 
-		let project_metadata = default_project::<T>(issuer.clone());
+		let project_metadata = default_project_metadata::<T>(issuer.clone());
 		let project_id = inst.create_new_project(project_metadata.clone(), issuer.clone());
 
 		// start_evaluation fn will try to add an automatic transition 1 block after the last evaluation block
@@ -619,7 +619,7 @@ mod benchmarks {
 		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
 		whitelist_account!(issuer);
 
-		let project_metadata = default_project::<T>(issuer.clone());
+		let project_metadata = default_project_metadata::<T>(issuer.clone());
 		let project_id = inst.create_evaluating_project(project_metadata.clone(), issuer.clone());
 
 		let evaluations = default_evaluations();
@@ -679,7 +679,7 @@ mod benchmarks {
 		let test_evaluator = account::<AccountIdOf<T>>("evaluator", 0, 0);
 		whitelist_account!(test_evaluator);
 
-		let project_metadata = default_project::<T>(issuer.clone());
+		let project_metadata = default_project_metadata::<T>(issuer.clone());
 		let project_id = inst.create_evaluating_project(project_metadata.clone(), issuer);
 
 		let existing_evaluation = UserToUSDBalance::new(test_evaluator.clone(), (200 * USD_UNIT).into());
@@ -790,7 +790,7 @@ mod benchmarks {
 		let bidder = account::<AccountIdOf<T>>("bidder", 0, 0);
 		whitelist_account!(bidder);
 
-		let mut project_metadata = default_project::<T>(issuer.clone());
+		let mut project_metadata = default_project_metadata::<T>(issuer.clone());
 		project_metadata.mainnet_token_max_supply =
 			(100_000 * CT_UNIT).try_into().unwrap_or_else(|_| panic!("Failed to create BalanceOf"));
 		project_metadata.total_allocation_size =
@@ -1122,7 +1122,7 @@ mod benchmarks {
 		let contributor = account::<AccountIdOf<T>>("contributor", 0, 0);
 		whitelist_account!(contributor);
 
-		let project_metadata = default_project::<T>(issuer.clone());
+		let project_metadata = default_project_metadata::<T>(issuer.clone());
 
 		let project_id = inst.create_community_contributing_project(
 			project_metadata.clone(),
@@ -1412,7 +1412,7 @@ mod benchmarks {
 		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
 		whitelist_account!(issuer);
 
-		let project_metadata = default_project::<T>(issuer.clone());
+		let project_metadata = default_project_metadata::<T>(issuer.clone());
 		let target_funding_amount: BalanceOf<T> =
 			project_metadata.minimum_price.saturating_mul_int(project_metadata.total_allocation_size);
 
@@ -1484,7 +1484,7 @@ mod benchmarks {
 		whitelist_account!(evaluator);
 
 		let project_id = inst.create_finished_project(
-			default_project::<T>(issuer.clone()),
+			default_project_metadata::<T>(issuer.clone()),
 			issuer,
 			evaluations,
 			default_bids::<T>(),
@@ -1546,7 +1546,7 @@ mod benchmarks {
 		let evaluator = evaluations[0].account.clone();
 		whitelist_account!(evaluator);
 
-		let project_metadata = default_project::<T>(issuer.clone());
+		let project_metadata = default_project_metadata::<T>(issuer.clone());
 		let target_funding_amount: BalanceOf<T> =
 			project_metadata.minimum_price.saturating_mul_int(project_metadata.total_allocation_size);
 
@@ -1629,7 +1629,7 @@ mod benchmarks {
 		whitelist_account!(bidder);
 
 		let project_id = inst.create_finished_project(
-			default_project::<T>(issuer.clone()),
+			default_project_metadata::<T>(issuer.clone()),
 			issuer,
 			default_evaluations::<T>(),
 			bids,
@@ -1672,7 +1672,7 @@ mod benchmarks {
 		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
 		let evaluations = default_evaluations::<T>();
 
-		let project_metadata = default_project::<T>(issuer.clone());
+		let project_metadata = default_project_metadata::<T>(issuer.clone());
 		let target_funding_amount: BalanceOf<T> =
 			project_metadata.minimum_price.saturating_mul_int(project_metadata.total_allocation_size);
 
@@ -1734,7 +1734,7 @@ mod benchmarks {
 		whitelist_account!(contributor);
 
 		let project_id = inst.create_finished_project(
-			default_project::<T>(issuer.clone()),
+			default_project_metadata::<T>(issuer.clone()),
 			issuer,
 			default_evaluations::<T>(),
 			default_bids::<T>(),
@@ -1788,7 +1788,7 @@ mod benchmarks {
 		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
 		let evaluations = default_evaluations::<T>();
 
-		let project_metadata = default_project::<T>(issuer.clone());
+		let project_metadata = default_project_metadata::<T>(issuer.clone());
 		let target_funding_amount: BalanceOf<T> =
 			project_metadata.minimum_price.saturating_mul_int(project_metadata.total_allocation_size);
 
@@ -1864,7 +1864,7 @@ mod benchmarks {
 		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
 		whitelist_account!(issuer);
 
-		let project_metadata = default_project::<T>(issuer.clone());
+		let project_metadata = default_project_metadata::<T>(issuer.clone());
 		let project_id = inst.create_evaluating_project(project_metadata, issuer.clone());
 
 		let evaluations = default_evaluations();
@@ -1908,7 +1908,7 @@ mod benchmarks {
 		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
 		whitelist_account!(issuer);
 
-		let project_metadata = default_project::<T>(issuer.clone());
+		let project_metadata = default_project_metadata::<T>(issuer.clone());
 		let project_id = inst.create_evaluating_project(project_metadata, issuer.clone());
 		let project_details = inst.get_project_details(project_id);
 
@@ -1969,7 +1969,7 @@ mod benchmarks {
 		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
 		whitelist_account!(issuer);
 
-		let project_metadata = default_project::<T>(issuer.clone());
+		let project_metadata = default_project_metadata::<T>(issuer.clone());
 		let project_id = inst.create_auctioning_project(project_metadata, issuer.clone(), default_evaluations());
 
 		let opening_end_block =
@@ -1984,7 +1984,7 @@ mod benchmarks {
 
 		#[block]
 		{
-			Pallet::<T>::do_auction_closing(project_id).unwrap();
+			Pallet::<T>::do_start_auction_closing(project_id).unwrap();
 		}
 		// * validity checks *
 		// Storage
@@ -1997,16 +1997,14 @@ mod benchmarks {
 		);
 	}
 
-	// do_community_funding
-	// Should be complex due to calling `calculate_weighted_average_price`
 	#[benchmark]
-	fn start_community_funding(
+	fn end_auction_closing(
 		// Insertion attempts in add_to_update_store. Total amount of storage items iterated through in `ProjectsToUpdate`. Leave one free to make the fn succeed
 		x: Linear<1, { <T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1 }>,
 		// Accepted Bids
-		y: Linear<0, { <T as Config>::MaxBidsPerProject::get() / 2 }>,
+		y: Linear<1, { <T as Config>::MaxBidsPerProject::get() / 2 }>,
 		// Failed Bids
-		z: Linear<0, { <T as Config>::MaxBidsPerProject::get() / 2 }>,
+		z: Linear<1, { <T as Config>::MaxBidsPerProject::get() / 2 }>,
 	) {
 		// * setup *
 		let mut inst = BenchInstantiator::<T>::new(None);
@@ -2015,67 +2013,46 @@ mod benchmarks {
 
 		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
 		whitelist_account!(issuer);
-		let bounded_name = BoundedVec::try_from("Contribution Token TEST".as_bytes().to_vec()).unwrap();
-		let bounded_symbol = BoundedVec::try_from("CTEST".as_bytes().to_vec()).unwrap();
-		let metadata_hash = BoundedVec::try_from(IPFS_CID.as_bytes().to_vec()).unwrap();
 
-		let project_metadata = ProjectMetadata {
-			token_information: CurrencyMetadata { name: bounded_name, symbol: bounded_symbol, decimals: CT_DECIMALS },
-			mainnet_token_max_supply: BalanceOf::<T>::try_from(1_000_000 * CT_UNIT)
-				.unwrap_or_else(|_| panic!("Failed to create BalanceOf")),
-			total_allocation_size: BalanceOf::<T>::try_from(1_000_000 * CT_UNIT)
-				.unwrap_or_else(|_| panic!("Failed to create BalanceOf")),
-			auction_round_allocation_percentage: Percent::from_percent(50u8),
-			minimum_price: PriceProviderOf::<T>::calculate_decimals_aware_price(
-				10u128.into(),
-				USD_DECIMALS,
-				CT_DECIMALS,
-			)
-			.unwrap(),
-			bidding_ticket_sizes: BiddingTicketSizes {
-				professional: TicketSize::new(
-					BalanceOf::<T>::try_from(5000 * USD_UNIT).unwrap_or_else(|_| panic!("Failed to create BalanceOf")),
-					None,
-				),
-				institutional: TicketSize::new(
-					BalanceOf::<T>::try_from(5000 * USD_UNIT).unwrap_or_else(|_| panic!("Failed to create BalanceOf")),
-					None,
-				),
-				phantom: Default::default(),
-			},
-			contributing_ticket_sizes: ContributingTicketSizes {
-				retail: TicketSize::new(
-					BalanceOf::<T>::try_from(USD_UNIT).unwrap_or_else(|_| panic!("Failed to create BalanceOf")),
-					None,
-				),
-				professional: TicketSize::new(
-					BalanceOf::<T>::try_from(USD_UNIT).unwrap_or_else(|_| panic!("Failed to create BalanceOf")),
-					None,
-				),
-				institutional: TicketSize::new(
-					BalanceOf::<T>::try_from(USD_UNIT).unwrap_or_else(|_| panic!("Failed to create BalanceOf")),
-					None,
-				),
-				phantom: Default::default(),
-			},
-			participation_currencies: vec![AcceptedFundingAsset::USDT].try_into().unwrap(),
-			funding_destination_account: issuer.clone(),
-			policy_ipfs_cid: Some(metadata_hash.into()),
-		};
-		let project_id =
-			inst.create_auctioning_project(project_metadata.clone(), issuer.clone(), default_evaluations());
+		let mut project_metadata = default_project_metadata::<T>(issuer.clone());
+		project_metadata.mainnet_token_max_supply =
+			BalanceOf::<T>::try_from(10_000_000 * CT_UNIT).unwrap_or_else(|_| panic!("Failed to create BalanceOf"));
+		project_metadata.total_allocation_size =
+			BalanceOf::<T>::try_from(10_000_000 * CT_UNIT).unwrap_or_else(|_| panic!("Failed to create BalanceOf"));
+		project_metadata.auction_round_allocation_percentage = Percent::from_percent(100u8);
 
-		let accepted_bids = (0..y)
+		let project_id = inst.create_auctioning_project(
+			project_metadata.clone(),
+			issuer.clone(),
+			inst.generate_successful_evaluations(
+				project_metadata.clone(),
+				default_evaluators::<T>(),
+				default_weights(),
+			),
+		);
+
+		let auction_allocation =
+			project_metadata.auction_round_allocation_percentage * project_metadata.total_allocation_size;
+		let min_bid_amount = 500u128;
+		let smaller_than_wap_accepted_bid = vec![BidParams::<T>::new(
+			account::<AccountIdOf<T>>("bidder", 0, 0),
+			auction_allocation,
+			1u8,
+			AcceptedFundingAsset::USDT,
+		)];
+		let higher_than_wap_accepted_bids = (1..y)
 			.map(|i| {
 				BidParams::<T>::new(
 					account::<AccountIdOf<T>>("bidder", 0, i),
-					(500 * CT_UNIT).into(),
+					(min_bid_amount * CT_UNIT).into(),
 					1u8,
 					AcceptedFundingAsset::USDT,
 				)
 			})
 			.collect_vec();
 
+		let accepted_bids =
+			vec![smaller_than_wap_accepted_bid, higher_than_wap_accepted_bids].into_iter().flatten().collect_vec();
 		let rejected_bids = (0..z)
 			.map(|i| {
 				BidParams::<T>::new(
@@ -2087,7 +2064,7 @@ mod benchmarks {
 			})
 			.collect_vec();
 
-		let all_bids = accepted_bids.iter().chain(rejected_bids.iter()).cloned().collect_vec();
+		let all_bids = vec![accepted_bids.clone(), rejected_bids.clone()].into_iter().flatten().collect_vec();
 
 		let plmc_needed_for_bids = inst.calculate_auction_plmc_charged_from_all_bids_made_or_with_bucket(
 			&all_bids,
@@ -2112,12 +2089,150 @@ mod benchmarks {
 		inst.jump_to_block(transition_block);
 		let auction_closing_end_block =
 			inst.get_project_details(project_id).phase_transition_points.auction_closing.end().unwrap();
-		// we don't use advance time to avoid triggering on_initialize. This benchmark should only measure the fn
-		// weight and not the whole on_initialize call weight
-		frame_system::Pallet::<T>::set_block_number(auction_closing_end_block + One::one());
-		let now = inst.current_block();
+		// Go to the last block of closing auction, to make bids fail
+		frame_system::Pallet::<T>::set_block_number(auction_closing_end_block);
+		inst.bid_for_users(project_id, rejected_bids).unwrap();
 
-		let community_end_block = now + T::CommunityFundingDuration::get();
+		let now = inst.current_block();
+		let transition_block = now + One::one();
+		frame_system::Pallet::<T>::set_block_number(transition_block);
+
+		fill_projects_to_update::<T>(x, transition_block);
+
+		#[block]
+		{
+			Pallet::<T>::do_end_auction_closing(project_id).unwrap();
+		}
+
+		// * validity checks *
+		// Storage
+		let stored_details = ProjectsDetails::<T>::get(project_id).unwrap();
+		assert_eq!(stored_details.status, ProjectStatus::CalculatingWAP);
+		assert!(
+			stored_details.phase_transition_points.random_closing_ending.unwrap() <
+				stored_details.phase_transition_points.auction_closing.end().unwrap()
+		);
+		let accepted_bids_count = Bids::<T>::iter_prefix_values((project_id,))
+			.filter(|b| matches!(b.status, BidStatus::Accepted | BidStatus::PartiallyAccepted(..)))
+			.count();
+		let rejected_bids_count =
+			Bids::<T>::iter_prefix_values((project_id,)).filter(|b| matches!(b.status, BidStatus::Rejected(_))).count();
+		assert_eq!(rejected_bids_count, 0);
+		assert_eq!(accepted_bids_count, y as usize);
+
+		// Events
+		frame_system::Pallet::<T>::assert_last_event(
+			Event::<T>::ProjectPhaseTransition { project_id, phase: ProjectPhases::CalculatingWAP }.into(),
+		);
+	}
+
+	// do_community_funding
+	// Should be complex due to calling `calculate_weighted_average_price`
+	#[benchmark]
+	fn start_community_funding(
+		// Insertion attempts in add_to_update_store. Total amount of storage items iterated through in `ProjectsToUpdate`. Leave one free to make the fn succeed
+		x: Linear<1, { <T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1 }>,
+		// Accepted Bids
+		y: Linear<1, { <T as Config>::MaxBidsPerProject::get() / 2 }>,
+		// Rejected Bids
+		z: Linear<1, { <T as Config>::MaxBidsPerProject::get() / 2 }>,
+	) {
+		// * setup *
+		let mut inst = BenchInstantiator::<T>::new(None);
+		// real benchmark starts at block 0, and we can't call `events()` at block 0
+		inst.advance_time(1u32.into()).unwrap();
+
+		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
+		whitelist_account!(issuer);
+		let mut project_metadata = default_project_metadata::<T>(issuer.clone());
+
+		project_metadata.mainnet_token_max_supply =
+			BalanceOf::<T>::try_from(10_000_000 * CT_UNIT).unwrap_or_else(|_| panic!("Failed to create BalanceOf"));
+		project_metadata.total_allocation_size =
+			BalanceOf::<T>::try_from(10_000_000 * CT_UNIT).unwrap_or_else(|_| panic!("Failed to create BalanceOf"));
+		project_metadata.auction_round_allocation_percentage = Percent::from_percent(100u8);
+
+		let project_id = inst.create_auctioning_project(
+			project_metadata.clone(),
+			issuer.clone(),
+			inst.generate_successful_evaluations(
+				project_metadata.clone(),
+				default_evaluators::<T>(),
+				default_weights(),
+			),
+		);
+
+		let auction_allocation =
+			project_metadata.auction_round_allocation_percentage * project_metadata.total_allocation_size;
+		let min_bid_amount = 500u128;
+		let smaller_than_wap_accepted_bid = vec![BidParams::<T>::new(
+			account::<AccountIdOf<T>>("bidder", 0, 0),
+			auction_allocation,
+			1u8,
+			AcceptedFundingAsset::USDT,
+		)];
+		let higher_than_wap_accepted_bids = (1..y)
+			.map(|i| {
+				BidParams::<T>::new(
+					account::<AccountIdOf<T>>("bidder", 0, i),
+					(min_bid_amount * CT_UNIT).into(),
+					1u8,
+					AcceptedFundingAsset::USDT,
+				)
+			})
+			.collect_vec();
+
+		let accepted_bids =
+			vec![smaller_than_wap_accepted_bid, higher_than_wap_accepted_bids].into_iter().flatten().collect_vec();
+
+		let rejected_bids = (0..z)
+			.map(|i| {
+				BidParams::<T>::new(
+					account::<AccountIdOf<T>>("bidder", 0, i),
+					(500 * CT_UNIT).into(),
+					1u8,
+					AcceptedFundingAsset::USDT,
+				)
+			})
+			.collect_vec();
+
+		let all_bids = vec![accepted_bids.clone(), rejected_bids.clone()].into_iter().flatten().collect_vec();
+
+		let plmc_needed_for_bids = inst.calculate_auction_plmc_charged_from_all_bids_made_or_with_bucket(
+			&all_bids,
+			project_metadata.clone(),
+			None,
+		);
+		let plmc_ed = all_bids.accounts().existential_deposits();
+		let funding_asset_needed_for_bids = inst
+			.calculate_auction_funding_asset_charged_from_all_bids_made_or_with_bucket(
+				&all_bids,
+				project_metadata.clone(),
+				None,
+			);
+
+		inst.mint_plmc_to(plmc_needed_for_bids);
+		inst.mint_plmc_to(plmc_ed);
+		inst.mint_foreign_asset_to(funding_asset_needed_for_bids);
+
+		inst.bid_for_users(project_id, accepted_bids).unwrap();
+
+		let transition_block = inst.get_update_block(project_id, &UpdateType::AuctionClosingStart).unwrap();
+		inst.jump_to_block(transition_block);
+		let auction_closing_end_block =
+			inst.get_project_details(project_id).phase_transition_points.auction_closing.end().unwrap();
+		// Go to the last block of closing auction, to make bids fail
+		frame_system::Pallet::<T>::set_block_number(auction_closing_end_block);
+		inst.bid_for_users(project_id, rejected_bids).unwrap();
+
+		let transition_block = inst.get_update_block(project_id, &UpdateType::AuctionClosingEnd).unwrap();
+		inst.jump_to_block(transition_block);
+		let transition_block = inst.get_update_block(project_id, &UpdateType::CommunityFundingStart).unwrap();
+		// Block is at automatic transition, but it's not run with on_initialize, we do it manually
+		frame_system::Pallet::<T>::set_block_number(transition_block);
+
+		let now = inst.current_block();
+		let community_end_block = now + T::CommunityFundingDuration::get() - One::one();
 
 		let insertion_block_number = community_end_block + One::one();
 		fill_projects_to_update::<T>(x, insertion_block_number);
@@ -2131,15 +2246,7 @@ mod benchmarks {
 		// Storage
 		let stored_details = ProjectsDetails::<T>::get(project_id).unwrap();
 		assert_eq!(stored_details.status, ProjectStatus::CommunityRound);
-		assert!(
-			stored_details.phase_transition_points.random_closing_ending.unwrap() <
-				stored_details.phase_transition_points.auction_closing.end().unwrap()
-		);
-		let accepted_bids_count =
-			Bids::<T>::iter_prefix_values((project_id,)).filter(|b| matches!(b.status, BidStatus::Accepted)).count();
-		let rejected_bids_count =
-			Bids::<T>::iter_prefix_values((project_id,)).filter(|b| matches!(b.status, BidStatus::Rejected(_))).count();
-		assert_eq!(rejected_bids_count, 0);
+		let accepted_bids_count = Bids::<T>::iter_prefix_values((project_id,)).count();
 		assert_eq!(accepted_bids_count, y as usize);
 
 		// Events
@@ -2163,7 +2270,7 @@ mod benchmarks {
 		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
 		whitelist_account!(issuer);
 
-		let project_metadata = default_project::<T>(issuer.clone());
+		let project_metadata = default_project_metadata::<T>(issuer.clone());
 		let project_id = inst.create_community_contributing_project(
 			project_metadata,
 			issuer.clone(),
@@ -2210,7 +2317,7 @@ mod benchmarks {
 
 		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
 
-		let project_metadata = default_project::<T>(issuer.clone());
+		let project_metadata = default_project_metadata::<T>(issuer.clone());
 		let target_funding_amount: BalanceOf<T> =
 			project_metadata.minimum_price.saturating_mul_int(project_metadata.total_allocation_size);
 
@@ -2267,7 +2374,7 @@ mod benchmarks {
 
 		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
 
-		let project_metadata = default_project::<T>(issuer.clone());
+		let project_metadata = default_project_metadata::<T>(issuer.clone());
 		let target_funding_amount: BalanceOf<T> =
 			project_metadata.minimum_price.saturating_mul_int(project_metadata.total_allocation_size);
 
@@ -2325,7 +2432,7 @@ mod benchmarks {
 
 		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
 
-		let project_metadata = default_project::<T>(issuer.clone());
+		let project_metadata = default_project_metadata::<T>(issuer.clone());
 		let target_funding_amount: BalanceOf<T> =
 			project_metadata.minimum_price.saturating_mul_int(project_metadata.total_allocation_size);
 
@@ -2385,7 +2492,7 @@ mod benchmarks {
 
 		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
 
-		let project_metadata = default_project::<T>(issuer.clone());
+		let project_metadata = default_project_metadata::<T>(issuer.clone());
 		let target_funding_amount: BalanceOf<T> =
 			project_metadata.minimum_price.saturating_mul_int(project_metadata.total_allocation_size);
 
@@ -2459,7 +2566,7 @@ mod benchmarks {
 
 		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
 
-		let project_metadata = default_project::<T>(issuer.clone());
+		let project_metadata = default_project_metadata::<T>(issuer.clone());
 		let target_funding_amount: BalanceOf<T> =
 			project_metadata.minimum_price.saturating_mul_int(project_metadata.total_allocation_size);
 		let manual_outcome_threshold = Percent::from_percent(50);
@@ -2508,7 +2615,7 @@ mod benchmarks {
 
 		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
 
-		let project_metadata = default_project::<T>(issuer.clone());
+		let project_metadata = default_project_metadata::<T>(issuer.clone());
 		let project_id = inst.create_finished_project(
 			project_metadata,
 			issuer.clone(),
@@ -2538,7 +2645,7 @@ mod benchmarks {
 
 		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
 
-		let project_metadata = default_project::<T>(issuer.clone());
+		let project_metadata = default_project_metadata::<T>(issuer.clone());
 		let target_funding_amount: BalanceOf<T> =
 			project_metadata.minimum_price.saturating_mul_int(project_metadata.total_allocation_size);
 
@@ -2708,6 +2815,13 @@ mod benchmarks {
 		fn bench_start_auction_closing_phase() {
 			new_test_ext().execute_with(|| {
 				assert_ok!(PalletFunding::<TestRuntime>::test_start_auction_closing_phase());
+			});
+		}
+
+		#[test]
+		fn bench_end_auction_closing() {
+			new_test_ext().execute_with(|| {
+				assert_ok!(PalletFunding::<TestRuntime>::test_end_auction_closing());
 			});
 		}
 
