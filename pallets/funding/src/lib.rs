@@ -827,7 +827,7 @@ pub mod pallet {
 	impl<T: Config> Pallet<T> {
 		/// Creates a project and assigns it to the `issuer` account.
 		#[pallet::call_index(0)]
-		#[pallet::weight(WeightInfoOf::<T>::create())]
+		#[pallet::weight(WeightInfoOf::<T>::create_project())]
 		pub fn create_project(
 			origin: OriginFor<T>,
 			jwt: UntrustedToken,
@@ -850,7 +850,7 @@ pub mod pallet {
 
 		/// Change the metadata hash of a project
 		#[pallet::call_index(1)]
-		#[pallet::weight(WeightInfoOf::<T>::edit_metadata())]
+		#[pallet::weight(WeightInfoOf::<T>::edit_project())]
 		pub fn edit_project(
 			origin: OriginFor<T>,
 			jwt: UntrustedToken,

@@ -19,6 +19,7 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 pub use pallet::*;
 
+pub use crate::weights::WeightInfo;
 pub use frame_support::traits::{
 	tokens::{currency::VestingSchedule, Balance},
 	Currency, ExistenceRequirement,
