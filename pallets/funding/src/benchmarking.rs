@@ -2124,7 +2124,7 @@ mod benchmarks {
 
 		#[block]
 		{
-			Pallet::<T>::do_community_funding(project_id).unwrap();
+			Pallet::<T>::do_start_community_funding(project_id).unwrap();
 		}
 
 		// * validity checks *
@@ -2185,7 +2185,7 @@ mod benchmarks {
 
 		#[block]
 		{
-			Pallet::<T>::do_remainder_funding(project_id).unwrap();
+			Pallet::<T>::do_start_remainder_funding(project_id).unwrap();
 		}
 
 		// * validity checks *

@@ -3,7 +3,6 @@ use crate::traits::VestingDurationCalculation;
 use frame_support::{
 	dispatch::DispatchResult,
 	ensure,
-	pallet_prelude::*,
 	traits::{
 		fungible::MutateHold as FungibleMutateHold,
 		fungibles::{Inspect, Mutate as FungiblesMutate},
@@ -21,6 +20,71 @@ use sp_runtime::{
 };
 
 impl<T: Config> Pallet<T> {
+	#[transactional]
+	pub fn do_start_settlement(project_id: ProjectId) -> DispatchResultWithPostInfo {
+		// * Get variables *
+		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
+		let token_information =
+			ProjectsMetadata::<T>::get(project_id).ok_or(Error::<T>::ProjectMetadataNotFound)?.token_information;
+		let now = <frame_system::Pallet<T>>::block_number();
+
+		// * Validity checks *
+		ensure!(
+			project_details.status == ProjectStatus::FundingSuccessful ||
+				project_details.status == ProjectStatus::FundingFailed,
+			Error::<T>::IncorrectRound
+		);
+
+		// * Calculate new variables *
+		project_details.funding_end_block = Some(now);
+
+		// * Update storage *
+		ProjectsDetails::<T>::insert(project_id, &project_details);
+
+		let escrow_account = Self::fund_account_id(project_id);
+		if project_details.status == ProjectStatus::FundingSuccessful {
+			T::ContributionTokenCurrency::create(project_id, escrow_account.clone(), false, 1_u32.into())?;
+			T::ContributionTokenCurrency::set(
+				project_id,
+				&escrow_account.clone(),
+				token_information.name.into(),
+				token_information.symbol.into(),
+				token_information.decimals,
+			)?;
+
+			let contribution_token_treasury_account = T::ContributionTreasury::get();
+			T::ContributionTokenCurrency::touch(
+				project_id,
+				&contribution_token_treasury_account,
+				&contribution_token_treasury_account,
+			)?;
+
+			let (liquidity_pools_ct_amount, long_term_holder_bonus_ct_amount) =
+				Self::generate_liquidity_pools_and_long_term_holder_rewards(project_id)?;
+
+			T::ContributionTokenCurrency::mint_into(
+				project_id,
+				&contribution_token_treasury_account,
+				long_term_holder_bonus_ct_amount,
+			)?;
+			T::ContributionTokenCurrency::mint_into(
+				project_id,
+				&contribution_token_treasury_account,
+				liquidity_pools_ct_amount,
+			)?;
+
+			Ok(PostDispatchInfo {
+				actual_weight: Some(WeightInfoOf::<T>::start_settlement_funding_success()),
+				pays_fee: Pays::Yes,
+			})
+		} else {
+			Ok(PostDispatchInfo {
+				actual_weight: Some(WeightInfoOf::<T>::start_settlement_funding_failure()),
+				pays_fee: Pays::Yes,
+			})
+		}
+	}
+
 	pub fn do_settle_successful_evaluation(evaluation: EvaluationInfoOf<T>, project_id: ProjectId) -> DispatchResult {
 		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 		ensure!(matches!(project_details.status, ProjectStatus::FundingSuccessful), Error::<T>::IncorrectRound);
