@@ -411,11 +411,11 @@ impl Config for TestRuntime {
 	type FundingCurrency = ForeignAssets;
 	type InvestorOrigin = EnsureInvestor<TestRuntime>;
 	type ManualAcceptanceDuration = ManualAcceptanceDuration;
-	type MaxBidsPerProject = ConstU32<1024>;
+	type MaxBidsPerProject = ConstU32<512>;
 	type MaxBidsPerUser = ConstU32<25>;
 	type MaxCapacityThresholds = MaxCapacityThresholds;
 	type MaxContributionsPerUser = ConstU32<25>;
-	type MaxEvaluationsPerProject = ConstU32<1024>;
+	type MaxEvaluationsPerProject = ConstU32<512>;
 	type MaxEvaluationsPerUser = ConstU32<4>;
 	type MaxMessageSizeThresholds = MaxMessageSizeThresholds;
 	type MaxProjectsToUpdateInsertionAttempts = ConstU32<100>;
