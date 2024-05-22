@@ -680,7 +680,7 @@ mod round_flow {
 			let max_bids_per_project: u32 = <TestRuntime as Config>::MaxBidsPerProject::get();
 			let big_bid: BidParams<TestRuntime> = (BIDDER_1, total_allocation).into();
 			let small_bids: Vec<BidParams<TestRuntime>> =
-				(0..max_bids_per_project-1).map(|i| (i + BIDDER_1, min_bid_ct).into()).collect();
+				(0..max_bids_per_project - 1).map(|i| (i + BIDDER_1, min_bid_ct).into()).collect();
 			let all_bids = vec![vec![big_bid.clone()], small_bids.clone()].into_iter().flatten().collect_vec();
 
 			let mut project_metadata = default_project_metadata(ISSUER_1);
@@ -700,7 +700,7 @@ mod round_flow {
 			let all_bids = inst.execute(|| Bids::<TestRuntime>::iter_prefix_values((project_id,)).collect_vec());
 
 			let higher_than_wap_bids = all_bids.iter().filter(|bid| bid.original_ct_usd_price > wap).collect_vec();
-			assert_eq!(higher_than_wap_bids.len(), (max_bids_per_project-1u32) as usize);
+			assert_eq!(higher_than_wap_bids.len(), (max_bids_per_project - 1u32) as usize);
 		}
 	}
 
