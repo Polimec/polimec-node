@@ -189,4 +189,28 @@ impl<T: Config> Pallet<T> {
 			pays_fee: Pays::Yes,
 		})
 	}
+
+	pub fn finalize_funding(
+		project_id: ProjectId,
+		mut project_details: ProjectDetailsOf<T>,
+		outcome: ProjectOutcome,
+		settlement_delta: BlockNumberFor<T>,
+	) -> Result<u32, DispatchError> {
+		let now = <frame_system::Pallet<T>>::block_number();
+
+		project_details.status = match outcome {
+			ProjectOutcome::FundingSuccessful | ProjectOutcome::FundingAccepted => ProjectStatus::FundingSuccessful,
+			_ => ProjectStatus::FundingFailed,
+		};
+		ProjectsDetails::<T>::insert(project_id, project_details);
+
+		let insertion_iterations =
+			Self::add_to_update_store(now + settlement_delta, (&project_id, UpdateType::StartSettlement))
+				.map_err(|_| Error::<T>::TooManyInsertionAttempts)?;
+		Self::deposit_event(Event::ProjectPhaseTransition {
+			project_id,
+			phase: ProjectPhases::FundingFinalization(outcome),
+		});
+		Ok(insertion_iterations)
+	}
 }
