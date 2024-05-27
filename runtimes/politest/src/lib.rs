@@ -169,7 +169,7 @@ pub mod migrations {
 	use crate::Runtime;
 
 	/// Unreleased migrations. Add new ones here:
-	pub type Unreleased = (pallet_funding::storage_migrations::v3::MigrationToV3<Runtime>);
+	pub type Unreleased = pallet_funding::storage_migrations::v3::MigrationToV3<Runtime>;
 }
 
 /// Executive: handles dispatch to the various modules.
