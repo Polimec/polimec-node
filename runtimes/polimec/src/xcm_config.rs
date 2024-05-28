@@ -417,11 +417,10 @@ impl pallet_xcm::Config for Runtime {
 	// ^ Disable dispatchable execute on the XCM pallet.
 	// Needs to be `Everything` for local testing.
 	type XcmExecutor = XcmExecutor<XcmConfig>;
-	// We only allow reserve based transfers of AssetHub reserve assets back to AssetHub.
-	type XcmReserveTransferFilter = AssetHubAssetsAsReserve;
+	// We allow all reserve based transfers from our chain to any other chain.
+	type XcmReserveTransferFilter = Everything;
 	type XcmRouter = XcmRouter;
 	// We do not allow teleportation of PLMC or other assets.
-	// TODO: change this once we enable PLMC teleports
 	type XcmTeleportFilter = Nothing;
 
 	const VERSION_DISCOVERY_QUEUE_SIZE: u32 = 100;
