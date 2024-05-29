@@ -702,11 +702,11 @@ pub mod pallet {
 		NotAllowed,
 		/// Checked math failed.
 		BadMath,
-		/// Could not get the price in USD for an asset/PLMC.
+		/// Could not get the price in USD equivalent for an asset/PLMC.
 		PriceNotFound,
 		/// Tried to retrieve a evaluation, bid or contribution but it does not exist.
 		ParticipationNotFound,
-		/// The user has the incorrect investor type for the action.
+		/// The user investor type is not eligible for the action.
 		WrongInvestorType,
 
 		// * Project Error. Project information not found, or project has an incorrect state. *
@@ -781,24 +781,24 @@ pub mod pallet {
 		BadTokenomics,
 
 		// * Error related to an participation action. Evaluation, bid or contribution failed. *
-		/// The participation amount is too low.
+		/// The amount is too low.
 		TooLow,
-		/// The participation amount is too high.
+		/// The amount is too high.
 		TooHigh,
-		/// The funding asset is not accepted for this project.
+		/// The participation currency is not accepted for this project.
 		FundingAssetNotAccepted,
-		/// The user has too many participations in this project.
+		/// The user already has the maximum number of participations in this project.
 		TooManyUserParticipations,
-		/// The project has too many participations.
+		/// The project already has the maximum number of participations.
 		TooManyProjectParticipations,
-		/// The user is not allowed to use this multiplier.
+		/// The user is not allowed to use the selected multiplier.
 		ForbiddenMultiplier,
 		/// The user has a winning bid in the auction round and is not allowed to participate
 		/// in the community round.
 		UserHasWinningBid,
-		/// The user does not have enough funds (funding asset or PLMC) to cover the participation.
+		/// The funds in the wallet are too low to cover the participation.
 		ParticipantNotEnoughFunds,
-		/// The JWT included has a wrong policy for participating in this project. Front-end should ensure this never happens.
+		/// The JWT included the wrong policy for participating in this project.
 		PolicyMismatch,
 
 		//  * An error related to the migration process. *
