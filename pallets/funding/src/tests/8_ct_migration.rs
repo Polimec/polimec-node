@@ -26,7 +26,7 @@ fn para_id_for_project_can_be_set_by_issuer() {
 }
 
 #[test]
-fn para_id_for_project_cannot_be_set_by_anyone_but_issuer() {
+fn para_id_for_project_cannot_be_set_by_non_issuer() {
 	let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 	let project_id = inst.create_finished_project(
 		default_project_metadata(ISSUER_1),
