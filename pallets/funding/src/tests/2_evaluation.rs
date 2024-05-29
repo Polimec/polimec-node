@@ -325,6 +325,7 @@ mod start_evaluation_extrinsic {
 					total_bonded_plmc: 0u128,
 					evaluators_outcome: EvaluatorsOutcome::Unchanged,
 				},
+				usd_bid_on_oversubscription: None,
 				funding_end_block: None,
 				parachain_id: None,
 				migration_readiness_check: None,

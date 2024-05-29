@@ -139,7 +139,6 @@ use sp_std::{marker::PhantomData, prelude::*};
 pub use types::*;
 use xcm::v3::{opaque::Instruction, prelude::*, SendXcm};
 
-
 #[cfg(test)]
 pub mod mock;
 pub mod storage_migrations;
@@ -151,10 +150,10 @@ pub mod tests;
 
 #[cfg(feature = "runtime-benchmarks")]
 pub mod benchmarking;
+mod functions;
 #[cfg(any(feature = "runtime-benchmarks", feature = "std"))]
 pub mod instantiator;
 pub mod traits;
-mod functions;
 
 pub type AccountIdOf<T> = <T as frame_system::Config>::AccountId;
 pub type ProjectId = u32;
@@ -889,7 +888,7 @@ pub mod pallet {
 			let (account, _did, investor_type, _cid) =
 				T::InvestorOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get())?;
 			ensure!(investor_type == InvestorType::Institutional, Error::<T>::WrongInvestorType);
-			Self::do_auction_opening(account, project_id)
+			Self::do_start_auction_opening(account, project_id)
 		}
 
 		/// Bond PLMC for a project in the evaluation stage
@@ -1173,16 +1172,19 @@ pub mod pallet {
 		#[pallet::weight(WeightInfoOf::<T>::start_auction_manually(<T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1))]
 		pub fn root_do_auction_opening(origin: OriginFor<T>, project_id: ProjectId) -> DispatchResultWithPostInfo {
 			ensure_root(origin)?;
-			Self::do_auction_opening(T::PalletId::get().into_account_truncating(), project_id)
+			Self::do_start_auction_opening(T::PalletId::get().into_account_truncating(), project_id)
 		}
 
 		#[pallet::call_index(29)]
 		#[pallet::weight(WeightInfoOf::<T>::start_auction_closing_phase(
 			<T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1,
 		))]
-		pub fn root_do_auction_closing(origin: OriginFor<T>, project_id: ProjectId) -> DispatchResultWithPostInfo {
+		pub fn root_do_start_auction_closing(
+			origin: OriginFor<T>,
+			project_id: ProjectId,
+		) -> DispatchResultWithPostInfo {
 			ensure_root(origin)?;
-			Self::do_auction_closing(project_id)
+			Self::do_start_auction_closing(project_id)
 		}
 
 		#[pallet::call_index(30)]
@@ -1290,7 +1292,8 @@ pub mod pallet {
 					// AuctionInitializePeriod -> AuctionOpening
 					// Only if it wasn't first handled by user extrinsic
 					UpdateType::AuctionOpeningStart => {
-						let call = Self::do_auction_opening(T::PalletId::get().into_account_truncating(), project_id);
+						let call =
+							Self::do_start_auction_opening(T::PalletId::get().into_account_truncating(), project_id);
 						let fallback_weight =
 							Call::<T>::root_do_auction_opening { project_id }.get_dispatch_info().weight;
 						update_weight(&mut used_weight, call, fallback_weight);
@@ -1298,9 +1301,16 @@ pub mod pallet {
 
 					// AuctionOpening -> AuctionClosing
 					UpdateType::AuctionClosingStart => {
-						let call = Self::do_auction_closing(project_id);
+						let call = Self::do_start_auction_closing(project_id);
 						let fallback_weight =
-							Call::<T>::root_do_auction_closing { project_id }.get_dispatch_info().weight;
+							Call::<T>::root_do_start_auction_closing { project_id }.get_dispatch_info().weight;
+						update_weight(&mut used_weight, call, fallback_weight);
+					},
+
+					UpdateType::AuctionClosingEnd => {
+						let call = Self::do_end_auction_closing(project_id);
+						let fallback_weight =
+							Call::<T>::root_do_start_auction_closing { project_id }.get_dispatch_info().weight;
 						update_weight(&mut used_weight, call, fallback_weight);
 					},
 

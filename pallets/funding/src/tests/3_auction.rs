@@ -671,6 +671,37 @@ mod round_flow {
 				hash_set_2.insert(amount);
 			}
 		}
+
+		#[test]
+		fn all_bids_but_one_have_price_higher_than_wap() {
+			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+			let total_allocation = 10_000_000 * CT_UNIT;
+			let min_bid_ct = 500 * CT_UNIT; // 5k USD at 10USD/CT
+
+			let big_bid: BidParams<TestRuntime> = (BIDDER_1, total_allocation).into();
+			let small_bids: Vec<BidParams<TestRuntime>> =
+				(0..1023u32).map(|i| (i + BIDDER_1, min_bid_ct).into()).collect();
+			let all_bids = vec![vec![big_bid.clone()], small_bids.clone()].into_iter().flatten().collect_vec();
+
+			let mut project_metadata = default_project_metadata(ISSUER_1);
+			project_metadata.mainnet_token_max_supply = total_allocation;
+			project_metadata.total_allocation_size = total_allocation;
+			project_metadata.auction_round_allocation_percentage = Percent::from_percent(100);
+
+			let project_id = inst.create_community_contributing_project(
+				project_metadata.clone(),
+				ISSUER_1,
+				inst.generate_successful_evaluations(project_metadata.clone(), default_evaluators(), default_weights()),
+				all_bids,
+			);
+
+			let wap = inst.get_project_details(project_id).weighted_average_price.unwrap();
+
+			let all_bids = inst.execute(|| Bids::<TestRuntime>::iter_prefix_values((project_id,)).collect_vec());
+
+			let higher_than_wap_bids = all_bids.iter().filter(|bid| bid.original_ct_usd_price > wap).collect_vec();
+			assert_eq!(higher_than_wap_bids.len(), 1023);
+		}
 	}
 
 	#[cfg(test)]
@@ -745,7 +776,7 @@ mod start_auction_extrinsic {
 			inst.advance_time(<TestRuntime as Config>::EvaluationDuration::get() + 1).unwrap();
 			assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::AuctionInitializePeriod);
 			inst.advance_time(1).unwrap();
-			inst.execute(|| Pallet::<TestRuntime>::do_auction_opening(ISSUER_1, project_id)).unwrap();
+			inst.execute(|| Pallet::<TestRuntime>::do_start_auction_opening(ISSUER_1, project_id)).unwrap();
 			assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::AuctionOpening);
 		}
 
@@ -765,7 +796,7 @@ mod start_auction_extrinsic {
 
 			for account in 6000..6010 {
 				inst.execute(|| {
-					let response = Pallet::<TestRuntime>::do_auction_opening(account, project_id);
+					let response = Pallet::<TestRuntime>::do_start_auction_opening(account, project_id);
 					assert_noop!(response, Error::<TestRuntime>::NotIssuer);
 				});
 			}
@@ -782,7 +813,7 @@ mod start_auction_extrinsic {
 			let project_id = inst.create_evaluating_project(default_project_metadata(ISSUER_1), ISSUER_1);
 			inst.execute(|| {
 				assert_noop!(
-					PolimecFunding::do_auction_opening(ISSUER_1, project_id),
+					PolimecFunding::do_start_auction_opening(ISSUER_1, project_id),
 					Error::<TestRuntime>::TransitionPointNotSet
 				);
 			});
@@ -795,7 +826,7 @@ mod start_auction_extrinsic {
 			inst.advance_time(<TestRuntime as Config>::EvaluationDuration::get() + 1).unwrap();
 			inst.execute(|| {
 				assert_noop!(
-					PolimecFunding::do_auction_opening(ISSUER_1, project_id),
+					PolimecFunding::do_start_auction_opening(ISSUER_1, project_id),
 					Error::<TestRuntime>::TransitionPointNotSet
 				);
 			});

@@ -292,6 +292,7 @@ impl<
 				total_bonded_plmc: Zero::zero(),
 				evaluators_outcome: EvaluatorsOutcome::Unchanged,
 			},
+			usd_bid_on_oversubscription: None,
 			funding_end_block: None,
 			parachain_id: None,
 			migration_readiness_check: None,
@@ -451,7 +452,7 @@ impl<
 
 		assert_eq!(self.get_project_details(project_id).status, ProjectStatus::AuctionInitializePeriod);
 
-		self.execute(|| crate::Pallet::<T>::do_auction_opening(caller, project_id).unwrap());
+		self.execute(|| crate::Pallet::<T>::do_start_auction_opening(caller, project_id).unwrap());
 
 		assert_eq!(self.get_project_details(project_id).status, ProjectStatus::AuctionOpening);
 
@@ -515,14 +516,14 @@ impl<
 
 	pub fn start_community_funding(&mut self, project_id: ProjectId) -> Result<(), DispatchError> {
 		if let Some(update_block) = self.get_update_block(project_id, &UpdateType::AuctionClosingStart) {
-			self.execute(|| frame_system::Pallet::<T>::set_block_number(update_block - One::one()));
-			self.advance_time(1u32.into()).unwrap();
+			self.jump_to_block(update_block);
 		}
-		let Some(update_block) = self.get_update_block(project_id, &UpdateType::CommunityFundingStart) else {
-			unreachable!()
-		};
-		self.execute(|| frame_system::Pallet::<T>::set_block_number(update_block - One::one()));
-		self.advance_time(1u32.into()).unwrap();
+		if let Some(update_block) = self.get_update_block(project_id, &UpdateType::AuctionClosingEnd) {
+			self.jump_to_block(update_block);
+		}
+		if let Some(update_block) = self.get_update_block(project_id, &UpdateType::CommunityFundingStart) {
+			self.jump_to_block(update_block);
+		}
 
 		ensure!(
 			self.get_project_details(project_id).status == ProjectStatus::CommunityRound,

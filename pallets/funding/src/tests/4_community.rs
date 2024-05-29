@@ -765,8 +765,7 @@ mod community_contribute_extrinsic {
 			)
 			.unwrap();
 			inst.bid_for_users(project_id, failing_bids_after_random_end).unwrap();
-			inst.advance_time(2).unwrap();
-			assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::CommunityRound);
+			inst.start_community_funding(project_id).unwrap();
 
 			// Some low amount of plmc and usdt to cover a purchase of 10CTs.
 			let plmc_mints = vec![

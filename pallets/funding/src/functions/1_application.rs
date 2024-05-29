@@ -44,6 +44,7 @@ impl<T: Config> Pallet<T> {
 				total_bonded_plmc: Zero::zero(),
 				evaluators_outcome: EvaluatorsOutcome::Unchanged,
 			},
+			usd_bid_on_oversubscription: None,
 			funding_end_block: None,
 			parachain_id: None,
 			migration_readiness_check: None,

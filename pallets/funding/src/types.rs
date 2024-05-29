@@ -322,6 +322,8 @@ pub mod storage_types {
 		pub funding_amount_reached_usd: Balance,
 		/// Information about the total amount bonded, and the outcome in regards to reward/slash/nothing
 		pub evaluation_round_info: EvaluationRoundInfo,
+		/// If the auction was oversubscribed, how much USD was raised across all winning bids
+		pub usd_bid_on_oversubscription: Option<Balance>,
 		/// When the Funding Round ends
 		pub funding_end_block: Option<BlockNumber>,
 		/// ParaId of project
@@ -337,6 +339,7 @@ pub mod storage_types {
 		EvaluationEnd,
 		AuctionOpeningStart,
 		AuctionClosingStart,
+		AuctionClosingEnd,
 		CommunityFundingStart,
 		RemainderFundingStart,
 		FundingEnd,
@@ -639,6 +642,7 @@ pub mod inner_types {
 		AuctionInitializePeriod,
 		AuctionOpening,
 		AuctionClosing,
+		CalculatingWAP,
 		CommunityRound,
 		RemainderRound,
 		FundingFailed,
@@ -745,6 +749,7 @@ pub mod inner_types {
 		AuctionInitializePeriod,
 		AuctionOpening,
 		AuctionClosing,
+		CalculatingWAP,
 		CommunityFunding,
 		RemainderFunding,
 		DecisionPeriod,
