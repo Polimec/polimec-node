@@ -14,6 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+use frame_support::BoundedVec;
 use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
 pub use parachains_common::{AccountId, AssetHubPolkadotAuraId, AuraId, Balance, BlockNumber};
 use politest_runtime::{
@@ -26,13 +27,14 @@ use politest_runtime::{
 use polkadot_primitives::{AssignmentId, ValidatorId};
 pub use polkadot_runtime_parachains::configuration::HostConfiguration;
 use sc_consensus_grandpa::AuthorityId as GrandpaId;
-use sp_arithmetic::Percent;
+use sp_arithmetic::{FixedU128, Percent};
 use sp_authority_discovery::AuthorityId as AuthorityDiscoveryId;
 use sp_consensus_babe::AuthorityId as BabeId;
 use sp_consensus_beefy::ecdsa_crypto::AuthorityId as BeefyId;
 use sp_core::{sr25519, storage::Storage, Pair, Public};
 use sp_runtime::{bounded_vec, BuildStorage, Perbill};
 
+use pallet_funding::AcceptedFundingAsset;
 pub use xcm;
 use xcm_emulator::{helpers::get_account_id_from_seed, Chain, Parachain};
 
@@ -318,10 +320,10 @@ pub mod asset_hub {
 // Polimec
 pub mod politest {
 	use super::*;
-	use crate::{Polimec, PolitestRuntime, PolkadotNet};
-	use pallet_funding::AcceptedFundingAsset;
+	use crate::{Polimec, PolitestNet, PolitestOrigin, PolitestRuntime, PolkadotNet};
 	use sp_runtime::traits::AccountIdConversion;
 	use xcm::v3::Parent;
+	use xcm_emulator::TestExt;
 
 	pub const PARA_ID: u32 = 3344;
 	pub const ED: Balance = politest_runtime::EXISTENTIAL_DEPOSIT;
@@ -330,6 +332,45 @@ pub mod politest {
 	const GENESIS_COLLATOR_COMMISSION: Perbill = Perbill::from_percent(10);
 	const GENESIS_PARACHAIN_BOND_RESERVE_PERCENT: Percent = Percent::from_percent(0);
 	const GENESIS_NUM_SELECTED_CANDIDATES: u32 = 5;
+
+	pub fn set_prices() {
+		PolitestNet::execute_with(|| {
+			let dot = (AcceptedFundingAsset::DOT.to_assethub_id(), FixedU128::from_rational(69, 1));
+			let usdc = (AcceptedFundingAsset::USDC.to_assethub_id(), FixedU128::from_rational(1, 1));
+			let usdt = (AcceptedFundingAsset::USDT.to_assethub_id(), FixedU128::from_rational(1, 1));
+			let plmc = (pallet_funding::PLMC_FOREIGN_ID, FixedU128::from_rational(840, 100));
+
+			let values: BoundedVec<(u32, FixedU128), <PolitestRuntime as orml_oracle::Config>::MaxFeedValues> =
+				vec![dot, usdc, usdt, plmc].try_into().expect("benchmarks can panic");
+			let alice: [u8; 32] = [
+				212, 53, 147, 199, 21, 253, 211, 28, 97, 20, 26, 189, 4, 169, 159, 214, 130, 44, 133, 88, 133, 76, 205,
+				227, 154, 86, 132, 231, 165, 109, 162, 125,
+			];
+			let bob: [u8; 32] = [
+				142, 175, 4, 21, 22, 135, 115, 99, 38, 201, 254, 161, 126, 37, 252, 82, 135, 97, 54, 147, 201, 18, 144,
+				156, 178, 38, 170, 71, 148, 242, 106, 72,
+			];
+			let charlie: [u8; 32] = [
+				144, 181, 171, 32, 92, 105, 116, 201, 234, 132, 27, 230, 136, 134, 70, 51, 220, 156, 168, 163, 87, 132,
+				62, 234, 207, 35, 20, 100, 153, 101, 254, 34,
+			];
+
+			frame_support::assert_ok!(orml_oracle::Pallet::<PolitestRuntime>::feed_values(
+				PolitestOrigin::signed(alice.clone().into()),
+				values.clone()
+			));
+
+			frame_support::assert_ok!(orml_oracle::Pallet::<PolitestRuntime>::feed_values(
+				PolitestOrigin::signed(bob.clone().into()),
+				values.clone()
+			));
+
+			frame_support::assert_ok!(orml_oracle::Pallet::<PolitestRuntime>::feed_values(
+				PolitestOrigin::signed(charlie.clone().into()),
+				values.clone()
+			));
+		});
+	}
 
 	pub fn genesis() -> Storage {
 		let dot_asset_id = AcceptedFundingAsset::DOT.to_assethub_id();
@@ -437,7 +478,6 @@ pub mod politest {
 				],
 				accounts: vec![],
 			},
-			funding: Default::default(),
 			vesting: Default::default(),
 			transaction_payment: Default::default(),
 			contribution_tokens: Default::default(),
@@ -506,10 +546,11 @@ pub mod penpal {
 // Polimec Runtime
 pub mod polimec {
 	use super::*;
-	use crate::PolimecNet;
+	use crate::{PolimecNet, PolimecOrigin, PolimecRuntime};
 	use pallet_funding::AcceptedFundingAsset;
 	use polimec_runtime::PayMaster;
 	use xcm::v3::Parent;
+	use xcm_emulator::TestExt;
 
 	pub const PARA_ID: u32 = 3344;
 	pub const ED: Balance = polimec_runtime::EXISTENTIAL_DEPOSIT;
@@ -518,6 +559,46 @@ pub mod polimec {
 	const GENESIS_COLLATOR_COMMISSION: Perbill = Perbill::from_percent(10);
 	const GENESIS_PARACHAIN_BOND_RESERVE_PERCENT: Percent = Percent::from_percent(0);
 	const GENESIS_NUM_SELECTED_CANDIDATES: u32 = 5;
+
+	#[allow(unused)]
+	pub fn set_prices() {
+		PolimecNet::execute_with(|| {
+			let dot = (AcceptedFundingAsset::DOT.to_assethub_id(), FixedU128::from_rational(69, 1));
+			let usdc = (AcceptedFundingAsset::USDC.to_assethub_id(), FixedU128::from_rational(1, 1));
+			let usdt = (AcceptedFundingAsset::USDT.to_assethub_id(), FixedU128::from_rational(1, 1));
+			let plmc = (pallet_funding::PLMC_FOREIGN_ID, FixedU128::from_rational(840, 100));
+
+			let values: BoundedVec<(u32, FixedU128), <PolimecRuntime as orml_oracle::Config>::MaxFeedValues> =
+				vec![dot, usdc, usdt, plmc].try_into().expect("benchmarks can panic");
+			let alice: [u8; 32] = [
+				212, 53, 147, 199, 21, 253, 211, 28, 97, 20, 26, 189, 4, 169, 159, 214, 130, 44, 133, 88, 133, 76, 205,
+				227, 154, 86, 132, 231, 165, 109, 162, 125,
+			];
+			let bob: [u8; 32] = [
+				142, 175, 4, 21, 22, 135, 115, 99, 38, 201, 254, 161, 126, 37, 252, 82, 135, 97, 54, 147, 201, 18, 144,
+				156, 178, 38, 170, 71, 148, 242, 106, 72,
+			];
+			let charlie: [u8; 32] = [
+				144, 181, 171, 32, 92, 105, 116, 201, 234, 132, 27, 230, 136, 134, 70, 51, 220, 156, 168, 163, 87, 132,
+				62, 234, 207, 35, 20, 100, 153, 101, 254, 34,
+			];
+
+			frame_support::assert_ok!(orml_oracle::Pallet::<PolimecRuntime>::feed_values(
+				PolimecOrigin::signed(alice.clone().into()),
+				values.clone()
+			));
+
+			frame_support::assert_ok!(orml_oracle::Pallet::<PolimecRuntime>::feed_values(
+				PolimecOrigin::signed(bob.clone().into()),
+				values.clone()
+			));
+
+			frame_support::assert_ok!(orml_oracle::Pallet::<PolimecRuntime>::feed_values(
+				PolimecOrigin::signed(charlie.clone().into()),
+				values.clone()
+			));
+		});
+	}
 
 	pub fn genesis() -> Storage {
 		let dot_asset_id = AcceptedFundingAsset::DOT.to_assethub_id();
@@ -548,7 +629,6 @@ pub mod polimec {
 			system: Default::default(),
 			balances: polimec_runtime::BalancesConfig { balances: funded_accounts },
 			contribution_tokens: Default::default(),
-			funding: Default::default(),
 			foreign_assets: polimec_runtime::ForeignAssetsConfig {
 				assets: vec![
 					(dot_asset_id, alice_account.clone(), true, 0_0_010_000_000u128),

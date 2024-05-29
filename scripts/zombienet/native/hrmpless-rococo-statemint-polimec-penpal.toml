@@ -3,7 +3,7 @@ timeout = 1000
 provider = "native"
 
 [relaychain]
-default_command = "../polkadot/target/release/polkadot"
+default_command = "/usr/local/bin/polkadot"
 chain = "rococo-local"
 
 
@@ -28,18 +28,18 @@ chain = "rococo-local"
 
 [[parachains]]
 id = 1000
-chain = "statemint-local"
+chain = "asset-hub-rococo-dev"
 
 	[[parachains.collators]]
 	name = "statemint-dev"
-	command = "../cumulus/target/release/polkadot-parachain"
+	command = "../polkadot-sdk/target/release/polkadot-parachain"
     args = ["-lerror", "-lxcm::process_instruction=trace", "-lxcm::execute_xcm_in_credit=trace", "-lxcm::barriers=trace", "-lpallet_funding::hrmp=trace", "-lpallet_funding::test=trace", "--execution=native", ]
     ws_port = 7777
 
 
 [[parachains]]
 id = 3344
-chain = "polimec-testing"
+chain = "politest-populated"
 	[[parachains.collators]]
 	name = "polimec-testing"
 	command = "./target/release/polimec-node"
@@ -48,9 +48,9 @@ chain = "polimec-testing"
 
 [[parachains]]
 id = 3000
-chain = "penpal-polkadot-3000"
+chain = "penpal-rococo-3000"
 	[[parachains.collators]]
 	name = "penpal-collator"
-	command = "../cumulus/target/release/polkadot-parachain"
+	command = "../polkadot-sdk/target/release/polkadot-parachain"
     args = ["-lerror", "-lxcm::process_instruction=trace", "-lxcm::execute_xcm_in_credit=trace", "-lxcm::barriers=trace", "-lpallet_funding::hrmp=trace", "-lpallet_funding::test=trace", "--execution=native", ]
     ws_port = 9999

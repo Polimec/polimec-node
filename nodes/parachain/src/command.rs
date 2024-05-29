@@ -97,8 +97,6 @@ fn load_spec(id: &str) -> std::result::Result<Box<dyn ChainSpec>, String> {
 		"polimec-local" => Box::new(chain_spec::polimec::get_local_chain_spec()),
 		"rolimec-local" => Box::new(chain_spec::polimec::get_rococo_chain_spec()),
 		"politest-local" => Box::new(chain_spec::politest::get_local_chain_spec()),
-		#[cfg(feature = "std")]
-		"politest-populated" => Box::new(chain_spec::politest::get_populated_chain_spec()?),
 		// -- Fallback (generic chainspec)
 		"" => {
 			log::warn!("No ChainSpec.id specified, so using default one, based on polimec-rococo-local");

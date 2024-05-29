@@ -1,5 +1,5 @@
 use super::*;
-use crate::instantiator::async_features::create_multiple_projects_at;
+// use crate::instantiator::async_features::create_multiple_projects_at;
 use frame_support::{dispatch::DispatchResultWithPostInfo, traits::fungibles::metadata::Inspect};
 use sp_runtime::bounded_vec;
 use std::collections::HashSet;
@@ -23,47 +23,6 @@ mod round_flow {
 				default_community_buys(),
 				default_remainder_buys(),
 			);
-		}
-
-		#[test]
-		fn multiple_remainder_projects_completed_in_parallel() {
-			let inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
-
-			let project_params = vec![
-				TestProjectParams {
-					expected_state: ProjectStatus::FundingSuccessful,
-					metadata: default_project_metadata(ISSUER_1),
-					issuer: ISSUER_1,
-					evaluations: default_evaluations(),
-					bids: default_bids(),
-					community_contributions: default_community_buys(),
-					remainder_contributions: default_remainder_buys(),
-				},
-				TestProjectParams {
-					expected_state: ProjectStatus::FundingSuccessful,
-					metadata: default_project_metadata(ISSUER_2),
-					issuer: ISSUER_2,
-					evaluations: default_evaluations(),
-					bids: default_bids(),
-					community_contributions: default_community_buys(),
-					remainder_contributions: default_remainder_buys(),
-				},
-				TestProjectParams {
-					expected_state: ProjectStatus::FundingSuccessful,
-					metadata: default_project_metadata(ISSUER_3),
-					issuer: ISSUER_3,
-					evaluations: default_evaluations(),
-					bids: default_bids(),
-					community_contributions: default_community_buys(),
-					remainder_contributions: default_remainder_buys(),
-				},
-			];
-
-			let (_project_ids, mut inst) = create_multiple_projects_at(inst, project_params);
-
-			assert_eq!(inst.get_project_details(0).status, ProjectStatus::FundingSuccessful);
-			assert_eq!(inst.get_project_details(1).status, ProjectStatus::FundingSuccessful);
-			assert_eq!(inst.get_project_details(2).status, ProjectStatus::FundingSuccessful);
 		}
 
 		#[test]
@@ -515,13 +474,14 @@ mod remaining_contribute_extrinsic {
 
 		#[test]
 		fn contribute_with_multiple_currencies() {
+			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+
 			let mut project_metadata_all = default_project_metadata(ISSUER_1);
 			project_metadata_all.participation_currencies =
 				vec![AcceptedFundingAsset::USDT, AcceptedFundingAsset::USDC, AcceptedFundingAsset::DOT]
 					.try_into()
 					.unwrap();
 
-			let inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 			let mut project_metadata_usdt = default_project_metadata(ISSUER_2);
 			project_metadata_usdt.participation_currencies = vec![AcceptedFundingAsset::USDT].try_into().unwrap();
 
@@ -557,55 +517,17 @@ mod remaining_contribute_extrinsic {
 				})
 				.collect::<Vec<_>>();
 
-			let projects = vec![
-				TestProjectParams {
-					expected_state: ProjectStatus::RemainderRound,
-					metadata: project_metadata_all.clone(),
-					issuer: ISSUER_1,
-					evaluations: evaluations.clone(),
-					bids: usdt_bids.clone(),
-					community_contributions: vec![],
-					remainder_contributions: vec![],
-				},
-				TestProjectParams {
-					expected_state: ProjectStatus::RemainderRound,
-					metadata: project_metadata_usdt,
-					issuer: ISSUER_2,
-					evaluations: evaluations.clone(),
-					bids: usdt_bids.clone(),
-					community_contributions: vec![],
-					remainder_contributions: vec![],
-				},
-				TestProjectParams {
-					expected_state: ProjectStatus::RemainderRound,
-					metadata: project_metadata_usdc,
-					issuer: ISSUER_3,
-					evaluations: evaluations.clone(),
-					bids: usdc_bids.clone(),
-					community_contributions: vec![],
-					remainder_contributions: vec![],
-				},
-				TestProjectParams {
-					expected_state: ProjectStatus::RemainderRound,
-					metadata: project_metadata_dot,
-					issuer: ISSUER_4,
-					evaluations: evaluations.clone(),
-					bids: dot_bids.clone(),
-					community_contributions: vec![],
-					remainder_contributions: vec![],
-				},
-			];
-			let (project_ids, mut inst) = create_multiple_projects_at(inst, projects);
-
-			let project_id_all = project_ids[0];
-			let project_id_usdt = project_ids[1];
-			let project_id_usdc = project_ids[2];
-			let project_id_dot = project_ids[3];
-
 			let usdt_contribution = ContributionParams::new(BUYER_1, 10_000 * CT_UNIT, 1u8, AcceptedFundingAsset::USDT);
 			let usdc_contribution = ContributionParams::new(BUYER_2, 10_000 * CT_UNIT, 1u8, AcceptedFundingAsset::USDC);
 			let dot_contribution = ContributionParams::new(BUYER_3, 10_000 * CT_UNIT, 1u8, AcceptedFundingAsset::DOT);
 
+			let project_id_all = inst.create_remainder_contributing_project(
+				project_metadata_all.clone(),
+				ISSUER_1,
+				evaluations.clone(),
+				default_bids(),
+				vec![],
+			);
 			let wap = inst.get_project_details(project_id_all).weighted_average_price.unwrap();
 
 			let plmc_fundings = inst.calculate_contributed_plmc_spent(
@@ -614,7 +536,6 @@ mod remaining_contribute_extrinsic {
 				false,
 			);
 			let plmc_existential_deposits = plmc_fundings.accounts().existential_deposits();
-
 			let plmc_all_mints =
 				inst.generic_map_operation(vec![plmc_fundings, plmc_existential_deposits], MergeOperation::Add);
 			inst.mint_plmc_to(plmc_all_mints.clone());
@@ -634,6 +555,14 @@ mod remaining_contribute_extrinsic {
 				vec![usdt_contribution.clone(), usdc_contribution.clone(), dot_contribution.clone()]
 			));
 
+			let project_id_usdt = inst.create_remainder_contributing_project(
+				project_metadata_usdt.clone(),
+				ISSUER_2,
+				evaluations.clone(),
+				usdt_bids,
+				vec![],
+			);
+
 			assert_ok!(inst.contribute_for_users(project_id_usdt, vec![usdt_contribution.clone()]));
 			assert_err!(
 				inst.contribute_for_users(project_id_usdt, vec![usdc_contribution.clone()]),
@@ -644,6 +573,14 @@ mod remaining_contribute_extrinsic {
 				Error::<TestRuntime>::FundingAssetNotAccepted
 			);
 
+			let project_id_usdc = inst.create_remainder_contributing_project(
+				project_metadata_usdc.clone(),
+				ISSUER_3,
+				evaluations.clone(),
+				usdc_bids,
+				vec![],
+			);
+
 			assert_err!(
 				inst.contribute_for_users(project_id_usdc, vec![usdt_contribution.clone()]),
 				Error::<TestRuntime>::FundingAssetNotAccepted
@@ -652,6 +589,14 @@ mod remaining_contribute_extrinsic {
 			assert_err!(
 				inst.contribute_for_users(project_id_usdc, vec![dot_contribution.clone()]),
 				Error::<TestRuntime>::FundingAssetNotAccepted
+			);
+
+			let project_id_dot = inst.create_remainder_contributing_project(
+				project_metadata_dot.clone(),
+				ISSUER_4,
+				evaluations.clone(),
+				dot_bids,
+				vec![],
 			);
 
 			assert_err!(
@@ -1738,7 +1683,7 @@ mod remaining_contribute_extrinsic {
 
 		#[test]
 		fn contribute_with_unaccepted_currencies() {
-			let inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 
 			let mut project_metadata_usdt = default_project_metadata(ISSUER_2);
 			project_metadata_usdt.participation_currencies = vec![AcceptedFundingAsset::USDT].try_into().unwrap();
@@ -1764,38 +1709,28 @@ mod remaining_contribute_extrinsic {
 				})
 				.collect::<Vec<_>>();
 
-			let projects = vec![
-				TestProjectParams {
-					expected_state: ProjectStatus::RemainderRound,
-					metadata: project_metadata_usdt,
-					issuer: ISSUER_2,
-					evaluations: evaluations.clone(),
-					bids: usdt_bids.clone(),
-					community_contributions: vec![],
-					remainder_contributions: vec![],
-				},
-				TestProjectParams {
-					expected_state: ProjectStatus::RemainderRound,
-					metadata: project_metadata_usdc,
-					issuer: ISSUER_3,
-					evaluations: evaluations.clone(),
-					bids: usdc_bids.clone(),
-					community_contributions: vec![],
-					remainder_contributions: vec![],
-				},
-			];
-			let (project_ids, mut inst) = create_multiple_projects_at(inst, projects);
-
-			let project_id_usdt = project_ids[0];
-			let project_id_usdc = project_ids[1];
-
 			let usdt_contribution = ContributionParams::new(BUYER_1, 10_000 * CT_UNIT, 1u8, AcceptedFundingAsset::USDT);
 			let usdc_contribution = ContributionParams::new(BUYER_2, 10_000 * CT_UNIT, 1u8, AcceptedFundingAsset::USDC);
 			let dot_contribution = ContributionParams::new(BUYER_3, 10_000 * CT_UNIT, 1u8, AcceptedFundingAsset::DOT);
 
+			let project_id_usdc = inst.create_remainder_contributing_project(
+				project_metadata_usdc,
+				ISSUER_3,
+				evaluations.clone(),
+				usdc_bids,
+				vec![],
+			);
 			assert_err!(
 				inst.contribute_for_users(project_id_usdc, vec![usdt_contribution.clone()]),
 				Error::<TestRuntime>::FundingAssetNotAccepted
+			);
+
+			let project_id_usdt = inst.create_remainder_contributing_project(
+				project_metadata_usdt,
+				ISSUER_2,
+				evaluations.clone(),
+				usdt_bids,
+				vec![],
 			);
 			assert_err!(
 				inst.contribute_for_users(project_id_usdt, vec![usdc_contribution.clone()]),

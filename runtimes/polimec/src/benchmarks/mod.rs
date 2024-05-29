@@ -1,4 +1,4 @@
-#[cfg(any(feature = "runtime-benchmarks", feature = "std"))]
+#[cfg(any(feature = "runtime-benchmarks", test))]
 pub mod helpers;
 
 #[test]

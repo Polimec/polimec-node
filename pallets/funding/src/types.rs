@@ -166,8 +166,7 @@ pub mod config_types {
 pub mod storage_types {
 	use super::*;
 
-	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
-	#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
+	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo, Serialize, Deserialize)]
 	pub struct ProjectMetadata<BoundedString, Balance: PartialOrd + Copy, Price: FixedPointNumber, AccountId, Cid> {
 		/// Token Metadata
 		pub token_information: CurrencyMetadata<BoundedString>,
@@ -501,8 +500,9 @@ pub mod inner_types {
 		BadTokenomics,
 	}
 
-	#[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
-	#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
+	#[derive(
+		Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo, Serialize, Deserialize,
+	)]
 	pub struct CurrencyMetadata<BoundedString> {
 		/// The user-friendly name of this asset. Limited in length by `StringLimit`.
 		pub name: BoundedString,
@@ -512,8 +512,9 @@ pub mod inner_types {
 		pub decimals: u8,
 	}
 
-	#[derive(Clone, Copy, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
-	#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
+	#[derive(
+		Clone, Copy, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo, Serialize, Deserialize,
+	)]
 	pub struct TicketSize<Balance: PartialOrd + Copy> {
 		pub usd_minimum_per_participation: Balance,
 		pub usd_maximum_per_did: Option<Balance>,
@@ -555,8 +556,9 @@ pub mod inner_types {
 		}
 	}
 
-	#[derive(Clone, Copy, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
-	#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
+	#[derive(
+		Clone, Copy, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo, Serialize, Deserialize,
+	)]
 	pub struct BiddingTicketSizes<Price: FixedPointNumber, Balance: PartialOrd + Copy> {
 		pub professional: TicketSize<Balance>,
 		pub institutional: TicketSize<Balance>,
@@ -581,8 +583,9 @@ pub mod inner_types {
 		}
 	}
 
-	#[derive(Clone, Copy, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
-	#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
+	#[derive(
+		Clone, Copy, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo, Serialize, Deserialize,
+	)]
 	pub struct ContributingTicketSizes<Price: FixedPointNumber, Balance: PartialOrd + Copy> {
 		pub retail: TicketSize<Balance>,
 		pub professional: TicketSize<Balance>,
@@ -612,9 +615,21 @@ pub mod inner_types {
 	}
 
 	#[derive(
-		VariantCount, Clone, Copy, Encode, Decode, Eq, PartialEq, PartialOrd, Ord, RuntimeDebug, TypeInfo, MaxEncodedLen,
+		VariantCount,
+		Clone,
+		Copy,
+		Encode,
+		Decode,
+		Eq,
+		PartialEq,
+		PartialOrd,
+		Ord,
+		RuntimeDebug,
+		TypeInfo,
+		MaxEncodedLen,
+		Serialize,
+		Deserialize,
 	)]
-	#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
 	pub enum AcceptedFundingAsset {
 		#[codec(index = 0)]
 		USDT,
@@ -633,8 +648,9 @@ pub mod inner_types {
 		}
 	}
 
-	#[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
-	#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
+	#[derive(
+		Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen, Serialize, Deserialize,
+	)]
 	pub enum ProjectStatus {
 		#[default]
 		Application,
