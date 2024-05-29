@@ -623,10 +623,8 @@ mod benchmarks {
 		let project_id = inst.create_evaluating_project(project_metadata.clone(), issuer.clone());
 
 		let evaluations = default_evaluations();
-		let plmc_for_evaluating = inst.calculate_evaluation_plmc_spent(evaluations.clone());
-		let existential_plmc: Vec<UserToPLMCBalance<T>> = plmc_for_evaluating.accounts().existential_deposits();
+		let plmc_for_evaluating = inst.calculate_evaluation_plmc_spent(evaluations.clone(), true);
 
-		inst.mint_plmc_to(existential_plmc);
 		inst.mint_plmc_to(plmc_for_evaluating);
 
 		inst.advance_time(One::one()).unwrap();
@@ -686,8 +684,9 @@ mod benchmarks {
 		let extrinsic_evaluation = UserToUSDBalance::new(test_evaluator.clone(), (1_000 * USD_UNIT).into());
 		let existing_evaluations = vec![existing_evaluation; x as usize];
 
-		let plmc_for_existing_evaluations = inst.calculate_evaluation_plmc_spent(existing_evaluations.clone());
-		let plmc_for_extrinsic_evaluation = inst.calculate_evaluation_plmc_spent(vec![extrinsic_evaluation.clone()]);
+		let plmc_for_existing_evaluations = inst.calculate_evaluation_plmc_spent(existing_evaluations.clone(), false);
+		let plmc_for_extrinsic_evaluation =
+			inst.calculate_evaluation_plmc_spent(vec![extrinsic_evaluation.clone()], false);
 		let existential_plmc: Vec<UserToPLMCBalance<T>> =
 			plmc_for_extrinsic_evaluation.accounts().existential_deposits();
 
@@ -819,6 +818,7 @@ mod benchmarks {
 			&existing_bids,
 			project_metadata.clone(),
 			None,
+			false,
 		);
 
 		let existential_deposits: Vec<UserToPLMCBalance<T>> = vec![bidder.clone()].existential_deposits();
@@ -860,6 +860,7 @@ mod benchmarks {
 			let plmc_for_new_bidder = inst.calculate_auction_plmc_charged_with_given_price(
 				&vec![bid_params.clone()],
 				current_bucket.current_price,
+				false,
 			);
 			let plmc_ed = plmc_for_new_bidder.accounts().existential_deposits();
 			let usdt_for_new_bidder = inst.calculate_auction_funding_asset_charged_with_given_price(
@@ -895,6 +896,7 @@ mod benchmarks {
 				&vec![extrinsic_bid.clone()],
 				project_metadata.clone(),
 				Some(current_bucket),
+				false,
 			);
 		let usdt_for_extrinsic_bids: Vec<UserToForeignAssets<T>> = inst
 			.calculate_auction_funding_asset_charged_from_all_bids_made_or_with_bucket(
@@ -1149,9 +1151,9 @@ mod benchmarks {
 		let mut total_ct_sold: BalanceOf<T> = existing_amount * (x as u128).into() + extrinsic_amount;
 
 		let plmc_for_existing_contributions =
-			inst.calculate_contributed_plmc_spent(existing_contributions.clone(), price);
+			inst.calculate_contributed_plmc_spent(existing_contributions.clone(), price, false);
 		let plmc_for_extrinsic_contribution =
-			inst.calculate_contributed_plmc_spent(vec![extrinsic_contribution.clone()], price);
+			inst.calculate_contributed_plmc_spent(vec![extrinsic_contribution.clone()], price, false);
 		let usdt_for_existing_contributions =
 			inst.calculate_contributed_funding_asset_spent(existing_contributions.clone(), price);
 		let usdt_for_extrinsic_contribution =
@@ -1868,10 +1870,8 @@ mod benchmarks {
 		let project_id = inst.create_evaluating_project(project_metadata, issuer.clone());
 
 		let evaluations = default_evaluations();
-		let plmc_for_evaluating = inst.calculate_evaluation_plmc_spent(evaluations.clone());
-		let existential_plmc: Vec<UserToPLMCBalance<T>> = plmc_for_evaluating.accounts().existential_deposits();
+		let plmc_for_evaluating = inst.calculate_evaluation_plmc_spent(evaluations.clone(), true);
 
-		inst.mint_plmc_to(existential_plmc);
 		inst.mint_plmc_to(plmc_for_evaluating);
 
 		inst.advance_time(One::one()).unwrap();
@@ -1929,10 +1929,8 @@ mod benchmarks {
 				(Percent::from_percent(25) * evaluation_usd_target).into(),
 			),
 		];
-		let plmc_for_evaluating = inst.calculate_evaluation_plmc_spent(evaluations.clone());
-		let existential_plmc: Vec<UserToPLMCBalance<T>> = plmc_for_evaluating.accounts().existential_deposits();
+		let plmc_for_evaluating = inst.calculate_evaluation_plmc_spent(evaluations.clone(), true);
 
-		inst.mint_plmc_to(existential_plmc);
 		inst.mint_plmc_to(plmc_for_evaluating);
 
 		inst.advance_time(One::one()).unwrap();
@@ -2070,6 +2068,7 @@ mod benchmarks {
 			&all_bids,
 			project_metadata.clone(),
 			None,
+			false,
 		);
 		let plmc_ed = all_bids.accounts().existential_deposits();
 		let funding_asset_needed_for_bids = inst
@@ -2202,6 +2201,7 @@ mod benchmarks {
 			&all_bids,
 			project_metadata.clone(),
 			None,
+			false,
 		);
 		let plmc_ed = all_bids.accounts().existential_deposits();
 		let funding_asset_needed_for_bids = inst
@@ -2510,11 +2510,9 @@ mod benchmarks {
 			evaluation_target_usd,
 		));
 
-		let plmc_needed_for_evaluating = inst.calculate_evaluation_plmc_spent(evaluations.clone());
-		let plmc_ed = evaluations.accounts().existential_deposits();
+		let plmc_needed_for_evaluating = inst.calculate_evaluation_plmc_spent(evaluations.clone(), true);
 
 		inst.mint_plmc_to(plmc_needed_for_evaluating);
-		inst.mint_plmc_to(plmc_ed);
 
 		let bids: Vec<BidParams<T>> = inst.generate_bids_from_total_usd(
 			(automatically_rejected_threshold * target_funding_amount) / 2.into(),
