@@ -1125,6 +1125,7 @@ impl pallet_dispenser::Config for Runtime {
 	type VestPeriod = DispenserVestPeriod;
 	type VestingSchedule = Vesting;
 	type WeightInfo = weights::pallet_dispenser::WeightInfo<Runtime>;
+	type WhitelistedPolicy = DispenserWhitelistedPolicy;
 }
 
 // Create the runtime by composing the FRAME pallets that were previously configured.

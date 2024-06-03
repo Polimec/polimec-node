@@ -107,6 +107,10 @@ pub mod pallet {
 
 		/// A type representing the weights required by the dispatchables of this pallet.
 		type WeightInfo: crate::weights::WeightInfo;
+
+		/// The Whitelisted policy for the dispenser. Users' credentials should have the same
+		/// policy to be eligible for token dispensing.
+		type WhitelistedPolicy: Get<Cid>;
 	}
 
 	#[pallet::pallet]
@@ -133,6 +137,8 @@ pub mod pallet {
 		DispenserDepleted,
 		/// The dispense amount is too low. It must be greater than the free dispense amount.
 		DispenseAmountTooLow,
+		/// The origin does not have the required credentials.
+		InvalidCredential,
 	}
 
 	#[pallet::call]
@@ -147,9 +153,10 @@ pub mod pallet {
 		#[pallet::call_index(0)]
 		#[pallet::weight(T::WeightInfo::dispense())]
 		pub fn dispense(origin: OriginFor<T>, jwt: UntrustedToken) -> DispatchResultWithPostInfo {
-			let (who, did, _investor_type, _) =
+			let (who, did, _investor_type, whitelisted_policy) =
 				T::InvestorOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get())?;
 			ensure!(Dispensed::<T>::get(&did).is_none(), Error::<T>::DispensedAlreadyToDid);
+			ensure!(whitelisted_policy == T::WhitelistedPolicy::get(), Error::<T>::InvalidCredential);
 
 			let amount = DispenseAmount::<T>::get();
 			ensure!(CurrencyOf::<T>::free_balance(&Self::dispense_account()) >= amount, Error::<T>::DispenserDepleted);

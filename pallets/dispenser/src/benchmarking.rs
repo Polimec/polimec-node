@@ -23,7 +23,7 @@ use crate::Pallet as Dispenser;
 use frame_benchmarking::v2::*;
 use frame_support::traits::{EnsureOrigin, Get};
 use frame_system::RawOrigin;
-use polimec_common_test_utils::{generate_did_from_account, get_mock_jwt};
+use polimec_common_test_utils::{generate_did_from_account, get_mock_jwt_with_cid};
 use sp_runtime::traits::One;
 
 fn assert_last_event<T: Config>(generic_event: <T as Config>::RuntimeEvent) {
@@ -40,7 +40,7 @@ mod benchmarks {
 		assert_eq!(Dispensed::<T>::get(did.clone()), None);
 		CurrencyOf::<T>::deposit_creating(&Dispenser::<T>::dispense_account(), T::InitialDispenseAmount::get());
 
-		let jwt = get_mock_jwt(caller.clone(), InvestorType::Retail, did.clone());
+		let jwt = get_mock_jwt_with_cid(caller.clone(), InvestorType::Retail, did.clone(), T::WhitelistedPolicy::get());
 		#[extrinsic_call]
 		dispense(RawOrigin::Signed(caller.clone()), jwt);
 

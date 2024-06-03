@@ -130,6 +130,10 @@ pub fn generate_did_from_account(account_id: impl Parameter) -> Did {
 	hex_account.into_bytes().try_into().unwrap()
 }
 
+pub fn generate_cid_from_string(cid: &str) -> BoundedVec<u8, ConstU32<96>> {
+	BoundedVec::try_from(cid.as_bytes().to_vec()).unwrap()
+}
+
 #[cfg(feature = "std")]
 pub fn do_request(url: &str) -> String {
 	reqwest::blocking::Client::builder()

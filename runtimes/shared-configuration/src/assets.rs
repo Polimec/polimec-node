@@ -23,6 +23,7 @@ use frame_support::{parameter_types, PalletId};
 use orml_traits::DataProvider;
 use pallet_funding::traits::ProvideAssetPrice;
 use parachains_common::DAYS;
+use polimec_common::credentials::Cid;
 use sp_arithmetic::FixedPointNumber;
 
 parameter_types! {
@@ -58,5 +59,5 @@ parameter_types! {
 	pub const DispenserId: PalletId = PalletId(*b"plmc/fct");
 	pub const DispenserLockPeriod: u32 = DAYS * 365 * 2; // 2 years
 	pub const DispenserVestPeriod: u32 = DAYS * 365 * 2; // 2 years
-
+	pub DispenserWhitelistedPolicy: Cid = (*b"QmVdGSxuWcamYEmYJjR3gvZucqQpp4Jnf6tqJABHwKZVo3").to_vec().try_into().unwrap();
 }
