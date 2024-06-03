@@ -19,7 +19,8 @@
 use frame_support::{derive_impl, ord_parameter_types, parameter_types, traits::tokens::WithdrawReasons, PalletId};
 use frame_system as system;
 use frame_system::EnsureSignedBy;
-use polimec_common::credentials::EnsureInvestor;
+use polimec_common::credentials::{Cid, EnsureInvestor};
+use polimec_common_test_utils::generate_cid_from_string;
 use sp_runtime::{traits::ConvertInto, BuildStorage};
 
 type Block = frame_system::mocking::MockBlock<Test>;
@@ -69,6 +70,7 @@ impl pallet_vesting::Config for Test {
 	const MAX_VESTING_SCHEDULES: u32 = 28;
 }
 
+const IPFS_CID: &str = "QmeuJ24ffwLAZppQcgcggJs3n689bewednYkuc8Bx5Gngz";
 parameter_types! {
 	pub const InitialDispenseAmount: u64 = 100;
 	pub const FreeDispenseAmount: u64 = 5;
@@ -79,6 +81,7 @@ parameter_types! {
 		32, 118, 30, 171, 58, 212, 197, 27, 146, 122, 255, 243, 34, 245, 90, 244, 221, 37, 253,
 		195, 18, 202, 111, 55, 39, 48, 123, 17, 101, 78, 215, 94,
 	];
+	pub WhitelistedPolicy: Cid = generate_cid_from_string(IPFS_CID);
 }
 
 ord_parameter_types! {
@@ -98,6 +101,7 @@ impl crate::Config for Test {
 	type VestPeriod = VestPeriod;
 	type VestingSchedule = Vesting;
 	type WeightInfo = ();
+	type WhitelistedPolicy = WhitelistedPolicy;
 }
 
 pub(crate) struct ExtBuilder {

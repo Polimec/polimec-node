@@ -21,7 +21,7 @@ use crate as pallet_dispenser;
 use crate::mock::*;
 use frame_support::{assert_noop, assert_ok};
 use polimec_common::credentials::InvestorType;
-use polimec_common_test_utils::{generate_did_from_account, get_mock_jwt};
+use polimec_common_test_utils::{generate_cid_from_string, generate_did_from_account, get_mock_jwt_with_cid};
 use sp_runtime::DispatchError;
 
 mod admin {
@@ -66,7 +66,8 @@ mod dispense {
 			// User has no balance.
 			assert_eq!(Balances::free_balance(1), 0);
 			// User can dispense tokens for free.
-			let jwt = get_mock_jwt(1, InvestorType::Retail, generate_did_from_account(1));
+			let jwt =
+				get_mock_jwt_with_cid(1, InvestorType::Retail, generate_did_from_account(1), WhitelistedPolicy::get());
 			assert_ok!(Dispenser::dispense(RuntimeOrigin::signed(1), jwt));
 
 			// Tokens are dispensed and locked.
@@ -85,7 +86,8 @@ mod dispense {
 	#[test]
 	fn user_cannot_dispense_twice() {
 		ExtBuilder::default().build().execute_with(|| {
-			let jwt = get_mock_jwt(1, InvestorType::Retail, generate_did_from_account(1));
+			let jwt =
+				get_mock_jwt_with_cid(1, InvestorType::Retail, generate_did_from_account(1), WhitelistedPolicy::get());
 			assert_ok!(Dispenser::dispense(RuntimeOrigin::signed(1), jwt.clone()));
 			assert_noop!(Dispenser::dispense(RuntimeOrigin::signed(1), jwt), Error::<Test>::DispensedAlreadyToDid);
 		});
@@ -94,7 +96,8 @@ mod dispense {
 	#[test]
 	fn correct_amount_received_after_dispense_amount_changed() {
 		ExtBuilder::default().dispense_account(2).build().execute_with(|| {
-			let jwt = get_mock_jwt(1, InvestorType::Retail, generate_did_from_account(1));
+			let jwt =
+				get_mock_jwt_with_cid(1, InvestorType::Retail, generate_did_from_account(1), WhitelistedPolicy::get());
 			assert_ok!(Dispenser::dispense(RuntimeOrigin::signed(1), jwt));
 			assert_eq!(Balances::free_balance(1), <Test as pallet_dispenser::Config>::InitialDispenseAmount::get());
 			assert_eq!(Balances::usable_balance(1), <Test as pallet_dispenser::Config>::FreeDispenseAmount::get());
@@ -109,7 +112,8 @@ mod dispense {
 			// Change the dispense amount.
 			let new_amount: BalanceOf<Test> = 50u32.into();
 			assert_ok!(Dispenser::set_dispense_amount(RuntimeOrigin::signed(Admin::get()), new_amount));
-			let jwt = get_mock_jwt(2, InvestorType::Retail, generate_did_from_account(2));
+			let jwt =
+				get_mock_jwt_with_cid(2, InvestorType::Retail, generate_did_from_account(2), WhitelistedPolicy::get());
 			assert_ok!(Dispenser::dispense(RuntimeOrigin::signed(2), jwt));
 			assert_eq!(Balances::free_balance(2), new_amount);
 			assert_eq!(Balances::usable_balance(2), <Test as pallet_dispenser::Config>::FreeDispenseAmount::get());
@@ -129,7 +133,12 @@ mod dispense {
 				x * <Test as pallet_dispenser::Config>::InitialDispenseAmount::get()
 			);
 			for i in 1..=x {
-				let jwt = get_mock_jwt(i, InvestorType::Retail, generate_did_from_account(i));
+				let jwt = get_mock_jwt_with_cid(
+					i,
+					InvestorType::Retail,
+					generate_did_from_account(i),
+					WhitelistedPolicy::get(),
+				);
 				assert_ok!(Dispenser::dispense(RuntimeOrigin::signed(i), jwt));
 				assert_eq!(Balances::free_balance(i), <Test as pallet_dispenser::Config>::InitialDispenseAmount::get());
 				assert_eq!(Balances::usable_balance(i), <Test as pallet_dispenser::Config>::FreeDispenseAmount::get());
@@ -145,10 +154,24 @@ mod dispense {
 			assert_noop!(
 				Dispenser::dispense(
 					RuntimeOrigin::signed(x + 1),
-					get_mock_jwt(x + 1, InvestorType::Retail, generate_did_from_account(x + 1))
+					get_mock_jwt_with_cid(
+						x + 1,
+						InvestorType::Retail,
+						generate_did_from_account(x + 1),
+						WhitelistedPolicy::get()
+					)
 				),
 				Error::<Test>::DispenserDepleted
 			);
+		});
+	}
+
+	#[test]
+	fn user_cannot_dispense_with_wrong_policy() {
+		ExtBuilder::default().build().execute_with(|| {
+			let wrong_cid = generate_cid_from_string("1111111111111111111111111111111111111111111111111111");
+			let jwt = get_mock_jwt_with_cid(1, InvestorType::Retail, generate_did_from_account(1), wrong_cid);
+			assert_noop!(Dispenser::dispense(RuntimeOrigin::signed(1), jwt.clone()), Error::<Test>::InvalidCredential);
 		});
 	}
 }
