@@ -890,7 +890,7 @@ mod remaining_contribute_extrinsic {
 			inst.bid_for_users(project_id, successful_bids).unwrap();
 			inst.advance_time(
 				<TestRuntime as Config>::AuctionOpeningDuration::get() +
-					<TestRuntime as Config>::AuctionClosingDuration::get()
+					<TestRuntime as Config>::AuctionClosingDuration::get(),
 			)
 			.unwrap();
 			inst.bid_for_users(project_id, failing_bids_after_random_end).unwrap();

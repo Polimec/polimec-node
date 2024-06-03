@@ -108,7 +108,7 @@ parameter_types! {
 	]);
 	pub FeeBrackets: Vec<(Percent, Balance)> = vec![
 		(Percent::from_percent(10), 1_000_000 * USD_UNIT),
-		(Percent::from_percent(8), 5_000_000 * USD_UNIT),
+		(Percent::from_percent(8), 4_000_000 * USD_UNIT),
 		(Percent::from_percent(6), u128::MAX), // Making it max signifies the last bracket
 	];
 	pub EarlyEvaluationThreshold: Percent = Percent::from_percent(10);

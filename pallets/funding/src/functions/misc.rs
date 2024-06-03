@@ -403,7 +403,7 @@ impl<T: Config> Pallet<T> {
 	}
 
 	/// Computes the total fee from all defined fee brackets.
-	fn compute_total_fee_from_brackets(funding_reached: BalanceOf<T>) -> BalanceOf<T> {
+	pub fn compute_total_fee_from_brackets(funding_reached: BalanceOf<T>) -> BalanceOf<T> {
 		let mut remaining_for_fee = funding_reached;
 
 		T::FeeBrackets::get()
@@ -413,7 +413,7 @@ impl<T: Config> Pallet<T> {
 	}
 
 	/// Calculate the fee for a particular bracket.
-	fn compute_fee_for_bracket(
+	pub fn compute_fee_for_bracket(
 		remaining_for_fee: &mut BalanceOf<T>,
 		fee: Percent,
 		limit: BalanceOf<T>,
@@ -531,32 +531,6 @@ impl<T: Config> Pallet<T> {
 		let long_term_holder_reward_pot = long_term_holder_percentage * total_fee_allocation;
 
 		Ok((liquidity_pools_reward_pot, long_term_holder_reward_pot))
-	}
-
-	pub fn finalize_funding(
-		project_id: ProjectId,
-		mut project_details: ProjectDetailsOf<T>,
-		outcome: ProjectOutcome,
-		settlement_delta: BlockNumberFor<T>,
-	) -> Result<u32, DispatchError> {
-		let now = <frame_system::Pallet<T>>::block_number();
-
-		project_details.status = match outcome {
-			ProjectOutcome::FundingSuccessful | ProjectOutcome::FundingAccepted => ProjectStatus::FundingSuccessful,
-			_ => ProjectStatus::FundingFailed,
-		};
-		ProjectsDetails::<T>::insert(project_id, project_details);
-
-		let insertion_iterations =
-			match Self::add_to_update_store(now + settlement_delta, (&project_id, UpdateType::StartSettlement)) {
-				Ok(iterations) => iterations,
-				Err(_iterations) => return Err(Error::<T>::TooManyInsertionAttempts.into()),
-			};
-		Self::deposit_event(Event::ProjectPhaseTransition {
-			project_id,
-			phase: ProjectPhases::FundingFinalization(outcome),
-		});
-		Ok(insertion_iterations)
 	}
 
 	pub fn migrations_per_xcm_message_allowed() -> u32 {
