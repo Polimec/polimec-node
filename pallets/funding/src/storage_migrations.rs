@@ -2,7 +2,7 @@
 use frame_support::traits::StorageVersion;
 
 /// The current storage version
-pub const STORAGE_VERSION: StorageVersion = StorageVersion::new(2);
+pub const STORAGE_VERSION: StorageVersion = StorageVersion::new(3);
 pub const LOG: &str = "runtime::funding::migration";
 
 pub mod v2 {
@@ -148,6 +148,102 @@ pub mod v2 {
 		1,
 		2,
 		UncheckedMigrationToV2<T>,
+		crate::Pallet<T>,
+		<T as frame_system::Config>::DbWeight,
+	>;
+}
+
+pub mod v3 {
+	use crate::{
+		AccountIdOf, BalanceOf, Config, EvaluationRoundInfoOf, HRMPChannelStatus, MigrationReadinessCheck,
+		PhaseTransitionPoints, PriceOf, ProjectDetailsOf, ProjectStatus,
+	};
+	use frame_support::{
+		pallet_prelude::Get,
+		traits::{tokens::Balance as BalanceT, OnRuntimeUpgrade},
+	};
+	use frame_system::pallet_prelude::BlockNumberFor;
+	use polimec_common::credentials::Did;
+	use polkadot_parachain_primitives::primitives::Id as ParaId;
+	use scale_info::TypeInfo;
+	use sp_arithmetic::FixedPointNumber;
+	use sp_core::{Decode, Encode, MaxEncodedLen, RuntimeDebug};
+	use sp_std::marker::PhantomData;
+
+	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
+	pub struct OldProjectDetails<
+		AccountId,
+		Did,
+		BlockNumber,
+		Price: FixedPointNumber,
+		Balance: BalanceT,
+		EvaluationRoundInfo,
+	> {
+		pub issuer_account: AccountId,
+		pub issuer_did: Did,
+		/// Whether the project is frozen, so no `metadata` changes are allowed.
+		pub is_frozen: bool,
+		/// The price in USD per token decided after the Auction Round
+		pub weighted_average_price: Option<Price>,
+		/// The current status of the project
+		pub status: ProjectStatus,
+		/// When the different project phases start and end
+		pub phase_transition_points: PhaseTransitionPoints<BlockNumber>,
+		/// Fundraising target amount in USD (6 decimals)
+		pub fundraising_target_usd: Balance,
+		/// The amount of Contribution Tokens that have not yet been sold
+		pub remaining_contribution_tokens: Balance,
+		/// Funding reached amount in USD (6 decimals)
+		pub funding_amount_reached_usd: Balance,
+		/// Information about the total amount bonded, and the outcome in regards to reward/slash/nothing
+		pub evaluation_round_info: EvaluationRoundInfo,
+		/// When the Funding Round ends
+		pub funding_end_block: Option<BlockNumber>,
+		/// ParaId of project
+		pub parachain_id: Option<ParaId>,
+		/// Migration readiness check
+		pub migration_readiness_check: Option<MigrationReadinessCheck>,
+		/// HRMP Channel status
+		pub hrmp_channel_status: HRMPChannelStatus,
+	}
+	type OldProjectDetailsOf<T> =
+		OldProjectDetails<AccountIdOf<T>, Did, BlockNumberFor<T>, PriceOf<T>, BalanceOf<T>, EvaluationRoundInfoOf<T>>;
+
+	pub struct UncheckedMigrationToV3<T: Config>(PhantomData<T>);
+	impl<T: Config> OnRuntimeUpgrade for UncheckedMigrationToV3<T> {
+		fn on_runtime_upgrade() -> frame_support::weights::Weight {
+			let mut items = 0;
+			let mut translate = |_key, item: OldProjectDetailsOf<T>| -> Option<ProjectDetailsOf<T>> {
+				items += 1;
+				Some(ProjectDetailsOf::<T> {
+					issuer_account: item.issuer_account,
+					issuer_did: item.issuer_did,
+					is_frozen: item.is_frozen,
+					weighted_average_price: item.weighted_average_price,
+					status: item.status,
+					phase_transition_points: item.phase_transition_points,
+					fundraising_target_usd: item.fundraising_target_usd,
+					remaining_contribution_tokens: item.remaining_contribution_tokens,
+					funding_amount_reached_usd: item.funding_amount_reached_usd,
+					evaluation_round_info: item.evaluation_round_info,
+					usd_bid_on_oversubscription: None,
+					funding_end_block: item.funding_end_block,
+					parachain_id: item.parachain_id,
+					migration_readiness_check: item.migration_readiness_check,
+					hrmp_channel_status: item.hrmp_channel_status,
+				})
+			};
+
+			crate::ProjectsDetails::<T>::translate(|key, object: OldProjectDetailsOf<T>| translate(key, object));
+
+			T::DbWeight::get().reads_writes(items, items)
+		}
+	}
+
+	pub type MigrationToV3<T> = frame_support::migrations::VersionedMigration<
+		2,
+		3,
+		UncheckedMigrationToV3<T>,
 		crate::Pallet<T>,
 		<T as frame_system::Config>::DbWeight,
 	>;
