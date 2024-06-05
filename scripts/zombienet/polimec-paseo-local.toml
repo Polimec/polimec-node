@@ -1,0 +1,44 @@
+[settings]
+timeout = 1000
+provider = "native"
+
+[relaychain]
+default_command = "polkadot"
+chain_spec_path = "./scripts/zombienet/relay-chain-specs/paseo-local.plain.json"
+
+	[[relaychain.nodes]]
+	name = "eve"
+
+	[[relaychain.nodes]]
+	name = "ferdie"
+
+	[[relaychain.nodes]]
+	name = "charlie"
+
+	[[relaychain.nodes]]
+	name = "dave"
+
+[[parachains]]
+id = 3344
+chain = "polimec-paseo-local"
+
+	[[parachains.collators]]
+	name = "collator1"
+	command = "./target/release/polimec-node"
+	args = ["--offchain-worker when-authority"]
+	# ss58 key: 5Do5UoayFvDrHroGS1YMqxTVUysSkrhNwVMzmj1foVb3vzzb
+	keystore_key_types = ["aura", "plmc_sr"]
+
+	[[parachains.collators]]
+	name = "collator2"
+	command = "./target/release/polimec-node"
+	args = ["--offchain-worker when-authority"]
+	# ss58 key: 5E5E37FNZD9KVHyGgSHt8pc2kq8e3VUS5rf8GmrxCa7ySs8s
+	keystore_key_types = ["aura", "plmc_sr"]
+
+	[[parachains.collators]]
+	name = "collator3"
+	command = "./target/release/polimec-node"
+	args = ["--offchain-worker when-authority"]
+	# ss58 key: 5ELLzYckeuomgTnv4Pf1aT4itxu35cn1KWNCGcftzv5N2x7o
+	keystore_key_types = ["aura", "plmc_sr"]

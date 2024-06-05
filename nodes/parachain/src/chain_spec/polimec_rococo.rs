@@ -21,51 +21,25 @@
 use cumulus_primitives_core::ParaId;
 use frame_support::traits::fungible::Inspect;
 use politest_runtime::{
-	pallet_parachain_staking::{
-		inflation::{perbill_annual_to_perbill_round, BLOCKS_PER_YEAR},
-		InflationInfo, Range,
-	},
-	AccountId, AuraId as AuthorityId, Balance, MinCandidateStk, OracleProvidersMembershipConfig, Runtime,
-	RuntimeGenesisConfig, PLMC,
+	pallet_parachain_staking::InflationInfo, AccountId, AuraId as AuthorityId, Balance, MinCandidateStk,
+	OracleProvidersMembershipConfig, Runtime,
 };
 use sc_service::ChainType;
 use sp_core::{crypto::UncheckedInto, sr25519};
 use sp_runtime::{traits::AccountIdConversion, Perbill, Percent};
 
-use crate::chain_spec::{get_account_id_from_seed, GenericChainSpec, DEFAULT_PARA_ID};
+use crate::chain_spec::{
+	common::polimec_inflation_config, get_account_id_from_seed, GenericChainSpec, DEFAULT_PARA_ID,
+};
 
 use super::{get_properties, Extensions};
 
 const SAFE_XCM_VERSION: u32 = xcm::prelude::XCM_VERSION;
 
-/// Specialized `ChainSpec` for the normal parachain runtime.
-pub type ChainSpec = sc_service::GenericChainSpec<RuntimeGenesisConfig, Extensions>;
-
 const COLLATOR_COMMISSION: Perbill = Perbill::from_percent(30);
 const PARACHAIN_BOND_RESERVE_PERCENT: Percent = Percent::from_percent(0);
 const BLOCKS_PER_ROUND: u32 = 2 * 10;
 const NUM_SELECTED_CANDIDATES: u32 = 5;
-
-pub fn polimec_inflation_config() -> InflationInfo<Balance> {
-	fn to_round_inflation(annual: Range<Perbill>) -> Range<Perbill> {
-		perbill_annual_to_perbill_round(
-			annual,
-			// rounds per year
-			BLOCKS_PER_YEAR / BLOCKS_PER_ROUND,
-		)
-	}
-
-	let annual =
-		Range { min: Perbill::from_percent(2), ideal: Perbill::from_percent(3), max: Perbill::from_percent(3) };
-
-	InflationInfo {
-		// staking expectations
-		expect: Range { min: 100_000 * PLMC, ideal: 200_000 * PLMC, max: 500_000 * PLMC },
-		// annual inflation
-		annual,
-		round: to_round_inflation(annual),
-	}
-}
 
 pub fn get_politest_session_keys(keys: AuthorityId) -> politest_runtime::SessionKeys {
 	politest_runtime::SessionKeys { aura: keys }

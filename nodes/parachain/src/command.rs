@@ -86,30 +86,30 @@ fn runtime(id: &str) -> Runtime {
 
 fn load_spec(id: &str) -> std::result::Result<Box<dyn ChainSpec>, String> {
 	log::info!("Load spec id: {}", id);
-	let polimec_chain_spec = include_bytes!("../../../chain-specs/polimec-raw-chain-spec.json").to_vec();
+	let polimec_chain_spec = include_bytes!("../../../chain-specs/polkadot/polimec-raw-chain-spec.json").to_vec();
 	let rolimec_chain_spec = include_bytes!("../../../chain-specs/rococo/rawlimec.json").to_vec();
+	let polimec_paseo_spec = include_bytes!("../../../chain-specs/paseo/polimec-paseo.spec.raw.json").to_vec();
 
 	Ok(match id {
-		// Base runtime
-		"polimec" => Box::new(chain_spec::polimec::ChainSpec::from_json_bytes(polimec_chain_spec)?),
-		"rolimec" => Box::new(chain_spec::polimec::ChainSpec::from_json_bytes(rolimec_chain_spec)?),
-		"politest" => Box::new(chain_spec::politest::get_live_chain_spec()),
-		"polimec-local" => Box::new(chain_spec::polimec::get_local_chain_spec()),
-		"rolimec-local" => Box::new(chain_spec::polimec::get_rococo_chain_spec()),
-		"politest-local" => Box::new(chain_spec::politest::get_local_chain_spec()),
-		// -- Fallback (generic chainspec)
+		// Original live Polimec runtimes
+		"polimec" => Box::new(chain_spec::common::ChainSpec::from_json_bytes(polimec_chain_spec)?),
+		"rolimec" => Box::new(chain_spec::common::ChainSpec::from_json_bytes(rolimec_chain_spec)?),
+		"polimec-paseo" => Box::new(chain_spec::common::ChainSpec::from_json_bytes(polimec_paseo_spec)?),
+
+		// Testing runtimes
+		"polimec-rococo-live" => Box::new(chain_spec::polimec_rococo::get_live_chain_spec()),
+		"polimec-paseo-local" => Box::new(chain_spec::polimec_paseo::get_local_chain_spec()),
+		"polimec-rococo-local" => Box::new(chain_spec::polimec_rococo::get_local_chain_spec()),
+
 		"" => {
-			log::warn!("No ChainSpec.id specified, so using default one, based on polimec-rococo-local");
-			Box::new(chain_spec::politest::get_local_chain_spec())
+			log::warn!("No ChainSpec.id specified, so using default one, based on polimec-paseo-local");
+			Box::new(chain_spec::polimec_paseo::get_local_chain_spec())
 		},
 		// A custom chainspec path
 		path => {
 			let path: PathBuf = path.into();
 			log::info!("Got path: {}", path.display());
-			match path.runtime() {
-				Runtime::Politest => Box::new(chain_spec::politest::ChainSpec::from_json_file(path)?),
-				Runtime::Polimec => Box::new(chain_spec::polimec::ChainSpec::from_json_file(path)?),
-			}
+			Box::new(chain_spec::common::ChainSpec::from_json_file(path)?)
 		},
 	})
 }
