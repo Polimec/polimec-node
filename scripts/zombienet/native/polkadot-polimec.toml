@@ -1,0 +1,25 @@
+[settings]
+timeout = 1000
+provider = "native"
+
+[relaychain]
+default_command = "polkadot"
+chain_spec_path = "/usr/local/paseo-local.plain.json"
+
+	[[relaychain.nodes]]
+	name = "alice"
+
+	[[relaychain.nodes]]
+	name = "bob"
+
+[[parachains]]
+id = 3344
+chain_spec_path = "chain-specs/paseo/temp.json"
+
+[[parachains.collators]]
+name = "polimec-collator"
+ws_port = 8888
+command = "./target/release/polimec-node"
+args = ["--offchain-worker when-authority --log ocw=trace"]
+# ss58 key: 5Do5UoayFvDrHroGS1YMqxTVUysSkrhNwVMzmj1foVb3vzzb
+keystore_key_types = ["aura", "plmc_sr"]
