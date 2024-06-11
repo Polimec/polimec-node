@@ -484,6 +484,12 @@ mod evaluate_extrinsic {
 	#[cfg(test)]
 	mod success {
 		use super::*;
+		use frame_support::traits::{
+			fungible::{InspectFreeze, Mutate},
+			tokens::Preservation,
+		};
+		use pallet_balances::AccountData;
+		use sp_runtime::DispatchError::Token;
 
 		#[test]
 		fn all_investor_types() {
@@ -617,6 +623,101 @@ mod evaluate_extrinsic {
 				};
 				assert_eq!(stored_evaluation, &expected_evaluation_item);
 			});
+		}
+
+		#[test]
+		fn can_evaluate_with_frozen_tokens() {
+			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+			let issuer = ISSUER_1;
+			let project_metadata = default_project_metadata(issuer);
+
+			let evaluation = UserToUSDBalance::new(EVALUATOR_4, 1_000_000 * USD_UNIT);
+			let plmc_required = inst.calculate_evaluation_plmc_spent(vec![evaluation.clone()]);
+			let frozen_amount = plmc_required[0].plmc_amount;
+			let plmc_existential_deposits = plmc_required.accounts().existential_deposits();
+
+			inst.mint_plmc_to(plmc_existential_deposits);
+			inst.mint_plmc_to(plmc_required.clone());
+
+			inst.execute(|| {
+				mock::Balances::set_freeze(&(), &EVALUATOR_4, plmc_required[0].plmc_amount).unwrap();
+			});
+
+			inst.execute(|| {
+				assert_noop!(
+					Balances::transfer_allow_death(RuntimeOrigin::signed(EVALUATOR_4), ISSUER_1, frozen_amount,),
+					TokenError::Frozen
+				);
+			});
+
+			let project_id = inst.create_evaluating_project(project_metadata.clone(), issuer);
+			inst.execute(|| {
+				assert_ok!(PolimecFunding::evaluate(
+					RuntimeOrigin::signed(EVALUATOR_4),
+					get_mock_jwt_with_cid(
+						EVALUATOR_4,
+						InvestorType::Retail,
+						generate_did_from_account(EVALUATOR_4),
+						project_metadata.clone().policy_ipfs_cid.unwrap()
+					),
+					project_id,
+					evaluation.usd_amount
+				));
+			});
+			inst.start_auction(project_id, ISSUER_1).unwrap();
+			inst.start_community_funding(project_id).unwrap();
+			inst.start_remainder_or_end_funding(project_id).unwrap();
+			inst.finish_funding(project_id).unwrap();
+
+			assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::FundingFailed);
+
+			let free_balance = inst.get_free_plmc_balance_for(EVALUATOR_4);
+			let evaluation_held_balance =
+				inst.get_reserved_plmc_balance_for(EVALUATOR_4, HoldReason::Evaluation(project_id).into());
+			let frozen_balance = inst.execute(|| mock::Balances::balance_frozen(&(), &EVALUATOR_4));
+			let account_data = inst.execute(|| System::account(&EVALUATOR_4)).data;
+
+			assert_eq!(free_balance, inst.get_ed());
+			assert_eq!(evaluation_held_balance, frozen_amount);
+			assert_eq!(frozen_balance, frozen_amount);
+
+			let treasury_account = <TestRuntime as Config>::ProtocolGrowthTreasury::get();
+			let pre_slash_treasury_balance = inst.get_free_plmc_balance_for(treasury_account);
+			inst.execute(|| {
+				PolimecFunding::settle_failed_evaluation(
+					RuntimeOrigin::signed(EVALUATOR_4),
+					project_id,
+					EVALUATOR_4,
+					0,
+				)
+				.unwrap();
+			});
+
+			let post_slash_treasury_balance = inst.get_free_plmc_balance_for(treasury_account);
+			let free_balance = inst.get_free_plmc_balance_for(EVALUATOR_4);
+			let evaluation_held_balance =
+				inst.get_reserved_plmc_balance_for(EVALUATOR_4, HoldReason::Evaluation(project_id).into());
+			let frozen_balance = inst.execute(|| mock::Balances::balance_frozen(&(), &EVALUATOR_4));
+			let account_data = inst.execute(|| System::account(&EVALUATOR_4)).data;
+
+			let post_slash_evaluation_plmc =
+				frozen_amount - (<TestRuntime as Config>::EvaluatorSlash::get() * frozen_amount);
+			assert_eq!(free_balance, inst.get_ed() + post_slash_evaluation_plmc);
+			assert_eq!(evaluation_held_balance, Zero::zero());
+			assert_eq!(frozen_balance, frozen_amount);
+			let expected_account_data = AccountData {
+				free: inst.get_ed() + post_slash_evaluation_plmc,
+				reserved: Zero::zero(),
+				frozen: frozen_amount,
+				flags: Default::default(),
+			};
+			assert_eq!(account_data, expected_account_data);
+
+			assert!(account_data.frozen > account_data.free);
+			assert_eq!(
+				post_slash_treasury_balance,
+				pre_slash_treasury_balance + <TestRuntime as Config>::EvaluatorSlash::get() * frozen_amount
+			);
 		}
 	}
 
