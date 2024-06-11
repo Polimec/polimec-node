@@ -44,8 +44,6 @@ mod round_flow {
 			let fee_2 = FEE_2 * 4_000_000 * USD_UNIT;
 			let fee_3 = FEE_3 * 4_500_000 * USD_UNIT;
 
-			let x = PolimecFunding::calculate_fees(USD_REACHED);
-			dbg!(x);
 			let total_fee = Perquintill::from_rational(fee_1 + fee_2 + fee_3, USD_REACHED);
 
 			let total_ct_fee =

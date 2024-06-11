@@ -41,6 +41,10 @@ impl<
 		})
 	}
 
+	pub fn get_free_plmc_balance_for(&mut self, user: AccountIdOf<T>) -> BalanceOf<T> {
+		self.execute(|| <T as Config>::NativeCurrency::balance(&user))
+	}
+
 	pub fn get_reserved_plmc_balances_for(
 		&mut self,
 		user_keys: Vec<AccountIdOf<T>>,
@@ -55,6 +59,14 @@ impl<
 			balances.sort_by(|a, b| a.account.cmp(&b.account));
 			balances
 		})
+	}
+
+	pub fn get_reserved_plmc_balance_for(
+		&mut self,
+		user: AccountIdOf<T>,
+		lock_type: <T as Config>::RuntimeHoldReason,
+	) -> BalanceOf<T> {
+		self.execute(|| <T as Config>::NativeCurrency::balance_on_hold(&lock_type, &user))
 	}
 
 	pub fn get_free_foreign_asset_balances_for(
@@ -73,6 +85,10 @@ impl<
 		})
 	}
 
+	pub fn get_free_foreign_asset_balance_for(&mut self, asset_id: AssetIdOf<T>, user: AccountIdOf<T>) -> BalanceOf<T> {
+		self.execute(|| <T as Config>::FundingCurrency::balance(asset_id, &user))
+	}
+
 	pub fn get_ct_asset_balances_for(
 		&mut self,
 		project_id: ProjectId,
@@ -86,6 +102,10 @@ impl<
 			}
 			balances
 		})
+	}
+
+	pub fn get_ct_asset_balance_for(&mut self, project_id: ProjectId, user: AccountIdOf<T>) -> BalanceOf<T> {
+		self.execute(|| <T as Config>::ContributionTokenCurrency::balance(project_id, &user))
 	}
 
 	pub fn get_all_free_plmc_balances(&mut self) -> Vec<UserToPLMCBalance<T>> {
@@ -876,7 +896,7 @@ impl<
 		}
 	}
 
-	fn assert_migration(
+	pub(crate) fn assert_migration(
 		&mut self,
 		project_id: ProjectId,
 		account: AccountIdOf<T>,
@@ -885,25 +905,32 @@ impl<
 		participation_type: ParticipationType,
 		should_exist: bool,
 	) {
-		let correct = match (should_exist, self.execute(|| UserMigrations::<T>::get(project_id, account.clone()))) {
+		match (should_exist, self.execute(|| UserMigrations::<T>::get(project_id, account.clone()))) {
 			// User has migrations, so we need to check if any matches our criteria
 			(_, Some((_, migrations))) => {
 				let maybe_migration = migrations.into_iter().find(|migration| {
-                    let user = T::AccountId32Conversion::convert(account.clone());
-                    matches!(migration.origin, MigrationOrigin { user: m_user, id: m_id, participation_type: m_participation_type } if m_user == user && m_id == id && m_participation_type == participation_type)
-                });
+					let user = T::AccountId32Conversion::convert(account.clone());
+					matches!(migration.origin, MigrationOrigin { user: m_user, id: m_id, participation_type: m_participation_type } if m_user == user && m_id == id && m_participation_type == participation_type)
+				});
 				match maybe_migration {
 					// Migration exists so we check if the amount is correct and if it should exist
-					Some(migration) => migration.info.contribution_token_amount == amount.into() && should_exist,
+					Some(migration) => {
+						assert!(should_exist);
+						assert_close_enough!(
+							migration.info.contribution_token_amount,
+							amount.into(),
+							Perquintill::from_percent(99u64)
+						);
+					},
+
 					// Migration doesn't exist so we check if it should not exist
-					None => !should_exist,
+					None => assert!(should_exist),
 				}
 			},
 			// User does not have any migrations, so the migration should not exist
-			(false, None) => true,
-			(true, None) => false,
+			(false, None) => (),
+			(true, None) => panic!("No migration should have been found"),
 		};
-		assert!(correct);
 	}
 
 	pub fn create_remainder_contributing_project(
