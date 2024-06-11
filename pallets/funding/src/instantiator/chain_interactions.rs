@@ -491,7 +491,8 @@ impl<
 		let prev_supply = self.get_plmc_total_supply();
 		let prev_plmc_balances = self.get_free_plmc_balances_for(evaluators.clone());
 
-		let plmc_eval_deposits: Vec<UserToPLMCBalance<T>> = self.calculate_evaluation_plmc_spent(evaluations.clone());
+		let plmc_eval_deposits: Vec<UserToPLMCBalance<T>> =
+			self.calculate_evaluation_plmc_spent(evaluations.clone(), false);
 		let plmc_existential_deposits: Vec<UserToPLMCBalance<T>> = evaluators.existential_deposits();
 
 		let expected_remaining_plmc: Vec<UserToPLMCBalance<T>> = self
@@ -570,9 +571,15 @@ impl<
 		let asset_id = bids[0].asset.to_assethub_id();
 		let prev_plmc_balances = self.get_free_plmc_balances_for(bidders.clone());
 		let prev_funding_asset_balances = self.get_free_foreign_asset_balances_for(asset_id, bidders.clone());
-		let plmc_evaluation_deposits: Vec<UserToPLMCBalance<T>> = self.calculate_evaluation_plmc_spent(evaluations);
+		let plmc_evaluation_deposits: Vec<UserToPLMCBalance<T>> =
+			self.calculate_evaluation_plmc_spent(evaluations, false);
 		let plmc_bid_deposits: Vec<UserToPLMCBalance<T>> = self
-			.calculate_auction_plmc_charged_from_all_bids_made_or_with_bucket(&bids, project_metadata.clone(), None);
+			.calculate_auction_plmc_charged_from_all_bids_made_or_with_bucket(
+				&bids,
+				project_metadata.clone(),
+				None,
+				false,
+			);
 		let participation_usable_evaluation_deposits = plmc_evaluation_deposits
 			.into_iter()
 			.map(|mut x| {
@@ -962,9 +969,9 @@ impl<
 		let prev_plmc_balances = self.get_free_plmc_balances_for(contributors.clone());
 		let prev_funding_asset_balances = self.get_free_foreign_asset_balances_for(asset_id, contributors.clone());
 
-		let plmc_evaluation_deposits = self.calculate_evaluation_plmc_spent(evaluations.clone());
+		let plmc_evaluation_deposits = self.calculate_evaluation_plmc_spent(evaluations.clone(), false);
 		let plmc_bid_deposits = self.calculate_auction_plmc_spent_post_wap(&bids, project_metadata.clone(), ct_price);
-		let plmc_contribution_deposits = self.calculate_contributed_plmc_spent(contributions.clone(), ct_price);
+		let plmc_contribution_deposits = self.calculate_contributed_plmc_spent(contributions.clone(), ct_price, false);
 
 		let reducible_evaluator_balances = self.slash_evaluator_balances(plmc_evaluation_deposits.clone());
 		let necessary_plmc_mint = self.generic_map_operation(
@@ -1039,12 +1046,12 @@ impl<
 		let prev_plmc_balances = self.get_free_plmc_balances_for(contributors.clone());
 		let prev_funding_asset_balances = self.get_free_foreign_asset_balances_for(asset_id, contributors.clone());
 
-		let plmc_evaluation_deposits = self.calculate_evaluation_plmc_spent(evaluations);
+		let plmc_evaluation_deposits = self.calculate_evaluation_plmc_spent(evaluations, false);
 		let plmc_bid_deposits = self.calculate_auction_plmc_spent_post_wap(&bids, project_metadata.clone(), ct_price);
 		let plmc_community_contribution_deposits =
-			self.calculate_contributed_plmc_spent(community_contributions.clone(), ct_price);
+			self.calculate_contributed_plmc_spent(community_contributions.clone(), ct_price, false);
 		let plmc_remainder_contribution_deposits =
-			self.calculate_contributed_plmc_spent(remainder_contributions.clone(), ct_price);
+			self.calculate_contributed_plmc_spent(remainder_contributions.clone(), ct_price, false);
 
 		let necessary_plmc_mint = self.generic_map_operation(
 			vec![plmc_remainder_contribution_deposits.clone(), plmc_evaluation_deposits],

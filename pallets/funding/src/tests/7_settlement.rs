@@ -478,6 +478,7 @@ mod settle_successful_bid_extrinsic {
 				&bids,
 				project_metadata.clone(),
 				None,
+                true
 			);
 			let bidders_existential_deposits = bidders_plmc.accounts().existential_deposits();
 			inst.mint_plmc_to(bidders_plmc.clone());
@@ -496,7 +497,8 @@ mod settle_successful_bid_extrinsic {
 
 			// Mint the necessary community contribution balances
 			let final_price = inst.get_project_details(project_id).weighted_average_price.unwrap();
-			let contributors_plmc = inst.calculate_contributed_plmc_spent(community_contributions.clone(), final_price);
+			let contributors_plmc =
+				inst.calculate_contributed_plmc_spent(community_contributions.clone(), final_price, false);
 			let contributors_existential_deposits = contributors_plmc.accounts().existential_deposits();
 			inst.mint_plmc_to(contributors_plmc.clone());
 			inst.mint_plmc_to(contributors_existential_deposits);
@@ -513,9 +515,9 @@ mod settle_successful_bid_extrinsic {
 			inst.settle_project(project_id).unwrap();
 
 			let plmc_locked_for_accepted_bid =
-				inst.calculate_auction_plmc_charged_with_given_price(&accepted_bid, final_price);
+				inst.calculate_auction_plmc_charged_with_given_price(&accepted_bid, final_price, false);
 			let plmc_locked_for_rejected_bid =
-				inst.calculate_auction_plmc_charged_with_given_price(&rejected_bid, final_price);
+				inst.calculate_auction_plmc_charged_with_given_price(&rejected_bid, final_price, false);
 
 			let UserToPLMCBalance { account: accepted_user, plmc_amount: accepted_plmc_amount } =
 				plmc_locked_for_accepted_bid[0];
@@ -638,7 +640,7 @@ mod settle_successful_contribution_extrinsic {
 			);
 			let wap = inst.get_project_details(project_id).weighted_average_price.unwrap();
 
-			let plmc_required = inst.calculate_contributed_plmc_spent(vec![contribution_mul_2.clone()], wap);
+			let plmc_required = inst.calculate_contributed_plmc_spent(vec![contribution_mul_2.clone()], wap, false);
 			let plmc_ed = plmc_required.accounts().existential_deposits();
 			inst.mint_plmc_to(plmc_required.clone());
 			inst.mint_plmc_to(plmc_ed);
@@ -1209,7 +1211,7 @@ mod settle_failed_contribution_extrinsic {
 			);
 			let wap = inst.get_project_details(project_id).weighted_average_price.unwrap();
 
-			let plmc_required = inst.calculate_contributed_plmc_spent(vec![contribution_mul_2.clone()], wap);
+			let plmc_required = inst.calculate_contributed_plmc_spent(vec![contribution_mul_2.clone()], wap, false);
 			let plmc_ed = plmc_required.accounts().existential_deposits();
 			inst.mint_plmc_to(plmc_required.clone());
 			inst.mint_plmc_to(plmc_ed);

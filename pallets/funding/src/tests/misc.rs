@@ -112,7 +112,7 @@ mod helper_functions {
 		];
 
 		let calculated_plmc_spent = inst
-			.calculate_evaluation_plmc_spent(evaluations)
+			.calculate_evaluation_plmc_spent(evaluations, false)
 			.into_iter()
 			.sorted_by(|a, b| a.account.cmp(&b.account))
 			.map(|map| map.plmc_amount)
@@ -287,6 +287,7 @@ mod helper_functions {
 					CT_DECIMALS,
 				)
 				.unwrap(),
+				false,
 			)
 			.into_iter()
 			.sorted_by(|a, b| a.account.cmp(&b.account))

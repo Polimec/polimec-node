@@ -231,7 +231,8 @@ pub async fn async_create_auctioning_project<
 	let prev_supply = inst.get_plmc_total_supply();
 	let prev_plmc_balances = inst.get_free_plmc_balances_for(evaluators.clone());
 
-	let plmc_eval_deposits: Vec<UserToPLMCBalance<T>> = inst.calculate_evaluation_plmc_spent(evaluations.clone());
+	let plmc_eval_deposits: Vec<UserToPLMCBalance<T>> =
+		inst.calculate_evaluation_plmc_spent(evaluations.clone(), false);
 	let plmc_existential_deposits: Vec<UserToPLMCBalance<T>> = evaluators.existential_deposits();
 
 	let expected_remaining_plmc: Vec<UserToPLMCBalance<T>> =
@@ -254,8 +255,12 @@ pub async fn async_create_auctioning_project<
 	async_start_auction(instantiator.clone(), block_orchestrator, project_id, issuer).await.unwrap();
 
 	inst = instantiator.lock().await;
-	let plmc_for_bids =
-		inst.calculate_auction_plmc_charged_from_all_bids_made_or_with_bucket(&bids, project_metadata.clone(), None);
+	let plmc_for_bids = inst.calculate_auction_plmc_charged_from_all_bids_made_or_with_bucket(
+		&bids,
+		project_metadata.clone(),
+		None,
+		false,
+	);
 	let plmc_existential_deposits: Vec<UserToPLMCBalance<T>> = bids.accounts().existential_deposits();
 	let usdt_for_bids =
 		inst.calculate_auction_funding_asset_charged_from_all_bids_made_or_with_bucket(&bids, project_metadata, None);
@@ -342,9 +347,9 @@ pub async fn async_create_community_contributing_project<
 	let asset_id = bids[0].asset.to_assethub_id();
 	let prev_plmc_balances = inst.get_free_plmc_balances_for(bidders.clone());
 	let prev_funding_asset_balances = inst.get_free_foreign_asset_balances_for(asset_id, bidders.clone());
-	let plmc_evaluation_deposits: Vec<UserToPLMCBalance<T>> = inst.calculate_evaluation_plmc_spent(evaluations);
-	let plmc_bid_deposits: Vec<UserToPLMCBalance<T>> =
-		inst.calculate_auction_plmc_charged_from_all_bids_made_or_with_bucket(&bids, project_metadata.clone(), None);
+	let plmc_evaluation_deposits: Vec<UserToPLMCBalance<T>> = inst.calculate_evaluation_plmc_spent(evaluations, false);
+	let plmc_bid_deposits: Vec<UserToPLMCBalance<T>> = inst
+		.calculate_auction_plmc_charged_from_all_bids_made_or_with_bucket(&bids, project_metadata.clone(), None, false);
 	let participation_usable_evaluation_deposits = plmc_evaluation_deposits
 		.into_iter()
 		.map(|mut x| {
@@ -489,10 +494,10 @@ pub async fn async_create_remainder_contributing_project<
 	let prev_plmc_balances = inst.get_free_plmc_balances_for(contributors.clone());
 	let prev_funding_asset_balances = inst.get_free_foreign_asset_balances_for(asset_id, contributors.clone());
 
-	let plmc_evaluation_deposits = inst.calculate_evaluation_plmc_spent(evaluations);
-	let plmc_bid_deposits = inst.calculate_auction_plmc_charged_with_given_price(&accepted_bids, ct_price);
+	let plmc_evaluation_deposits = inst.calculate_evaluation_plmc_spent(evaluations, false);
+	let plmc_bid_deposits = inst.calculate_auction_plmc_charged_with_given_price(&accepted_bids, ct_price, false);
 
-	let plmc_contribution_deposits = inst.calculate_contributed_plmc_spent(contributions.clone(), ct_price);
+	let plmc_contribution_deposits = inst.calculate_contributed_plmc_spent(contributions.clone(), ct_price, false);
 
 	let necessary_plmc_mint = inst.generic_map_operation(
 		vec![plmc_contribution_deposits.clone(), plmc_evaluation_deposits],
@@ -610,16 +615,17 @@ pub async fn async_create_finished_project<
 	let prev_plmc_balances = inst.get_free_plmc_balances_for(contributors.clone());
 	let prev_funding_asset_balances = inst.get_free_foreign_asset_balances_for(asset_id, contributors.clone());
 
-	let plmc_evaluation_deposits = inst.calculate_evaluation_plmc_spent(evaluations);
+	let plmc_evaluation_deposits = inst.calculate_evaluation_plmc_spent(evaluations, false);
 	let plmc_bid_deposits = inst.calculate_auction_plmc_charged_from_all_bids_made_or_with_bucket(
 		&accepted_bids,
 		project_metadata.clone(),
 		None,
+		false,
 	);
 	let plmc_community_contribution_deposits =
-		inst.calculate_contributed_plmc_spent(community_contributions.clone(), ct_price);
+		inst.calculate_contributed_plmc_spent(community_contributions.clone(), ct_price, false);
 	let plmc_remainder_contribution_deposits =
-		inst.calculate_contributed_plmc_spent(remainder_contributions.clone(), ct_price);
+		inst.calculate_contributed_plmc_spent(remainder_contributions.clone(), ct_price, false);
 
 	let necessary_plmc_mint = inst.generic_map_operation(
 		vec![plmc_remainder_contribution_deposits.clone(), plmc_evaluation_deposits],
