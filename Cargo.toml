@@ -39,9 +39,6 @@ codegen-units = 1
 
 
 [workspace.dependencies]
-# Testing deps
-assert_matches2 = "0.1.2"
-
 # Build deps
 substrate-wasm-builder = { version = "17.0.0" }
 

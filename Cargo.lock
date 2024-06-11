@@ -426,12 +426,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9b34d609dfbaf33d6889b2b7106d3ca345eacad44200913df5ba02bfd31d2ba9"
 
 [[package]]
-name = "assert_matches2"
-version = "0.1.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "15832d94c458da98cac0ffa6eca52cc19c2a3c6c951058500a5ae8f01f0fdf56"
-
-[[package]]
 name = "asset-hub-polkadot-runtime"
 version = "1.0.0"
 source = "git+https://github.com/polkadot-fellows/runtimes?rev=59172d5fb8feea2646490618bead3b2b4fb06220#59172d5fb8feea2646490618bead3b2b4fb06220"
@@ -6989,7 +6983,6 @@ dependencies = [
 name = "pallet-funding"
 version = "0.7.0"
 dependencies = [
- "assert_matches2",
  "env_logger",
  "frame-benchmarking",
  "frame-support",
@@ -7020,7 +7013,6 @@ dependencies = [
  "staging-xcm",
  "staging-xcm-builder",
  "staging-xcm-executor",
- "tokio",
  "variant_count",
 ]
 
