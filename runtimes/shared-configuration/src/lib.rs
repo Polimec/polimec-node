@@ -28,7 +28,7 @@ pub mod time;
 pub mod weights;
 
 /// Common types
-pub use parachains_common::{Balance, BlockNumber, DAYS};
+pub use parachains_common::{Balance, BlockNumber, DAYS, HOURS, MINUTES};
 
 pub use assets::*;
 pub use currency::*;
