@@ -393,7 +393,7 @@ impl ConstPriceProvider {
 impl Config for TestRuntime {
 	type AccountId32Conversion = DummyConverter;
 	type AllPalletsWithoutSystem =
-		(Balances, ContributionTokens, ForeignAssets, PolimecFunding, Vesting, RandomnessCollectiveFlip);
+		(Balances, ContributionTokens, ForeignAssets, PolimecFunding, LinearRelease, RandomnessCollectiveFlip);
 	type AuctionClosingDuration = AuctionClosingDuration;
 	type AuctionInitializePeriodDuration = AuctionInitializePeriodDuration;
 	type AuctionOpeningDuration = AuctionOpeningDuration;
@@ -442,7 +442,7 @@ impl Config for TestRuntime {
 	type StringLimit = ConstU32<64>;
 	type SuccessToSettlementTime = SuccessToSettlementTime;
 	type VerifierPublicKey = VerifierPublicKey;
-	type Vesting = Vesting;
+	type Vesting = LinearRelease;
 	type WeightInfo = weights::SubstrateWeight<TestRuntime>;
 }
 
@@ -454,7 +454,7 @@ construct_runtime!(
 		Timestamp: pallet_timestamp,
 		RandomnessCollectiveFlip: pallet_insecure_randomness_collective_flip,
 		Balances: pallet_balances,
-		Vesting: pallet_linear_release,
+		LinearRelease: pallet_linear_release,
 		ContributionTokens: pallet_assets::<Instance1>::{Pallet, Call, Storage, Event<T>},
 		ForeignAssets: pallet_assets::<Instance2>::{Pallet, Call, Storage, Event<T>, Config<T>},
 		PolkadotXcm: pallet_xcm,

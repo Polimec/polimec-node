@@ -865,7 +865,8 @@ mod bid_extrinsic {
 	#[cfg(test)]
 	mod success {
 		use super::*;
-		use frame_support::dispatch::DispatchResultWithPostInfo;
+		use frame_support::{dispatch::DispatchResultWithPostInfo, traits::fungible::InspectFreeze};
+		use pallet_balances::AccountData;
 
 		#[test]
 		fn evaluation_bond_counts_towards_bid() {
@@ -1238,6 +1239,212 @@ mod bid_extrinsic {
 			assert_eq!(normalize_price(current_bucket.current_price), PriceOf::<TestRuntime>::from_float(1.3));
 			assert_eq!(current_bucket.amount_left, Percent::from_percent(2) * project_metadata.total_allocation_size);
 			assert_eq!(normalize_price(current_bucket.delta_price), PriceOf::<TestRuntime>::from_float(0.1));
+		}
+
+		#[test]
+		fn can_bid_with_frozen_tokens_funding_failed() {
+			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+			let issuer = ISSUER_1;
+			let project_metadata = default_project_metadata(issuer);
+			let project_id = inst.create_auctioning_project(project_metadata.clone(), issuer, default_evaluations());
+
+			let bid = BidParams::new(BIDDER_4, 500 * CT_UNIT, 1u8, AcceptedFundingAsset::USDT);
+			let plmc_required = inst.calculate_auction_plmc_charged_from_all_bids_made_or_with_bucket(
+				&vec![bid.clone()],
+				project_metadata.clone(),
+				None,
+			);
+			let frozen_amount = plmc_required[0].plmc_amount;
+			let plmc_existential_deposits = plmc_required.accounts().existential_deposits();
+
+			inst.mint_plmc_to(plmc_existential_deposits);
+			inst.mint_plmc_to(plmc_required.clone());
+
+			inst.execute(|| {
+				mock::Balances::set_freeze(&(), &BIDDER_4, plmc_required[0].plmc_amount).unwrap();
+			});
+
+			let usdt_required = inst.calculate_auction_funding_asset_charged_from_all_bids_made_or_with_bucket(
+				&vec![bid.clone()],
+				project_metadata.clone(),
+				None,
+			);
+			inst.mint_foreign_asset_to(usdt_required);
+
+			inst.execute(|| {
+				assert_noop!(
+					Balances::transfer_allow_death(RuntimeOrigin::signed(BIDDER_4), ISSUER_1, frozen_amount,),
+					TokenError::Frozen
+				);
+			});
+
+			inst.execute(|| {
+				assert_ok!(PolimecFunding::bid(
+					RuntimeOrigin::signed(BIDDER_4),
+					get_mock_jwt_with_cid(
+						BIDDER_4,
+						InvestorType::Institutional,
+						generate_did_from_account(BIDDER_4),
+						project_metadata.clone().policy_ipfs_cid.unwrap()
+					),
+					project_id,
+					bid.amount,
+					bid.multiplier,
+					bid.asset
+				));
+			});
+
+			inst.start_community_funding(project_id).unwrap();
+			inst.start_remainder_or_end_funding(project_id).unwrap();
+			inst.finish_funding(project_id).unwrap();
+
+			assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::FundingFailed);
+
+			let free_balance = inst.get_free_plmc_balance_for(BIDDER_4);
+			let bid_held_balance =
+				inst.get_reserved_plmc_balance_for(BIDDER_4, HoldReason::Participation(project_id).into());
+			let frozen_balance = inst.execute(|| mock::Balances::balance_frozen(&(), &BIDDER_4));
+
+			assert_eq!(free_balance, inst.get_ed());
+			assert_eq!(bid_held_balance, frozen_amount);
+			assert_eq!(frozen_balance, frozen_amount);
+
+			inst.execute(|| {
+				PolimecFunding::settle_failed_bid(RuntimeOrigin::signed(BIDDER_4), project_id, BIDDER_4, 0).unwrap();
+			});
+
+			let free_balance = inst.get_free_plmc_balance_for(BIDDER_4);
+			let bid_held_balance =
+				inst.get_reserved_plmc_balance_for(BIDDER_4, HoldReason::Evaluation(project_id).into());
+			let frozen_balance = inst.execute(|| mock::Balances::balance_frozen(&(), &BIDDER_4));
+
+			assert_eq!(free_balance, inst.get_ed() + frozen_amount);
+			assert_eq!(bid_held_balance, Zero::zero());
+			assert_eq!(frozen_balance, frozen_amount);
+		}
+
+		#[test]
+		fn can_bid_with_frozen_tokens_funding_success() {
+			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+			let issuer = ISSUER_1;
+			let project_metadata = default_project_metadata(issuer);
+			let project_id = inst.create_auctioning_project(project_metadata.clone(), issuer, default_evaluations());
+
+			let bid = BidParams::new(BIDDER_4, 500 * CT_UNIT, 5u8, AcceptedFundingAsset::USDT);
+			let plmc_required = inst.calculate_auction_plmc_charged_from_all_bids_made_or_with_bucket(
+				&vec![bid.clone()],
+				project_metadata.clone(),
+				None,
+			);
+			let frozen_amount = plmc_required[0].plmc_amount;
+			let plmc_existential_deposits = plmc_required.accounts().existential_deposits();
+
+			inst.mint_plmc_to(plmc_existential_deposits);
+			inst.mint_plmc_to(plmc_required.clone());
+
+			inst.execute(|| {
+				mock::Balances::set_freeze(&(), &BIDDER_4, plmc_required[0].plmc_amount).unwrap();
+			});
+
+			let usdt_required = inst.calculate_auction_funding_asset_charged_from_all_bids_made_or_with_bucket(
+				&vec![bid.clone()],
+				project_metadata.clone(),
+				None,
+			);
+			inst.mint_foreign_asset_to(usdt_required);
+
+			inst.execute(|| {
+				assert_noop!(
+					Balances::transfer_allow_death(RuntimeOrigin::signed(BIDDER_4), ISSUER_1, frozen_amount,),
+					TokenError::Frozen
+				);
+			});
+
+			inst.execute(|| {
+				assert_ok!(PolimecFunding::bid(
+					RuntimeOrigin::signed(BIDDER_4),
+					get_mock_jwt_with_cid(
+						BIDDER_4,
+						InvestorType::Institutional,
+						generate_did_from_account(BIDDER_4),
+						project_metadata.clone().policy_ipfs_cid.unwrap()
+					),
+					project_id,
+					bid.amount,
+					bid.multiplier,
+					bid.asset
+				));
+			});
+
+			inst.start_community_funding(project_id).unwrap();
+			let wap = inst.get_project_details(project_id).weighted_average_price.unwrap();
+
+			let contributions = inst.generate_contributions_from_total_ct_percent(
+				project_metadata.clone(),
+				90u8,
+				default_weights(),
+				default_community_contributors(),
+				default_multipliers(),
+			);
+			let plmc_required = inst.calculate_contributed_plmc_spent(contributions.clone(), wap);
+			let plmc_existential_deposits = plmc_required.accounts().existential_deposits();
+			inst.mint_plmc_to(plmc_required.clone());
+			inst.mint_plmc_to(plmc_existential_deposits.clone());
+
+			let usdt_required = inst.calculate_contributed_funding_asset_spent(contributions.clone(), wap);
+			inst.mint_foreign_asset_to(usdt_required.clone());
+
+			inst.contribute_for_users(project_id, contributions).unwrap();
+
+			inst.start_remainder_or_end_funding(project_id).unwrap();
+			inst.finish_funding(project_id).unwrap();
+
+			assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::FundingSuccessful);
+			let settlement_block = inst.get_update_block(project_id, &UpdateType::StartSettlement).unwrap();
+			inst.jump_to_block(settlement_block);
+
+			let free_balance = inst.get_free_plmc_balance_for(BIDDER_4);
+			let bid_held_balance =
+				inst.get_reserved_plmc_balance_for(BIDDER_4, HoldReason::Participation(project_id).into());
+			let frozen_balance = inst.execute(|| mock::Balances::balance_frozen(&(), &BIDDER_4));
+
+			assert_eq!(free_balance, inst.get_ed());
+			assert_eq!(bid_held_balance, frozen_amount);
+			assert_eq!(frozen_balance, frozen_amount);
+
+			inst.execute(|| {
+				PolimecFunding::settle_successful_bid(RuntimeOrigin::signed(BIDDER_4), project_id, BIDDER_4, 0)
+					.unwrap();
+			});
+
+			let free_balance = inst.get_free_plmc_balance_for(BIDDER_4);
+			let bid_held_balance =
+				inst.get_reserved_plmc_balance_for(BIDDER_4, HoldReason::Participation(project_id).into());
+			let frozen_balance = inst.execute(|| mock::Balances::balance_frozen(&(), &BIDDER_4));
+
+			assert_eq!(free_balance, inst.get_ed());
+			assert_eq!(bid_held_balance, frozen_amount);
+			assert_eq!(frozen_balance, frozen_amount);
+
+			let vest_duration =
+				MultiplierOf::<TestRuntime>::new(5u8).unwrap().calculate_vesting_duration::<TestRuntime>();
+			let now = inst.current_block();
+			inst.jump_to_block(now + vest_duration + 1u64);
+			inst.execute(|| {
+				assert_ok!(mock::LinearRelease::vest(
+					RuntimeOrigin::signed(BIDDER_4),
+					HoldReason::Participation(project_id).into()
+				));
+			});
+
+			let free_balance = inst.get_free_plmc_balance_for(BIDDER_4);
+			let bid_held_balance =
+				inst.get_reserved_plmc_balance_for(BIDDER_4, HoldReason::Participation(project_id).into());
+			let frozen_balance = inst.execute(|| mock::Balances::balance_frozen(&(), &BIDDER_4));
+
+			assert_eq!(free_balance, inst.get_ed() + frozen_amount);
+			assert_eq!(bid_held_balance, Zero::zero());
+			assert_eq!(frozen_balance, frozen_amount);
 		}
 	}
 
