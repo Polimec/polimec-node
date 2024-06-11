@@ -17,14 +17,15 @@
 use crate::*;
 use frame_support::{assert_err, assert_ok, dispatch::GetDispatchInfo, traits::tokens::currency::VestingSchedule};
 use macros::generate_accounts;
-use polimec_common::credentials::InvestorType;
-use polimec_common_test_utils::{get_fake_jwt, get_test_jwt};
+use polimec_common::credentials::{Did, InvestorType};
+use polimec_common_test_utils::{get_fake_jwt, get_mock_jwt_with_cid, get_test_jwt};
 use polimec_runtime::PLMC;
 use sp_runtime::{
+	bounded_vec,
 	generic::Era,
 	traits::SignedExtension,
 	transaction_validity::{InvalidTransaction::Payment, TransactionValidityError},
-	AccountId32, DispatchError,
+	AccountId32, BoundedVec, DispatchError,
 };
 use tests::defaults::*;
 
@@ -102,7 +103,15 @@ fn dispenser_signed_extensions_pass_for_new_account() {
 fn dispenser_works_with_runtime_values() {
 	PolitestNet::execute_with(|| {
 		let who = PolitestAccountId::from(EMPTY_ACCOUNT);
-		let jwt = get_test_jwt(who.clone(), InvestorType::Retail);
+		let did = "kilt:did:tz:tz1K7fCz9QJtXv3J8Ud3Zvz7eQ6";
+		let bytes_did = did.as_bytes().to_vec();
+		let bounded_did: Did = bytes_did.try_into().unwrap();
+		let jwt = get_mock_jwt_with_cid(
+			who.clone(),
+			InvestorType::Retail,
+			bounded_did,
+			politest_runtime::DispenserWhitelistedPolicy::get(),
+		);
 		PolitestBalances::force_set_balance(
 			PolitestOrigin::root(),
 			PolitestDispenser::dispense_account().into(),
