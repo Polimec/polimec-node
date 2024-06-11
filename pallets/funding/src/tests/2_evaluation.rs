@@ -484,12 +484,8 @@ mod evaluate_extrinsic {
 	#[cfg(test)]
 	mod success {
 		use super::*;
-		use frame_support::traits::{
-			fungible::{InspectFreeze, Mutate},
-			tokens::Preservation,
-		};
+		use frame_support::traits::fungible::InspectFreeze;
 		use pallet_balances::AccountData;
-		use sp_runtime::DispatchError::Token;
 
 		#[test]
 		fn all_investor_types() {
@@ -675,7 +671,6 @@ mod evaluate_extrinsic {
 			let evaluation_held_balance =
 				inst.get_reserved_plmc_balance_for(EVALUATOR_4, HoldReason::Evaluation(project_id).into());
 			let frozen_balance = inst.execute(|| mock::Balances::balance_frozen(&(), &EVALUATOR_4));
-			let account_data = inst.execute(|| System::account(&EVALUATOR_4)).data;
 
 			assert_eq!(free_balance, inst.get_ed());
 			assert_eq!(evaluation_held_balance, frozen_amount);

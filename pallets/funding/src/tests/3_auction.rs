@@ -866,7 +866,6 @@ mod bid_extrinsic {
 	mod success {
 		use super::*;
 		use frame_support::{dispatch::DispatchResultWithPostInfo, traits::fungible::InspectFreeze};
-		use pallet_balances::AccountData;
 
 		#[test]
 		fn evaluation_bond_counts_towards_bid() {
