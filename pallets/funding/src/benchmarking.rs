@@ -32,7 +32,6 @@ use frame_support::{
 use pallet::Pallet as PalletFunding;
 use parity_scale_codec::{Decode, Encode};
 use polimec_common::{credentials::InvestorType, USD_DECIMALS, USD_UNIT};
-use scale_info::prelude::format;
 use sp_arithmetic::Percent;
 use sp_core::H256;
 use sp_io::hashing::blake2_256;
@@ -282,53 +281,6 @@ pub fn string_account<AccountId: Decode>(
 		.expect("infinite length input; no invalid inputs for type; qed")
 }
 
-#[cfg(feature = "std")]
-pub fn populate_with_projects<T>(amount: u32, inst: BenchInstantiator<T>) -> BenchInstantiator<T>
-where
-	T: Config
-		+ frame_system::Config<RuntimeEvent = <T as Config>::RuntimeEvent>
-		+ pallet_balances::Config<Balance = BalanceOf<T>>,
-	<T as Config>::RuntimeEvent: TryInto<Event<T>> + Parameter + Member,
-	<T as Config>::Price: From<u128>,
-	<T as Config>::Balance: From<u128>,
-	T::Hash: From<H256>,
-	<T as frame_system::Config>::AccountId:
-		Into<<<T as frame_system::Config>::RuntimeOrigin as OriginTrait>::AccountId> + sp_std::fmt::Debug,
-	<T as pallet_balances::Config>::Balance: Into<BalanceOf<T>>,
-{
-	let states = vec![
-		ProjectStatus::Application,
-		ProjectStatus::EvaluationRound,
-		ProjectStatus::AuctionOpening,
-		ProjectStatus::CommunityRound,
-		ProjectStatus::RemainderRound,
-		ProjectStatus::FundingSuccessful,
-	]
-	.into_iter()
-	.cycle()
-	.take(amount as usize);
-
-	let instantiation_details = states
-		.map(|state| {
-			let nonce = inst.get_new_nonce();
-			let issuer_name: String = format!("issuer_{}", nonce);
-
-			let issuer = string_account::<AccountIdOf<T>>(issuer_name, 0, 0);
-			TestProjectParams::<T> {
-				expected_state: state,
-				metadata: default_project_metadata::<T>(issuer.clone()),
-				issuer: issuer.clone(),
-				evaluations: default_evaluations::<T>(),
-				bids: default_bids::<T>(),
-				community_contributions: default_community_contributions::<T>(),
-				remainder_contributions: default_remainder_contributions::<T>(),
-			}
-		})
-		.collect::<Vec<TestProjectParams<T>>>();
-
-	async_features::create_multiple_projects_at(inst, instantiation_details).1
-}
-
 // IMPORTANT: make sure your project starts at (block 1 + `total_vecs_in_storage` - `fully_filled_vecs_from_insertion`) to always have room to insert new vecs
 pub fn fill_projects_to_update<T: Config>(
 	fully_filled_vecs_from_insertion: u32,
@@ -363,6 +315,7 @@ pub fn run_blocks_to_execute_next_transition<T: Config>(
 )]
 mod benchmarks {
 	use super::*;
+	use crate::traits::SetPrices;
 	use itertools::Itertools;
 	use polimec_common_test_utils::{generate_did_from_account, get_mock_jwt_with_cid};
 
@@ -375,6 +328,7 @@ mod benchmarks {
 	fn create_project() {
 		// * setup *
 		let mut inst = BenchInstantiator::<T>::new(None);
+		<T as Config>::SetPrices::set_prices();
 		// real benchmark starts at block 0, and we can't call `events()` at block 0
 		inst.advance_time(1u32.into()).unwrap();
 
@@ -425,6 +379,7 @@ mod benchmarks {
 	fn remove_project() {
 		// * setup *
 		let mut inst = BenchInstantiator::<T>::new(None);
+		<T as Config>::SetPrices::set_prices();
 		// real benchmark starts at block 0, and we can't call `events()` at block 0
 		inst.advance_time(1u32.into()).unwrap();
 
@@ -456,6 +411,7 @@ mod benchmarks {
 	fn edit_project() {
 		// * setup *
 		let mut inst = BenchInstantiator::<T>::new(None);
+		<T as Config>::SetPrices::set_prices();
 
 		// real benchmark starts at block 0, and we can't call `events()` at block 0
 		inst.advance_time(1u32.into()).unwrap();
@@ -559,6 +515,7 @@ mod benchmarks {
 	) {
 		// * setup *
 		let mut inst = BenchInstantiator::<T>::new(None);
+		<T as Config>::SetPrices::set_prices();
 
 		// real benchmark starts at block 0, and we can't call `events()` at block 0
 		inst.advance_time(1u32.into()).unwrap();
@@ -611,6 +568,7 @@ mod benchmarks {
 	) {
 		// * setup *
 		let mut inst = BenchInstantiator::<T>::new(None);
+		<T as Config>::SetPrices::set_prices();
 
 		// We need to leave enough block numbers to fill `ProjectsToUpdate` before our project insertion
 		let time_advance: u32 = x + 2;
@@ -669,6 +627,7 @@ mod benchmarks {
 	) {
 		// setup
 		let mut inst = BenchInstantiator::<T>::new(None);
+		<T as Config>::SetPrices::set_prices();
 
 		// real benchmark starts at block 0, and we can't call `events()` at block 0
 		inst.advance_time(1u32.into()).unwrap();
@@ -781,6 +740,7 @@ mod benchmarks {
 	{
 		// * setup *
 		let mut inst = BenchInstantiator::<T>::new(None);
+		<T as Config>::SetPrices::set_prices();
 
 		// real benchmark starts at block 0, and we can't call `events()` at block 0
 		inst.advance_time(1u32.into()).unwrap();
@@ -1112,6 +1072,7 @@ mod benchmarks {
 	{
 		// setup
 		let mut inst = BenchInstantiator::<T>::new(None);
+		<T as Config>::SetPrices::set_prices();
 
 		// We need to leave enough block numbers to fill `ProjectsToUpdate` before our project insertion
 		let mut time_advance: u32 = 1;
@@ -1405,6 +1366,7 @@ mod benchmarks {
 	) {
 		// setup
 		let mut inst = BenchInstantiator::<T>::new(None);
+		<T as Config>::SetPrices::set_prices();
 
 		// We need to leave enough block numbers to fill `ProjectsToUpdate` before our project insertion
 
@@ -1476,6 +1438,7 @@ mod benchmarks {
 	fn settle_successful_evaluation() {
 		// setup
 		let mut inst = BenchInstantiator::<T>::new(None);
+		<T as Config>::SetPrices::set_prices();
 
 		// real benchmark starts at block 0, and we can't call `events()` at block 0
 		inst.advance_time(1u32.into()).unwrap();
@@ -1539,6 +1502,7 @@ mod benchmarks {
 	fn settle_failed_evaluation() {
 		// setup
 		let mut inst = BenchInstantiator::<T>::new(None);
+		<T as Config>::SetPrices::set_prices();
 
 		// real benchmark starts at block 0, and we can't call `events()` at block 0
 		inst.advance_time(1u32.into()).unwrap();
@@ -1621,6 +1585,7 @@ mod benchmarks {
 	fn settle_successful_bid() {
 		// setup
 		let mut inst = BenchInstantiator::<T>::new(None);
+		<T as Config>::SetPrices::set_prices();
 
 		// real benchmark starts at block 0, and we can't call `events()` at block 0
 		inst.advance_time(1u32.into()).unwrap();
@@ -1667,6 +1632,7 @@ mod benchmarks {
 	fn settle_failed_bid() {
 		// setup
 		let mut inst = BenchInstantiator::<T>::new(None);
+		<T as Config>::SetPrices::set_prices();
 
 		// real benchmark starts at block 0, and we can't call `events()` at block 0
 		inst.advance_time(1u32.into()).unwrap();
@@ -1726,6 +1692,7 @@ mod benchmarks {
 	fn settle_successful_contribution() {
 		// setup
 		let mut inst = BenchInstantiator::<T>::new(None);
+		<T as Config>::SetPrices::set_prices();
 
 		// real benchmark starts at block 0, and we can't call `events()` at block 0
 		inst.advance_time(1u32.into()).unwrap();
@@ -1783,6 +1750,7 @@ mod benchmarks {
 	fn settle_failed_contribution() {
 		// setup
 		let mut inst = BenchInstantiator::<T>::new(None);
+		<T as Config>::SetPrices::set_prices();
 
 		// real benchmark starts at block 0, and we can't call `events()` at block 0
 		inst.advance_time(1u32.into()).unwrap();
@@ -1859,6 +1827,7 @@ mod benchmarks {
 	) {
 		// * setup *
 		let mut inst = BenchInstantiator::<T>::new(None);
+		<T as Config>::SetPrices::set_prices();
 
 		// real benchmark starts at block 0, and we can't call `events()` at block 0
 		inst.advance_time(1u32.into()).unwrap();
@@ -1901,6 +1870,7 @@ mod benchmarks {
 	fn end_evaluation_failure() {
 		// * setup *
 		let mut inst = BenchInstantiator::<T>::new(None);
+		<T as Config>::SetPrices::set_prices();
 
 		// real benchmark starts at block 0, and we can't call `events()` at block 0
 		inst.advance_time(1u32.into()).unwrap();
@@ -1960,6 +1930,7 @@ mod benchmarks {
 	) {
 		// * setup *
 		let mut inst = BenchInstantiator::<T>::new(None);
+		<T as Config>::SetPrices::set_prices();
 
 		// real benchmark starts at block 0, and we can't call `events()` at block 0
 		inst.advance_time(1u32.into()).unwrap();
@@ -2006,6 +1977,7 @@ mod benchmarks {
 	) {
 		// * setup *
 		let mut inst = BenchInstantiator::<T>::new(None);
+		<T as Config>::SetPrices::set_prices();
 		// real benchmark starts at block 0, and we can't call `events()` at block 0
 		inst.advance_time(1u32.into()).unwrap();
 
@@ -2138,6 +2110,7 @@ mod benchmarks {
 	) {
 		// * setup *
 		let mut inst = BenchInstantiator::<T>::new(None);
+		<T as Config>::SetPrices::set_prices();
 		// real benchmark starts at block 0, and we can't call `events()` at block 0
 		inst.advance_time(1u32.into()).unwrap();
 
@@ -2263,6 +2236,7 @@ mod benchmarks {
 	) {
 		// * setup *
 		let mut inst = BenchInstantiator::<T>::new(None);
+		<T as Config>::SetPrices::set_prices();
 
 		// real benchmark starts at block 0, and we can't call `events()` at block 0
 		inst.advance_time(1u32.into()).unwrap();
@@ -2314,6 +2288,7 @@ mod benchmarks {
 	) {
 		// setup
 		let mut inst = BenchInstantiator::<T>::new(None);
+		<T as Config>::SetPrices::set_prices();
 
 		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
 
@@ -2371,6 +2346,7 @@ mod benchmarks {
 	) {
 		// setup
 		let mut inst = BenchInstantiator::<T>::new(None);
+		<T as Config>::SetPrices::set_prices();
 
 		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
 
@@ -2429,6 +2405,7 @@ mod benchmarks {
 	) {
 		// setup
 		let mut inst = BenchInstantiator::<T>::new(None);
+		<T as Config>::SetPrices::set_prices();
 
 		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
 
@@ -2489,6 +2466,7 @@ mod benchmarks {
 	) {
 		// setup
 		let mut inst = BenchInstantiator::<T>::new(None);
+		<T as Config>::SetPrices::set_prices();
 
 		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
 
@@ -2561,6 +2539,7 @@ mod benchmarks {
 	fn project_decision() {
 		// setup
 		let mut inst = BenchInstantiator::<T>::new(None);
+		<T as Config>::SetPrices::set_prices();
 
 		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
 
@@ -2610,6 +2589,7 @@ mod benchmarks {
 	fn start_settlement_funding_success() {
 		// setup
 		let mut inst = BenchInstantiator::<T>::new(None);
+		<T as Config>::SetPrices::set_prices();
 
 		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
 
@@ -2640,6 +2620,7 @@ mod benchmarks {
 	fn start_settlement_funding_failure() {
 		// setup
 		let mut inst = BenchInstantiator::<T>::new(None);
+		<T as Config>::SetPrices::set_prices();
 
 		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
 

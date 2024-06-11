@@ -1070,7 +1070,7 @@ impl pallet_funding::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type RuntimeHoldReason = RuntimeHoldReason;
 	type RuntimeOrigin = RuntimeOrigin;
-	#[cfg(any(feature = "runtime-benchmarks", feature = "std"))]
+	#[cfg(any(feature = "runtime-benchmarks", test))]
 	type SetPrices = crate::benchmarks::helpers::SetOraclePrices;
 	type StringLimit = ConstU32<64>;
 	type SuccessToSettlementTime = SuccessToSettlementTime;

@@ -179,6 +179,7 @@ fn create_settled_project() -> (ProjectId, Vec<AccountId>) {
 
 #[test]
 fn full_migration_test() {
+	politest::set_prices();
 	let (project_id, participants) = create_settled_project();
 
 	mock_hrmp_establishment(project_id);

@@ -52,12 +52,13 @@ use sp_std::{
 	marker::PhantomData,
 };
 
+#[cfg(any(feature = "std", feature = "runtime-benchmarks"))]
 pub mod macros;
 pub mod types;
 pub use types::*;
 pub mod traits;
 pub use traits::*;
-#[cfg(feature = "std")]
-pub mod async_features;
+#[cfg(any(feature = "std", feature = "runtime-benchmarks"))]
 pub mod calculations;
+#[cfg(any(feature = "std", feature = "runtime-benchmarks"))]
 pub mod chain_interactions;

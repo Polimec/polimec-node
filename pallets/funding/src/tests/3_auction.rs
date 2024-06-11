@@ -923,7 +923,8 @@ mod bid_extrinsic {
 
 		#[test]
 		fn bid_with_multiple_currencies() {
-			let inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+
 			let mut project_metadata_all = default_project_metadata(ISSUER_1);
 			project_metadata_all.participation_currencies =
 				vec![AcceptedFundingAsset::USDT, AcceptedFundingAsset::USDC, AcceptedFundingAsset::DOT]
@@ -940,51 +941,6 @@ mod bid_extrinsic {
 			project_metadata_dot.participation_currencies = vec![AcceptedFundingAsset::DOT].try_into().unwrap();
 
 			let evaluations = default_evaluations();
-
-			let projects = vec![
-				TestProjectParams {
-					expected_state: ProjectStatus::AuctionOpening,
-					metadata: project_metadata_all.clone(),
-					issuer: ISSUER_1,
-					evaluations: evaluations.clone(),
-					bids: vec![],
-					community_contributions: vec![],
-					remainder_contributions: vec![],
-				},
-				TestProjectParams {
-					expected_state: ProjectStatus::AuctionOpening,
-					metadata: project_metadata_usdt,
-					issuer: ISSUER_2,
-					evaluations: evaluations.clone(),
-					bids: vec![],
-					community_contributions: vec![],
-					remainder_contributions: vec![],
-				},
-				TestProjectParams {
-					expected_state: ProjectStatus::AuctionOpening,
-					metadata: project_metadata_usdc,
-					issuer: ISSUER_3,
-					evaluations: evaluations.clone(),
-					bids: vec![],
-					community_contributions: vec![],
-					remainder_contributions: vec![],
-				},
-				TestProjectParams {
-					expected_state: ProjectStatus::AuctionOpening,
-					metadata: project_metadata_dot,
-					issuer: ISSUER_4,
-					evaluations: evaluations.clone(),
-					bids: vec![],
-					community_contributions: vec![],
-					remainder_contributions: vec![],
-				},
-			];
-			let (project_ids, mut inst) = create_multiple_projects_at(inst, projects);
-
-			let project_id_all = project_ids[0];
-			let project_id_usdt = project_ids[1];
-			let project_id_usdc = project_ids[2];
-			let project_id_dot = project_ids[3];
 
 			let usdt_bid = BidParams::new(BIDDER_1, 10_000 * CT_UNIT, 1u8, AcceptedFundingAsset::USDT);
 			let usdc_bid = BidParams::new(BIDDER_1, 10_000 * CT_UNIT, 1u8, AcceptedFundingAsset::USDC);
@@ -1008,8 +964,10 @@ mod bid_extrinsic {
 			inst.mint_foreign_asset_to(usdt_fundings.clone());
 			inst.mint_foreign_asset_to(usdt_fundings.clone());
 
+			let project_id_all = inst.create_auctioning_project(project_metadata_all, ISSUER_1, evaluations.clone());
 			assert_ok!(inst.bid_for_users(project_id_all, vec![usdt_bid.clone(), usdc_bid.clone(), dot_bid.clone()]));
 
+			let project_id_usdt = inst.create_auctioning_project(project_metadata_usdt, ISSUER_2, evaluations.clone());
 			assert_ok!(inst.bid_for_users(project_id_usdt, vec![usdt_bid.clone()]));
 			assert_err!(
 				inst.bid_for_users(project_id_usdt, vec![usdc_bid.clone()]),
@@ -1020,6 +978,7 @@ mod bid_extrinsic {
 				Error::<TestRuntime>::FundingAssetNotAccepted
 			);
 
+			let project_id_usdc = inst.create_auctioning_project(project_metadata_usdc, ISSUER_3, evaluations.clone());
 			assert_err!(
 				inst.bid_for_users(project_id_usdc, vec![usdt_bid.clone()]),
 				Error::<TestRuntime>::FundingAssetNotAccepted
@@ -1030,6 +989,7 @@ mod bid_extrinsic {
 				Error::<TestRuntime>::FundingAssetNotAccepted
 			);
 
+			let project_id_dot = inst.create_auctioning_project(project_metadata_dot, ISSUER_4, evaluations.clone());
 			assert_err!(
 				inst.bid_for_users(project_id_dot, vec![usdt_bid.clone()]),
 				Error::<TestRuntime>::FundingAssetNotAccepted

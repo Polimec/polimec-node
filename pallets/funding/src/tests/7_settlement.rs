@@ -478,7 +478,7 @@ mod settle_successful_bid_extrinsic {
 				&bids,
 				project_metadata.clone(),
 				None,
-                true
+				true,
 			);
 			let bidders_existential_deposits = bidders_plmc.accounts().existential_deposits();
 			inst.mint_plmc_to(bidders_plmc.clone());

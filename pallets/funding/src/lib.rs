@@ -151,7 +151,6 @@ pub mod tests;
 #[cfg(feature = "runtime-benchmarks")]
 pub mod benchmarking;
 mod functions;
-#[cfg(any(feature = "runtime-benchmarks", feature = "std"))]
 pub mod instantiator;
 pub mod traits;
 
@@ -201,9 +200,6 @@ pub mod pallet {
 		traits::{Convert, ConvertBack, Get},
 		DispatchErrorWithPostInfo,
 	};
-
-	#[cfg(any(feature = "runtime-benchmarks", feature = "std"))]
-	use crate::traits::SetPrices;
 
 	#[pallet::composite_enum]
 	pub enum HoldReason {
@@ -411,8 +407,8 @@ pub mod pallet {
 			+ Into<Result<pallet_xcm::Origin, <Self as Config>::RuntimeOrigin>>;
 
 		/// test and benchmarking helper to set the prices of assets
-		#[cfg(any(feature = "runtime-benchmarks", feature = "std"))]
-		type SetPrices: SetPrices;
+		#[cfg(any(feature = "runtime-benchmarks"))]
+		type SetPrices: traits::SetPrices;
 
 		/// The maximum length of data stored on-chain.
 		#[pallet::constant]
@@ -1353,54 +1349,6 @@ pub mod pallet {
 				}
 			}
 			used_weight
-		}
-	}
-
-	#[pallet::genesis_config]
-	#[derive(Clone, PartialEq, Eq, Debug, Encode, Decode)]
-	pub struct GenesisConfig<T: Config>
-	where
-		T: Config + pallet_balances::Config<Balance = BalanceOf<T>>,
-		<T as pallet_balances::Config>::Balance: Into<BalanceOf<T>>,
-	{
-		#[cfg(feature = "std")]
-		pub starting_projects: Vec<instantiator::TestProjectParams<T>>,
-		pub phantom: PhantomData<T>,
-	}
-
-	impl<T: Config> Default for GenesisConfig<T>
-	where
-		T: Config + pallet_balances::Config<Balance = BalanceOf<T>>,
-		<T as pallet_balances::Config>::Balance: Into<BalanceOf<T>>,
-	{
-		fn default() -> Self {
-			Self {
-				#[cfg(feature = "std")]
-				starting_projects: vec![],
-				phantom: PhantomData,
-			}
-		}
-	}
-
-	#[pallet::genesis_build]
-	impl<T: Config> BuildGenesisConfig for GenesisConfig<T>
-	where
-		T: Config + pallet_balances::Config<Balance = BalanceOf<T>>,
-		<T as pallet_balances::Config>::Balance: Into<BalanceOf<T>>,
-	{
-		fn build(&self) {
-			#[cfg(any(feature = "std", feature = "runtime-benchmarks"))]
-			{
-				<T as Config>::SetPrices::set_prices();
-			}
-			#[cfg(feature = "std")]
-			{
-				type GenesisInstantiator<T> =
-					instantiator::Instantiator<T, <T as Config>::AllPalletsWithoutSystem, <T as Config>::RuntimeEvent>;
-				let inst = GenesisInstantiator::<T>::new(None);
-				instantiator::async_features::create_multiple_projects_at(inst, self.starting_projects.clone());
-				frame_system::Pallet::<T>::set_block_number(0u32.into());
-			}
 		}
 	}
 }

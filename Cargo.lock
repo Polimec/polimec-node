@@ -8422,6 +8422,7 @@ dependencies = [
  "macros",
  "pallet-funding",
  "pallet-transaction-payment-rpc",
+ "polimec-common",
  "polimec-runtime",
  "politest-runtime",
  "polkadot-cli",

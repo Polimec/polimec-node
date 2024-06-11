@@ -25,6 +25,7 @@ politest-runtime.workspace = true
 polimec-runtime.workspace = true
 pallet-funding.workspace = true
 macros = { workspace = true }
+polimec-common.workspace = true
 
 # Substrate
 frame-benchmarking.workspace = true
@@ -110,7 +111,6 @@ std = [
 	"frame-benchmarking/std",
 	"frame-support/std",
 	"log/std",
-	"pallet-funding/std",
 	"polkadot-primitives/std",
 	"serde/std",
 	"sp-api/std",

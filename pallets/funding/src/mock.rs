@@ -437,7 +437,7 @@ impl Config for TestRuntime {
 	type RuntimeEvent = RuntimeEvent;
 	type RuntimeHoldReason = RuntimeHoldReason;
 	type RuntimeOrigin = RuntimeOrigin;
-	#[cfg(any(feature = "runtime-benchmarks", feature = "std"))]
+	#[cfg(any(feature = "runtime-benchmarks"))]
 	type SetPrices = ();
 	type StringLimit = ConstU32<64>;
 	type SuccessToSettlementTime = SuccessToSettlementTime;
@@ -458,7 +458,7 @@ construct_runtime!(
 		ContributionTokens: pallet_assets::<Instance1>::{Pallet, Call, Storage, Event<T>},
 		ForeignAssets: pallet_assets::<Instance2>::{Pallet, Call, Storage, Event<T>, Config<T>},
 		PolkadotXcm: pallet_xcm,
-		PolimecFunding: pallet_funding::{Pallet, Call, Storage, Event<T>, Config<T>, HoldReason}  = 52,
+		PolimecFunding: pallet_funding::{Pallet, Call, Storage, Event<T>, HoldReason}  = 52,
 	}
 );
 

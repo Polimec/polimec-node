@@ -26,7 +26,6 @@ use itertools::Itertools;
 use macros::generate_accounts;
 use pallet_funding::{traits::ProvideAssetPrice, *};
 use polimec_common::{USD_DECIMALS, USD_UNIT};
-use polimec_runtime::PLMC;
 use sp_arithmetic::{traits::Zero, Percent, Perquintill};
 use sp_runtime::{FixedPointNumber, FixedU128};
 use xcm_emulator::log;
@@ -272,6 +271,8 @@ fn excel_ct_amounts() -> UserToCTBalance {
 
 #[test]
 fn evaluation_round_completed() {
+	politest::set_prices();
+
 	let mut inst = IntegrationInstantiator::new(None);
 
 	let issuer = ISSUER.into();
@@ -285,6 +286,8 @@ fn evaluation_round_completed() {
 
 #[test]
 fn auction_round_completed() {
+	politest::set_prices();
+
 	let mut inst = IntegrationInstantiator::new(None);
 
 	let issuer = ISSUER.into();
@@ -323,6 +326,8 @@ fn auction_round_completed() {
 
 #[test]
 fn community_round_completed() {
+	politest::set_prices();
+
 	let mut inst = IntegrationInstantiator::new(None);
 
 	PolitestNet::execute_with(|| {
@@ -338,19 +343,21 @@ fn community_round_completed() {
 			let contributions = Contributions::<PolitestRuntime>::iter_prefix_values((0,))
 				.sorted_by_key(|bid| bid.contributor.clone())
 				.collect_vec();
-			let total_contribution =
+			let _total_contribution =
 				contributions.clone().into_iter().fold(0, |acc, bid| acc + bid.funding_asset_amount);
-			let total_contribution_as_fixed = FixedU128::from_rational(total_contribution, PLMC);
+			// TODO: add test for exact amount contributed
 		})
 	});
 }
 
 #[test]
 fn remainder_round_completed() {
+	politest::set_prices();
+
 	let mut inst = IntegrationInstantiator::new(None);
 
 	PolitestNet::execute_with(|| {
-		let project_id = inst.create_finished_project(
+		inst.create_finished_project(
 			excel_project(),
 			ISSUER.into(),
 			excel_evaluators(),
@@ -359,16 +366,6 @@ fn remainder_round_completed() {
 			excel_remainders(),
 		);
 
-		let price = inst.get_project_details(project_id).weighted_average_price.unwrap();
-		let funding_necessary_1 = inst.calculate_contributed_funding_asset_spent(excel_contributions(), price);
-		let funding_necessary_2 = inst.calculate_contributed_funding_asset_spent(excel_remainders(), price);
-		let mut total = 0u128;
-		for item in funding_necessary_1 {
-			total += item.asset_amount;
-		}
-		for item in funding_necessary_2 {
-			total += item.asset_amount;
-		}
 		let contributions = Contributions::<PolitestRuntime>::iter_prefix_values((0,))
 			.sorted_by_key(|contribution| contribution.contributor.clone())
 			.collect_vec();
@@ -388,6 +385,8 @@ fn remainder_round_completed() {
 
 #[test]
 fn funds_raised() {
+	politest::set_prices();
+
 	let mut inst = IntegrationInstantiator::new(None);
 
 	PolitestNet::execute_with(|| {
@@ -417,6 +416,8 @@ fn funds_raised() {
 
 #[test]
 fn ct_minted() {
+	politest::set_prices();
+
 	let mut inst = IntegrationInstantiator::new(None);
 
 	PolitestNet::execute_with(|| {
@@ -443,6 +444,8 @@ fn ct_minted() {
 
 #[test]
 fn ct_migrated() {
+	politest::set_prices();
+
 	let mut inst = IntegrationInstantiator::new(None);
 
 	let project_id = PolitestNet::execute_with(|| {
