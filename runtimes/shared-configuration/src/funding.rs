@@ -28,42 +28,42 @@ use parachains_common::HOURS;
 #[cfg(feature = "instant-mode")]
 pub const EVALUATION_DURATION: BlockNumber = 3;
 #[cfg(feature = "fast-mode")]
-pub const EVALUATION_DURATION: BlockNumber = 3 * HOURS;
+pub const EVALUATION_DURATION: BlockNumber = 10 * crate::MINUTES;
 #[cfg(not(any(feature = "fast-mode", feature = "instant-mode")))]
 pub const EVALUATION_DURATION: BlockNumber = 28 * crate::DAYS;
 
 #[cfg(feature = "instant-mode")]
 pub const AUCTION_INITIALIZE_PERIOD_DURATION: BlockNumber = 3;
 #[cfg(feature = "fast-mode")]
-pub const AUCTION_INITIALIZE_PERIOD_DURATION: BlockNumber = 1 * HOURS;
+pub const AUCTION_INITIALIZE_PERIOD_DURATION: BlockNumber = 10 * crate::MINUTES;
 #[cfg(not(any(feature = "fast-mode", feature = "instant-mode")))]
 pub const AUCTION_INITIALIZE_PERIOD_DURATION: BlockNumber = 7 * crate::DAYS;
 
 #[cfg(feature = "instant-mode")]
 pub const AUCTION_OPENING_DURATION: BlockNumber = 2;
 #[cfg(feature = "fast-mode")]
-pub const AUCTION_OPENING_DURATION: BlockNumber = 1 * HOURS;
+pub const AUCTION_OPENING_DURATION: BlockNumber = 7 * crate::MINUTES;
 #[cfg(not(any(feature = "fast-mode", feature = "instant-mode")))]
 pub const AUCTION_OPENING_DURATION: BlockNumber = 2 * crate::DAYS;
 
 #[cfg(feature = "instant-mode")]
 pub const AUCTION_CLOSING_DURATION: BlockNumber = 2;
 #[cfg(feature = "fast-mode")]
-pub const AUCTION_CLOSING_DURATION: BlockNumber = 1 * HOURS;
+pub const AUCTION_CLOSING_DURATION: BlockNumber = 7 * crate::MINUTES;
 #[cfg(not(any(feature = "fast-mode", feature = "instant-mode")))]
 pub const AUCTION_CLOSING_DURATION: BlockNumber = 3 * crate::DAYS;
 
 #[cfg(feature = "instant-mode")]
 pub const COMMUNITY_FUNDING_DURATION: BlockNumber = 3;
 #[cfg(feature = "fast-mode")]
-pub const COMMUNITY_FUNDING_DURATION: BlockNumber = 1 * HOURS;
+pub const COMMUNITY_FUNDING_DURATION: BlockNumber = 15 * crate::MINUTES;
 #[cfg(not(any(feature = "fast-mode", feature = "instant-mode")))]
 pub const COMMUNITY_FUNDING_DURATION: BlockNumber = 5 * crate::DAYS;
 
 #[cfg(feature = "instant-mode")]
 pub const REMAINDER_FUNDING_DURATION: BlockNumber = 3;
 #[cfg(feature = "fast-mode")]
-pub const REMAINDER_FUNDING_DURATION: BlockNumber = 1 * HOURS;
+pub const REMAINDER_FUNDING_DURATION: BlockNumber = 15 * crate::MINUTES;
 #[cfg(not(any(feature = "fast-mode", feature = "instant-mode")))]
 pub const REMAINDER_FUNDING_DURATION: BlockNumber = crate::DAYS;
 
@@ -84,7 +84,7 @@ pub const MANUAL_ACCEPTANCE_DURATION: BlockNumber = 3 * crate::DAYS;
 #[cfg(feature = "instant-mode")]
 pub const SUCCESS_TO_SETTLEMENT_TIME: BlockNumber = 4;
 #[cfg(feature = "fast-mode")]
-pub const SUCCESS_TO_SETTLEMENT_TIME: BlockNumber = 1 * HOURS;
+pub const SUCCESS_TO_SETTLEMENT_TIME: BlockNumber = 5 * crate::MINUTES;
 #[cfg(not(any(feature = "fast-mode", feature = "instant-mode")))]
 pub const SUCCESS_TO_SETTLEMENT_TIME: BlockNumber = 4 * crate::DAYS;
 
