@@ -76,7 +76,7 @@ pallet-treasury.workspace = true
 polkadot-runtime.workspace = true
 asset-hub-polkadot-runtime.workspace = true
 polimec-runtime.workspace = true
-penpal-runtime = { path = "./penpal", default-features = false }
+penpal-runtime = { path = "penpal", default-features = false }
 
 [features]
 default = [ "instant-mode", "std", "development-settings"]

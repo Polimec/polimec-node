@@ -21,6 +21,7 @@
 pub use pallet::*;
 #[frame_support::pallet]
 pub mod pallet {
+	use cumulus_pallet_xcm::{ensure_sibling_para, Origin as ParachainOrigin};
 	use frame_support::{
 		pallet_prelude::*,
 		traits::{tokens::Balance, Currency, ExistenceRequirement::KeepAlive, VestingSchedule},
@@ -28,7 +29,6 @@ pub mod pallet {
 	use frame_system::pallet_prelude::*;
 	use polimec_common::migration_types::{Migration, MigrationInfo, MigrationOrigin, Migrations, ParticipationType};
 	use polkadot_parachain_primitives::primitives::{Id as ParaId, Sibling};
-	use polkadot_runtime_parachains::origin::{ensure_parachain, Origin as ParachainOrigin};
 	use sp_runtime::traits::{AccountIdConversion, Convert};
 	use sp_std::prelude::*;
 
@@ -98,7 +98,7 @@ pub mod pallet {
 		#[pallet::call_index(0)]
 		#[pallet::weight(Weight::from_parts(10_000, 0))]
 		pub fn execute_migrations(origin: OriginFor<T>, migrations: Migrations) -> DispatchResult {
-			let para_id: ParaId = ensure_parachain(<T as Config>::RuntimeOrigin::from(origin))?;
+			let para_id: ParaId = ensure_sibling_para(<T as Config>::RuntimeOrigin::from(origin))?;
 			let polimec_id = T::PolimecParaId::get();
 			let polimec_soverign_account = Sibling(polimec_id).into_account_truncating();
 
