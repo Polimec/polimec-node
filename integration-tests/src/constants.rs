@@ -548,7 +548,7 @@ pub mod polimec {
 	use super::*;
 	use crate::{PolimecNet, PolimecOrigin, PolimecRuntime};
 	use pallet_funding::AcceptedFundingAsset;
-	use polimec_runtime::PayMaster;
+	use polimec_runtime::{PayMaster, TreasuryAccount};
 	use xcm::v3::Parent;
 	use xcm_emulator::TestExt;
 
@@ -622,7 +622,7 @@ pub mod polimec {
 
 		funded_accounts.extend(accounts::init_balances().iter().cloned().map(|k| (k, INITIAL_DEPOSIT)));
 		funded_accounts.extend(collators::initial_authorities().iter().cloned().map(|(acc, _)| (acc, 20_005 * PLMC)));
-		funded_accounts.push((get_account_id_from_seed::<sr25519::Public>("TREASURY_STASH"), 20_005 * PLMC));
+		funded_accounts.push((TreasuryAccount::get(), 20_005 * PLMC));
 		funded_accounts.push((PayMaster::get(), 20_005 * PLMC));
 
 		let genesis_config = polimec_runtime::RuntimeGenesisConfig {
@@ -640,7 +640,11 @@ pub mod polimec {
 					(usdt_asset_id, "Local USDT".as_bytes().to_vec(), "USDT".as_bytes().to_vec(), 6),
 					(usdc_asset_id, "Local USDC".as_bytes().to_vec(), "USDC".as_bytes().to_vec(), 6),
 				],
-				accounts: vec![],
+				accounts: vec![
+					(dot_asset_id, TreasuryAccount::get(), 0_0_010_000_000u128),
+					(usdt_asset_id, TreasuryAccount::get(), 0_0_010_000_000u128),
+					(usdc_asset_id, TreasuryAccount::get(), 0_0_010_000_000u128),
+				],
 			},
 			parachain_info: polimec_runtime::ParachainInfoConfig { parachain_id: PARA_ID.into(), ..Default::default() },
 			session: polimec_runtime::SessionConfig {
