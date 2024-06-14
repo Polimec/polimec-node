@@ -386,6 +386,8 @@ fn election_phragmen_works() {
 			<PolimecRuntime as pallet_elections_phragmen::Config>::MaxCandidates::get() as usize
 		);
 
+		let prev_treasury_balance = Balances::balance(&Treasury::account_id());
+
 		for (i, voter) in vec![ALICE, BOB, CHARLIE, DAVE, EVE, FERDIE, ALICE_STASH, BOB_STASH].into_iter().enumerate() {
 			let voter = PolimecNet::account_id_of(voter);
 			assert_ok!(Elections::vote(
@@ -411,10 +413,11 @@ fn election_phragmen_works() {
 		{
 			assert_eq!(Balances::total_balance(candidate), ED);
 		}
+		let post_treasury_balance = Balances::balance(&Treasury::account_id());
+		let net_treasury_balance = post_treasury_balance - prev_treasury_balance;
 		assert_eq!(
-			Balances::balance(&Treasury::account_id()),
-			(<PolimecRuntime as pallet_elections_phragmen::Config>::MaxCandidates::get() as u128 - 15) * 1000 * PLMC +
-				ED
+			net_treasury_balance,
+			(<PolimecRuntime as pallet_elections_phragmen::Config>::MaxCandidates::get() as u128 - 15) * 1000 * PLMC
 		)
 	});
 }

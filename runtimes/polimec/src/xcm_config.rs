@@ -16,8 +16,8 @@
 
 use super::{
 	AccountId, AllPalletsWithSystem, AssetId as AssetIdPalletAssets, Balance, Balances, EnsureRoot, ForeignAssets,
-	ParachainInfo, ParachainSystem, PolkadotXcm, Runtime, RuntimeCall, RuntimeEvent, RuntimeOrigin, Vec, WeightToFee,
-	XcmpQueue,
+	ParachainInfo, ParachainSystem, PolkadotXcm, Runtime, RuntimeCall, RuntimeEvent, RuntimeOrigin, Treasury,
+	TreasuryAccount, Vec, WeightToFee, XcmpQueue,
 };
 use core::marker::PhantomData;
 use frame_support::{
@@ -31,7 +31,6 @@ use polimec_xcm_executor::{
 	XcmExecutor,
 };
 use polkadot_parachain_primitives::primitives::Sibling;
-use polkadot_runtime_common::impls::ToAuthor;
 use sp_runtime::traits::MaybeEquivalence;
 use xcm::latest::prelude::*;
 use xcm_builder::{
@@ -261,7 +260,8 @@ pub type Reserves = AssetHubAssetsAsReserve;
 /// ForeignAssetsAdapter is a FungiblesAdapter that allows for transacting foreign assets.
 /// Currently we only support DOT, USDT and USDC.
 pub type AssetTransactors = (FungibleTransactor, ForeignAssetsAdapter);
-
+pub type TakeRevenueToTreasury =
+	cumulus_primitives_utility::XcmFeesTo32ByteAccount<AssetTransactors, AccountId, TreasuryAccount>;
 pub struct XcmConfig;
 impl polimec_xcm_executor::Config for XcmConfig {
 	type Aliasers = ();
@@ -290,10 +290,10 @@ impl polimec_xcm_executor::Config for XcmConfig {
 	type SubscriptionService = PolkadotXcm;
 	type Trader = (
 		// TODO: weight to fee has to be carefully considered. For now use default
-		UsingComponents<WeightToFee, HereLocation, AccountId, Balances, ToAuthor<Runtime>>,
-		FixedRateOfFungible<UsdtTraderParams, ()>,
-		FixedRateOfFungible<DotTraderParams, ()>,
-		FixedRateOfFungible<UsdcTraderParams, ()>,
+		UsingComponents<WeightToFee, HereLocation, AccountId, Balances, Treasury>,
+		FixedRateOfFungible<UsdtTraderParams, TakeRevenueToTreasury>,
+		FixedRateOfFungible<DotTraderParams, TakeRevenueToTreasury>,
+		FixedRateOfFungible<UsdcTraderParams, TakeRevenueToTreasury>,
 	);
 	type UniversalAliases = Nothing;
 	type UniversalLocation = UniversalLocation;

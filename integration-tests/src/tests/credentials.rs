@@ -21,11 +21,10 @@ use polimec_common::credentials::{Did, InvestorType};
 use polimec_common_test_utils::{get_fake_jwt, get_mock_jwt_with_cid, get_test_jwt};
 use polimec_runtime::PLMC;
 use sp_runtime::{
-	bounded_vec,
 	generic::Era,
 	traits::SignedExtension,
 	transaction_validity::{InvalidTransaction::Payment, TransactionValidityError},
-	AccountId32, BoundedVec, DispatchError,
+	AccountId32, DispatchError,
 };
 use tests::defaults::*;
 

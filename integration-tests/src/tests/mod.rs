@@ -22,3 +22,4 @@ mod governance;
 mod oracle;
 mod reserve_backed_transfers;
 mod vest;
+mod xcm_config;
