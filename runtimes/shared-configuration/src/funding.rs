@@ -44,14 +44,14 @@ pub const AUCTION_OPENING_DURATION: BlockNumber = 2;
 #[cfg(feature = "fast-mode")]
 pub const AUCTION_OPENING_DURATION: BlockNumber = 7 * crate::MINUTES;
 #[cfg(not(any(feature = "fast-mode", feature = "instant-mode")))]
-pub const AUCTION_OPENING_DURATION: BlockNumber = 2 * crate::DAYS;
+pub const AUCTION_OPENING_DURATION: BlockNumber = 4 * crate::DAYS;
 
 #[cfg(feature = "instant-mode")]
 pub const AUCTION_CLOSING_DURATION: BlockNumber = 2;
 #[cfg(feature = "fast-mode")]
 pub const AUCTION_CLOSING_DURATION: BlockNumber = 7 * crate::MINUTES;
 #[cfg(not(any(feature = "fast-mode", feature = "instant-mode")))]
-pub const AUCTION_CLOSING_DURATION: BlockNumber = 3 * crate::DAYS;
+pub const AUCTION_CLOSING_DURATION: BlockNumber = 1 * crate::DAYS;
 
 #[cfg(feature = "instant-mode")]
 pub const COMMUNITY_FUNDING_DURATION: BlockNumber = 3;
