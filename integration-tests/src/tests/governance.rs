@@ -116,7 +116,7 @@ fn council_and_technical_committee_members_set_correctly() {
 	let dave = PolimecNet::account_id_of(DAVE);
 	let eve = PolimecNet::account_id_of(EVE);
 	let accounts = vec![alice, bob, charlie, dave, eve];
-	PolitestNet::execute_with(|| {
+	PolimecNet::execute_with(|| {
 		assert_same_members(Council::members(), &accounts);
 		assert_same_members(TechnicalCommittee::members(), &accounts);
 	});

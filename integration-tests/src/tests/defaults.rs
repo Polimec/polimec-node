@@ -13,7 +13,7 @@
 
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
-use crate::PolitestRuntime;
+use crate::PolimecRuntime;
 use frame_support::BoundedVec;
 pub use pallet_funding::instantiator::{BidParams, ContributionParams, UserToUSDBalance};
 use pallet_funding::{
@@ -25,8 +25,7 @@ use sp_arithmetic::{FixedPointNumber, Percent};
 use macros::generate_accounts;
 use pallet_funding::traits::ProvideAssetPrice;
 use polimec_common::{USD_DECIMALS, USD_UNIT};
-use polimec_runtime::PLMC;
-use politest_runtime::AccountId;
+use polimec_runtime::{AccountId, PLMC};
 use sp_runtime::{traits::ConstU32, Perquintill};
 
 pub const IPFS_CID: &str = "QmeuJ24ffwLAZppQcgcggJs3n689bewednYkuc8Bx5Gngz";
@@ -34,9 +33,9 @@ pub const CT_DECIMALS: u8 = 18;
 pub const CT_UNIT: u128 = 10_u128.pow(CT_DECIMALS as u32);
 
 pub type IntegrationInstantiator = pallet_funding::instantiator::Instantiator<
-	PolitestRuntime,
-	<PolitestRuntime as pallet_funding::Config>::AllPalletsWithoutSystem,
-	<PolitestRuntime as pallet_funding::Config>::RuntimeEvent,
+	PolimecRuntime,
+	<PolimecRuntime as pallet_funding::Config>::AllPalletsWithoutSystem,
+	<PolimecRuntime as pallet_funding::Config>::RuntimeEvent,
 >;
 
 generate_accounts!(
@@ -63,13 +62,13 @@ pub fn default_contributor_multipliers() -> Vec<u8> {
 	vec![1u8, 1u8, 1u8, 1u8, 1u8]
 }
 
-pub fn default_project_metadata(issuer: AccountId) -> ProjectMetadataOf<politest_runtime::Runtime> {
+pub fn default_project_metadata(issuer: AccountId) -> ProjectMetadataOf<polimec_runtime::Runtime> {
 	ProjectMetadata {
 		token_information: CurrencyMetadata { name: bounded_name(), symbol: bounded_symbol(), decimals: CT_DECIMALS },
 		mainnet_token_max_supply: 8_000_000 * CT_UNIT,
 		total_allocation_size: 1_000_000 * CT_UNIT,
 		auction_round_allocation_percentage: Percent::from_percent(50u8),
-		minimum_price: PriceProviderOf::<PolitestRuntime>::calculate_decimals_aware_price(
+		minimum_price: PriceProviderOf::<PolimecRuntime>::calculate_decimals_aware_price(
 			sp_runtime::FixedU128::from_float(10.0),
 			USD_DECIMALS,
 			CT_DECIMALS,
@@ -91,7 +90,7 @@ pub fn default_project_metadata(issuer: AccountId) -> ProjectMetadataOf<politest
 		policy_ipfs_cid: Some(ipfs_hash()),
 	}
 }
-pub fn default_evaluations() -> Vec<UserToUSDBalance<PolitestRuntime>> {
+pub fn default_evaluations() -> Vec<UserToUSDBalance<PolimecRuntime>> {
 	vec![
 		UserToUSDBalance::new(EVAL_1.into(), 500_000 * PLMC),
 		UserToUSDBalance::new(EVAL_2.into(), 250_000 * PLMC),
@@ -102,7 +101,7 @@ pub fn default_bidders() -> Vec<AccountId> {
 	vec![BIDDER_1.into(), BIDDER_2.into(), BIDDER_3.into(), BIDDER_4.into(), BIDDER_5.into()]
 }
 
-pub fn default_bids() -> Vec<BidParams<PolitestRuntime>> {
+pub fn default_bids() -> Vec<BidParams<PolimecRuntime>> {
 	let inst = IntegrationInstantiator::new(None);
 	let default_metadata = default_project_metadata(ISSUER.into());
 	let auction_allocation =
@@ -119,7 +118,7 @@ pub fn default_bids() -> Vec<BidParams<PolitestRuntime>> {
 	)
 }
 
-pub fn default_community_contributions() -> Vec<ContributionParams<PolitestRuntime>> {
+pub fn default_community_contributions() -> Vec<ContributionParams<PolimecRuntime>> {
 	let inst = IntegrationInstantiator::new(None);
 
 	let default_metadata = default_project_metadata(ISSUER.into());
@@ -140,7 +139,7 @@ pub fn default_community_contributions() -> Vec<ContributionParams<PolitestRunti
 	)
 }
 
-pub fn default_remainder_contributions() -> Vec<ContributionParams<PolitestRuntime>> {
+pub fn default_remainder_contributions() -> Vec<ContributionParams<PolimecRuntime>> {
 	let inst = IntegrationInstantiator::new(None);
 
 	let default_metadata = default_project_metadata(ISSUER.into());
