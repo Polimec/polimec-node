@@ -157,11 +157,9 @@ pub type Migrations = migrations::Unreleased;
 /// The runtime migrations per release.
 #[allow(missing_docs)]
 pub mod migrations {
-	use crate::Runtime;
-
 	/// Unreleased migrations. Add new ones here:
 	#[allow(unused_parens)]
-	pub type Unreleased = (pallet_funding::storage_migrations::v3::MigrationToV3<Runtime>);
+	pub type Unreleased = ();
 }
 
 /// Executive: handles dispatch to the various modules.
@@ -207,7 +205,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("polimec-mainnet"),
 	impl_name: create_runtime_str!("polimec-mainnet"),
 	authoring_version: 1,
-	spec_version: 0_007_002,
+	spec_version: 0_007_003,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 2,
@@ -233,10 +231,15 @@ impl Contains<RuntimeCall> for BaseCallFilter {
 				matches!(
 					call,
 					pallet_funding::Call::create_project { .. } |
-						pallet_funding::Call::edit_project { .. } |
 						pallet_funding::Call::remove_project { .. } |
+						pallet_funding::Call::edit_project { .. } |
 						pallet_funding::Call::start_evaluation { .. } |
-						pallet_funding::Call::evaluate { .. }
+						pallet_funding::Call::root_do_evaluation_end { .. } |
+						pallet_funding::Call::evaluate { .. } |
+						pallet_funding::Call::start_auction { .. } |
+						pallet_funding::Call::root_do_auction_opening { .. } |
+						pallet_funding::Call::root_do_start_auction_closing { .. } |
+						pallet_funding::Call::bid { .. }
 				)
 			},
 			_ => true,
