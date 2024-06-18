@@ -227,21 +227,24 @@ pub struct BaseCallFilter;
 impl Contains<RuntimeCall> for BaseCallFilter {
 	fn contains(c: &RuntimeCall) -> bool {
 		match c {
-			RuntimeCall::Funding(call) => {
-				matches!(
-					call,
-					pallet_funding::Call::create_project { .. } |
-						pallet_funding::Call::remove_project { .. } |
-						pallet_funding::Call::edit_project { .. } |
-						pallet_funding::Call::start_evaluation { .. } |
-						pallet_funding::Call::root_do_evaluation_end { .. } |
-						pallet_funding::Call::evaluate { .. } |
-						pallet_funding::Call::start_auction { .. } |
-						pallet_funding::Call::root_do_auction_opening { .. } |
-						pallet_funding::Call::root_do_start_auction_closing { .. } |
-						pallet_funding::Call::bid { .. }
-				)
-			},
+			RuntimeCall::Funding(call) =>
+				if cfg!(feature = "development-settings") {
+					true
+				} else {
+					matches!(
+						call,
+						pallet_funding::Call::create_project { .. } |
+							pallet_funding::Call::remove_project { .. } |
+							pallet_funding::Call::edit_project { .. } |
+							pallet_funding::Call::start_evaluation { .. } |
+							pallet_funding::Call::root_do_evaluation_end { .. } |
+							pallet_funding::Call::evaluate { .. } |
+							pallet_funding::Call::start_auction { .. } |
+							pallet_funding::Call::root_do_auction_opening { .. } |
+							pallet_funding::Call::root_do_start_auction_closing { .. } |
+							pallet_funding::Call::bid { .. }
+					)
+				},
 			_ => true,
 		}
 	}
@@ -993,24 +996,6 @@ parameter_types! {
 	pub RequiredMaxMessageSize: u32 = 102_400;
 	pub MinUsdPerEvaluation: Balance = 100 * USD_UNIT;
 
-}
-
-// Development public key
-#[cfg(any(feature = "development-settings", test))]
-parameter_types! {
-	pub VerifierPublicKey: [u8; 32] = [
-		32, 118, 30, 171, 58, 212, 197, 27, 146, 122, 255, 243, 34, 245, 90, 244, 221, 37, 253,
-		195, 18, 202, 111, 55, 39, 48, 123, 17, 101, 78, 215, 94,
-	];
-}
-
-// Production public key
-#[cfg(not(any(feature = "development-settings", test)))]
-parameter_types! {
-	pub VerifierPublicKey: [u8; 32] = [
-		83,  49,  95, 191,  98, 138,  14,  43, 234, 192, 105, 248,  11,  96, 127, 234, 192,  62,  80,
-		35, 204,   0,  38, 210, 177,  72, 167, 116, 133, 127, 140, 249
-	 ];
 }
 
 pub struct ConvertSelf;

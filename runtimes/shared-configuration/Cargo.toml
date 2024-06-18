@@ -86,3 +86,4 @@ try-runtime = [
 	"polimec-common/try-runtime",
 	"sp-runtime/try-runtime",
 ]
+development-settings = []

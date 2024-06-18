@@ -58,3 +58,19 @@ pub type UsernameAuthorityOrigin = frame_system::EnsureNever<AccountId>;
 
 #[cfg(feature = "runtime-benchmarks")]
 pub type UsernameAuthorityOrigin = frame_system::EnsureRoot<AccountId>;
+
+parameter_types! {
+	pub TestingVerifierPublicKey: [u8; 32] = [
+		32, 118, 30, 171, 58, 212, 197, 27, 146, 122, 255, 243, 34, 245, 90, 244, 221, 37, 253,
+		195, 18, 202, 111, 55, 39, 48, 123, 17, 101, 78, 215, 94,
+	];
+	pub ProductionVerifierPublicKey: [u8; 32] = [
+		83,  49,  95, 191,  98, 138,  14,  43, 234, 192, 105, 248,  11,  96, 127, 234, 192,  62,  80,
+		35, 204,   0,  38, 210, 177,  72, 167, 116, 133, 127, 140, 249
+	 ];
+}
+
+#[cfg(any(feature = "runtime-benchmarks", test, feature = "development-settings"))]
+pub type VerifierPublicKey = TestingVerifierPublicKey;
+#[cfg(not(any(feature = "runtime-benchmarks", test, feature = "development-settings")))]
+pub type VerifierPublicKey = ProductionVerifierPublicKey;

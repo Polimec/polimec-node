@@ -42,7 +42,7 @@ generate_accounts!(
 	JOEL, POLKA, MALIK, ALEXANDER, SOLOMUN, JOHNNY, GRINGO, JONAS, BUNDI, FELIX,
 );
 
-pub fn excel_project() -> ProjectMetadataOf<PolitestRuntime> {
+pub fn excel_project() -> ProjectMetadataOf<PolimecRuntime> {
 	let bounded_name = BoundedVec::try_from("Polimec".as_bytes().to_vec()).unwrap();
 	let bounded_symbol = BoundedVec::try_from("PLMC".as_bytes().to_vec()).unwrap();
 	let metadata_hash = ipfs_hash();
@@ -54,8 +54,8 @@ pub fn excel_project() -> ProjectMetadataOf<PolitestRuntime> {
 		auction_round_allocation_percentage: Percent::from_percent(50u8),
 
 		// Minimum Price per Contribution Token (in USDT)
-		minimum_price: PriceProviderOf::<PolitestRuntime>::calculate_decimals_aware_price(
-			PriceOf::<PolitestRuntime>::from_float(10.0f64),
+		minimum_price: PriceProviderOf::<PolimecRuntime>::calculate_decimals_aware_price(
+			PriceOf::<PolimecRuntime>::from_float(10.0f64),
 			USD_DECIMALS,
 			CT_DECIMALS,
 		)
@@ -77,7 +77,7 @@ pub fn excel_project() -> ProjectMetadataOf<PolitestRuntime> {
 	}
 }
 
-fn excel_evaluators() -> Vec<UserToUSDBalance<PolitestRuntime>> {
+fn excel_evaluators() -> Vec<UserToUSDBalance<PolimecRuntime>> {
 	vec![
 		(LINA.into(), 93754 * USD_UNIT).into(),
 		(MIA.into(), 162 * USD_UNIT).into(),
@@ -98,7 +98,7 @@ fn excel_evaluators() -> Vec<UserToUSDBalance<PolitestRuntime>> {
 	]
 }
 
-fn excel_bidders() -> Vec<BidParams<PolitestRuntime>> {
+fn excel_bidders() -> Vec<BidParams<PolimecRuntime>> {
 	vec![
 		(ADAMS.into(), 700 * CT_UNIT).into(),
 		(POLK.into(), 4000 * CT_UNIT).into(),
@@ -125,7 +125,7 @@ fn excel_bidders() -> Vec<BidParams<PolitestRuntime>> {
 	]
 }
 
-fn excel_contributions() -> Vec<ContributionParams<PolitestRuntime>> {
+fn excel_contributions() -> Vec<ContributionParams<PolimecRuntime>> {
 	vec![
 		(XI.into(), 692 * CT_UNIT).into(),
 		(PARI.into(), 236 * CT_UNIT).into(),
@@ -172,7 +172,7 @@ fn excel_contributions() -> Vec<ContributionParams<PolitestRuntime>> {
 		(LUIS.into(), 422 * CT_UNIT).into(),
 	]
 }
-fn excel_remainders() -> Vec<ContributionParams<PolitestRuntime>> {
+fn excel_remainders() -> Vec<ContributionParams<PolimecRuntime>> {
 	vec![
 		(JOEL.into(), 692 * CT_UNIT).into(),
 		(POLK.into(), 236 * CT_UNIT).into(),
@@ -271,7 +271,7 @@ fn excel_ct_amounts() -> UserToCTBalance {
 
 #[test]
 fn evaluation_round_completed() {
-	politest::set_prices();
+	polimec::set_prices();
 
 	let mut inst = IntegrationInstantiator::new(None);
 
@@ -279,14 +279,14 @@ fn evaluation_round_completed() {
 	let project = excel_project();
 	let evaluations = excel_evaluators();
 
-	PolitestNet::execute_with(|| {
+	PolimecNet::execute_with(|| {
 		inst.create_auctioning_project(project, issuer, evaluations);
 	});
 }
 
 #[test]
 fn auction_round_completed() {
-	politest::set_prices();
+	polimec::set_prices();
 
 	let mut inst = IntegrationInstantiator::new(None);
 
@@ -295,13 +295,13 @@ fn auction_round_completed() {
 	let evaluations = excel_evaluators();
 	let bids = excel_bidders();
 
-	PolitestNet::execute_with(|| {
+	PolimecNet::execute_with(|| {
 		let project_id = inst.create_community_contributing_project(project, issuer, evaluations, bids);
 		let excel_wap_fixed = FixedU128::from_float(10.202357561f64);
 		let excel_wap_usd = excel_wap_fixed.saturating_mul_int(USD_UNIT);
 
 		let stored_wap_fixed = inst.get_project_details(project_id).weighted_average_price.unwrap();
-		let stored_wap_fixed_decimal_unaware = PriceProviderOf::<PolitestRuntime>::convert_back_to_normal_price(
+		let stored_wap_fixed_decimal_unaware = PriceProviderOf::<PolimecRuntime>::convert_back_to_normal_price(
 			stored_wap_fixed,
 			USD_DECIMALS,
 			CT_DECIMALS,
@@ -314,7 +314,7 @@ fn auction_round_completed() {
 		let names = names();
 		inst.execute(|| {
 			let bids =
-				Bids::<PolitestRuntime>::iter_prefix_values((0,)).sorted_by_key(|bid| bid.bidder.clone()).collect_vec();
+				Bids::<PolimecRuntime>::iter_prefix_values((0,)).sorted_by_key(|bid| bid.bidder.clone()).collect_vec();
 
 			for bid in bids.clone() {
 				let key: [u8; 32] = bid.bidder.clone().into();
@@ -326,11 +326,11 @@ fn auction_round_completed() {
 
 #[test]
 fn community_round_completed() {
-	politest::set_prices();
+	polimec::set_prices();
 
 	let mut inst = IntegrationInstantiator::new(None);
 
-	PolitestNet::execute_with(|| {
+	PolimecNet::execute_with(|| {
 		let _ = inst.create_remainder_contributing_project(
 			excel_project(),
 			ISSUER.into(),
@@ -340,7 +340,7 @@ fn community_round_completed() {
 		);
 
 		inst.execute(|| {
-			let contributions = Contributions::<PolitestRuntime>::iter_prefix_values((0,))
+			let contributions = Contributions::<PolimecRuntime>::iter_prefix_values((0,))
 				.sorted_by_key(|bid| bid.contributor.clone())
 				.collect_vec();
 			let _total_contribution =
@@ -352,11 +352,11 @@ fn community_round_completed() {
 
 #[test]
 fn remainder_round_completed() {
-	politest::set_prices();
+	polimec::set_prices();
 
 	let mut inst = IntegrationInstantiator::new(None);
 
-	PolitestNet::execute_with(|| {
+	PolimecNet::execute_with(|| {
 		inst.create_finished_project(
 			excel_project(),
 			ISSUER.into(),
@@ -366,13 +366,13 @@ fn remainder_round_completed() {
 			excel_remainders(),
 		);
 
-		let contributions = Contributions::<PolitestRuntime>::iter_prefix_values((0,))
+		let contributions = Contributions::<PolimecRuntime>::iter_prefix_values((0,))
 			.sorted_by_key(|contribution| contribution.contributor.clone())
 			.collect_vec();
 		let total_stored =
 			contributions.into_iter().fold(0, |acc, contribution| acc + contribution.funding_asset_amount);
 
-		let usdt_decimals = <PolitestRuntime as pallet_funding::Config>::FundingCurrency::decimals(
+		let usdt_decimals = <PolimecRuntime as pallet_funding::Config>::FundingCurrency::decimals(
 			AcceptedFundingAsset::USDT.to_assethub_id(),
 		);
 		let usdt_total_from_excel_f64 = 503_945.4_517_000_000f64;
@@ -385,11 +385,11 @@ fn remainder_round_completed() {
 
 #[test]
 fn funds_raised() {
-	politest::set_prices();
+	polimec::set_prices();
 
 	let mut inst = IntegrationInstantiator::new(None);
 
-	PolitestNet::execute_with(|| {
+	PolimecNet::execute_with(|| {
 		let project_id = inst.create_finished_project(
 			excel_project(),
 			ISSUER.into(),
@@ -400,12 +400,12 @@ fn funds_raised() {
 		);
 
 		inst.execute(|| {
-			let project_specific_account: AccountId = PolitestFundingPallet::fund_account_id(project_id);
+			let project_specific_account: AccountId = PolimecFunding::fund_account_id(project_id);
 			let stored_usdt_funded =
-				PolitestForeignAssets::balance(AcceptedFundingAsset::USDT.to_assethub_id(), project_specific_account);
+				PolimecForeignAssets::balance(AcceptedFundingAsset::USDT.to_assethub_id(), project_specific_account);
 			let excel_usdt_funded_f64 = 1_004_256.0_140_000_000f64;
 			let excet_usdt_funding_fixed = FixedU128::from_float(excel_usdt_funded_f64);
-			let usdt_decimals = <PolitestRuntime as pallet_funding::Config>::FundingCurrency::decimals(
+			let usdt_decimals = <PolimecRuntime as pallet_funding::Config>::FundingCurrency::decimals(
 				AcceptedFundingAsset::USDT.to_assethub_id(),
 			);
 			let excel_usdt_funded = excet_usdt_funding_fixed.saturating_mul_int(10u128.pow(usdt_decimals as u32));
@@ -416,11 +416,11 @@ fn funds_raised() {
 
 #[test]
 fn ct_minted() {
-	politest::set_prices();
+	polimec::set_prices();
 
 	let mut inst = IntegrationInstantiator::new(None);
 
-	PolitestNet::execute_with(|| {
+	PolimecNet::execute_with(|| {
 		let project_id = inst.create_finished_project(
 			excel_project(),
 			ISSUER.into(),
@@ -429,13 +429,13 @@ fn ct_minted() {
 			excel_contributions(),
 			excel_remainders(),
 		);
-		inst.advance_time(<PolitestRuntime as Config>::SuccessToSettlementTime::get()).unwrap();
+		inst.advance_time(<PolimecRuntime as Config>::SuccessToSettlementTime::get()).unwrap();
 
 		inst.settle_project(project_id).unwrap();
 
 		for (contributor, expected_amount_fixed, project_id) in excel_ct_amounts() {
 			let minted = inst
-				.execute(|| <PolitestRuntime as Config>::ContributionTokenCurrency::balance(project_id, &contributor));
+				.execute(|| <PolimecRuntime as Config>::ContributionTokenCurrency::balance(project_id, &contributor));
 			let expected_amount = expected_amount_fixed.saturating_mul_int(CT_UNIT);
 			assert_close_enough!(minted, expected_amount, Perquintill::from_float(0.99));
 		}
@@ -444,11 +444,11 @@ fn ct_minted() {
 
 #[test]
 fn ct_migrated() {
-	politest::set_prices();
+	polimec::set_prices();
 
 	let mut inst = IntegrationInstantiator::new(None);
 
-	let project_id = PolitestNet::execute_with(|| {
+	let project_id = PolimecNet::execute_with(|| {
 		let project_id = inst.create_finished_project(
 			excel_project(),
 			ISSUER.into(),
@@ -457,13 +457,13 @@ fn ct_migrated() {
 			excel_contributions(),
 			excel_remainders(),
 		);
-		inst.advance_time(<PolitestRuntime as Config>::SuccessToSettlementTime::get()).unwrap();
+		inst.advance_time(<PolimecRuntime as Config>::SuccessToSettlementTime::get()).unwrap();
 
 		inst.settle_project(project_id).unwrap();
 
 		for (contributor, expected_amount_fixed, project_id) in excel_ct_amounts() {
 			let minted = inst
-				.execute(|| <PolitestRuntime as Config>::ContributionTokenCurrency::balance(project_id, &contributor));
+				.execute(|| <PolimecRuntime as Config>::ContributionTokenCurrency::balance(project_id, &contributor));
 			let expected_amount = expected_amount_fixed.saturating_mul_int(CT_UNIT);
 			assert_close_enough!(minted, expected_amount, Perquintill::from_float(0.99));
 		}
@@ -471,11 +471,10 @@ fn ct_migrated() {
 		project_id
 	});
 
-	let project_details = PolitestNet::execute_with(|| inst.get_project_details(project_id));
+	let project_details = PolimecNet::execute_with(|| inst.get_project_details(project_id));
 	assert!(matches!(project_details.evaluation_round_info.evaluators_outcome, EvaluatorsOutcome::Rewarded(_)));
-	let ct_issued = PolitestNet::execute_with(|| {
-		<PolitestRuntime as Config>::ContributionTokenCurrency::total_issuance(project_id)
-	});
+	let ct_issued =
+		PolimecNet::execute_with(|| <PolimecRuntime as Config>::ContributionTokenCurrency::total_issuance(project_id));
 
 	PenNet::execute_with(|| {
 		let polimec_sovereign_account =
@@ -484,22 +483,18 @@ fn ct_migrated() {
 	});
 
 	// Mock HRMP establishment
-	PolitestNet::execute_with(|| {
-		let _account_id: PolitestAccountId = ISSUER.into();
-		assert_ok!(PolitestFundingPallet::do_set_para_id_for_project(
-			&ISSUER.into(),
-			project_id,
-			ParaId::from(6969u32),
-		));
+	PolimecNet::execute_with(|| {
+		let _account_id: PolimecAccountId = ISSUER.into();
+		assert_ok!(PolimecFunding::do_set_para_id_for_project(&ISSUER.into(), project_id, ParaId::from(6969u32),));
 		let open_channel_message = xcm::v3::opaque::Instruction::HrmpNewChannelOpenRequest {
 			sender: 6969,
 			max_message_size: 102_300,
 			max_capacity: 1000,
 		};
-		assert_ok!(PolitestFundingPallet::do_handle_channel_open_request(open_channel_message));
+		assert_ok!(PolimecFunding::do_handle_channel_open_request(open_channel_message));
 
 		let channel_accepted_message = xcm::v3::opaque::Instruction::HrmpChannelAccepted { recipient: 6969u32 };
-		assert_ok!(PolitestFundingPallet::do_handle_channel_accepted(channel_accepted_message));
+		assert_ok!(PolimecFunding::do_handle_channel_accepted(channel_accepted_message));
 	});
 
 	PenNet::execute_with(|| {
@@ -508,8 +503,8 @@ fn ct_migrated() {
 	});
 
 	// Migration is ready
-	PolitestNet::execute_with(|| {
-		let project_details = pallet_funding::ProjectsDetails::<PolitestRuntime>::get(project_id).unwrap();
+	PolimecNet::execute_with(|| {
+		let project_details = pallet_funding::ProjectsDetails::<PolimecRuntime>::get(project_id).unwrap();
 		assert!(project_details.migration_readiness_check.unwrap().is_ready())
 	});
 
@@ -529,9 +524,9 @@ fn ct_migrated() {
 	let names = names();
 
 	for account in accounts {
-		PolitestNet::execute_with(|| {
-			assert_ok!(PolitestFundingPallet::migrate_one_participant(
-				PolitestOrigin::signed(account.clone()),
+		PolimecNet::execute_with(|| {
+			assert_ok!(PolimecFunding::migrate_one_participant(
+				PolimecOrigin::signed(account.clone()),
 				project_id,
 				account.clone()
 			));

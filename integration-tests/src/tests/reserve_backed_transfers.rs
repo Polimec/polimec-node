@@ -63,9 +63,9 @@ fn mint_asset_on_asset_hub_to(asset_id: u32, recipient: &AssetHubAccountId, amou
 fn get_polimec_balances(asset_id: u32, user_account: AccountId) -> (u128, u128, u128, u128) {
 	PolimecNet::execute_with(|| {
 		(
-			PolitestForeignAssets::balance(asset_id, user_account.clone()),
+			PolimecForeignAssets::balance(asset_id, user_account.clone()),
 			PolimecBalances::balance(&user_account.clone()),
-			PolitestForeignAssets::total_issuance(asset_id),
+			PolimecForeignAssets::total_issuance(asset_id),
 			PolimecBalances::total_issuance(),
 		)
 	})
@@ -169,14 +169,14 @@ fn test_reserve_to_polimec(asset_id: u32) {
 	let asset_hub_delta_asset_issuance = asset_hub_post_asset_issuance.abs_diff(asset_hub_prev_asset_issuance);
 
 	assert!(
-	    polimec_delta_alice_asset_balance >= RESERVE_TRANSFER_AMOUNT - politest_runtime::WeightToFee::weight_to_fee(&max_weight) &&
+	    polimec_delta_alice_asset_balance >= RESERVE_TRANSFER_AMOUNT - polimec_runtime::WeightToFee::weight_to_fee(&max_weight) &&
 	    polimec_delta_alice_asset_balance <= RESERVE_TRANSFER_AMOUNT,
 	    "Polimec alice_account.clone() Asset balance should have increased by at least the transfer amount minus the XCM execution fee"
 	);
 
 	assert!(
 		polimec_delta_asset_issuance >=
-			RESERVE_TRANSFER_AMOUNT - politest_runtime::WeightToFee::weight_to_fee(&max_weight) &&
+			RESERVE_TRANSFER_AMOUNT - polimec_runtime::WeightToFee::weight_to_fee(&max_weight) &&
 			polimec_delta_asset_issuance <= RESERVE_TRANSFER_AMOUNT,
 		"Polimec Asset issuance should have increased by at least the transfer amount minus the XCM execution fee"
 	);

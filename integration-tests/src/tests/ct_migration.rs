@@ -18,22 +18,22 @@ use crate::*;
 use frame_support::traits::{fungible::Mutate, fungibles::Inspect};
 use pallet_funding::{assert_close_enough, ProjectId};
 use polimec_common::migration_types::{MigrationStatus, Migrations};
-use politest_runtime::Funding;
+use polimec_runtime::Funding;
 use sp_runtime::Perquintill;
 use std::collections::HashMap;
 use tests::defaults::*;
 
 fn mock_hrmp_establishment(project_id: u32) {
-	let ct_issued = PolitestNet::execute_with(|| {
-		<PolitestRuntime as pallet_funding::Config>::ContributionTokenCurrency::total_issuance(project_id)
+	let ct_issued = PolimecNet::execute_with(|| {
+		<PolimecRuntime as pallet_funding::Config>::ContributionTokenCurrency::total_issuance(project_id)
 	});
 	PenNet::execute_with(|| {
 		let polimec_sovereign_account =
 			<Penpal<PolkadotNet>>::sovereign_account_id_of((Parent, xcm::prelude::Parachain(polimec::PARA_ID)).into());
-		PenpalBalances::set_balance(&polimec_sovereign_account, ct_issued + politest_runtime::EXISTENTIAL_DEPOSIT);
+		PenpalBalances::set_balance(&polimec_sovereign_account, ct_issued + polimec_runtime::EXISTENTIAL_DEPOSIT);
 	});
 
-	PolitestNet::execute_with(|| {
+	PolimecNet::execute_with(|| {
 		assert_ok!(Funding::do_set_para_id_for_project(&ISSUER.into(), project_id, ParaId::from(6969u32)));
 
 		let open_channel_message = xcm::v3::opaque::Instruction::HrmpNewChannelOpenRequest {
@@ -52,8 +52,8 @@ fn mock_hrmp_establishment(project_id: u32) {
 }
 
 fn assert_migration_is_ready(project_id: u32) {
-	PolitestNet::execute_with(|| {
-		let project_details = pallet_funding::ProjectsDetails::<PolitestRuntime>::get(project_id).unwrap();
+	PolimecNet::execute_with(|| {
+		let project_details = pallet_funding::ProjectsDetails::<PolimecRuntime>::get(project_id).unwrap();
 		assert!(project_details.migration_readiness_check.unwrap().is_ready())
 	});
 }
@@ -63,10 +63,10 @@ fn get_migrations_for_participants(
 	participants: Vec<AccountId>,
 ) -> HashMap<AccountId, (MigrationStatus, Migrations)> {
 	let mut user_migrations = HashMap::new();
-	PolitestNet::execute_with(|| {
+	PolimecNet::execute_with(|| {
 		for participant in participants {
 			let (status, migrations) =
-				pallet_funding::UserMigrations::<PolitestRuntime>::get(project_id, participant.clone()).unwrap();
+				pallet_funding::UserMigrations::<PolimecRuntime>::get(project_id, participant.clone()).unwrap();
 			user_migrations.insert(participant, (status, Migrations::from(migrations.into())));
 		}
 	});
@@ -75,12 +75,8 @@ fn get_migrations_for_participants(
 
 fn send_migrations(project_id: ProjectId, accounts: Vec<AccountId>) {
 	for user in accounts.into_iter() {
-		PolitestNet::execute_with(|| {
-			assert_ok!(Funding::migrate_one_participant(
-				PolitestOrigin::signed(user.clone()),
-				project_id,
-				user.clone()
-			));
+		PolimecNet::execute_with(|| {
+			assert_ok!(Funding::migrate_one_participant(PolimecOrigin::signed(user.clone()), project_id, user.clone()));
 		});
 	}
 }
@@ -113,7 +109,7 @@ fn migrations_are_executed(project_id: ProjectId, accounts: Vec<AccountId>) {
 
 fn migrations_are_confirmed(project_id: u32, accounts: Vec<AccountId>) {
 	let user_migrations = get_migrations_for_participants(project_id, accounts.clone());
-	PolitestNet::execute_with(|| {
+	PolimecNet::execute_with(|| {
 		for user in accounts.iter() {
 			let (current_status, _) = user_migrations.get(user).unwrap();
 			assert_eq!(current_status, &MigrationStatus::Confirmed);
@@ -150,7 +146,7 @@ fn migrations_are_vested(project_id: u32, accounts: Vec<AccountId>) {
 
 fn create_settled_project() -> (ProjectId, Vec<AccountId>) {
 	let mut inst = IntegrationInstantiator::new(None);
-	PolitestNet::execute_with(|| {
+	PolimecNet::execute_with(|| {
 		let project_id = inst.create_finished_project(
 			default_project_metadata(ISSUER.into()),
 			ISSUER.into(),
@@ -159,13 +155,13 @@ fn create_settled_project() -> (ProjectId, Vec<AccountId>) {
 			default_community_contributions(),
 			default_remainder_contributions(),
 		);
-		inst.advance_time(<PolitestRuntime as pallet_funding::Config>::SuccessToSettlementTime::get()).unwrap();
+		inst.advance_time(<PolimecRuntime as pallet_funding::Config>::SuccessToSettlementTime::get()).unwrap();
 		let mut participants: Vec<AccountId> =
-			pallet_funding::Evaluations::<PolitestRuntime>::iter_prefix_values((project_id,))
+			pallet_funding::Evaluations::<PolimecRuntime>::iter_prefix_values((project_id,))
 				.map(|eval| eval.evaluator)
-				.chain(pallet_funding::Bids::<PolitestRuntime>::iter_prefix_values((project_id,)).map(|bid| bid.bidder))
+				.chain(pallet_funding::Bids::<PolimecRuntime>::iter_prefix_values((project_id,)).map(|bid| bid.bidder))
 				.chain(
-					pallet_funding::Contributions::<PolitestRuntime>::iter_prefix_values((project_id,))
+					pallet_funding::Contributions::<PolimecRuntime>::iter_prefix_values((project_id,))
 						.map(|contribution| contribution.contributor),
 				)
 				.collect();
@@ -179,7 +175,7 @@ fn create_settled_project() -> (ProjectId, Vec<AccountId>) {
 
 #[test]
 fn full_migration_test() {
-	politest::set_prices();
+	polimec::set_prices();
 	let (project_id, participants) = create_settled_project();
 
 	mock_hrmp_establishment(project_id);

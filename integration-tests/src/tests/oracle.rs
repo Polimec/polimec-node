@@ -19,13 +19,13 @@ use crate::*;
 /// Alice, Bob, Charlie are members of the OracleProvidersMembers.
 /// Only members should be able to feed data into the oracle.
 use parity_scale_codec::alloc::collections::HashMap;
-use politest_runtime::{Oracle, RuntimeOrigin};
+use polimec_runtime::{Oracle, RuntimeOrigin};
 use sp_runtime::{bounded_vec, BoundedVec, FixedU128};
 use tests::defaults::*;
 
 fn values(
 	values: [f64; 4],
-) -> BoundedVec<(u32, FixedU128), <politest_runtime::Runtime as orml_oracle::Config<()>>::MaxFeedValues> {
+) -> BoundedVec<(u32, FixedU128), <polimec_runtime::Runtime as orml_oracle::Config<()>>::MaxFeedValues> {
 	let [dot, usdc, usdt, plmc] = values;
 	bounded_vec![
 		(10u32, FixedU128::from_float(dot)),
@@ -39,16 +39,16 @@ fn values(
 fn members_can_feed_data() {
 	let mut inst = IntegrationInstantiator::new(None);
 
-	PolitestNet::execute_with(|| {
+	PolimecNet::execute_with(|| {
 		// pallet_funding genesis builder already inputs prices, so we need to advance one block to feed new values.
 		inst.advance_time(1u32).unwrap();
-		let alice = PolitestNet::account_id_of(ALICE);
+		let alice = PolimecNet::account_id_of(ALICE);
 		assert_ok!(Oracle::feed_values(RuntimeOrigin::signed(alice.clone()), values([4.84, 1.0, 1.0, 0.4])));
 
-		let bob = PolitestNet::account_id_of(BOB);
+		let bob = PolimecNet::account_id_of(BOB);
 		assert_ok!(Oracle::feed_values(RuntimeOrigin::signed(bob.clone()), values([4.84, 1.0, 1.0, 0.4])));
 
-		let charlie = PolitestNet::account_id_of(CHARLIE);
+		let charlie = PolimecNet::account_id_of(CHARLIE);
 		assert_ok!(Oracle::feed_values(RuntimeOrigin::signed(charlie.clone()), values([4.84, 1.0, 1.0, 0.4])));
 
 		let expected_values = HashMap::from([
@@ -67,11 +67,11 @@ fn members_can_feed_data() {
 
 #[test]
 fn non_members_cannot_feed_data() {
-	PolitestNet::execute_with(|| {
-		let dave = PolitestNet::account_id_of(DAVE);
+	PolimecNet::execute_with(|| {
+		let dave = PolimecNet::account_id_of(DAVE);
 		assert_noop!(
 			Oracle::feed_values(RuntimeOrigin::signed(dave.clone()), values([4.84, 1.0, 1.0, 0.4])),
-			orml_oracle::Error::<politest_runtime::Runtime, ()>::NoPermission
+			orml_oracle::Error::<polimec_runtime::Runtime, ()>::NoPermission
 		);
 	});
 }
@@ -79,17 +79,17 @@ fn non_members_cannot_feed_data() {
 #[test]
 fn data_is_correctly_combined() {
 	let mut inst = IntegrationInstantiator::new(None);
-	PolitestNet::execute_with(|| {
+	PolimecNet::execute_with(|| {
 		// pallet_funding genesis builder already inputs prices, so we need to advance one block to feed new values.
 		inst.advance_time(1u32).unwrap();
 
-		let alice = PolitestNet::account_id_of(ALICE);
+		let alice = PolimecNet::account_id_of(ALICE);
 		assert_ok!(Oracle::feed_values(RuntimeOrigin::signed(alice.clone()), values([1.0, 1.5, 1.1, 0.11111])));
 
-		let bob = PolitestNet::account_id_of(BOB);
+		let bob = PolimecNet::account_id_of(BOB);
 		assert_ok!(Oracle::feed_values(RuntimeOrigin::signed(bob.clone()), values([2.0, 1.0, 1.2, 0.22222])));
 
-		let charlie = PolitestNet::account_id_of(CHARLIE);
+		let charlie = PolimecNet::account_id_of(CHARLIE);
 		assert_ok!(Oracle::feed_values(RuntimeOrigin::signed(charlie.clone()), values([3.0, 0.8, 1.1, 0.33333])));
 
 		// Default CombineData implementation is the median value
@@ -111,17 +111,17 @@ fn data_is_correctly_combined() {
 fn pallet_funding_works() {
 	let mut inst = IntegrationInstantiator::new(None);
 
-	PolitestNet::execute_with(|| {
+	PolimecNet::execute_with(|| {
 		// pallet_funding genesis builder already inputs prices, so we need to advance one block to feed new values.
 		inst.advance_time(1u32).unwrap();
 
-		let alice = PolitestNet::account_id_of(ALICE);
+		let alice = PolimecNet::account_id_of(ALICE);
 		assert_ok!(Oracle::feed_values(RuntimeOrigin::signed(alice.clone()), values([4.84, 1.0, 1.0, 0.4])));
 
-		let bob = PolitestNet::account_id_of(BOB);
+		let bob = PolimecNet::account_id_of(BOB);
 		assert_ok!(Oracle::feed_values(RuntimeOrigin::signed(bob.clone()), values([4.84, 1.0, 1.0, 0.4])));
 
-		let charlie = PolitestNet::account_id_of(CHARLIE);
+		let charlie = PolimecNet::account_id_of(CHARLIE);
 		assert_ok!(Oracle::feed_values(RuntimeOrigin::signed(charlie.clone()), values([4.84, 1.0, 1.0, 0.4])));
 
 		let _project_id = inst.create_finished_project(
