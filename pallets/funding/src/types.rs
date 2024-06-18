@@ -833,14 +833,16 @@ pub mod inner_types {
 
 	impl MigrationReadinessCheck {
 		pub fn is_ready(&self) -> bool {
-			self.holding_check.1 == CheckOutcome::Passed && self.pallet_check.1 == CheckOutcome::Passed
+			self.holding_check.1 == CheckOutcome::Passed(None) &&
+				matches!(self.pallet_check.1, CheckOutcome::Passed(Some(_)))
 		}
 	}
 
+	pub type PalletIndex = u8;
 	#[derive(Clone, Copy, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
 	pub enum CheckOutcome {
 		AwaitingResponse,
-		Passed,
+		Passed(Option<PalletIndex>),
 		Failed,
 	}
 
