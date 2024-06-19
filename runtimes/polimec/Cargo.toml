@@ -279,5 +279,5 @@ try-runtime = [
 on-chain-release-build = [ "sp-api/disable-logging" ]
 
 development-settings = [
-	"shared-configuration/development-settings"
+	"shared-configuration/development-settings",
 ]
