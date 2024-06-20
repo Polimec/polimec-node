@@ -310,6 +310,7 @@ mod helper_functions {
 // logic of small functions that extrinsics use to process data or interact with storage
 mod inner_functions {
 	use super::*;
+	use parity_scale_codec::Encode;
 
 	#[test]
 	fn calculate_vesting_duration() {

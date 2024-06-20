@@ -361,10 +361,6 @@ pub mod pallet {
 		#[pallet::constant]
 		type PalletId: Get<PalletId>;
 
-		/// Pallet info of the polimec receiver pallet. Used for CT migrations
-		#[pallet::constant]
-		type PolimecReceiverInfo: Get<PalletInfo>;
-
 		/// The maximum size of a preimage allowed, expressed in bytes.
 		#[pallet::constant]
 		type PreImageLimit: Get<u32>;

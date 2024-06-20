@@ -1047,7 +1047,6 @@ impl pallet_funding::Config for Runtime {
 	type Multiplier = pallet_funding::types::Multiplier;
 	type NativeCurrency = Balances;
 	type PalletId = FundingPalletId;
-	type PolimecReceiverInfo = PolimecReceiverInfo;
 	type PreImageLimit = ConstU32<1024>;
 	type Price = Price;
 	type PriceProvider = OraclePriceProvider<AssetId, FixedU128, Oracle>;

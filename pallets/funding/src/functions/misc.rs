@@ -573,15 +573,17 @@ impl<T: Config> Pallet<T> {
 	pub fn construct_migration_xcm_message(
 		migrations: BoundedVec<Migration, MaxParticipationsPerUser<T>>,
 		query_id: QueryId,
+		pallet_index: PalletIndex,
 	) -> Xcm<()> {
 		// TODO: adjust this as benchmarks for polimec-receiver are written
 		const MAX_WEIGHT: Weight = Weight::from_parts(10_000, 0);
 		const MAX_RESPONSE_WEIGHT: Weight = Weight::from_parts(700_000_000, 10_000);
 		// const MAX_WEIGHT: Weight = Weight::from_parts(100_003_000_000_000, 10_000_196_608);
-		let _polimec_receiver_info = T::PolimecReceiverInfo::get();
 		let migrations_item = Migrations::from(migrations.into());
 
-		let mut encoded_call = vec![51u8, 0];
+		// First byte is the pallet index, second byte is the call index
+		let mut encoded_call = vec![pallet_index, 0];
+
 		// migrations_item can contain a Maximum of MaxParticipationsPerUser migrations which
 		// is 48. So we know that there is an upper limit to this encoded call, namely 48 *
 		// Migration encode size.

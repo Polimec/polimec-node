@@ -1,4 +1,5 @@
 use super::*;
+use xcm::v3::MaxPalletNameLen;
 
 impl<T: Config> Pallet<T> {
 	#[transactional]
@@ -281,7 +282,7 @@ impl<T: Config> Pallet<T> {
 						id: Concrete(MultiLocation { parents: 1, interior: X1(Parachain(pid)) }),
 						fun: Fungible(amount),
 					} if amount >= ct_sold_as_u128 && pid == u32::from(para_id) => {
-						migration_check.holding_check.1 = CheckOutcome::Passed;
+						migration_check.holding_check.1 = CheckOutcome::Passed(None);
 						Self::deposit_event(Event::<T>::MigrationCheckResponseAccepted {
 							project_id,
 							query_id,
@@ -302,14 +303,21 @@ impl<T: Config> Pallet<T> {
 			(
 				Response::PalletsInfo(pallets_info),
 				MigrationReadinessCheck { pallet_check: (_, CheckOutcome::AwaitingResponse), .. },
-			) =>
-				if pallets_info.len() == 1 && pallets_info[0] == T::PolimecReceiverInfo::get() {
-					migration_check.pallet_check.1 = CheckOutcome::Passed;
+			) => {
+				let expected_module_name: BoundedVec<u8, MaxPalletNameLen> =
+					BoundedVec::try_from("polimec_receiver".as_bytes().to_vec()).map_err(|_| Error::<T>::NotAllowed)?;
+				let Some(PalletInfo { index, module_name, .. }) = pallets_info.first() else {
+					return Err(Error::<T>::NotAllowed.into());
+				};
+				let u8_index: u8 = (*index).try_into().map_err(|_| Error::<T>::NotAllowed)?;
+				if pallets_info.len() == 1 && module_name == &expected_module_name {
+					migration_check.pallet_check.1 = CheckOutcome::Passed(Some(u8_index));
 					Self::deposit_event(Event::<T>::MigrationCheckResponseAccepted { project_id, query_id, response });
 				} else {
 					migration_check.pallet_check.1 = CheckOutcome::Failed;
 					Self::deposit_event(Event::<T>::MigrationCheckResponseRejected { project_id, query_id, response });
-				},
+				}
+			},
 			_ => return Err(Error::<T>::NotAllowed.into()),
 		};
 
@@ -341,10 +349,14 @@ impl<T: Config> Pallet<T> {
 		let query_id =
 			pallet_xcm::Pallet::<T>::new_notify_query(project_multilocation, call.into(), now + 20u32.into(), Here);
 
+		let CheckOutcome::Passed(Some(pallet_index)) = migration_readiness_check.pallet_check.1 else {
+			return Err(Error::<T>::NotAllowed.into());
+		};
+
 		Self::change_migration_status(project_id, participant.clone(), MigrationStatus::Sent(query_id))?;
 
 		// * Process Data *
-		let xcm = Self::construct_migration_xcm_message(migrations.into(), query_id);
+		let xcm = Self::construct_migration_xcm_message(migrations.into(), query_id, pallet_index);
 
 		<pallet_xcm::Pallet<T>>::send_xcm(Here, project_multilocation, xcm).map_err(|_| Error::<T>::XcmFailed)?;
 		ActiveMigrationQueue::<T>::insert(query_id, (project_id, participant.clone()));

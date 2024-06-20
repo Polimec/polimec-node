@@ -672,8 +672,8 @@ construct_runtime!(
 
 		// The main stage.
 		Assets: pallet_assets::{Pallet, Call, Storage, Event<T>} = 50,
-		PolimecReceiver: polimec_receiver = 51,
-		Vesting: pallet_vesting = 52,
+		Vesting: pallet_vesting = 51,
+		PolimecReceiver: polimec_receiver = 69,
 
 		Sudo: pallet_sudo::{Pallet, Call, Storage, Event<T>, Config<T>} = 255,
 	}
