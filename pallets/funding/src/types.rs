@@ -413,7 +413,7 @@ pub mod storage_types {
 	}
 
 	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
-	pub struct ContributionInfo<Id, Did, ProjectId, AccountId, Balance, Multiplier> {
+	pub struct ContributionInfo<Id, Did, ProjectId, AccountId, Balance, BlockNumber, Multiplier> {
 		pub id: Id,
 		pub did: Did,
 		pub project_id: ProjectId,
@@ -424,6 +424,7 @@ pub mod storage_types {
 		pub funding_asset: AcceptedFundingAsset,
 		pub funding_asset_amount: Balance,
 		pub plmc_bond: Balance,
+		pub when: BlockNumber,
 	}
 
 	/// Represents a bucket that holds a specific amount of tokens at a given price.
