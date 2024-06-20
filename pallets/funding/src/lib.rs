@@ -810,6 +810,10 @@ pub mod pallet {
 		WrongParaId,
 		/// Migration channel is not ready for migrations.
 		ChannelNotReady,
+		/// Settlement for this project has not yet started.
+		SettlementNotStarted,
+		/// Wanted to settle as successful when it failed, or vice versa.
+		WrongSettlementOutcome,
 		/// User still has participations that need to be settled before migration.
 		ParticipationsNotSettled,
 	}

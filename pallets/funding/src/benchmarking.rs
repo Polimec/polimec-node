@@ -1867,7 +1867,10 @@ mod benchmarks {
 	}
 
 	#[benchmark]
-	fn end_evaluation_failure() {
+	fn end_evaluation_failure(
+		// Insertion attempts in add_to_update_store. Total amount of storage items iterated through in `ProjectsToUpdate`. Leave one free to make the fn succeed
+		x: Linear<1, { <T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1 }>,
+	) {
 		// * setup *
 		let mut inst = BenchInstantiator::<T>::new(None);
 		<T as Config>::SetPrices::set_prices();
@@ -1910,6 +1913,8 @@ mod benchmarks {
 			inst.get_project_details(project_id).phase_transition_points.evaluation.end().unwrap();
 		// move block manually without calling any hooks, to avoid triggering the transition outside the benchmarking context
 		frame_system::Pallet::<T>::set_block_number(evaluation_end_block + One::one());
+
+		fill_projects_to_update::<T>(x, evaluation_end_block + 2u32.into());
 
 		// Instead of advancing in time for the automatic `do_evaluation_end` call in on_initialize, we call it directly to benchmark it
 		#[block]

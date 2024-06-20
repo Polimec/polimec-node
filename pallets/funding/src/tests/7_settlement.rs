@@ -11,7 +11,7 @@ mod round_flow {
 		#[test]
 		fn can_fully_settle_accepted_project() {
 			let percentage = 100u64;
-			let (mut inst, project_id) = create_project_with_funding_percentage(percentage, None);
+			let (mut inst, project_id) = create_project_with_funding_percentage(percentage, None, true);
 			let evaluations = inst.get_evaluations(project_id);
 			let bids = inst.get_bids(project_id);
 			let contributions = inst.get_contributions(project_id);
@@ -27,7 +27,7 @@ mod round_flow {
 		#[test]
 		fn can_fully_settle_failed_project() {
 			let percentage = 33u64;
-			let (mut inst, project_id) = create_project_with_funding_percentage(percentage, None);
+			let (mut inst, project_id) = create_project_with_funding_percentage(percentage, None, true);
 			let evaluations = inst.get_evaluations(project_id);
 			let bids = inst.get_bids(project_id);
 			let contributions = inst.get_contributions(project_id);
@@ -54,7 +54,7 @@ mod settle_successful_evaluation_extrinsic {
 			let percentage = 89u64;
 
 			let (mut inst, project_id) =
-				create_project_with_funding_percentage(percentage, Some(FundingOutcomeDecision::AcceptFunding));
+				create_project_with_funding_percentage(percentage, Some(FundingOutcomeDecision::AcceptFunding), true);
 
 			let first_evaluation = inst.get_evaluations(project_id).into_iter().next().unwrap();
 			let evaluator = first_evaluation.evaluator;
@@ -80,7 +80,7 @@ mod settle_successful_evaluation_extrinsic {
 		fn evaluation_slashed() {
 			let percentage = 50u64;
 			let (mut inst, project_id) =
-				create_project_with_funding_percentage(percentage, Some(FundingOutcomeDecision::AcceptFunding));
+				create_project_with_funding_percentage(percentage, Some(FundingOutcomeDecision::AcceptFunding), true);
 
 			let first_evaluation = inst.get_evaluations(project_id).into_iter().next().unwrap();
 			let evaluator = first_evaluation.evaluator;
@@ -227,7 +227,7 @@ mod settle_successful_evaluation_extrinsic {
 		#[test]
 		fn cannot_settle_twice() {
 			let percentage = 100u64;
-			let (mut inst, project_id) = create_project_with_funding_percentage(percentage, None);
+			let (mut inst, project_id) = create_project_with_funding_percentage(percentage, None, true);
 
 			let first_evaluation = inst.get_evaluations(project_id).into_iter().next().unwrap();
 			inst.execute(|| {
@@ -251,9 +251,9 @@ mod settle_successful_evaluation_extrinsic {
 		}
 
 		#[test]
-		fn cannot_be_called_in_unexpected_state() {
+		fn cannot_be_called_on_wrong_outcome() {
 			let percentage = 10u64;
-			let (mut inst, project_id) = create_project_with_funding_percentage(percentage, None);
+			let (mut inst, project_id) = create_project_with_funding_percentage(percentage, None, true);
 
 			let first_evaluation = inst.get_evaluations(project_id).into_iter().next().unwrap();
 			let evaluator = first_evaluation.evaluator;
@@ -266,7 +266,28 @@ mod settle_successful_evaluation_extrinsic {
 						evaluator,
 						first_evaluation.id
 					),
-					Error::<TestRuntime>::IncorrectRound
+					Error::<TestRuntime>::WrongSettlementOutcome
+				);
+			});
+		}
+
+		#[test]
+		fn cannot_be_called_before_settlement_started() {
+			let percentage = 100u64;
+			let (mut inst, project_id) = create_project_with_funding_percentage(percentage, None, false);
+
+			let first_evaluation = inst.get_evaluations(project_id).into_iter().next().unwrap();
+			let evaluator = first_evaluation.evaluator;
+
+			inst.execute(|| {
+				assert_noop!(
+					PolimecFunding::settle_successful_evaluation(
+						RuntimeOrigin::signed(evaluator),
+						project_id,
+						evaluator,
+						first_evaluation.id
+					),
+					Error::<TestRuntime>::SettlementNotStarted
 				);
 			});
 		}
@@ -549,7 +570,7 @@ mod settle_successful_bid_extrinsic {
 		#[test]
 		fn cannot_settle_twice() {
 			let percentage = 100u64;
-			let (mut inst, project_id) = create_project_with_funding_percentage(percentage, None);
+			let (mut inst, project_id) = create_project_with_funding_percentage(percentage, None, true);
 
 			let first_bid = inst.get_bids(project_id).into_iter().next().unwrap();
 			inst.execute(|| {
@@ -573,9 +594,9 @@ mod settle_successful_bid_extrinsic {
 		}
 
 		#[test]
-		fn cannot_be_called_in_unexpected_state() {
+		fn cannot_be_called_on_wrong_outcome() {
 			let percentage = 10u64;
-			let (mut inst, project_id) = create_project_with_funding_percentage(percentage, None);
+			let (mut inst, project_id) = create_project_with_funding_percentage(percentage, None, true);
 
 			let first_bid = inst.get_bids(project_id).into_iter().next().unwrap();
 			let bidder = first_bid.bidder;
@@ -587,7 +608,27 @@ mod settle_successful_bid_extrinsic {
 						bidder,
 						first_bid.id
 					),
-					Error::<TestRuntime>::IncorrectRound
+					Error::<TestRuntime>::WrongSettlementOutcome
+				);
+			});
+		}
+
+		#[test]
+		fn cannot_be_called_before_settlement_started() {
+			let percentage = 100u64;
+			let (mut inst, project_id) = create_project_with_funding_percentage(percentage, None, false);
+
+			let first_bid = inst.get_bids(project_id).into_iter().next().unwrap();
+			let bidder = first_bid.bidder;
+			inst.execute(|| {
+				assert_noop!(
+					crate::Pallet::<TestRuntime>::settle_successful_bid(
+						RuntimeOrigin::signed(bidder),
+						project_id,
+						bidder,
+						first_bid.id
+					),
+					Error::<TestRuntime>::SettlementNotStarted
 				);
 			});
 		}
@@ -818,7 +859,7 @@ mod settle_successful_contribution_extrinsic {
 		#[test]
 		fn cannot_settle_twice() {
 			let percentage = 100u64;
-			let (mut inst, project_id) = create_project_with_funding_percentage(percentage, None);
+			let (mut inst, project_id) = create_project_with_funding_percentage(percentage, None, true);
 
 			let first_contribution = inst.get_contributions(project_id).into_iter().next().unwrap();
 			inst.execute(|| {
@@ -842,9 +883,9 @@ mod settle_successful_contribution_extrinsic {
 		}
 
 		#[test]
-		fn cannot_be_called_in_unexpected_state() {
+		fn cannot_be_called_on_wrong_outcome() {
 			let percentage = 10u64;
-			let (mut inst, project_id) = create_project_with_funding_percentage(percentage, None);
+			let (mut inst, project_id) = create_project_with_funding_percentage(percentage, None, true);
 
 			let first_contribution = inst.get_contributions(project_id).into_iter().next().unwrap();
 			let contributor = first_contribution.contributor;
@@ -856,7 +897,26 @@ mod settle_successful_contribution_extrinsic {
 						contributor,
 						first_contribution.id
 					),
-					Error::<TestRuntime>::IncorrectRound
+					Error::<TestRuntime>::WrongSettlementOutcome
+				);
+			});
+		}
+
+		#[test]
+		fn cannot_be_called_before_settlement_started() {
+			let percentage = 100u64;
+			let (mut inst, project_id) = create_project_with_funding_percentage(percentage, None, false);
+			let first_contribution = inst.get_contributions(project_id).into_iter().next().unwrap();
+			let contributor = first_contribution.contributor;
+			inst.execute(|| {
+				assert_noop!(
+					crate::Pallet::<TestRuntime>::settle_successful_contribution(
+						RuntimeOrigin::signed(contributor),
+						project_id,
+						contributor,
+						first_contribution.id
+					),
+					Error::<TestRuntime>::SettlementNotStarted
 				);
 			});
 		}
@@ -876,7 +936,7 @@ mod settle_failed_evaluation_extrinsic {
 			let percentage = 89u64;
 
 			let (mut inst, project_id) =
-				create_project_with_funding_percentage(percentage, Some(FundingOutcomeDecision::RejectFunding));
+				create_project_with_funding_percentage(percentage, Some(FundingOutcomeDecision::RejectFunding), true);
 
 			let first_evaluation = inst.get_evaluations(project_id).into_iter().next().unwrap();
 			let evaluator = first_evaluation.evaluator;
@@ -902,7 +962,7 @@ mod settle_failed_evaluation_extrinsic {
 		fn evaluation_slashed() {
 			let percentage = 50u64;
 			let (mut inst, project_id) =
-				create_project_with_funding_percentage(percentage, Some(FundingOutcomeDecision::RejectFunding));
+				create_project_with_funding_percentage(percentage, Some(FundingOutcomeDecision::RejectFunding), true);
 
 			let first_evaluation = inst.get_evaluations(project_id).into_iter().next().unwrap();
 			let evaluator = first_evaluation.evaluator;
@@ -937,7 +997,7 @@ mod settle_failed_evaluation_extrinsic {
 		#[test]
 		fn cannot_settle_twice() {
 			let percentage = 33u64;
-			let (mut inst, project_id) = create_project_with_funding_percentage(percentage, None);
+			let (mut inst, project_id) = create_project_with_funding_percentage(percentage, None, true);
 
 			let first_evaluation = inst.get_evaluations(project_id).into_iter().next().unwrap();
 			inst.execute(|| {
@@ -961,21 +1021,43 @@ mod settle_failed_evaluation_extrinsic {
 		}
 
 		#[test]
-		fn cannot_be_called_in_unexpected_state() {
+		fn cannot_be_called_on_wrong_outcome() {
 			let percentage = 100u64;
-			let (mut inst, project_id) = create_project_with_funding_percentage(percentage, None);
+			let (mut inst, project_id) = create_project_with_funding_percentage(percentage, None, true);
 
 			let first_evaluation = inst.get_evaluations(project_id).into_iter().next().unwrap();
 			let evaluator = first_evaluation.evaluator;
+
 			inst.execute(|| {
 				assert_noop!(
-					crate::Pallet::<TestRuntime>::settle_failed_evaluation(
+					PolimecFunding::settle_failed_evaluation(
 						RuntimeOrigin::signed(evaluator),
 						project_id,
 						evaluator,
 						first_evaluation.id
 					),
-					Error::<TestRuntime>::IncorrectRound
+					Error::<TestRuntime>::WrongSettlementOutcome
+				);
+			});
+		}
+
+		#[test]
+		fn cannot_be_called_before_settlement_started() {
+			let percentage = 10u64;
+			let (mut inst, project_id) = create_project_with_funding_percentage(percentage, None, false);
+
+			let first_evaluation = inst.get_evaluations(project_id).into_iter().next().unwrap();
+			let evaluator = first_evaluation.evaluator;
+
+			inst.execute(|| {
+				assert_noop!(
+					PolimecFunding::settle_failed_evaluation(
+						RuntimeOrigin::signed(evaluator),
+						project_id,
+						evaluator,
+						first_evaluation.id
+					),
+					Error::<TestRuntime>::SettlementNotStarted
 				);
 			});
 		}
@@ -1120,7 +1202,7 @@ mod settle_failed_bid_extrinsic {
 		#[test]
 		fn cannot_settle_twice() {
 			let percentage = 33u64;
-			let (mut inst, project_id) = create_project_with_funding_percentage(percentage, None);
+			let (mut inst, project_id) = create_project_with_funding_percentage(percentage, None, true);
 
 			let first_bid = inst.get_bids(project_id).into_iter().next().unwrap();
 			inst.execute(|| {
@@ -1144,9 +1226,28 @@ mod settle_failed_bid_extrinsic {
 		}
 
 		#[test]
-		fn cannot_be_called_in_unexpected_state() {
+		fn cannot_be_called_on_wrong_outcome() {
 			let percentage = 100u64;
-			let (mut inst, project_id) = create_project_with_funding_percentage(percentage, None);
+			let (mut inst, project_id) = create_project_with_funding_percentage(percentage, None, true);
+			let first_bid = inst.get_bids(project_id).into_iter().next().unwrap();
+			let bidder = first_bid.bidder;
+			inst.execute(|| {
+				assert_noop!(
+					crate::Pallet::<TestRuntime>::settle_failed_bid(
+						RuntimeOrigin::signed(bidder),
+						project_id,
+						bidder,
+						first_bid.id
+					),
+					Error::<TestRuntime>::WrongSettlementOutcome
+				);
+			});
+		}
+
+		#[test]
+		fn cannot_be_called_before_settlement_started() {
+			let percentage = 10u64;
+			let (mut inst, project_id) = create_project_with_funding_percentage(percentage, None, false);
 
 			let first_bid = inst.get_bids(project_id).into_iter().next().unwrap();
 			let bidder = first_bid.bidder;
@@ -1158,7 +1259,7 @@ mod settle_failed_bid_extrinsic {
 						bidder,
 						first_bid.id
 					),
-					Error::<TestRuntime>::IncorrectRound
+					Error::<TestRuntime>::SettlementNotStarted
 				);
 			});
 		}
@@ -1367,7 +1468,7 @@ mod settle_failed_contribution_extrinsic {
 		#[test]
 		fn cannot_settle_twice() {
 			let percentage = 33u64;
-			let (mut inst, project_id) = create_project_with_funding_percentage(percentage, None);
+			let (mut inst, project_id) = create_project_with_funding_percentage(percentage, None, true);
 
 			let first_contribution = inst.get_contributions(project_id).into_iter().next().unwrap();
 			inst.execute(|| {
@@ -1391,9 +1492,9 @@ mod settle_failed_contribution_extrinsic {
 		}
 
 		#[test]
-		fn cannot_be_called_in_unexpected_state() {
+		fn cannot_be_called_on_wrong_outcome() {
 			let percentage = 100u64;
-			let (mut inst, project_id) = create_project_with_funding_percentage(percentage, None);
+			let (mut inst, project_id) = create_project_with_funding_percentage(percentage, None, true);
 
 			let first_contribution = inst.get_contributions(project_id).into_iter().next().unwrap();
 			let contributor = first_contribution.contributor;
@@ -1405,7 +1506,27 @@ mod settle_failed_contribution_extrinsic {
 						contributor,
 						first_contribution.id
 					),
-					Error::<TestRuntime>::IncorrectRound
+					Error::<TestRuntime>::WrongSettlementOutcome
+				);
+			});
+		}
+
+		#[test]
+		fn cannot_be_called_before_settlement_started() {
+			let percentage = 10u64;
+			let (mut inst, project_id) = create_project_with_funding_percentage(percentage, None, false);
+
+			let first_contribution = inst.get_contributions(project_id).into_iter().next().unwrap();
+			let contributor = first_contribution.contributor;
+			inst.execute(|| {
+				assert_noop!(
+					crate::Pallet::<TestRuntime>::settle_failed_contribution(
+						RuntimeOrigin::signed(contributor),
+						project_id,
+						contributor,
+						first_contribution.id
+					),
+					Error::<TestRuntime>::SettlementNotStarted
 				);
 			});
 		}

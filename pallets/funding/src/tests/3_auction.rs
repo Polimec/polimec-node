@@ -1259,6 +1259,9 @@ mod bid_extrinsic {
 			assert_eq!(bid_held_balance, frozen_amount);
 			assert_eq!(frozen_balance, frozen_amount);
 
+			let settlement_block = inst.get_update_block(project_id, &UpdateType::StartSettlement).unwrap();
+			inst.jump_to_block(settlement_block);
+
 			inst.execute(|| {
 				PolimecFunding::settle_failed_bid(RuntimeOrigin::signed(BIDDER_4), project_id, BIDDER_4, 0).unwrap();
 			});

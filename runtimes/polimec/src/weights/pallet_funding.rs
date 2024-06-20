@@ -491,7 +491,7 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 	/// Proof: `Funding::ProjectsDetails` (`max_values`: None, `max_size`: Some(397), added: 2872, mode: `MaxEncodedLen`)
 	/// Storage: `Funding::DidWithActiveProjects` (r:0 w:1)
 	/// Proof: `Funding::DidWithActiveProjects` (`max_values`: None, `max_size`: Some(78), added: 2553, mode: `MaxEncodedLen`)
-	fn end_evaluation_failure() -> Weight {
+	fn end_evaluation_failure(_x: u32) -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `534`
 		//  Estimated: `3862`

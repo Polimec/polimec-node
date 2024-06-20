@@ -87,7 +87,8 @@ impl<T: Config> Pallet<T> {
 
 	pub fn do_settle_successful_evaluation(evaluation: EvaluationInfoOf<T>, project_id: ProjectId) -> DispatchResult {
 		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
-		ensure!(matches!(project_details.status, ProjectStatus::FundingSuccessful), Error::<T>::IncorrectRound);
+		ensure!(matches!(project_details.funding_end_block, Some(_)), Error::<T>::SettlementNotStarted);
+		ensure!(matches!(project_details.status, ProjectStatus::FundingSuccessful), Error::<T>::WrongSettlementOutcome);
 
 		// Based on the results of the funding round, the evaluator is either:
 		// 1. Slashed
@@ -136,7 +137,8 @@ impl<T: Config> Pallet<T> {
 
 	pub fn do_settle_failed_evaluation(evaluation: EvaluationInfoOf<T>, project_id: ProjectId) -> DispatchResult {
 		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
-		ensure!(matches!(project_details.status, ProjectStatus::FundingFailed), Error::<T>::IncorrectRound);
+		ensure!(matches!(project_details.funding_end_block, Some(_)), Error::<T>::SettlementNotStarted);
+		ensure!(matches!(project_details.status, ProjectStatus::FundingFailed), Error::<T>::WrongSettlementOutcome);
 
 		let bond = if matches!(project_details.evaluation_round_info.evaluators_outcome, EvaluatorsOutcome::Slashed) {
 			Self::slash_evaluator(project_id, &evaluation)?
@@ -169,7 +171,8 @@ impl<T: Config> Pallet<T> {
 		let project_metadata = ProjectsMetadata::<T>::get(project_id).ok_or(Error::<T>::ProjectMetadataNotFound)?;
 		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 
-		ensure!(project_details.status == ProjectStatus::FundingSuccessful, Error::<T>::IncorrectRound);
+		ensure!(matches!(project_details.funding_end_block, Some(_)), Error::<T>::SettlementNotStarted);
+		ensure!(matches!(project_details.status, ProjectStatus::FundingSuccessful), Error::<T>::WrongSettlementOutcome);
 		ensure!(
 			matches!(bid.status, BidStatus::Accepted | BidStatus::PartiallyAccepted(..)),
 			Error::<T>::ImpossibleState
@@ -231,7 +234,8 @@ impl<T: Config> Pallet<T> {
 
 	pub fn do_settle_failed_bid(bid: BidInfoOf<T>, project_id: ProjectId) -> DispatchResult {
 		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
-		ensure!(matches!(project_details.status, ProjectStatus::FundingFailed), Error::<T>::IncorrectRound);
+		ensure!(matches!(project_details.funding_end_block, Some(_)), Error::<T>::SettlementNotStarted);
+		ensure!(matches!(project_details.status, ProjectStatus::FundingFailed), Error::<T>::WrongSettlementOutcome);
 
 		let bidder = bid.bidder;
 
@@ -258,7 +262,8 @@ impl<T: Config> Pallet<T> {
 		// Ensure that:
 		// 1. The project is in the FundingSuccessful state
 		// 2. The contribution token exists
-		ensure!(project_details.status == ProjectStatus::FundingSuccessful, Error::<T>::IncorrectRound);
+		ensure!(matches!(project_details.funding_end_block, Some(_)), Error::<T>::SettlementNotStarted);
+		ensure!(matches!(project_details.status, ProjectStatus::FundingSuccessful), Error::<T>::WrongSettlementOutcome);
 		ensure!(T::ContributionTokenCurrency::asset_exists(project_id), Error::<T>::TooEarlyForRound);
 
 		let contributor = contribution.contributor;
@@ -316,7 +321,8 @@ impl<T: Config> Pallet<T> {
 
 	pub fn do_settle_failed_contribution(contribution: ContributionInfoOf<T>, project_id: ProjectId) -> DispatchResult {
 		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
-		ensure!(matches!(project_details.status, ProjectStatus::FundingFailed), Error::<T>::IncorrectRound);
+		ensure!(matches!(project_details.funding_end_block, Some(_)), Error::<T>::SettlementNotStarted);
+		ensure!(matches!(project_details.status, ProjectStatus::FundingFailed), Error::<T>::WrongSettlementOutcome);
 
 		// Check if the bidder has a future deposit held
 		let contributor = contribution.contributor;
