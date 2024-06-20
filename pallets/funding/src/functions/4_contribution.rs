@@ -317,6 +317,7 @@ impl<T: Config> Pallet<T> {
 			funding_asset,
 			funding_asset_amount,
 			plmc_bond,
+			when: now,
 		};
 
 		// Try adding the new contribution to the system

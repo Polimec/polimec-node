@@ -177,7 +177,8 @@ pub type EvaluationInfoOf<T> = EvaluationInfo<u32, Did, ProjectId, AccountIdOf<T
 pub type BidInfoOf<T> =
 	BidInfo<ProjectId, Did, BalanceOf<T>, PriceOf<T>, AccountIdOf<T>, BlockNumberFor<T>, MultiplierOf<T>>;
 
-pub type ContributionInfoOf<T> = ContributionInfo<u32, Did, ProjectId, AccountIdOf<T>, BalanceOf<T>, MultiplierOf<T>>;
+pub type ContributionInfoOf<T> =
+	ContributionInfo<u32, Did, ProjectId, AccountIdOf<T>, BalanceOf<T>, BlockNumberFor<T>, MultiplierOf<T>>;
 
 pub type BucketOf<T> = Bucket<BalanceOf<T>, PriceOf<T>>;
 pub type WeightInfoOf<T> = <T as Config>::WeightInfo;
