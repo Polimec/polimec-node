@@ -148,10 +148,17 @@ impl<T: Config> Pallet<T> {
 		// Unsuccessful path
 		} else {
 			// * Update storage *
+
 			project_details.status = ProjectStatus::FundingFailed;
 			ProjectsDetails::<T>::insert(project_id, project_details.clone());
 			let issuer_did = project_details.issuer_did.clone();
 			DidWithActiveProjects::<T>::set(issuer_did, None);
+
+			let insertion_attempts =
+				match Self::add_to_update_store(now + One::one(), (&project_id, UpdateType::StartSettlement)) {
+					Ok(insertions) => insertions,
+					Err(_insertions) => return Err(Error::<T>::TooManyInsertionAttempts.into()),
+				};
 
 			// * Emit events *
 			Self::deposit_event(
@@ -162,7 +169,7 @@ impl<T: Config> Pallet<T> {
 				.into(),
 			);
 			return Ok(PostDispatchInfo {
-				actual_weight: Some(WeightInfoOf::<T>::end_evaluation_failure()),
+				actual_weight: Some(WeightInfoOf::<T>::end_evaluation_failure(insertion_attempts)),
 				pays_fee: Pays::Yes,
 			});
 		}

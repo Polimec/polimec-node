@@ -371,6 +371,7 @@ pub mod defaults {
 pub fn create_project_with_funding_percentage(
 	percentage: u64,
 	maybe_decision: Option<FundingOutcomeDecision>,
+	start_settlement: bool,
 ) -> (MockInstantiator, ProjectId) {
 	let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 	let project_metadata = default_project_metadata(ISSUER_1);
@@ -414,23 +415,25 @@ pub fn create_project_with_funding_percentage(
 		_ => panic!("unexpected project status"),
 	};
 
-	let settlement_execution = inst.get_update_block(project_id, &UpdateType::StartSettlement).unwrap();
-	inst.jump_to_block(settlement_execution);
+	if start_settlement {
+		let settlement_execution = inst.get_update_block(project_id, &UpdateType::StartSettlement).unwrap();
+		inst.jump_to_block(settlement_execution);
 
-	let funding_sucessful = match percentage {
-		0..=33 => false,
-		34..=89 if matches!(maybe_decision, Some(FundingOutcomeDecision::RejectFunding)) => false,
-		34..=89 if matches!(maybe_decision, Some(FundingOutcomeDecision::AcceptFunding)) => true,
-		90..=100 => true,
-		_ => panic!("unexpected percentage"),
-	};
-
-	if funding_sucessful {
-		assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::FundingSuccessful);
-		inst.test_ct_created_for(project_id);
-	} else {
-		assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::FundingFailed);
-		inst.test_ct_not_created_for(project_id);
+		let funding_sucessful = match percentage {
+			0..=33 => false,
+			34..=89 if matches!(maybe_decision, Some(FundingOutcomeDecision::RejectFunding)) => false,
+			34..=89 if matches!(maybe_decision, Some(FundingOutcomeDecision::AcceptFunding)) => true,
+			90..=100 => true,
+			_ => panic!("unexpected percentage"),
+		};
+		if funding_sucessful {
+			assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::FundingSuccessful);
+			inst.test_ct_created_for(project_id);
+		} else {
+			assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::FundingFailed);
+			inst.test_ct_not_created_for(project_id);
+		}
 	}
+
 	(inst, project_id)
 }

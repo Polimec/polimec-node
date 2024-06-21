@@ -995,6 +995,9 @@ mod remaining_contribute_extrinsic {
 			};
 			assert_eq!(account_data, expected_account_data);
 
+			let settlement_block = inst.get_update_block(project_id, &UpdateType::StartSettlement).unwrap();
+			inst.jump_to_block(settlement_block);
+
 			inst.execute(|| {
 				PolimecFunding::settle_failed_contribution(RuntimeOrigin::signed(BUYER_4), project_id, BUYER_4, 0)
 					.unwrap();

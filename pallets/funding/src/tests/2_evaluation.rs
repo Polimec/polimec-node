@@ -242,7 +242,12 @@ mod round_flow {
 
 			assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::FundingFailed);
 
-			// Check that on_idle has unlocked the failed bonds
+			// Cannot settle before the settlement starts
+			inst.settle_project(project_id).expect_err("Settlement should not be possible yet");
+
+			let settlement_block = inst.get_update_block(project_id, &UpdateType::StartSettlement).unwrap();
+			inst.jump_to_block(settlement_block);
+
 			inst.settle_project(project_id).unwrap();
 			inst.do_free_plmc_assertions(expected_evaluator_balances);
 		}
@@ -678,6 +683,10 @@ mod evaluate_extrinsic {
 
 			let treasury_account = <TestRuntime as Config>::ProtocolGrowthTreasury::get();
 			let pre_slash_treasury_balance = inst.get_free_plmc_balance_for(treasury_account);
+
+			let settlement_block = inst.get_update_block(project_id, &UpdateType::StartSettlement).unwrap();
+			inst.jump_to_block(settlement_block);
+
 			inst.execute(|| {
 				PolimecFunding::settle_failed_evaluation(
 					RuntimeOrigin::signed(EVALUATOR_4),

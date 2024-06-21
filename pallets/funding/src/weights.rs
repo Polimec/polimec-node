@@ -70,7 +70,7 @@ pub trait WeightInfo {
 	fn settle_successful_contribution() -> Weight;
 	fn settle_failed_contribution() -> Weight;
 	fn end_evaluation_success(x: u32, ) -> Weight;
-	fn end_evaluation_failure() -> Weight;
+	fn end_evaluation_failure(x: u32, ) -> Weight;
 	fn start_auction_closing_phase(x: u32, ) -> Weight;
 	fn end_auction_closing(x: u32, y: u32, z: u32, ) -> Weight;
 	fn start_community_funding(x: u32, y: u32, z: u32, ) -> Weight;
@@ -531,7 +531,7 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 	/// Proof: `Funding::ProjectsDetails` (`max_values`: None, `max_size`: Some(380), added: 2855, mode: `MaxEncodedLen`)
 	/// Storage: `Funding::DidWithActiveProjects` (r:0 w:1)
 	/// Proof: `Funding::DidWithActiveProjects` (`max_values`: None, `max_size`: Some(78), added: 2553, mode: `MaxEncodedLen`)
-	fn end_evaluation_failure() -> Weight {
+	fn end_evaluation_failure(_x: u32, ) -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `533`
 		//  Estimated: `3845`
@@ -1260,7 +1260,7 @@ impl WeightInfo for () {
 	/// Proof: `Funding::ProjectsDetails` (`max_values`: None, `max_size`: Some(380), added: 2855, mode: `MaxEncodedLen`)
 	/// Storage: `Funding::DidWithActiveProjects` (r:0 w:1)
 	/// Proof: `Funding::DidWithActiveProjects` (`max_values`: None, `max_size`: Some(78), added: 2553, mode: `MaxEncodedLen`)
-	fn end_evaluation_failure() -> Weight {
+	fn end_evaluation_failure(_x: u32) -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `533`
 		//  Estimated: `3845`

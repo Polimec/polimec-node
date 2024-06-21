@@ -8,7 +8,7 @@ mod round_flow {
 
 		#[test]
 		fn evaluator_slash_is_decided() {
-			let (mut inst, project_id) = create_project_with_funding_percentage(20, None);
+			let (mut inst, project_id) = create_project_with_funding_percentage(20, None, true);
 			assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::FundingFailed);
 			assert_eq!(
 				inst.get_project_details(project_id).evaluation_round_info.evaluators_outcome,
@@ -19,7 +19,7 @@ mod round_flow {
 		#[test]
 		fn evaluator_unchanged_is_decided() {
 			let (mut inst, project_id) =
-				create_project_with_funding_percentage(80, Some(FundingOutcomeDecision::AcceptFunding));
+				create_project_with_funding_percentage(80, Some(FundingOutcomeDecision::AcceptFunding), true);
 			assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::FundingSuccessful);
 			assert_eq!(
 				inst.get_project_details(project_id).evaluation_round_info.evaluators_outcome,
@@ -29,7 +29,7 @@ mod round_flow {
 
 		#[test]
 		fn evaluator_reward_is_decided() {
-			let (mut inst, project_id) = create_project_with_funding_percentage(95, None);
+			let (mut inst, project_id) = create_project_with_funding_percentage(95, None, true);
 			let project_details = inst.get_project_details(project_id);
 			let project_metadata = inst.get_project_metadata(project_id);
 			assert_eq!(project_details.status, ProjectStatus::FundingSuccessful);
@@ -85,6 +85,7 @@ mod decide_project_outcome {
 				let _ = create_project_with_funding_percentage(
 					funding_percent,
 					Some(FundingOutcomeDecision::AcceptFunding),
+					true,
 				);
 			}
 		}
@@ -95,6 +96,7 @@ mod decide_project_outcome {
 				let _ = create_project_with_funding_percentage(
 					funding_percent,
 					Some(FundingOutcomeDecision::RejectFunding),
+					true,
 				);
 			}
 		}
@@ -102,7 +104,7 @@ mod decide_project_outcome {
 		#[test]
 		fn automatic_fail_less_eq_33_percent() {
 			for funding_percent in (1..=33).step_by(5) {
-				let _ = create_project_with_funding_percentage(funding_percent, None);
+				let _ = create_project_with_funding_percentage(funding_percent, None, true);
 			}
 		}
 
@@ -144,7 +146,7 @@ mod decide_project_outcome {
 		#[test]
 		fn automatic_success_bigger_eq_90_percent() {
 			for funding_percent in (90..=100).step_by(2) {
-				let _ = create_project_with_funding_percentage(funding_percent, None);
+				let _ = create_project_with_funding_percentage(funding_percent, None, true);
 			}
 		}
 	}
