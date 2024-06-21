@@ -74,6 +74,7 @@ cumulus-client-consensus-proposer.workspace = true
 cumulus-client-service.workspace = true
 cumulus-primitives-core.workspace = true
 cumulus-relay-chain-interface.workspace = true
+itertools.workspace = true
 
 [build-dependencies]
 substrate-build-script-utils.workspace = true

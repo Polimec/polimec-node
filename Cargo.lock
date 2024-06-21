@@ -8408,6 +8408,7 @@ dependencies = [
  "frame-support",
  "futures",
  "hex-literal 0.3.4",
+ "itertools 0.10.5",
  "jsonrpsee",
  "log",
  "macros",
