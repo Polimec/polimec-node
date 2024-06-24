@@ -1165,14 +1165,14 @@ pub mod pallet {
 			Self::do_evaluation_end(project_id)
 		}
 
-		#[pallet::call_index(59)]
+		#[pallet::call_index(29)]
 		#[pallet::weight(WeightInfoOf::<T>::start_auction_manually(<T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1))]
 		pub fn root_do_auction_opening(origin: OriginFor<T>, project_id: ProjectId) -> DispatchResultWithPostInfo {
 			ensure_root(origin)?;
 			Self::do_start_auction_opening(T::PalletId::get().into_account_truncating(), project_id)
 		}
 
-		#[pallet::call_index(29)]
+		#[pallet::call_index(30)]
 		#[pallet::weight(WeightInfoOf::<T>::start_auction_closing_phase(
 			<T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1,
 		))]
@@ -1184,7 +1184,28 @@ pub mod pallet {
 			Self::do_start_auction_closing(project_id)
 		}
 
-		#[pallet::call_index(30)]
+		#[pallet::call_index(31)]
+		#[pallet::weight(WeightInfoOf::<T>::end_auction_closing(
+			<T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1,
+			<T as Config>::MaxBidsPerProject::get() / 2,
+			<T as Config>::MaxBidsPerProject::get() / 2,
+		)
+		.max(WeightInfoOf::<T>::end_auction_closing(
+			<T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1,
+			<T as Config>::MaxBidsPerProject::get(),
+			0u32,
+		))
+		.max(WeightInfoOf::<T>::end_auction_closing(
+			<T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1,
+			0u32,
+			<T as Config>::MaxBidsPerProject::get(),
+		)))]
+		pub fn root_do_end_auction_closing(origin: OriginFor<T>, project_id: ProjectId) -> DispatchResultWithPostInfo {
+			ensure_root(origin)?;
+			Self::do_end_auction_closing(project_id)
+		}
+
+		#[pallet::call_index(32)]
 		#[pallet::weight(WeightInfoOf::<T>::start_community_funding(
 			<T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1,
 			<T as Config>::MaxBidsPerProject::get() / 2,
@@ -1205,7 +1226,7 @@ pub mod pallet {
 			Self::do_start_community_funding(project_id)
 		}
 
-		#[pallet::call_index(31)]
+		#[pallet::call_index(33)]
 		#[pallet::weight(WeightInfoOf::<T>::start_remainder_funding(
 			<T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1,
 		))]
@@ -1214,7 +1235,7 @@ pub mod pallet {
 			Self::do_start_remainder_funding(project_id)
 		}
 
-		#[pallet::call_index(32)]
+		#[pallet::call_index(34)]
 		#[pallet::weight(WeightInfoOf::<T>::end_funding_automatically_rejected_evaluators_slashed(
 			<T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1,
 			)
@@ -1233,7 +1254,7 @@ pub mod pallet {
 			Self::do_end_funding(project_id)
 		}
 
-		#[pallet::call_index(33)]
+		#[pallet::call_index(36)]
 		#[pallet::weight(WeightInfoOf::<T>::project_decision())]
 		pub fn root_do_project_decision(
 			origin: OriginFor<T>,
@@ -1244,7 +1265,7 @@ pub mod pallet {
 			Self::do_project_decision(project_id, decision)
 		}
 
-		#[pallet::call_index(34)]
+		#[pallet::call_index(37)]
 		#[pallet::weight(WeightInfoOf::<T>::start_settlement_funding_success()
 		.max(WeightInfoOf::<T>::start_settlement_funding_failure()))]
 		pub fn root_do_start_settlement(origin: OriginFor<T>, project_id: ProjectId) -> DispatchResultWithPostInfo {
@@ -1307,7 +1328,7 @@ pub mod pallet {
 					UpdateType::AuctionClosingEnd => {
 						let call = Self::do_end_auction_closing(project_id);
 						let fallback_weight =
-							Call::<T>::root_do_start_auction_closing { project_id }.get_dispatch_info().weight;
+							Call::<T>::root_do_end_auction_closing { project_id }.get_dispatch_info().weight;
 						update_weight(&mut used_weight, call, fallback_weight);
 					},
 
