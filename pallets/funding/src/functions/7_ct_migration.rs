@@ -25,7 +25,7 @@ impl<T: Config> Pallet<T> {
 	}
 
 	/// Handle the channel open request from the relay on behalf of a parachain.
-	/// If the para id belongs to a funded project with that id, then send an acceptance message and a request for a
+	/// If the parachain id belongs to a funded project with the same project id, then send an acceptance message and a request for a
 	/// channel in the opposite direction to the relay.
 	pub fn do_handle_channel_open_request(message: Instruction) -> XcmResult {
 		// TODO: set these constants with a proper value
@@ -118,7 +118,7 @@ impl<T: Config> Pallet<T> {
 		}
 	}
 
-	/// Handle the channel accepted message of project->polimec from the relay on behalf of the project parachain.
+	/// Handle the channel accepted message of project->Polimec from the relay on behalf of the project parachain.
 	/// Start the migration readiness check for the project.
 	pub fn do_handle_channel_accepted(message: Instruction) -> XcmResult {
 		match message {
@@ -151,8 +151,8 @@ impl<T: Config> Pallet<T> {
 		}
 	}
 
-	/// After the bidirectional HRMP channels are established, check that the project chain has the receiver pallet,
-	/// and has minted the amount of CTs sold to the polimec sovereign account.
+	/// After the bidirectional HRMP channels are established, check that the project chain has the Polimec receiver pallet,
+	/// and has minted the amount of CTs sold to the Polimec sovereign account.
 	#[transactional]
 	pub fn do_start_migration_readiness_check(caller: &AccountIdOf<T>, project_id: ProjectId) -> DispatchResult {
 		// * Get variables *
@@ -335,7 +335,7 @@ impl<T: Config> Pallet<T> {
 	}
 
 	/// Migrate all the CTs of a project for a single participant
-	/// This entails transferring the funds from the polimec sovereign account to the participant account, and applying
+	/// This entails transferring the funds from the Polimec sovereign account to the participant account, and applying
 	/// a vesting schedule if necessary.
 	#[transactional]
 	pub fn do_migrate_one_participant(project_id: ProjectId, participant: AccountIdOf<T>) -> DispatchResult {
