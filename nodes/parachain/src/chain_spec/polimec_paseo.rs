@@ -74,7 +74,7 @@ pub fn get_live_chain_spec() -> GenericChainSpec {
 	};
 
 	GenericChainSpec::builder(
-		politest_runtime::WASM_BINARY.expect("WASM binary was not built, please build it!"),
+		polimec_runtime::WASM_BINARY.expect("WASM binary was not built, please build it!"),
 		Extensions { relay_chain: "paseo".into(), para_id: genesis_config_params.id.into() },
 	)
 	.with_name("Polimec Paseo")

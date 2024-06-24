@@ -24,6 +24,9 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
+	/// Handle the channel open request from the relay on behalf of a parachain.
+	/// If the parachain id belongs to a funded project with the same project id, then send an acceptance message and a request for a
+	/// channel in the opposite direction to the relay.
 	pub fn do_handle_channel_open_request(message: Instruction) -> XcmResult {
 		// TODO: set these constants with a proper value
 		const EXECUTION_DOT: MultiAsset = MultiAsset {
@@ -115,6 +118,8 @@ impl<T: Config> Pallet<T> {
 		}
 	}
 
+	/// Handle the channel accepted message of project->Polimec from the relay on behalf of the project parachain.
+	/// Start the migration readiness check for the project.
 	pub fn do_handle_channel_accepted(message: Instruction) -> XcmResult {
 		match message {
 			Instruction::HrmpChannelAccepted { recipient } => {
@@ -146,6 +151,8 @@ impl<T: Config> Pallet<T> {
 		}
 	}
 
+	/// After the bidirectional HRMP channels are established, check that the project chain has the Polimec receiver pallet,
+	/// and has minted the amount of CTs sold to the Polimec sovereign account.
 	#[transactional]
 	pub fn do_start_migration_readiness_check(caller: &AccountIdOf<T>, project_id: ProjectId) -> DispatchResult {
 		// * Get variables *
@@ -237,6 +244,7 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
+	/// Handle the migration readiness check response from the project chain.
 	#[transactional]
 	pub fn do_migration_check_response(
 		location: MultiLocation,
@@ -326,6 +334,9 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
+	/// Migrate all the CTs of a project for a single participant
+	/// This entails transferring the funds from the Polimec sovereign account to the participant account, and applying
+	/// a vesting schedule if necessary.
 	#[transactional]
 	pub fn do_migrate_one_participant(project_id: ProjectId, participant: AccountIdOf<T>) -> DispatchResult {
 		// * Get variables *
@@ -370,6 +381,7 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
+	/// Mark the migration item that corresponds to a single participation as confirmed or failed.
 	#[transactional]
 	pub fn do_confirm_migrations(location: MultiLocation, query_id: QueryId, response: Response) -> DispatchResult {
 		use xcm::v3::prelude::*;
@@ -381,6 +393,7 @@ impl<T: Config> Pallet<T> {
 			matches!(location, MultiLocation { parents: 1, interior: X1(Parachain(para_id))} if Some(ParaId::from(para_id)) == project_details.parachain_id),
 			Error::<T>::WrongParaId
 		);
+
 
 		let status = match response {
 			Response::DispatchResult(MaybeErrorCode::Success) => {
