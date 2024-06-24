@@ -74,7 +74,7 @@ fn output_max_pallet_funding_values() {
 		SubstrateWeight::<Runtime>::end_evaluation_success(max_projects_to_update_insertion_attempts - 1);
 	dbg!(end_evaluation_success);
 
-	let end_evaluation_failure = SubstrateWeight::<Runtime>::end_evaluation_failure();
+	let end_evaluation_failure = SubstrateWeight::<Runtime>::end_evaluation_failure(max_projects_to_update_insertion_attempts - 1);
 	dbg!(end_evaluation_failure);
 
 	let start_auction_closing_phase =

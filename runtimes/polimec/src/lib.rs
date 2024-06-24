@@ -242,7 +242,16 @@ impl Contains<RuntimeCall> for BaseCallFilter {
 							pallet_funding::Call::start_auction { .. } |
 							pallet_funding::Call::root_do_auction_opening { .. } |
 							pallet_funding::Call::root_do_start_auction_closing { .. } |
-							pallet_funding::Call::bid { .. }
+							pallet_funding::Call::bid { .. } |
+							pallet_funding::Call::root_do_end_auction_closing { .. } |
+							pallet_funding::Call::community_contribute {..} |
+							pallet_funding::Call::remaining_contribute {..} |
+							pallet_funding::Call::decide_project_outcome {..} |
+							pallet_funding::Call::root_do_community_funding {..} |
+							pallet_funding::Call::root_do_remainder_funding {..} |
+							pallet_funding::Call::root_do_end_funding {..} |
+							pallet_funding::Call::root_do_project_decision {..} |
+							pallet_funding::Call::root_do_start_settlement {..}
 					)
 				},
 			_ => true,
@@ -1057,7 +1066,7 @@ impl pallet_funding::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type RuntimeHoldReason = RuntimeHoldReason;
 	type RuntimeOrigin = RuntimeOrigin;
-	#[cfg(any(feature = "runtime-benchmarks", test))]
+	#[cfg(any(feature = "runtime-benchmarks"))]
 	type SetPrices = crate::benchmarks::helpers::SetOraclePrices;
 	type StringLimit = ConstU32<64>;
 	type SuccessToSettlementTime = SuccessToSettlementTime;
