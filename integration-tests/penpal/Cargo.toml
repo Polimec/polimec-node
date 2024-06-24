@@ -1,90 +1,96 @@
 [package]
 name = "penpal-runtime"
-version = "0.9.27"
+version = "0.14.3"
 authors = ["Anonymous"]
 description = "A parachain for communication back and forth with XCM of assets and uniques."
 license = "Unlicense"
 homepage = "https://substrate.io"
-repository = "https://github.com/paritytech/polkadot-sdk"
-edition = "2021"
+repository.workspace = true
+edition.workspace = true
 
 [package.metadata.docs.rs]
 targets = ["x86_64-unknown-linux-gnu"]
 
 [build-dependencies]
-substrate-wasm-builder = { optional = true , workspace = true}
+substrate-wasm-builder = { workspace = true, optional = true }
 
 [dependencies]
-codec = { package = "parity-scale-codec", version = "3.0.0", default-features = false, features = ["derive"] }
-hex-literal.workspace = true
-log.workspace = true
-scale-info = { version = "2.7.0", default-features = false, features = ["derive"] }
-smallvec = "1.10.0"
+parity-scale-codec = { workspace = true, default-features = false, features = ["derive"] }
+hex-literal = { version = "0.4.1", optional = true }
+log = { version = "0.4.20", default-features = false }
+scale-info = { version = "2.10.0", default-features = false, features = ["derive"] }
+smallvec = "1.11.0"
 
 # Local
 polimec-receiver.workspace = true
 polimec-common.workspace = true
 
 # Substrate
-frame-benchmarking = { workspace = true, optional = true }
-frame-executive.workspace = true
-frame-support.workspace = true
-frame-system.workspace = true
-frame-system-benchmarking = { workspace = true, optional = true }
-frame-system-rpc-runtime-api.workspace = true
-frame-try-runtime = { workspace = true, optional = true }
-pallet-aura.workspace = true
-pallet-authorship.workspace = true
-pallet-balances.workspace = true
-pallet-message-queue.workspace = true
-pallet-session.workspace = true
-pallet-sudo.workspace = true
-pallet-timestamp.workspace = true
-pallet-transaction-payment.workspace = true
-pallet-transaction-payment-rpc-runtime-api.workspace = true
-pallet-asset-tx-payment.workspace = true
-pallet-assets.workspace = true
-sp-api.workspace = true
-sp-block-builder.workspace = true
-sp-consensus-aura.workspace = true
-sp-core.workspace = true
-sp-inherents.workspace = true
-sp-offchain.workspace = true
-sp-runtime.workspace = true
-sp-session.workspace = true
-sp-std.workspace = true
-sp-transaction-pool.workspace = true
-sp-version.workspace = true
+frame-benchmarking = { workspace = true, default-features = false, optional = true }
+frame-executive = { workspace = true, default-features = false }
+frame-support = { workspace = true, default-features = false }
+frame-system = { workspace = true, default-features = false }
+frame-system-benchmarking = { workspace = true, default-features = false, optional = true }
+frame-system-rpc-runtime-api = { workspace = true, default-features = false }
+frame-try-runtime = { workspace = true, default-features = false, optional = true }
+pallet-aura = { workspace = true, default-features = false }
+pallet-authorship = { workspace = true, default-features = false }
+pallet-balances = { workspace = true, default-features = false }
+pallet-session = { workspace = true, default-features = false }
+pallet-sudo = { workspace = true, default-features = false }
+pallet-timestamp = { workspace = true, default-features = false }
+pallet-transaction-payment = { workspace = true, default-features = false }
+pallet-transaction-payment-rpc-runtime-api = { workspace = true, default-features = false }
+pallet-asset-tx-payment = { workspace = true, default-features = false }
+pallet-assets = { workspace = true, default-features = false }
+sp-api = { workspace = true, default-features = false }
+sp-block-builder = { workspace = true, default-features = false }
+sp-consensus-aura = { workspace = true, default-features = false }
+sp-core = { workspace = true, default-features = false }
+sp-genesis-builder = { workspace = true, default-features = false }
+sp-inherents = { workspace = true, default-features = false }
+sp-offchain = { workspace = true, default-features = false }
+sp-runtime = { workspace = true, default-features = false }
+sp-session = { workspace = true, default-features = false }
+sp-std = { workspace = true, default-features = false }
+sp-storage = { version = "19.0.0", default-features = false }
+sp-transaction-pool = { workspace = true, default-features = false }
+sp-version = { workspace = true, default-features = false }
 polkadot-runtime-parachains.workspace = true
+pallet-collator-selection = { version = "9.0.2", default-features = false }
+
+
 
 # Polkadot
-polkadot-primitives.workspace = true
-pallet-xcm.workspace = true
-polkadot-parachain-primitives.workspace = true
-polkadot-runtime-common.workspace = true
-xcm.workspace = true
-xcm-builder.workspace = true
-xcm-executor.workspace = true
+polkadot-primitives = { workspace = true, default-features = false }
+pallet-xcm = { workspace = true, default-features = false }
+polkadot-parachain-primitives = { workspace = true, default-features = false }
+polkadot-runtime-common = { workspace = true, default-features = false }
+xcm = { workspace = true, default-features = false }
+xcm-builder = { workspace = true, default-features = false }
+xcm-executor = { workspace = true, default-features = false }
 
 # Cumulus
-cumulus-pallet-aura-ext.workspace = true
-cumulus-pallet-dmp-queue.workspace = true
-cumulus-pallet-parachain-system.workspace = true
-cumulus-pallet-session-benchmarking.workspace = true
-cumulus-pallet-xcm.workspace = true
-cumulus-pallet-xcmp-queue.workspace = true
-cumulus-primitives-core.workspace = true
-cumulus-primitives-timestamp.workspace = true
-cumulus-primitives-utility.workspace = true
-pallet-collator-selection.workspace = true
-parachain-info.workspace = true
-parachains-common.workspace = true
+cumulus-pallet-aura-ext = { workspace = true, default-features = false }
+pallet-message-queue = { workspace = true, default-features = false }
+cumulus-pallet-dmp-queue = { workspace = true, default-features = false }
+cumulus-pallet-parachain-system = { workspace = true, default-features = false, features = ["parameterized-consensus-hook"] }
+cumulus-pallet-session-benchmarking = { workspace = true, default-features = false }
+cumulus-pallet-xcm = { workspace = true, default-features = false }
+cumulus-pallet-xcmp-queue = { workspace = true, default-features = false }
+cumulus-primitives-core = { workspace = true, default-features = false }
+cumulus-primitives-utility = { workspace = true, default-features = false }
+parachain-info = {  workspace = true, default-features = false }
+parachains-common = { workspace = true, default-features = false }
 pallet-vesting.workspace = true
+assets-common = { version = "0.7.0", default-features = false }
+snowbridge-rococo-common = { version = "0.1.0", default-features = false }
 
 [features]
-default = [ "std" ]
+default = ["std"]
 std = [
-	"codec/std",
+	"assets-common/std",
+	"parity-scale-codec/std",
 	"cumulus-pallet-aura-ext/std",
 	"cumulus-pallet-dmp-queue/std",
 	"cumulus-pallet-parachain-system/std",
@@ -92,15 +98,14 @@ std = [
 	"cumulus-pallet-xcm/std",
 	"cumulus-pallet-xcmp-queue/std",
 	"cumulus-primitives-core/std",
-	"cumulus-primitives-timestamp/std",
 	"cumulus-primitives-utility/std",
-	"frame-benchmarking/std",
+	"frame-benchmarking?/std",
 	"frame-executive/std",
 	"frame-support/std",
 	"frame-system-benchmarking?/std",
 	"frame-system-rpc-runtime-api/std",
 	"frame-system/std",
-	"frame-try-runtime/std",
+	"frame-try-runtime?/std",
 	"log/std",
 	"pallet-asset-tx-payment/std",
 	"pallet-assets/std",
@@ -114,26 +119,25 @@ std = [
 	"pallet-timestamp/std",
 	"pallet-transaction-payment-rpc-runtime-api/std",
 	"pallet-transaction-payment/std",
-	"pallet-vesting/std",
 	"pallet-xcm/std",
 	"parachain-info/std",
 	"parachains-common/std",
-	"polimec-common/std",
-	"polimec-receiver/std",
 	"polkadot-parachain-primitives/std",
 	"polkadot-primitives/std",
 	"polkadot-runtime-common/std",
-	"polkadot-runtime-parachains/std",
 	"scale-info/std",
+	"snowbridge-rococo-common/std",
 	"sp-api/std",
 	"sp-block-builder/std",
 	"sp-consensus-aura/std",
 	"sp-core/std",
+	"sp-genesis-builder/std",
 	"sp-inherents/std",
 	"sp-offchain/std",
 	"sp-runtime/std",
 	"sp-session/std",
 	"sp-std/std",
+	"sp-storage/std",
 	"sp-transaction-pool/std",
 	"sp-version/std",
 	"substrate-wasm-builder",
@@ -143,6 +147,7 @@ std = [
 ]
 
 runtime-benchmarks = [
+	"assets-common/runtime-benchmarks",
 	"cumulus-pallet-dmp-queue/runtime-benchmarks",
 	"cumulus-pallet-parachain-system/runtime-benchmarks",
 	"cumulus-pallet-session-benchmarking/runtime-benchmarks",
@@ -153,6 +158,7 @@ runtime-benchmarks = [
 	"frame-support/runtime-benchmarks",
 	"frame-system-benchmarking/runtime-benchmarks",
 	"frame-system/runtime-benchmarks",
+	"hex-literal",
 	"pallet-asset-tx-payment/runtime-benchmarks",
 	"pallet-assets/runtime-benchmarks",
 	"pallet-balances/runtime-benchmarks",
@@ -160,15 +166,12 @@ runtime-benchmarks = [
 	"pallet-message-queue/runtime-benchmarks",
 	"pallet-sudo/runtime-benchmarks",
 	"pallet-timestamp/runtime-benchmarks",
-	"pallet-vesting/runtime-benchmarks",
 	"pallet-xcm/runtime-benchmarks",
 	"parachains-common/runtime-benchmarks",
-	"polimec-common/runtime-benchmarks",
-	"polimec-receiver/runtime-benchmarks",
 	"polkadot-parachain-primitives/runtime-benchmarks",
 	"polkadot-primitives/runtime-benchmarks",
 	"polkadot-runtime-common/runtime-benchmarks",
-	"polkadot-runtime-parachains/runtime-benchmarks",
+	"snowbridge-rococo-common/runtime-benchmarks",
 	"sp-runtime/runtime-benchmarks",
 	"xcm-builder/runtime-benchmarks",
 	"xcm-executor/runtime-benchmarks",
@@ -195,12 +198,10 @@ try-runtime = [
 	"pallet-sudo/try-runtime",
 	"pallet-timestamp/try-runtime",
 	"pallet-transaction-payment/try-runtime",
-	"pallet-vesting/try-runtime",
 	"pallet-xcm/try-runtime",
 	"parachain-info/try-runtime",
-	"polimec-common/try-runtime",
-	"polimec-receiver/try-runtime",
 	"polkadot-runtime-common/try-runtime",
-	"polkadot-runtime-parachains/try-runtime",
 	"sp-runtime/try-runtime",
 ]
+
+experimental = ["pallet-aura/experimental"]

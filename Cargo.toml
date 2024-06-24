@@ -154,7 +154,7 @@ pallet-preimage = { version = "28.0.0", default-features = false }
 pallet-grandpa = { version = "28.0.0", default-features = false }
 pallet-transaction-payment-rpc = { version = "30.0.0" }
 pallet-vesting = { version = "28.0.0", default-features = false }
-pallet-staking = { version = "28.0.0", default-features = false }
+pallet-staking = { version = "28.0.1", default-features = false }
 pallet-proxy = { version = "28.0.0", default-features = false }
 pallet-identity = { version = "28.0.0", default-features = false }
 
@@ -182,10 +182,10 @@ cumulus-pallet-xcmp-queue = { version = "0.7.0", default-features = false }
 cumulus-primitives-core = { version = "0.7.0", default-features = false }
 cumulus-primitives-timestamp = { version = "0.7.0", default-features = false }
 cumulus-primitives-utility = { version = "0.7.3", default-features = false }
-pallet-collator-selection = { version = "9.0.0", default-features = false }
 parachain-info = { version = "0.7.0", package = 'staging-parachain-info', default-features = false }
 parachains-common = { version = "7.0.0", default-features = false }
 cumulus-primitives-aura = { version = "0.7.0", default-features = false }
+
 
 # Client-only (with default enabled)
 cumulus-client-cli = { version = "0.7.0" }
