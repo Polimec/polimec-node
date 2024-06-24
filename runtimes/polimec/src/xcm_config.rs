@@ -34,12 +34,12 @@ use polkadot_parachain_primitives::primitives::Sibling;
 use sp_runtime::traits::MaybeEquivalence;
 use xcm::latest::prelude::*;
 use xcm_builder::{
-	AccountId32Aliases, AllowExplicitUnpaidExecutionFrom, AllowSubscriptionsFrom, AllowTopLevelPaidExecutionFrom,
-	CreateMatcher, DenyReserveTransferToRelayChain, DenyThenTry, EnsureXcmOrigin, FixedRateOfFungible,
-	FixedWeightBounds, FungibleAdapter, FungiblesAdapter, IsConcrete, MatchXcm, MatchedConvertedConcreteId,
-	MintLocation, NoChecking, ParentIsPreset, RelayChainAsNative, SiblingParachainAsNative,
+	AccountId32Aliases, AllowExplicitUnpaidExecutionFrom, AllowKnownQueryResponses, AllowSubscriptionsFrom,
+	AllowTopLevelPaidExecutionFrom, CreateMatcher, DenyReserveTransferToRelayChain, DenyThenTry, EnsureXcmOrigin,
+	FixedRateOfFungible, FixedWeightBounds, FungibleAdapter, FungiblesAdapter, IsConcrete, MatchXcm,
+	MatchedConvertedConcreteId, MintLocation, NoChecking, ParentIsPreset, RelayChainAsNative, SiblingParachainAsNative,
 	SiblingParachainConvertsVia, SignedAccountId32AsNative, SignedToAccountId32, SovereignSignedViaLocation,
-	TakeWeightCredit, UsingComponents, WithComputedOrigin,
+	TakeWeightCredit, TrailingSetTopicAsId, UsingComponents, WithComputedOrigin,
 };
 
 const DOT_ASSET_ID: AssetId = Concrete(RelayLocation::get());
@@ -226,59 +226,31 @@ match_types! {
 		MultiLocation { parents: 1, interior: X1(Parachain(_)) }
 	};
 }
-use polimec_xcm_executor::polimec_traits::OnResponse;
-/// Allows only messages if the generic `ResponseHandler` expects them via `expecting_response`.
-pub struct AllowKnownQueryResponses<ResponseHandler>(PhantomData<ResponseHandler>);
-impl<ResponseHandler: OnResponse> ShouldExecute for AllowKnownQueryResponses<ResponseHandler> {
-	fn should_execute<RuntimeCall>(
-		origin: &MultiLocation,
-		instructions: &mut [Instruction<RuntimeCall>],
-		_max_weight: Weight,
-		_properties: &mut Properties,
-	) -> Result<(), ProcessMessageError> {
-		log::trace!(
-			target: "xcm::barriers",
-			"AllowKnownQueryResponses origin: {:?}, instructions: {:?}, max_weight: {:?}, properties: {:?}",
-			origin, instructions, _max_weight, _properties,
-		);
-		instructions
-			.matcher()
-			.assert_remaining_insts(2)?
-			.match_next_inst(|inst| match inst {
-				QueryResponse { query_id, querier, .. }
-					if ResponseHandler::expecting_response(origin, *query_id, querier.as_ref()) =>
-					Ok(()),
-				_ => Err(ProcessMessageError::BadFormat),
-			})?
-			.match_next_inst(|inst| match inst {
-				SetTopic { .. } => Ok(()),
-				_ => Err(ProcessMessageError::BadFormat),
-			})?;
-		Ok(())
-	}
-}
-pub type Barrier = DenyThenTry<
-	DenyReserveTransferToRelayChain,
-	(
-		TakeWeightCredit,
-		// Expected responses are OK.
-		AllowKnownQueryResponses<PolkadotXcm>,
-		// Allow XCMs with some computed origins to pass through.
-		WithComputedOrigin<
-			(
-				// HRMP notifications from relay get free pass
-				AllowHrmpNotifications<ParentOrParentsExecutivePlurality>,
-				// If the message is one that immediately attemps to pay for execution, then allow it.
-				AllowTopLevelPaidExecutionFrom<Everything>,
-				// Common Good Assets parachain, parent and its exec plurality get free execution
-				AllowExplicitUnpaidExecutionFrom<(CommonGoodAssetsParachain, ParentOrParentsExecutivePlurality)>,
-				// Subscriptions for version tracking are OK.
-				AllowSubscriptionsFrom<ParentOrSiblings>,
-			),
-			UniversalLocation,
-			ConstU32<8>,
-		>,
-	),
+
+pub type Barrier = TrailingSetTopicAsId<
+	DenyThenTry<
+		DenyReserveTransferToRelayChain,
+		(
+			TakeWeightCredit,
+			// Expected responses are OK.
+			AllowKnownQueryResponses<PolkadotXcm>,
+			// Allow XCMs with some computed origins to pass through.
+			WithComputedOrigin<
+				(
+					// HRMP notifications from relay get free pass
+					AllowHrmpNotifications<ParentOrParentsExecutivePlurality>,
+					// If the message is one that immediately attemps to pay for execution, then allow it.
+					AllowTopLevelPaidExecutionFrom<Everything>,
+					// Common Good Assets parachain, parent and its exec plurality get free execution
+					AllowExplicitUnpaidExecutionFrom<(CommonGoodAssetsParachain, ParentOrParentsExecutivePlurality)>,
+					// Subscriptions for version tracking are OK.
+					AllowSubscriptionsFrom<ParentOrSiblings>,
+				),
+				UniversalLocation,
+				ConstU32<8>,
+			>,
+		),
+	>,
 >;
 
 /// Trusted reserve locations for reserve assets. For now we only trust the AssetHub parachain
