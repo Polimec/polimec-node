@@ -25,7 +25,6 @@ use sc_cli::{
 	SharedParams, SubstrateCli,
 };
 use sc_service::config::{BasePath, PrometheusConfig};
-use sc_telemetry::serde_json;
 use sp_runtime::traits::AccountIdConversion;
 
 use crate::{
@@ -33,56 +32,6 @@ use crate::{
 	cli::{Cli, RelayChainCli, Subcommand},
 	service::new_partial,
 };
-
-/// Helper enum that is used for better distinction of different parachain/runtime configuration
-/// (it is based/calculated on ChainSpec's ID attribute)
-#[derive(Debug, PartialEq, Default)]
-enum Runtime {
-	#[default]
-	Politest,
-	Polimec,
-}
-
-trait RuntimeResolver {
-	fn runtime(&self) -> Runtime;
-}
-
-impl RuntimeResolver for dyn ChainSpec {
-	fn runtime(&self) -> Runtime {
-		runtime(self.id())
-	}
-}
-
-/// Implementation, that can resolve [`Runtime`] from any json configuration file
-impl RuntimeResolver for PathBuf {
-	fn runtime(&self) -> Runtime {
-		#[derive(Debug, serde::Deserialize)]
-		struct EmptyChainSpecWithId {
-			id: String,
-		}
-
-		let file = std::fs::File::open(self).expect("Failed to open file");
-		let reader = std::io::BufReader::new(file);
-		let chain_spec: EmptyChainSpecWithId =
-			serde_json::from_reader(reader).expect("Failed to read 'json' file with ChainSpec configuration");
-		runtime(&chain_spec.id)
-	}
-}
-
-fn runtime(id: &str) -> Runtime {
-	let id = id.replace('_', "-");
-	if id.contains("polimec") {
-		Runtime::Polimec
-	} else if id.contains("politest") {
-		Runtime::Politest
-	} else {
-		log::warn!(
-			"No specific runtime was recognized for ChainSpec's id: '{}', so Runtime::default() will be used",
-			id
-		);
-		Runtime::default()
-	}
-}
 
 fn load_spec(id: &str) -> std::result::Result<Box<dyn ChainSpec>, String> {
 	log::info!("Load spec id: {}", id);
@@ -97,9 +46,7 @@ fn load_spec(id: &str) -> std::result::Result<Box<dyn ChainSpec>, String> {
 		"polimec-paseo" => Box::new(chain_spec::common::ChainSpec::from_json_bytes(polimec_paseo_spec)?),
 
 		// Testing runtimes
-		"polimec-rococo-live" => Box::new(chain_spec::polimec_rococo::get_live_chain_spec()),
 		"polimec-paseo-local" => Box::new(chain_spec::polimec_paseo::get_local_chain_spec()),
-		"polimec-rococo-local" => Box::new(chain_spec::polimec_rococo::get_local_chain_spec()),
 
 		"" => {
 			log::warn!("No ChainSpec.id specified, so using default one, based on polimec-paseo-local");
