@@ -31,6 +31,7 @@ pub mod pallet {
 	use polkadot_parachain_primitives::primitives::{Id as ParaId, Sibling};
 	use sp_runtime::traits::{AccountIdConversion, Convert};
 	use sp_std::prelude::*;
+	use xcm::latest::{Junction::AccountId32, Junctions::X1, MultiLocation};
 
 	type MomentOf<T> = <<T as Config>::Vesting as VestingSchedule<<T as frame_system::Config>::AccountId>>::Moment;
 
@@ -57,11 +58,10 @@ pub mod pallet {
 
 	#[pallet::storage]
 	#[pallet::getter(fn something)]
-	// pub type ExecutedMigrations<T> = StorageNMap<_, BoundedVec<MigrationOrigin, T::MaxMigrations>>;
 	pub type ExecutedMigrations<T> = StorageNMap<
 		_,
 		(
-			NMapKey<Blake2_128Concat, [u8; 32]>,
+			NMapKey<Blake2_128Concat, xcm::latest::MultiLocation>,
 			NMapKey<Blake2_128Concat, ParticipationType>,
 			NMapKey<Blake2_128Concat, u32>,
 		),
@@ -109,6 +109,10 @@ pub mod pallet {
 				..
 			} in migrations.clone().inner()
 			{
+				let user_32 = match user {
+					MultiLocation { parents: 0, interior: X1(AccountId32 { network: _, id }) } => Ok(id),
+					_ => Err(Error::<T>::NoneValue),
+				}?;
 				let already_executed = ExecutedMigrations::<T>::get((user, participation_type, id));
 				if already_executed {
 					Self::deposit_event(Event::DuplicatedMigrationSkipped { migration });
@@ -116,12 +120,12 @@ pub mod pallet {
 				}
 				T::Balances::transfer(
 					&polimec_soverign_account,
-					&user.into(),
+					&user_32.into(),
 					contribution_token_amount.into(),
 					KeepAlive,
 				)?;
 				T::Vesting::add_vesting_schedule(
-					&user.into(),
+					&user_32.into(),
 					contribution_token_amount.into(),
 					T::MigrationInfoToPerBlockBalance::convert(migration.info.clone()),
 					T::GenesisMoment::get(),

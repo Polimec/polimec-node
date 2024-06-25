@@ -448,8 +448,11 @@ impl<T: Config> Pallet<T> {
 		vesting_time: BlockNumberFor<T>,
 	) -> DispatchResult {
 		UserMigrations::<T>::try_mutate(project_id, origin, |maybe_migrations| -> DispatchResult {
-			let migration_origin =
-				MigrationOrigin { user: T::AccountId32Conversion::convert(origin.clone()), id, participation_type };
+			let multilocation_user = MultiLocation::new(
+				0,
+				X1(AccountId32 { network: None, id: T::AccountId32Conversion::convert(origin.clone()) }),
+			);
+			let migration_origin = MigrationOrigin { user: multilocation_user, id, participation_type };
 			let vesting_time: u64 = vesting_time.try_into().map_err(|_| Error::<T>::BadMath)?;
 			let migration_info: MigrationInfo = (ct_amount.into(), vesting_time.into()).into();
 			let migration = Migration::new(migration_origin, migration_info);
