@@ -229,7 +229,6 @@ substrate-build-script-utils = { version = "11.0.0" }
 cumulus-pallet-session-benchmarking = { version = "9.0.0", default-features = false }
 
 # Runtimes
-politest-runtime = { path = "runtimes/politest" }
 polimec-runtime = { path = "runtimes/polimec" }
 asset-hub-polkadot-runtime = { git = 'https://github.com/polkadot-fellows/runtimes', default-features = false, rev = '59172d5fb8feea2646490618bead3b2b4fb06220' }
 polkadot-runtime-constants = { git = 'https://github.com/polkadot-fellows/runtimes', default-features = false, rev = '59172d5fb8feea2646490618bead3b2b4fb06220' }

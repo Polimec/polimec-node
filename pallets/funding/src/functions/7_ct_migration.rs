@@ -394,7 +394,6 @@ impl<T: Config> Pallet<T> {
 			Error::<T>::WrongParaId
 		);
 
-
 		let status = match response {
 			Response::DispatchResult(MaybeErrorCode::Success) => {
 				Self::change_migration_status(project_id, participant.clone(), MigrationStatus::Confirmed)?;

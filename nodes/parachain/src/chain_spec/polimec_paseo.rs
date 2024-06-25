@@ -38,7 +38,7 @@ pub fn get_local_chain_spec() -> GenericChainSpec {
 
 	GenericChainSpec::builder(
 		polimec_runtime::WASM_BINARY.expect("WASM binary was not built, please build it!"),
-		Extensions { relay_chain: "paseo_local_testnet".into(), para_id: DEFAULT_PARA_ID.into() },
+		Extensions { relay_chain: "paseo-local".into(), para_id: DEFAULT_PARA_ID.into() },
 	)
 	.with_name("Polimec Paseo Local")
 	.with_id("polimec-paseo-local")
