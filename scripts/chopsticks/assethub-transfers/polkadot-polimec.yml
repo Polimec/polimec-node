@@ -1,15 +1,15 @@
 db: ./db.sqlite
 mock-signature-host: true
 endpoint: wss://rpc.polimec.org
-import-storage:
-  System:
-    Account:
-      # Politest Sudo
-      [
-        [
-          [
-            "0xba143e2096e073cb9cddc78e6f4969d8a02160d716a69e08214caf5339d88c42",
-          ],
-          { providers: 1, data: { free: "10000000000000000" } },
-        ],
-      ]
+#import-storage:
+#  System:
+#    Account:
+#      # Politest Sudo
+#      [
+#        [
+#          [
+#            "0xba143e2096e073cb9cddc78e6f4969d8a02160d716a69e08214caf5339d88c42",
+#          ],
+#          { providers: 1, data: { free: "10000000000000000" } },
+#        ],
+#      ]

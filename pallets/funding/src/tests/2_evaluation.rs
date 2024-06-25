@@ -329,12 +329,7 @@ mod start_evaluation_extrinsic {
 				},
 				usd_bid_on_oversubscription: None,
 				funding_end_block: None,
-				parachain_id: None,
-				migration_readiness_check: None,
-				hrmp_channel_status: HRMPChannelStatus {
-					project_to_polimec: ChannelStatus::Closed,
-					polimec_to_project: ChannelStatus::Closed,
-				},
+				migration_type: MigrationType::Offchain,
 			};
 			assert_ok!(inst.execute(|| PolimecFunding::start_evaluation(
 				RuntimeOrigin::signed(issuer),

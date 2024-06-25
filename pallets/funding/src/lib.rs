@@ -1098,7 +1098,7 @@ pub mod pallet {
 
 		#[pallet::call_index(22)]
 		#[pallet::weight(Weight::from_parts(1000, 0))]
-		pub fn set_para_id_for_project(
+		pub fn configure_receiver_pallet_migration(
 			origin: OriginFor<T>,
 			jwt: UntrustedToken,
 			project_id: ProjectId,
@@ -1108,7 +1108,7 @@ pub mod pallet {
 				T::InvestorOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get())?;
 			ensure!(investor_type == InvestorType::Institutional, Error::<T>::WrongInvestorType);
 
-			Self::do_set_para_id_for_project(&account, project_id, para_id)
+			Self::do_configure_receiver_pallet_migration(&account, project_id, para_id)
 		}
 
 		#[pallet::call_index(23)]
@@ -1139,13 +1139,13 @@ pub mod pallet {
 
 		#[pallet::call_index(26)]
 		#[pallet::weight(Weight::from_parts(1000, 0))]
-		pub fn migrate_one_participant(
+		pub fn receiver_pallet_migrate_for(
 			origin: OriginFor<T>,
 			project_id: ProjectId,
 			participant: AccountIdOf<T>,
 		) -> DispatchResult {
 			let _caller = ensure_signed(origin)?;
-			Self::do_migrate_one_participant(project_id, participant)
+			Self::do_receiver_pallet_migrate_for(project_id, participant)
 		}
 
 		#[pallet::call_index(27)]

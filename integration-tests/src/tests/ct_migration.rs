@@ -16,7 +16,7 @@
 
 use crate::*;
 use frame_support::traits::{fungible::Mutate, fungibles::Inspect};
-use pallet_funding::{assert_close_enough, ProjectId};
+use pallet_funding::{assert_close_enough, types::*, ProjectId};
 use polimec_common::migration_types::{MigrationStatus, Migrations};
 use polimec_runtime::Funding;
 use sp_runtime::Perquintill;
@@ -34,7 +34,7 @@ fn mock_hrmp_establishment(project_id: u32) {
 	});
 
 	PolimecNet::execute_with(|| {
-		assert_ok!(Funding::do_set_para_id_for_project(&ISSUER.into(), project_id, ParaId::from(6969u32)));
+		assert_ok!(Funding::do_configure_receiver_pallet_migration(&ISSUER.into(), project_id, ParaId::from(6969u32)));
 
 		let open_channel_message = xcm::v3::opaque::Instruction::HrmpNewChannelOpenRequest {
 			sender: 6969,
@@ -54,7 +54,10 @@ fn mock_hrmp_establishment(project_id: u32) {
 fn assert_migration_is_ready(project_id: u32) {
 	PolimecNet::execute_with(|| {
 		let project_details = pallet_funding::ProjectsDetails::<PolimecRuntime>::get(project_id).unwrap();
-		assert!(project_details.migration_readiness_check.unwrap().is_ready())
+		let MigrationType::ParachainReceiverPallet(receiver_pallet_info) = project_details.migration_type else {
+			panic!("Migration type is not ParachainReceiverPallet");
+		};
+		assert!(receiver_pallet_info.migration_readiness_check.unwrap().is_ready())
 	});
 }
 
@@ -76,7 +79,11 @@ fn get_migrations_for_participants(
 fn send_migrations(project_id: ProjectId, accounts: Vec<AccountId>) {
 	for user in accounts.into_iter() {
 		PolimecNet::execute_with(|| {
-			assert_ok!(Funding::migrate_one_participant(PolimecOrigin::signed(user.clone()), project_id, user.clone()));
+			assert_ok!(Funding::receiver_pallet_migrate_for(
+				PolimecOrigin::signed(user.clone()),
+				project_id,
+				user.clone()
+			));
 		});
 	}
 }

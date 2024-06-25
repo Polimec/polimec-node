@@ -295,6 +295,22 @@ pub mod storage_types {
 	}
 
 	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
+	pub enum MigrationType {
+		Offchain,
+		ParachainReceiverPallet(ParachainReceiverPalletInfo),
+	}
+
+	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
+	pub struct ParachainReceiverPalletInfo {
+		/// ParaId of project
+		pub parachain_id: ParaId,
+		/// HRMP Channel status
+		pub hrmp_channel_status: HRMPChannelStatus,
+		/// Migration readiness check
+		pub migration_readiness_check: Option<MigrationReadinessCheck>,
+	}
+
+	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
 	pub struct ProjectDetails<
 		AccountId,
 		Did,
@@ -325,12 +341,7 @@ pub mod storage_types {
 		pub usd_bid_on_oversubscription: Option<Balance>,
 		/// When the Funding Round ends
 		pub funding_end_block: Option<BlockNumber>,
-		/// ParaId of project
-		pub parachain_id: Option<ParaId>,
-		/// Migration readiness check
-		pub migration_readiness_check: Option<MigrationReadinessCheck>,
-		/// HRMP Channel status
-		pub hrmp_channel_status: HRMPChannelStatus,
+		pub migration_type: MigrationType,
 	}
 	/// Tells on_initialize what to do with the project
 	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]

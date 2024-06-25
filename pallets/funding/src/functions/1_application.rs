@@ -46,12 +46,7 @@ impl<T: Config> Pallet<T> {
 			},
 			usd_bid_on_oversubscription: None,
 			funding_end_block: None,
-			parachain_id: None,
-			migration_readiness_check: None,
-			hrmp_channel_status: HRMPChannelStatus {
-				project_to_polimec: ChannelStatus::Closed,
-				polimec_to_project: ChannelStatus::Closed,
-			},
+			migration_type: MigrationType::Offchain,
 		};
 
 		let bucket: BucketOf<T> = Self::create_bucket_from_metadata(&project_metadata)?;

@@ -3,7 +3,7 @@ use xcm::v3::MaxPalletNameLen;
 
 impl<T: Config> Pallet<T> {
 	#[transactional]
-	pub fn do_set_para_id_for_project(
+	pub fn do_configure_receiver_pallet_migration(
 		caller: &AccountIdOf<T>,
 		project_id: ProjectId,
 		para_id: ParaId,
@@ -13,9 +13,18 @@ impl<T: Config> Pallet<T> {
 
 		// * Validity checks *
 		ensure!(&(project_details.issuer_account) == caller, Error::<T>::NotIssuer);
+		ensure!(project_details.status == ProjectStatus::FundingSuccessful, Error::<T>::IncorrectRound);
 
 		// * Update storage *
-		project_details.parachain_id = Some(para_id);
+		let parachain_receiver_pallet_info = ParachainReceiverPalletInfo {
+			parachain_id: para_id,
+			hrmp_channel_status: HRMPChannelStatus {
+				project_to_polimec: ChannelStatus::Closed,
+				polimec_to_project: ChannelStatus::Closed,
+			},
+			migration_readiness_check: None,
+		};
+		project_details.migration_type = MigrationType::ParachainReceiverPallet(parachain_receiver_pallet_info);
 		ProjectsDetails::<T>::insert(project_id, project_details);
 
 		// * Emit events *
@@ -51,7 +60,10 @@ impl<T: Config> Pallet<T> {
 
 				let (project_id, mut project_details) = ProjectsDetails::<T>::iter()
 					.find(|(_id, details)| {
-						details.parachain_id == Some(ParaId::from(sender)) && details.status == FundingSuccessful
+						matches!(
+							&details.migration_type,
+							MigrationType::ParachainReceiverPallet(info) if
+								info.parachain_id == ParaId::from(sender) && details.status == FundingSuccessful)
 					})
 					.ok_or(XcmError::BadOrigin)?;
 
@@ -95,8 +107,14 @@ impl<T: Config> Pallet<T> {
 				match T::XcmRouter::deliver(ticket) {
 					Ok(_) => {
 						log::trace!(target: "pallet_funding::hrmp", "HrmpNewChannelOpenRequest: acceptance successfully sent");
-						project_details.hrmp_channel_status.project_to_polimec = ChannelStatus::Open;
-						project_details.hrmp_channel_status.polimec_to_project = ChannelStatus::AwaitingAcceptance;
+						match project_details.migration_type {
+							MigrationType::ParachainReceiverPallet(ref mut info) => {
+								info.hrmp_channel_status.project_to_polimec = ChannelStatus::Open;
+								info.hrmp_channel_status.polimec_to_project = ChannelStatus::AwaitingAcceptance;
+							},
+							_ => return Err(XcmError::NoDeal),
+						}
+
 						ProjectsDetails::<T>::insert(project_id, project_details);
 
 						Pallet::<T>::deposit_event(Event::<T>::HrmpChannelAccepted {
@@ -126,11 +144,20 @@ impl<T: Config> Pallet<T> {
 				log::trace!(target: "pallet_funding::hrmp", "HrmpChannelAccepted received: {:?}", message);
 				let (project_id, mut project_details) = ProjectsDetails::<T>::iter()
 					.find(|(_id, details)| {
-						details.parachain_id == Some(ParaId::from(recipient)) && details.status == FundingSuccessful
+						matches!(
+							&details.migration_type,
+							MigrationType::ParachainReceiverPallet(info) if
+								info.parachain_id == ParaId::from(recipient) && details.status == FundingSuccessful)
 					})
 					.ok_or(XcmError::BadOrigin)?;
 
-				project_details.hrmp_channel_status.polimec_to_project = ChannelStatus::Open;
+				match project_details.migration_type {
+					MigrationType::ParachainReceiverPallet(ref mut info) => {
+						info.hrmp_channel_status.polimec_to_project = ChannelStatus::Open;
+					},
+					_ => return Err(XcmError::NoDeal),
+				}
+
 				ProjectsDetails::<T>::insert(project_id, project_details);
 				Pallet::<T>::deposit_event(Event::<T>::HrmpChannelEstablished {
 					project_id,
@@ -157,7 +184,10 @@ impl<T: Config> Pallet<T> {
 	pub fn do_start_migration_readiness_check(caller: &AccountIdOf<T>, project_id: ProjectId) -> DispatchResult {
 		// * Get variables *
 		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
-		let parachain_id: u32 = project_details.parachain_id.ok_or(Error::<T>::ImpossibleState)?.into();
+		let MigrationType::ParachainReceiverPallet(ref mut migration_info) = project_details.migration_type else {
+			return Err(Error::<T>::NotAllowed.into())
+		};
+		let parachain_id: u32 = migration_info.parachain_id.into();
 		let project_multilocation = ParentThen(X1(Parachain(parachain_id)));
 		let now = <frame_system::Pallet<T>>::block_number();
 
@@ -167,17 +197,17 @@ impl<T: Config> Pallet<T> {
 		// * Validity checks *
 		ensure!(project_details.status == ProjectStatus::FundingSuccessful, Error::<T>::IncorrectRound);
 		ensure!(
-			project_details.hrmp_channel_status ==
+			migration_info.hrmp_channel_status ==
 				HRMPChannelStatus {
 					project_to_polimec: ChannelStatus::Open,
 					polimec_to_project: ChannelStatus::Open
 				},
 			Error::<T>::ChannelNotOpen
 		);
-		if project_details.migration_readiness_check.is_none() {
+		if migration_info.migration_readiness_check.is_none() {
 			ensure!(caller.clone() == T::PalletId::get().into_account_truncating(), Error::<T>::NotAllowed);
 		} else if matches!(
-			project_details.migration_readiness_check,
+			migration_info.migration_readiness_check,
 			Some(MigrationReadinessCheck {
 				holding_check: (_, CheckOutcome::Failed),
 				pallet_check: (_, CheckOutcome::Failed),
@@ -203,7 +233,7 @@ impl<T: Config> Pallet<T> {
 			Here,
 		);
 
-		project_details.migration_readiness_check = Some(MigrationReadinessCheck {
+		migration_info.migration_readiness_check = Some(MigrationReadinessCheck {
 			holding_check: (query_id_holdings, CheckOutcome::AwaitingResponse),
 			pallet_check: (query_id_pallet, CheckOutcome::AwaitingResponse),
 		});
@@ -253,13 +283,13 @@ impl<T: Config> Pallet<T> {
 	) -> DispatchResult {
 		use xcm::v3::prelude::*;
 		// TODO: check if this is too low performance. Maybe we want a new map of query_id -> project_id
-		let (project_id, mut project_details, mut migration_check) = ProjectsDetails::<T>::iter()
+		let (project_id, mut migration_info, mut project_details) = ProjectsDetails::<T>::iter()
 			.find_map(|(project_id, details)| {
-				if let Some(check @ MigrationReadinessCheck { holding_check, pallet_check }) =
-					details.migration_readiness_check
-				{
-					if holding_check.0 == query_id || pallet_check.0 == query_id {
-						return Some((project_id, details, check));
+				if let MigrationType::ParachainReceiverPallet(ref info) = details.migration_type {
+					if let Some(check) = info.migration_readiness_check {
+						if check.holding_check.0 == query_id || check.pallet_check.0 == query_id {
+							return Some((project_id, info.clone(), details));
+						}
 					}
 				}
 				None
@@ -271,16 +301,18 @@ impl<T: Config> Pallet<T> {
 		} else {
 			return Err(Error::<T>::WrongParaId.into());
 		};
+		ensure!(migration_info.parachain_id == para_id, Error::<T>::WrongParaId);
 
 		let project_metadata = ProjectsMetadata::<T>::get(project_id).ok_or(Error::<T>::ProjectMetadataNotFound)?;
 		let contribution_tokens_sold =
 			project_metadata.total_allocation_size.saturating_sub(project_details.remaining_contribution_tokens);
-		ensure!(project_details.parachain_id == Some(para_id), Error::<T>::WrongParaId);
 
-		match (response.clone(), migration_check) {
+		match (response.clone(), &mut migration_info.migration_readiness_check) {
 			(
 				Response::Assets(assets),
-				MigrationReadinessCheck { holding_check: (_, CheckOutcome::AwaitingResponse), .. },
+				&mut Some(
+					ref mut check @ MigrationReadinessCheck { holding_check: (_, CheckOutcome::AwaitingResponse), .. },
+				),
 			) => {
 				let ct_sold_as_u128: u128 = contribution_tokens_sold.try_into().map_err(|_| Error::<T>::BadMath)?;
 				let assets: Vec<MultiAsset> = assets.into_inner();
@@ -290,7 +322,7 @@ impl<T: Config> Pallet<T> {
 						id: Concrete(MultiLocation { parents: 1, interior: X1(Parachain(pid)) }),
 						fun: Fungible(amount),
 					} if amount >= ct_sold_as_u128 && pid == u32::from(para_id) => {
-						migration_check.holding_check.1 = CheckOutcome::Passed(None);
+						check.holding_check.1 = CheckOutcome::Passed(None);
 						Self::deposit_event(Event::<T>::MigrationCheckResponseAccepted {
 							project_id,
 							query_id,
@@ -298,7 +330,7 @@ impl<T: Config> Pallet<T> {
 						});
 					},
 					_ => {
-						migration_check.holding_check.1 = CheckOutcome::Failed;
+						check.holding_check.1 = CheckOutcome::Failed;
 						Self::deposit_event(Event::<T>::MigrationCheckResponseRejected {
 							project_id,
 							query_id,
@@ -310,7 +342,7 @@ impl<T: Config> Pallet<T> {
 
 			(
 				Response::PalletsInfo(pallets_info),
-				MigrationReadinessCheck { pallet_check: (_, CheckOutcome::AwaitingResponse), .. },
+				Some(ref mut check @ MigrationReadinessCheck { pallet_check: (_, CheckOutcome::AwaitingResponse), .. }),
 			) => {
 				let expected_module_name: BoundedVec<u8, MaxPalletNameLen> =
 					BoundedVec::try_from("polimec_receiver".as_bytes().to_vec()).map_err(|_| Error::<T>::NotAllowed)?;
@@ -319,17 +351,17 @@ impl<T: Config> Pallet<T> {
 				};
 				let u8_index: u8 = (*index).try_into().map_err(|_| Error::<T>::NotAllowed)?;
 				if pallets_info.len() == 1 && module_name == &expected_module_name {
-					migration_check.pallet_check.1 = CheckOutcome::Passed(Some(u8_index));
+					check.pallet_check.1 = CheckOutcome::Passed(Some(u8_index));
 					Self::deposit_event(Event::<T>::MigrationCheckResponseAccepted { project_id, query_id, response });
 				} else {
-					migration_check.pallet_check.1 = CheckOutcome::Failed;
+					check.pallet_check.1 = CheckOutcome::Failed;
 					Self::deposit_event(Event::<T>::MigrationCheckResponseRejected { project_id, query_id, response });
 				}
 			},
 			_ => return Err(Error::<T>::NotAllowed.into()),
 		};
 
-		project_details.migration_readiness_check = Some(migration_check);
+		project_details.migration_type = MigrationType::ParachainReceiverPallet(migration_info);
 		ProjectsDetails::<T>::insert(project_id, project_details);
 		Ok(())
 	}
@@ -338,11 +370,15 @@ impl<T: Config> Pallet<T> {
 	/// This entails transferring the funds from the Polimec sovereign account to the participant account, and applying
 	/// a vesting schedule if necessary.
 	#[transactional]
-	pub fn do_migrate_one_participant(project_id: ProjectId, participant: AccountIdOf<T>) -> DispatchResult {
+	pub fn do_receiver_pallet_migrate_for(project_id: ProjectId, participant: AccountIdOf<T>) -> DispatchResult {
 		// * Get variables *
 		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
-		let migration_readiness_check = project_details.migration_readiness_check.ok_or(Error::<T>::ChannelNotReady)?;
-		let project_para_id = project_details.parachain_id.ok_or(Error::<T>::ImpossibleState)?;
+		let migration_info = match project_details.migration_type {
+			MigrationType::ParachainReceiverPallet(info) => info,
+			_ => return Err(Error::<T>::NotAllowed.into()),
+		};
+		let migration_readiness_check = migration_info.migration_readiness_check.ok_or(Error::<T>::ChannelNotReady)?;
+		let project_para_id = migration_info.parachain_id;
 		let now = <frame_system::Pallet<T>>::block_number();
 		ensure!(
 			Self::user_has_no_participations(project_id, participant.clone()),
@@ -388,9 +424,13 @@ impl<T: Config> Pallet<T> {
 		let (project_id, participant) =
 			ActiveMigrationQueue::<T>::take(query_id).ok_or(Error::<T>::NoActiveMigrationsFound)?;
 		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
+		let migration_info = match project_details.migration_type {
+			MigrationType::ParachainReceiverPallet(info) => info,
+			_ => return Err(Error::<T>::NotAllowed.into()),
+		};
 
 		ensure!(
-			matches!(location, MultiLocation { parents: 1, interior: X1(Parachain(para_id))} if Some(ParaId::from(para_id)) == project_details.parachain_id),
+			matches!(location, MultiLocation { parents: 1, interior: X1(Parachain(para_id))} if ParaId::from(para_id) == migration_info.parachain_id),
 			Error::<T>::WrongParaId
 		);
 

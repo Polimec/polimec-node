@@ -314,12 +314,7 @@ impl<
 			},
 			usd_bid_on_oversubscription: None,
 			funding_end_block: None,
-			parachain_id: None,
-			migration_readiness_check: None,
-			hrmp_channel_status: HRMPChannelStatus {
-				project_to_polimec: crate::ChannelStatus::Closed,
-				polimec_to_project: crate::ChannelStatus::Closed,
-			},
+			migration_type: MigrationType::Offchain,
 		};
 		assert_eq!(metadata, expected_metadata);
 		assert_eq!(details, expected_details);
