@@ -66,10 +66,10 @@ pub fn get_live_chain_spec() -> GenericChainSpec {
 	let genesis_config_params = GenesisConfigParams {
 		stakers: vec![col_acc_1.clone(), col_acc_2.clone(), col_acc_3.clone()],
 		council_members: vec![sudo_acc.clone()],
-		technical_committee_members: vec![sudo_acc],
+		technical_committee_members: vec![sudo_acc.clone()],
 		oracle_members: vec![col_acc_1, col_acc_2, col_acc_3],
 		endowed_accounts,
-		funding_assets_owner: alice(),
+		funding_assets_owner: sudo_acc,
 		id: 3344u32.into(),
 	};
 
