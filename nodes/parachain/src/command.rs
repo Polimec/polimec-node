@@ -36,15 +36,12 @@ use crate::{
 fn load_spec(id: &str) -> std::result::Result<Box<dyn ChainSpec>, String> {
 	log::info!("Load spec id: {}", id);
 	let polimec_chain_spec = include_bytes!("../../../chain-specs/polkadot/polimec-raw-chain-spec.json").to_vec();
-	let rolimec_chain_spec = include_bytes!("../../../chain-specs/rococo/rawlimec.json").to_vec();
 	let polimec_paseo_spec = include_bytes!("../../../chain-specs/paseo/polimec-paseo.spec.raw.json").to_vec();
 
 	Ok(match id {
 		// Original live Polimec runtimes
 		"polimec" => Box::new(chain_spec::common::ChainSpec::from_json_bytes(polimec_chain_spec)?),
-		"rolimec" => Box::new(chain_spec::common::ChainSpec::from_json_bytes(rolimec_chain_spec)?),
-		// "polimec-paseo" => Box::new(chain_spec::common::ChainSpec::from_json_bytes(polimec_paseo_spec)?),
-		"polimec-paseo" => Box::new(chain_spec::polimec_paseo::get_live_chain_spec()),
+		"polimec-paseo" => Box::new(chain_spec::common::ChainSpec::from_json_bytes(polimec_paseo_spec)?),
 
 		// Testing runtimes
 		"polimec-paseo-local" => Box::new(chain_spec::polimec_paseo::get_local_chain_spec()),
