@@ -20,7 +20,7 @@ chain_spec_path = "./scripts/zombienet/relay-chain-specs/paseo-local.plain.json"
 
 [[parachains]]
 id = 3344
-chain = "polimec-paseo-local"
+chain = "polimec-paseo"
 
 	[[parachains.collators]]
 	name = "collator1"

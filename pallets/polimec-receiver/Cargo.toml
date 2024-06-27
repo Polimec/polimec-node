@@ -25,6 +25,7 @@ cumulus-pallet-xcm.workspace = true
 polkadot-parachain-primitives.workspace = true
 polimec-common.workspace = true
 sp-runtime.workspace = true
+xcm.workspace = true
 
 [dev-dependencies]
 serde.workspace = true

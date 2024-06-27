@@ -917,7 +917,8 @@ impl<
 			(_, Some((_, migrations))) => {
 				let maybe_migration = migrations.into_iter().find(|migration| {
 					let user = T::AccountId32Conversion::convert(account.clone());
-					matches!(migration.origin, MigrationOrigin { user: m_user, id: m_id, participation_type: m_participation_type } if m_user == user && m_id == id && m_participation_type == participation_type)
+					let multilocation_user = MultiLocation{parents: 0, interior: X1(AccountId32 {network: None, id: user})};
+					matches!(migration.origin, MigrationOrigin { user: m_user, id: m_id, participation_type: m_participation_type } if m_user == multilocation_user && m_id == id && m_participation_type == participation_type)
 				});
 				match maybe_migration {
 					// Migration exists so we check if the amount is correct and if it should exist
