@@ -138,6 +138,19 @@ impl ExecuteXcm<RuntimeCall> for MockXcmExecutor {
 		Ok(())
 	}
 }
+pub struct DummyXcmSender;
+impl SendXcm for DummyXcmSender {
+	type Ticket = ();
+
+	fn validate(_: &mut Option<MultiLocation>, _: &mut Option<Xcm<()>>) -> SendResult<Self::Ticket> {
+		Ok(((), MultiAssets::new()))
+	}
+
+	/// Actually carry out the delivery operation for a previously validated message sending.
+	fn deliver(_ticket: Self::Ticket) -> Result<XcmHash, SendError> {
+		Ok([0u8; 32])
+	}
+}
 
 impl pallet_xcm::Config for TestRuntime {
 	type AdminOrigin = EnsureRoot<AccountId>;
@@ -164,7 +177,7 @@ impl pallet_xcm::Config for TestRuntime {
 	// Needs to be `Everything` for local testing.
 	type XcmExecutor = MockXcmExecutor;
 	type XcmReserveTransferFilter = Everything;
-	type XcmRouter = ();
+	type XcmRouter = DummyXcmSender;
 	type XcmTeleportFilter = Everything;
 
 	const VERSION_DISCOVERY_QUEUE_SIZE: u32 = 100;

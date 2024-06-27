@@ -599,22 +599,37 @@ impl<T: Config> Pallet<T> {
 		])
 	}
 
-	pub(crate) fn change_migration_status(
+	pub fn change_migration_status(
 		project_id: ProjectId,
 		user: T::AccountId,
 		status: MigrationStatus,
 	) -> DispatchResult {
+		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 		let (current_status, migrations) =
-			UserMigrations::<T>::get(project_id, user.clone()).ok_or(Error::<T>::NoMigrationsFound)?;
+			UserMigrations::<T>::get((project_id, user.clone())).ok_or(Error::<T>::NoMigrationsFound)?;
+
 		let status = match status {
 			MigrationStatus::Sent(_)
 				if matches!(current_status, MigrationStatus::NotStarted | MigrationStatus::Failed) =>
 				status,
-			MigrationStatus::Confirmed if matches!(current_status, MigrationStatus::Sent(_)) => status,
+			MigrationStatus::Confirmed => match project_details.migration_type {
+				Some(MigrationType::Offchain(ref mut info)) => {
+					info.remaining_participants = info.remaining_participants.saturating_sub(1);
+					status
+				},
+				Some(MigrationType::Pallet(ref mut info)) if matches!(current_status, MigrationStatus::Sent(_)) => {
+					info.remaining_participants = info.remaining_participants.saturating_sub(1);
+					status
+				},
+				_ => Err(Error::<T>::NotAllowed)?,
+			},
 			MigrationStatus::Failed if matches!(current_status, MigrationStatus::Sent(_)) => status,
+
 			_ => return Err(Error::<T>::NotAllowed.into()),
 		};
-		UserMigrations::<T>::insert(project_id, user, (status, migrations));
+		UserMigrations::<T>::insert((project_id, user), (status, migrations));
+		ProjectsDetails::<T>::insert(project_id, project_details);
+
 		Ok(())
 	}
 }

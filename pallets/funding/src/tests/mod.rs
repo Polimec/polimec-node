@@ -427,10 +427,16 @@ pub fn create_project_with_funding_percentage(
 			_ => panic!("unexpected percentage"),
 		};
 		if funding_sucessful {
-			assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::FundingSuccessful);
+			assert_eq!(
+				inst.get_project_details(project_id).status,
+				ProjectStatus::SettlementStarted(FundingOutcome::FundingSuccessful)
+			);
 			inst.test_ct_created_for(project_id);
 		} else {
-			assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::FundingFailed);
+			assert_eq!(
+				inst.get_project_details(project_id).status,
+				ProjectStatus::SettlementStarted(FundingOutcome::FundingFailed)
+			);
 			inst.test_ct_not_created_for(project_id);
 		}
 	}
