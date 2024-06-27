@@ -266,7 +266,7 @@ mod settle_successful_evaluation_extrinsic {
 						evaluator,
 						first_evaluation.id
 					),
-					Error::<TestRuntime>::WrongSettlementOutcome
+					Error::<TestRuntime>::FundingSuccessSettlementNotStarted
 				);
 			});
 		}
@@ -287,7 +287,7 @@ mod settle_successful_evaluation_extrinsic {
 						evaluator,
 						first_evaluation.id
 					),
-					Error::<TestRuntime>::SettlementNotStarted
+					Error::<TestRuntime>::FundingSuccessSettlementNotStarted
 				);
 			});
 		}
@@ -608,7 +608,7 @@ mod settle_successful_bid_extrinsic {
 						bidder,
 						first_bid.id
 					),
-					Error::<TestRuntime>::WrongSettlementOutcome
+					Error::<TestRuntime>::FundingSuccessSettlementNotStarted
 				);
 			});
 		}
@@ -628,7 +628,7 @@ mod settle_successful_bid_extrinsic {
 						bidder,
 						first_bid.id
 					),
-					Error::<TestRuntime>::SettlementNotStarted
+					Error::<TestRuntime>::FundingSuccessSettlementNotStarted
 				);
 			});
 		}
@@ -897,7 +897,7 @@ mod settle_successful_contribution_extrinsic {
 						contributor,
 						first_contribution.id
 					),
-					Error::<TestRuntime>::WrongSettlementOutcome
+					Error::<TestRuntime>::FundingSuccessSettlementNotStarted
 				);
 			});
 		}
@@ -916,7 +916,7 @@ mod settle_successful_contribution_extrinsic {
 						contributor,
 						first_contribution.id
 					),
-					Error::<TestRuntime>::SettlementNotStarted
+					Error::<TestRuntime>::FundingSuccessSettlementNotStarted
 				);
 			});
 		}
@@ -1036,7 +1036,7 @@ mod settle_failed_evaluation_extrinsic {
 						evaluator,
 						first_evaluation.id
 					),
-					Error::<TestRuntime>::WrongSettlementOutcome
+					Error::<TestRuntime>::FundingFailedSettlementNotStarted
 				);
 			});
 		}
@@ -1057,7 +1057,7 @@ mod settle_failed_evaluation_extrinsic {
 						evaluator,
 						first_evaluation.id
 					),
-					Error::<TestRuntime>::SettlementNotStarted
+					Error::<TestRuntime>::FundingFailedSettlementNotStarted
 				);
 			});
 		}
@@ -1239,7 +1239,7 @@ mod settle_failed_bid_extrinsic {
 						bidder,
 						first_bid.id
 					),
-					Error::<TestRuntime>::WrongSettlementOutcome
+					Error::<TestRuntime>::FundingFailedSettlementNotStarted
 				);
 			});
 		}
@@ -1259,7 +1259,7 @@ mod settle_failed_bid_extrinsic {
 						bidder,
 						first_bid.id
 					),
-					Error::<TestRuntime>::SettlementNotStarted
+					Error::<TestRuntime>::FundingFailedSettlementNotStarted
 				);
 			});
 		}
@@ -1506,7 +1506,7 @@ mod settle_failed_contribution_extrinsic {
 						contributor,
 						first_contribution.id
 					),
-					Error::<TestRuntime>::WrongSettlementOutcome
+					Error::<TestRuntime>::FundingFailedSettlementNotStarted
 				);
 			});
 		}
@@ -1526,7 +1526,7 @@ mod settle_failed_contribution_extrinsic {
 						contributor,
 						first_contribution.id
 					),
-					Error::<TestRuntime>::SettlementNotStarted
+					Error::<TestRuntime>::FundingFailedSettlementNotStarted
 				);
 			});
 		}

@@ -16,12 +16,18 @@
 
 use crate::*;
 use frame_support::traits::{fungible::Mutate, fungibles::Inspect};
-use pallet_funding::{assert_close_enough, ProjectId};
-use polimec_common::migration_types::{MigrationStatus, Migrations};
-use polimec_runtime::Funding;
+use itertools::Itertools;
+use pallet_funding::{assert_close_enough, types::*, ProjectId};
+use polimec_common::migration_types::{MigrationStatus, Migrations, ParticipationType};
+use polimec_runtime::{Funding, RuntimeOrigin};
+use polkadot_service::chain_spec::get_account_id_from_seed;
 use sp_runtime::Perquintill;
 use std::collections::HashMap;
 use tests::defaults::*;
+
+fn alice() -> AccountId {
+	get_account_id_from_seed::<sr25519::Public>(ALICE)
+}
 
 fn mock_hrmp_establishment(project_id: u32) {
 	let ct_issued = PolimecNet::execute_with(|| {
@@ -34,7 +40,7 @@ fn mock_hrmp_establishment(project_id: u32) {
 	});
 
 	PolimecNet::execute_with(|| {
-		assert_ok!(Funding::do_set_para_id_for_project(&ISSUER.into(), project_id, ParaId::from(6969u32)));
+		assert_ok!(Funding::do_start_pallet_migration(&ISSUER.into(), project_id, ParaId::from(6969u32)));
 
 		let open_channel_message = xcm::v3::opaque::Instruction::HrmpNewChannelOpenRequest {
 			sender: 6969,
@@ -54,7 +60,10 @@ fn mock_hrmp_establishment(project_id: u32) {
 fn assert_migration_is_ready(project_id: u32) {
 	PolimecNet::execute_with(|| {
 		let project_details = pallet_funding::ProjectsDetails::<PolimecRuntime>::get(project_id).unwrap();
-		assert!(project_details.migration_readiness_check.unwrap().is_ready())
+		let Some(MigrationType::Pallet(receiver_pallet_info)) = project_details.migration_type else {
+			panic!("Migration type is not ParachainReceiverPallet");
+		};
+		assert!(receiver_pallet_info.migration_readiness_check.unwrap().is_ready())
 	});
 }
 
@@ -66,7 +75,7 @@ fn get_migrations_for_participants(
 	PolimecNet::execute_with(|| {
 		for participant in participants {
 			let (status, migrations) =
-				pallet_funding::UserMigrations::<PolimecRuntime>::get(project_id, participant.clone()).unwrap();
+				pallet_funding::UserMigrations::<PolimecRuntime>::get((project_id, participant.clone())).unwrap();
 			user_migrations.insert(participant, (status, Migrations::from(migrations.into())));
 		}
 	});
@@ -76,7 +85,11 @@ fn get_migrations_for_participants(
 fn send_migrations(project_id: ProjectId, accounts: Vec<AccountId>) {
 	for user in accounts.into_iter() {
 		PolimecNet::execute_with(|| {
-			assert_ok!(Funding::migrate_one_participant(PolimecOrigin::signed(user.clone()), project_id, user.clone()));
+			assert_ok!(Funding::send_pallet_migration_for(
+				PolimecOrigin::signed(user.clone()),
+				project_id,
+				user.clone()
+			));
 		});
 	}
 }
@@ -114,6 +127,10 @@ fn migrations_are_confirmed(project_id: u32, accounts: Vec<AccountId>) {
 			let (current_status, _) = user_migrations.get(user).unwrap();
 			assert_eq!(current_status, &MigrationStatus::Confirmed);
 		}
+
+		PolimecFunding::do_mark_project_ct_migration_as_finished(project_id).unwrap();
+		let project_details = pallet_funding::ProjectsDetails::<PolimecRuntime>::get(project_id).unwrap();
+		assert_eq!(project_details.status, pallet_funding::ProjectStatus::CTMigrationFinished)
 	});
 }
 
@@ -174,15 +191,17 @@ fn create_settled_project() -> (ProjectId, Vec<AccountId>) {
 }
 
 #[test]
-fn full_migration_test() {
+fn full_pallet_migration_test() {
 	polimec::set_prices();
 	let (project_id, participants) = create_settled_project();
+	let project_status =
+		PolimecNet::execute_with(|| pallet_funding::ProjectsDetails::<PolimecRuntime>::get(project_id).unwrap().status);
+	dbg!(project_status);
 
 	mock_hrmp_establishment(project_id);
 
 	assert_migration_is_ready(project_id);
 
-	// Migrate is sent
 	send_migrations(project_id, participants.clone());
 
 	migrations_are_executed(project_id, participants.clone());
@@ -192,4 +211,110 @@ fn full_migration_test() {
 	vest_migrations(project_id, participants.clone());
 
 	migrations_are_vested(project_id, participants.clone());
+}
+
+/// Creates a project with all participations settled except for one.
+fn create_project_with_unsettled_participation(participation_type: ParticipationType) -> (ProjectId, Vec<AccountId>) {
+	let mut inst = IntegrationInstantiator::new(None);
+	PolimecNet::execute_with(|| {
+		let project_id = inst.create_finished_project(
+			default_project_metadata(ISSUER.into()),
+			ISSUER.into(),
+			default_evaluations(),
+			default_bids(),
+			default_community_contributions(),
+			default_remainder_contributions(),
+		);
+
+		inst.advance_time(<PolimecRuntime as pallet_funding::Config>::SuccessToSettlementTime::get()).unwrap();
+		let evaluations_to_settle =
+			pallet_funding::Evaluations::<PolimecRuntime>::iter_prefix_values((project_id,)).collect_vec();
+		let bids_to_settle = pallet_funding::Bids::<PolimecRuntime>::iter_prefix_values((project_id,)).collect_vec();
+		let contributions_to_settle =
+			pallet_funding::Contributions::<PolimecRuntime>::iter_prefix_values((project_id,)).collect_vec();
+
+		let mut participants: Vec<AccountId> = evaluations_to_settle
+			.iter()
+			.map(|eval| eval.evaluator.clone())
+			.chain(bids_to_settle.iter().map(|bid| bid.bidder.clone()))
+			.chain(contributions_to_settle.iter().map(|contribution| contribution.contributor.clone()))
+			.collect();
+		participants.sort();
+		participants.dedup();
+
+		let start = if participation_type == ParticipationType::Evaluation { 1 } else { 0 };
+		for evaluation in evaluations_to_settle[start..].iter() {
+			PolimecFunding::settle_successful_evaluation(
+				RuntimeOrigin::signed(alice()),
+				project_id,
+				evaluation.evaluator.clone(),
+				evaluation.id,
+			)
+			.unwrap()
+		}
+
+		let start = if participation_type == ParticipationType::Bid { 1 } else { 0 };
+		for bid in bids_to_settle[start..].iter() {
+			PolimecFunding::settle_successful_bid(
+				RuntimeOrigin::signed(alice()),
+				project_id,
+				bid.bidder.clone(),
+				bid.id,
+			)
+			.unwrap()
+		}
+
+		let start = if participation_type == ParticipationType::Contribution { 1 } else { 0 };
+		for contribution in contributions_to_settle[start..].iter() {
+			PolimecFunding::settle_successful_contribution(
+				RuntimeOrigin::signed(alice()),
+				project_id,
+				contribution.contributor.clone(),
+				contribution.id,
+			)
+			.unwrap()
+		}
+
+		let evaluations =
+			pallet_funding::Evaluations::<PolimecRuntime>::iter_prefix_values((project_id,)).collect_vec();
+		let bids = pallet_funding::Bids::<PolimecRuntime>::iter_prefix_values((project_id,)).collect_vec();
+		let contributions =
+			pallet_funding::Contributions::<PolimecRuntime>::iter_prefix_values((project_id,)).collect_vec();
+
+		if participation_type == ParticipationType::Evaluation {
+			assert_eq!(evaluations.len(), 1);
+			assert_eq!(bids.len(), 0);
+			assert_eq!(contributions.len(), 0);
+		} else if participation_type == ParticipationType::Bid {
+			assert_eq!(evaluations.len(), 0);
+			assert_eq!(bids.len(), 1);
+			assert_eq!(contributions.len(), 0);
+		} else {
+			assert_eq!(evaluations.len(), 0);
+			assert_eq!(bids.len(), 0);
+			assert_eq!(contributions.len(), 1);
+		}
+
+		(project_id, participants)
+	})
+}
+
+#[test]
+fn cannot_start_pallet_migration_with_unsettled_participations() {
+	polimec::set_prices();
+
+	let tup_1 = create_project_with_unsettled_participation(ParticipationType::Evaluation);
+	let tup_2 = create_project_with_unsettled_participation(ParticipationType::Bid);
+	let tup_3 = create_project_with_unsettled_participation(ParticipationType::Contribution);
+
+	let tups = vec![tup_1, tup_2, tup_3];
+
+	for (project_id, participants) in tups.into_iter() {
+		PolimecNet::execute_with(|| {
+			assert_noop!(
+				PolimecFunding::do_start_pallet_migration(&ISSUER.into(), project_id, ParaId::from(6969u32)),
+				pallet_funding::Error::<PolimecRuntime>::SettlementNotComplete
+			);
+		});
+	}
 }

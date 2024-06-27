@@ -295,6 +295,22 @@ pub mod storage_types {
 	}
 
 	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
+	pub enum MigrationType {
+		Offchain,
+		Pallet(PalletMigrationInfo),
+	}
+
+	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
+	pub struct PalletMigrationInfo {
+		/// ParaId of project
+		pub parachain_id: ParaId,
+		/// HRMP Channel status
+		pub hrmp_channel_status: HRMPChannelStatus,
+		/// Migration readiness check
+		pub migration_readiness_check: Option<PalletMigrationReadinessCheck>,
+	}
+
+	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
 	pub struct ProjectDetails<
 		AccountId,
 		Did,
@@ -325,12 +341,7 @@ pub mod storage_types {
 		pub usd_bid_on_oversubscription: Option<Balance>,
 		/// When the Funding Round ends
 		pub funding_end_block: Option<BlockNumber>,
-		/// ParaId of project
-		pub parachain_id: Option<ParaId>,
-		/// Migration readiness check
-		pub migration_readiness_check: Option<MigrationReadinessCheck>,
-		/// HRMP Channel status
-		pub hrmp_channel_status: HRMPChannelStatus,
+		pub migration_type: Option<MigrationType>,
 	}
 	/// Tells on_initialize what to do with the project
 	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
@@ -665,8 +676,16 @@ pub mod inner_types {
 		FundingFailed,
 		AwaitingProjectDecision,
 		FundingSuccessful,
-		ReadyToStartMigration,
-		MigrationCompleted,
+		SettlementStarted(FundingOutcome),
+		SettlementFinished(FundingOutcome),
+		CTMigrationStarted,
+		CTMigrationFinished,
+	}
+
+	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen, Serialize, Deserialize)]
+	pub enum FundingOutcome {
+		FundingSuccessful,
+		FundingFailed,
 	}
 
 	#[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
@@ -827,12 +846,12 @@ pub mod inner_types {
 	}
 
 	#[derive(Clone, Copy, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
-	pub struct MigrationReadinessCheck {
+	pub struct PalletMigrationReadinessCheck {
 		pub holding_check: (xcm::v3::QueryId, CheckOutcome),
 		pub pallet_check: (xcm::v3::QueryId, CheckOutcome),
 	}
 
-	impl MigrationReadinessCheck {
+	impl PalletMigrationReadinessCheck {
 		pub fn is_ready(&self) -> bool {
 			self.holding_check.1 == CheckOutcome::Passed(None) &&
 				matches!(self.pallet_check.1, CheckOutcome::Passed(Some(_)))
