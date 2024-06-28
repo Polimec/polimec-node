@@ -1,0 +1,16 @@
+db: ./db.sqlite
+mock-signature-host: true
+endpoint: wss://rpc.polimec.org
+runtime-log-level: 5
+# Uncomment if you want to use a custom runtime. Add the runtime to the hydradx-transfers directory.
+# wasm-override: polimec_runtime.compact.compressed.wasm
+
+import-storage:
+  System:
+    Account:
+      -
+        -
+          - 5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY
+        - providers: 1
+          data:
+            free: 1000000000000000
