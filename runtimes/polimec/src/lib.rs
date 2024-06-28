@@ -205,7 +205,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("polimec-mainnet"),
 	impl_name: create_runtime_str!("polimec-mainnet"),
 	authoring_version: 1,
-	spec_version: 0_007_004,
+	spec_version: 0_007_005,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 3,
@@ -251,7 +251,13 @@ impl Contains<RuntimeCall> for BaseCallFilter {
 							pallet_funding::Call::root_do_remainder_funding { .. } |
 							pallet_funding::Call::root_do_end_funding { .. } |
 							pallet_funding::Call::root_do_project_decision { .. } |
-							pallet_funding::Call::root_do_start_settlement { .. }
+							pallet_funding::Call::root_do_start_settlement { .. } |
+							pallet_funding::Call::settle_successful_evaluation { .. } |
+							pallet_funding::Call::settle_failed_evaluation { .. } |
+							pallet_funding::Call::settle_successful_bid { .. } |
+							pallet_funding::Call::settle_failed_bid { .. } |
+							pallet_funding::Call::settle_successful_contribution { .. } |
+							pallet_funding::Call::settle_failed_contribution { .. }
 					)
 				},
 			_ => true,

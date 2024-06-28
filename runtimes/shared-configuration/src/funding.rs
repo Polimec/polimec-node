@@ -17,13 +17,11 @@
 use crate::{Balance, BlockNumber};
 use frame_support::{parameter_types, PalletId};
 use pallet_funding::types::AcceptedFundingAsset;
-use parachains_common::AssetIdForTrustBackedAssets;
+#[allow(unused)]
+use parachains_common::{AssetIdForTrustBackedAssets, HOURS};
 use polimec_common::USD_UNIT;
 use sp_arithmetic::{FixedU128, Percent};
 use sp_std::{collections::btree_map::BTreeMap, vec, vec::Vec};
-
-#[cfg(feature = "fast-mode")]
-use parachains_common::HOURS;
 
 #[cfg(feature = "instant-mode")]
 pub const EVALUATION_DURATION: BlockNumber = 3;
@@ -86,7 +84,7 @@ pub const SUCCESS_TO_SETTLEMENT_TIME: BlockNumber = 4;
 #[cfg(feature = "fast-mode")]
 pub const SUCCESS_TO_SETTLEMENT_TIME: BlockNumber = 5 * crate::MINUTES;
 #[cfg(not(any(feature = "fast-mode", feature = "instant-mode")))]
-pub const SUCCESS_TO_SETTLEMENT_TIME: BlockNumber = 4 * crate::DAYS;
+pub const SUCCESS_TO_SETTLEMENT_TIME: BlockNumber = 1 * HOURS;
 
 pub type ProjectIdentifier = u32;
 
