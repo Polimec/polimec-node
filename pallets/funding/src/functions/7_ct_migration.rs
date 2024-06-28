@@ -1,3 +1,5 @@
+/// Most tests should be done in the xcm-emulator, not here.
+
 use super::*;
 use xcm::v3::MaxPalletNameLen;
 
