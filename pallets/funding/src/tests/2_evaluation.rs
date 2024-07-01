@@ -681,7 +681,7 @@ mod evaluate_extrinsic {
 			assert_eq!(evaluation_held_balance, frozen_amount);
 			assert_eq!(frozen_balance, frozen_amount);
 
-			let treasury_account = <TestRuntime as Config>::ProtocolGrowthTreasury::get();
+			let treasury_account = <TestRuntime as Config>::BlockchainOperationTreasury::get();
 			let pre_slash_treasury_balance = inst.get_free_plmc_balance_for(treasury_account);
 
 			let settlement_block = inst.get_update_block(project_id, &UpdateType::StartSettlement).unwrap();

@@ -397,7 +397,7 @@ impl<T: Config> Pallet<T> {
 
 	fn slash_evaluator(project_id: ProjectId, evaluation: &EvaluationInfoOf<T>) -> Result<BalanceOf<T>, DispatchError> {
 		let slash_percentage = T::EvaluatorSlash::get();
-		let treasury_account = T::ProtocolGrowthTreasury::get();
+		let treasury_account = T::BlockchainOperationTreasury::get();
 
 		// * Calculate variables *
 		// We need to make sure that the current PLMC bond is always >= than the slash amount.

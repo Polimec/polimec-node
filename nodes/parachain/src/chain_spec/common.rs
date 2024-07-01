@@ -88,7 +88,7 @@ pub fn genesis_config(genesis_config_params: GenesisConfigParams) -> serde_json:
 
 	let system_accounts = vec![
 		(
-			<Runtime as pallet_funding::Config>::ProtocolGrowthTreasury::get(),
+			<Runtime as pallet_funding::Config>::BlockchainOperationTreasury::get(),
 			<Runtime as pallet_funding::Config>::NativeCurrency::minimum_balance(),
 		),
 		(

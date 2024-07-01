@@ -417,7 +417,7 @@ pub mod pallet {
 
 		/// Treasury account holding PLMC at TGE.
 		#[pallet::constant]
-		type ProtocolGrowthTreasury: Get<AccountIdOf<Self>>;
+		type BlockchainOperationTreasury: Get<AccountIdOf<Self>>;
 
 		/// Treasury account holding the CT fees charged to issuers.
 		#[pallet::constant]
