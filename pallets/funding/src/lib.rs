@@ -835,7 +835,7 @@ pub mod pallet {
 		}
 
 		#[pallet::call_index(35)]
-		#[pallet::weight(Weight::from_parts(100_000, 10_000))]
+		#[pallet::weight(WeightInfoOf::<T>::remove_project())]
 		pub fn remove_project(origin: OriginFor<T>, jwt: UntrustedToken, project_id: ProjectId) -> DispatchResult {
 			let (account, did, investor_type, _cid) =
 				T::InvestorOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get())?;
@@ -1015,7 +1015,7 @@ pub mod pallet {
 		}
 
 		#[pallet::call_index(9)]
-		#[pallet::weight(Weight::from_parts(0, 0))]
+		#[pallet::weight(WeightInfoOf::<T>::settle_successful_evaluation())]
 		pub fn settle_successful_evaluation(
 			origin: OriginFor<T>,
 			project_id: ProjectId,
@@ -1029,7 +1029,7 @@ pub mod pallet {
 		}
 
 		#[pallet::call_index(10)]
-		#[pallet::weight(Weight::from_parts(0, 0))]
+		#[pallet::weight(WeightInfoOf::<T>::settle_successful_bid())]
 		pub fn settle_successful_bid(
 			origin: OriginFor<T>,
 			project_id: ProjectId,
@@ -1042,7 +1042,7 @@ pub mod pallet {
 		}
 
 		#[pallet::call_index(11)]
-		#[pallet::weight(Weight::from_parts(0, 0))]
+		#[pallet::weight(WeightInfoOf::<T>::settle_successful_contribution())]
 		pub fn settle_successful_contribution(
 			origin: OriginFor<T>,
 			project_id: ProjectId,
@@ -1056,7 +1056,7 @@ pub mod pallet {
 		}
 
 		#[pallet::call_index(12)]
-		#[pallet::weight(Weight::from_parts(0, 0))]
+		#[pallet::weight(WeightInfoOf::<T>::settle_failed_evaluation())]
 		pub fn settle_failed_evaluation(
 			origin: OriginFor<T>,
 			project_id: ProjectId,
@@ -1070,7 +1070,7 @@ pub mod pallet {
 		}
 
 		#[pallet::call_index(13)]
-		#[pallet::weight(Weight::from_parts(0, 0))]
+		#[pallet::weight(WeightInfoOf::<T>::settle_failed_bid())]
 		pub fn settle_failed_bid(
 			origin: OriginFor<T>,
 			project_id: ProjectId,
@@ -1083,7 +1083,7 @@ pub mod pallet {
 		}
 
 		#[pallet::call_index(14)]
-		#[pallet::weight(Weight::from_parts(0, 0))]
+		#[pallet::weight(WeightInfoOf::<T>::settle_failed_contribution())]
 		pub fn settle_failed_contribution(
 			origin: OriginFor<T>,
 			project_id: ProjectId,
