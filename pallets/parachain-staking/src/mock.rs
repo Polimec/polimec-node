@@ -131,7 +131,7 @@ parameter_types! {
 	pub const MinCandidateStk: u128 = 10;
 	pub const MinDelegatorStk: u128 = 5;
 	pub const MinDelegation: u128 = 3;
-	pub const PayMaster: AccountId = 1337;
+	pub const BlockchainOperationTreasury: AccountId = 1337;
 }
 impl_opaque_keys! {
 	pub struct MockSessionKeys {
@@ -176,7 +176,7 @@ impl Config for Test {
 	type MonetaryGovernanceOrigin = frame_system::EnsureRoot<AccountId>;
 	type OnCollatorPayout = ();
 	type OnNewRound = ();
-	type PayMaster = PayMaster;
+	type PayMaster = BlockchainOperationTreasury;
 	type PayoutCollatorReward = ();
 	type RevokeDelegationDelay = RevokeDelegationDelay;
 	type RewardPaymentDelay = RewardPaymentDelay;
@@ -223,8 +223,8 @@ impl Default for ExtBuilder {
 
 impl ExtBuilder {
 	pub(crate) fn with_balances(mut self, mut balances: Vec<(AccountId, Balance)>) -> Self {
-		if !balances.iter().any(|(acc, _)| *acc == PayMaster::get()) {
-			balances.push((PayMaster::get(), 300));
+		if !balances.iter().any(|(acc, _)| *acc == BlockchainOperationTreasury::get()) {
+			balances.push((BlockchainOperationTreasury::get(), 300));
 		}
 		self.balances = balances;
 		self

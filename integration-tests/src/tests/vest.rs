@@ -23,7 +23,7 @@ use frame_support::traits::fungible::Mutate;
 use macros::generate_accounts;
 use pallet_funding::assert_close_enough;
 use pallet_vesting::VestingInfo;
-use polimec_runtime::{Balances, ParachainStaking, PayMaster, RuntimeOrigin, Vesting, PLMC};
+use polimec_runtime::{Balances, BlockchainOperationTreasury, ParachainStaking, RuntimeOrigin, Vesting, PLMC};
 use sp_runtime::Perquintill;
 use xcm_emulator::helpers::get_account_id_from_seed;
 
@@ -160,7 +160,7 @@ fn dust_to_treasury() {
 
 		// Get the total issuance and Treasury balance before the transfer.
 		let initial_total_issuance = Balances::total_issuance();
-		let initial_treasury_balance = Balances::free_balance(PayMaster::get());
+		let initial_treasury_balance = Balances::free_balance(BlockchainOperationTreasury::get());
 
 		// Transfer funds from sender to receiver, designed to deplete the sender's balance below the ED.
 		// The sender account will be killed and the dust will be sent to the treasury.
@@ -176,7 +176,7 @@ fn dust_to_treasury() {
 		assert_eq!(initial_total_issuance, post_total_issuance);
 
 		// Verify the Treasury has received the dust from the sender's account.
-		let final_treasury_balance = Balances::free_balance(PayMaster::get());
+		let final_treasury_balance = Balances::free_balance(BlockchainOperationTreasury::get());
 		assert_eq!(initial_treasury_balance + ED - 1, final_treasury_balance);
 	})
 }

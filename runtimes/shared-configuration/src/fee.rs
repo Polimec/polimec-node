@@ -97,7 +97,7 @@ parameter_types! {
 }
 
 ord_parameter_types! {
-	pub const PayMaster: AccountId =
+	pub const BlockchainOperationTreasury: AccountId =
 		AccountIdConversion::<AccountId>::into_account_truncating(&StakingPalletId::get());
 }
 
@@ -125,7 +125,7 @@ where
 	<R as frame_system::Config>::AccountId: Into<AccountId>,
 {
 	fn on_nonzero_unbalanced(amount: Credit<<R as frame_system::Config>::AccountId, pallet_balances::Pallet<R>>) {
-		let staking_pot = PayMaster::get().into();
+		let staking_pot = BlockchainOperationTreasury::get().into();
 		let _ = <pallet_balances::Pallet<R>>::resolve(&staking_pot, amount);
 	}
 }

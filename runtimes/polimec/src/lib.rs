@@ -388,7 +388,7 @@ pub struct DustRemovalAdapter;
 
 impl tokens::imbalance::OnUnbalanced<CreditOf<Runtime>> for DustRemovalAdapter {
 	fn on_nonzero_unbalanced(amount: CreditOf<Runtime>) {
-		let treasury_account = PayMaster::get();
+		let treasury_account = BlockchainOperationTreasury::get();
 		let _ = <Balances as tokens::fungible::Balanced<AccountId>>::resolve(&treasury_account, amount);
 	}
 }
@@ -670,7 +670,7 @@ impl GetElectorate<Balance> for Electorate {
 	fn get_electorate() -> Balance {
 		let total_issuance = Balances::total_issuance();
 		let growth_treasury_balance = Balances::balance(&Treasury::account_id());
-		let protocol_treasury_balance = Balances::balance(&PayMaster::get());
+		let protocol_treasury_balance = Balances::balance(&BlockchainOperationTreasury::get());
 		total_issuance.saturating_sub(growth_treasury_balance).saturating_sub(protocol_treasury_balance)
 	}
 }
@@ -789,7 +789,7 @@ impl pallet_parachain_staking::Config for Runtime {
 	type MonetaryGovernanceOrigin = frame_system::EnsureRoot<AccountId>;
 	type OnCollatorPayout = ();
 	type OnNewRound = ();
-	type PayMaster = PayMaster;
+	type PayMaster = BlockchainOperationTreasury;
 	// We use the default implementation, so we leave () here.
 	type PayoutCollatorReward = ();
 	type RevokeDelegationDelay = RevokeDelegationDelay;
@@ -1036,7 +1036,7 @@ impl pallet_funding::Config for Runtime {
 	type Balance = Balance;
 	type BlockNumber = BlockNumber;
 	type BlockNumberToBalance = ConvertInto;
-	type BlockchainOperationTreasury = PayMaster;
+	type BlockchainOperationTreasury = BlockchainOperationTreasury;
 	type CommunityFundingDuration = CommunityFundingDuration;
 	type ContributionTokenCurrency = ContributionTokens;
 	type ContributionTreasury = ContributionTreasuryAccount;

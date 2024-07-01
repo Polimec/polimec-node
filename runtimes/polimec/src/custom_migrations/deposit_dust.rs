@@ -46,7 +46,7 @@ impl frame_support::traits::OnRuntimeUpgrade for DepositDust {
 		if total_issuance != 100_000_000 * PLMC {
 			log::info!("⚠️ Correcting total issuance from {} to {}", total_issuance, 100_000_000 * PLMC);
 			// +1 R
-			let treasury_account = PayMaster::get();
+			let treasury_account = BlockchainOperationTreasury::get();
 			// +1 W
 			// The values are coming from these `DustLost` events:
 			// - https://polkadot.js.org/apps/?rpc=wss%3A%2F%2Frpc.polimec.org#/explorer/query/0x6fec4ce782f42afae1437f53e3382d9e6804692de868a28908ed6b9104bdd536
