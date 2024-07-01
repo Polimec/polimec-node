@@ -2623,9 +2623,6 @@ mod benchmarks {
 			vec![],
 		);
 
-		// let issuer_mint = UserToPLMCBalance::<T>::new(issuer.clone(), (100 * ASSET_UNIT).into());
-		// inst.mint_plmc_to(vec![issuer_mint]);
-
 		#[block]
 		{
 			Pallet::<T>::do_start_settlement(project_id).unwrap();
@@ -2684,6 +2681,160 @@ mod benchmarks {
 		let project_details = inst.get_project_details(project_id);
 		assert_eq!(project_details.status, ProjectStatus::SettlementStarted(FundingOutcome::FundingFailed));
 	}
+
+	#[benchmark]
+	fn start_pallet_migration() {
+		// setup
+		let mut inst = BenchInstantiator::<T>::new(None);
+		<T as Config>::SetPrices::set_prices();
+
+		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
+
+		let project_metadata = default_project_metadata::<T>(issuer.clone());
+		let project_id = inst.create_finished_project(
+			project_metadata.clone(),
+			issuer.clone(),
+			default_evaluations::<T>(),
+			default_bids::<T>(),
+			default_community_contributions::<T>(),
+			vec![],
+		);
+
+		let settlement_block = inst.get_update_block(project_id, &UpdateType::StartSettlement).unwrap();
+		inst.jump_to_block(settlement_block);
+
+		inst.settle_project(project_id).unwrap();
+
+		let jwt = get_mock_jwt_with_cid(
+			issuer.clone(),
+			InvestorType::Institutional,
+			generate_did_from_account(issuer.clone()),
+			project_metadata.clone().policy_ipfs_cid.unwrap(),
+		);
+
+		#[extrinsic_call]
+		start_pallet_migration(RawOrigin::Signed(issuer), jwt, project_id, ParaId::from(6969));
+
+		// * validity checks *
+		let project_details = inst.get_project_details(project_id);
+		assert_eq!(project_details.status, ProjectStatus::CTMigrationStarted);
+		assert_eq!(project_details.migration_type, Some(MigrationType::Pallet(PalletMigrationInfo {
+			parachain_id: ParaId::from(6969),
+			hrmp_channel_status: HRMPChannelStatus { project_to_polimec: ChannelStatus::Closed, polimec_to_project: ChannelStatus::Closed },
+			migration_readiness_check: None,
+			remaining_participants: 13,
+		})))
+	}
+
+	#[benchmark]
+	fn start_offchain_migration() {
+		// setup
+		let mut inst = BenchInstantiator::<T>::new(None);
+		<T as Config>::SetPrices::set_prices();
+
+		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
+
+		let project_metadata = default_project_metadata::<T>(issuer.clone());
+		let project_id = inst.create_finished_project(
+			project_metadata.clone(),
+			issuer.clone(),
+			default_evaluations::<T>(),
+			default_bids::<T>(),
+			default_community_contributions::<T>(),
+			vec![],
+		);
+
+		let settlement_block = inst.get_update_block(project_id, &UpdateType::StartSettlement).unwrap();
+		inst.jump_to_block(settlement_block);
+
+		inst.settle_project(project_id).unwrap();
+
+		let jwt = get_mock_jwt_with_cid(
+			issuer.clone(),
+			InvestorType::Institutional,
+			generate_did_from_account(issuer.clone()),
+			project_metadata.clone().policy_ipfs_cid.unwrap(),
+		);
+
+		#[extrinsic_call]
+		start_offchain_migration(RawOrigin::Signed(issuer), jwt, project_id);
+
+		// * validity checks *
+		let project_details = inst.get_project_details(project_id);
+		assert_eq!(project_details.status, ProjectStatus::CTMigrationStarted);
+		assert_eq!(project_details.migration_type, Some(MigrationType::Offchain(OffchainMigrationInfo{ remaining_participants: 13 })));
+	}
+
+	#[benchmark]
+	fn confirm_offchain_migration() {
+		// setup
+		let mut inst = BenchInstantiator::<T>::new(None);
+		<T as Config>::SetPrices::set_prices();
+
+		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
+		let participant =  account::<AccountIdOf<T>>("test_participant", 0, 0);
+
+		let max_evaluations = (0..<T as Config>::MaxEvaluationsPerUser::get()).map(|i| UserToUSDBalance::new(
+			participant.clone(),
+			(100 * USD_UNIT).into(),
+		)).collect_vec();
+		let max_bids = (0..T::MaxBidsPerUser::get()).map(|i| BidParams::new(
+			participant.clone(),
+			(500 * CT_UNIT).into(),
+			1u8,
+			AcceptedFundingAsset::USDT)).collect_vec();
+		let max_contributions = (0..<T as Config>::MaxContributionsPerUser::get()).map(|i| ContributionParams::new(
+			participant.clone(),
+			(10 * CT_UNIT).into(),
+			1u8,
+			AcceptedFundingAsset::USDT)).collect_vec();
+
+		let mut evaluations = default_evaluations::<T>();
+		evaluations.extend(max_evaluations);
+
+		let mut bids = default_bids::<T>();
+		bids.extend(max_bids);
+
+
+		let project_metadata = default_project_metadata::<T>(issuer.clone());
+		let project_id = inst.create_finished_project(
+			project_metadata.clone(),
+			issuer.clone(),
+			evaluations,
+			bids,
+			default_community_contributions::<T>(),
+			max_contributions,
+		);
+
+		let settlement_block = inst.get_update_block(project_id, &UpdateType::StartSettlement).unwrap();
+		inst.jump_to_block(settlement_block);
+
+		inst.settle_project(project_id).unwrap();
+
+		let jwt = get_mock_jwt_with_cid(
+			issuer.clone(),
+			InvestorType::Institutional,
+			generate_did_from_account(issuer.clone()),
+			project_metadata.clone().policy_ipfs_cid.unwrap(),
+		);
+
+
+		crate::Pallet::<T>::start_offchain_migration(RawOrigin::Signed(issuer.clone()).into(), jwt.clone(), project_id).unwrap();
+
+		let participant_migrations_len = UserMigrations::<T>::get((project_id, participant)).unwrap().1.len();
+		assert_eq!(participant_migrations_len as u32, MaxParticipationsPerUser::<T>::get());
+
+		#[extrinsic_call]
+		confirm_offchain_migration(RawOrigin::Signed(issuer), project_id, account::<AccountIdOf<T>>("contributor_1", 0, 0));
+
+		// * validity checks *
+		let project_details = inst.get_project_details(project_id);
+		assert_eq!(project_details.status, ProjectStatus::CTMigrationStarted);
+		assert_eq!(project_details.migration_type, Some(MigrationType::Offchain(OffchainMigrationInfo{ remaining_participants: 13 })));
+	}
+
+
+
 
 	#[cfg(test)]
 	mod tests {
@@ -2884,6 +3035,27 @@ mod benchmarks {
 		fn bench_end_funding_awaiting_decision_evaluators_slashed() {
 			new_test_ext().execute_with(|| {
 				assert_ok!(PalletFunding::<TestRuntime>::test_end_funding_awaiting_decision_evaluators_slashed());
+			});
+		}
+
+		#[test]
+		fn bench_start_pallet_migration() {
+			new_test_ext().execute_with(|| {
+				assert_ok!(PalletFunding::<TestRuntime>::test_start_pallet_migration());
+			});
+		}
+
+		#[test]
+		fn bench_start_offchain_migration() {
+			new_test_ext().execute_with(|| {
+				assert_ok!(PalletFunding::<TestRuntime>::test_start_offchain_migration());
+			});
+		}
+
+		#[test]
+		fn bench_confirm_offchain_migration() {
+			new_test_ext().execute_with(|| {
+				assert_ok!(PalletFunding::<TestRuntime>::test_confirm_offchain_migration());
 			});
 		}
 	}
