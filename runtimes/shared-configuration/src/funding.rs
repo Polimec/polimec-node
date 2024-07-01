@@ -22,7 +22,7 @@ use polimec_common::USD_UNIT;
 use sp_arithmetic::{FixedU128, Percent};
 use sp_std::{collections::btree_map::BTreeMap, vec, vec::Vec};
 
-#[cfg(any(feature = "fast-mode", not(any(feature = "fast-mode", feature = "instant-mode"))))]
+#[cfg(not(feature = "instant-mode"))]
 use parachains_common::HOURS;
 
 #[cfg(feature = "instant-mode")]
