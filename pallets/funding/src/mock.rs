@@ -30,7 +30,7 @@ use frame_support::{
 };
 use frame_system as system;
 use frame_system::{EnsureRoot, RawOrigin as SystemRawOrigin};
-use polimec_common::{credentials::EnsureInvestor, USD_UNIT};
+use polimec_common::{credentials::EnsureInvestor, DummyXcmSender, USD_UNIT};
 use polkadot_parachain_primitives::primitives::Sibling;
 use sp_arithmetic::Percent;
 use sp_core::H256;
@@ -136,19 +136,6 @@ impl ExecuteXcm<RuntimeCall> for MockXcmExecutor {
 
 	fn charge_fees(_location: impl Into<MultiLocation>, _fees: MultiAssets) -> XcmResult {
 		Ok(())
-	}
-}
-pub struct DummyXcmSender;
-impl SendXcm for DummyXcmSender {
-	type Ticket = ();
-
-	fn validate(_: &mut Option<MultiLocation>, _: &mut Option<Xcm<()>>) -> SendResult<Self::Ticket> {
-		Ok(((), MultiAssets::new()))
-	}
-
-	/// Actually carry out the delivery operation for a previously validated message sending.
-	fn deliver(_ticket: Self::Ticket) -> Result<XcmHash, SendError> {
-		Ok([0u8; 32])
 	}
 }
 

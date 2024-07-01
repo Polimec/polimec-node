@@ -1165,6 +1165,35 @@ mod remaining_contribute_extrinsic {
 			};
 			assert_eq!(account_data, expected_account_data);
 		}
+
+		#[test]
+		fn participant_was_evaluator_and_bidder() {
+			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+			let issuer = ISSUER_1;
+			let participant = 42069u32;
+			let project_metadata = default_project_metadata(issuer);
+			let mut evaluations = default_evaluations();
+			evaluations.push((participant, 100 * USD_UNIT).into());
+			let mut bids = default_bids();
+			bids.push(BidParams::new(participant, 1000 * CT_UNIT, 1u8, AcceptedFundingAsset::USDT));
+			let community_contributions = default_community_buys();
+			let mut remainder_contributions = default_remainder_buys();
+			remainder_contributions.push(ContributionParams::new(
+				participant,
+				10 * CT_UNIT,
+				1u8,
+				AcceptedFundingAsset::USDT,
+			));
+
+			let _project_id = inst.create_finished_project(
+				project_metadata.clone(),
+				issuer,
+				evaluations,
+				bids,
+				community_contributions,
+				remainder_contributions,
+			);
+		}
 	}
 
 	#[cfg(test)]

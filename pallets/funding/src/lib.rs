@@ -1011,7 +1011,6 @@ pub mod pallet {
 			Self::do_start_community_funding(project_id)
 		}
 
-
 		/// Buy tokens in the Community or Remainder round at the price set in the Auction Round
 		#[pallet::call_index(12)]
 		#[pallet::weight(
@@ -1226,9 +1225,8 @@ pub mod pallet {
 			Self::do_settle_failed_contribution(bid, project_id)
 		}
 
-		// TODO: add weight
 		#[pallet::call_index(25)]
-		#[pallet::weight(Weight::from_parts(1000, 0))]
+		#[pallet::weight(WeightInfoOf::<T>::start_pallet_migration())]
 		pub fn start_pallet_migration(
 			origin: OriginFor<T>,
 			jwt: UntrustedToken,
@@ -1242,9 +1240,8 @@ pub mod pallet {
 			Self::do_start_pallet_migration(&account, project_id, para_id)
 		}
 
-		// TODO: add weight
 		#[pallet::call_index(26)]
-		#[pallet::weight(Weight::from_parts(1000, 0))]
+		#[pallet::weight(WeightInfoOf::<T>::start_offchain_migration())]
 		pub fn start_offchain_migration(
 			origin: OriginFor<T>,
 			jwt: UntrustedToken,
@@ -1257,9 +1254,8 @@ pub mod pallet {
 			Self::do_start_offchain_migration(project_id, account)
 		}
 
-		// TODO: add weight
 		#[pallet::call_index(27)]
-		#[pallet::weight(Weight::from_parts(1000, 0))]
+		#[pallet::weight(WeightInfoOf::<T>::start_pallet_migration_readiness_check())]
 		pub fn start_pallet_migration_readiness_check(
 			origin: OriginFor<T>,
 			jwt: UntrustedToken,
@@ -1272,9 +1268,9 @@ pub mod pallet {
 		}
 
 		/// Called only by other chains through a query response xcm message
-		// TODO: add weight
 		#[pallet::call_index(28)]
-		#[pallet::weight(Weight::from_parts(1000, 0))]
+		#[pallet::weight(WeightInfoOf::<T>::pallet_migration_readiness_response_pallet_info()
+		.max(WeightInfoOf::<T>::pallet_migration_readiness_response_holding()))]
 		pub fn pallet_migration_readiness_response(
 			origin: OriginFor<T>,
 			query_id: xcm::v3::QueryId,
@@ -1285,9 +1281,8 @@ pub mod pallet {
 			Self::do_pallet_migration_readiness_response(location, query_id, response)
 		}
 
-		// TODO: add weight
 		#[pallet::call_index(29)]
-		#[pallet::weight(Weight::from_parts(1000, 0))]
+		#[pallet::weight(WeightInfoOf::<T>::send_pallet_migration_for(MaxParticipationsPerUser::<T>::get()))]
 		pub fn send_pallet_migration_for(
 			origin: OriginFor<T>,
 			project_id: ProjectId,
@@ -1297,9 +1292,8 @@ pub mod pallet {
 			Self::do_send_pallet_migration_for(project_id, participant)
 		}
 
-		// TODO: add weight
 		#[pallet::call_index(30)]
-		#[pallet::weight(Weight::from_parts(1000, 0))]
+		#[pallet::weight(WeightInfoOf::<T>::confirm_pallet_migrations(MaxParticipationsPerUser::<T>::get()))]
 		pub fn confirm_pallet_migrations(
 			origin: OriginFor<T>,
 			query_id: QueryId,
@@ -1310,9 +1304,8 @@ pub mod pallet {
 			Self::do_confirm_pallet_migrations(location, query_id, response)
 		}
 
-		// TODO: add weight
 		#[pallet::call_index(31)]
-		#[pallet::weight(Weight::from_parts(1000, 0))]
+		#[pallet::weight(WeightInfoOf::<T>::confirm_offchain_migration(MaxParticipationsPerUser::<T>::get()))]
 		pub fn confirm_offchain_migration(
 			origin: OriginFor<T>,
 			project_id: ProjectId,
@@ -1323,13 +1316,9 @@ pub mod pallet {
 			Self::do_confirm_offchain_migration(project_id, caller, participant)
 		}
 
-		// TODO: add weight
 		#[pallet::call_index(32)]
-		#[pallet::weight(Weight::from_parts(1000, 0))]
-		pub fn mark_project_migration_as_finished(
-			origin: OriginFor<T>,
-			project_id: ProjectId,
-		) -> DispatchResult {
+		#[pallet::weight(WeightInfoOf::<T>::mark_project_ct_migration_as_finished())]
+		pub fn mark_project_ct_migration_as_finished(origin: OriginFor<T>, project_id: ProjectId) -> DispatchResult {
 			let _caller = ensure_signed(origin)?;
 
 			Self::do_mark_project_ct_migration_as_finished(project_id)

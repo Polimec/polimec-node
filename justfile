@@ -72,6 +72,23 @@ benchmark-pallet chain="polimec-paseo-local"  pallet="pallet-dispenser":
       --output=pallets/{{ replace(pallet, "pallet-", "") }}/src/weights.rs \
       --template=./.maintain/frame-weight-template.hbs
 
+
+benchmark-extrinsics pallet="pallet-funding" extrinsics="*" :
+    cargo run --features runtime-benchmarks --profile=production -p polimec-node benchmark pallet \
+      --chain=polimec-paseo-local \
+      --steps=10 \
+      --repeat=5 \
+      --pallet={{ pallet }}  \
+      --no-storage-info \
+      --no-median-slopes \
+      --no-min-squares \
+      --extrinsic={{ extrinsics }} \
+      --wasm-execution=compiled \
+      --heap-pages=4096 \
+      --output=benchmarked-extrinsics.rs \
+      --template=./.maintain/frame-weight-template.hbs
+
+
 # Build the Node Docker Image
 docker-build tag="latest" package="polimec-node":
     ./scripts/build_image.sh {{ tag }} ./Dockerfile {{ package }}

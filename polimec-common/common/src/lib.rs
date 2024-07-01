@@ -19,6 +19,8 @@
 use frame_support::{pallet_prelude::*, traits::tokens::fungible};
 use sp_runtime::RuntimeDebug;
 use sp_std::prelude::*;
+use xcm::v3::{opaque::Xcm, MultiAssets, MultiLocation, SendError, SendResult, SendXcm, XcmHash};
+
 pub mod credentials;
 
 /// A release schedule over a fungible. This allows a particular fungible to have release limits
@@ -215,3 +217,17 @@ pub mod migration_types {
 
 pub const USD_DECIMALS: u8 = 6;
 pub const USD_UNIT: u128 = 10u128.pow(USD_DECIMALS as u32);
+
+pub struct DummyXcmSender;
+impl SendXcm for DummyXcmSender {
+	type Ticket = ();
+
+	fn validate(_: &mut Option<MultiLocation>, _: &mut Option<Xcm>) -> SendResult<Self::Ticket> {
+		Ok(((), MultiAssets::new()))
+	}
+
+	/// Actually carry out the delivery operation for a previously validated message sending.
+	fn deliver(_ticket: Self::Ticket) -> Result<XcmHash, SendError> {
+		Ok([0u8; 32])
+	}
+}

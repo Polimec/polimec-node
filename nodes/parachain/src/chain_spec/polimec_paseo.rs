@@ -25,7 +25,8 @@ use polimec_runtime::{AccountId, MinCandidateStk};
 
 pub fn get_local_chain_spec() -> GenericChainSpec {
 	let endowed_accounts = vec![alice(), bob(), charlie(), dave()];
-	let endowed_accounts = endowed_accounts.iter().map(|x| (x.clone(), MinCandidateStk::get() * 5)).collect::<Vec<_>>();
+	let endowed_accounts =
+		endowed_accounts.iter().map(|x| (x.clone(), MinCandidateStk::get() * 20)).collect::<Vec<_>>();
 	let genesis_config_params = GenesisConfigParams {
 		stakers: vec![alice(), bob()],
 		council_members: vec![alice()],
