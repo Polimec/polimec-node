@@ -17,11 +17,13 @@
 use crate::{Balance, BlockNumber};
 use frame_support::{parameter_types, PalletId};
 use pallet_funding::types::AcceptedFundingAsset;
-#[allow(unused)]
-use parachains_common::{AssetIdForTrustBackedAssets, HOURS};
+use parachains_common::AssetIdForTrustBackedAssets;
 use polimec_common::USD_UNIT;
 use sp_arithmetic::{FixedU128, Percent};
 use sp_std::{collections::btree_map::BTreeMap, vec, vec::Vec};
+
+#[cfg(any(feature = "fast-mode", not(any(feature = "fast-mode", feature = "instant-mode"))))]
+use parachains_common::HOURS;
 
 #[cfg(feature = "instant-mode")]
 pub const EVALUATION_DURATION: BlockNumber = 3;
