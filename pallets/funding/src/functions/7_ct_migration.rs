@@ -212,7 +212,7 @@ impl<T: Config> Pallet<T> {
 					para_id: ParaId::from(recipient),
 				});
 
-				Pallet::<T>::do_start_migration_readiness_check(
+				Pallet::<T>::do_start_pallet_migration_readiness_check(
 					&(T::PalletId::get().into_account_truncating()),
 					project_id,
 				)
@@ -229,7 +229,7 @@ impl<T: Config> Pallet<T> {
 	/// After the bidirectional HRMP channels are established, check that the project chain has the Polimec receiver pallet,
 	/// and has minted the amount of CTs sold to the Polimec sovereign account.
 	#[transactional]
-	pub fn do_start_migration_readiness_check(caller: &AccountIdOf<T>, project_id: ProjectId) -> DispatchResult {
+	pub fn do_start_pallet_migration_readiness_check(caller: &AccountIdOf<T>, project_id: ProjectId) -> DispatchResult {
 		// * Get variables *
 		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 		let Some(MigrationType::Pallet(ref mut migration_info)) = project_details.migration_type else {
@@ -266,7 +266,7 @@ impl<T: Config> Pallet<T> {
 		}
 
 		// * Update storage *
-		let call = Call::<T>::migration_check_response { query_id: Default::default(), response: Default::default() };
+		let call = Call::<T>::pallet_migration_readiness_response { query_id: Default::default(), response: Default::default() };
 
 		let query_id_holdings = pallet_xcm::Pallet::<T>::new_notify_query(
 			project_multilocation.clone(),
@@ -324,7 +324,7 @@ impl<T: Config> Pallet<T> {
 
 	/// Handle the migration readiness check response from the project chain.
 	#[transactional]
-	pub fn do_migration_check_response(
+	pub fn do_pallet_migration_readiness_response(
 		location: MultiLocation,
 		query_id: xcm::v3::QueryId,
 		response: xcm::v3::Response,
