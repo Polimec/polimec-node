@@ -307,7 +307,7 @@ parameter_types! {
 	];
 	pub EarlyEvaluationThreshold: Percent = Percent::from_percent(10);
 	pub EvaluatorSlash: Percent = Percent::from_percent(20);
-	pub ProtocolGrowthTreasuryAccount: AccountId = AccountId::from(696969u32);
+	pub BlockchainOperationTreasuryAccount: AccountId = AccountId::from(696969u32);
 	pub ContributionTreasury: AccountId = AccountId::from(4204204206u32);
 }
 
@@ -400,6 +400,7 @@ impl Config for TestRuntime {
 	type Balance = Balance;
 	type BlockNumber = BlockNumber;
 	type BlockNumberToBalance = ConvertInto;
+	type BlockchainOperationTreasury = BlockchainOperationTreasuryAccount;
 	type CommunityFundingDuration = CommunityRoundDuration;
 	type ContributionTokenCurrency = ContributionTokens;
 	type ContributionTreasury = ContributionTreasury;
@@ -427,7 +428,6 @@ impl Config for TestRuntime {
 	type PreImageLimit = ConstU32<1024>;
 	type Price = FixedU128;
 	type PriceProvider = ConstPriceProvider;
-	type ProtocolGrowthTreasury = ProtocolGrowthTreasuryAccount;
 	type Randomness = RandomnessCollectiveFlip;
 	type RemainderFundingDuration = RemainderFundingDuration;
 	type RequiredMaxCapacity = RequiredMaxCapacity;
@@ -470,7 +470,7 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
 			balances: vec![
 				(<TestRuntime as Config>::PalletId::get().into_account_truncating(), ed),
 				(<TestRuntime as Config>::ContributionTreasury::get(), ed),
-				(<TestRuntime as Config>::ProtocolGrowthTreasury::get(), ed),
+				(<TestRuntime as Config>::BlockchainOperationTreasury::get(), ed),
 			],
 		},
 		foreign_assets: ForeignAssetsConfig {

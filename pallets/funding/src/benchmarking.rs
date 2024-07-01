@@ -1540,7 +1540,7 @@ mod benchmarks {
 		let evaluation_to_settle =
 			inst.execute(|| Evaluations::<T>::iter_prefix_values((project_id, evaluator.clone())).next().unwrap());
 
-		let treasury_account = T::ProtocolGrowthTreasury::get();
+		let treasury_account = T::BlockchainOperationTreasury::get();
 		let free_treasury_plmc = inst.get_free_plmc_balances_for(vec![treasury_account])[0].plmc_amount;
 		assert_eq!(free_treasury_plmc, inst.get_ed());
 
@@ -1563,7 +1563,7 @@ mod benchmarks {
 			.plmc_amount;
 		assert_eq!(reserved_plmc, 0.into());
 
-		let treasury_account = T::ProtocolGrowthTreasury::get();
+		let treasury_account = T::BlockchainOperationTreasury::get();
 		let free_treasury_plmc = inst.get_free_plmc_balances_for(vec![treasury_account])[0].plmc_amount;
 		let ed = inst.get_ed();
 		assert_eq!(free_treasury_plmc, slashed_amount + ed);

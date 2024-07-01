@@ -415,9 +415,9 @@ pub mod pallet {
 		#[pallet::constant]
 		type SuccessToSettlementTime: Get<BlockNumberFor<Self>>;
 
-		/// Treasury account holding PLMC at TGE.
+		/// Account that receive the PLMC slashed from failed evaluations.
 		#[pallet::constant]
-		type ProtocolGrowthTreasury: Get<AccountIdOf<Self>>;
+		type BlockchainOperationTreasury: Get<AccountIdOf<Self>>;
 
 		/// Treasury account holding the CT fees charged to issuers.
 		#[pallet::constant]

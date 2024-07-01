@@ -371,7 +371,7 @@ pub mod polimec {
 	use super::*;
 	use crate::{PolimecNet, PolimecOrigin, PolimecRuntime};
 	use pallet_funding::AcceptedFundingAsset;
-	use polimec_runtime::{PayMaster, TreasuryAccount};
+	use polimec_runtime::{BlockchainOperationTreasury, TreasuryAccount};
 	use xcm::v3::Parent;
 	use xcm_emulator::TestExt;
 
@@ -446,7 +446,7 @@ pub mod polimec {
 		funded_accounts.extend(accounts::init_balances().iter().cloned().map(|k| (k, INITIAL_DEPOSIT)));
 		funded_accounts.extend(collators::initial_authorities().iter().cloned().map(|(acc, _)| (acc, 20_005 * PLMC)));
 		funded_accounts.push((TreasuryAccount::get(), 20_005 * PLMC));
-		funded_accounts.push((PayMaster::get(), 20_005 * PLMC));
+		funded_accounts.push((BlockchainOperationTreasury::get(), 20_005 * PLMC));
 
 		let genesis_config = polimec_runtime::RuntimeGenesisConfig {
 			system: Default::default(),

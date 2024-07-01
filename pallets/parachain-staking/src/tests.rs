@@ -2893,7 +2893,7 @@ fn payout_distribution_to_solo_collators() {
 			(7, 33),
 			(8, 33),
 			(9, 33),
-			(crate::mock::PayMaster::get(), 1000),
+			(crate::mock::BlockchainOperationTreasury::get(), 1000),
 		])
 		.with_candidates(vec![(1, 100), (2, 90), (3, 80), (4, 70)])
 		.build()
@@ -3120,7 +3120,7 @@ fn payouts_follow_delegation_changes() {
 			(8, 100),
 			(9, 100),
 			(10, 100),
-			(crate::mock::PayMaster::get(), 1000),
+			(crate::mock::BlockchainOperationTreasury::get(), 1000),
 		])
 		.with_candidates(vec![(1, 20), (2, 20), (3, 20), (4, 20)])
 		.with_delegations(vec![(6, 1, 10), (7, 1, 10), (8, 2, 10), (9, 2, 10), (10, 1, 10)])
