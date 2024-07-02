@@ -825,7 +825,10 @@ mod start_auction_extrinsic {
 					Error::<TestRuntime>::TransitionPointNotSet
 				);
 			});
-			assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::FundingFailed);
+			assert_eq!(
+				inst.get_project_details(project_id).status,
+				ProjectStatus::SettlementStarted(FundingOutcome::FundingFailed)
+			);
 		}
 
 		#[test]
