@@ -31,10 +31,7 @@ pub mod pallet {
 	use polkadot_parachain_primitives::primitives::{Id as ParaId, Sibling};
 	use sp_runtime::traits::{AccountIdConversion, Convert};
 	use sp_std::prelude::*;
-	use xcm::{
-		latest::{Junction::AccountId32, Junctions::X1, Location},
-		v4::Junction,
-	};
+	use xcm::latest::Junction::AccountId32;
 
 	type MomentOf<T> = <<T as Config>::Vesting as VestingSchedule<<T as frame_system::Config>::AccountId>>::Moment;
 
@@ -105,36 +102,37 @@ pub mod pallet {
 			let polimec_id = T::PolimecParaId::get();
 			let polimec_soverign_account = Sibling(polimec_id).into_account_truncating();
 			ensure!(para_id == T::PolimecParaId::get(), "Only Polimec Parachain can call migrations");
-			for migration @ Migration {
-				origin: MigrationOrigin { user, id, participation_type },
+			for ref migration @ Migration {
+				origin: MigrationOrigin { ref user, id, participation_type },
 				info: MigrationInfo { contribution_token_amount, .. },
 				..
 			} in migrations.inner()
 			{
 				// let junction = Junction::from(user);
-				let user_32 = match user {
-					Location { parents, interior} => Ok(interior.X1),
-					_ => Err(Error::<T>::NoneValue),
-				}?;
+				let user_32 = match user.first_interior() {
+					Some(AccountId32 { network: _, id }) => T::AccountId::from(*id),
+					_ => return Err(Error::<T>::NoneValue.into()),
+				};
+
 				let already_executed = ExecutedMigrations::<T>::get((user, participation_type, id));
 				if already_executed {
-					Self::deposit_event(Event::DuplicatedMigrationSkipped { migration });
+					Self::deposit_event(Event::DuplicatedMigrationSkipped { migration: migration.clone() });
 					continue;
 				}
 				T::Balances::transfer(
 					&polimec_soverign_account,
-					&user_32.into(),
+					&user_32,
 					contribution_token_amount.into(),
 					KeepAlive,
 				)?;
 				T::Vesting::add_vesting_schedule(
-					&user_32.into(),
+					&user_32,
 					contribution_token_amount.into(),
 					T::MigrationInfoToPerBlockBalance::convert(migration.info.clone()),
 					T::GenesisMoment::get(),
 				)?;
 				ExecutedMigrations::<T>::insert((user, participation_type, id), true);
-				Self::deposit_event(Event::MigrationExecuted { migration });
+				Self::deposit_event(Event::MigrationExecuted { migration: migration.clone() });
 			}
 
 			Ok(())
