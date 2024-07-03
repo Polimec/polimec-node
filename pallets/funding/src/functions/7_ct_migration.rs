@@ -30,7 +30,7 @@ impl<T: Config> Pallet<T> {
 	pub fn do_handle_channel_open_request(message: Instruction) -> XcmResult {
 		// TODO: set these constants with a proper value
 		const EXECUTION_DOT: MultiAsset = MultiAsset {
-			id: Concrete(MultiLocation { parents: 0, interior: Here }),
+			id: Concrete(Location { parents: 0, interior: Here }),
 			fun: Fungible(1_0_000_000_000u128),
 		};
 		const MAX_WEIGHT: Weight = Weight::from_parts(20_000_000_000, 1_000_000);
@@ -83,12 +83,12 @@ impl<T: Config> Pallet<T> {
 					RefundSurplus,
 					DepositAsset {
 						assets: Wild(All),
-						beneficiary: MultiLocation { parents: 0, interior: X1(Parachain(POLIMEC_PARA_ID)) },
+						beneficiary: Location { parents: 0, interior: X1(Parachain(POLIMEC_PARA_ID)) },
 					},
 				]);
 				let mut message = Some(xcm);
 
-				let dest_loc = MultiLocation { parents: 1, interior: Here };
+				let dest_loc = Location { parents: 1, interior: Here };
 				let mut destination = Some(dest_loc);
 				let (ticket, _price) = T::XcmRouter::validate(&mut destination, &mut message)?;
 
@@ -213,7 +213,7 @@ impl<T: Config> Pallet<T> {
 
 		// * Send the migration query *
 		let expected_tokens: MultiAsset =
-			(MultiLocation { parents: 0, interior: Here }, total_cts_minted.into()).into();
+			(Location { parents: 0, interior: Here }, total_cts_minted.into()).into();
 		log::info!("expected_tokens sold for migrations: {:?}", total_cts_minted);
 		let xcm = Xcm(vec![
 			UnpaidExecution { weight_limit: WeightLimit::Unlimited, check_origin: None },
@@ -247,7 +247,7 @@ impl<T: Config> Pallet<T> {
 	/// Handle the migration readiness check response from the project chain.
 	#[transactional]
 	pub fn do_migration_check_response(
-		location: MultiLocation,
+		location: Location,
 		query_id: xcm::v3::QueryId,
 		response: xcm::v3::Response,
 	) -> DispatchResult {
@@ -266,7 +266,7 @@ impl<T: Config> Pallet<T> {
 			})
 			.ok_or(Error::<T>::ProjectDetailsNotFound)?;
 
-		let para_id = if let MultiLocation { parents: 1, interior: X1(Parachain(para_id)) } = location {
+		let para_id = if let Location { parents: 1, interior: X1(Parachain(para_id)) } = location {
 			ParaId::from(para_id)
 		} else {
 			return Err(Error::<T>::WrongParaId.into());
@@ -287,7 +287,7 @@ impl<T: Config> Pallet<T> {
 				let asset_1 = assets[0].clone();
 				match asset_1 {
 					MultiAsset {
-						id: Concrete(MultiLocation { parents: 1, interior: X1(Parachain(pid)) }),
+						id: Concrete(Location { parents: 1, interior: X1(Parachain(pid)) }),
 						fun: Fungible(amount),
 					} if amount >= ct_sold_as_u128 && pid == u32::from(para_id) => {
 						migration_check.holding_check.1 = CheckOutcome::Passed(None);
@@ -354,7 +354,7 @@ impl<T: Config> Pallet<T> {
 		// * Validity Checks *
 		ensure!(migration_readiness_check.is_ready(), Error::<T>::ChannelNotReady);
 
-		let project_multilocation = MultiLocation { parents: 1, interior: X1(Parachain(project_para_id.into())) };
+		let project_multilocation = Location { parents: 1, interior: X1(Parachain(project_para_id.into())) };
 		let call: <T as Config>::RuntimeCall =
 			Call::confirm_migrations { query_id: Default::default(), response: Default::default() }.into();
 		let query_id =
@@ -383,14 +383,14 @@ impl<T: Config> Pallet<T> {
 
 	/// Mark the migration item that corresponds to a single participation as confirmed or failed.
 	#[transactional]
-	pub fn do_confirm_migrations(location: MultiLocation, query_id: QueryId, response: Response) -> DispatchResult {
+	pub fn do_confirm_migrations(location: Location, query_id: QueryId, response: Response) -> DispatchResult {
 		use xcm::v3::prelude::*;
 		let (project_id, participant) =
 			ActiveMigrationQueue::<T>::take(query_id).ok_or(Error::<T>::NoActiveMigrationsFound)?;
 		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 
 		ensure!(
-			matches!(location, MultiLocation { parents: 1, interior: X1(Parachain(para_id))} if Some(ParaId::from(para_id)) == project_details.parachain_id),
+			matches!(location, Location { parents: 1, interior: X1(Parachain(para_id))} if Some(ParaId::from(para_id)) == project_details.parachain_id),
 			Error::<T>::WrongParaId
 		);
 

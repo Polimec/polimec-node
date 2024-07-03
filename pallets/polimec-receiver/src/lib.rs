@@ -31,7 +31,10 @@ pub mod pallet {
 	use polkadot_parachain_primitives::primitives::{Id as ParaId, Sibling};
 	use sp_runtime::traits::{AccountIdConversion, Convert};
 	use sp_std::prelude::*;
-	use xcm::latest::{Junction::AccountId32, Junctions::X1, MultiLocation};
+	use xcm::{
+		latest::{Junction::AccountId32, Junctions::X1, Location},
+		v4::Junction,
+	};
 
 	type MomentOf<T> = <<T as Config>::Vesting as VestingSchedule<<T as frame_system::Config>::AccountId>>::Moment;
 
@@ -61,7 +64,7 @@ pub mod pallet {
 	pub type ExecutedMigrations<T> = StorageNMap<
 		_,
 		(
-			NMapKey<Blake2_128Concat, xcm::latest::MultiLocation>,
+			NMapKey<Blake2_128Concat, xcm::latest::Location>,
 			NMapKey<Blake2_128Concat, ParticipationType>,
 			NMapKey<Blake2_128Concat, u32>,
 		),
@@ -101,16 +104,16 @@ pub mod pallet {
 			let para_id: ParaId = ensure_sibling_para(<T as Config>::RuntimeOrigin::from(origin))?;
 			let polimec_id = T::PolimecParaId::get();
 			let polimec_soverign_account = Sibling(polimec_id).into_account_truncating();
-
 			ensure!(para_id == T::PolimecParaId::get(), "Only Polimec Parachain can call migrations");
 			for migration @ Migration {
 				origin: MigrationOrigin { user, id, participation_type },
 				info: MigrationInfo { contribution_token_amount, .. },
 				..
-			} in migrations.clone().inner()
+			} in migrations.inner()
 			{
+				// let junction = Junction::from(user);
 				let user_32 = match user {
-					MultiLocation { parents: 0, interior: X1(AccountId32 { network: _, id }) } => Ok(id),
+					Location { parents, interior} => Ok(interior.X1),
 					_ => Err(Error::<T>::NoneValue),
 				}?;
 				let already_executed = ExecutedMigrations::<T>::get((user, participation_type, id));

@@ -93,7 +93,7 @@ fn get_asset_hub_balances(asset_id: u32, user_account: AccountId, polimec_accoun
 /// transfer either USDT, USDC and DOT.
 fn test_reserve_to_polimec(asset_id: u32) {
 	create_asset_on_asset_hub(asset_id);
-	let asset_hub_asset_id: MultiLocation = match asset_id {
+	let asset_hub_asset_id: Location = match asset_id {
 		10 => Parent.into(),
 		_ => (PalletInstance(AssetHubAssets::index() as u8), GeneralIndex(asset_id as u128)).into(),
 	};
@@ -210,7 +210,7 @@ fn test_reserve_to_polimec(asset_id: u32) {
 
 fn test_polimec_to_reserve(asset_id: u32) {
 	create_asset_on_asset_hub(asset_id);
-	let asset_hub_asset_id: MultiLocation = match asset_id {
+	let asset_hub_asset_id: Location = match asset_id {
 		10 => Parent.into(),
 		_ => ParentThen(X3(
 			Parachain(AssetNet::para_id().into()),

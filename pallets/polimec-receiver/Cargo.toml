@@ -47,6 +47,7 @@ runtime-benchmarks = [
 ]
 std = [
 	"codec/std",
+	"cumulus-pallet-xcm/std",
 	"frame-benchmarking/std",
 	"frame-support/std",
 	"frame-system/std",
@@ -59,8 +60,10 @@ std = [
 	"sp-io/std",
 	"sp-runtime/std",
 	"sp-std/std",
+	"xcm/std",
 ]
 try-runtime = [
+	"cumulus-pallet-xcm/try-runtime",
 	"frame-support/try-runtime",
 	"frame-system/try-runtime",
 	"polimec-common/try-runtime",

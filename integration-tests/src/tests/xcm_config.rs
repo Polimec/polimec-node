@@ -9,16 +9,16 @@ pub fn fake_message_hash<T>(message: &Xcm<T>) -> XcmHash {
 }
 #[test]
 fn execution_fees_go_to_treasury() {
-	let dot_amount = MultiAsset { id: Concrete(MultiLocation::parent()), fun: Fungible(100_0_000_000_000) };
+	let dot_amount = MultiAsset { id: Concrete(Location::parent()), fun: Fungible(100_0_000_000_000) };
 	let usdt_amount = MultiAsset {
-		id: Concrete(MultiLocation {
+		id: Concrete(Location {
 			parents: 1,
 			interior: X3(Parachain(1000), PalletInstance(50), GeneralIndex(1984)),
 		}),
 		fun: Fungible(100_000_000),
 	};
 	let usdc_amount = MultiAsset {
-		id: Concrete(MultiLocation {
+		id: Concrete(Location {
 			parents: 1,
 			interior: X3(Parachain(1000), PalletInstance(50), GeneralIndex(1337)),
 		}),
@@ -39,7 +39,7 @@ fn execution_fees_go_to_treasury() {
 			BuyExecution { fees: multi_asset, weight_limit: Unlimited },
 			DepositAsset {
 				assets: WildMultiAsset::All.into(),
-				beneficiary: MultiLocation::new(0, X1(AccountId32 { network: None, id: beneficiary.clone().into() })),
+				beneficiary: Location::new(0, X1(AccountId32 { network: None, id: beneficiary.clone().into() })),
 			},
 		])
 		.into();
@@ -48,7 +48,7 @@ fn execution_fees_go_to_treasury() {
 			let prev_beneficiary_balance = PolimecForeignAssets::balance(asset_id, beneficiary.clone());
 
 			let outcome = <PolimecRuntime as pallet_xcm::Config>::XcmExecutor::execute_xcm(
-				MultiLocation::new(1, X1(Parachain(1000))),
+				Location::new(1, X1(Parachain(1000))),
 				xcm.clone(),
 				fake_message_hash(&xcm),
 				Weight::MAX,
@@ -70,14 +70,14 @@ fn execution_fees_go_to_treasury() {
 
 	let assert_plmc_fee_goes_to_treasury = || {
 		let asset_amount = 100_0_000_000_000;
-		let multi_asset = MultiAsset { id: Concrete(MultiLocation::here()), fun: Fungible(asset_amount) };
+		let multi_asset = MultiAsset { id: Concrete(Location::here()), fun: Fungible(asset_amount) };
 
 		let xcm = Xcm::<PolimecCall>(vec![
 			WithdrawAsset(vec![multi_asset.clone()].into()),
 			BuyExecution { fees: multi_asset, weight_limit: Unlimited },
 			DepositAsset {
 				assets: WildMultiAsset::All.into(),
-				beneficiary: MultiLocation::new(0, X1(AccountId32 { network: None, id: beneficiary.clone().into() })),
+				beneficiary: Location::new(0, X1(AccountId32 { network: None, id: beneficiary.clone().into() })),
 			},
 		])
 		.into();
@@ -86,7 +86,7 @@ fn execution_fees_go_to_treasury() {
 			let prev_beneficiary_balance = PolimecBalances::free_balance(beneficiary.clone());
 
 			let outcome = <PolimecRuntime as pallet_xcm::Config>::XcmExecutor::execute_xcm(
-				MultiLocation::new(0, X1(AccountId32 { network: None, id: PolimecNet::account_id_of(ALICE).into() })),
+				Location::new(0, X1(AccountId32 { network: None, id: PolimecNet::account_id_of(ALICE).into() })),
 				xcm.clone(),
 				fake_message_hash(&xcm),
 				Weight::MAX,

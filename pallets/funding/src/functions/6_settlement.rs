@@ -448,7 +448,7 @@ impl<T: Config> Pallet<T> {
 		vesting_time: BlockNumberFor<T>,
 	) -> DispatchResult {
 		UserMigrations::<T>::try_mutate(project_id, origin, |maybe_migrations| -> DispatchResult {
-			let multilocation_user = MultiLocation::new(
+			let multilocation_user = Location::new(
 				0,
 				X1(AccountId32 { network: None, id: T::AccountId32Conversion::convert(origin.clone()) }),
 			);

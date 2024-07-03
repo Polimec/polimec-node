@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use xcm::v3::{
+use xcm::v4::{
 	opaque::Instruction,
 	prelude::{XcmError, XcmResult},
 };

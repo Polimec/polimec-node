@@ -101,11 +101,11 @@ pub trait ReleaseSchedule<AccountId, Reason> {
 
 pub mod migration_types {
 	use super::*;
-	use xcm::latest::MultiLocation;
+	use xcm::latest::Location;
 
 	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
 	pub struct MigrationOrigin {
-		pub user: MultiLocation,
+		pub user: Location,
 		pub id: u32,
 		pub participation_type: ParticipationType,
 	}

@@ -103,7 +103,6 @@
 // 	type FreezeIdentifier = pallet_funding::types::LockType<u32>;
 // 	type HoldIdentifier = pallet_funding::types::LockType<u32>;
 // 	type MaxFreezes = ();
-// 	type MaxHolds = ();
 // 	type MaxLocks = frame_support::traits::ConstU32<1024>;
 // 	type MaxReserves = frame_support::traits::ConstU32<1024>;
 // 	type ReserveIdentifier = pallet_funding::types::LockType<u32>;

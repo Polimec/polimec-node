@@ -400,7 +400,6 @@ impl pallet_balances::Config for Runtime {
 	type ExistentialDeposit = ExistentialDeposit;
 	type FreezeIdentifier = RuntimeFreezeReason;
 	type MaxFreezes = MaxReserves;
-	type MaxHolds = MaxLocks;
 	type MaxLocks = MaxLocks;
 	type MaxReserves = MaxReserves;
 	type ReserveIdentifier = [u8; 8];
@@ -1453,7 +1452,7 @@ impl_runtime_apis! {
 			/// TODO: Update these benchmarks once we enable PLMC Teleportation and upgrade pallet_xcm. New version has
 			/// a better and quite different trait
 			impl pallet_xcm::benchmarking::Config for Runtime {
-				fn reachable_dest() -> Option<MultiLocation> {
+				fn reachable_dest() -> Option<Location> {
 					PolkadotXcm::force_xcm_version(
 						RuntimeOrigin::root(),
 						Box::new(crate::xcm_config::AssetHubLocation::get()),
@@ -1462,7 +1461,7 @@ impl_runtime_apis! {
 					Some(crate::xcm_config::AssetHubLocation::get())
 				}
 
-				fn reserve_transferable_asset_and_dest() -> Option<(MultiAsset, MultiLocation)> {
+				fn reserve_transferable_asset_and_dest() -> Option<(MultiAsset, Location)> {
 					PolkadotXcm::force_xcm_version(
 						RuntimeOrigin::root(),
 						Box::new(crate::xcm_config::AssetHubLocation::get()),

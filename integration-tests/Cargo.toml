@@ -79,10 +79,8 @@ polimec-runtime.workspace = true
 penpal-runtime = { path = "penpal", default-features = false }
 
 [features]
-default = [ "instant-mode", "std", "development-settings"]
-instant-mode = [
-	"polimec-runtime/instant-mode",
-]
+default = [ "development-settings", "instant-mode", "std" ]
+instant-mode = [ "polimec-runtime/instant-mode" ]
 std = [
 	"asset-hub-polkadot-runtime/std",
 	"cumulus-pallet-xcm/std",
@@ -138,7 +136,5 @@ std = [
 	"xcm-executor/std",
 	"xcm/std",
 ]
-development-settings = [
-	"polimec-runtime/development-settings",
-]
+development-settings = [ "polimec-runtime/development-settings" ]
 

@@ -70,12 +70,12 @@ pub const fn free_deposit() -> Balance {
 pub struct SignedToAccountIndex<RuntimeOrigin, AccountId, Network>(PhantomData<(RuntimeOrigin, AccountId, Network)>);
 
 impl<RuntimeOrigin: OriginTrait + Clone, AccountId: Into<u32>, Network: Get<Option<NetworkId>>>
-	TryConvert<RuntimeOrigin, MultiLocation> for SignedToAccountIndex<RuntimeOrigin, AccountId, Network>
+	TryConvert<RuntimeOrigin, Location> for SignedToAccountIndex<RuntimeOrigin, AccountId, Network>
 where
 	RuntimeOrigin::PalletsOrigin:
 		From<SystemRawOrigin<AccountId>> + TryInto<SystemRawOrigin<AccountId>, Error = RuntimeOrigin::PalletsOrigin>,
 {
-	fn try_convert(o: RuntimeOrigin) -> Result<MultiLocation, RuntimeOrigin> {
+	fn try_convert(o: RuntimeOrigin) -> Result<Location, RuntimeOrigin> {
 		o.try_with_caller(|caller| match caller.try_into() {
 			Ok(SystemRawOrigin::Signed(who)) =>
 				Ok(Junction::AccountIndex64 { network: Network::get(), index: Into::<u32>::into(who).into() }.into()),
@@ -101,7 +101,7 @@ parameter_types! {
 	pub UnitWeightCost: Weight = Weight::from_parts(1_000_000_000, 64 * 1024);
 	pub const MaxInstructions: u32 = 100;
 
-	pub const HereLocation: MultiLocation = MultiLocation::here();
+	pub const HereLocation: Location = Location::here();
 }
 
 pub struct MockPrepared;
@@ -126,7 +126,7 @@ impl ExecuteXcm<RuntimeCall> for MockXcmExecutor {
 	}
 
 	fn execute(
-		_origin: impl Into<MultiLocation>,
+		_origin: impl Into<Location>,
 		_pre: Self::Prepared,
 		_id: &mut XcmHash,
 		_weight_credit: Weight,
@@ -134,7 +134,7 @@ impl ExecuteXcm<RuntimeCall> for MockXcmExecutor {
 		Outcome::Complete(Weight::zero())
 	}
 
-	fn charge_fees(_location: impl Into<MultiLocation>, _fees: MultiAssets) -> XcmResult {
+	fn charge_fees(_location: impl Into<Location>, _fees: MultiAssets) -> XcmResult {
 		Ok(())
 	}
 }
@@ -267,7 +267,6 @@ impl pallet_balances::Config for TestRuntime {
 	type ExistentialDeposit = ExistentialDeposit;
 	type FreezeIdentifier = ();
 	type MaxFreezes = ConstU32<1024>;
-	type MaxHolds = ConstU32<1024>;
 	type MaxLocks = frame_support::traits::ConstU32<1024>;
 	type MaxReserves = frame_support::traits::ConstU32<1024>;
 	type ReserveIdentifier = [u8; 8];
