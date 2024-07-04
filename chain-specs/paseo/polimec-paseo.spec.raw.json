@@ -8,7 +8,7 @@
   "properties": {
     "ss58Format": 41,
     "tokenDecimals": 10,
-    "tokenSymbol": "PLMC"
+    "tokenSymbol": "TPLMC"
   },
   "relay_chain": "paseo",
   "para_id": 3344,
