@@ -59,13 +59,12 @@ impl<T: Config> Pallet<T> {
 		project_details.status = ProjectStatus::AuctionOpening;
 		ProjectsDetails::<T>::insert(project_id, project_details);
 
-		let insertion_attempts;
 		// Schedule for automatic transition to auction closing round
-		match Self::add_to_update_store(opening_end_block + 1u32.into(), (&project_id, UpdateType::AuctionClosingStart))
-		{
-			Ok(iterations) => {
-				insertion_attempts = iterations;
-			},
+		let insertion_attempts = match Self::add_to_update_store(
+			opening_end_block + 1u32.into(),
+			(&project_id, UpdateType::AuctionClosingStart),
+		) {
+			Ok(iterations) => iterations,
 			Err(insertion_attempts) =>
 				return Err(DispatchErrorWithPostInfo {
 					post_info: PostDispatchInfo {

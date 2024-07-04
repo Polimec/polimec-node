@@ -278,6 +278,4 @@ try-runtime = [
 # to make it smaller, like logging for example.
 on-chain-release-build = [ "sp-api/disable-logging" ]
 
-development-settings = [
-	"shared-configuration/development-settings",
-]
+development-settings = [ "shared-configuration/development-settings" ]

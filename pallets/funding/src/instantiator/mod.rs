@@ -35,8 +35,6 @@ use frame_system::pallet_prelude::BlockNumberFor;
 use itertools::Itertools;
 use parity_scale_codec::Decode;
 use polimec_common::{credentials::InvestorType, migration_types::MigrationOrigin};
-#[cfg(any(test, feature = "std", feature = "runtime-benchmarks"))]
-use polimec_common_test_utils::generate_did_from_account;
 use sp_arithmetic::{
 	traits::{SaturatedConversion, Saturating, Zero},
 	FixedPointNumber, Percent, Perquintill,
@@ -52,13 +50,20 @@ use sp_std::{
 	marker::PhantomData,
 };
 
+#[cfg(any(test, feature = "std", feature = "runtime-benchmarks"))]
+use polimec_common_test_utils::generate_did_from_account;
+
 #[cfg(any(feature = "std", feature = "runtime-benchmarks"))]
 pub mod macros;
+
 pub mod types;
 pub use types::*;
+
 pub mod traits;
 pub use traits::*;
+
 #[cfg(any(feature = "std", feature = "runtime-benchmarks"))]
 pub mod calculations;
+
 #[cfg(any(feature = "std", feature = "runtime-benchmarks"))]
 pub mod chain_interactions;
