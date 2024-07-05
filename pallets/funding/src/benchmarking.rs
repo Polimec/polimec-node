@@ -3340,6 +3340,107 @@ mod benchmarks {
 		);
 	}
 
+	#[benchmark]
+	fn do_handle_channel_open_request() {
+		// setup
+		let mut inst = BenchInstantiator::<T>::new(None);
+		<T as Config>::SetPrices::set_prices();
+
+		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
+
+		let project_metadata = default_project_metadata::<T>(issuer.clone());
+		let project_id = inst.create_finished_project(
+			project_metadata.clone(),
+			issuer.clone(),
+			default_evaluations::<T>(),
+			default_bids::<T>(),
+			default_community_contributions::<T>(),
+			vec![],
+		);
+
+		let settlement_block = inst.get_update_block(project_id, &UpdateType::StartSettlement).unwrap();
+		inst.jump_to_block(settlement_block);
+
+		inst.settle_project(project_id).unwrap();
+
+		let jwt = get_mock_jwt_with_cid(
+			issuer.clone(),
+			InvestorType::Institutional,
+			generate_did_from_account(issuer.clone()),
+			project_metadata.clone().policy_ipfs_cid.unwrap(),
+		);
+
+		crate::Pallet::<T>::start_pallet_migration(
+			RawOrigin::Signed(issuer.clone()).into(),
+			jwt.clone(),
+			project_id,
+			6969u32.into(),
+		)
+		.unwrap();
+
+		#[block]
+		{
+			crate::Pallet::<T>::do_handle_channel_open_request(Instruction::HrmpNewChannelOpenRequest {
+				sender: 6969u32,
+				max_message_size: 102_400u32,
+				max_capacity: 1000,
+			})
+			.unwrap();
+		}
+	}
+
+	#[benchmark]
+	fn do_handle_channel_accepted() {
+		// setup
+		let mut inst = BenchInstantiator::<T>::new(None);
+		<T as Config>::SetPrices::set_prices();
+
+		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
+
+		let project_metadata = default_project_metadata::<T>(issuer.clone());
+		let project_id = inst.create_finished_project(
+			project_metadata.clone(),
+			issuer.clone(),
+			default_evaluations::<T>(),
+			default_bids::<T>(),
+			default_community_contributions::<T>(),
+			vec![],
+		);
+
+		let settlement_block = inst.get_update_block(project_id, &UpdateType::StartSettlement).unwrap();
+		inst.jump_to_block(settlement_block);
+
+		inst.settle_project(project_id).unwrap();
+
+		let jwt = get_mock_jwt_with_cid(
+			issuer.clone(),
+			InvestorType::Institutional,
+			generate_did_from_account(issuer.clone()),
+			project_metadata.clone().policy_ipfs_cid.unwrap(),
+		);
+
+		crate::Pallet::<T>::start_pallet_migration(
+			RawOrigin::Signed(issuer.clone()).into(),
+			jwt.clone(),
+			project_id,
+			6969u32.into(),
+		)
+		.unwrap();
+
+		crate::Pallet::<T>::do_handle_channel_open_request(Instruction::HrmpNewChannelOpenRequest {
+			sender: 6969u32,
+			max_message_size: 102_400u32,
+			max_capacity: 1000,
+		})
+		.unwrap();
+
+		#[block]
+		{
+			crate::Pallet::<T>::do_handle_channel_accepted(Instruction::HrmpChannelAccepted { recipient: 6969u32 })
+				.unwrap();
+		}
+	}
+
 	#[cfg(test)]
 	mod tests {
 		use super::*;
@@ -3602,6 +3703,20 @@ mod benchmarks {
 		fn bench_confirm_pallet_migrations() {
 			new_test_ext().execute_with(|| {
 				assert_ok!(PalletFunding::<TestRuntime>::test_confirm_pallet_migrations());
+			});
+		}
+
+		#[test]
+		fn bench_do_handle_channel_open_request() {
+			new_test_ext().execute_with(|| {
+				assert_ok!(PalletFunding::<TestRuntime>::test_do_handle_channel_open_request());
+			});
+		}
+
+		#[test]
+		fn bench_do_handle_channel_accepted() {
+			new_test_ext().execute_with(|| {
+				assert_ok!(PalletFunding::<TestRuntime>::test_do_handle_channel_accepted());
 			});
 		}
 	}
