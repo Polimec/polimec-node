@@ -84,13 +84,15 @@ pub trait WeightInfo {
 	fn start_settlement_funding_failure() -> Weight;
 	fn start_pallet_migration() -> Weight;
 	fn start_offchain_migration() -> Weight;
-	fn confirm_offchain_migration(_x: u32) -> Weight;
+	fn confirm_offchain_migration(x: u32, ) -> Weight;
 	fn mark_project_ct_migration_as_finished() -> Weight;
 	fn start_pallet_migration_readiness_check() -> Weight;
 	fn pallet_migration_readiness_response_holding() -> Weight;
 	fn pallet_migration_readiness_response_pallet_info() -> Weight;
-	fn send_pallet_migration_for(_x: u32) -> Weight;
-	fn confirm_pallet_migrations(_x: u32) -> Weight;
+	fn send_pallet_migration_for(x: u32, ) -> Weight;
+	fn confirm_pallet_migrations(x: u32, ) -> Weight;
+	fn do_handle_channel_open_request() -> Weight;
+	fn do_handle_channel_accepted() -> Weight;
 }
 
 /// Weights for `pallet_funding` using the Substrate node and recommended hardware.
@@ -822,33 +824,184 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 			.saturating_add(T::DbWeight::get().writes(1_u64))
 	}
 
-	// TODO: add real benchmarked weights
+	/// Storage: `Timestamp::Now` (r:1 w:0)
+	/// Proof: `Timestamp::Now` (`max_values`: Some(1), `max_size`: Some(8), added: 503, mode: `MaxEncodedLen`)
+	/// Storage: `Funding::ProjectsDetails` (r:1 w:1)
+	/// Proof: `Funding::ProjectsDetails` (`max_values`: None, `max_size`: Some(403), added: 2878, mode: `MaxEncodedLen`)
 	fn start_pallet_migration() -> Weight {
-		Weight::from_parts(100_000, 10_000)
+		// Proof Size summary in bytes:
+		//  Measured:  `840`
+		//  Estimated: `3868`
+		// Minimum execution time: 152_661_000 picoseconds.
+		Weight::from_parts(155_061_000, 3868)
+			.saturating_add(T::DbWeight::get().reads(2_u64))
+			.saturating_add(T::DbWeight::get().writes(1_u64))
 	}
+	/// Storage: `Timestamp::Now` (r:1 w:0)
+	/// Proof: `Timestamp::Now` (`max_values`: Some(1), `max_size`: Some(8), added: 503, mode: `MaxEncodedLen`)
+	/// Storage: `Funding::ProjectsDetails` (r:1 w:1)
+	/// Proof: `Funding::ProjectsDetails` (`max_values`: None, `max_size`: Some(403), added: 2878, mode: `MaxEncodedLen`)
 	fn start_offchain_migration() -> Weight {
-		Weight::from_parts(100_000, 10_000)
+		// Proof Size summary in bytes:
+		//  Measured:  `840`
+		//  Estimated: `3868`
+		// Minimum execution time: 146_811_000 picoseconds.
+		Weight::from_parts(148_061_000, 3868)
+			.saturating_add(T::DbWeight::get().reads(2_u64))
+			.saturating_add(T::DbWeight::get().writes(1_u64))
 	}
-	fn confirm_offchain_migration(_x: u32) -> Weight {
-		Weight::from_parts(100_000, 10_000)
+	/// Storage: `Funding::ProjectsDetails` (r:1 w:1)
+	/// Proof: `Funding::ProjectsDetails` (`max_values`: None, `max_size`: Some(403), added: 2878, mode: `MaxEncodedLen`)
+	/// Storage: `Funding::UserMigrations` (r:1 w:1)
+	/// Proof: `Funding::UserMigrations` (`max_values`: None, `max_size`: Some(30366), added: 32841, mode: `MaxEncodedLen`)
+	/// Storage: `Funding::UnmigratedCounter` (r:1 w:1)
+	/// Proof: `Funding::UnmigratedCounter` (`max_values`: None, `max_size`: Some(24), added: 2499, mode: `MaxEncodedLen`)
+	/// The range of component `x` is `[1, 48]`.
+	fn confirm_offchain_migration(x: u32, ) -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `1207 + x * (65 ±0)`
+		//  Estimated: `33831`
+		// Minimum execution time: 33_230_000 picoseconds.
+		Weight::from_parts(34_203_521, 33831)
+			// Standard Error: 18_388
+			.saturating_add(Weight::from_parts(605_344, 0).saturating_mul(x.into()))
+			.saturating_add(T::DbWeight::get().reads(3_u64))
+			.saturating_add(T::DbWeight::get().writes(3_u64))
 	}
+	/// Storage: `Funding::ProjectsDetails` (r:1 w:1)
+	/// Proof: `Funding::ProjectsDetails` (`max_values`: None, `max_size`: Some(403), added: 2878, mode: `MaxEncodedLen`)
+	/// Storage: `Funding::UnmigratedCounter` (r:1 w:0)
+	/// Proof: `Funding::UnmigratedCounter` (`max_values`: None, `max_size`: Some(24), added: 2499, mode: `MaxEncodedLen`)
 	fn mark_project_ct_migration_as_finished() -> Weight {
-		Weight::from_parts(100_000, 10_000)
+		// Proof Size summary in bytes:
+		//  Measured:  `810`
+		//  Estimated: `3868`
+		// Minimum execution time: 23_900_000 picoseconds.
+		Weight::from_parts(25_450_000, 3868)
+			.saturating_add(T::DbWeight::get().reads(2_u64))
+			.saturating_add(T::DbWeight::get().writes(1_u64))
 	}
+	/// Storage: `Timestamp::Now` (r:1 w:0)
+	/// Proof: `Timestamp::Now` (`max_values`: Some(1), `max_size`: Some(8), added: 503, mode: `MaxEncodedLen`)
+	/// Storage: `Funding::ProjectsDetails` (r:1 w:1)
+	/// Proof: `Funding::ProjectsDetails` (`max_values`: None, `max_size`: Some(403), added: 2878, mode: `MaxEncodedLen`)
+	/// Storage: `PolkadotXcm::QueryCounter` (r:1 w:1)
+	/// Proof: `PolkadotXcm::QueryCounter` (`max_values`: Some(1), `max_size`: None, mode: `Measured`)
+	/// Storage: `ContributionTokens::Asset` (r:1 w:0)
+	/// Proof: `ContributionTokens::Asset` (`max_values`: None, `max_size`: Some(210), added: 2685, mode: `MaxEncodedLen`)
+	/// Storage: `PolkadotXcm::Queries` (r:0 w:2)
+	/// Proof: `PolkadotXcm::Queries` (`max_values`: None, `max_size`: None, mode: `Measured`)
 	fn start_pallet_migration_readiness_check() -> Weight {
-		Weight::from_parts(100_000, 10_000)
+		// Proof Size summary in bytes:
+		//  Measured:  `1141`
+		//  Estimated: `3868`
+		// Minimum execution time: 195_162_000 picoseconds.
+		Weight::from_parts(198_081_000, 3868)
+			.saturating_add(T::DbWeight::get().reads(4_u64))
+			.saturating_add(T::DbWeight::get().writes(4_u64))
 	}
+	/// Storage: `Funding::ProjectsDetails` (r:2 w:1)
+	/// Proof: `Funding::ProjectsDetails` (`max_values`: None, `max_size`: Some(403), added: 2878, mode: `MaxEncodedLen`)
+	/// Storage: `Funding::ProjectsMetadata` (r:1 w:0)
+	/// Proof: `Funding::ProjectsMetadata` (`max_values`: None, `max_size`: Some(502), added: 2977, mode: `MaxEncodedLen`)
 	fn pallet_migration_readiness_response_holding() -> Weight {
-		Weight::from_parts(100_000, 10_000)
+		// Proof Size summary in bytes:
+		//  Measured:  `1152`
+		//  Estimated: `6746`
+		// Minimum execution time: 28_490_000 picoseconds.
+		Weight::from_parts(29_360_000, 6746)
+			.saturating_add(T::DbWeight::get().reads(3_u64))
+			.saturating_add(T::DbWeight::get().writes(1_u64))
 	}
+	/// Storage: `Funding::ProjectsDetails` (r:2 w:1)
+	/// Proof: `Funding::ProjectsDetails` (`max_values`: None, `max_size`: Some(403), added: 2878, mode: `MaxEncodedLen`)
+	/// Storage: `Funding::ProjectsMetadata` (r:1 w:0)
+	/// Proof: `Funding::ProjectsMetadata` (`max_values`: None, `max_size`: Some(502), added: 2977, mode: `MaxEncodedLen`)
 	fn pallet_migration_readiness_response_pallet_info() -> Weight {
-		Weight::from_parts(100_000, 10_000)
+		// Proof Size summary in bytes:
+		//  Measured:  `1152`
+		//  Estimated: `6746`
+		// Minimum execution time: 29_250_000 picoseconds.
+		Weight::from_parts(30_510_000, 6746)
+			.saturating_add(T::DbWeight::get().reads(3_u64))
+			.saturating_add(T::DbWeight::get().writes(1_u64))
 	}
-	fn send_pallet_migration_for(_x: u32) -> Weight {
-		Weight::from_parts(100_000, 10_000)
+	/// Storage: `Funding::ProjectsDetails` (r:1 w:1)
+	/// Proof: `Funding::ProjectsDetails` (`max_values`: None, `max_size`: Some(403), added: 2878, mode: `MaxEncodedLen`)
+	/// Storage: `Funding::Evaluations` (r:1 w:0)
+	/// Proof: `Funding::Evaluations` (`max_values`: None, `max_size`: Some(254), added: 2729, mode: `MaxEncodedLen`)
+	/// Storage: `Funding::Bids` (r:1 w:0)
+	/// Proof: `Funding::Bids` (`max_values`: None, `max_size`: Some(306), added: 2781, mode: `MaxEncodedLen`)
+	/// Storage: `Funding::Contributions` (r:1 w:0)
+	/// Proof: `Funding::Contributions` (`max_values`: None, `max_size`: Some(256), added: 2731, mode: `MaxEncodedLen`)
+	/// Storage: `Funding::UserMigrations` (r:1 w:1)
+	/// Proof: `Funding::UserMigrations` (`max_values`: None, `max_size`: Some(30366), added: 32841, mode: `MaxEncodedLen`)
+	/// Storage: `PolkadotXcm::QueryCounter` (r:1 w:1)
+	/// Proof: `PolkadotXcm::QueryCounter` (`max_values`: Some(1), `max_size`: None, mode: `Measured`)
+	/// Storage: `Funding::ActiveMigrationQueue` (r:0 w:1)
+	/// Proof: `Funding::ActiveMigrationQueue` (`max_values`: None, `max_size`: Some(60), added: 2535, mode: `MaxEncodedLen`)
+	/// Storage: `PolkadotXcm::Queries` (r:0 w:1)
+	/// Proof: `PolkadotXcm::Queries` (`max_values`: None, `max_size`: None, mode: `Measured`)
+	/// The range of component `x` is `[1, 48]`.
+	fn send_pallet_migration_for(x: u32, ) -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `1480 + x * (65 ±0)`
+		//  Estimated: `33831 + x * (65 ±0)`
+		// Minimum execution time: 73_441_000 picoseconds.
+		Weight::from_parts(73_900_476, 33831)
+			// Standard Error: 39_000
+			.saturating_add(Weight::from_parts(1_271_457, 0).saturating_mul(x.into()))
+			.saturating_add(T::DbWeight::get().reads(6_u64))
+			.saturating_add(T::DbWeight::get().writes(5_u64))
+			.saturating_add(Weight::from_parts(0, 65).saturating_mul(x.into()))
 	}
-	fn confirm_pallet_migrations(_x: u32) -> Weight {
-		Weight::from_parts(100_000, 10_000)
+	/// Storage: `Funding::ActiveMigrationQueue` (r:1 w:1)
+	/// Proof: `Funding::ActiveMigrationQueue` (`max_values`: None, `max_size`: Some(60), added: 2535, mode: `MaxEncodedLen`)
+	/// Storage: `Funding::ProjectsDetails` (r:1 w:1)
+	/// Proof: `Funding::ProjectsDetails` (`max_values`: None, `max_size`: Some(403), added: 2878, mode: `MaxEncodedLen`)
+	/// Storage: `Funding::UserMigrations` (r:1 w:1)
+	/// Proof: `Funding::UserMigrations` (`max_values`: None, `max_size`: Some(30366), added: 32841, mode: `MaxEncodedLen`)
+	/// Storage: `Funding::UnmigratedCounter` (r:1 w:1)
+	/// Proof: `Funding::UnmigratedCounter` (`max_values`: None, `max_size`: Some(24), added: 2499, mode: `MaxEncodedLen`)
+	/// The range of component `x` is `[1, 48]`.
+	fn confirm_pallet_migrations(x: u32, ) -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `1329 + x * (65 ±0)`
+		//  Estimated: `33831`
+		// Minimum execution time: 42_250_000 picoseconds.
+		Weight::from_parts(42_516_580, 33831)
+			// Standard Error: 15_555
+			.saturating_add(Weight::from_parts(636_115, 0).saturating_mul(x.into()))
+			.saturating_add(T::DbWeight::get().reads(4_u64))
+			.saturating_add(T::DbWeight::get().writes(4_u64))
+	}
+	/// Storage: `Funding::ProjectsDetails` (r:2 w:1)
+	/// Proof: `Funding::ProjectsDetails` (`max_values`: None, `max_size`: Some(403), added: 2878, mode: `MaxEncodedLen`)
+	fn do_handle_channel_open_request() -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `805`
+		//  Estimated: `6746`
+		// Minimum execution time: 22_580_000 picoseconds.
+		Weight::from_parts(23_350_000, 6746)
+			.saturating_add(T::DbWeight::get().reads(2_u64))
+			.saturating_add(T::DbWeight::get().writes(1_u64))
+	}
+	/// Storage: `Funding::ProjectsDetails` (r:2 w:1)
+	/// Proof: `Funding::ProjectsDetails` (`max_values`: None, `max_size`: Some(403), added: 2878, mode: `MaxEncodedLen`)
+	/// Storage: `PolkadotXcm::QueryCounter` (r:1 w:1)
+	/// Proof: `PolkadotXcm::QueryCounter` (`max_values`: Some(1), `max_size`: None, mode: `Measured`)
+	/// Storage: `ContributionTokens::Asset` (r:1 w:0)
+	/// Proof: `ContributionTokens::Asset` (`max_values`: None, `max_size`: Some(210), added: 2685, mode: `MaxEncodedLen`)
+	/// Storage: `PolkadotXcm::Queries` (r:0 w:2)
+	/// Proof: `PolkadotXcm::Queries` (`max_values`: None, `max_size`: None, mode: `Measured`)
+	fn do_handle_channel_accepted() -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `1081`
+		//  Estimated: `6746`
+		// Minimum execution time: 82_051_000 picoseconds.
+		Weight::from_parts(84_541_000, 6746)
+			.saturating_add(T::DbWeight::get().reads(4_u64))
+			.saturating_add(T::DbWeight::get().writes(4_u64))
 	}
 }
 
@@ -1580,32 +1733,183 @@ impl WeightInfo for () {
 			.saturating_add(RocksDbWeight::get().writes(1_u64))
 	}
 
-	// TODO: Add real benchmarked weights
+	/// Storage: `Timestamp::Now` (r:1 w:0)
+	/// Proof: `Timestamp::Now` (`max_values`: Some(1), `max_size`: Some(8), added: 503, mode: `MaxEncodedLen`)
+	/// Storage: `Funding::ProjectsDetails` (r:1 w:1)
+	/// Proof: `Funding::ProjectsDetails` (`max_values`: None, `max_size`: Some(403), added: 2878, mode: `MaxEncodedLen`)
 	fn start_pallet_migration() -> Weight {
-		Weight::from_parts(100_000, 10_000)
+		// Proof Size summary in bytes:
+		//  Measured:  `840`
+		//  Estimated: `3868`
+		// Minimum execution time: 152_661_000 picoseconds.
+		Weight::from_parts(155_061_000, 3868)
+			.saturating_add(RocksDbWeight::get().reads(2_u64))
+			.saturating_add(RocksDbWeight::get().writes(1_u64))
 	}
+	/// Storage: `Timestamp::Now` (r:1 w:0)
+	/// Proof: `Timestamp::Now` (`max_values`: Some(1), `max_size`: Some(8), added: 503, mode: `MaxEncodedLen`)
+	/// Storage: `Funding::ProjectsDetails` (r:1 w:1)
+	/// Proof: `Funding::ProjectsDetails` (`max_values`: None, `max_size`: Some(403), added: 2878, mode: `MaxEncodedLen`)
 	fn start_offchain_migration() -> Weight {
-		Weight::from_parts(100_000, 10_000)
+		// Proof Size summary in bytes:
+		//  Measured:  `840`
+		//  Estimated: `3868`
+		// Minimum execution time: 146_811_000 picoseconds.
+		Weight::from_parts(148_061_000, 3868)
+			.saturating_add(RocksDbWeight::get().reads(2_u64))
+			.saturating_add(RocksDbWeight::get().writes(1_u64))
 	}
-	fn confirm_offchain_migration(_x: u32) -> Weight {
-		Weight::from_parts(100_000, 10_000)
+	/// Storage: `Funding::ProjectsDetails` (r:1 w:1)
+	/// Proof: `Funding::ProjectsDetails` (`max_values`: None, `max_size`: Some(403), added: 2878, mode: `MaxEncodedLen`)
+	/// Storage: `Funding::UserMigrations` (r:1 w:1)
+	/// Proof: `Funding::UserMigrations` (`max_values`: None, `max_size`: Some(30366), added: 32841, mode: `MaxEncodedLen`)
+	/// Storage: `Funding::UnmigratedCounter` (r:1 w:1)
+	/// Proof: `Funding::UnmigratedCounter` (`max_values`: None, `max_size`: Some(24), added: 2499, mode: `MaxEncodedLen`)
+	/// The range of component `x` is `[1, 48]`.
+	fn confirm_offchain_migration(x: u32, ) -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `1207 + x * (65 ±0)`
+		//  Estimated: `33831`
+		// Minimum execution time: 33_230_000 picoseconds.
+		Weight::from_parts(34_203_521, 33831)
+			// Standard Error: 18_388
+			.saturating_add(Weight::from_parts(605_344, 0).saturating_mul(x.into()))
+			.saturating_add(RocksDbWeight::get().reads(3_u64))
+			.saturating_add(RocksDbWeight::get().writes(3_u64))
 	}
+	/// Storage: `Funding::ProjectsDetails` (r:1 w:1)
+	/// Proof: `Funding::ProjectsDetails` (`max_values`: None, `max_size`: Some(403), added: 2878, mode: `MaxEncodedLen`)
+	/// Storage: `Funding::UnmigratedCounter` (r:1 w:0)
+	/// Proof: `Funding::UnmigratedCounter` (`max_values`: None, `max_size`: Some(24), added: 2499, mode: `MaxEncodedLen`)
 	fn mark_project_ct_migration_as_finished() -> Weight {
-		Weight::from_parts(100_000, 10_000)
+		// Proof Size summary in bytes:
+		//  Measured:  `810`
+		//  Estimated: `3868`
+		// Minimum execution time: 23_900_000 picoseconds.
+		Weight::from_parts(25_450_000, 3868)
+			.saturating_add(RocksDbWeight::get().reads(2_u64))
+			.saturating_add(RocksDbWeight::get().writes(1_u64))
 	}
+	/// Storage: `Timestamp::Now` (r:1 w:0)
+	/// Proof: `Timestamp::Now` (`max_values`: Some(1), `max_size`: Some(8), added: 503, mode: `MaxEncodedLen`)
+	/// Storage: `Funding::ProjectsDetails` (r:1 w:1)
+	/// Proof: `Funding::ProjectsDetails` (`max_values`: None, `max_size`: Some(403), added: 2878, mode: `MaxEncodedLen`)
+	/// Storage: `PolkadotXcm::QueryCounter` (r:1 w:1)
+	/// Proof: `PolkadotXcm::QueryCounter` (`max_values`: Some(1), `max_size`: None, mode: `Measured`)
+	/// Storage: `ContributionTokens::Asset` (r:1 w:0)
+	/// Proof: `ContributionTokens::Asset` (`max_values`: None, `max_size`: Some(210), added: 2685, mode: `MaxEncodedLen`)
+	/// Storage: `PolkadotXcm::Queries` (r:0 w:2)
+	/// Proof: `PolkadotXcm::Queries` (`max_values`: None, `max_size`: None, mode: `Measured`)
 	fn start_pallet_migration_readiness_check() -> Weight {
-		Weight::from_parts(100_000, 10_000)
+		// Proof Size summary in bytes:
+		//  Measured:  `1141`
+		//  Estimated: `3868`
+		// Minimum execution time: 195_162_000 picoseconds.
+		Weight::from_parts(198_081_000, 3868)
+			.saturating_add(RocksDbWeight::get().reads(4_u64))
+			.saturating_add(RocksDbWeight::get().writes(4_u64))
 	}
+	/// Storage: `Funding::ProjectsDetails` (r:2 w:1)
+	/// Proof: `Funding::ProjectsDetails` (`max_values`: None, `max_size`: Some(403), added: 2878, mode: `MaxEncodedLen`)
+	/// Storage: `Funding::ProjectsMetadata` (r:1 w:0)
+	/// Proof: `Funding::ProjectsMetadata` (`max_values`: None, `max_size`: Some(502), added: 2977, mode: `MaxEncodedLen`)
 	fn pallet_migration_readiness_response_holding() -> Weight {
-		Weight::from_parts(100_000, 10_000)
+		// Proof Size summary in bytes:
+		//  Measured:  `1152`
+		//  Estimated: `6746`
+		// Minimum execution time: 28_490_000 picoseconds.
+		Weight::from_parts(29_360_000, 6746)
+			.saturating_add(RocksDbWeight::get().reads(3_u64))
+			.saturating_add(RocksDbWeight::get().writes(1_u64))
 	}
+	/// Storage: `Funding::ProjectsDetails` (r:2 w:1)
+	/// Proof: `Funding::ProjectsDetails` (`max_values`: None, `max_size`: Some(403), added: 2878, mode: `MaxEncodedLen`)
+	/// Storage: `Funding::ProjectsMetadata` (r:1 w:0)
+	/// Proof: `Funding::ProjectsMetadata` (`max_values`: None, `max_size`: Some(502), added: 2977, mode: `MaxEncodedLen`)
 	fn pallet_migration_readiness_response_pallet_info() -> Weight {
-		Weight::from_parts(100_000, 10_000)
+		// Proof Size summary in bytes:
+		//  Measured:  `1152`
+		//  Estimated: `6746`
+		// Minimum execution time: 29_250_000 picoseconds.
+		Weight::from_parts(30_510_000, 6746)
+			.saturating_add(RocksDbWeight::get().reads(3_u64))
+			.saturating_add(RocksDbWeight::get().writes(1_u64))
 	}
-	fn send_pallet_migration_for(_x: u32) -> Weight {
-		Weight::from_parts(100_000, 10_000)
+	/// Storage: `Funding::ProjectsDetails` (r:1 w:1)
+	/// Proof: `Funding::ProjectsDetails` (`max_values`: None, `max_size`: Some(403), added: 2878, mode: `MaxEncodedLen`)
+	/// Storage: `Funding::Evaluations` (r:1 w:0)
+	/// Proof: `Funding::Evaluations` (`max_values`: None, `max_size`: Some(254), added: 2729, mode: `MaxEncodedLen`)
+	/// Storage: `Funding::Bids` (r:1 w:0)
+	/// Proof: `Funding::Bids` (`max_values`: None, `max_size`: Some(306), added: 2781, mode: `MaxEncodedLen`)
+	/// Storage: `Funding::Contributions` (r:1 w:0)
+	/// Proof: `Funding::Contributions` (`max_values`: None, `max_size`: Some(256), added: 2731, mode: `MaxEncodedLen`)
+	/// Storage: `Funding::UserMigrations` (r:1 w:1)
+	/// Proof: `Funding::UserMigrations` (`max_values`: None, `max_size`: Some(30366), added: 32841, mode: `MaxEncodedLen`)
+	/// Storage: `PolkadotXcm::QueryCounter` (r:1 w:1)
+	/// Proof: `PolkadotXcm::QueryCounter` (`max_values`: Some(1), `max_size`: None, mode: `Measured`)
+	/// Storage: `Funding::ActiveMigrationQueue` (r:0 w:1)
+	/// Proof: `Funding::ActiveMigrationQueue` (`max_values`: None, `max_size`: Some(60), added: 2535, mode: `MaxEncodedLen`)
+	/// Storage: `PolkadotXcm::Queries` (r:0 w:1)
+	/// Proof: `PolkadotXcm::Queries` (`max_values`: None, `max_size`: None, mode: `Measured`)
+	/// The range of component `x` is `[1, 48]`.
+	fn send_pallet_migration_for(x: u32, ) -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `1480 + x * (65 ±0)`
+		//  Estimated: `33831 + x * (65 ±0)`
+		// Minimum execution time: 73_441_000 picoseconds.
+		Weight::from_parts(73_900_476, 33831)
+			// Standard Error: 39_000
+			.saturating_add(Weight::from_parts(1_271_457, 0).saturating_mul(x.into()))
+			.saturating_add(RocksDbWeight::get().reads(6_u64))
+			.saturating_add(RocksDbWeight::get().writes(5_u64))
+			.saturating_add(Weight::from_parts(0, 65).saturating_mul(x.into()))
 	}
-	fn confirm_pallet_migrations(_x: u32) -> Weight {
-		Weight::from_parts(100_000, 10_000)
+	/// Storage: `Funding::ActiveMigrationQueue` (r:1 w:1)
+	/// Proof: `Funding::ActiveMigrationQueue` (`max_values`: None, `max_size`: Some(60), added: 2535, mode: `MaxEncodedLen`)
+	/// Storage: `Funding::ProjectsDetails` (r:1 w:1)
+	/// Proof: `Funding::ProjectsDetails` (`max_values`: None, `max_size`: Some(403), added: 2878, mode: `MaxEncodedLen`)
+	/// Storage: `Funding::UserMigrations` (r:1 w:1)
+	/// Proof: `Funding::UserMigrations` (`max_values`: None, `max_size`: Some(30366), added: 32841, mode: `MaxEncodedLen`)
+	/// Storage: `Funding::UnmigratedCounter` (r:1 w:1)
+	/// Proof: `Funding::UnmigratedCounter` (`max_values`: None, `max_size`: Some(24), added: 2499, mode: `MaxEncodedLen`)
+	/// The range of component `x` is `[1, 48]`.
+	fn confirm_pallet_migrations(x: u32, ) -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `1329 + x * (65 ±0)`
+		//  Estimated: `33831`
+		// Minimum execution time: 42_250_000 picoseconds.
+		Weight::from_parts(42_516_580, 33831)
+			// Standard Error: 15_555
+			.saturating_add(Weight::from_parts(636_115, 0).saturating_mul(x.into()))
+			.saturating_add(RocksDbWeight::get().reads(4_u64))
+			.saturating_add(RocksDbWeight::get().writes(4_u64))
+	}
+	/// Storage: `Funding::ProjectsDetails` (r:2 w:1)
+	/// Proof: `Funding::ProjectsDetails` (`max_values`: None, `max_size`: Some(403), added: 2878, mode: `MaxEncodedLen`)
+	fn do_handle_channel_open_request() -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `805`
+		//  Estimated: `6746`
+		// Minimum execution time: 22_580_000 picoseconds.
+		Weight::from_parts(23_350_000, 6746)
+			.saturating_add(RocksDbWeight::get().reads(2_u64))
+			.saturating_add(RocksDbWeight::get().writes(1_u64))
+	}
+	/// Storage: `Funding::ProjectsDetails` (r:2 w:1)
+	/// Proof: `Funding::ProjectsDetails` (`max_values`: None, `max_size`: Some(403), added: 2878, mode: `MaxEncodedLen`)
+	/// Storage: `PolkadotXcm::QueryCounter` (r:1 w:1)
+	/// Proof: `PolkadotXcm::QueryCounter` (`max_values`: Some(1), `max_size`: None, mode: `Measured`)
+	/// Storage: `ContributionTokens::Asset` (r:1 w:0)
+	/// Proof: `ContributionTokens::Asset` (`max_values`: None, `max_size`: Some(210), added: 2685, mode: `MaxEncodedLen`)
+	/// Storage: `PolkadotXcm::Queries` (r:0 w:2)
+	/// Proof: `PolkadotXcm::Queries` (`max_values`: None, `max_size`: None, mode: `Measured`)
+	fn do_handle_channel_accepted() -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `1081`
+		//  Estimated: `6746`
+		// Minimum execution time: 82_051_000 picoseconds.
+		Weight::from_parts(84_541_000, 6746)
+			.saturating_add(RocksDbWeight::get().reads(4_u64))
+			.saturating_add(RocksDbWeight::get().writes(4_u64))
 	}
 }
