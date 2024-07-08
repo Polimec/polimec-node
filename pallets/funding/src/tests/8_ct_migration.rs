@@ -144,7 +144,7 @@ mod pallet_migration {
 		.into();
 
 		inst.execute(|| {
-			assert_ok!(PolimecFunding::do_migration_check_response(
+			assert_ok!(PolimecFunding::do_pallet_migration_readiness_response(
 				MultiLocation::new(1u8, X1(Parachain(6969u32))),
 				0u64,
 				Response::Assets(ct_multiassets),
@@ -166,7 +166,7 @@ mod pallet_migration {
 			patch: 0,
 		};
 		inst.execute(|| {
-			assert_ok!(PolimecFunding::do_migration_check_response(
+			assert_ok!(PolimecFunding::do_pallet_migration_readiness_response(
 				MultiLocation::new(1u8, X1(Parachain(6969u32))),
 				1u64,
 				Response::PalletsInfo(bounded_vec![pallet_info]),
@@ -260,7 +260,7 @@ mod offchain_migration {
 	}
 
 	#[test]
-	fn mark_project_as_migration_finished() {
+	fn mark_project_migration_as_finished() {
 		let inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		let (project_id, mut inst) = create_offchain_migration_project(inst);
 
