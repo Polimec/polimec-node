@@ -1041,7 +1041,6 @@ impl<
 			},
 			_ => {},
 		};
-
 		let ct_price = self.get_project_details(project_id).weighted_average_price.unwrap();
 		let contributors = remainder_contributions.accounts();
 		let asset_id = remainder_contributions[0].asset.to_assethub_id();
@@ -1055,8 +1054,14 @@ impl<
 		let plmc_remainder_contribution_deposits =
 			self.calculate_contributed_plmc_spent(remainder_contributions.clone(), ct_price, false);
 
+		let reducible_evaluator_balances = self.slash_evaluator_balances(plmc_evaluation_deposits);
+		let remaining_reducible_evaluator_balances = self.generic_map_operation(
+			vec![reducible_evaluator_balances, plmc_bid_deposits.clone()],
+			MergeOperation::Subtract,
+		);
+
 		let necessary_plmc_mint = self.generic_map_operation(
-			vec![plmc_remainder_contribution_deposits.clone(), plmc_evaluation_deposits],
+			vec![plmc_remainder_contribution_deposits.clone(), remaining_reducible_evaluator_balances],
 			MergeOperation::Subtract,
 		);
 		let total_plmc_participation_locked = self.generic_map_operation(
@@ -1087,10 +1092,7 @@ impl<
 			total_plmc_participation_locked.merge_accounts(MergeOperation::Add),
 			HoldReason::Participation(project_id).into(),
 		);
-		self.do_contribution_transferred_foreign_asset_assertions(
-			funding_asset_deposits.merge_accounts(MergeOperation::Add),
-			project_id,
-		);
+		self.do_contribution_transferred_foreign_asset_assertions(funding_asset_deposits, project_id);
 		self.do_free_plmc_assertions(expected_free_plmc_balances.merge_accounts(MergeOperation::Add));
 		self.do_free_foreign_asset_assertions(prev_funding_asset_balances.merge_accounts(MergeOperation::Add));
 		assert_eq!(self.get_plmc_total_supply(), post_supply);

@@ -26,6 +26,8 @@ use frame_support::{
 	weights::Weight,
 };
 use pallet_xcm::XcmPassthrough;
+#[cfg(feature = "runtime-benchmarks")]
+use polimec_common::DummyXcmSender;
 use polimec_xcm_executor::{
 	polimec_traits::{JustTry, Properties, ShouldExecute},
 	XcmExecutor,
@@ -308,12 +310,15 @@ pub type LocalOriginToLocation = SignedToAccountId32<RuntimeOrigin, AccountId, R
 
 /// The means for routing XCM messages which are not for local execution into the right message
 /// queues.
+#[cfg(not(feature = "runtime-benchmarks"))]
 pub type XcmRouter = (
 	// Two routers - use UMP to communicate with the relay chain:
 	cumulus_primitives_utility::ParentAsUmp<ParachainSystem, PolkadotXcm, ()>,
 	// ..and XCMP to communicate with the sibling chains.
 	XcmpQueue,
 );
+#[cfg(feature = "runtime-benchmarks")]
+pub type XcmRouter = DummyXcmSender;
 
 /// Conservative weight values for XCM extrinsics. Should eventually be adjusted by benchmarking.
 pub struct XcmWeightInfo;

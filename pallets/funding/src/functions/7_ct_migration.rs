@@ -266,7 +266,10 @@ impl<T: Config> Pallet<T> {
 		}
 
 		// * Update storage *
-		let call = Call::<T>::pallet_migration_readiness_response { query_id: Default::default(), response: Default::default() };
+		let call = Call::<T>::pallet_migration_readiness_response {
+			query_id: Default::default(),
+			response: Default::default(),
+		};
 
 		let query_id_holdings = pallet_xcm::Pallet::<T>::new_notify_query(
 			project_multilocation.clone(),

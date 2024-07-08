@@ -761,4 +761,33 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 			.saturating_add(T::DbWeight::get().reads(2_u64))
 			.saturating_add(T::DbWeight::get().writes(1_u64))
 	}
+
+	// TODO: Add real benchmarked weights
+	fn start_pallet_migration() -> Weight {
+		Weight::from_parts(100_000, 10_000)
+	}
+	fn start_offchain_migration() -> Weight {
+		Weight::from_parts(100_000, 10_000)
+	}
+	fn confirm_offchain_migration(_x: u32) -> Weight {
+		Weight::from_parts(100_000, 10_000)
+	}
+	fn mark_project_ct_migration_as_finished() -> Weight {
+		Weight::from_parts(100_000, 10_000)
+	}
+	fn start_pallet_migration_readiness_check() -> Weight {
+		Weight::from_parts(100_000, 10_000)
+	}
+	fn pallet_migration_readiness_response_holding() -> Weight {
+		Weight::from_parts(100_000, 10_000)
+	}
+	fn pallet_migration_readiness_response_pallet_info() -> Weight {
+		Weight::from_parts(100_000, 10_000)
+	}
+	fn send_pallet_migration_for(_x: u32) -> Weight {
+		Weight::from_parts(100_000, 10_000)
+	}
+	fn confirm_pallet_migrations(_x: u32) -> Weight {
+		Weight::from_parts(100_000, 10_000)
+	}
 }

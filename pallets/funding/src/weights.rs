@@ -82,6 +82,15 @@ pub trait WeightInfo {
 	fn project_decision() -> Weight;
 	fn start_settlement_funding_success() -> Weight;
 	fn start_settlement_funding_failure() -> Weight;
+	fn start_pallet_migration() -> Weight;
+	fn start_offchain_migration() -> Weight;
+	fn confirm_offchain_migration(_x: u32) -> Weight;
+	fn mark_project_ct_migration_as_finished() -> Weight;
+	fn start_pallet_migration_readiness_check() -> Weight;
+	fn pallet_migration_readiness_response_holding() -> Weight;
+	fn pallet_migration_readiness_response_pallet_info() -> Weight;
+	fn send_pallet_migration_for(_x: u32) -> Weight;
+	fn confirm_pallet_migrations(_x: u32) -> Weight;
 }
 
 /// Weights for `pallet_funding` using the Substrate node and recommended hardware.
@@ -812,6 +821,35 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 			.saturating_add(T::DbWeight::get().reads(2_u64))
 			.saturating_add(T::DbWeight::get().writes(1_u64))
 	}
+
+	// TODO: add real benchmarked weights
+	fn start_pallet_migration() -> Weight {
+		Weight::from_parts(100_000, 10_000)
+	}
+	fn start_offchain_migration() -> Weight {
+		Weight::from_parts(100_000, 10_000)
+	}
+	fn confirm_offchain_migration(_x: u32) -> Weight {
+		Weight::from_parts(100_000, 10_000)
+	}
+	fn mark_project_ct_migration_as_finished() -> Weight {
+		Weight::from_parts(100_000, 10_000)
+	}
+	fn start_pallet_migration_readiness_check() -> Weight {
+		Weight::from_parts(100_000, 10_000)
+	}
+	fn pallet_migration_readiness_response_holding() -> Weight {
+		Weight::from_parts(100_000, 10_000)
+	}
+	fn pallet_migration_readiness_response_pallet_info() -> Weight {
+		Weight::from_parts(100_000, 10_000)
+	}
+	fn send_pallet_migration_for(_x: u32) -> Weight {
+		Weight::from_parts(100_000, 10_000)
+	}
+	fn confirm_pallet_migrations(_x: u32) -> Weight {
+		Weight::from_parts(100_000, 10_000)
+	}
 }
 
 // For backwards compatibility and tests.
@@ -1540,5 +1578,34 @@ impl WeightInfo for () {
 		Weight::from_parts(15_170_000, 3967)
 			.saturating_add(RocksDbWeight::get().reads(2_u64))
 			.saturating_add(RocksDbWeight::get().writes(1_u64))
+	}
+
+	// TODO: Add real benchmarked weights
+	fn start_pallet_migration() -> Weight {
+		Weight::from_parts(100_000, 10_000)
+	}
+	fn start_offchain_migration() -> Weight {
+		Weight::from_parts(100_000, 10_000)
+	}
+	fn confirm_offchain_migration(_x: u32) -> Weight {
+		Weight::from_parts(100_000, 10_000)
+	}
+	fn mark_project_ct_migration_as_finished() -> Weight {
+		Weight::from_parts(100_000, 10_000)
+	}
+	fn start_pallet_migration_readiness_check() -> Weight {
+		Weight::from_parts(100_000, 10_000)
+	}
+	fn pallet_migration_readiness_response_holding() -> Weight {
+		Weight::from_parts(100_000, 10_000)
+	}
+	fn pallet_migration_readiness_response_pallet_info() -> Weight {
+		Weight::from_parts(100_000, 10_000)
+	}
+	fn send_pallet_migration_for(_x: u32) -> Weight {
+		Weight::from_parts(100_000, 10_000)
+	}
+	fn confirm_pallet_migrations(_x: u32) -> Weight {
+		Weight::from_parts(100_000, 10_000)
 	}
 }
