@@ -1,5 +1,4 @@
 use super::*;
-use itertools::Itertools;
 
 // Helper functions
 // ATTENTION: if this is called directly, it will not be transactional
@@ -27,7 +26,7 @@ impl<T: Config> Pallet<T> {
 				return Ok(i);
 			}
 		}
-		return Err(T::MaxProjectsToUpdateInsertionAttempts::get());
+		Err(T::MaxProjectsToUpdateInsertionAttempts::get())
 	}
 
 	pub fn create_bucket_from_metadata(metadata: &ProjectMetadataOf<T>) -> Result<BucketOf<T>, DispatchError> {
@@ -153,7 +152,7 @@ impl<T: Config> Pallet<T> {
 		let project_metadata = ProjectsMetadata::<T>::get(project_id).ok_or(Error::<T>::ProjectMetadataNotFound)?;
 		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 		// Rejected bids were deleted in the previous block.
-		let accepted_bids = Bids::<T>::iter_prefix_values((project_id,)).collect_vec();
+		let accepted_bids = Bids::<T>::iter_prefix_values((project_id,)).collect::<Vec<_>>();
 		let project_account = Self::fund_account_id(project_id);
 		let plmc_price = T::PriceProvider::get_decimals_aware_price(PLMC_FOREIGN_ID, USD_DECIMALS, PLMC_DECIMALS)
 			.ok_or(Error::<T>::PriceNotFound)?;

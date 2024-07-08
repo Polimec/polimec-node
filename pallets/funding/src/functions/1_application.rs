@@ -70,7 +70,7 @@ impl<T: Config> Pallet<T> {
 		let maybe_active_project = DidWithActiveProjects::<T>::get(did.clone());
 
 		// * Validity checks *
-		ensure!(maybe_active_project == None, Error::<T>::HasActiveProject);
+		ensure!(maybe_active_project.is_none(), Error::<T>::HasActiveProject);
 
 		let (project_metadata, project_details, bucket) =
 			Self::project_validation(project_metadata, issuer.clone(), did.clone())?;

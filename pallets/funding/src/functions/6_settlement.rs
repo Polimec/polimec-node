@@ -87,7 +87,7 @@ impl<T: Config> Pallet<T> {
 
 	pub fn do_settle_successful_evaluation(evaluation: EvaluationInfoOf<T>, project_id: ProjectId) -> DispatchResult {
 		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
-		ensure!(matches!(project_details.funding_end_block, Some(_)), Error::<T>::SettlementNotStarted);
+		ensure!(project_details.funding_end_block.is_some(), Error::<T>::SettlementNotStarted);
 		ensure!(matches!(project_details.status, ProjectStatus::FundingSuccessful), Error::<T>::WrongSettlementOutcome);
 
 		// Based on the results of the funding round, the evaluator is either:
@@ -137,7 +137,7 @@ impl<T: Config> Pallet<T> {
 
 	pub fn do_settle_failed_evaluation(evaluation: EvaluationInfoOf<T>, project_id: ProjectId) -> DispatchResult {
 		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
-		ensure!(matches!(project_details.funding_end_block, Some(_)), Error::<T>::SettlementNotStarted);
+		ensure!(project_details.funding_end_block.is_some(), Error::<T>::SettlementNotStarted);
 		ensure!(matches!(project_details.status, ProjectStatus::FundingFailed), Error::<T>::WrongSettlementOutcome);
 
 		let bond = if matches!(project_details.evaluation_round_info.evaluators_outcome, EvaluatorsOutcome::Slashed) {
@@ -171,7 +171,7 @@ impl<T: Config> Pallet<T> {
 		let project_metadata = ProjectsMetadata::<T>::get(project_id).ok_or(Error::<T>::ProjectMetadataNotFound)?;
 		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 
-		ensure!(matches!(project_details.funding_end_block, Some(_)), Error::<T>::SettlementNotStarted);
+		ensure!(project_details.funding_end_block.is_some(), Error::<T>::SettlementNotStarted);
 		ensure!(matches!(project_details.status, ProjectStatus::FundingSuccessful), Error::<T>::WrongSettlementOutcome);
 		ensure!(
 			matches!(bid.status, BidStatus::Accepted | BidStatus::PartiallyAccepted(..)),
@@ -234,7 +234,7 @@ impl<T: Config> Pallet<T> {
 
 	pub fn do_settle_failed_bid(bid: BidInfoOf<T>, project_id: ProjectId) -> DispatchResult {
 		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
-		ensure!(matches!(project_details.funding_end_block, Some(_)), Error::<T>::SettlementNotStarted);
+		ensure!(project_details.funding_end_block.is_some(), Error::<T>::SettlementNotStarted);
 		ensure!(matches!(project_details.status, ProjectStatus::FundingFailed), Error::<T>::WrongSettlementOutcome);
 
 		let bidder = bid.bidder;
@@ -262,7 +262,7 @@ impl<T: Config> Pallet<T> {
 		// Ensure that:
 		// 1. The project is in the FundingSuccessful state
 		// 2. The contribution token exists
-		ensure!(matches!(project_details.funding_end_block, Some(_)), Error::<T>::SettlementNotStarted);
+		ensure!(project_details.funding_end_block.is_some(), Error::<T>::SettlementNotStarted);
 		ensure!(matches!(project_details.status, ProjectStatus::FundingSuccessful), Error::<T>::WrongSettlementOutcome);
 		ensure!(T::ContributionTokenCurrency::asset_exists(project_id), Error::<T>::TooEarlyForRound);
 
@@ -321,7 +321,7 @@ impl<T: Config> Pallet<T> {
 
 	pub fn do_settle_failed_contribution(contribution: ContributionInfoOf<T>, project_id: ProjectId) -> DispatchResult {
 		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
-		ensure!(matches!(project_details.funding_end_block, Some(_)), Error::<T>::SettlementNotStarted);
+		ensure!(project_details.funding_end_block.is_some(), Error::<T>::SettlementNotStarted);
 		ensure!(matches!(project_details.status, ProjectStatus::FundingFailed), Error::<T>::WrongSettlementOutcome);
 
 		// Check if the bidder has a future deposit held
@@ -373,7 +373,7 @@ impl<T: Config> Pallet<T> {
 		T::FundingCurrency::transfer(
 			asset.to_assethub_id(),
 			&project_pot,
-			&participant,
+			participant,
 			amount,
 			Preservation::Expendable,
 		)?;
@@ -388,7 +388,7 @@ impl<T: Config> Pallet<T> {
 		// Release the held PLMC bond
 		T::NativeCurrency::release(
 			&HoldReason::Participation(project_id).into(),
-			&participant,
+			participant,
 			amount,
 			Precision::Exact,
 		)?;
@@ -421,7 +421,7 @@ impl<T: Config> Pallet<T> {
 		evaluation: &EvaluationInfoOf<T>,
 		info: &RewardInfoOf<T>,
 	) -> Result<(BalanceOf<T>, BalanceOf<T>), DispatchError> {
-		let reward = Self::calculate_evaluator_reward(evaluation, &info);
+		let reward = Self::calculate_evaluator_reward(evaluation, info);
 		Self::mint_contribution_tokens(project_id, &evaluation.evaluator, reward)?;
 
 		Ok((evaluation.current_plmc_bond, reward))
@@ -454,7 +454,7 @@ impl<T: Config> Pallet<T> {
 			);
 			let migration_origin = MigrationOrigin { user: multilocation_user, id, participation_type };
 			let vesting_time: u64 = vesting_time.try_into().map_err(|_| Error::<T>::BadMath)?;
-			let migration_info: MigrationInfo = (ct_amount.into(), vesting_time.into()).into();
+			let migration_info: MigrationInfo = (ct_amount.into(), vesting_time).into();
 			let migration = Migration::new(migration_origin, migration_info);
 			if let Some((_, migrations)) = maybe_migrations {
 				migrations.try_push(migration).map_err(|_| Error::<T>::TooManyMigrations)?;

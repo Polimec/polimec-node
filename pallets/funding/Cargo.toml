@@ -18,13 +18,10 @@ parity-scale-codec = { workspace = true, features = [
 scale-info = { workspace = true, default-features = false, features = [
 	"derive",
 ] }
-futures = { version = "0.3.29", optional = true, default-features = false}
 log.workspace = true
-itertools.workspace = true
 variant_count = "1.1.0"
 
 # Substrate dependencies
-frame-benchmarking = { workspace = true, optional = true }
 frame-support.workspace = true
 frame-system.workspace = true
 sp-std.workspace = true
@@ -34,12 +31,16 @@ polimec-common.workspace = true
 parachains-common.workspace = true
 sp-core.workspace = true
 pallet-balances.workspace = true
-sp-io.workspace = true
 xcm.workspace = true
 polimec-xcm-executor.workspace = true
 pallet-xcm.workspace = true
 polkadot-parachain-primitives.workspace = true
 polimec-common-test-utils = { workspace = true, optional = true }
+frame-benchmarking = { workspace = true, optional = true }
+
+# Used in the instantiator.
+itertools.workspace = true
+sp-io.workspace = true
 
 [dev-dependencies]
 pallet-insecure-randomness-collective-flip.workspace = true
@@ -58,8 +59,6 @@ std = [
 	"frame-benchmarking?/std",
 	"frame-support/std",
 	"frame-system/std",
-	"futures",
-	"futures?/std",
 	"itertools/use_std",
 	"log/std",
 	"pallet-assets/std",

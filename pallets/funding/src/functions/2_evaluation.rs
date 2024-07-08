@@ -136,9 +136,10 @@ impl<T: Config> Pallet<T> {
 			};
 
 			// * Emit events *
-			Self::deposit_event(
-				Event::ProjectPhaseTransition { project_id, phase: ProjectPhases::AuctionInitializePeriod }.into(),
-			);
+			Self::deposit_event(Event::ProjectPhaseTransition {
+				project_id,
+				phase: ProjectPhases::AuctionInitializePeriod,
+			});
 
 			return Ok(PostDispatchInfo {
 				actual_weight: Some(WeightInfoOf::<T>::end_evaluation_success(insertion_attempts)),
@@ -161,13 +162,10 @@ impl<T: Config> Pallet<T> {
 				};
 
 			// * Emit events *
-			Self::deposit_event(
-				Event::ProjectPhaseTransition {
-					project_id,
-					phase: ProjectPhases::FundingFinalization(ProjectOutcome::EvaluationFailed),
-				}
-				.into(),
-			);
+			Self::deposit_event(Event::ProjectPhaseTransition {
+				project_id,
+				phase: ProjectPhases::FundingFinalization(ProjectOutcome::EvaluationFailed),
+			});
 			return Ok(PostDispatchInfo {
 				actual_weight: Some(WeightInfoOf::<T>::end_evaluation_failure(insertion_attempts)),
 				pays_fee: Pays::Yes,

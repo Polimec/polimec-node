@@ -184,7 +184,6 @@
 // 	type Multiplier = ();
 // 	type NativeCurrency = Balances;
 // 	type PalletId = FundingPalletId;
-// 	type PreImageLimit = ConstU32<1024>;
 // 	type Price = FixedU128;
 // 	type PriceProvider = ();
 // 	type ProjectIdentifier = Identifier;

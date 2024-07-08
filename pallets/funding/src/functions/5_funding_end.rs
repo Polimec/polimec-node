@@ -169,18 +169,18 @@ impl<T: Config> Pallet<T> {
 		ensure!(project_details.status == ProjectStatus::AwaitingProjectDecision, Error::<T>::IncorrectRound);
 
 		// * Update storage *
-		let insertion_attempts: u32;
-		match Self::add_to_update_store(now + 1u32.into(), (&project_id, UpdateType::ProjectDecision(decision))) {
-			Ok(iterations) => insertion_attempts = iterations,
-			Err(iterations) =>
-				return Err(DispatchErrorWithPostInfo {
-					post_info: PostDispatchInfo {
-						actual_weight: Some(WeightInfoOf::<T>::decide_project_outcome(iterations)),
-						pays_fee: Pays::Yes,
-					},
-					error: Error::<T>::TooManyInsertionAttempts.into(),
-				}),
-		};
+		let insertion_attempts =
+			match Self::add_to_update_store(now + 1u32.into(), (&project_id, UpdateType::ProjectDecision(decision))) {
+				Ok(iterations) => iterations,
+				Err(iterations) =>
+					return Err(DispatchErrorWithPostInfo {
+						post_info: PostDispatchInfo {
+							actual_weight: Some(WeightInfoOf::<T>::decide_project_outcome(iterations)),
+							pays_fee: Pays::Yes,
+						},
+						error: Error::<T>::TooManyInsertionAttempts.into(),
+					}),
+			};
 
 		Self::deposit_event(Event::ProjectOutcomeDecided { project_id, decision });
 

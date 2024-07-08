@@ -425,7 +425,6 @@ impl Config for TestRuntime {
 	type Multiplier = Multiplier;
 	type NativeCurrency = Balances;
 	type PalletId = FundingPalletId;
-	type PreImageLimit = ConstU32<1024>;
 	type Price = FixedU128;
 	type PriceProvider = ConstPriceProvider;
 	type Randomness = RandomnessCollectiveFlip;
@@ -436,7 +435,7 @@ impl Config for TestRuntime {
 	type RuntimeEvent = RuntimeEvent;
 	type RuntimeHoldReason = RuntimeHoldReason;
 	type RuntimeOrigin = RuntimeOrigin;
-	#[cfg(any(feature = "runtime-benchmarks"))]
+	#[cfg(feature = "runtime-benchmarks")]
 	type SetPrices = ();
 	type StringLimit = ConstU32<64>;
 	type SuccessToSettlementTime = SuccessToSettlementTime;

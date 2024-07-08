@@ -81,9 +81,7 @@ substrate-build-script-utils.workspace = true
 [features]
 default = []
 fast-mode = [ "polimec-runtime/fast-mode" ]
-instant-mode = [
-	"polimec-runtime/instant-mode",
-]
+instant-mode = [ "polimec-runtime/instant-mode" ]
 runtime-benchmarks = [
 	"cumulus-primitives-core/runtime-benchmarks",
 	"frame-benchmarking-cli/runtime-benchmarks",
@@ -124,7 +122,5 @@ std = [
 	"sp-timestamp/std",
 	"xcm/std",
 ]
-on-chain-release-build = [
-	"polimec-runtime/on-chain-release-build",
-]
+on-chain-release-build = [ "polimec-runtime/on-chain-release-build" ]
 development-settings = [ "polimec-runtime/development-settings" ]

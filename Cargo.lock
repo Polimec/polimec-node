@@ -6972,7 +6972,6 @@ dependencies = [
  "frame-benchmarking",
  "frame-support",
  "frame-system",
- "futures",
  "itertools 0.10.5",
  "log",
  "macros",

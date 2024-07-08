@@ -139,20 +139,24 @@ use sp_std::{marker::PhantomData, prelude::*};
 pub use types::*;
 use xcm::v3::{opaque::Instruction, prelude::*, SendXcm};
 
-#[cfg(test)]
-pub mod mock;
+mod functions;
 pub mod storage_migrations;
+pub mod traits;
 pub mod types;
 pub mod weights;
 
 #[cfg(test)]
+pub mod mock;
+
+#[cfg(test)]
 pub mod tests;
+
+// TODO: This is used only in tests. Should we use #[cfg(test)]?
+// If we do that the integration-tests will complain about the missing `use` statement :(
+pub mod instantiator;
 
 #[cfg(feature = "runtime-benchmarks")]
 pub mod benchmarking;
-mod functions;
-pub mod instantiator;
-pub mod traits;
 
 pub type AccountIdOf<T> = <T as frame_system::Config>::AccountId;
 pub type ProjectId = u32;
@@ -361,10 +365,6 @@ pub mod pallet {
 		#[pallet::constant]
 		type PalletId: Get<PalletId>;
 
-		/// The maximum size of a preimage allowed, expressed in bytes.
-		#[pallet::constant]
-		type PreImageLimit: Get<u32>;
-
 		/// Type that represents the value of something in USD
 		type Price: FixedPointNumber + Parameter + Copy + MaxEncodedLen + MaybeSerializeDeserialize;
 
@@ -404,7 +404,7 @@ pub mod pallet {
 			+ Into<Result<pallet_xcm::Origin, <Self as Config>::RuntimeOrigin>>;
 
 		/// test and benchmarking helper to set the prices of assets
-		#[cfg(any(feature = "runtime-benchmarks"))]
+		#[cfg(feature = "runtime-benchmarks")]
 		type SetPrices: traits::SetPrices;
 
 		/// The maximum length of data stored on-chain.
