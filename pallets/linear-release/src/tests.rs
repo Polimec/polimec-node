@@ -125,9 +125,9 @@ fn check_vesting_status_for_multi_schedule_account() {
 		assert_eq!(Balances::balance_on_hold(&MockRuntimeHoldReason::Reason, &2), 20 * ED);
 		assert_ok!(Vesting::vested_transfer(Some(4).into(), 2, sched1, MockRuntimeHoldReason::Reason));
 		assert_eq!(Balances::balance_on_hold(&MockRuntimeHoldReason::Reason, &2), 29 * ED); // Why 29 and not 30? Because sched1 is already unlocking.
-																					  // Free balance is the one set in Genesis inside the Balances pallet
-																					  // + the one from the vested transfer.
-																					  // BUT NOT the one in sched0, since the vesting will start at block #10.
+																					// Free balance is the one set in Genesis inside the Balances pallet
+																					// + the one from the vested transfer.
+																					// BUT NOT the one in sched0, since the vesting will start at block #10.
 		let balance = Balances::balance(&2);
 		assert_eq!(balance, ED * (2));
 		// The most recently added schedule exists.
@@ -193,7 +193,7 @@ fn unvested_balance_should_not_transfer() {
 	ExtBuilder::default().existential_deposit(10).build().execute_with(|| {
 		let user1_free_balance = Balances::free_balance(1);
 		assert_eq!(user1_free_balance, 50); // Account 1 has free balance
-									  // Account 1 has only 5 units vested at block 1 (plus 50 unvested)
+									// Account 1 has only 5 units vested at block 1 (plus 50 unvested)
 		assert_eq!(Vesting::vesting_balance(&1, MockRuntimeHoldReason::Reason), Some(5)); // Account 1 cannot send more than vested amount...
 		assert_noop!(Balances::transfer_allow_death(Some(1).into(), 2, 56), TokenError::FundsUnavailable);
 	});
@@ -205,13 +205,13 @@ fn vested_balance_should_transfer() {
 		assert_eq!(System::block_number(), 1);
 		let user1_free_balance = Balances::free_balance(1);
 		assert_eq!(user1_free_balance, 50); // Account 1 has free balance
-									  // Account 1 has only 5 units vested at block 1 (plus 50 unvested)
+									// Account 1 has only 5 units vested at block 1 (plus 50 unvested)
 		assert_eq!(Vesting::vesting_balance(&1, MockRuntimeHoldReason::Reason), Some(5));
 		assert_noop!(Balances::transfer_allow_death(Some(1).into(), 2, 45), TokenError::Frozen); // Account 1 free balance - ED is < 45
 		assert_ok!(Vesting::vest(Some(1).into(), MockRuntimeHoldReason::Reason));
 		let user1_free_balance = Balances::free_balance(1);
 		assert_eq!(user1_free_balance, 55); // Account 1 has free balance
-									  // Account 1 has vested 1 unit at block 1 (plus 50 unvested)
+									// Account 1 has vested 1 unit at block 1 (plus 50 unvested)
 		assert_ok!(Balances::transfer_allow_death(Some(1).into(), 2, 45)); // After the vest it can now send the 45 UNIT
 	});
 }
@@ -259,7 +259,7 @@ fn vested_balance_should_transfer_using_vest_other() {
 	ExtBuilder::default().existential_deposit(10).build().execute_with(|| {
 		let user1_free_balance = Balances::free_balance(1);
 		assert_eq!(user1_free_balance, 50); // Account 1 has free balance
-									  // Account 1 has only 5 units vested at block 1 (plus 50 unvested)
+									// Account 1 has only 5 units vested at block 1 (plus 50 unvested)
 		assert_eq!(Vesting::vesting_balance(&1, MockRuntimeHoldReason::Reason), Some(5));
 		assert_ok!(Vesting::vest_other(Some(2).into(), 1, MockRuntimeHoldReason::Reason));
 		assert_ok!(Balances::transfer_allow_death(Some(1).into(), 2, 55 - 10));
@@ -317,7 +317,7 @@ fn extra_balance_should_transfer() {
 
 		// Account 2 has no units vested at block 1, but gained 100
 		assert_ok!(Balances::transfer_allow_death(Some(2).into(), 3, 100 - 10)); // Account 2 can send extra
-		                                                                   // units gained
+		                                                                 // units gained
 	});
 }
 
@@ -327,7 +327,7 @@ fn liquid_funds_should_transfer_with_delayed_vesting() {
 		let user12_free_balance = Balances::free_balance(12);
 
 		assert_eq!(user12_free_balance, 1280); // Account 12 has free balance
-										 // Account 12 has liquid funds
+									   // Account 12 has liquid funds
 		assert_eq!(Vesting::vesting_balance(&12, MockRuntimeHoldReason::Reason), Some(0));
 
 		// Account 12 has delayed vesting

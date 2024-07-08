@@ -642,4 +642,167 @@ impl<
 
 		early_evaluators_rewards.saturating_add(normal_evaluators_rewards)
 	}
+
+	// Assuming all purchases done before random end
+	pub fn dry_run_wap(&self, mut bucket: BucketOf<T>, token_allocation: BalanceOf<T>) -> PriceOf<T> {
+		let mut accounted_tokens: BalanceOf<T> = Zero::zero();
+		let mut tickets = Vec::new();
+
+		if bucket.current_price == bucket.initial_price {
+			return bucket.initial_price
+		}
+
+		// Do a reverse iteration over the bucket increments to see which tickets are accepted
+		while accounted_tokens < token_allocation {
+			let tokens_sold = if bucket.initial_price == bucket.current_price {
+				bucket.delta_amount * 10u32.into()
+			} else {
+				bucket.delta_amount - bucket.amount_left
+			};
+			let price = bucket.current_price;
+			let remaining_tokens: BalanceOf<T> = token_allocation - accounted_tokens;
+			let accepted_tokens = remaining_tokens.min(tokens_sold);
+			tickets.push((accepted_tokens, price));
+			accounted_tokens += accepted_tokens;
+
+			if price > bucket.initial_price {
+				bucket.amount_left = Zero::zero();
+				bucket.current_price = bucket.current_price - bucket.delta_price;
+			}
+		}
+
+		// Use the accepted tickets to calculate the WAP
+		let total_usd = tickets
+			.clone()
+			.into_iter()
+			.map(|(tokens, price)| price.saturating_mul_int(tokens.into()))
+			.reduce(|a, b| a + b)
+			.unwrap();
+		let partial_waps = tickets
+			.into_iter()
+			.map(|(tokens, price)| {
+				let weight = PriceOf::<T>::saturating_from_rational(price.saturating_mul_int(tokens.into()), total_usd);
+				let partial_wap = weight * price;
+				partial_wap
+			})
+			.collect::<Vec<PriceOf<T>>>();
+		let wap = partial_waps.into_iter().reduce(|a, b| a + b).unwrap();
+
+		wap
+	}
+
+	pub fn find_bucket_for_wap(&self, project_metadata: ProjectMetadataOf<T>, target_wap: PriceOf<T>) -> BucketOf<T> {
+		let mut bucket = <Pallet<T>>::create_bucket_from_metadata(&project_metadata).unwrap();
+		let auction_allocation =
+			project_metadata.auction_round_allocation_percentage * project_metadata.total_allocation_size;
+
+		if target_wap == bucket.initial_price {
+			return bucket
+		}
+
+		// Fill first bucket
+		bucket.update(bucket.delta_amount * 10u32.into());
+
+		// Fill remaining buckets till we pass by the wap
+		loop {
+			dbg!(&bucket.current_price);
+			let wap = self.dry_run_wap(bucket.clone(), auction_allocation);
+
+			if wap < target_wap {
+				bucket.update(bucket.delta_amount);
+			} else {
+				break
+			}
+		}
+
+		// Go back one bucket
+		bucket.amount_left = bucket.delta_amount;
+		bucket.current_price = bucket.current_price - bucket.delta_price;
+
+		// Do a binary search on the amount to reach the desired wap
+		let mut lower_bound: BalanceOf<T> = Zero::zero();
+		let mut upper_bound: BalanceOf<T> = bucket.delta_amount;
+		let mid_point = |l: BalanceOf<T>, u: BalanceOf<T>| -> BalanceOf<T> { (l.clone() + u.clone()) / 2u32.into() };
+		bucket.amount_left = mid_point(lower_bound, upper_bound);
+		let mut new_wap = self.dry_run_wap(bucket.clone(), auction_allocation);
+		while new_wap != target_wap {
+			if new_wap > target_wap {
+				lower_bound = mid_point(lower_bound, upper_bound);
+				bucket.amount_left = mid_point(lower_bound, upper_bound);
+			} else {
+				upper_bound = mid_point(lower_bound, upper_bound);
+				bucket.amount_left = mid_point(lower_bound, upper_bound);
+			}
+
+			if lower_bound == upper_bound {
+				break
+			}
+
+			new_wap = self.dry_run_wap(bucket.clone(), auction_allocation);
+		}
+		dbg!(&bucket);
+		bucket
+	}
+
+	// We assume a single bid can cover the whole first bucket. Make sure the ticket sizes allow this.
+	pub fn generate_bids_from_bucket(
+		&self,
+		project_metadata: ProjectMetadataOf<T>,
+		bucket: BucketOf<T>,
+		mut starting_account: AccountIdOf<T>,
+		increment_account: fn(AccountIdOf<T>) -> AccountIdOf<T>,
+		funding_asset: AcceptedFundingAsset,
+	) -> Vec<BidParams<T>> {
+		if bucket.current_price == bucket.initial_price {
+			return vec![]
+		}
+		let auction_allocation =
+			project_metadata.auction_round_allocation_percentage * project_metadata.total_allocation_size;
+
+		let mut generate_bid = |ct_amount| -> BidParams<T> {
+			let bid = (starting_account.clone(), ct_amount, funding_asset).into();
+			starting_account = increment_account(starting_account.clone());
+			bid
+		};
+
+		let step_amounts = ((bucket.current_price - bucket.initial_price) / bucket.delta_price).saturating_mul_int(1u8);
+		let last_bid_amount = bucket.delta_amount - bucket.amount_left;
+
+		let mut bids = Vec::new();
+
+		let first_bid = generate_bid(auction_allocation);
+		bids.push(first_bid);
+
+		for _i in 0u8..step_amounts - 1u8 {
+			let full_bucket_bid = generate_bid(bucket.delta_amount);
+			bids.push(full_bucket_bid);
+		}
+
+		// A CT amount can be so low that the PLMC required is less than the minimum mintable amount. We estimate all bids
+		// should be at least 1% of a bucket.
+		let min_bid_amount = Percent::from_percent(1) * bucket.delta_amount;
+		if last_bid_amount > min_bid_amount {
+			let last_bid = generate_bid(last_bid_amount);
+			bids.push(last_bid);
+		}
+
+		bids
+	}
+
+	pub fn generate_bids_that_take_price_to(
+		&self,
+		project_metadata: ProjectMetadataOf<T>,
+		desired_price: PriceOf<T>,
+		bidder_account: AccountIdOf<T>,
+		next_bidder_account: fn(AccountIdOf<T>) -> AccountIdOf<T>,
+	) -> Vec<BidParams<T>> {
+		let necessary_bucket = self.find_bucket_for_wap(project_metadata.clone(), desired_price);
+		self.generate_bids_from_bucket(
+			project_metadata,
+			necessary_bucket,
+			bidder_account,
+			next_bidder_account,
+			AcceptedFundingAsset::USDT,
+		)
+	}
 }

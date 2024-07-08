@@ -393,7 +393,7 @@ mod benchmarks {
 		whitelist_account!(issuer);
 
 		let project_metadata = default_project_metadata::<T>(issuer.clone());
-		let project_id = inst.create_new_project(project_metadata.clone(), issuer.clone());
+		let project_id = inst.create_new_project(project_metadata.clone(), issuer.clone(), None);
 		let jwt = get_mock_jwt_with_cid(
 			issuer.clone(),
 			InvestorType::Institutional,
@@ -427,7 +427,7 @@ mod benchmarks {
 		whitelist_account!(issuer);
 
 		let project_metadata = default_project_metadata::<T>(issuer.clone());
-		let project_id = inst.create_new_project(project_metadata.clone(), issuer.clone());
+		let project_id = inst.create_new_project(project_metadata.clone(), issuer.clone(), None);
 
 		let project_metadata = ProjectMetadataOf::<T> {
 			token_information: CurrencyMetadata {
@@ -530,7 +530,7 @@ mod benchmarks {
 		whitelist_account!(issuer);
 
 		let project_metadata = default_project_metadata::<T>(issuer.clone());
-		let project_id = inst.create_new_project(project_metadata.clone(), issuer.clone());
+		let project_id = inst.create_new_project(project_metadata.clone(), issuer.clone(), None);
 
 		// start_evaluation fn will try to add an automatic transition 1 block after the last evaluation block
 		let block_number: BlockNumberFor<T> = inst.current_block() + T::EvaluationDuration::get() + One::one();
@@ -584,7 +584,7 @@ mod benchmarks {
 		whitelist_account!(issuer);
 
 		let project_metadata = default_project_metadata::<T>(issuer.clone());
-		let project_id = inst.create_evaluating_project(project_metadata.clone(), issuer.clone());
+		let project_id = inst.create_evaluating_project(project_metadata.clone(), issuer.clone(), None);
 
 		let evaluations = default_evaluations();
 		let plmc_for_evaluating = inst.calculate_evaluation_plmc_spent(evaluations.clone(), true);
@@ -643,7 +643,7 @@ mod benchmarks {
 		whitelist_account!(test_evaluator);
 
 		let project_metadata = default_project_metadata::<T>(issuer.clone());
-		let project_id = inst.create_evaluating_project(project_metadata.clone(), issuer);
+		let project_id = inst.create_evaluating_project(project_metadata.clone(), issuer, None);
 
 		let existing_evaluation = UserToUSDBalance::new(test_evaluator.clone(), (200 * USD_UNIT).into());
 		let extrinsic_evaluation = UserToUSDBalance::new(test_evaluator.clone(), (1_000 * USD_UNIT).into());
@@ -773,7 +773,7 @@ mod benchmarks {
 			default_weights(),
 		);
 
-		let project_id = inst.create_auctioning_project(project_metadata.clone(), issuer, evaluations);
+		let project_id = inst.create_auctioning_project(project_metadata.clone(), issuer, None, evaluations);
 
 		let existing_bid = BidParams::new(bidder.clone(), (50 * CT_UNIT).into(), 5u8, AcceptedFundingAsset::USDT);
 
@@ -1096,6 +1096,7 @@ mod benchmarks {
 		let project_id = inst.create_community_contributing_project(
 			project_metadata.clone(),
 			issuer,
+			None,
 			default_evaluations::<T>(),
 			full_bids::<T>(),
 		);
@@ -1406,6 +1407,7 @@ mod benchmarks {
 		let project_id = inst.create_finished_project(
 			project_metadata.clone(),
 			issuer.clone(),
+			None,
 			evaluations,
 			bids,
 			contributions,
@@ -1457,6 +1459,7 @@ mod benchmarks {
 		let project_id = inst.create_finished_project(
 			default_project_metadata::<T>(issuer.clone()),
 			issuer,
+			None,
 			evaluations,
 			default_bids::<T>(),
 			default_community_contributions::<T>(),
@@ -1538,7 +1541,7 @@ mod benchmarks {
 		);
 
 		let project_id =
-			inst.create_finished_project(project_metadata, issuer, evaluations, bids, contributions, vec![]);
+			inst.create_finished_project(project_metadata, issuer, None, evaluations, bids, contributions, vec![]);
 
 		inst.advance_time(One::one()).unwrap();
 		assert_eq!(
@@ -1605,6 +1608,7 @@ mod benchmarks {
 		let project_id = inst.create_finished_project(
 			default_project_metadata::<T>(issuer.clone()),
 			issuer,
+			None,
 			default_evaluations::<T>(),
 			bids,
 			default_community_contributions::<T>(),
@@ -1671,8 +1675,15 @@ mod benchmarks {
 			default_community_contributor_multipliers(),
 		);
 
-		let project_id =
-			inst.create_finished_project(project_metadata, issuer.clone(), evaluations, bids, contributions, vec![]);
+		let project_id = inst.create_finished_project(
+			project_metadata,
+			issuer.clone(),
+			None,
+			evaluations,
+			bids,
+			contributions,
+			vec![],
+		);
 
 		inst.advance_time(One::one()).unwrap();
 		assert_eq!(
@@ -1718,6 +1729,7 @@ mod benchmarks {
 		let project_id = inst.create_finished_project(
 			default_project_metadata::<T>(issuer.clone()),
 			issuer,
+			None,
 			default_evaluations::<T>(),
 			default_bids::<T>(),
 			contributions,
@@ -1796,7 +1808,7 @@ mod benchmarks {
 		whitelist_account!(contributor);
 
 		let project_id =
-			inst.create_finished_project(project_metadata, issuer, evaluations, bids, contributions, vec![]);
+			inst.create_finished_project(project_metadata, issuer, None, evaluations, bids, contributions, vec![]);
 
 		inst.advance_time(One::one()).unwrap();
 		assert_eq!(
@@ -1855,7 +1867,7 @@ mod benchmarks {
 		whitelist_account!(issuer);
 
 		let project_metadata = default_project_metadata::<T>(issuer.clone());
-		let project_id = inst.create_evaluating_project(project_metadata, issuer.clone());
+		let project_id = inst.create_evaluating_project(project_metadata, issuer.clone(), None);
 
 		let evaluations = default_evaluations();
 		let plmc_for_evaluating = inst.calculate_evaluation_plmc_spent(evaluations.clone(), true);
@@ -1901,7 +1913,7 @@ mod benchmarks {
 		whitelist_account!(issuer);
 
 		let project_metadata = default_project_metadata::<T>(issuer.clone());
-		let project_id = inst.create_evaluating_project(project_metadata, issuer.clone());
+		let project_id = inst.create_evaluating_project(project_metadata, issuer.clone(), None);
 		let project_details = inst.get_project_details(project_id);
 
 		let evaluation_usd_target =
@@ -1963,7 +1975,7 @@ mod benchmarks {
 		whitelist_account!(issuer);
 
 		let project_metadata = default_project_metadata::<T>(issuer.clone());
-		let project_id = inst.create_auctioning_project(project_metadata, issuer.clone(), default_evaluations());
+		let project_id = inst.create_auctioning_project(project_metadata, issuer.clone(), None, default_evaluations());
 
 		let opening_end_block =
 			inst.get_project_details(project_id).phase_transition_points.auction_opening.end().unwrap();
@@ -2018,6 +2030,7 @@ mod benchmarks {
 		let project_id = inst.create_auctioning_project(
 			project_metadata.clone(),
 			issuer.clone(),
+			None,
 			inst.generate_successful_evaluations(
 				project_metadata.clone(),
 				default_evaluators::<T>(),
@@ -2151,6 +2164,7 @@ mod benchmarks {
 		let project_id = inst.create_auctioning_project(
 			project_metadata.clone(),
 			issuer.clone(),
+			None,
 			inst.generate_successful_evaluations(
 				project_metadata.clone(),
 				default_evaluators::<T>(),
@@ -2272,6 +2286,7 @@ mod benchmarks {
 		let project_id = inst.create_community_contributing_project(
 			project_metadata,
 			issuer.clone(),
+			None,
 			default_evaluations(),
 			default_bids(),
 		);
@@ -2340,6 +2355,7 @@ mod benchmarks {
 		let project_id = inst.create_remainder_contributing_project(
 			project_metadata,
 			issuer.clone(),
+			None,
 			default_evaluations::<T>(),
 			bids,
 			contributions,
@@ -2398,6 +2414,7 @@ mod benchmarks {
 		let project_id = inst.create_remainder_contributing_project(
 			project_metadata,
 			issuer.clone(),
+			None,
 			default_evaluations::<T>(),
 			bids,
 			contributions,
@@ -2457,6 +2474,7 @@ mod benchmarks {
 		let project_id = inst.create_remainder_contributing_project(
 			project_metadata,
 			issuer.clone(),
+			None,
 			default_evaluations::<T>(),
 			bids,
 			contributions,
@@ -2534,6 +2552,7 @@ mod benchmarks {
 		let project_id = inst.create_remainder_contributing_project(
 			project_metadata,
 			issuer.clone(),
+			None,
 			evaluations,
 			bids,
 			contributions,
@@ -2590,6 +2609,7 @@ mod benchmarks {
 		let project_id = inst.create_finished_project(
 			project_metadata,
 			issuer.clone(),
+			None,
 			default_evaluations::<T>(),
 			bids,
 			contributions,
@@ -2621,6 +2641,7 @@ mod benchmarks {
 		let project_id = inst.create_finished_project(
 			project_metadata,
 			issuer.clone(),
+			None,
 			default_evaluations::<T>(),
 			default_bids::<T>(),
 			default_community_contributions::<T>(),
@@ -2668,6 +2689,7 @@ mod benchmarks {
 		let project_id = inst.create_finished_project(
 			project_metadata,
 			issuer.clone(),
+			None,
 			default_evaluations::<T>(),
 			bids,
 			contributions,
@@ -2698,6 +2720,7 @@ mod benchmarks {
 		let project_id = inst.create_finished_project(
 			project_metadata.clone(),
 			issuer.clone(),
+			None,
 			default_evaluations::<T>(),
 			default_bids::<T>(),
 			default_community_contributions::<T>(),
@@ -2747,6 +2770,7 @@ mod benchmarks {
 		let project_id = inst.create_finished_project(
 			project_metadata.clone(),
 			issuer.clone(),
+			None,
 			default_evaluations::<T>(),
 			default_bids::<T>(),
 			default_community_contributions::<T>(),
@@ -2817,6 +2841,7 @@ mod benchmarks {
 		let project_id = inst.create_finished_project(
 			project_metadata.clone(),
 			issuer.clone(),
+			None,
 			evaluations,
 			bids,
 			default_community_contributions::<T>(),
@@ -2862,6 +2887,7 @@ mod benchmarks {
 		let project_id = inst.create_finished_project(
 			project_metadata.clone(),
 			issuer.clone(),
+			None,
 			default_evaluations::<T>(),
 			default_bids::<T>(),
 			default_community_contributions::<T>(),
@@ -2920,6 +2946,7 @@ mod benchmarks {
 		let project_id = inst.create_finished_project(
 			project_metadata.clone(),
 			issuer.clone(),
+			None,
 			default_evaluations::<T>(),
 			default_bids::<T>(),
 			default_community_contributions::<T>(),
@@ -2982,6 +3009,7 @@ mod benchmarks {
 		let project_id = inst.create_finished_project(
 			project_metadata.clone(),
 			issuer.clone(),
+			None,
 			default_evaluations::<T>(),
 			default_bids::<T>(),
 			default_community_contributions::<T>(),
@@ -3062,6 +3090,7 @@ mod benchmarks {
 		let project_id = inst.create_finished_project(
 			project_metadata.clone(),
 			issuer.clone(),
+			None,
 			default_evaluations::<T>(),
 			default_bids::<T>(),
 			default_community_contributions::<T>(),
@@ -3183,6 +3212,7 @@ mod benchmarks {
 		let project_id = inst.create_finished_project(
 			project_metadata.clone(),
 			issuer.clone(),
+			None,
 			evaluations,
 			bids,
 			default_community_contributions::<T>(),
@@ -3277,6 +3307,7 @@ mod benchmarks {
 		let project_id = inst.create_finished_project(
 			project_metadata.clone(),
 			issuer.clone(),
+			None,
 			evaluations,
 			bids,
 			default_community_contributions::<T>(),
@@ -3352,6 +3383,7 @@ mod benchmarks {
 		let project_id = inst.create_finished_project(
 			project_metadata.clone(),
 			issuer.clone(),
+			None,
 			default_evaluations::<T>(),
 			default_bids::<T>(),
 			default_community_contributions::<T>(),
@@ -3401,6 +3433,7 @@ mod benchmarks {
 		let project_id = inst.create_finished_project(
 			project_metadata.clone(),
 			issuer.clone(),
+			None,
 			default_evaluations::<T>(),
 			default_bids::<T>(),
 			default_community_contributions::<T>(),

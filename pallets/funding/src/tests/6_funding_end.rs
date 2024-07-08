@@ -78,6 +78,37 @@ mod round_flow {
 				EvaluatorsOutcome::Rewarded(expected_reward_info)
 			);
 		}
+
+		#[test]
+		fn auction_oversubscription() {
+			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+			let project_metadata = default_project_metadata(ISSUER_1);
+			let auction_allocation =
+				project_metadata.auction_round_allocation_percentage * project_metadata.total_allocation_size;
+			let bucket_size = Percent::from_percent(10) * auction_allocation;
+			let bids = vec![
+				(BIDDER_1, auction_allocation).into(),
+				(BIDDER_2, bucket_size).into(),
+				(BIDDER_3, bucket_size).into(),
+				(BIDDER_4, bucket_size).into(),
+				(BIDDER_5, bucket_size).into(),
+				(BIDDER_6, bucket_size).into(),
+			];
+
+			let project_id = inst.create_finished_project(
+				project_metadata.clone(),
+				ISSUER_1,
+				None,
+				default_evaluations(),
+				bids,
+				default_community_buys(),
+				default_remainder_buys(),
+			);
+
+			let wap = inst.get_project_details(project_id).weighted_average_price.unwrap();
+			dbg!(wap);
+			assert!(wap > project_metadata.minimum_price);
+		}
 	}
 }
 
@@ -139,8 +170,15 @@ mod decide_project_outcome {
 				default_community_contributors(),
 				default_multipliers(),
 			);
-			let project_id =
-				inst.create_finished_project(project_metadata, ISSUER_1, evaluations, bids, contributions, vec![]);
+			let project_id = inst.create_finished_project(
+				project_metadata,
+				ISSUER_1,
+				None,
+				evaluations,
+				bids,
+				contributions,
+				vec![],
+			);
 			assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::AwaitingProjectDecision);
 
 			inst.advance_time(1u64 + <TestRuntime as Config>::ManualAcceptanceDuration::get()).unwrap();
@@ -190,6 +228,7 @@ mod decide_project_outcome {
 			let project_id = inst.create_finished_project(
 				project_metadata.clone(),
 				ISSUER_1,
+				None,
 				evaluations,
 				bids,
 				contributions,
@@ -281,24 +320,25 @@ mod decide_project_outcome {
 			};
 
 			// Application
-			let project_id = inst.create_new_project(project_metadata.clone(), ISSUER_1);
+			let project_id = inst.create_new_project(project_metadata.clone(), ISSUER_1, None);
 			assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::Application);
 			call_fails(project_id, ISSUER_1, &mut inst);
 
 			// Evaluation
-			let project_id = inst.create_evaluating_project(project_metadata.clone(), ISSUER_2);
+			let project_id = inst.create_evaluating_project(project_metadata.clone(), ISSUER_2, None);
 			assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::EvaluationRound);
 			call_fails(project_id, ISSUER_2, &mut inst);
 
 			// EvaluationFailed
-			let project_id = inst.create_evaluating_project(project_metadata.clone(), ISSUER_3);
+			let project_id = inst.create_evaluating_project(project_metadata.clone(), ISSUER_3, None);
 			let transition_block = inst.get_update_block(project_id, &UpdateType::EvaluationEnd).unwrap();
 			inst.jump_to_block(transition_block);
 			assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::FundingFailed);
 			call_fails(project_id, ISSUER_3, &mut inst);
 
 			// Auction
-			let project_id = inst.create_auctioning_project(project_metadata.clone(), ISSUER_4, default_evaluations());
+			let project_id =
+				inst.create_auctioning_project(project_metadata.clone(), ISSUER_4, None, default_evaluations());
 			assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::AuctionOpening);
 			call_fails(project_id, ISSUER_4, &mut inst);
 
@@ -306,6 +346,7 @@ mod decide_project_outcome {
 			let project_id = inst.create_community_contributing_project(
 				project_metadata.clone(),
 				ISSUER_5,
+				None,
 				default_evaluations(),
 				default_bids(),
 			);
@@ -316,6 +357,7 @@ mod decide_project_outcome {
 			let project_id = inst.create_remainder_contributing_project(
 				project_metadata.clone(),
 				ISSUER_6,
+				None,
 				default_evaluations(),
 				default_bids(),
 				vec![],
@@ -327,6 +369,7 @@ mod decide_project_outcome {
 			let project_id = inst.create_finished_project(
 				project_metadata.clone(),
 				ISSUER_7,
+				None,
 				default_evaluations(),
 				default_bids(),
 				default_community_buys(),
@@ -339,6 +382,7 @@ mod decide_project_outcome {
 			let project_id = inst.create_finished_project(
 				project_metadata.clone(),
 				ISSUER_8,
+				None,
 				default_evaluations(),
 				vec![default_bids()[1].clone()],
 				vec![],

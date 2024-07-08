@@ -17,7 +17,8 @@ mod round_flow {
 			let project_metadata = default_project_metadata(ISSUER_1);
 			let evaluations = default_evaluations();
 			let bids = default_bids();
-			let _project_id = inst.create_community_contributing_project(project_metadata, ISSUER_1, evaluations, bids);
+			let _project_id =
+				inst.create_community_contributing_project(project_metadata, ISSUER_1, None, evaluations, bids);
 		}
 
 		#[test]
@@ -30,10 +31,10 @@ mod round_flow {
 			let evaluations = default_evaluations();
 			let bids = default_bids();
 
-			inst.create_community_contributing_project(project1, ISSUER_1, evaluations.clone(), bids.clone());
-			inst.create_community_contributing_project(project2, ISSUER_2, evaluations.clone(), bids.clone());
-			inst.create_community_contributing_project(project3, ISSUER_3, evaluations.clone(), bids.clone());
-			inst.create_community_contributing_project(project4, ISSUER_4, evaluations, bids);
+			inst.create_community_contributing_project(project1, ISSUER_1, None, evaluations.clone(), bids.clone());
+			inst.create_community_contributing_project(project2, ISSUER_2, None, evaluations.clone(), bids.clone());
+			inst.create_community_contributing_project(project3, ISSUER_3, None, evaluations.clone(), bids.clone());
+			inst.create_community_contributing_project(project4, ISSUER_4, None, evaluations, bids);
 		}
 
 		#[test]
@@ -102,7 +103,8 @@ mod round_flow {
 			inst.mint_plmc_to(plmc_fundings);
 			inst.mint_foreign_asset_to(usdt_fundings);
 
-			let project_id = inst.create_auctioning_project(project_metadata, ISSUER_1, default_evaluations());
+			let project_id =
+				inst.create_auctioning_project(project_metadata.clone(), ISSUER_1, None, default_evaluations());
 
 			let bids = vec![
 				(ADAM, 10_000 * CT_UNIT).into(),
@@ -150,7 +152,7 @@ mod round_flow {
 			bids.push(second_bucket_bid);
 
 			let project_id =
-				inst.create_community_contributing_project(project_metadata.clone(), issuer, evaluations, bids);
+				inst.create_community_contributing_project(project_metadata.clone(), issuer, None, evaluations, bids);
 			let bidder_5_bid =
 				inst.execute(|| Bids::<TestRuntime>::iter_prefix_values((project_id, BIDDER_6)).next().unwrap());
 			let wabgp = inst.get_project_details(project_id).weighted_average_price.unwrap();
@@ -178,6 +180,7 @@ mod round_flow {
 			let project_id = inst.create_community_contributing_project(
 				project_metadata.clone(),
 				ISSUER_1,
+				None,
 				evaluations.clone(),
 				bids,
 			);
@@ -191,6 +194,7 @@ mod round_flow {
 			let project_id = inst.create_community_contributing_project(
 				project_metadata.clone(),
 				ISSUER_2,
+				None,
 				evaluations.clone(),
 				bids,
 			);
@@ -228,7 +232,7 @@ mod round_flow {
 
 			let bids = vec![bid_1, bid_2, bid_3, bid_4, bid_5];
 
-			let project_id = inst.create_auctioning_project(project_metadata.clone(), issuer, evaluations);
+			let project_id = inst.create_auctioning_project(project_metadata.clone(), issuer, None, evaluations);
 
 			let plmc_fundings = inst.calculate_auction_plmc_charged_from_all_bids_made_or_with_bucket(
 				&bids,
@@ -290,7 +294,8 @@ mod round_flow {
 		fn bids_get_rejected_and_refunded_part_two() {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 			let project_metadata = default_project_metadata(ISSUER_1);
-			let project_id = inst.create_auctioning_project(project_metadata.clone(), ISSUER_1, default_evaluations());
+			let project_id =
+				inst.create_auctioning_project(project_metadata.clone(), ISSUER_1, None, default_evaluations());
 
 			let total_auction_ct_amount =
 				project_metadata.auction_round_allocation_percentage * project_metadata.total_allocation_size;
@@ -384,7 +389,7 @@ mod round_flow {
 			let issuer = ISSUER_1;
 			let project_metadata = default_project_metadata(issuer);
 			let evaluations = default_evaluations();
-			let project_id = inst.create_auctioning_project(project_metadata.clone(), issuer, evaluations);
+			let project_id = inst.create_auctioning_project(project_metadata.clone(), issuer, None, evaluations);
 
 			let details = inst.get_project_details(project_id);
 			let opening_end = details.phase_transition_points.auction_opening.end().unwrap();
@@ -408,7 +413,7 @@ mod round_flow {
 			let project_metadata = default_project_metadata(issuer);
 			let evaluations = default_evaluations();
 			let bids = default_bids();
-			let project_id = inst.create_auctioning_project(project_metadata.clone(), issuer, evaluations);
+			let project_id = inst.create_auctioning_project(project_metadata.clone(), issuer, None, evaluations);
 
 			let necessary_plmc = inst.calculate_auction_plmc_charged_from_all_bids_made_or_with_bucket(
 				&bids,
@@ -489,7 +494,7 @@ mod round_flow {
 			inst.mint_plmc_to(plmc_fundings);
 			inst.mint_foreign_asset_to(usdt_fundings);
 
-			let project_id = inst.create_auctioning_project(project_metadata, ISSUER_1, default_evaluations());
+			let project_id = inst.create_auctioning_project(project_metadata, ISSUER_1, None, default_evaluations());
 
 			let bids = vec![
 				(ADAM, 10_000 * CT_UNIT, 1, AcceptedFundingAsset::USDT).into(),
@@ -602,7 +607,7 @@ mod round_flow {
 					default_evaluators(),
 					default_weights(),
 				);
-				let project_id = inst.create_auctioning_project(project_metadata.clone(), issuer, evaluations);
+				let project_id = inst.create_auctioning_project(project_metadata.clone(), issuer, None, evaluations);
 
 				let auction_allocation_percentage = project_metadata.auction_round_allocation_percentage;
 				let auction_allocation_ct = auction_allocation_percentage * project_metadata.total_allocation_size;
@@ -692,6 +697,7 @@ mod round_flow {
 			let project_id = inst.create_community_contributing_project(
 				project_metadata.clone(),
 				ISSUER_1,
+				None,
 				inst.generate_successful_evaluations(project_metadata.clone(), default_evaluators(), default_weights()),
 				all_bids,
 			);
@@ -703,6 +709,35 @@ mod round_flow {
 			let higher_than_wap_bids = all_bids.iter().filter(|bid| bid.original_ct_usd_price > wap).collect_vec();
 			assert_eq!(higher_than_wap_bids.len(), (max_bids_per_project - 1u32) as usize);
 		}
+
+		#[test]
+		fn auction_oversubscription() {
+			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+			let project_metadata = default_project_metadata(ISSUER_1);
+			let auction_allocation =
+				project_metadata.auction_round_allocation_percentage * project_metadata.total_allocation_size;
+			let bucket_size = Percent::from_percent(10) * auction_allocation;
+			let bids = vec![
+				(BIDDER_1, auction_allocation).into(),
+				(BIDDER_2, bucket_size).into(),
+				(BIDDER_3, bucket_size).into(),
+				(BIDDER_4, bucket_size).into(),
+				(BIDDER_5, bucket_size).into(),
+				(BIDDER_6, bucket_size).into(),
+			];
+
+			let project_id = inst.create_community_contributing_project(
+				project_metadata.clone(),
+				ISSUER_1,
+				None,
+				default_evaluations(),
+				bids,
+			);
+
+			let wap = inst.get_project_details(project_id).weighted_average_price.unwrap();
+			dbg!(wap);
+			assert!(wap > project_metadata.minimum_price);
+		}
 	}
 
 	#[cfg(test)]
@@ -713,7 +748,7 @@ mod round_flow {
 		fn contribute_does_not_work() {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 			let project_metadata = default_project_metadata(ISSUER_1);
-			let project_id = inst.create_evaluating_project(project_metadata.clone(), ISSUER_1);
+			let project_id = inst.create_evaluating_project(project_metadata.clone(), ISSUER_1, None);
 			let did = generate_did_from_account(ISSUER_1);
 			let investor_type = InvestorType::Retail;
 			inst.execute(|| {
@@ -746,7 +781,7 @@ mod start_auction_extrinsic {
 		#[test]
 		fn pallet_can_start_auction_automatically() {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
-			let project_id = inst.create_evaluating_project(default_project_metadata(ISSUER_1), ISSUER_1);
+			let project_id = inst.create_evaluating_project(default_project_metadata(ISSUER_1), ISSUER_1, None);
 			let evaluations = default_evaluations();
 			let required_plmc = inst.calculate_evaluation_plmc_spent(evaluations.clone(), true);
 
@@ -765,7 +800,7 @@ mod start_auction_extrinsic {
 		#[test]
 		fn issuer_can_start_auction_manually() {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
-			let project_id = inst.create_evaluating_project(default_project_metadata(ISSUER_1), ISSUER_1);
+			let project_id = inst.create_evaluating_project(default_project_metadata(ISSUER_1), ISSUER_1, None);
 			let evaluations = default_evaluations();
 			let required_plmc = inst.calculate_evaluation_plmc_spent(evaluations.clone(), true);
 			inst.mint_plmc_to(required_plmc);
@@ -780,7 +815,7 @@ mod start_auction_extrinsic {
 		#[test]
 		fn stranger_cannot_start_auction_manually() {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
-			let project_id = inst.create_evaluating_project(default_project_metadata(ISSUER_1), ISSUER_1);
+			let project_id = inst.create_evaluating_project(default_project_metadata(ISSUER_1), ISSUER_1, None);
 			let evaluations = default_evaluations();
 			let required_plmc = inst.calculate_evaluation_plmc_spent(evaluations.clone(), true);
 			inst.mint_plmc_to(required_plmc);
@@ -805,7 +840,7 @@ mod start_auction_extrinsic {
 		#[test]
 		fn cannot_start_auction_manually_before_evaluation_finishes() {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
-			let project_id = inst.create_evaluating_project(default_project_metadata(ISSUER_1), ISSUER_1);
+			let project_id = inst.create_evaluating_project(default_project_metadata(ISSUER_1), ISSUER_1, None);
 			inst.execute(|| {
 				assert_noop!(
 					PolimecFunding::do_start_auction_opening(ISSUER_1, project_id),
@@ -817,7 +852,7 @@ mod start_auction_extrinsic {
 		#[test]
 		fn cannot_start_auction_manually_if_evaluation_fails() {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
-			let project_id = inst.create_evaluating_project(default_project_metadata(ISSUER_1), ISSUER_1);
+			let project_id = inst.create_evaluating_project(default_project_metadata(ISSUER_1), ISSUER_1, None);
 			inst.advance_time(<TestRuntime as Config>::EvaluationDuration::get() + 1).unwrap();
 			inst.execute(|| {
 				assert_noop!(
@@ -835,7 +870,7 @@ mod start_auction_extrinsic {
 		fn auction_doesnt_start_automatically_if_evaluation_fails() {
 			// Test our success assumption is ok
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
-			let project_id = inst.create_evaluating_project(default_project_metadata(ISSUER_1), ISSUER_1);
+			let project_id = inst.create_evaluating_project(default_project_metadata(ISSUER_1), ISSUER_1, None);
 			let evaluations = default_evaluations();
 			let required_plmc = inst.calculate_evaluation_plmc_spent(evaluations.clone(), true);
 			inst.mint_plmc_to(required_plmc);
@@ -844,7 +879,7 @@ mod start_auction_extrinsic {
 
 			// Main test with failed evaluation
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
-			let project_id = inst.create_evaluating_project(default_project_metadata(ISSUER_1), ISSUER_1);
+			let project_id = inst.create_evaluating_project(default_project_metadata(ISSUER_1), ISSUER_1, None);
 
 			let evaluation_end_execution = inst.get_update_block(project_id, &UpdateType::EvaluationEnd).unwrap();
 			inst.execute(|| System::set_block_number(evaluation_end_execution - 1));
@@ -874,7 +909,7 @@ mod bid_extrinsic {
 			let evaluator_bid = BidParams::new(evaluator_bidder, 600 * CT_UNIT, 1u8, AcceptedFundingAsset::USDT);
 			evaluations.push((evaluator_bidder, evaluation_amount).into());
 
-			let project_id = inst.create_auctioning_project(project_metadata.clone(), issuer, evaluations);
+			let project_id = inst.create_auctioning_project(project_metadata.clone(), issuer, None, evaluations);
 
 			let already_bonded_plmc = inst
 				.calculate_evaluation_plmc_spent(vec![(evaluator_bidder, evaluation_amount).into()], false)[0]
@@ -967,10 +1002,12 @@ mod bid_extrinsic {
 			inst.mint_foreign_asset_to(usdt_fundings.clone());
 			inst.mint_foreign_asset_to(usdt_fundings.clone());
 
-			let project_id_all = inst.create_auctioning_project(project_metadata_all, ISSUER_1, evaluations.clone());
+			let project_id_all =
+				inst.create_auctioning_project(project_metadata_all, ISSUER_1, None, evaluations.clone());
 			assert_ok!(inst.bid_for_users(project_id_all, vec![usdt_bid.clone(), usdc_bid.clone(), dot_bid.clone()]));
 
-			let project_id_usdt = inst.create_auctioning_project(project_metadata_usdt, ISSUER_2, evaluations.clone());
+			let project_id_usdt =
+				inst.create_auctioning_project(project_metadata_usdt, ISSUER_2, None, evaluations.clone());
 			assert_ok!(inst.bid_for_users(project_id_usdt, vec![usdt_bid.clone()]));
 			assert_err!(
 				inst.bid_for_users(project_id_usdt, vec![usdc_bid.clone()]),
@@ -981,7 +1018,8 @@ mod bid_extrinsic {
 				Error::<TestRuntime>::FundingAssetNotAccepted
 			);
 
-			let project_id_usdc = inst.create_auctioning_project(project_metadata_usdc, ISSUER_3, evaluations.clone());
+			let project_id_usdc =
+				inst.create_auctioning_project(project_metadata_usdc, ISSUER_3, None, evaluations.clone());
 			assert_err!(
 				inst.bid_for_users(project_id_usdc, vec![usdt_bid.clone()]),
 				Error::<TestRuntime>::FundingAssetNotAccepted
@@ -992,7 +1030,8 @@ mod bid_extrinsic {
 				Error::<TestRuntime>::FundingAssetNotAccepted
 			);
 
-			let project_id_dot = inst.create_auctioning_project(project_metadata_dot, ISSUER_4, evaluations.clone());
+			let project_id_dot =
+				inst.create_auctioning_project(project_metadata_dot, ISSUER_4, None, evaluations.clone());
 			assert_err!(
 				inst.bid_for_users(project_id_dot, vec![usdt_bid.clone()]),
 				Error::<TestRuntime>::FundingAssetNotAccepted
@@ -1055,7 +1094,7 @@ mod bid_extrinsic {
 			let project_metadata = default_project_metadata(ISSUER_1);
 			let evaluations =
 				inst.generate_successful_evaluations(project_metadata.clone(), default_evaluators(), default_weights());
-			let project_id = inst.create_auctioning_project(project_metadata.clone(), ISSUER_1, evaluations);
+			let project_id = inst.create_auctioning_project(project_metadata.clone(), ISSUER_1, None, evaluations);
 			// Professional bids: 0x multiplier should fail
 			assert_err!(
 				test_bid_setup(&mut inst, project_id, BIDDER_1, InvestorType::Professional, 0),
@@ -1105,7 +1144,7 @@ mod bid_extrinsic {
 			project_metadata.auction_round_allocation_percentage = Percent::from_percent(50u8);
 
 			let evaluations = default_evaluations();
-			let project_id = inst.create_auctioning_project(project_metadata.clone(), ISSUER_1, evaluations);
+			let project_id = inst.create_auctioning_project(project_metadata.clone(), ISSUER_1, None, evaluations);
 
 			// bid that fills 80% of the first bucket
 			let bid_40_percent = inst.generate_bids_from_total_ct_percent(
@@ -1198,7 +1237,8 @@ mod bid_extrinsic {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 			let issuer = ISSUER_1;
 			let project_metadata = default_project_metadata(issuer);
-			let project_id = inst.create_auctioning_project(project_metadata.clone(), issuer, default_evaluations());
+			let project_id =
+				inst.create_auctioning_project(project_metadata.clone(), issuer, None, default_evaluations());
 
 			let bid = BidParams::new(BIDDER_4, 500 * CT_UNIT, 1u8, AcceptedFundingAsset::USDT);
 			let plmc_required = inst.calculate_auction_plmc_charged_from_all_bids_made_or_with_bucket(
@@ -1249,7 +1289,7 @@ mod bid_extrinsic {
 
 			inst.start_community_funding(project_id).unwrap();
 			inst.start_remainder_or_end_funding(project_id).unwrap();
-			inst.finish_funding(project_id).unwrap();
+			inst.finish_funding(project_id, None).unwrap();
 
 			assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::FundingFailed);
 
@@ -1284,7 +1324,8 @@ mod bid_extrinsic {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 			let issuer = ISSUER_1;
 			let project_metadata = default_project_metadata(issuer);
-			let project_id = inst.create_auctioning_project(project_metadata.clone(), issuer, default_evaluations());
+			let project_id =
+				inst.create_auctioning_project(project_metadata.clone(), issuer, None, default_evaluations());
 
 			let bid = BidParams::new(BIDDER_4, 500 * CT_UNIT, 5u8, AcceptedFundingAsset::USDT);
 			let plmc_required = inst.calculate_auction_plmc_charged_from_all_bids_made_or_with_bucket(
@@ -1354,7 +1395,7 @@ mod bid_extrinsic {
 			inst.contribute_for_users(project_id, contributions).unwrap();
 
 			inst.start_remainder_or_end_funding(project_id).unwrap();
-			inst.finish_funding(project_id).unwrap();
+			inst.finish_funding(project_id, None).unwrap();
 
 			assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::FundingSuccessful);
 			let settlement_block = inst.get_update_block(project_id, &UpdateType::StartSettlement).unwrap();
@@ -1420,7 +1461,7 @@ mod bid_extrinsic {
 			let evaluator_bid = BidParams::new(evaluator_bidder, 600 * CT_UNIT, 1u8, AcceptedFundingAsset::USDT);
 			evaluations.push((evaluator_bidder, evaluation_amount).into());
 
-			let project_id = inst.create_auctioning_project(project_metadata.clone(), issuer, evaluations);
+			let project_id = inst.create_auctioning_project(project_metadata.clone(), issuer, None, evaluations);
 
 			let necessary_usdt_for_bid = inst.calculate_auction_funding_asset_charged_with_given_price(
 				&vec![evaluator_bid.clone()],
@@ -1449,8 +1490,10 @@ mod bid_extrinsic {
 			let evaluator_bid = BidParams::new(evaluator_bidder, 600 * CT_UNIT, 1u8, AcceptedFundingAsset::USDT);
 			evaluations_1.push((evaluator_bidder, evaluation_amount).into());
 
-			let _project_id_1 = inst.create_auctioning_project(project_metadata_1.clone(), ISSUER_1, evaluations_1);
-			let project_id_2 = inst.create_auctioning_project(project_metadata_2.clone(), ISSUER_2, evaluations_2);
+			let _project_id_1 =
+				inst.create_auctioning_project(project_metadata_1.clone(), ISSUER_1, None, evaluations_1);
+			let project_id_2 =
+				inst.create_auctioning_project(project_metadata_2.clone(), ISSUER_2, None, evaluations_2);
 
 			// Necessary Mints
 			let already_bonded_plmc = inst
@@ -1498,7 +1541,7 @@ mod bid_extrinsic {
 		fn cannot_bid_before_auction_round() {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 			let project_metadata = default_project_metadata(ISSUER_1);
-			let _ = inst.create_evaluating_project(project_metadata.clone(), ISSUER_1);
+			let _ = inst.create_evaluating_project(project_metadata.clone(), ISSUER_1, None);
 			let did = generate_did_from_account(BIDDER_2);
 			let investor_type = InvestorType::Institutional;
 
@@ -1532,7 +1575,7 @@ mod bid_extrinsic {
 			let bids =
 				(0u32..max_bids_per_project - 1).map(|i| (i as u32 + 420u32, 5000 * CT_UNIT).into()).collect_vec();
 
-			let project_id = inst.create_auctioning_project(project_metadata.clone(), ISSUER_1, evaluations);
+			let project_id = inst.create_auctioning_project(project_metadata.clone(), ISSUER_1, None, evaluations);
 
 			let plmc_for_bidding = inst.calculate_auction_plmc_charged_with_given_price(
 				&bids.clone(),
@@ -1637,7 +1680,7 @@ mod bid_extrinsic {
 			let max_bids_per_user: u32 = <TestRuntime as Config>::MaxBidsPerUser::get();
 			let bids = (0u32..max_bids_per_user - 1u32).map(|_| (BIDDER_1, 5000 * CT_UNIT).into()).collect_vec();
 
-			let project_id = inst.create_auctioning_project(project_metadata.clone(), ISSUER_1, evaluations);
+			let project_id = inst.create_auctioning_project(project_metadata.clone(), ISSUER_1, None, evaluations);
 
 			let plmc_for_bidding = inst.calculate_auction_plmc_charged_with_given_price(
 				&bids.clone(),
@@ -1741,7 +1784,8 @@ mod bid_extrinsic {
 
 			let evaluations = default_evaluations();
 
-			let project_id = inst.create_auctioning_project(project_metadata.clone(), ISSUER_1, evaluations.clone());
+			let project_id =
+				inst.create_auctioning_project(project_metadata.clone(), ISSUER_1, None, evaluations.clone());
 
 			inst.mint_plmc_to(vec![(BIDDER_1, 50_000 * CT_UNIT).into(), (BIDDER_2, 50_000 * CT_UNIT).into()]);
 
@@ -1803,7 +1847,8 @@ mod bid_extrinsic {
 
 			let evaluations = default_evaluations();
 
-			let project_id = inst.create_auctioning_project(project_metadata.clone(), ISSUER_1, evaluations.clone());
+			let project_id =
+				inst.create_auctioning_project(project_metadata.clone(), ISSUER_1, None, evaluations.clone());
 
 			inst.mint_plmc_to(vec![
 				(BIDDER_1, 200_000 * PLMC).into(),
@@ -1884,7 +1929,8 @@ mod bid_extrinsic {
 			};
 			let evaluations = default_evaluations();
 
-			let project_id = inst.create_auctioning_project(project_metadata.clone(), ISSUER_1, evaluations.clone());
+			let project_id =
+				inst.create_auctioning_project(project_metadata.clone(), ISSUER_1, None, evaluations.clone());
 
 			inst.mint_plmc_to(vec![
 				(BIDDER_1, 500_000 * CT_UNIT).into(),
@@ -2001,7 +2047,8 @@ mod bid_extrinsic {
 		fn issuer_cannot_bid_his_project() {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 			let project_metadata = default_project_metadata(ISSUER_1);
-			let project_id = inst.create_auctioning_project(project_metadata.clone(), ISSUER_1, default_evaluations());
+			let project_id =
+				inst.create_auctioning_project(project_metadata.clone(), ISSUER_1, None, default_evaluations());
 			assert_err!(
 				inst.execute(|| crate::Pallet::<TestRuntime>::do_bid(
 					&(&ISSUER_1 + 1),
@@ -2021,7 +2068,8 @@ mod bid_extrinsic {
 		fn bid_with_asset_not_accepted() {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 			let project_metadata = default_project_metadata(ISSUER_1);
-			let project_id = inst.create_auctioning_project(project_metadata.clone(), ISSUER_1, default_evaluations());
+			let project_id =
+				inst.create_auctioning_project(project_metadata.clone(), ISSUER_1, None, default_evaluations());
 			let bids = vec![BidParams::<TestRuntime>::new(BIDDER_1, 10_000, 1u8, AcceptedFundingAsset::USDC)];
 
 			let did = generate_did_from_account(bids[0].bidder);
@@ -2046,7 +2094,8 @@ mod bid_extrinsic {
 		fn wrong_policy_on_jwt() {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 			let project_metadata = default_project_metadata(ISSUER_1);
-			let project_id = inst.create_auctioning_project(project_metadata.clone(), ISSUER_1, default_evaluations());
+			let project_id =
+				inst.create_auctioning_project(project_metadata.clone(), ISSUER_1, None, default_evaluations());
 
 			inst.execute(|| {
 				assert_noop!(
