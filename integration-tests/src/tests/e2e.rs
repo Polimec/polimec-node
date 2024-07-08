@@ -485,7 +485,7 @@ fn ct_migrated() {
 	// Mock HRMP establishment
 	PolimecNet::execute_with(|| {
 		let _account_id: PolimecAccountId = ISSUER.into();
-		assert_ok!(PolimecFunding::do_set_para_id_for_project(&ISSUER.into(), project_id, ParaId::from(6969u32),));
+		assert_ok!(PolimecFunding::do_start_pallet_migration(&ISSUER.into(), project_id, ParaId::from(6969u32),));
 		let open_channel_message = xcm::v3::opaque::Instruction::HrmpNewChannelOpenRequest {
 			sender: 6969,
 			max_message_size: 102_300,
@@ -505,7 +505,10 @@ fn ct_migrated() {
 	// Migration is ready
 	PolimecNet::execute_with(|| {
 		let project_details = pallet_funding::ProjectsDetails::<PolimecRuntime>::get(project_id).unwrap();
-		assert!(project_details.migration_readiness_check.unwrap().is_ready())
+		let Some(MigrationType::Pallet(migration_info)) = project_details.migration_type else {
+			panic!("Migration type should be ParachainReceiverPallet");
+		};
+		assert!(migration_info.migration_readiness_check.unwrap().is_ready())
 	});
 
 	excel_ct_amounts().iter().map(|tup| tup.0.clone()).unique().for_each(|account| {
@@ -525,7 +528,7 @@ fn ct_migrated() {
 
 	for account in accounts {
 		PolimecNet::execute_with(|| {
-			assert_ok!(PolimecFunding::migrate_one_participant(
+			assert_ok!(PolimecFunding::send_pallet_migration_for(
 				PolimecOrigin::signed(account.clone()),
 				project_id,
 				account.clone()

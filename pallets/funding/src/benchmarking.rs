@@ -1535,7 +1535,10 @@ mod benchmarks {
 			inst.create_finished_project(project_metadata, issuer, evaluations, bids, contributions, vec![]);
 
 		inst.advance_time(One::one()).unwrap();
-		assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::FundingFailed);
+		assert_eq!(
+			inst.get_project_details(project_id).status,
+			ProjectStatus::SettlementStarted(FundingOutcome::FundingFailed)
+		);
 
 		let evaluation_to_settle =
 			inst.execute(|| Evaluations::<T>::iter_prefix_values((project_id, evaluator.clone())).next().unwrap());
@@ -1606,7 +1609,10 @@ mod benchmarks {
 
 		run_blocks_to_execute_next_transition(project_id, UpdateType::StartSettlement, &mut inst);
 
-		assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::FundingSuccessful);
+		assert_eq!(
+			inst.get_project_details(project_id).status,
+			ProjectStatus::SettlementStarted(FundingOutcome::FundingSuccessful)
+		);
 
 		let bid_to_settle =
 			inst.execute(|| Bids::<T>::iter_prefix_values((project_id, bidder.clone())).next().unwrap());
@@ -1665,7 +1671,10 @@ mod benchmarks {
 			inst.create_finished_project(project_metadata, issuer.clone(), evaluations, bids, contributions, vec![]);
 
 		inst.advance_time(One::one()).unwrap();
-		assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::FundingFailed);
+		assert_eq!(
+			inst.get_project_details(project_id).status,
+			ProjectStatus::SettlementStarted(FundingOutcome::FundingFailed)
+		);
 
 		let bid_to_settle =
 			inst.execute(|| Bids::<T>::iter_prefix_values((project_id, bidder.clone())).next().unwrap());
@@ -1713,7 +1722,10 @@ mod benchmarks {
 
 		run_blocks_to_execute_next_transition(project_id, UpdateType::StartSettlement, &mut inst);
 
-		assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::FundingSuccessful);
+		assert_eq!(
+			inst.get_project_details(project_id).status,
+			ProjectStatus::SettlementStarted(FundingOutcome::FundingSuccessful)
+		);
 
 		let contribution_to_settle =
 			inst.execute(|| Contributions::<T>::iter_prefix_values((project_id, contributor.clone())).next().unwrap());
@@ -1783,7 +1795,10 @@ mod benchmarks {
 			inst.create_finished_project(project_metadata, issuer, evaluations, bids, contributions, vec![]);
 
 		inst.advance_time(One::one()).unwrap();
-		assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::FundingFailed);
+		assert_eq!(
+			inst.get_project_details(project_id).status,
+			ProjectStatus::SettlementStarted(FundingOutcome::FundingFailed)
+		);
 
 		let contribution_to_settle =
 			inst.execute(|| Contributions::<T>::iter_prefix_values((project_id, contributor.clone())).next().unwrap());
@@ -2618,7 +2633,7 @@ mod benchmarks {
 
 		// * validity checks *
 		let project_details = inst.get_project_details(project_id);
-		assert_eq!(project_details.status, ProjectStatus::FundingSuccessful);
+		assert_eq!(project_details.status, ProjectStatus::SettlementStarted(FundingOutcome::FundingSuccessful));
 	}
 
 	#[benchmark]
@@ -2667,7 +2682,7 @@ mod benchmarks {
 
 		// * validity checks *
 		let project_details = inst.get_project_details(project_id);
-		assert_eq!(project_details.status, ProjectStatus::FundingFailed);
+		assert_eq!(project_details.status, ProjectStatus::SettlementStarted(FundingOutcome::FundingFailed));
 	}
 
 	#[cfg(test)]

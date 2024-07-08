@@ -71,7 +71,7 @@ mod round_flow {
 			let now = inst.current_block();
 			inst.advance_time(update_block - now + 1).unwrap();
 			let project_status = inst.get_project_details(project_id).status;
-			assert_eq!(project_status, ProjectStatus::FundingFailed);
+			assert_eq!(project_status, ProjectStatus::SettlementStarted(FundingOutcome::FundingFailed));
 		}
 
 		#[test]
@@ -242,9 +242,6 @@ mod round_flow {
 
 			assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::FundingFailed);
 
-			// Cannot settle before the settlement starts
-			inst.settle_project(project_id).expect_err("Settlement should not be possible yet");
-
 			let settlement_block = inst.get_update_block(project_id, &UpdateType::StartSettlement).unwrap();
 			inst.jump_to_block(settlement_block);
 
@@ -329,12 +326,7 @@ mod start_evaluation_extrinsic {
 				},
 				usd_bid_on_oversubscription: None,
 				funding_end_block: None,
-				parachain_id: None,
-				migration_readiness_check: None,
-				hrmp_channel_status: HRMPChannelStatus {
-					project_to_polimec: ChannelStatus::Closed,
-					polimec_to_project: ChannelStatus::Closed,
-				},
+				migration_type: None,
 			};
 			assert_ok!(inst.execute(|| PolimecFunding::start_evaluation(
 				RuntimeOrigin::signed(issuer),

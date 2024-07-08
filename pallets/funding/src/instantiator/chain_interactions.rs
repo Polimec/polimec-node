@@ -314,12 +314,7 @@ impl<
 			},
 			usd_bid_on_oversubscription: None,
 			funding_end_block: None,
-			parachain_id: None,
-			migration_readiness_check: None,
-			hrmp_channel_status: HRMPChannelStatus {
-				project_to_polimec: crate::ChannelStatus::Closed,
-				polimec_to_project: crate::ChannelStatus::Closed,
-			},
+			migration_type: None,
 		};
 		assert_eq!(metadata, expected_metadata);
 		assert_eq!(details, expected_details);
@@ -722,10 +717,16 @@ impl<
 	pub fn settle_project(&mut self, project_id: ProjectId) -> Result<(), DispatchError> {
 		let details = self.get_project_details(project_id);
 		match details.status {
-			ProjectStatus::FundingSuccessful => self.settle_successful_project(project_id),
-			ProjectStatus::FundingFailed => self.settle_failed_project(project_id),
-			_ => panic!("Project should be in FundingSuccessful or FundingFailed status"),
+			ProjectStatus::SettlementStarted(FundingOutcome::FundingSuccessful) =>
+				self.settle_successful_project(project_id).unwrap(),
+			ProjectStatus::SettlementStarted(FundingOutcome::FundingFailed) =>
+				self.settle_failed_project(project_id).unwrap(),
+			_ => panic!("Project should be in SettlementStarted status"),
 		}
+		self.execute(|| {
+			crate::Pallet::<T>::do_mark_project_as_settled(project_id).unwrap();
+		});
+		Ok(())
 	}
 
 	fn settle_successful_project(&mut self, project_id: ProjectId) -> Result<(), DispatchError> {
@@ -828,7 +829,7 @@ impl<
 		percentage: u64,
 	) {
 		let details = self.get_project_details(project_id);
-		assert!(matches!(details.status, ProjectStatus::FundingSuccessful | ProjectStatus::FundingFailed));
+		assert!(matches!(details.status, ProjectStatus::SettlementFinished(_)));
 
 		for evaluation in evaluations {
 			let reward_info = self
@@ -912,7 +913,7 @@ impl<
 		participation_type: ParticipationType,
 		should_exist: bool,
 	) {
-		match (should_exist, self.execute(|| UserMigrations::<T>::get(project_id, account.clone()))) {
+		match (should_exist, self.execute(|| UserMigrations::<T>::get((project_id, account.clone())))) {
 			// User has migrations, so we need to check if any matches our criteria
 			(_, Some((_, migrations))) => {
 				let maybe_migration = migrations.into_iter().find(|migration| {

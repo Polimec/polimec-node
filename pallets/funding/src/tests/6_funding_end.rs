@@ -9,7 +9,10 @@ mod round_flow {
 		#[test]
 		fn evaluator_slash_is_decided() {
 			let (mut inst, project_id) = create_project_with_funding_percentage(20, None, true);
-			assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::FundingFailed);
+			assert_eq!(
+				inst.get_project_details(project_id).status,
+				ProjectStatus::SettlementStarted(FundingOutcome::FundingFailed)
+			);
 			assert_eq!(
 				inst.get_project_details(project_id).evaluation_round_info.evaluators_outcome,
 				EvaluatorsOutcome::Slashed
@@ -20,7 +23,10 @@ mod round_flow {
 		fn evaluator_unchanged_is_decided() {
 			let (mut inst, project_id) =
 				create_project_with_funding_percentage(80, Some(FundingOutcomeDecision::AcceptFunding), true);
-			assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::FundingSuccessful);
+			assert_eq!(
+				inst.get_project_details(project_id).status,
+				ProjectStatus::SettlementStarted(FundingOutcome::FundingSuccessful)
+			);
 			assert_eq!(
 				inst.get_project_details(project_id).evaluation_round_info.evaluators_outcome,
 				EvaluatorsOutcome::Unchanged
@@ -32,7 +38,10 @@ mod round_flow {
 			let (mut inst, project_id) = create_project_with_funding_percentage(95, None, true);
 			let project_details = inst.get_project_details(project_id);
 			let project_metadata = inst.get_project_metadata(project_id);
-			assert_eq!(project_details.status, ProjectStatus::FundingSuccessful);
+			assert_eq!(
+				inst.get_project_details(project_id).status,
+				ProjectStatus::SettlementStarted(FundingOutcome::FundingSuccessful)
+			);
 
 			// We want to test rewards over the 3 brackets, which means > 5MM USD funded
 			const USD_REACHED: u128 = 9_500_000 * USD_UNIT;

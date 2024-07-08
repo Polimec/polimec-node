@@ -162,7 +162,10 @@ mod create_project_extrinsic {
 				);
 			});
 			inst.advance_time(<TestRuntime as Config>::EvaluationDuration::get() + 1).unwrap();
-			assert_eq!(inst.get_project_details(0).status, ProjectStatus::FundingFailed);
+			assert_eq!(
+				inst.get_project_details(0).status,
+				ProjectStatus::SettlementStarted(FundingOutcome::FundingFailed)
+			);
 			inst.execute(|| {
 				assert_ok!(Pallet::<TestRuntime>::create_project(
 					RuntimeOrigin::signed(ISSUER_1),

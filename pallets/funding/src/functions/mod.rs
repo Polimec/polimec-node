@@ -1,9 +1,6 @@
 use super::*;
 
-use crate::{
-	traits::{BondingRequirementCalculation, ProvideAssetPrice, VestingDurationCalculation},
-	ProjectStatus::FundingSuccessful,
-};
+use crate::traits::{BondingRequirementCalculation, ProvideAssetPrice, VestingDurationCalculation};
 use core::ops::Not;
 use frame_support::{
 	dispatch::{DispatchErrorWithPostInfo, DispatchResult, DispatchResultWithPostInfo, PostDispatchInfo},

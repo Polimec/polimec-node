@@ -538,14 +538,16 @@ pub mod pallet {
 		StorageMap<_, Blake2_128Concat, Did, BoundedVec<ProjectId, MaxParticipationsForMaxMultiplier>, ValueQuery>;
 
 	#[pallet::storage]
-	pub type UserMigrations<T: Config> = StorageDoubleMap<
+	pub type UserMigrations<T: Config> = StorageNMap<
 		_,
-		Blake2_128Concat,
-		ProjectId,
-		Blake2_128Concat,
-		T::AccountId,
+		(NMapKey<Blake2_128Concat, ProjectId>, NMapKey<Blake2_128Concat, AccountIdOf<T>>),
 		(MigrationStatus, BoundedVec<Migration, MaxParticipationsPerUser<T>>),
 	>;
+
+	/// Counts how many participants have not yet migrated their CTs. Counter goes up on each settlement, and goes
+	/// down on each migration. Saves us a whole read over the full migration storage for transitioning to `ProjectStatus::CTMigrationFinished`
+	#[pallet::storage]
+	pub type UnmigratedCounter<T: Config> = StorageMap<_, Blake2_128Concat, ProjectId, u32, ValueQuery>;
 
 	pub struct MaxParticipationsPerUser<T: Config>(PhantomData<T>);
 	impl<T: Config> Get<u32> for MaxParticipationsPerUser<T> {
@@ -651,7 +653,7 @@ pub mod pallet {
 			id: u32,
 			ct_amount: BalanceOf<T>,
 		},
-		ProjectParaIdSet {
+		PalletMigrationStarted {
 			project_id: ProjectId,
 			para_id: ParaId,
 		},
@@ -684,6 +686,10 @@ pub mod pallet {
 			project_id: ProjectId,
 			account: AccountIdOf<T>,
 			status: MigrationStatus,
+		},
+
+		CTMigrationFinished {
+			project_id: ProjectId,
 		},
 	}
 
@@ -810,12 +816,18 @@ pub mod pallet {
 		WrongParaId,
 		/// Migration channel is not ready for migrations.
 		ChannelNotReady,
-		/// Settlement for this project has not yet started.
-		SettlementNotStarted,
+		/// Settlement for this project/outcome has not yet started.
+		FundingSuccessSettlementNotStarted,
+		/// Settlement for this project/outcome has not yet started.
+		FundingFailedSettlementNotStarted,
 		/// Wanted to settle as successful when it failed, or vice versa.
 		WrongSettlementOutcome,
 		/// User still has participations that need to be settled before migration.
 		ParticipationsNotSettled,
+		/// Tried to mark project as fully settled but there are participations that are not settled.
+		SettlementNotComplete,
+		/// Tried to mark a project's CT migration as finished but there are still migrations to be confirmed
+		MigrationsStillPending,
 	}
 
 	#[pallet::call]
@@ -1098,7 +1110,7 @@ pub mod pallet {
 
 		#[pallet::call_index(22)]
 		#[pallet::weight(Weight::from_parts(1000, 0))]
-		pub fn set_para_id_for_project(
+		pub fn configure_receiver_pallet_migration(
 			origin: OriginFor<T>,
 			jwt: UntrustedToken,
 			project_id: ProjectId,
@@ -1108,7 +1120,7 @@ pub mod pallet {
 				T::InvestorOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get())?;
 			ensure!(investor_type == InvestorType::Institutional, Error::<T>::WrongInvestorType);
 
-			Self::do_set_para_id_for_project(&account, project_id, para_id)
+			Self::do_start_pallet_migration(&account, project_id, para_id)
 		}
 
 		#[pallet::call_index(23)]
@@ -1139,21 +1151,37 @@ pub mod pallet {
 
 		#[pallet::call_index(26)]
 		#[pallet::weight(Weight::from_parts(1000, 0))]
-		pub fn migrate_one_participant(
+		pub fn send_pallet_migration_for(
 			origin: OriginFor<T>,
 			project_id: ProjectId,
 			participant: AccountIdOf<T>,
 		) -> DispatchResult {
 			let _caller = ensure_signed(origin)?;
-			Self::do_migrate_one_participant(project_id, participant)
+			Self::do_send_pallet_migration_for(project_id, participant)
 		}
 
 		#[pallet::call_index(27)]
 		#[pallet::weight(Weight::from_parts(1000, 0))]
-		pub fn confirm_migrations(origin: OriginFor<T>, query_id: QueryId, response: Response) -> DispatchResult {
+		pub fn confirm_pallet_migrations(
+			origin: OriginFor<T>,
+			query_id: QueryId,
+			response: Response,
+		) -> DispatchResult {
 			let location = ensure_response(<T as Config>::RuntimeOrigin::from(origin))?;
 
-			Self::do_confirm_migrations(location, query_id, response)
+			Self::do_confirm_pallet_migrations(location, query_id, response)
+		}
+
+		#[pallet::call_index(38)]
+		#[pallet::weight(Weight::from_parts(1000, 0))]
+		pub fn confirm_offchain_migration(
+			origin: OriginFor<T>,
+			project_id: ProjectId,
+			participant: AccountIdOf<T>,
+		) -> DispatchResult {
+			let caller = ensure_signed(origin)?;
+
+			Self::do_confirm_offchain_migration(project_id, caller, participant)
 		}
 
 		#[pallet::call_index(28)]
