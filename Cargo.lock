@@ -4543,6 +4543,7 @@ dependencies = [
  "polimec-common-test-utils",
  "polimec-receiver",
  "polimec-runtime",
+ "polimec-xcm-executor",
  "polkadot-core-primitives",
  "polkadot-parachain-primitives",
  "polkadot-primitives",
