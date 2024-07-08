@@ -96,6 +96,7 @@ heapless = { version = "0.7", default-features = false }
 xcm-emulator = { version = "0.5.0", default-features = false }
 
 # Substrate (with default disabled)
+frame-metadata-hash-extension = { git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.6.0", default-features = false }
 frame-benchmarking = { version = "28.0.0", default-features = false }
 frame-benchmarking-cli = { version = "32.0.0" }
 frame-executive = { version = "28.0.0", default-features = false }

@@ -16,6 +16,20 @@
 
 use substrate_wasm_builder::WasmBuilder;
 
+#[cfg(all(feature = "std", feature = "metadata-hash"))]
+fn main() {
+	WasmBuilder::new().with_current_project().export_heap_base().import_memory()
+		.enable_metadata_hash("KMA", 12)
+		.build();
+}
+
+#[cfg(all(feature = "std", not(feature = "metadata-hash")))]
 fn main() {
 	WasmBuilder::new().with_current_project().export_heap_base().import_memory().build()
+
 }
+
+/// The wasm builder is deactivated when compiling
+/// this crate for wasm to speed up the compilation.
+#[cfg(not(feature = "std"))]
+fn main() {}

@@ -144,6 +144,8 @@ pub type SignedExtra = (
 		Runtime,
 		pallet_transaction_payment::ChargeTransactionPayment<Runtime>,
 	>,
+	frame_metadata_hash_extension::CheckMetadataHash<Runtime>,
+
 );
 
 /// Unchecked extrinsic type as expected by this runtime.
