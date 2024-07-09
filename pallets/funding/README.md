@@ -89,8 +89,6 @@ on the KILT parachain, by a KYC/AML provider.
 - `Projects`: Map of the assigned id, to the main information of a project.
 - `ProjectsInfo`: Map of a project id, to some additional information required
   for ensuring correctness of the protocol.
-- `ProjectsToUpdate`: Map of a block number, to a vector of project ids. Used to
-  keep track of projects that need to be updated in on_initialize.
 - `AuctionsInfo`: Double map linking a project-user to the bids they made.
 - `EvaluationBonds`: Double map linking a project-user to the PLMC they bonded
   in the evaluation round.

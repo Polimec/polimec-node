@@ -328,7 +328,9 @@ pub mod storage_types {
 		/// The current status of the project
 		pub status: ProjectStatus,
 		/// When the different project phases start and end
-		pub phase_transition_points: PhaseTransitionPoints<BlockNumber>,
+		pub round_duration: BlockNumberPair<BlockNumber>,
+		/// Random block end for auction round
+		pub random_end_block: Option<BlockNumber>,
 		/// Fundraising target amount in USD (6 decimals)
 		pub fundraising_target_usd: Balance,
 		/// The amount of Contribution Tokens that have not yet been sold
@@ -688,32 +690,7 @@ pub mod inner_types {
 		FundingFailed,
 	}
 
-	#[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
-	pub struct PhaseTransitionPoints<BlockNumber> {
-		pub application: BlockNumberPair<BlockNumber>,
-		pub evaluation: BlockNumberPair<BlockNumber>,
-		pub auction_initialize_period: BlockNumberPair<BlockNumber>,
-		pub auction_opening: BlockNumberPair<BlockNumber>,
-		pub random_closing_ending: Option<BlockNumber>,
-		pub auction_closing: BlockNumberPair<BlockNumber>,
-		pub community: BlockNumberPair<BlockNumber>,
-		pub remainder: BlockNumberPair<BlockNumber>,
-	}
 
-	impl<BlockNumber: Copy> PhaseTransitionPoints<BlockNumber> {
-		pub const fn new(now: BlockNumber) -> Self {
-			Self {
-				application: BlockNumberPair::new(Some(now), None),
-				evaluation: BlockNumberPair::new(None, None),
-				auction_initialize_period: BlockNumberPair::new(None, None),
-				auction_opening: BlockNumberPair::new(None, None),
-				random_closing_ending: None,
-				auction_closing: BlockNumberPair::new(None, None),
-				community: BlockNumberPair::new(None, None),
-				remainder: BlockNumberPair::new(None, None),
-			}
-		}
-	}
 
 	#[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
 	pub struct BlockNumberPair<BlockNumber> {
@@ -721,7 +698,7 @@ pub mod inner_types {
 		pub end: Option<BlockNumber>,
 	}
 
-	impl<BlockNumber: Copy> BlockNumberPair<BlockNumber> {
+	impl<BlockNumber: Copy + sp_std::cmp::PartialOrd> BlockNumberPair<BlockNumber> {
 		pub const fn new(start: Option<BlockNumber>, end: Option<BlockNumber>) -> Self {
 			Self { start, end }
 		}
@@ -732,6 +709,14 @@ pub mod inner_types {
 
 		pub const fn end(&self) -> Option<BlockNumber> {
 			self.end
+		}
+
+		pub fn started(&self, at: BlockNumber) -> bool {
+			self.start.map_or(true, |start| start <= at)
+		}
+
+		pub fn ended(&self, at: BlockNumber) -> bool {
+			self.end.map_or(true, |end| end <= at)
 		}
 
 		pub fn update(&mut self, start: Option<BlockNumber>, end: Option<BlockNumber>) {

@@ -13,21 +13,6 @@ impl<T: Config> Pallet<T> {
 		T::PalletId::get().into_sub_account_truncating(index.saturating_add(One::one()))
 	}
 
-	/// Adds a project to the ProjectsToUpdate storage, so it can be updated at some later point in time.
-	pub fn add_to_update_store(block_number: BlockNumberFor<T>, store: (&ProjectId, UpdateType)) -> Result<u32, u32> {
-		// Try to get the project into the earliest possible block to update.
-		// There is a limit for how many projects can update each block, so we need to make sure we don't exceed that limit
-		let mut block_number = block_number;
-		for i in 1..T::MaxProjectsToUpdateInsertionAttempts::get() + 1 {
-			if ProjectsToUpdate::<T>::get(block_number).is_some() {
-				block_number += 1u32.into();
-			} else {
-				ProjectsToUpdate::<T>::insert(block_number, store);
-				return Ok(i);
-			}
-		}
-		Err(T::MaxProjectsToUpdateInsertionAttempts::get())
-	}
 
 	pub fn create_bucket_from_metadata(metadata: &ProjectMetadataOf<T>) -> Result<BucketOf<T>, DispatchError> {
 		let auction_allocation_size = metadata.auction_round_allocation_percentage * metadata.total_allocation_size;
@@ -627,6 +612,35 @@ impl<T: Config> Pallet<T> {
 		};
 		UserMigrations::<T>::insert((project_id, user), (status, migrations));
 		ProjectsDetails::<T>::insert(project_id, project_details);
+
+		Ok(())
+	}
+
+	pub(crate) fn transition_project(
+		project_id: ProjectId,
+		mut project_details: ProjectDetailsOf<T>,
+		current_round: ProjectStatus,
+		next_round: ProjectStatus,
+		round_duration: BlockNumberFor<T>,
+		skip_end_check: bool,
+	) -> DispatchResult {
+		/* Verify */
+		let now = <frame_system::Pallet<T>>::block_number();
+		ensure!(project_details.round_duration.ended(now) || skip_end_check, Error::<T>::TooEarlyForRound);
+		ensure!(project_details.status == current_round, Error::<T>::IncorrectRound);
+		
+		
+		let round_end = now.saturating_add(round_duration).saturating_sub(One::one());
+		project_details.round_duration.update(Some(now), Some(round_end));
+		project_details.status = next_round;
+		
+		// * Update storage *
+		ProjectsDetails::<T>::insert(project_id, project_details);
+		
+		// TODO: FIX event transmition by either doing it outside function or map ProjectStatus
+		// -> ProjectPhase
+		// * Emit events *
+		// Self::deposit_event(Event::ProjectPhaseTransition { project_id, phase: next_round });
 
 		Ok(())
 	}

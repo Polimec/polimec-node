@@ -300,10 +300,8 @@ impl<
 			is_frozen: false,
 			weighted_average_price: None,
 			status: ProjectStatus::Application,
-			phase_transition_points: PhaseTransitionPoints {
-				application: BlockNumberPair { start: Some(creation_start_block), end: None },
-				..Default::default()
-			},
+			round_duration: BlockNumberPair::new(None, None),
+			random_end_block: None,
 			fundraising_target_usd: expected_metadata
 				.minimum_price
 				.checked_mul_int(expected_metadata.total_allocation_size)
@@ -388,15 +386,8 @@ impl<
 	}
 
 	pub fn get_update_block(&mut self, project_id: ProjectId, update_type: &UpdateType) -> Option<BlockNumberFor<T>> {
-		self.execute(|| {
-			ProjectsToUpdate::<T>::iter().find_map(|(block, update_tup)| {
-				if project_id == update_tup.0 && update_type == &update_tup.1 {
-					Some(block)
-				} else {
-					None
-				}
-			})
-		})
+		Some(BlockNumberFor::<T>::zero())
+		// TODO: FIX
 	}
 
 	pub fn create_new_project(

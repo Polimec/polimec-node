@@ -180,7 +180,6 @@
 // 	type MaxBidsPerUser = ConstU32<4>;
 // 	type MaxContributionsPerUser = ConstU32<4>;
 // 	type MaxEvaluationsPerUser = ConstU32<4>;
-// 	type MaxProjectsToUpdatePerBlock = ConstU32<100>;
 // 	type Multiplier = ();
 // 	type NativeCurrency = Balances;
 // 	type PalletId = FundingPalletId;

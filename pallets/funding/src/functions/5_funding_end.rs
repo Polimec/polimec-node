@@ -36,7 +36,7 @@ impl<T: Config> Pallet<T> {
 		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 		let project_metadata = ProjectsMetadata::<T>::get(project_id).ok_or(Error::<T>::ProjectMetadataNotFound)?;
 		let remaining_cts = project_details.remaining_contribution_tokens;
-		let remainder_end_block = project_details.phase_transition_points.remainder.end();
+		let remainder_end_block = project_details.round_duration.end();
 		let now = <frame_system::Pallet<T>>::block_number();
 		let issuer_did = project_details.issuer_did.clone();
 
@@ -44,8 +44,6 @@ impl<T: Config> Pallet<T> {
 		ensure!(
 			// Can end due to running out of CTs
 			remaining_cts == Zero::zero() ||
-				// or the auction being empty
-				project_details.status == ProjectStatus::AuctionClosing ||
 				// or the last funding round ending
 				matches!(remainder_end_block, Some(end_block) if now > end_block),
 			Error::<T>::TooEarlyForRound
@@ -85,34 +83,21 @@ impl<T: Config> Pallet<T> {
 		} else if funding_ratio <= Perquintill::from_percent(75u64) {
 			project_details.evaluation_round_info.evaluators_outcome = EvaluatorsOutcome::Slashed;
 			project_details.status = ProjectStatus::AwaitingProjectDecision;
-			let insertion_iterations = match Self::add_to_update_store(
-				now + T::ManualAcceptanceDuration::get() + 1u32.into(),
-				(&project_id, UpdateType::ProjectDecision(FundingOutcomeDecision::AcceptFunding)),
-			) {
-				Ok(iterations) => iterations,
-				Err(_iterations) => return Err(Error::<T>::TooManyInsertionAttempts.into()),
-			};
+			
 			ProjectsDetails::<T>::insert(project_id, project_details);
 			Ok(PostDispatchInfo {
 				actual_weight: Some(WeightInfoOf::<T>::end_funding_awaiting_decision_evaluators_slashed(
-					insertion_iterations,
+					1,
 				)),
 				pays_fee: Pays::Yes,
 			})
 		} else if funding_ratio < Perquintill::from_percent(90u64) {
 			project_details.evaluation_round_info.evaluators_outcome = EvaluatorsOutcome::Unchanged;
 			project_details.status = ProjectStatus::AwaitingProjectDecision;
-			let insertion_iterations = match Self::add_to_update_store(
-				now + T::ManualAcceptanceDuration::get() + 1u32.into(),
-				(&project_id, UpdateType::ProjectDecision(FundingOutcomeDecision::AcceptFunding)),
-			) {
-				Ok(iterations) => iterations,
-				Err(_iterations) => return Err(Error::<T>::TooManyInsertionAttempts.into()),
-			};
 			ProjectsDetails::<T>::insert(project_id, project_details);
 			Ok(PostDispatchInfo {
 				actual_weight: Some(WeightInfoOf::<T>::end_funding_awaiting_decision_evaluators_unchanged(
-					insertion_iterations,
+					1,
 				)),
 				pays_fee: Pays::Yes,
 			})
@@ -120,7 +105,7 @@ impl<T: Config> Pallet<T> {
 			let (reward_info, evaluations_count) = Self::generate_evaluator_rewards_info(project_id)?;
 			project_details.evaluation_round_info.evaluators_outcome = EvaluatorsOutcome::Rewarded(reward_info);
 
-			let insertion_iterations = Self::finalize_funding(
+			Self::finalize_funding(
 				project_id,
 				project_details,
 				ProjectOutcome::FundingSuccessful,
@@ -128,7 +113,7 @@ impl<T: Config> Pallet<T> {
 			)?;
 			return Ok(PostDispatchInfo {
 				actual_weight: Some(WeightInfoOf::<T>::end_funding_automatically_accepted_evaluators_rewarded(
-					insertion_iterations,
+					1,
 					evaluations_count,
 				)),
 				pays_fee: Pays::Yes,
@@ -169,23 +154,10 @@ impl<T: Config> Pallet<T> {
 		ensure!(project_details.status == ProjectStatus::AwaitingProjectDecision, Error::<T>::IncorrectRound);
 
 		// * Update storage *
-		let insertion_attempts =
-			match Self::add_to_update_store(now + 1u32.into(), (&project_id, UpdateType::ProjectDecision(decision))) {
-				Ok(iterations) => iterations,
-				Err(iterations) =>
-					return Err(DispatchErrorWithPostInfo {
-						post_info: PostDispatchInfo {
-							actual_weight: Some(WeightInfoOf::<T>::decide_project_outcome(iterations)),
-							pays_fee: Pays::Yes,
-						},
-						error: Error::<T>::TooManyInsertionAttempts.into(),
-					}),
-			};
-
 		Self::deposit_event(Event::ProjectOutcomeDecided { project_id, decision });
 
 		Ok(PostDispatchInfo {
-			actual_weight: Some(WeightInfoOf::<T>::decide_project_outcome(insertion_attempts)),
+			actual_weight: Some(WeightInfoOf::<T>::decide_project_outcome(1)),
 			pays_fee: Pays::Yes,
 		})
 	}
@@ -204,13 +176,10 @@ impl<T: Config> Pallet<T> {
 		};
 		ProjectsDetails::<T>::insert(project_id, project_details);
 
-		let insertion_iterations =
-			Self::add_to_update_store(now + settlement_delta, (&project_id, UpdateType::StartSettlement))
-				.map_err(|_| Error::<T>::TooManyInsertionAttempts)?;
 		Self::deposit_event(Event::ProjectPhaseTransition {
 			project_id,
 			phase: ProjectPhases::FundingFinalization(outcome),
 		});
-		Ok(insertion_iterations)
+		Ok(1)
 	}
 }

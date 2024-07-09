@@ -25,54 +25,27 @@ impl<T: Config> Pallet<T> {
 	/// starts the remainder round, where anyone can buy at that price point.
 	#[transactional]
 	pub fn do_start_community_funding(project_id: ProjectId) -> DispatchResultWithPostInfo {
-		// * Get variables *
-		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
-		let now = <frame_system::Pallet<T>>::block_number();
-		let auction_closing_end_block =
-			project_details.phase_transition_points.auction_closing.end().ok_or(Error::<T>::TransitionPointNotSet)?;
-
-		// * Validity checks *
-		ensure!(now > auction_closing_end_block, Error::<T>::TooEarlyForRound);
-		ensure!(project_details.status == ProjectStatus::CalculatingWAP, Error::<T>::IncorrectRound);
-
-		// * Calculate new variables *
-		let community_start_block = now;
-		let community_end_block = now.saturating_add(T::CommunityFundingDuration::get()).saturating_sub(One::one());
-
-		// * Update Storage *
+		// * Calculate Wap * //
 		let wap_result = Self::calculate_weighted_average_price(project_id);
 
-		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
+		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 		match wap_result {
 			Err(e) => return Err(DispatchErrorWithPostInfo { post_info: ().into(), error: e }),
 			Ok(winning_bids_count) => {
-				// Get info again after updating it with new price.
-				project_details
-					.phase_transition_points
-					.community
-					.update(Some(community_start_block), Some(community_end_block));
-				project_details.status = ProjectStatus::CommunityRound;
-				ProjectsDetails::<T>::insert(project_id, project_details);
-
-				let insertion_iterations = match Self::add_to_update_store(
-					community_end_block + 1u32.into(),
-					(&project_id, UpdateType::RemainderFundingStart),
-				) {
-					Ok(iterations) => iterations,
-					Err(_iterations) => return Err(Error::<T>::TooManyInsertionAttempts.into()),
-				};
-
-				// * Emit events *
-				Self::deposit_event(Event::<T>::ProjectPhaseTransition {
+				Self::transition_project(
 					project_id,
-					phase: ProjectPhases::CommunityFunding,
-				});
+					project_details,
+					ProjectStatus::CalculatingWAP,
+					ProjectStatus::CommunityRound,
+					T::CommunityFundingDuration::get(),
+					false,
+				)?;
 
 				//TODO: address this
 				let rejected_bids_count = 0;
 				Ok(PostDispatchInfo {
 					actual_weight: Some(WeightInfoOf::<T>::start_community_funding(
-						insertion_iterations,
+						1,
 						winning_bids_count,
 						rejected_bids_count,
 					)),
@@ -104,17 +77,9 @@ impl<T: Config> Pallet<T> {
 	/// Later on, `on_initialize` ends the remainder round, and finalizes the project funding, by calling
 	/// [`do_end_funding`](Self::do_end_funding).
 	#[transactional]
-	pub fn do_start_remainder_funding(project_id: ProjectId) -> DispatchResultWithPostInfo {
+	pub fn do_start_remainder_funding(project_id: ProjectId) -> DispatchResult {
 		// * Get variables *
-		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
-		let now = <frame_system::Pallet<T>>::block_number();
-		let community_end_block =
-			project_details.phase_transition_points.community.end().ok_or(Error::<T>::TransitionPointNotSet)?;
-
-		// * Validity checks *
-		ensure!(now > community_end_block, Error::<T>::TooEarlyForRound);
-		ensure!(project_details.status == ProjectStatus::CommunityRound, Error::<T>::IncorrectRound);
-
+		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 		// Transition to remainder round was initiated by `do_community_funding`, but the ct
 		// tokens where already sold in the community round. This transition is obsolete.
 		ensure!(
@@ -122,31 +87,14 @@ impl<T: Config> Pallet<T> {
 			Error::<T>::RoundTransitionAlreadyHappened
 		);
 
-		// * Calculate new variables *
-		let remainder_start_block = now;
-		let remainder_end_block = now.saturating_add(T::RemainderFundingDuration::get()).saturating_sub(One::one());
-
-		// * Update Storage *
-		project_details
-			.phase_transition_points
-			.remainder
-			.update(Some(remainder_start_block), Some(remainder_end_block));
-		project_details.status = ProjectStatus::RemainderRound;
-		ProjectsDetails::<T>::insert(project_id, project_details);
-		// Schedule for automatic transition by `on_initialize`
-		let insertion_iterations =
-			match Self::add_to_update_store(remainder_end_block + 1u32.into(), (&project_id, UpdateType::FundingEnd)) {
-				Ok(iterations) => iterations,
-				Err(_iterations) => return Err(Error::<T>::TooManyInsertionAttempts.into()),
-			};
-
-		// * Emit events *
-		Self::deposit_event(Event::<T>::ProjectPhaseTransition { project_id, phase: ProjectPhases::RemainderFunding });
-
-		Ok(PostDispatchInfo {
-			actual_weight: Some(WeightInfoOf::<T>::start_remainder_funding(insertion_iterations)),
-			pays_fee: Pays::Yes,
-		})
+		Self::transition_project(
+			project_id,
+			project_details,
+			ProjectStatus::CommunityRound,
+			ProjectStatus::RemainderRound,
+			T::RemainderFundingDuration::get(),
+			false,
+		)
 	}
 
 	/// Buy tokens in the Community Round at the price set in the Bidding Round
@@ -334,15 +282,6 @@ impl<T: Config> Pallet<T> {
 		// If no CTs remain, end the funding phase
 
 		let mut weight_round_end_flag: Option<u32> = None;
-		if remaining_cts_after_purchase.is_zero() {
-			let fully_filled_vecs_from_insertion =
-				match Self::add_to_update_store(now + 1u32.into(), (&project_id, UpdateType::FundingEnd)) {
-					Ok(iterations) => iterations,
-					Err(_iterations) => return Err(Error::<T>::TooManyInsertionAttempts.into()),
-				};
-
-			weight_round_end_flag = Some(fully_filled_vecs_from_insertion);
-		}
 
 		// * Emit events *
 		Self::deposit_event(Event::Contribution {

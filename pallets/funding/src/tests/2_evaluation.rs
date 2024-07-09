@@ -301,19 +301,8 @@ mod start_evaluation_extrinsic {
 				is_frozen: true,
 				weighted_average_price: None,
 				status: ProjectStatus::EvaluationRound,
-				phase_transition_points: PhaseTransitionPoints {
-					application: BlockNumberPair { start: Some(1u64), end: Some(1u64) },
-					evaluation: BlockNumberPair {
-						start: Some(1u64),
-						end: Some(<TestRuntime as Config>::EvaluationDuration::get()),
-					},
-					auction_initialize_period: BlockNumberPair { start: None, end: None },
-					auction_opening: BlockNumberPair { start: None, end: None },
-					random_closing_ending: None,
-					auction_closing: BlockNumberPair { start: None, end: None },
-					community: BlockNumberPair { start: None, end: None },
-					remainder: BlockNumberPair { start: None, end: None },
-				},
+				round_duration: BlockNumberPair::new(None, None),
+				random_end_block: None,
 				fundraising_target_usd: project_metadata
 					.minimum_price
 					.saturating_mul_int(project_metadata.total_allocation_size),

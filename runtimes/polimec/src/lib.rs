@@ -241,7 +241,7 @@ impl Contains<RuntimeCall> for BaseCallFilter {
 							pallet_funding::Call::remove_project { .. } |
 							pallet_funding::Call::edit_project { .. } |
 							pallet_funding::Call::start_evaluation { .. } |
-							pallet_funding::Call::root_do_evaluation_end { .. } |
+							pallet_funding::Call::end_evaluation { .. } |
 							pallet_funding::Call::evaluate { .. } |
 							pallet_funding::Call::start_auction { .. } |
 							pallet_funding::Call::root_do_auction_opening { .. } |
@@ -1059,8 +1059,6 @@ impl pallet_funding::Config for Runtime {
 	type MaxEvaluationsPerProject = ConstU32<512>;
 	type MaxEvaluationsPerUser = ConstU32<16>;
 	type MaxMessageSizeThresholds = MaxMessageSizeThresholds;
-	type MaxProjectsToUpdateInsertionAttempts = ConstU32<100>;
-	type MaxProjectsToUpdatePerBlock = ConstU32<1>;
 	type MinUsdPerEvaluation = MinUsdPerEvaluation;
 	type Multiplier = pallet_funding::types::Multiplier;
 	type NativeCurrency = Balances;

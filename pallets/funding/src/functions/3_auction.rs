@@ -24,64 +24,20 @@ impl<T: Config> Pallet<T> {
 	/// Later on, `on_initialize` transitions the project into the closing auction round, by calling
 	/// [`do_auction_closing`](Self::do_auction_closing).
 	#[transactional]
-	pub fn do_start_auction_opening(caller: AccountIdOf<T>, project_id: ProjectId) -> DispatchResultWithPostInfo {
+	pub fn do_start_auction_opening(caller: AccountIdOf<T>, project_id: ProjectId) -> DispatchResult {
 		// * Get variables *
-		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
-		let now = <frame_system::Pallet<T>>::block_number();
+		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
+		// issuer_account can start the auction opening round during the Auction Initialize Period.
+		let skip_round_end_check = caller == project_details.issuer_account;
 
-		let auction_initialize_period_start_block = project_details
-			.phase_transition_points
-			.auction_initialize_period
-			.start()
-			.ok_or(Error::<T>::TransitionPointNotSet)?;
-
-		// * Validity checks *
-		ensure!(
-			caller == T::PalletId::get().into_account_truncating() || caller == project_details.issuer_account,
-			Error::<T>::NotIssuer
-		);
-
-		ensure!(now >= auction_initialize_period_start_block, Error::<T>::TooEarlyForRound);
-		// If the auction is first manually started, the automatic transition fails here. This
-		// behavior is intended, as it gracefully skips the automatic transition if the
-		// auction was started manually.
-		ensure!(project_details.status == ProjectStatus::AuctionInitializePeriod, Error::<T>::IncorrectRound);
-
-		// * Calculate new variables *
-		let opening_start_block = now;
-		let opening_end_block = now.saturating_add(T::AuctionOpeningDuration::get()).saturating_sub(One::one());
-
-		// * Update Storage *
-		project_details
-			.phase_transition_points
-			.auction_opening
-			.update(Some(opening_start_block), Some(opening_end_block));
-		project_details.status = ProjectStatus::AuctionOpening;
-		ProjectsDetails::<T>::insert(project_id, project_details);
-
-		// Schedule for automatic transition to auction closing round
-		let insertion_attempts = match Self::add_to_update_store(
-			opening_end_block + 1u32.into(),
-			(&project_id, UpdateType::AuctionClosingStart),
-		) {
-			Ok(iterations) => iterations,
-			Err(insertion_attempts) =>
-				return Err(DispatchErrorWithPostInfo {
-					post_info: PostDispatchInfo {
-						actual_weight: Some(WeightInfoOf::<T>::start_auction_manually(insertion_attempts)),
-						pays_fee: Pays::Yes,
-					},
-					error: Error::<T>::TooManyInsertionAttempts.into(),
-				}),
-		};
-
-		// * Emit events *
-		Self::deposit_event(Event::ProjectPhaseTransition { project_id, phase: ProjectPhases::AuctionOpening });
-
-		Ok(PostDispatchInfo {
-			actual_weight: Some(WeightInfoOf::<T>::start_auction_manually(insertion_attempts)),
-			pays_fee: Pays::Yes,
-		})
+		Self::transition_project(
+			project_id,
+			project_details,
+			ProjectStatus::AuctionInitializePeriod,
+			ProjectStatus::AuctionOpening,
+			T::AuctionOpeningDuration::get(),
+			skip_round_end_check,
+		)
 	}
 
 	/// Called automatically by on_initialize
@@ -108,44 +64,17 @@ impl<T: Config> Pallet<T> {
 	/// Later on, `on_initialize` ends the auction closing round and starts the community round,
 	/// by calling [`do_community_funding`](Self::do_start_community_funding).
 	#[transactional]
-	pub fn do_start_auction_closing(project_id: ProjectId) -> DispatchResultWithPostInfo {
+	pub fn do_start_auction_closing(project_id: ProjectId) -> DispatchResult {
 		// * Get variables *
-		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
-		let now = <frame_system::Pallet<T>>::block_number();
-		let opening_end_block =
-			project_details.phase_transition_points.auction_opening.end().ok_or(Error::<T>::TransitionPointNotSet)?;
-
-		// * Validity checks *
-		ensure!(now > opening_end_block, Error::<T>::TooEarlyForRound);
-		ensure!(project_details.status == ProjectStatus::AuctionOpening, Error::<T>::IncorrectRound);
-
-		// * Calculate new variables *
-		let closing_start_block = now;
-		let closing_end_block = now.saturating_add(T::AuctionClosingDuration::get()).saturating_sub(One::one());
-
-		// * Update Storage *
-		project_details
-			.phase_transition_points
-			.auction_closing
-			.update(Some(closing_start_block), Some(closing_end_block));
-		project_details.status = ProjectStatus::AuctionClosing;
-		ProjectsDetails::<T>::insert(project_id, project_details);
-		// Schedule for automatic check by on_initialize. Success depending on enough funding reached
-		let insertion_iterations = match Self::add_to_update_store(
-			closing_end_block + 1u32.into(),
-			(&project_id, UpdateType::AuctionClosingEnd),
-		) {
-			Ok(iterations) => iterations,
-			Err(_iterations) => return Err(Error::<T>::TooManyInsertionAttempts.into()),
-		};
-
-		// * Emit events *
-		Self::deposit_event(Event::<T>::ProjectPhaseTransition { project_id, phase: ProjectPhases::AuctionClosing });
-
-		Ok(PostDispatchInfo {
-			actual_weight: Some(WeightInfoOf::<T>::start_auction_closing_phase(insertion_iterations)),
-			pays_fee: Pays::Yes,
-		})
+		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
+		Self::transition_project(
+			project_id,
+			project_details,
+			ProjectStatus::AuctionOpening,
+			ProjectStatus::AuctionClosing,
+			T::AuctionClosingDuration::get(),
+			false,
+		)
 	}
 
 	/// Decides which bids are accepted and which are rejected.
@@ -153,56 +82,38 @@ impl<T: Config> Pallet<T> {
 	#[transactional]
 	pub fn do_end_auction_closing(project_id: ProjectId) -> DispatchResultWithPostInfo {
 		// * Get variables *
-		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
+		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 		let project_metadata = ProjectsMetadata::<T>::get(project_id).ok_or(Error::<T>::ProjectMetadataNotFound)?;
-		let now = <frame_system::Pallet<T>>::block_number();
-		let auction_closing_start_block =
-			project_details.phase_transition_points.auction_closing.start().ok_or(Error::<T>::TransitionPointNotSet)?;
-		let auction_closing_end_block =
-			project_details.phase_transition_points.auction_closing.end().ok_or(Error::<T>::TransitionPointNotSet)?;
-
-		// * Validity checks *
-		ensure!(now > auction_closing_end_block, Error::<T>::TooEarlyForRound);
-		ensure!(project_details.status == ProjectStatus::AuctionClosing, Error::<T>::IncorrectRound);
-
+		
+		let start_block = project_details.round_duration.start().ok_or(Error::<T>::ImpossibleState)?;
+		let end_block = project_details.round_duration.end().ok_or(Error::<T>::ImpossibleState)?;
 		// * Calculate new variables *
-		let end_block = Self::select_random_block(auction_closing_start_block, auction_closing_end_block);
+		let candle_block = Self::select_random_block(start_block, end_block);
 
 		// * Update Storage *
 		let calculation_result = Self::decide_winning_bids(
 			project_id,
-			end_block,
+			candle_block,
 			project_metadata.auction_round_allocation_percentage * project_metadata.total_allocation_size,
 		);
 
 		match calculation_result {
 			Err(e) => return Err(DispatchErrorWithPostInfo { post_info: ().into(), error: e }),
 			Ok((accepted_bids_count, rejected_bids_count)) => {
-				// Get info again after updating it with new price.
-				let mut project_details =
-					ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
-				project_details.phase_transition_points.random_closing_ending = Some(end_block);
-				project_details.status = ProjectStatus::CalculatingWAP;
-				ProjectsDetails::<T>::insert(project_id, project_details);
-
-				let insertion_iterations = match Self::add_to_update_store(
-					now + 1u32.into(),
-					(&project_id, UpdateType::CommunityFundingStart),
-				) {
-					Ok(iterations) => iterations,
-					Err(_iterations) => return Err(Error::<T>::TooManyInsertionAttempts.into()),
-				};
-
-				// * Emit events *
-				Self::deposit_event(Event::<T>::ProjectPhaseTransition {
+				// * Transition Round *
+				project_details.random_end_block = Some(candle_block);
+				Self::transition_project(
 					project_id,
-					phase: ProjectPhases::CalculatingWAP,
-				});
-
+					project_details,
+					ProjectStatus::AuctionClosing,
+					ProjectStatus::CalculatingWAP,
+					One::one(),
+					false,
+				)?;
 				Ok(PostDispatchInfo {
 					// TODO: make new benchmark
 					actual_weight: Some(WeightInfoOf::<T>::start_community_funding(
-						insertion_iterations,
+						1,
 						accepted_bids_count,
 						rejected_bids_count,
 					)),
