@@ -10,61 +10,6 @@ import-storage:
           data:
             free: "500000000000000"
 
-      # account1 - 50k PLMC
-      - - - "5EoHniZVuKRKNXNtVZzw8Jbc8Qtgy8GN5QKDKSA78HEok7YW"
-        - providers: 1
-          data:
-            free: "500000000000000"
-
-      # account2 - 50k PLMC
-      - - - "5GeXY2mKL4ADz7mDtsuHvNrRky48NqdWb4u8c5Sg9N8s3T1y"
-        - providers: 1
-          data:
-            free: "500000000000000"
-
-      # account3 - 50k PLMC
-      - - - "5EfE8r9uWWMazvyh8tkcuuKSy6PbAZQSqq42CXYwGdvwjpb8"
-        - providers: 1
-          data:
-            free: "500000000000000"
-
-      # account4 - 50k PLMC
-      - - - "5C8ULBGhfaP2nmDcuFbiShQ1hMwWsB7ghbChDKAwdszSWnA5"
-        - providers: 1
-          data:
-            free: "500000000000000"
-
-      # account5 - 50k PLMC
-      - - - "5HGqvcE29nHekDEYND3ZZtobbP4UeCcALFgwEm5YUvroZJr6"
-        - providers: 1
-          data:
-            free: "500000000000000"
-
-      # account6 - 50k PLMC
-      - - - "5CGEmsGTJcYSBCdXvsjDUBxW2dtvte5M8By95gwMwToih37s"
-        - providers: 1
-          data:
-            free: "500000000000000"
-
-      # account7 - 50k PLMC
-      - - - "5GsWm46kXRF7p6ifSQjrdc8HgPbzY4uWgJdQSUcGGDczkDGa"
-        - providers: 1
-          data:
-            free: "500000000000000"
-
-      # account8 - 50k PLMC
-      - - - "5H4AWTrkHN6aaQCv2jn48HVZjGhiCqswt6sPBksFPrrf2FPY"
-        - providers: 1
-          data:
-            free: "500000000000000"
-
-      # account9 - 50k PLMC
-      - - - "5CabLepLT8e6NvJCtzrEZLEBRd1FxKXU72F2NvbYTVf3bNej"
-        - providers: 1
-          data:
-            free: "500000000000000"
-
-
   ForeignAssets:
     Account:
       # account0 - 50k DOT, 50k USDT, 50k USDC
