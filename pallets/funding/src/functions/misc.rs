@@ -459,6 +459,8 @@ impl<T: Config> Pallet<T> {
 		let total_fee_allocation = total_issuer_fees * token_sold;
 
 		// Calculate the percentage of target funding based on available documentation.
+		// A.K.A variable "Y" in the documentation. We mean it to saturate to 1 even if the ratio is above 1 when funding raised
+		// is above the target.
 		let percentage_of_target_funding = Perquintill::from_rational(funding_amount_reached, fundraising_target);
 
 		// Calculate rewards.
@@ -515,7 +517,8 @@ impl<T: Config> Pallet<T> {
 		let total_fee_allocation = total_issuer_fees * token_sold;
 
 		// Calculate the percentage of target funding based on available documentation.
-		// A.K.A variable "Y" in the documentation.
+		// A.K.A variable "Y" in the documentation. We mean it to saturate to 1 even if the ratio is above 1 when funding raised
+		// is above the target.
 		let percentage_of_target_funding = Perquintill::from_rational(funding_amount_reached, fundraising_target);
 		let inverse_percentage_of_target_funding = Perquintill::from_percent(100) - percentage_of_target_funding;
 
