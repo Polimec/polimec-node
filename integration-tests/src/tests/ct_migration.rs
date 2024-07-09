@@ -323,7 +323,7 @@ fn cannot_start_pallet_migration_with_unsettled_participations() {
 #[test]
 fn hrmp_functions_weight_is_under_assumed_maximum() {
 	type WeightInfo = <PolimecRuntime as pallet_funding::Config>::WeightInfo;
-	type XcmWeigher = <polimec_runtime::xcm_config::XcmConfig as polimec_xcm_executor::Config>::Weigher;
+	type XcmWeigher = <polimec_runtime::xcm_config::XcmConfig as xcm_executor::Config>::Weigher;
 
 	let open_channel_message = xcm::v3::Instruction::<PolimecCall>::HrmpNewChannelOpenRequest {
 		sender: 6969,

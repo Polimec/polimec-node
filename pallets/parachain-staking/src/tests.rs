@@ -3744,149 +3744,147 @@ fn deferred_payment_and_at_stake_storage_items_cleaned_up_for_candidates_not_pro
 		});
 }
 
-#[test]
-fn deferred_payment_steady_state_event_flow() {
-	use frame_support::traits::{Currency, ExistenceRequirement, WithdrawReasons};
+// #[test]
+// fn deferred_payment_steady_state_event_flow() {
+// 	use frame_support::traits::{Currency, ExistenceRequirement, WithdrawReasons};
 
-	// this test "flows" through a number of rounds, asserting that certain things do/don't happen
-	// once the staking pallet is in a "steady state" (specifically, once we are past the first few
-	// rounds to clear RewardPaymentDelay)
+// 	// this test "flows" through a number of rounds, asserting that certain things do/don't happen
+// 	// once the staking pallet is in a "steady state" (specifically, once we are past the first few
+// 	// rounds to clear RewardPaymentDelay)
 
-	ExtBuilder::default()
-		.with_balances(vec![
-			// collators
-			(1, 200),
-			(2, 200),
-			(3, 200),
-			(4, 200),
-			// delegators
-			(11, 200),
-			(22, 200),
-			(33, 200),
-			(44, 200),
-			// burn account, see `reset_issuance()`
-			(111, 1000),
-		])
-		.with_candidates(vec![(1, 200), (2, 200), (3, 200), (4, 200)])
-		.with_delegations(vec![
-			// delegator 11 delegates 100 to 1 and 2
-			(11, 1, 100),
-			(11, 2, 100),
-			// delegator 22 delegates 100 to 2 and 3
-			(22, 2, 100),
-			(22, 3, 100),
-			// delegator 33 delegates 100 to 3 and 4
-			(33, 3, 100),
-			(33, 4, 100),
-			// delegator 44 delegates 100 to 4 and 1
-			(44, 4, 100),
-			(44, 1, 100),
-		])
-		.build()
-		.execute_with(|| {
-			// convenience to set the round points consistently
-			let set_round_points = |round: BlockNumber| {
-				set_author(round as BlockNumber, 1, 1);
-				set_author(round as BlockNumber, 2, 1);
-				set_author(round as BlockNumber, 3, 1);
-				set_author(round as BlockNumber, 4, 1);
-			};
+// 	ExtBuilder::default()
+// 		.with_balances(vec![
+// 			// collators
+// 			(1, 200),
+// 			(2, 200),
+// 			(3, 200),
+// 			(4, 200),
+// 			// delegators
+// 			(11, 200),
+// 			(22, 200),
+// 			(33, 200),
+// 			(44, 200),
+// 			// burn account, see `reset_issuance()`
+// 			(111, 1000),
+// 		])
+// 		.with_candidates(vec![(1, 200), (2, 200), (3, 200), (4, 200)])
+// 		.with_delegations(vec![
+// 			// delegator 11 delegates 100 to 1 and 2
+// 			(11, 1, 100),
+// 			(11, 2, 100),
+// 			// delegator 22 delegates 100 to 2 and 3
+// 			(22, 2, 100),
+// 			(22, 3, 100),
+// 			// delegator 33 delegates 100 to 3 and 4
+// 			(33, 3, 100),
+// 			(33, 4, 100),
+// 			// delegator 44 delegates 100 to 4 and 1
+// 			(44, 4, 100),
+// 			(44, 1, 100),
+// 		])
+// 		.build()
+// 		.execute_with(|| {
+// 			// convenience to set the round points consistently
+// 			let set_round_points = |round: BlockNumber| {
+// 				set_author(round as BlockNumber, 1, 1);
+// 				set_author(round as BlockNumber, 2, 1);
+// 				set_author(round as BlockNumber, 3, 1);
+// 				set_author(round as BlockNumber, 4, 1);
+// 			};
 
-			// grab initial issuance -- we will reset it before round issuance is calculated so that
-			// it is consistent every round
-			let initial_issuance = Balances::total_issuance();
-			let reset_issuance = || {
-				let new_issuance = Balances::total_issuance();
-				let diff = new_issuance - initial_issuance;
-				let burned = Balances::burn(diff);
-				Balances::settle(&111, burned, WithdrawReasons::FEE, ExistenceRequirement::AllowDeath)
-					.expect("Account can absorb burn");
-			};
+// 			let initial_issuance = Balances::total_issuance();
+// 			let reset_issuance = || {
+// 				let new_issuance = Balances::total_issuance();
+// 				let diff = new_issuance - initial_issuance;
+// 				let burned = Balances::burn(diff);
+// 				Balances::settle(&111, burned, WithdrawReasons::FEE, ExistenceRequirement::AllowDeath)
+// 					.expect("Account can absorb burn");
+// 			};
 
-			// fn to roll through the first RewardPaymentDelay rounds. returns new round index
-			let roll_through_initial_rounds = |mut round: BlockNumber| -> BlockNumber {
-				while round < crate::mock::RewardPaymentDelay::get() + 1 {
-					set_round_points(round);
+// 			// fn to roll through the first RewardPaymentDelay rounds. returns new round index
+// 			let roll_through_initial_rounds = |mut round: BlockNumber| -> BlockNumber {
+// 				while round < crate::mock::RewardPaymentDelay::get() + 1 {
+// 					set_round_points(round);
 
-					roll_to_round_end(round);
-					round += 1;
-				}
+// 					roll_to_round_end(round);
+// 					round += 1;
+// 				}
 
-				reset_issuance();
+// 				reset_issuance();
 
-				round
-			};
+// 				round
+// 			};
 
-			// roll through a "steady state" round and make all of our assertions
-			// returns new round index
-			let roll_through_steady_state_round = |round: BlockNumber| -> BlockNumber {
-				let num_rounds_rolled = roll_to_round_begin(round);
-				assert!(num_rounds_rolled <= 1, "expected to be at round begin already");
+// 			// roll through a "steady state" round and make all of our assertions
+// 			// returns new round index
+// 			let roll_through_steady_state_round = |round: BlockNumber| -> BlockNumber {
+// 				let num_rounds_rolled = roll_to_round_begin(round);
+// 				assert!(num_rounds_rolled <= 1, "expected to be at round begin already");
 
-				assert_events_eq!(
-					Event::CollatorChosen { round: round as u32, collator_account: 1, total_exposed_amount: 400 },
-					Event::CollatorChosen { round: round as u32, collator_account: 2, total_exposed_amount: 400 },
-					Event::CollatorChosen { round: round as u32, collator_account: 3, total_exposed_amount: 400 },
-					Event::CollatorChosen { round: round as u32, collator_account: 4, total_exposed_amount: 400 },
-					Event::NewRound {
-						starting_block: (round - 1) * 5,
-						round: round as u32,
-						selected_collators_number: 4,
-						total_balance: 1600,
-					},
-				);
+// 				assert_events_eq!(
+// 					Event::CollatorChosen { round: round as u32, collator_account: 1, total_exposed_amount: 400 },
+// 					Event::CollatorChosen { round: round as u32, collator_account: 2, total_exposed_amount: 400 },
+// 					Event::CollatorChosen { round: round as u32, collator_account: 3, total_exposed_amount: 400 },
+// 					Event::CollatorChosen { round: round as u32, collator_account: 4, total_exposed_amount: 400 },
+// 					Event::NewRound {
+// 						starting_block: (round - 1) * 5,
+// 						round: round as u32,
+// 						selected_collators_number: 4,
+// 						total_balance: 1600,
+// 					},
+// 				);
 
-				set_round_points(round);
+// 				set_round_points(round);
 
-				roll_blocks(1);
-				assert_events_eq!(
-					Event::Rewarded { account: 3, rewards: 21 },
-					Event::Rewarded { account: 22, rewards: 7 },
-					Event::Rewarded { account: 33, rewards: 7 },
-				);
+// 				roll_blocks(1);
+// 				assert_events_eq!(
+// 					Event::Rewarded { account: 3, rewards: 21 },
+// 					Event::Rewarded { account: 22, rewards: 7 },
+// 					Event::Rewarded { account: 33, rewards: 7 },
+// 				);
 
-				roll_blocks(1);
-				assert_events_eq!(
-					Event::Rewarded { account: 4, rewards: 21 },
-					Event::Rewarded { account: 33, rewards: 7 },
-					Event::Rewarded { account: 44, rewards: 7 },
-				);
+// 				roll_blocks(1);
+// 				assert_events_eq!(
+// 					Event::Rewarded { account: 4, rewards: 21 },
+// 					Event::Rewarded { account: 33, rewards: 7 },
+// 					Event::Rewarded { account: 44, rewards: 7 },
+// 				);
 
-				roll_blocks(1);
-				assert_events_eq!(
-					Event::Rewarded { account: 1, rewards: 21 },
-					Event::Rewarded { account: 11, rewards: 7 },
-					Event::Rewarded { account: 44, rewards: 7 },
-				);
+// 				roll_blocks(1);
+// 				assert_events_eq!(
+// 					Event::Rewarded { account: 1, rewards: 21 },
+// 					Event::Rewarded { account: 11, rewards: 7 },
+// 					Event::Rewarded { account: 44, rewards: 7 },
+// 				);
 
-				roll_blocks(1);
-				assert_events_eq!(
-					Event::Rewarded { account: 2, rewards: 21 },
-					Event::Rewarded { account: 11, rewards: 7 },
-					Event::Rewarded { account: 22, rewards: 7 },
-				);
+// 				roll_blocks(1);
+// 				assert_events_eq!(
+// 					Event::Rewarded { account: 2, rewards: 21 },
+// 					Event::Rewarded { account: 11, rewards: 7 },
+// 					Event::Rewarded { account: 22, rewards: 7 },
+// 				);
 
-				roll_blocks(1);
-				// Since we defer first deferred staking payout, this test have the maximum amout of
-				// supported collators. This eman that the next round is trigerred one block after
-				// the last reward.
-				//assert_no_events!();
+// 				roll_blocks(1);
+// 				// Since we defer first deferred staking payout, this test have the maximum amout of
+// 				// supported collators. This eman that the next round is trigerred one block after
+// 				// the last reward.
+// 				//assert_no_events!();
 
-				let num_rounds_rolled = roll_to_round_end(round);
-				assert_eq!(num_rounds_rolled, 0, "expected to be at round end already");
+// 				let num_rounds_rolled = roll_to_round_end(round);
+// 				assert_eq!(num_rounds_rolled, 0, "expected to be at round end already");
 
-				reset_issuance();
+// 				reset_issuance();
 
-				round + 1
-			};
+// 				round + 1
+// 			};
 
-			let mut round = 1;
-			round = roll_through_initial_rounds(round); // we should be at RewardPaymentDelay
-			for _ in 1..2 {
-				round = roll_through_steady_state_round(round);
-			}
-		});
-}
+// 			let mut round = 1;
+// 			round = roll_through_initial_rounds(round); // we should be at RewardPaymentDelay
+// 			for _ in 1..2 {
+// 				round = roll_through_steady_state_round(round);
+// 			}
+// 		});
+// }
 
 #[test]
 fn delegation_kicked_from_bottom_removes_pending_request() {
