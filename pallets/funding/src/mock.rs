@@ -22,7 +22,7 @@ use super::*;
 use crate as pallet_funding;
 use crate::traits::ProvideAssetPrice;
 use frame_support::{
-	construct_runtime,
+	construct_runtime, derive_impl,
 	pallet_prelude::Weight,
 	parameter_types,
 	traits::{AsEnsureOriginWithArg, ConstU16, ConstU32, ConstU64, Everything, OriginTrait, WithdrawReasons},
@@ -70,12 +70,12 @@ pub const fn free_deposit() -> Balance {
 pub struct SignedToAccountIndex<RuntimeOrigin, AccountId, Network>(PhantomData<(RuntimeOrigin, AccountId, Network)>);
 
 impl<RuntimeOrigin: OriginTrait + Clone, AccountId: Into<u32>, Network: Get<Option<NetworkId>>>
-	TryConvert<RuntimeOrigin, MultiLocation> for SignedToAccountIndex<RuntimeOrigin, AccountId, Network>
+	TryConvert<RuntimeOrigin, Location> for SignedToAccountIndex<RuntimeOrigin, AccountId, Network>
 where
 	RuntimeOrigin::PalletsOrigin:
 		From<SystemRawOrigin<AccountId>> + TryInto<SystemRawOrigin<AccountId>, Error = RuntimeOrigin::PalletsOrigin>,
 {
-	fn try_convert(o: RuntimeOrigin) -> Result<MultiLocation, RuntimeOrigin> {
+	fn try_convert(o: RuntimeOrigin) -> Result<Location, RuntimeOrigin> {
 		o.try_with_caller(|caller| match caller.try_into() {
 			Ok(SystemRawOrigin::Signed(who)) =>
 				Ok(Junction::AccountIndex64 { network: Network::get(), index: Into::<u32>::into(who).into() }.into()),
@@ -93,7 +93,7 @@ pub type LocationToAccountId = (
 );
 
 parameter_types! {
-	pub UniversalLocation: InteriorMultiLocation = (
+	pub UniversalLocation: InteriorLocation = (
 		GlobalConsensus(Polkadot),
 		 Parachain(3344u32),
 	).into();
@@ -101,7 +101,7 @@ parameter_types! {
 	pub UnitWeightCost: Weight = Weight::from_parts(1_000_000_000, 64 * 1024);
 	pub const MaxInstructions: u32 = 100;
 
-	pub const HereLocation: MultiLocation = MultiLocation::here();
+	pub const HereLocation: Location = Location::here();
 }
 
 pub struct MockPrepared;
@@ -126,7 +126,7 @@ impl ExecuteXcm<RuntimeCall> for MockXcmExecutor {
 	}
 
 	fn execute(
-		_origin: impl Into<MultiLocation>,
+		_origin: impl Into<Location>,
 		_pre: Self::Prepared,
 		_id: &mut XcmHash,
 		_weight_credit: Weight,
@@ -134,7 +134,7 @@ impl ExecuteXcm<RuntimeCall> for MockXcmExecutor {
 		Outcome::Complete(Weight::zero())
 	}
 
-	fn charge_fees(_location: impl Into<MultiLocation>, _fees: MultiAssets) -> XcmResult {
+	fn charge_fees(_location: impl Into<Location>, _fees: Assets) -> XcmResult {
 		Ok(())
 	}
 }
@@ -230,18 +230,18 @@ parameter_types! {
 	pub const BlockHashCount: u32 = 250;
 }
 
+#[derive_impl(frame_system::config_preludes::TestDefaultConfig)]
 impl system::Config for TestRuntime {
 	type AccountData = pallet_balances::AccountData<Balance>;
 	type AccountId = AccountId;
 	type BaseCallFilter = frame_support::traits::Everything;
 	type Block = Block;
-	type BlockHashCount = BlockHashCount;
 	type BlockLength = ();
 	type BlockWeights = ();
 	type DbWeight = ();
 	type Hash = H256;
 	type Hashing = BlakeTwo256;
-	type Lookup = IdentityLookup<AccountId>;
+	type Lookup = IdentityLookup<Self::AccountId>;
 	type MaxConsumers = frame_support::traits::ConstU32<16>;
 	type Nonce = u64;
 	type OnKilledAccount = ();
@@ -251,7 +251,6 @@ impl system::Config for TestRuntime {
 	type RuntimeCall = RuntimeCall;
 	type RuntimeEvent = RuntimeEvent;
 	type RuntimeOrigin = RuntimeOrigin;
-	type RuntimeTask = RuntimeTask;
 	type SS58Prefix = ConstU16<42>;
 	type SystemWeightInfo = ();
 	type Version = ();
@@ -267,7 +266,6 @@ impl pallet_balances::Config for TestRuntime {
 	type ExistentialDeposit = ExistentialDeposit;
 	type FreezeIdentifier = ();
 	type MaxFreezes = ConstU32<1024>;
-	type MaxHolds = ConstU32<1024>;
 	type MaxLocks = frame_support::traits::ConstU32<1024>;
 	type MaxReserves = frame_support::traits::ConstU32<1024>;
 	type ReserveIdentifier = [u8; 8];

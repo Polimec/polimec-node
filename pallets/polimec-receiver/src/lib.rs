@@ -31,7 +31,7 @@ pub mod pallet {
 	use polkadot_parachain_primitives::primitives::{Id as ParaId, Sibling};
 	use sp_runtime::traits::{AccountIdConversion, Convert};
 	use sp_std::prelude::*;
-	use xcm::latest::{Junction::AccountId32, Junctions::X1, MultiLocation};
+	use xcm::v4::{Junction::AccountId32, Location};
 
 	type MomentOf<T> = <<T as Config>::Vesting as VestingSchedule<<T as frame_system::Config>::AccountId>>::Moment;
 
@@ -61,7 +61,7 @@ pub mod pallet {
 	pub type ExecutedMigrations<T> = StorageNMap<
 		_,
 		(
-			NMapKey<Blake2_128Concat, xcm::latest::MultiLocation>,
+			NMapKey<Blake2_128Concat, Location>,
 			NMapKey<Blake2_128Concat, ParticipationType>,
 			NMapKey<Blake2_128Concat, u32>,
 		),
@@ -109,8 +109,8 @@ pub mod pallet {
 				..
 			} in migrations.clone().inner()
 			{
-				let user_32 = match user {
-					MultiLocation { parents: 0, interior: X1(AccountId32 { network: _, id }) } => Ok(id),
+				let user_32 = match user.unpack() {
+					Location { parents: 0, interior: X1(AccountId32 { network: _, id }) } => Ok(id),
 					_ => Err(Error::<T>::NoneValue),
 				}?;
 				let already_executed = ExecutedMigrations::<T>::get((user, participation_type, id));

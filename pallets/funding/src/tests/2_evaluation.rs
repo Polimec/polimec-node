@@ -236,7 +236,7 @@ mod round_flow {
 			inst.evaluate_for_users(project_id, default_failing_evaluations()).expect("Bonding should work");
 
 			inst.do_free_plmc_assertions(plmc_existential_deposits);
-			inst.do_reserved_plmc_assertions(plmc_eval_deposits, HoldReason::Evaluation(project_id).into());
+			inst.do_reserved_plmc_assertions(plmc_eval_deposits, HoldReason::Evaluation.into());
 
 			inst.advance_time(evaluation_end - now + 1).unwrap();
 

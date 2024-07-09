@@ -137,7 +137,7 @@ use sp_arithmetic::traits::{One, Saturating};
 use sp_runtime::{traits::AccountIdConversion, FixedPointNumber, FixedPointOperand, FixedU128};
 use sp_std::{marker::PhantomData, prelude::*};
 pub use types::*;
-use xcm::v3::{opaque::Instruction, prelude::*, SendXcm};
+use xcm::v4::{opaque::Instruction, prelude::*, SendXcm};
 
 mod functions;
 pub mod storage_migrations;
@@ -208,8 +208,8 @@ pub mod pallet {
 
 	#[pallet::composite_enum]
 	pub enum HoldReason {
-		Evaluation(ProjectId),
-		Participation(ProjectId),
+		Evaluation,
+		Participation,
 	}
 
 	#[pallet::pallet]
@@ -1273,8 +1273,8 @@ pub mod pallet {
 		.max(WeightInfoOf::<T>::pallet_migration_readiness_response_holding()))]
 		pub fn pallet_migration_readiness_response(
 			origin: OriginFor<T>,
-			query_id: xcm::v3::QueryId,
-			response: xcm::v3::Response,
+			query_id: QueryId,
+			response: Response,
 		) -> DispatchResult {
 			let location = ensure_response(<T as Config>::RuntimeOrigin::from(origin))?;
 
@@ -1428,15 +1428,20 @@ pub mod pallet {
 
 pub mod xcm_executor_impl {
 	use super::*;
+	use xcm_executor::traits::{HandleHrmpChannelAccepted, HandleHrmpNewChannelOpenRequest};
 
 	pub struct HrmpHandler<T: Config>(PhantomData<T>);
-	impl<T: Config> polimec_xcm_executor::HrmpHandler for HrmpHandler<T> {
-		fn handle_channel_open_request(message: Instruction) -> XcmResult {
-			<Pallet<T>>::do_handle_channel_open_request(message)
+	impl<T: Config> HandleHrmpChannelAccepted for HrmpHandler<T> {
+		fn handle(message: u32) -> XcmResult {
+			unimplemented!("HandleHrmpChannelAccepted")
+			// <Pallet<T>>::do_handle_channel_accepted(message)
 		}
+	}
 
-		fn handle_channel_accepted(message: Instruction) -> XcmResult {
-			<Pallet<T>>::do_handle_channel_accepted(message)
+	impl<T: Config> HandleHrmpNewChannelOpenRequest for HrmpHandler<T> {
+		fn handle(message: u32, param2: u32, param3: u32) -> XcmResult {
+			unimplemented!("HandleHrmpNewChannelOpenRequest")
+			// <Pallet<T>>::do_handle_channel_accepted(message)
 		}
 	}
 }
