@@ -24,7 +24,7 @@ impl<T: Config> Pallet<T> {
 	/// Later on, `on_initialize` transitions the project into the closing auction round, by calling
 	/// [`do_auction_closing`](Self::do_auction_closing).
 	#[transactional]
-	pub fn do_start_auction_opening(caller: AccountIdOf<T>, project_id: ProjectId) -> DispatchResult {
+	pub fn do_start_auction(caller: AccountIdOf<T>, project_id: ProjectId) -> DispatchResult {
 		// * Get variables *
 		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 		// issuer_account can start the auction opening round during the Auction Initialize Period.
@@ -34,80 +34,42 @@ impl<T: Config> Pallet<T> {
 			project_id,
 			project_details,
 			ProjectStatus::AuctionInitializePeriod,
-			ProjectStatus::AuctionOpening,
+			ProjectStatus::Auction,
 			T::AuctionOpeningDuration::get(),
 			skip_round_end_check,
-		)
-	}
-
-	/// Called automatically by on_initialize
-	/// Starts the auction closing round for a project.
-	/// Any bids from this point until the auction closing round ends are not guaranteed.
-	/// Only bids made before the random ending block between the auction closing start and end will be considered.
-	///
-	/// # Arguments
-	/// * `project_id` - The project identifier
-	///
-	/// # Storage access
-	/// * [`ProjectsDetails`] - Get the project information, and check if the project is in the correct
-	/// round, and the current block after the opening auction end period.
-	/// Update the project information with the new round status and transition points in case of success.
-	///
-	/// # Success Path
-	/// The validity checks pass, and the project is transitioned to the auction closing round.
-	/// The project is scheduled to be transitioned automatically by `on_initialize` at the end of the
-	/// auction closing round.
-	///
-	/// # Next step
-	/// Professional and Institutional users set bids for the project using the `bid` extrinsic,
-	/// but now their bids are not guaranteed.
-	/// Later on, `on_initialize` ends the auction closing round and starts the community round,
-	/// by calling [`do_community_funding`](Self::do_start_community_funding).
-	#[transactional]
-	pub fn do_start_auction_closing(project_id: ProjectId) -> DispatchResult {
-		// * Get variables *
-		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
-		Self::transition_project(
-			project_id,
-			project_details,
-			ProjectStatus::AuctionOpening,
-			ProjectStatus::AuctionClosing,
-			T::AuctionClosingDuration::get(),
-			false,
 		)
 	}
 
 	/// Decides which bids are accepted and which are rejected.
 	/// Deletes and refunds the rejected ones, and prepares the project for the WAP calculation the next block
 	#[transactional]
-	pub fn do_end_auction_closing(project_id: ProjectId) -> DispatchResultWithPostInfo {
+	pub fn do_end_auction(project_id: ProjectId) -> DispatchResultWithPostInfo {
 		// * Get variables *
 		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 		let project_metadata = ProjectsMetadata::<T>::get(project_id).ok_or(Error::<T>::ProjectMetadataNotFound)?;
+		let bucket = Buckets::<T>::get(project_id).ok_or(Error::<T>::BucketNotFound)?;	
 		
-		let start_block = project_details.round_duration.start().ok_or(Error::<T>::ImpossibleState)?;
-		let end_block = project_details.round_duration.end().ok_or(Error::<T>::ImpossibleState)?;
-		// * Calculate new variables *
-		let candle_block = Self::select_random_block(start_block, end_block);
+		// * Calculate WAP *
+		let auction_allocation_size = project_metadata.auction_round_allocation_percentage * project_metadata.total_allocation_size;
+		let weighted_token_price = bucket.calculate_wap(auction_allocation_size);
 
 		// * Update Storage *
 		let calculation_result = Self::decide_winning_bids(
 			project_id,
-			candle_block,
 			project_metadata.auction_round_allocation_percentage * project_metadata.total_allocation_size,
+			weighted_token_price,
 		);
 
 		match calculation_result {
 			Err(e) => return Err(DispatchErrorWithPostInfo { post_info: ().into(), error: e }),
 			Ok((accepted_bids_count, rejected_bids_count)) => {
 				// * Transition Round *
-				project_details.random_end_block = Some(candle_block);
 				Self::transition_project(
 					project_id,
 					project_details,
-					ProjectStatus::AuctionClosing,
-					ProjectStatus::CalculatingWAP,
-					One::one(),
+					ProjectStatus::Auction,
+					ProjectStatus::CommunityRound,
+					T::CommunityFundingDuration::get(),
 					false,
 				)?;
 				Ok(PostDispatchInfo {
@@ -149,8 +111,6 @@ impl<T: Config> Pallet<T> {
 		// * Get variables *
 		let project_metadata = ProjectsMetadata::<T>::get(project_id).ok_or(Error::<T>::ProjectMetadataNotFound)?;
 		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
-		let plmc_usd_price = T::PriceProvider::get_decimals_aware_price(PLMC_FOREIGN_ID, USD_DECIMALS, PLMC_DECIMALS)
-			.ok_or(Error::<T>::PriceNotFound)?;
 
 		// Fetch current bucket details and other required info
 		let mut current_bucket = Buckets::<T>::get(project_id).ok_or(Error::<T>::BucketNotFound)?;
@@ -190,7 +150,7 @@ impl<T: Config> Pallet<T> {
 		ensure!(ct_amount > Zero::zero(), Error::<T>::TooLow);
 		ensure!(did != project_details.issuer_did, Error::<T>::ParticipationToOwnProject);
 		ensure!(
-			matches!(project_details.status, ProjectStatus::AuctionOpening | ProjectStatus::AuctionClosing),
+			matches!(project_details.status, ProjectStatus::Auction),
 			Error::<T>::IncorrectRound
 		);
 		ensure!(
@@ -231,7 +191,6 @@ impl<T: Config> Pallet<T> {
 				funding_asset,
 				bid_id,
 				now,
-				plmc_usd_price,
 				did.clone(),
 				metadata_bidder_ticket_size_bounds,
 				existing_bids_amount.saturating_add(perform_bid_calls),
@@ -264,7 +223,6 @@ impl<T: Config> Pallet<T> {
 		funding_asset: AcceptedFundingAsset,
 		bid_id: u32,
 		now: BlockNumberFor<T>,
-		plmc_usd_price: T::Price,
 		did: Did,
 		metadata_ticket_size_bounds: TicketSizeOf<T>,
 		total_bids_by_bidder: u32,
@@ -289,7 +247,7 @@ impl<T: Config> Pallet<T> {
 
 		// * Calculate new variables *
 		let plmc_bond =
-			Self::calculate_plmc_bond(ticket_size, multiplier, plmc_usd_price).map_err(|_| Error::<T>::BadMath)?;
+			Self::calculate_plmc_bond(ticket_size, multiplier).map_err(|_| Error::<T>::BadMath)?;
 
 		let funding_asset_amount_locked =
 			funding_asset_usd_price.reciprocal().ok_or(Error::<T>::BadMath)?.saturating_mul_int(ticket_size);

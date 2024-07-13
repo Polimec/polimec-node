@@ -247,7 +247,7 @@ impl Contains<RuntimeCall> for BaseCallFilter {
 							pallet_funding::Call::root_do_auction_opening { .. } |
 							pallet_funding::Call::root_do_start_auction_closing { .. } |
 							pallet_funding::Call::bid { .. } |
-							pallet_funding::Call::root_do_end_auction_closing { .. } |
+							pallet_funding::Call::root_do_end_auction { .. } |
 							pallet_funding::Call::community_contribute { .. } |
 							pallet_funding::Call::remaining_contribute { .. } |
 							pallet_funding::Call::decide_project_outcome { .. } |

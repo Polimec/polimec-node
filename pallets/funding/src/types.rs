@@ -457,7 +457,7 @@ pub mod storage_types {
 		pub delta_amount: Balance,
 	}
 
-	impl<Balance: Copy + Saturating + One + Zero, Price: FixedPointNumber> Bucket<Balance, Price> {
+	impl<Balance: BalanceT, Price: FixedPointNumber> Bucket<Balance, Price> {
 		/// Creates a new bucket with the given parameters.
 		pub const fn new(
 			amount_left: Balance,
@@ -482,6 +482,34 @@ pub mod storage_types {
 		fn next(&mut self) {
 			self.amount_left = self.delta_amount;
 			self.current_price = self.current_price.saturating_add(self.delta_price);
+		}
+
+		pub fn calculate_wap(self, mut total_amount: Balance) -> Price {
+			// First bucket is not empty so wap is the same as the initial price
+			if self.current_price == self.initial_price {
+				return self.current_price;
+			}
+			let mut amount: Balance = self.delta_amount.saturating_sub(self.amount_left);
+			let mut price: Price = self.current_price;
+			let mut bucket_sizes: Vec<(Balance, Price)> = Vec::new();
+			while price > self.initial_price && total_amount > Balance::zero() {
+				total_amount.saturating_reduce(amount);
+				bucket_sizes.push((price.saturating_mul_int(amount), price));
+				price = price.saturating_sub(self.delta_price);
+				amount = self.delta_amount;
+			}
+			
+			if total_amount > Balance::zero() {
+				bucket_sizes.push((self.initial_price.saturating_mul_int(total_amount), self.initial_price));
+			}
+
+			let sum = bucket_sizes.iter().map(|x| x.0).fold(Balance::zero(), |acc, x| acc.saturating_add(x));
+
+			let wap = bucket_sizes.into_iter()
+				.map(|x| <Price as FixedPointNumber>::saturating_from_rational(x.0, sum).saturating_mul(x.1)  )
+				.fold(Price::zero(), |acc: Price, p: Price| acc.saturating_add(p));
+
+			return wap
 		}
 	}
 }
@@ -670,9 +698,7 @@ pub mod inner_types {
 		Application,
 		EvaluationRound,
 		AuctionInitializePeriod,
-		AuctionOpening,
-		AuctionClosing,
-		CalculatingWAP,
+		Auction,
 		CommunityRound,
 		RemainderRound,
 		FundingFailed,
@@ -741,21 +767,12 @@ pub mod inner_types {
 		YetUnknown,
 		/// The bid is accepted
 		Accepted,
-		/// The bid is rejected, and the reason is provided
-		Rejected(RejectionReason),
-		/// The bid is partially accepted. The amount accepted and reason for rejection are provided
-		PartiallyAccepted(Balance, RejectionReason),
+		/// The bid is rejected because the ct tokens ran out
+		Rejected,
+		/// The bid is partially accepted as there were not enough tokens to fill the full bid
+		PartiallyAccepted(Balance),
 	}
 
-	#[derive(Clone, Copy, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
-	pub enum RejectionReason {
-		/// The bid was submitted after the closing period ended
-		AfterClosingEnd,
-		/// The bid was accepted but too many tokens were requested. A partial amount was accepted
-		NoTokensLeft,
-		/// Error in calculating ticket_size for partially funded request
-		BadMath,
-	}
 
 	#[derive(Clone, Copy, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
 	pub struct VestingInfo<BlockNumber, Balance> {
@@ -768,9 +785,7 @@ pub mod inner_types {
 	pub enum ProjectPhases {
 		Evaluation,
 		AuctionInitializePeriod,
-		AuctionOpening,
-		AuctionClosing,
-		CalculatingWAP,
+		Auction,
 		CommunityFunding,
 		RemainderFunding,
 		DecisionPeriod,

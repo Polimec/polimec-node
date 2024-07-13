@@ -337,9 +337,8 @@ mod decide_project_outcome {
 			call_fails(project_id, ISSUER_3, &mut inst);
 
 			// Auction
-			let project_id =
-				inst.create_auctioning_project(project_metadata.clone(), ISSUER_4, None, default_evaluations());
-			assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::AuctionOpening);
+			let project_id = inst.create_auctioning_project(project_metadata.clone(), ISSUER_4, default_evaluations());
+			assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::Auction);
 			call_fails(project_id, ISSUER_4, &mut inst);
 
 			// Community

@@ -2109,13 +2109,13 @@ mod benchmarks {
 
 		#[block]
 		{
-			Pallet::<T>::do_end_auction_closing(project_id).unwrap();
+			Pallet::<T>::do_end_auction(project_id).unwrap();
 		}
 
 		// * validity checks *
 		// Storage
 		let stored_details = ProjectsDetails::<T>::get(project_id).unwrap();
-		assert_eq!(stored_details.status, ProjectStatus::CalculatingWAP);
+		assert_eq!(stored_details.status, ProjectStatus::CommunityRound);
 		assert!(
 			stored_details.phase_transition_points.random_closing_ending.unwrap() <
 				stored_details.phase_transition_points.auction_closing.end().unwrap()

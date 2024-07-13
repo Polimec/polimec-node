@@ -464,9 +464,9 @@ impl<
 
 		assert_eq!(self.get_project_details(project_id).status, ProjectStatus::AuctionInitializePeriod);
 
-		self.execute(|| crate::Pallet::<T>::do_start_auction_opening(caller, project_id).unwrap());
+		self.execute(|| crate::Pallet::<T>::do_start_auction(caller, project_id).unwrap());
 
-		assert_eq!(self.get_project_details(project_id).status, ProjectStatus::AuctionOpening);
+		assert_eq!(self.get_project_details(project_id).status, ProjectStatus::Auction);
 
 		Ok(())
 	}
@@ -1197,11 +1197,10 @@ impl<
 				community_contributions,
 			),
 			ProjectStatus::CommunityRound =>
-				self.create_community_contributing_project(project_metadata, issuer, None, evaluations, bids),
-			ProjectStatus::AuctionOpening =>
-				self.create_auctioning_project(project_metadata, issuer, None, evaluations),
-			ProjectStatus::EvaluationRound => self.create_evaluating_project(project_metadata, issuer, None),
-			ProjectStatus::Application => self.create_new_project(project_metadata, issuer, None),
+				self.create_community_contributing_project(project_metadata, issuer, evaluations, bids),
+			ProjectStatus::Auction => self.create_auctioning_project(project_metadata, issuer, evaluations),
+			ProjectStatus::EvaluationRound => self.create_evaluating_project(project_metadata, issuer),
+			ProjectStatus::Application => self.create_new_project(project_metadata, issuer),
 			_ => panic!("unsupported project creation in that status"),
 		}
 	}

@@ -472,7 +472,7 @@ mod community_contribute_extrinsic {
 			let auction_end = <TestRuntime as Config>::AuctionOpeningDuration::get() +
 				<TestRuntime as Config>::AuctionClosingDuration::get();
 			inst.advance_time(auction_end - 1).unwrap();
-			assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::AuctionClosing);
+			assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::Auction);
 			inst.bid_for_users(project_id, vec![bob_bid]).unwrap();
 
 			inst.start_community_funding(project_id).unwrap();

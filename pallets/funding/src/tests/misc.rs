@@ -222,6 +222,26 @@ mod helper_functions {
 	}
 
 	#[test]
+	fn bucket_wap_calculation() {
+
+		let initial_price = FixedU128::from_float(10.0);
+		let mut bucket = Bucket::new(100u32, initial_price, FixedU128::from_float(1.0), 10u32);
+		let wap = bucket.calculate_wap(100u32);
+		assert!(wap == initial_price);
+
+		// Initial token amount: 100
+		// Simulate total bidding amount of 128
+		bucket.update(100u32);
+		bucket.update(10u32);
+		bucket.update(10u32);
+		bucket.update(8u32);
+		let wap = bucket.calculate_wap(100u32);
+		let expected = FixedU128::from_float(10.628);
+		let diff = if wap > expected { wap - expected } else { expected - wap };
+		assert!(diff <= FixedU128::from_float(0.001));
+	}
+
+	#[test]
 	fn calculate_contributed_plmc_spent() {
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		const PLMC_PRICE: f64 = 8.4f64;

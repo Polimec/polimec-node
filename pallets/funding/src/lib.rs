@@ -82,7 +82,6 @@
 //! ### Storage Items
 //! * [`NextProjectId`] : Increasing counter to get the next id to assign to a project.
 //! * [`NextBidId`]: Increasing counter to get the next id to assign to a bid.
-//! * [`Nonce`]: Increasing counter to be used in random number generation.
 //! * [`ProjectsMetadata`]: Map of the assigned id, to the main information of a project.
 //! * [`ProjectsDetails`]: Map of a project id, to some additional information required for ensuring correctness of the protocol.
 //! * [`Bids`]: Double map linking a project-user to the bids they made.
@@ -356,7 +355,8 @@ pub mod pallet {
 				Balance = BalanceOf<Self>,
 				Reason = <Self as Config>::RuntimeHoldReason,
 			> + fungible::BalancedHold<AccountIdOf<Self>, Balance = BalanceOf<Self>>
-			+ fungible::Mutate<AccountIdOf<Self>, Balance = BalanceOf<Self>>;
+			+ fungible::Mutate<AccountIdOf<Self>, Balance = BalanceOf<Self>>
+			+ fungible::Inspect<AccountIdOf<Self>, Balance = BalanceOf<Self>>;
 
 		/// System account for the funding pallet. Used to derive project escrow accounts.
 		#[pallet::constant]
@@ -455,12 +455,6 @@ pub mod pallet {
 
 	#[pallet::storage]
 	pub type EvaluationCounts<T: Config> = StorageMap<_, Blake2_128Concat, ProjectId, u32, ValueQuery>;
-
-	#[pallet::storage]
-	/// A global counter used in the randomness generation
-	// TODO: PLMC-155. Remove it after using the Randomness from BABE's VRF: https://github.com/PureStake/moonbeam/issues/1391
-	// 	Or use the randomness from Moonbeam.
-	pub type Nonce<T: Config> = StorageValue<_, u32, ValueQuery>;
 
 	#[pallet::storage]
 	/// A StorageMap containing the primary project information of projects
@@ -623,7 +617,6 @@ pub mod pallet {
 			project_id: ProjectId,
 			account: AccountIdOf<T>,
 			bid_id: u32,
-			reason: RejectionReason,
 			plmc_amount: BalanceOf<T>,
 			funding_asset: AcceptedFundingAsset,
 			funding_amount: BalanceOf<T>,
@@ -888,7 +881,7 @@ pub mod pallet {
 			let (account, _did, investor_type, _cid) =
 				T::InvestorOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get())?;
 			ensure!(investor_type == InvestorType::Institutional, Error::<T>::WrongInvestorType);
-			Self::do_start_auction_opening(account, project_id)
+			Self::do_start_auction(account, project_id)
 		}
 
 		/// Bond PLMC for a project in the evaluation stage
@@ -921,7 +914,7 @@ pub mod pallet {
 		#[pallet::weight(WeightInfoOf::<T>::start_auction_manually(1))]
 		pub fn root_do_auction_opening(origin: OriginFor<T>, project_id: ProjectId) -> DispatchResult {
 			ensure_root(origin)?;
-			Self::do_start_auction_opening(T::PalletId::get().into_account_truncating(), project_id)
+			Self::do_start_auction(T::PalletId::get().into_account_truncating(), project_id)
 		}
 
 		/// Bid for a project in the Auction round
@@ -948,18 +941,6 @@ pub mod pallet {
 			Self::do_bid(&account, project_id, ct_amount, multiplier, asset, did, investor_type, whitelisted_policy)
 		}
 
-		#[pallet::call_index(9)]
-		#[pallet::weight(WeightInfoOf::<T>::start_auction_closing_phase(
-		1,
-		))]
-		pub fn root_do_start_auction_closing(
-			origin: OriginFor<T>,
-			project_id: ProjectId,
-		) -> DispatchResult {
-			ensure_root(origin)?;
-			Self::do_start_auction_closing(project_id)
-		}
-
 		#[pallet::call_index(10)]
 		#[pallet::weight(WeightInfoOf::<T>::end_auction_closing(
 		1,
@@ -976,30 +957,9 @@ pub mod pallet {
 		0u32,
 		<T as Config>::MaxBidsPerProject::get(),
 		)))]
-		pub fn root_do_end_auction_closing(origin: OriginFor<T>, project_id: ProjectId) -> DispatchResultWithPostInfo {
+		pub fn root_do_end_auction(origin: OriginFor<T>, project_id: ProjectId) -> DispatchResultWithPostInfo {
 			ensure_root(origin)?;
-			Self::do_end_auction_closing(project_id)
-		}
-
-		#[pallet::call_index(11)]
-		#[pallet::weight(WeightInfoOf::<T>::start_community_funding(
-		1,
-		<T as Config>::MaxBidsPerProject::get() / 2,
-		<T as Config>::MaxBidsPerProject::get() / 2,
-		)
-		.max(WeightInfoOf::<T>::start_community_funding(
-		1,
-		<T as Config>::MaxBidsPerProject::get(),
-		0u32,
-		))
-		.max(WeightInfoOf::<T>::start_community_funding(
-		1,
-		0u32,
-		<T as Config>::MaxBidsPerProject::get(),
-		)))]
-		pub fn root_do_community_funding(origin: OriginFor<T>, project_id: ProjectId) -> DispatchResultWithPostInfo {
-			ensure_root(origin)?;
-			Self::do_start_community_funding(project_id)
+			Self::do_end_auction(project_id)
 		}
 
 		/// Buy tokens in the Community or Remainder round at the price set in the Auction Round

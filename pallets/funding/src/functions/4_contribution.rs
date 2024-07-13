@@ -2,60 +2,6 @@ use super::*;
 
 impl<T: Config> Pallet<T> {
 	/// Called automatically by on_initialize
-	/// Starts the community round for a project.
-	/// Retail users now buy tokens instead of bidding on them. The price of the tokens are calculated
-	/// based on the available bids, using the function [`calculate_weighted_average_price`](Self::calculate_weighted_average_price).
-	///
-	/// # Arguments
-	/// * `project_id` - The project identifier
-	///
-	/// # Storage access
-	/// * [`ProjectsDetails`] - Get the project information, and check if the project is in the correct
-	/// round, and the current block is after the auction closing end period.
-	/// Update the project information with the new round status and transition points in case of success.
-	///
-	/// # Success Path
-	/// The validity checks pass, and the project is transitioned to the Community Funding round.
-	/// The project is scheduled to be transitioned automatically by `on_initialize` at the end of the
-	/// round.
-	///
-	/// # Next step
-	/// Retail users buy tokens at the price set on the auction round.
-	/// Later on, `on_initialize` ends the community round by calling [`do_remainder_funding`](Self::do_start_remainder_funding) and
-	/// starts the remainder round, where anyone can buy at that price point.
-	#[transactional]
-	pub fn do_start_community_funding(project_id: ProjectId) -> DispatchResultWithPostInfo {
-		// * Calculate Wap * //
-		let wap_result = Self::calculate_weighted_average_price(project_id);
-
-		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
-		match wap_result {
-			Err(e) => return Err(DispatchErrorWithPostInfo { post_info: ().into(), error: e }),
-			Ok(winning_bids_count) => {
-				Self::transition_project(
-					project_id,
-					project_details,
-					ProjectStatus::CalculatingWAP,
-					ProjectStatus::CommunityRound,
-					T::CommunityFundingDuration::get(),
-					false,
-				)?;
-
-				//TODO: address this
-				let rejected_bids_count = 0;
-				Ok(PostDispatchInfo {
-					actual_weight: Some(WeightInfoOf::<T>::start_community_funding(
-						1,
-						winning_bids_count,
-						rejected_bids_count,
-					)),
-					pays_fee: Pays::Yes,
-				})
-			},
-		}
-	}
-
-	/// Called automatically by on_initialize
 	/// Starts the remainder round for a project.
 	/// Anyone can now buy tokens, until they are all sold out, or the time is reached.
 	///
@@ -199,8 +145,6 @@ impl<T: Config> Pallet<T> {
 		let total_usd_bought_by_did = ContributionBoughtUSD::<T>::get((project_id, did.clone()));
 		let now = <frame_system::Pallet<T>>::block_number();
 		let ct_usd_price = project_details.weighted_average_price.ok_or(Error::<T>::WapNotSet)?;
-		let plmc_usd_price = T::PriceProvider::get_decimals_aware_price(PLMC_FOREIGN_ID, USD_DECIMALS, PLMC_DECIMALS)
-			.ok_or(Error::<T>::PriceNotFound)?;
 
 		let funding_asset_id = funding_asset.to_assethub_id();
 		let funding_asset_decimals = T::FundingCurrency::decimals(funding_asset_id);
@@ -248,7 +192,7 @@ impl<T: Config> Pallet<T> {
 			Error::<T>::TooHigh
 		);
 
-		let plmc_bond = Self::calculate_plmc_bond(ticket_size, multiplier, plmc_usd_price)?;
+		let plmc_bond = Self::calculate_plmc_bond(ticket_size, multiplier)?;
 		let funding_asset_amount =
 			funding_asset_usd_price.reciprocal().ok_or(Error::<T>::BadMath)?.saturating_mul_int(ticket_size);
 		let asset_id = funding_asset.to_assethub_id();

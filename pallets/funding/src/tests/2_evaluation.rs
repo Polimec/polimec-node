@@ -228,9 +228,8 @@ mod round_flow {
 
 			let evaluation_end = inst
 				.get_project_details(project_id)
-				.phase_transition_points
-				.evaluation
-				.end
+				.round_duration
+				.end()
 				.expect("Evaluation round end block should be set");
 
 			inst.evaluate_for_users(project_id, default_failing_evaluations()).expect("Bonding should work");
