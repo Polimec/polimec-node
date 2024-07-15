@@ -349,7 +349,7 @@ mod decide_project_outcome {
 				default_evaluations(),
 				default_bids(),
 			);
-			assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::CommunityRound);
+			assert!(matches!(inst.get_project_details(project_id).status, ProjectStatus::CommunityRound(..)));
 			call_fails(project_id, ISSUER_5, &mut inst);
 
 			// Remainder
@@ -361,7 +361,6 @@ mod decide_project_outcome {
 				default_bids(),
 				vec![],
 			);
-			assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::RemainderRound);
 			call_fails(project_id, ISSUER_6, &mut inst);
 
 			// FundingSuccessful

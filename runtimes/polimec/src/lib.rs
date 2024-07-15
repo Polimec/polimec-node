@@ -248,11 +248,9 @@ impl Contains<RuntimeCall> for BaseCallFilter {
 							pallet_funding::Call::root_do_start_auction_closing { .. } |
 							pallet_funding::Call::bid { .. } |
 							pallet_funding::Call::root_do_end_auction { .. } |
-							pallet_funding::Call::community_contribute { .. } |
-							pallet_funding::Call::remaining_contribute { .. } |
+							pallet_funding::Call::contribute { .. } |
 							pallet_funding::Call::decide_project_outcome { .. } |
 							pallet_funding::Call::root_do_community_funding { .. } |
-							pallet_funding::Call::root_do_remainder_funding { .. } |
 							pallet_funding::Call::root_do_end_funding { .. } |
 							pallet_funding::Call::root_do_project_decision { .. } |
 							pallet_funding::Call::root_do_start_settlement { .. } |

@@ -53,7 +53,6 @@
 //! | Bid Submissions           | Institutional and Professional users can continue bidding, but this time their bids will only be considered, if they managed to fall before the random ending block calculated at the end of the auction.                                                                                                                                                                                                   | [`AuctionClosing`](ProjectStatus::AuctionClosing)                   |
 //! | Community Funding Start   | After the [`Config::AuctionClosingDuration`] has passed, the auction automatically. A final token price for the next rounds is calculated based on the accepted bids.                                                                                                                                                                                                                                       | [`CommunityRound`](ProjectStatus::CommunityRound)                   |
 //! | Funding Submissions       | Retail investors can call the [`contribute()`](Pallet::contribute) extrinsic to buy tokens at the set price.                                                                                                                                                                                                                                                                                                | [`CommunityRound`](ProjectStatus::CommunityRound)                   |
-//! | Remainder Funding Start   | After the [`Config::CommunityFundingDuration`] has passed, the project is now open to token purchases from any user type                                                                                                                                                                                                                                                                                    | [`RemainderRound`](ProjectStatus::RemainderRound)                   |
 //! | Funding End               | If all tokens were sold, or after the [`Config::RemainderFundingDuration`] has passed, the project automatically ends, and it is calculated if it reached its desired funding or not.                                                                                                                                                                                                                       | [`FundingEnded`](ProjectStatus::FundingSuccessful)                  |
 //! | Evaluator Rewards         | If the funding was successful, evaluators can claim their contribution token rewards with the [`TBD`]() extrinsic. If it failed, evaluators can either call the [`failed_evaluation_unbond_for()`](Pallet::failed_evaluation_unbond_for) extrinsic, or wait for the [`on_idle()`](Pallet::on_initialize) function, to return their funds                                                                    | [`FundingEnded`](ProjectStatus::FundingSuccessful)                  |
 //! | Bidder Rewards            | If the funding was successful, bidders will call [`vested_contribution_token_bid_mint_for()`](Pallet::vested_contribution_token_bid_mint_for) to mint the contribution tokens they are owed, and [`vested_plmc_bid_unbond_for()`](Pallet::vested_plmc_bid_unbond_for) to unbond their PLMC, based on their current vesting schedule.                                                                        | [`FundingEnded`](ProjectStatus::FundingSuccessful)                  |
@@ -204,7 +203,7 @@ pub mod pallet {
 	use sp_arithmetic::Percent;
 	use sp_runtime::{
 		traits::{Convert, ConvertBack, Get},
-		DispatchErrorWithPostInfo,
+		Perquintill,
 	};
 
 	#[pallet::composite_enum]
@@ -295,6 +294,8 @@ pub mod pallet {
 			+ fungibles::metadata::Inspect<AccountIdOf<Self>, AssetId = u32>
 			+ fungibles::metadata::Mutate<AccountIdOf<Self>, AssetId = u32>
 			+ fungibles::Mutate<AccountIdOf<Self>, Balance = BalanceOf<Self>>;
+
+		type FundingSuccessThreshold: Get<Perquintill>;
 
 		/// Credentialized investor Origin, ensures users are of investing type Retail, or Professional, or Institutional.
 		type InvestorOrigin: EnsureOriginWithCredentials<
@@ -966,14 +967,8 @@ pub mod pallet {
 		#[pallet::call_index(12)]
 		#[pallet::weight(
 			WeightInfoOf::<T>::contribution(T::MaxContributionsPerUser::get() - 1)
-			.max(WeightInfoOf::<T>::contribution_ends_round(
-			// Last contribution possible before having to remove an old lower one
-			<T as Config>::MaxContributionsPerUser::get() -1,
-			// Since we didn't remove any previous lower contribution, we can buy all remaining CTs and try to move to the next phase
-			0,
-			))
 		)]
-		pub fn community_contribute(
+		pub fn contribute(
 			origin: OriginFor<T>,
 			jwt: UntrustedToken,
 			project_id: ProjectId,
@@ -984,50 +979,7 @@ pub mod pallet {
 			let (account, did, investor_type, whitelisted_policy) =
 				T::InvestorOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get())?;
 
-			Self::do_community_contribute(
-				&account,
-				project_id,
-				amount,
-				multiplier,
-				asset,
-				did,
-				investor_type,
-				whitelisted_policy,
-			)
-		}
-
-		#[pallet::call_index(13)]
-		#[pallet::weight(WeightInfoOf::<T>::start_remainder_funding(
-		1,
-		))]
-		pub fn root_do_remainder_funding(origin: OriginFor<T>, project_id: ProjectId) -> DispatchResult {
-			ensure_root(origin)?;
-			Self::do_start_remainder_funding(project_id)
-		}
-
-		/// Buy tokens in the Community or Remainder round at the price set in the Auction Round
-		#[pallet::call_index(14)]
-		#[pallet::weight(
-			WeightInfoOf::<T>::contribution(T::MaxContributionsPerUser::get() - 1)
-			.max(WeightInfoOf::<T>::contribution_ends_round(
-			// Last contribution possible before having to remove an old lower one
-			<T as Config>::MaxContributionsPerUser::get() -1,
-			// Since we didn't remove any previous lower contribution, we can buy all remaining CTs and try to move to the next phase
-			1
-			))
-		)]
-		pub fn remaining_contribute(
-			origin: OriginFor<T>,
-			jwt: UntrustedToken,
-			project_id: ProjectId,
-			#[pallet::compact] amount: BalanceOf<T>,
-			multiplier: MultiplierOf<T>,
-			asset: AcceptedFundingAsset,
-		) -> DispatchResultWithPostInfo {
-			let (account, did, investor_type, whitelisted_policy) =
-				T::InvestorOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get())?;
-
-			Self::do_remaining_contribute(
+			Self::do_contribute(
 				&account,
 				project_id,
 				amount,

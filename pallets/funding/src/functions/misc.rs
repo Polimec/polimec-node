@@ -39,7 +39,7 @@ impl<T: Config> Pallet<T> {
 		plmc_usd_price.reciprocal().ok_or(Error::<T>::BadMath)?.checked_mul_int(usd_bond).ok_or(Error::<T>::BadMath.into())
 	}
 
-	pub fn calculate_funding_asset_lock(
+	pub fn calculate_funding_asset_amount(
 		ticket_size: BalanceOf<T>,
 		asset_id: AcceptedFundingAsset,
 	) -> Result<BalanceOf<T>, DispatchError> {
@@ -423,8 +423,8 @@ impl<T: Config> Pallet<T> {
 	pub(crate) fn transition_project(
 		project_id: ProjectId,
 		mut project_details: ProjectDetailsOf<T>,
-		current_round: ProjectStatus,
-		next_round: ProjectStatus,
+		current_round: ProjectStatus<BlockNumberFor<T>>,
+		next_round: ProjectStatus<BlockNumberFor<T>>,
 		round_duration: BlockNumberFor<T>,
 		skip_end_check: bool,
 	) -> DispatchResult {

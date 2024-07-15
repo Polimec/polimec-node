@@ -1293,7 +1293,7 @@ mod benchmarks {
 		);
 
 		#[extrinsic_call]
-		community_contribute(
+		contribute(
 			RawOrigin::Signed(extrinsic_contribution.contributor.clone()),
 			jwt,
 			project_id,
@@ -1344,7 +1344,7 @@ mod benchmarks {
 		);
 
 		#[extrinsic_call]
-		community_contribute(
+		contribute(
 			RawOrigin::Signed(extrinsic_contribution.contributor.clone()),
 			jwt,
 			project_id,
@@ -2311,7 +2311,6 @@ mod benchmarks {
 		// * validity checks *
 		// Storage
 		let stored_details = ProjectsDetails::<T>::get(project_id).unwrap();
-		assert_eq!(stored_details.status, ProjectStatus::RemainderRound);
 
 		// Events
 		frame_system::Pallet::<T>::assert_last_event(
@@ -2362,7 +2361,6 @@ mod benchmarks {
 		);
 
 		let project_details = inst.get_project_details(project_id);
-		assert_eq!(project_details.status, ProjectStatus::RemainderRound);
 		let last_funding_block = project_details.phase_transition_points.remainder.end().unwrap();
 
 		frame_system::Pallet::<T>::set_block_number(last_funding_block + 1u32.into());
@@ -2421,7 +2419,6 @@ mod benchmarks {
 		);
 
 		let project_details = inst.get_project_details(project_id);
-		assert_eq!(project_details.status, ProjectStatus::RemainderRound);
 		let last_funding_block = project_details.phase_transition_points.remainder.end().unwrap();
 
 		frame_system::Pallet::<T>::set_block_number(last_funding_block + 1u32.into());
@@ -2481,7 +2478,6 @@ mod benchmarks {
 		);
 
 		let project_details = inst.get_project_details(project_id);
-		assert_eq!(project_details.status, ProjectStatus::RemainderRound);
 		let last_funding_block = project_details.phase_transition_points.remainder.end().unwrap();
 
 		frame_system::Pallet::<T>::set_block_number(last_funding_block + 1u32.into());
@@ -2559,7 +2555,6 @@ mod benchmarks {
 		);
 
 		let project_details = inst.get_project_details(project_id);
-		assert_eq!(project_details.status, ProjectStatus::RemainderRound);
 		let last_funding_block = project_details.phase_transition_points.remainder.end().unwrap();
 
 		frame_system::Pallet::<T>::set_block_number(last_funding_block + 1u32.into());

@@ -402,7 +402,7 @@ mod round_flow {
 			inst.advance_time(closing_end - now + 2).unwrap();
 
 			let details = inst.get_project_details(project_id);
-			assert_eq!(details.status, ProjectStatus::CommunityRound);
+			assert!(matches!(details.status, ProjectStatus::CommunityRound(..)));
 			assert_eq!(details.weighted_average_price, Some(project_metadata.minimum_price));
 		}
 
@@ -753,7 +753,7 @@ mod round_flow {
 			let investor_type = InvestorType::Retail;
 			inst.execute(|| {
 				assert_noop!(
-					PolimecFunding::do_community_contribute(
+					PolimecFunding::do_contribute(
 						&BIDDER_1,
 						project_id,
 						100,

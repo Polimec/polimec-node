@@ -540,7 +540,7 @@ impl<
 		}
 
 		ensure!(
-			self.get_project_details(project_id).status == ProjectStatus::CommunityRound,
+			matches!(self.get_project_details(project_id).status, ProjectStatus::CommunityRound(..)),
 			DispatchError::from("Auction failed")
 		);
 
@@ -634,29 +634,12 @@ impl<
 		let project_policy = self.get_project_metadata(project_id).policy_ipfs_cid.unwrap();
 
 		match self.get_project_details(project_id).status {
-			ProjectStatus::CommunityRound =>
+			ProjectStatus::CommunityRound(..) =>
 				for cont in contributions {
 					let did = generate_did_from_account(cont.contributor.clone());
 					let investor_type = InvestorType::Retail;
 					self.execute(|| {
-						crate::Pallet::<T>::do_community_contribute(
-							&cont.contributor,
-							project_id,
-							cont.amount,
-							cont.multiplier,
-							cont.asset,
-							did,
-							investor_type,
-							project_policy.clone(),
-						)
-					})?;
-				},
-			ProjectStatus::RemainderRound =>
-				for cont in contributions {
-					let did = generate_did_from_account(cont.contributor.clone());
-					let investor_type = InvestorType::Professional;
-					self.execute(|| {
-						crate::Pallet::<T>::do_remaining_contribute(
+						crate::Pallet::<T>::do_contribute(
 							&cont.contributor,
 							project_id,
 							cont.amount,
@@ -676,7 +659,7 @@ impl<
 
 	pub fn start_remainder_or_end_funding(&mut self, project_id: ProjectId) -> Result<(), DispatchError> {
 		let details = self.get_project_details(project_id);
-		assert_eq!(details.status, ProjectStatus::CommunityRound);
+		assert!(matches!(details.status, ProjectStatus::CommunityRound(..)));
 		let remaining_tokens = details.remaining_contribution_tokens;
 		let update_type =
 			if remaining_tokens > Zero::zero() { UpdateType::RemainderFundingStart } else { UpdateType::FundingEnd };
@@ -684,7 +667,7 @@ impl<
 			self.execute(|| frame_system::Pallet::<T>::set_block_number(transition_block - One::one()));
 			self.advance_time(1u32.into()).unwrap();
 			match self.get_project_details(project_id).status {
-				ProjectStatus::RemainderRound | ProjectStatus::FundingSuccessful => Ok(()),
+				ProjectStatus::FundingSuccessful => Ok(()),
 				_ => panic!("Bad state"),
 			}
 		} else {
@@ -1050,10 +1033,6 @@ impl<
 
 		match self.get_project_details(project_id).status {
 			ProjectStatus::FundingSuccessful => return project_id,
-			ProjectStatus::RemainderRound if remainder_contributions.is_empty() => {
-				self.finish_funding(project_id, None).unwrap();
-				return project_id;
-			},
 			_ => {},
 		};
 		let ct_price = self.get_project_details(project_id).weighted_average_price.unwrap();
@@ -1170,7 +1149,7 @@ impl<
 
 	pub fn create_project_at(
 		&mut self,
-		status: ProjectStatus,
+		status: ProjectStatus<BlockNumberFor<T>>,
 		project_metadata: ProjectMetadataOf<T>,
 		issuer: AccountIdOf<T>,
 		evaluations: Vec<UserToUSDBalance<T>>,
@@ -1188,15 +1167,7 @@ impl<
 				community_contributions,
 				remainder_contributions,
 			),
-			ProjectStatus::RemainderRound => self.create_remainder_contributing_project(
-				project_metadata,
-				issuer,
-				None,
-				evaluations,
-				bids,
-				community_contributions,
-			),
-			ProjectStatus::CommunityRound =>
+			ProjectStatus::CommunityRound(..) =>
 				self.create_community_contributing_project(project_metadata, issuer, evaluations, bids),
 			ProjectStatus::Auction => self.create_auctioning_project(project_metadata, issuer, evaluations),
 			ProjectStatus::EvaluationRound => self.create_evaluating_project(project_metadata, issuer),

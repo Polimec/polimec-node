@@ -54,8 +54,7 @@ impl<T: Config> Pallet<T> {
 			!matches!(
 				project_details.status,
 				ProjectStatus::FundingSuccessful |
-					ProjectStatus::FundingFailed |
-					ProjectStatus::AwaitingProjectDecision
+					ProjectStatus::FundingFailed
 			),
 			Error::<T>::RoundTransitionAlreadyHappened
 		);

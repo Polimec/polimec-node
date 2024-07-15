@@ -63,13 +63,14 @@ impl<T: Config> Pallet<T> {
 		match calculation_result {
 			Err(e) => return Err(DispatchErrorWithPostInfo { post_info: ().into(), error: e }),
 			Ok((accepted_bids_count, rejected_bids_count)) => {
+				let now = <frame_system::Pallet<T>>::block_number();
 				// * Transition Round *
 				Self::transition_project(
 					project_id,
 					project_details,
 					ProjectStatus::Auction,
-					ProjectStatus::CommunityRound,
-					T::CommunityFundingDuration::get(),
+					ProjectStatus::CommunityRound(now.saturating_add(T::CommunityFundingDuration::get())),
+					T::CommunityFundingDuration::get() + T::RemainderFundingDuration::get(),
 					false,
 				)?;
 				Ok(PostDispatchInfo {

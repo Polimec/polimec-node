@@ -280,7 +280,7 @@ mod round_flow {
 					funding_asset.to_assethub_id(),
 				)]);
 
-				assert_ok!(inst.execute(|| PolimecFunding::community_contribute(
+				assert_ok!(inst.execute(|| PolimecFunding::contribute(
 					RuntimeOrigin::signed(BUYER_1),
 					get_mock_jwt_with_cid(
 						BUYER_1,
@@ -321,7 +321,7 @@ mod round_flow {
 }
 
 #[cfg(test)]
-mod community_contribute_extrinsic {
+mod contribute_extrinsic {
 	use super::*;
 
 	#[cfg(test)]
@@ -372,7 +372,7 @@ mod community_contribute_extrinsic {
 			// Can't contribute with only the evaluation bond
 			inst.execute(|| {
 				assert_noop!(
-					Pallet::<TestRuntime>::community_contribute(
+					Pallet::<TestRuntime>::contribute(
 						RuntimeOrigin::signed(BOB),
 						get_mock_jwt_with_cid(
 							BOB,
@@ -394,7 +394,7 @@ mod community_contribute_extrinsic {
 				inst.calculate_contributed_funding_asset_spent(vec![(BOB, usable_ct / 2).into()], ct_price);
 			inst.mint_foreign_asset_to(contribution_usdt.clone());
 			inst.execute(|| {
-				assert_ok!(Pallet::<TestRuntime>::community_contribute(
+				assert_ok!(Pallet::<TestRuntime>::contribute(
 					RuntimeOrigin::signed(BOB),
 					get_mock_jwt_with_cid(
 						BOB,
@@ -414,7 +414,7 @@ mod community_contribute_extrinsic {
 				inst.calculate_contributed_funding_asset_spent(vec![(CARL, usable_ct).into()], ct_price);
 			inst.mint_foreign_asset_to(contribution_usdt.clone());
 			inst.execute(|| {
-				assert_ok!(Pallet::<TestRuntime>::community_contribute(
+				assert_ok!(Pallet::<TestRuntime>::contribute(
 					RuntimeOrigin::signed(CARL),
 					get_mock_jwt_with_cid(
 						CARL,
@@ -476,7 +476,7 @@ mod community_contribute_extrinsic {
 			inst.bid_for_users(project_id, vec![bob_bid]).unwrap();
 
 			inst.start_community_funding(project_id).unwrap();
-			assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::CommunityRound);
+			assert!(matches!(inst.get_project_details(project_id).status, ProjectStatus::CommunityRound(..)));
 
 			let plmc_price = <TestRuntime as Config>::PriceProvider::get_decimals_aware_price(
 				PLMC_FOREIGN_ID,
@@ -493,7 +493,7 @@ mod community_contribute_extrinsic {
 			let contribution_usdt = inst.calculate_contributed_funding_asset_spent(vec![bob_contribution], wap);
 			inst.mint_foreign_asset_to(contribution_usdt.clone());
 			inst.execute(|| {
-				assert_ok!(Pallet::<TestRuntime>::community_contribute(
+				assert_ok!(Pallet::<TestRuntime>::contribute(
 					RuntimeOrigin::signed(bob),
 					get_mock_jwt_with_cid(
 						bob,
@@ -589,7 +589,7 @@ mod community_contribute_extrinsic {
 				inst.mint_foreign_asset_to(necessary_usdt.clone());
 			}
 			inst.execute(|| {
-				Pallet::<TestRuntime>::community_contribute(
+				Pallet::<TestRuntime>::contribute(
 					RuntimeOrigin::signed(contributor),
 					jwt,
 					project_id,
@@ -810,7 +810,7 @@ mod community_contribute_extrinsic {
 
 			let mut bid_should_succeed = |account, investor_type, did_acc| {
 				inst.execute(|| {
-					assert_ok!(Pallet::<TestRuntime>::community_contribute(
+					assert_ok!(Pallet::<TestRuntime>::contribute(
 						RuntimeOrigin::signed(account),
 						get_mock_jwt_with_cid(
 							account,
@@ -897,7 +897,7 @@ mod community_contribute_extrinsic {
 			});
 
 			inst.execute(|| {
-				assert_ok!(PolimecFunding::community_contribute(
+				assert_ok!(PolimecFunding::contribute(
 					RuntimeOrigin::signed(BUYER_4),
 					get_mock_jwt_with_cid(
 						BUYER_4,
@@ -981,7 +981,7 @@ mod community_contribute_extrinsic {
 			});
 
 			inst.execute(|| {
-				assert_ok!(PolimecFunding::community_contribute(
+				assert_ok!(PolimecFunding::contribute(
 					RuntimeOrigin::signed(BUYER_4),
 					get_mock_jwt_with_cid(
 						BUYER_4,
@@ -1152,7 +1152,7 @@ mod community_contribute_extrinsic {
 				default_bids(),
 			);
 			assert_err!(
-				inst.execute(|| crate::Pallet::<TestRuntime>::do_community_contribute(
+				inst.execute(|| crate::Pallet::<TestRuntime>::do_contribute(
 					&(&ISSUER_1 + 1),
 					project_id,
 					500 * CT_UNIT,
@@ -1190,7 +1190,7 @@ mod community_contribute_extrinsic {
 			let mut bid_should_fail = |account, investor_type, did_acc| {
 				inst.execute(|| {
 					assert_noop!(
-						Pallet::<TestRuntime>::community_contribute(
+						Pallet::<TestRuntime>::contribute(
 							RuntimeOrigin::signed(account),
 							get_mock_jwt_with_cid(
 								account,
@@ -1274,7 +1274,7 @@ mod community_contribute_extrinsic {
 			);
 			inst.execute(|| {
 				assert_noop!(
-					Pallet::<TestRuntime>::community_contribute(
+					Pallet::<TestRuntime>::contribute(
 						RuntimeOrigin::signed(BUYER_1),
 						jwt,
 						project_id,
@@ -1294,7 +1294,7 @@ mod community_contribute_extrinsic {
 			);
 			inst.execute(|| {
 				assert_noop!(
-					Pallet::<TestRuntime>::community_contribute(
+					Pallet::<TestRuntime>::contribute(
 						RuntimeOrigin::signed(BUYER_2),
 						jwt,
 						project_id,
@@ -1315,7 +1315,7 @@ mod community_contribute_extrinsic {
 			);
 			inst.execute(|| {
 				assert_noop!(
-					Pallet::<TestRuntime>::community_contribute(
+					Pallet::<TestRuntime>::contribute(
 						RuntimeOrigin::signed(BUYER_3),
 						jwt,
 						project_id,
@@ -1379,7 +1379,7 @@ mod community_contribute_extrinsic {
 			);
 			// total contributions with same DID above 10k CT (100k USD) should fail for retail
 			inst.execute(|| {
-				assert_ok!(Pallet::<TestRuntime>::community_contribute(
+				assert_ok!(Pallet::<TestRuntime>::contribute(
 					RuntimeOrigin::signed(BUYER_1),
 					buyer_1_jwt,
 					project_id,
@@ -1390,7 +1390,7 @@ mod community_contribute_extrinsic {
 			});
 			inst.execute(|| {
 				assert_noop!(
-					Pallet::<TestRuntime>::community_contribute(
+					Pallet::<TestRuntime>::contribute(
 						RuntimeOrigin::signed(BUYER_2),
 						buyer_2_jwt_same_did.clone(),
 						project_id,
@@ -1403,7 +1403,7 @@ mod community_contribute_extrinsic {
 			});
 			// bidding 2k total works
 			inst.execute(|| {
-				assert_ok!(Pallet::<TestRuntime>::community_contribute(
+				assert_ok!(Pallet::<TestRuntime>::contribute(
 					RuntimeOrigin::signed(BUYER_2),
 					buyer_2_jwt_same_did,
 					project_id,
@@ -1427,7 +1427,7 @@ mod community_contribute_extrinsic {
 			);
 			// total contributions with same DID above 2k CT (20k USD) should fail for professionals
 			inst.execute(|| {
-				assert_ok!(Pallet::<TestRuntime>::community_contribute(
+				assert_ok!(Pallet::<TestRuntime>::contribute(
 					RuntimeOrigin::signed(BUYER_3),
 					buyer_3_jwt,
 					project_id,
@@ -1438,7 +1438,7 @@ mod community_contribute_extrinsic {
 			});
 			inst.execute(|| {
 				assert_noop!(
-					Pallet::<TestRuntime>::community_contribute(
+					Pallet::<TestRuntime>::contribute(
 						RuntimeOrigin::signed(BUYER_4),
 						buyer_4_jwt_same_did.clone(),
 						project_id,
@@ -1451,7 +1451,7 @@ mod community_contribute_extrinsic {
 			});
 			// bidding 2k total works
 			inst.execute(|| {
-				assert_ok!(Pallet::<TestRuntime>::community_contribute(
+				assert_ok!(Pallet::<TestRuntime>::contribute(
 					RuntimeOrigin::signed(BUYER_4),
 					buyer_4_jwt_same_did,
 					project_id,
@@ -1475,7 +1475,7 @@ mod community_contribute_extrinsic {
 			);
 			// total contributions with same DID above 5k CT (50 USD) should fail for institutionals
 			inst.execute(|| {
-				assert_ok!(Pallet::<TestRuntime>::community_contribute(
+				assert_ok!(Pallet::<TestRuntime>::contribute(
 					RuntimeOrigin::signed(BUYER_5),
 					buyer_5_jwt,
 					project_id,
@@ -1486,7 +1486,7 @@ mod community_contribute_extrinsic {
 			});
 			inst.execute(|| {
 				assert_noop!(
-					Pallet::<TestRuntime>::community_contribute(
+					Pallet::<TestRuntime>::contribute(
 						RuntimeOrigin::signed(BUYER_6),
 						buyer_6_jwt_same_did.clone(),
 						project_id,
@@ -1499,7 +1499,7 @@ mod community_contribute_extrinsic {
 			});
 			// bidding 5k total works
 			inst.execute(|| {
-				assert_ok!(Pallet::<TestRuntime>::community_contribute(
+				assert_ok!(Pallet::<TestRuntime>::contribute(
 					RuntimeOrigin::signed(BUYER_6),
 					buyer_6_jwt_same_did,
 					project_id,
@@ -1542,7 +1542,7 @@ mod community_contribute_extrinsic {
 			inst.mint_foreign_asset_to(foreign_funding.clone());
 			inst.execute(|| {
 				assert_noop!(
-					Pallet::<TestRuntime>::community_contribute(
+					Pallet::<TestRuntime>::contribute(
 						RuntimeOrigin::signed(BUYER_1),
 						jwt.clone(),
 						project_id,
@@ -1577,7 +1577,7 @@ mod community_contribute_extrinsic {
 
 			inst.execute(|| {
 				assert_noop!(
-					Pallet::<TestRuntime>::community_contribute(
+					Pallet::<TestRuntime>::contribute(
 						RuntimeOrigin::signed(BUYER_1),
 						jwt,
 						project_id,
@@ -1625,7 +1625,7 @@ mod community_contribute_extrinsic {
 				let project_policy = inst.get_project_metadata(project).policy_ipfs_cid.unwrap();
 				inst.execute(|| {
 					assert_noop!(
-						PolimecFunding::community_contribute(
+						PolimecFunding::contribute(
 							RuntimeOrigin::signed(BUYER_1),
 							get_mock_jwt_with_cid(
 								BUYER_1,
@@ -1755,7 +1755,7 @@ mod community_contribute_extrinsic {
 
 			inst.execute(|| {
 				assert_noop!(
-					PolimecFunding::community_contribute(
+					PolimecFunding::contribute(
 						RuntimeOrigin::signed(evaluator_contributor),
 						get_mock_jwt_with_cid(
 							evaluator_contributor,
@@ -1787,7 +1787,7 @@ mod community_contribute_extrinsic {
 
 			inst.execute(|| {
 				assert_noop!(
-					PolimecFunding::community_contribute(
+					PolimecFunding::contribute(
 						RuntimeOrigin::signed(BUYER_1),
 						get_mock_jwt_with_cid(
 							BUYER_1,

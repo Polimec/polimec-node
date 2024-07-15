@@ -326,7 +326,7 @@ pub mod storage_types {
 		/// The price in USD per token decided after the Auction Round
 		pub weighted_average_price: Option<Price>,
 		/// The current status of the project
-		pub status: ProjectStatus,
+		pub status: ProjectStatus<BlockNumber>,
 		/// When the different project phases start and end
 		pub round_duration: BlockNumberPair<BlockNumber>,
 		/// Random block end for auction round
@@ -693,14 +693,13 @@ pub mod inner_types {
 	#[derive(
 		Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen, Serialize, Deserialize,
 	)]
-	pub enum ProjectStatus {
+	pub enum ProjectStatus<BlockNumber> {
 		#[default]
 		Application,
 		EvaluationRound,
 		AuctionInitializePeriod,
 		Auction,
-		CommunityRound,
-		RemainderRound,
+		CommunityRound(BlockNumber),
 		FundingFailed,
 		AwaitingProjectDecision,
 		FundingSuccessful,
