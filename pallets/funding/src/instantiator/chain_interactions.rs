@@ -693,8 +693,7 @@ impl<
 			matches!(
 				project_details.status,
 				ProjectStatus::FundingSuccessful |
-					ProjectStatus::FundingFailed |
-					ProjectStatus::AwaitingProjectDecision
+					ProjectStatus::FundingFailed
 			),
 			"Project should be in Finished status"
 		);

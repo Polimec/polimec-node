@@ -999,8 +999,6 @@ mod contribute_extrinsic {
 			inst.start_remainder_or_end_funding(project_id).unwrap();
 			inst.finish_funding(project_id, None).unwrap();
 
-			assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::AwaitingProjectDecision);
-
 			let settlement_block = inst.get_update_block(project_id, &UpdateType::StartSettlement).unwrap();
 			inst.jump_to_block(settlement_block);
 

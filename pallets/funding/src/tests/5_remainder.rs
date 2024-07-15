@@ -1089,7 +1089,6 @@ mod contribute_extrinsic {
 
 			inst.finish_funding(project_id, None).unwrap();
 
-			assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::AwaitingProjectDecision);
 			let decision_block = inst
 				.get_update_block(project_id, &UpdateType::ProjectDecision(FundingOutcomeDecision::AcceptFunding))
 				.unwrap();

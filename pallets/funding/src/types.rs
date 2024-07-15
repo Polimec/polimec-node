@@ -701,7 +701,6 @@ pub mod inner_types {
 		Auction,
 		CommunityRound(BlockNumber),
 		FundingFailed,
-		AwaitingProjectDecision,
 		FundingSuccessful,
 		SettlementStarted(FundingOutcome),
 		SettlementFinished(FundingOutcome),

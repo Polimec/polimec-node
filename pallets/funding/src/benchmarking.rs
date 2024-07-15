@@ -2428,7 +2428,7 @@ mod benchmarks {
 
 		// * validity checks *
 		let project_details = inst.get_project_details(project_id);
-		assert_eq!(project_details.status, ProjectStatus::AwaitingProjectDecision);
+
 		assert_eq!(project_details.evaluation_round_info.evaluators_outcome, EvaluatorsOutcome::Slashed)
 	}
 	#[benchmark]
@@ -2487,7 +2487,6 @@ mod benchmarks {
 
 		// * validity checks *
 		let project_details = inst.get_project_details(project_id);
-		assert_eq!(project_details.status, ProjectStatus::AwaitingProjectDecision);
 		assert_eq!(project_details.evaluation_round_info.evaluators_outcome, EvaluatorsOutcome::Unchanged)
 	}
 	#[benchmark]
@@ -2605,8 +2604,6 @@ mod benchmarks {
 			contributions,
 			vec![],
 		);
-
-		assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::AwaitingProjectDecision);
 
 		#[block]
 		{

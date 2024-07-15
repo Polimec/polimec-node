@@ -991,12 +991,6 @@ pub mod pallet {
 		#[pallet::weight(WeightInfoOf::<T>::end_funding_automatically_rejected_evaluators_slashed(
 		1,
 		)
-		.max(WeightInfoOf::<T>::end_funding_awaiting_decision_evaluators_slashed(
-		1,
-		))
-		.max(WeightInfoOf::<T>::end_funding_awaiting_decision_evaluators_unchanged(
-		1,
-		))
 		.max(WeightInfoOf::<T>::end_funding_automatically_accepted_evaluators_rewarded(
 		1,
 		<T as Config>::MaxEvaluationsPerProject::get(),
