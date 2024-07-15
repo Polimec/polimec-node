@@ -184,14 +184,34 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
-	/// Calculate the total fees based on the funding reached.
-	pub fn calculate_fees(funding_reached: BalanceOf<T>) -> Perquintill {
-		let total_fee = Self::compute_total_fee_from_brackets(funding_reached);
-		Perquintill::from_rational(total_fee, funding_reached)
+	// Calculate the total fee allocation for a project, based on the funding reached.
+	fn calculate_fee_allocation(project_id: ProjectId) -> Result<BalanceOf<T>, DispatchError> {
+		let project_metadata = ProjectsMetadata::<T>::get(project_id).ok_or(Error::<T>::ProjectMetadataNotFound)?;
+
+		// Fetching the necessary data for a specific project.
+		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
+
+		// Determine how much funding has been achieved.
+		let funding_amount_reached = project_details.funding_amount_reached_usd;
+		let fundraising_target = project_details.fundraising_target_usd;
+		let fee_usd = Self::compute_total_fee_from_brackets(funding_amount_reached);
+		let fee_percentage = Perquintill::from_rational(fee_usd, funding_amount_reached);
+
+		let initial_token_allocation_size = project_metadata.total_allocation_size;
+		let final_remaining_contribution_tokens = project_details.remaining_contribution_tokens;
+
+		// Calculate the number of tokens sold for the project.
+		let token_sold = initial_token_allocation_size
+			.checked_sub(&final_remaining_contribution_tokens)
+			// Ensure safety by providing a default in case of unexpected situations.
+			.unwrap_or(initial_token_allocation_size);
+		let total_fee_allocation = fee_percentage * token_sold;
+
+		Ok(total_fee_allocation)
 	}
 
 	/// Computes the total fee from all defined fee brackets.
-	pub fn compute_total_fee_from_brackets(funding_reached: BalanceOf<T>) -> BalanceOf<T> {
+	fn compute_total_fee_from_brackets(funding_reached: BalanceOf<T>) -> BalanceOf<T> {
 		let mut remaining_for_fee = funding_reached;
 
 		T::FeeBrackets::get()
@@ -201,7 +221,7 @@ impl<T: Config> Pallet<T> {
 	}
 
 	/// Calculate the fee for a particular bracket.
-	pub fn compute_fee_for_bracket(
+	fn compute_fee_for_bracket(
 		remaining_for_fee: &mut BalanceOf<T>,
 		fee: Percent,
 		limit: BalanceOf<T>,
@@ -224,33 +244,15 @@ impl<T: Config> Pallet<T> {
 	///
 	/// Note: Consider refactoring the `RewardInfo` struct to make it more generic and
 	/// reusable, not just for evaluator rewards.
-	pub fn generate_evaluator_rewards_info(project_id: ProjectId) -> Result<(RewardInfoOf<T>, u32), DispatchError> {
+	pub fn generate_evaluator_rewards_info(project_id: ProjectId) -> Result<RewardInfoOf<T>, DispatchError> {
 		// Fetching the necessary data for a specific project.
 		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
-		let project_metadata = ProjectsMetadata::<T>::get(project_id).ok_or(Error::<T>::ProjectMetadataNotFound)?;
-		let evaluations = Evaluations::<T>::iter_prefix((project_id,)).collect::<Vec<_>>();
-		// used for weight calculation
-		let evaluations_count = evaluations.len() as u32;
+		let total_fee_allocation = Self::calculate_fee_allocation(project_id)?;
 
-		// Determine how much funding has been achieved.
-		let funding_amount_reached = project_details.funding_amount_reached_usd;
-		let fundraising_target = project_details.fundraising_target_usd;
-		let total_issuer_fees = Self::calculate_fees(funding_amount_reached);
-
-		let initial_token_allocation_size = project_metadata.total_allocation_size;
-		let final_remaining_contribution_tokens = project_details.remaining_contribution_tokens;
-
-		// Calculate the number of tokens sold for the project.
-		let token_sold = initial_token_allocation_size
-			.checked_sub(&final_remaining_contribution_tokens)
-			// Ensure safety by providing a default in case of unexpected situations.
-			.unwrap_or(initial_token_allocation_size);
-		let total_fee_allocation = total_issuer_fees * token_sold;
-
-		// Calculate the percentage of target funding based on available documentation.
-		// A.K.A variable "Y" in the documentation. We mean it to saturate to 1 even if the ratio is above 1 when funding raised
-		// is above the target.
-		let percentage_of_target_funding = Perquintill::from_rational(funding_amount_reached, fundraising_target);
+        // Calculate the percentage of target funding based on available documentation.
+        // A.K.A variable "Y" in the documentation. We mean it to saturate to 1 even if the ratio is above 1 when funding raised
+        // is above the target.
+		let percentage_of_target_funding = Perquintill::from_rational(project_details.funding_amount_reached_usd, project_details.fundraising_target_usd);
 
 		// Calculate rewards.
 		let evaluator_rewards = percentage_of_target_funding * Perquintill::from_percent(30) * total_fee_allocation;
@@ -259,18 +261,10 @@ impl<T: Config> Pallet<T> {
 		let early_evaluator_reward_pot = Perquintill::from_percent(20) * evaluator_rewards;
 		let normal_evaluator_reward_pot = Perquintill::from_percent(80) * evaluator_rewards;
 
-		// Sum up the total bonded USD amounts for both early and late evaluators.
-		let early_evaluator_total_bonded_usd =
-			evaluations.iter().fold(BalanceOf::<T>::zero(), |acc, ((_evaluator, _id), evaluation)| {
-				acc.saturating_add(evaluation.early_usd_amount)
-			});
-		let late_evaluator_total_bonded_usd =
-			evaluations.iter().fold(BalanceOf::<T>::zero(), |acc, ((_evaluator, _id), evaluation)| {
-				acc.saturating_add(evaluation.late_usd_amount)
-			});
-
-		let normal_evaluator_total_bonded_usd =
-			early_evaluator_total_bonded_usd.saturating_add(late_evaluator_total_bonded_usd);
+		let normal_evaluator_total_bonded_usd = project_details.evaluation_round_info.total_bonded_usd;
+		let early_evaluation_reward_threshold_usd =
+			T::EvaluationSuccessThreshold::get() * project_details.fundraising_target_usd;
+		let early_evaluator_total_bonded_usd = normal_evaluator_total_bonded_usd.min(early_evaluation_reward_threshold_usd);
 
 		// Construct the reward information object.
 		let reward_info = RewardInfo {
@@ -280,35 +274,19 @@ impl<T: Config> Pallet<T> {
 			normal_evaluator_total_bonded_usd,
 		};
 
-		Ok((reward_info, evaluations_count))
+		Ok(reward_info)
 	}
 
 	pub fn generate_liquidity_pools_and_long_term_holder_rewards(
 		project_id: ProjectId,
 	) -> Result<(BalanceOf<T>, BalanceOf<T>), DispatchError> {
-		// Fetching the necessary data for a specific project.
-		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
-		let project_metadata = ProjectsMetadata::<T>::get(project_id).ok_or(Error::<T>::ProjectMetadataNotFound)?;
+		let details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
+		let total_fee_allocation = Self::calculate_fee_allocation(project_id)?;
 
-		// Determine how much funding has been achieved.
-		let funding_amount_reached = project_details.funding_amount_reached_usd;
-		let fundraising_target = project_details.fundraising_target_usd;
-		let total_issuer_fees = Self::calculate_fees(funding_amount_reached);
-
-		let initial_token_allocation_size = project_metadata.total_allocation_size;
-		let final_remaining_contribution_tokens = project_details.remaining_contribution_tokens;
-
-		// Calculate the number of tokens sold for the project.
-		let token_sold = initial_token_allocation_size
-			.checked_sub(&final_remaining_contribution_tokens)
-			// Ensure safety by providing a default in case of unexpected situations.
-			.unwrap_or(initial_token_allocation_size);
-		let total_fee_allocation = total_issuer_fees * token_sold;
-
-		// Calculate the percentage of target funding based on available documentation.
-		// A.K.A variable "Y" in the documentation. We mean it to saturate to 1 even if the ratio is above 1 when funding raised
-		// is above the target.
-		let percentage_of_target_funding = Perquintill::from_rational(funding_amount_reached, fundraising_target);
+        // Calculate the percentage of target funding based on available documentation.
+        // A.K.A variable "Y" in the documentation. We mean it to saturate to 1 even if the ratio is above 1 when funding raised
+        // is above the target.
+		let percentage_of_target_funding = Perquintill::from_rational(details.funding_amount_reached_usd, details.fundraising_target_usd);
 		let inverse_percentage_of_target_funding = Perquintill::from_percent(100) - percentage_of_target_funding;
 
 		let liquidity_pools_percentage = Perquintill::from_percent(50);

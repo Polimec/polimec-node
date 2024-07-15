@@ -1435,11 +1435,6 @@ mod benchmarks {
 		let maybe_transition =
 			inst.get_update_block(project_id, &UpdateType::ProjectDecision(FundingOutcomeDecision::AcceptFunding));
 		assert!(maybe_transition.is_some());
-
-		// Events
-		frame_system::Pallet::<T>::assert_last_event(
-			Event::ProjectOutcomeDecided { project_id, decision: FundingOutcomeDecision::AcceptFunding }.into(),
-		);
 	}
 
 	#[benchmark]

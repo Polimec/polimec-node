@@ -27,6 +27,7 @@ impl<T: Config> Pallet<T> {
 		let token_information =
 			ProjectsMetadata::<T>::get(project_id).ok_or(Error::<T>::ProjectMetadataNotFound)?.token_information;
 		let now = <frame_system::Pallet<T>>::block_number();
+		let round_end_block = project_details.round_duration.end().ok_or(Error::<T>::ImpossibleState)?;
 
 		// * Validity checks *
 		ensure!(
@@ -34,6 +35,7 @@ impl<T: Config> Pallet<T> {
 				project_details.status == ProjectStatus::FundingFailed,
 			Error::<T>::IncorrectRound
 		);
+		ensure!(now > round_end_block, Error::<T>::TooEarlyForRound);
 
 		// * Calculate new variables *
 		project_details.funding_end_block = Some(now);

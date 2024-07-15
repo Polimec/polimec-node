@@ -786,9 +786,7 @@ pub mod inner_types {
 		AuctionInitializePeriod,
 		Auction,
 		CommunityFunding,
-		RemainderFunding,
-		DecisionPeriod,
-		FundingFinalization(ProjectOutcome),
+		FundingFinalization,
 		Settlement,
 		Migration,
 	}
@@ -796,16 +794,10 @@ pub mod inner_types {
 	/// An enum representing all possible outcomes for a project.
 	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
 	pub enum ProjectOutcome {
-		/// The evaluation funding target was not reached.
-		EvaluationFailed,
 		/// 90%+ of the funding target was reached, so the project is successful.
 		FundingSuccessful,
 		/// 33%- of the funding target was reached, so the project failed.
 		FundingFailed,
-		/// The project issuer accepted the funding outcome between 33% and 90% of the target.
-		FundingAccepted,
-		/// The project issuer rejected the funding outcome between 33% and 90% of the target.
-		FundingRejected,
 	}
 
 	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]

@@ -610,10 +610,6 @@ pub mod pallet {
 			plmc_bond: BalanceOf<T>,
 			multiplier: MultiplierOf<T>,
 		},
-		ProjectOutcomeDecided {
-			project_id: ProjectId,
-			decision: FundingOutcomeDecision,
-		},
 		BidRefunded {
 			project_id: ProjectId,
 			account: AccountIdOf<T>,
@@ -1010,33 +1006,6 @@ pub mod pallet {
 			Self::do_end_funding(project_id)
 		}
 
-		#[pallet::call_index(16)]
-		#[pallet::weight(WeightInfoOf::<T>::decide_project_outcome(
-			1
-		))]
-		pub fn decide_project_outcome(
-			origin: OriginFor<T>,
-			jwt: UntrustedToken,
-			project_id: ProjectId,
-			outcome: FundingOutcomeDecision,
-		) -> DispatchResultWithPostInfo {
-			let (account, _did, investor_type, _cid) =
-				T::InvestorOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get())?;
-			ensure!(investor_type == InvestorType::Institutional, Error::<T>::WrongInvestorType);
-
-			Self::do_decide_project_outcome(account, project_id, outcome)
-		}
-
-		#[pallet::call_index(17)]
-		#[pallet::weight(WeightInfoOf::<T>::project_decision())]
-		pub fn root_do_project_decision(
-			origin: OriginFor<T>,
-			project_id: ProjectId,
-			decision: FundingOutcomeDecision,
-		) -> DispatchResultWithPostInfo {
-			ensure_root(origin)?;
-			Self::do_project_decision(project_id, decision)
-		}
 
 		#[pallet::call_index(18)]
 		#[pallet::weight(WeightInfoOf::<T>::start_settlement_funding_success()

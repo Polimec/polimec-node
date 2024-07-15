@@ -46,10 +46,6 @@ fn output_max_pallet_funding_values() {
 	);
 	dbg!(contribution_ends_round);
 
-	let decide_project_outcome =
-		SubstrateWeight::<Runtime>::decide_project_outcome(1);
-	dbg!(decide_project_outcome);
-
 	let settle_successful_evaluation = SubstrateWeight::<Runtime>::settle_successful_evaluation();
 	dbg!(settle_successful_evaluation);
 

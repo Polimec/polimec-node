@@ -1000,18 +1000,6 @@ mod contribute_extrinsic {
 			inst.finish_funding(project_id, None).unwrap();
 
 			assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::AwaitingProjectDecision);
-			inst.execute(|| {
-				assert_ok!(PolimecFunding::decide_project_outcome(
-					RuntimeOrigin::signed(ISSUER_1),
-					get_mock_jwt(ISSUER_1, InvestorType::Institutional, generate_did_from_account(ISSUER_1)),
-					project_id,
-					FundingOutcomeDecision::AcceptFunding
-				));
-			});
-			let decision_block = inst
-				.get_update_block(project_id, &UpdateType::ProjectDecision(FundingOutcomeDecision::AcceptFunding))
-				.unwrap();
-			inst.jump_to_block(decision_block);
 
 			let settlement_block = inst.get_update_block(project_id, &UpdateType::StartSettlement).unwrap();
 			inst.jump_to_block(settlement_block);

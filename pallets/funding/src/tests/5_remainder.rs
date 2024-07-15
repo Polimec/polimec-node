@@ -1090,19 +1090,6 @@ mod contribute_extrinsic {
 			inst.finish_funding(project_id, None).unwrap();
 
 			assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::AwaitingProjectDecision);
-			inst.execute(|| {
-				assert_ok!(PolimecFunding::decide_project_outcome(
-					RuntimeOrigin::signed(ISSUER_1),
-					get_mock_jwt_with_cid(
-						ISSUER_1,
-						InvestorType::Institutional,
-						generate_did_from_account(ISSUER_1),
-						project_metadata.policy_ipfs_cid.unwrap()
-					),
-					project_id,
-					FundingOutcomeDecision::AcceptFunding
-				));
-			});
 			let decision_block = inst
 				.get_update_block(project_id, &UpdateType::ProjectDecision(FundingOutcomeDecision::AcceptFunding))
 				.unwrap();
