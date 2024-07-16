@@ -17,11 +17,11 @@
 use super::{
 	AccountId, AllPalletsWithSystem, AssetId as AssetIdPalletAssets, Balance, Balances, EnsureRoot, ForeignAssets,
 	ParachainInfo, ParachainSystem, PolkadotXcm, Runtime, RuntimeCall, RuntimeEvent, RuntimeOrigin, Treasury,
-	TreasuryAccount, Vec, WeightToFee, XcmpQueue,
+	TreasuryAccount, Vec, XcmpQueue,
 };
 use core::marker::PhantomData;
 use frame_support::{
-	ensure, match_types, parameter_types,
+	ensure, parameter_types,
 	traits::{ConstU32, Contains, ContainsPair, Everything, Nothing, ProcessMessageError},
 	weights::Weight,
 };
@@ -45,24 +45,18 @@ use xcm_executor::{
 };
 
 // DOT from Polkadot Asset Hub
-const DOT_LOCATION: Location = RelayLocation::get();
-const DOT_ASSET_ID: AssetId = AssetId(DOT_LOCATION);
 const DOT_PER_SECOND_EXECUTION: u128 = 0_2_000_000_000; // 0.2 DOT per second of execution time
 const DOT_PER_MB_PROOF: u128 = 0_2_000_000_000; // 0.0000001 DOT per Megabyte of proof size
 
 // USDT from Polkadot Asset Hub
-const USDT_JUNCTION: Junctions = (Parachain(1000), PalletInstance(50), GeneralIndex(1984)).into();
-const USDT_LOCATION: Location = Location::new(1, USDT_JUNCTION);
-const USDT_ASSET_ID: AssetId = AssetId(USDT_LOCATION);
 const USDT_PER_SECOND_EXECUTION: u128 = 1_000_000; // 1 USDT per second of execution time
 const USDT_PER_MB_PROOF: u128 = 1_000_000; // 1 USDT per Megabyte of proof size
+const USDT_JUNCTION: &[Junction] = &[Parachain(1000), PalletInstance(50), GeneralIndex(1984)];
 
 // USDC from Polkadot Asset Hub
-const USDC_JUNCTION: Junctions = (Parachain(1000), PalletInstance(50), GeneralIndex(1337)).into();
-const USDC_LOCATION: Location = Location::new(1, USDC_JUNCTION);
-const USDC_ASSET_ID: AssetId = AssetId(USDC_LOCATION);
 const USDC_PER_SECOND_EXECUTION: u128 = 1_000_000; // 1 USDC per second of execution time
 const USDC_PER_MB_PROOF: u128 = 1_000_000; // 1 USDC per Megabyte of proof size
+const USDC_JUNCTION: &[Junction] = &[Parachain(1000), PalletInstance(50), GeneralIndex(1337)];
 
 parameter_types! {
 	pub const RelayLocation: Location = Location::parent();
@@ -79,9 +73,12 @@ parameter_types! {
 	/// checking once enabled.
 	pub LocalCheckAccount: (AccountId, MintLocation) = (CheckAccount::get(), MintLocation::Local);
 
-	pub const DotTraderParams: (AssetId, u128, u128) = (DOT_ASSET_ID, DOT_PER_SECOND_EXECUTION, DOT_PER_MB_PROOF);
-	pub const UsdtTraderParams: (AssetId, u128, u128) = (USDT_ASSET_ID, USDT_PER_SECOND_EXECUTION, USDT_PER_MB_PROOF);
-	pub const UsdcTraderParams: (AssetId, u128, u128) = (USDC_ASSET_ID, USDC_PER_SECOND_EXECUTION, USDC_PER_MB_PROOF);
+	pub DotLocation: Location = RelayLocation::get();
+	pub UsdtLocation: Location = Location::new(1, [Parachain(1000), PalletInstance(50), GeneralIndex(1984)]);
+	pub UsdcLocation: Location =  Location::new(1, [Parachain(1000), PalletInstance(50), GeneralIndex(1337)]);
+	pub DotTraderParams: (AssetId, u128, u128) = (DotLocation::get().into(), DOT_PER_SECOND_EXECUTION, DOT_PER_MB_PROOF);
+	pub UsdtTraderParams: (AssetId, u128, u128) = (UsdtLocation::get().into(), USDT_PER_SECOND_EXECUTION, USDT_PER_MB_PROOF);
+	pub UsdcTraderParams: (AssetId, u128, u128) = (UsdcLocation::get().into(), USDC_PER_SECOND_EXECUTION, USDC_PER_MB_PROOF);
 }
 
 /// Type for specifying how a `Location` can be converted into an `AccountId`. This is used
@@ -112,27 +109,31 @@ pub type FungibleTransactor = FungibleAdapter<
 
 // The `AssetIdPalletAssets` ids that are supported by this chain.
 // Currently, we only support DOT (10), USDT (1984) and USDC (1337).
-match_types! {
-	pub type SupportedAssets: impl Contains<Location> = {
-		&DOT_LOCATION | &USDC_LOCATION| &USDT_LOCATION
-	};
+pub struct SupportedAssets;
+impl frame_support::traits::Contains<Location> for SupportedAssets {
+	fn contains(l: &Location) -> bool {
+		match l.unpack() {
+			(1, []) | (1, USDC_JUNCTION) | (1, USDT_JUNCTION) => true,
+			_ => false,
+		}
+	}
 }
 
 impl MaybeEquivalence<Location, AssetIdPalletAssets> for SupportedAssets {
-	fn convert(asset: &Location) -> Option<AssetIdPalletAssets> {
-		match asset {
-			&DOT_LOCATION => Some(10),
-			&USDC_LOCATION => Some(1337),
-			&USDT_LOCATION => Some(1984),
+	fn convert(asset_id: &Location) -> Option<AssetIdPalletAssets> {
+		match asset_id.unpack() {
+			(1, []) => Some(10),
+			(1, USDC_JUNCTION) => Some(1337),
+			(1, USDT_JUNCTION) => Some(1984),
 			_ => None,
 		}
 	}
 
-	fn convert_back(value: &AssetIdPalletAssets) -> Option<Location> {
-		match value {
-			10 => Some(DOT_LOCATION),
-			1337 => Some(USDC_LOCATION),
-			1984 => Some(USDT_LOCATION),
+	fn convert_back(asset_id: &AssetIdPalletAssets) -> Option<Location> {
+		match asset_id {
+			10 => Some(DotLocation::get()),
+			1337 => Some(UsdcLocation::get()),
+			1984 => Some(UsdtLocation::get()),
 			_ => None,
 		}
 	}
@@ -207,21 +208,25 @@ parameter_types! {
 	pub const MaxAssetsIntoHolding: u32 = 64;
 }
 
-const LOCATION_1: Location = Location::new(1, Here);
-const LOCATION_2: Location = Location::new(1, Plurality { id: BodyId::Executive, part: BodyPart::Voice }); // FIXME: BodyPart::Voice -> _
-const LOCATION_3: Location = Location::new(1, Parachain(1000));
-const LOCATION_4: Location = Location::new(1, Parachain(0)); // FIXME: Parachain(_)
+pub struct ParentOrParentsExecutivePlurality;
+impl Contains<Location> for ParentOrParentsExecutivePlurality {
+	fn contains(location: &Location) -> bool {
+		matches!(location.unpack(), (1, []) | (1, [Plurality { id: BodyId::Executive, .. }]))
+	}
+}
 
-match_types! {
-	pub type ParentOrParentsExecutivePlurality: impl Contains<Location> = {
-		&LOCATION_1 | &LOCATION_2
-	};
-	pub type CommonGoodAssetsParachain: impl Contains<Location> = {
-		&LOCATION_3
-	};
-	pub type ParentOrSiblings: impl Contains<Location> = {
-		&LOCATION_1 | &LOCATION_4
-	};
+pub struct CommonGoodAssetsParachain;
+impl Contains<Location> for CommonGoodAssetsParachain {
+	fn contains(location: &Location) -> bool {
+		matches!(location.unpack(), (1, [Parachain(1000)]))
+	}
+}
+
+pub struct ParentOrSiblings;
+impl Contains<Location> for ParentOrSiblings {
+	fn contains(location: &Location) -> bool {
+		matches!(location.unpack(), (1, []) | (1, [Parachain(_)]))
+	}
 }
 
 pub type Barrier = TrailingSetTopicAsId<
@@ -251,7 +256,7 @@ pub type Barrier = TrailingSetTopicAsId<
 >;
 
 /// Trusted reserve locations for reserve assets. For now we only trust the AssetHub parachain
-/// for the following assets: DOT, USDT, USDC.
+/// for the following assets: DOT, USDT and USDC.
 pub type Reserves = AssetHubAssetsAsReserve;
 
 /// Means for transacting assets on this chain.
@@ -259,8 +264,10 @@ pub type Reserves = AssetHubAssetsAsReserve;
 /// ForeignAssetsAdapter is a FungiblesAdapter that allows for transacting foreign assets.
 /// Currently we only support DOT, USDT and USDC.
 pub type AssetTransactors = (FungibleTransactor, ForeignAssetsAdapter);
+
 pub type TakeRevenueToTreasury =
 	cumulus_primitives_utility::XcmFeesTo32ByteAccount<AssetTransactors, AccountId, TreasuryAccount>;
+
 pub struct XcmConfig;
 impl xcm_executor::Config for XcmConfig {
 	type Aliasers = ();
@@ -291,7 +298,7 @@ impl xcm_executor::Config for XcmConfig {
 	type SubscriptionService = PolkadotXcm;
 	type Trader = (
 		// TODO: `WeightToFee` has to be carefully considered. For now use default
-		// UsingComponents<WeightToFee, HereLocation, AccountId, Balances, Treasury>,
+		// UsingComponents<shared_configuration::WeightToFee, HereLocation, AccountId, Balances, Treasury>,
 		FixedRateOfFungible<UsdtTraderParams, TakeRevenueToTreasury>,
 		FixedRateOfFungible<DotTraderParams, TakeRevenueToTreasury>,
 		FixedRateOfFungible<UsdcTraderParams, TakeRevenueToTreasury>,
@@ -431,7 +438,6 @@ impl pallet_xcm::Config for Runtime {
 	type XcmReserveTransferFilter = AssetHubAssetsAsReserve;
 	type XcmRouter = XcmRouter;
 	// We do not allow teleportation of PLMC or other assets.
-	// TODO: change this once we enable PLMC teleports
 	type XcmTeleportFilter = Nothing;
 
 	const VERSION_DISCOVERY_QUEUE_SIZE: u32 = 100;
