@@ -73,7 +73,7 @@ substrate-fixed = { git = "https://github.com/encointer/substrate-fixed", defaul
 # External (without extra features and with default disabled if necessary)
 parity-scale-codec = { version = "3.6.12", default-features = false }
 clap = { version = "4.5.3" }
-futures = { version = "0.3.30", features = ["thread-pool"] }
+futures = { version = "0.3.28" }
 scale-info = { version = "2.11.1", default-features = false, features = [
     "derive",
 ] }
