@@ -18,7 +18,7 @@
 
 use cumulus_primitives_core::ParaId;
 use polimec_runtime::{AccountId, Signature};
-use polkadot_primitives::v6::LOWEST_PUBLIC_ID;
+use polkadot_primitives::v7::LOWEST_PUBLIC_ID;
 use sc_chain_spec::{ChainSpecExtension, ChainSpecGroup};
 use sc_service::Properties;
 use serde::{Deserialize, Serialize};
@@ -54,7 +54,7 @@ impl Extensions {
 }
 
 /// Generic chain spec for all the Polimec runtimes
-pub type GenericChainSpec = sc_service::GenericChainSpec<(), Extensions>;
+pub type GenericChainSpec = sc_service::GenericChainSpec<Extensions>;
 
 type AccountPublic = <Signature as Verify>::Signer;
 
