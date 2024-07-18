@@ -20,7 +20,7 @@ homepage = "https://www.polimec.org/"
 license-file = "LICENSE"
 readme = "README.md"
 repository = "https://github.com/Polimec/polimec-node"
-version = "0.7.0"
+version = "0.8.0"
 
 [profile.release]
 # Substrate runtime requires unwinding.
@@ -57,7 +57,6 @@ polimec-receiver = { path = "pallets/polimec-receiver", default-features = false
 macros = { path = "macros" }
 macros-tests = { path = "macros/tests" }
 
-
 # External pallets (with default disabled)
 orml-oracle = { version = "0.13.0", default-features = false }
 orml-traits = { version = "0.13.0", default-features = false }
@@ -72,24 +71,25 @@ polimec-common-test-utils = { path = "polimec-common/test-utils", default-featur
 substrate-fixed = { git = "https://github.com/encointer/substrate-fixed", default-features = false }
 
 # External (without extra features and with default disabled if necessary)
-parity-scale-codec = { version = "3.6.5", default-features = false }
-clap = { version = "4.3.24" }
-futures = { version = "0.3.28", features = ["thread-pool"] }
-scale-info = { version = "2.9.0", default-features = false, features = [
+parity-scale-codec = { version = "3.6.12", default-features = false }
+clap = { version = "4.5.3" }
+futures = { version = "0.3.30", features = ["thread-pool"] }
+scale-info = { version = "2.11.1", default-features = false, features = [
     "derive",
 ] }
-jsonrpsee = { version = "0.16.3", features = ["server"] }
-hex-literal = "0.3.4"
-serde = { version = "1.0.188", default-features = false }
-serde_json = "1.0.111"
+jsonrpsee = { version = "0.22", features = ["server"] }
+hex-literal = "0.4.1"
+serde = { version = "1.0.197", default-features = false }
+serde_json = "1.0.114"
 smallvec = "1.11.0"
 log = { version = "0.4.17", default-features = false }
-itertools = { version = "0.10.5", default-features = false, features = [
+itertools = { version = "0.11", default-features = false, features = [
     "use_alloc",
 ] }
-array-bytes = { version = "*", default-features = false }
+array-bytes = { version = "6.2.2", default-features = false }
 serde-json-core = { version = '0.5.1', default-features = false }
 heapless = { version = "0.7", default-features = false }
+color-print = "0.3.5"
 
 # Emulations
 xcm-emulator = { version = "0.12.0", default-features = false }
@@ -151,7 +151,7 @@ pallet-membership = { version = "35.0.0", default-features = false }
 pallet-multisig = { version = "35.0.0", default-features = false }
 pallet-preimage = { version = "35.0.0", default-features = false }
 pallet-grandpa = { version = "35.0.0", default-features = false }
-pallet-transaction-payment-rpc = { version = "37.0.0" }
+pallet-transaction-payment-rpc = { version = "37.0.0",  default-features = false }
 pallet-vesting = { version = "35.0.0", default-features = false }
 pallet-staking = { version = "35.0.0", default-features = false }
 pallet-proxy = { version = "35.0.0", default-features = false }
@@ -165,7 +165,6 @@ polkadot-core-primitives = { version = "14.0.0", default-features = false }
 xcm = { version = "14.0.0", package = 'staging-xcm', default-features = false }
 xcm-builder = { version = "14.0.0", package = 'staging-xcm-builder', default-features = false }
 xcm-executor = { version = "14.0.0", package = 'staging-xcm-executor', default-features = false }
-xcm-simulator = { version = "14.0.0" }
 polkadot-runtime-common = { version = "14.0.0", default-features = false }
 polkadot-primitives = { version = "14.0.0", default-features = false }
 
@@ -204,20 +203,20 @@ sc-offchain = { version = "36.0.0" }
 sc-network-sync = { version = "0.40.0" }
 sc-cli = { version = "0.43.0" }
 sc-executor = { version = "0.39.0" }
-sc-keystore = { version = "32.0.0", default-features = false }
-sp-consensus = { version = "0.39.0", default-features = false }
-sp-keyring = { version = "38.0.0", default-features = false }
+sc-keystore = { version = "32.0.0" }
+sp-consensus = { version = "0.39.0" }
+sp-keyring = { version = "38.0.0" }
 sc-rpc = { version = "36.0.0" }
 sc-service = { version = "0.42.0" }
-sc-sysinfo = { version = "34.0.0", default-features = false }
+sc-sysinfo = { version = "34.0.0" }
 sc-telemetry = { version = "21.0.0" }
 sc-tracing = { version = "35.0.0" }
 sc-transaction-pool = { version = "35.0.0" }
 sc-transaction-pool-api = { version = "35.0.0" }
-sp-keystore = { version = "0.40.0", default-features = false }
-sp-timestamp = { version = "33.0.0", default-features = false }
+sp-keystore = { version = "0.40.0" }
+sp-timestamp = { version = "33.0.0" }
 sc-consensus-grandpa = { version = "0.26.0" }
-sc-transaction_pool-api = { version = "28.0.0", default-features = false }
+sc-transaction_pool-api = { version = "28.0.0" }
 substrate-frame-rpc-system = { version = "35.0.0" }
 substrate-prometheus-endpoint = { version = "0.17.0" }
 substrate-build-script-utils = { version = "11.0.0" }

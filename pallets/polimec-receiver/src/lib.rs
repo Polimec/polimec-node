@@ -110,7 +110,7 @@ pub mod pallet {
 			} in migrations.clone().inner()
 			{
 				let user_32 = match user.unpack() {
-					Location { parents: 0, interior: X1(AccountId32 { network: _, id }) } => Ok(id),
+					(0, [AccountId32 { network, id }]) => Ok(id),
 					_ => Err(Error::<T>::NoneValue),
 				}?;
 				let already_executed = ExecutedMigrations::<T>::get((user, participation_type, id));

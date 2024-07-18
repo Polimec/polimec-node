@@ -982,16 +982,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "bstr"
-version = "1.9.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "05efc5cfd9110c8416e471df0e96702d58690178e206e61b7173706673c93706"
-dependencies = [
- "memchr",
- "serde",
-]
-
-[[package]]
 name = "build-helper"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3771,19 +3761,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d2fabcfbdc87f4758337ca535fb41a6d701b65693ce38287d856d1674551ec9b"
 
 [[package]]
-name = "globset"
-version = "0.4.14"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "57da3b9b5b85bd66f31093f8c408b90a74431672542466497dcbdfdc02034be1"
-dependencies = [
- "aho-corasick",
- "bstr 1.9.1",
- "log",
- "regex-automata 0.4.7",
- "regex-syntax 0.8.4",
-]
-
-[[package]]
 name = "governor"
 version = "0.6.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3984,12 +3961,6 @@ name = "hex-conservative"
 version = "0.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "212ab92002354b4819390025006c897e8140934349e8635c9b077f47b4dcbd20"
-
-[[package]]
-name = "hex-literal"
-version = "0.3.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7ebdb29d2ea9ed0083cd8cece49bbd968021bd99b0849edb4a9a7ee0fdf6a4e0"
 
 [[package]]
 name = "hex-literal"
@@ -4525,17 +4496,6 @@ dependencies = [
 
 [[package]]
 name = "jsonrpsee"
-version = "0.16.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "367a292944c07385839818bb71c8d76611138e2dedb0677d035b8da21d29c78b"
-dependencies = [
- "jsonrpsee-core 0.16.3",
- "jsonrpsee-server 0.16.3",
- "jsonrpsee-types 0.16.3",
-]
-
-[[package]]
-name = "jsonrpsee"
 version = "0.22.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cfdb12a2381ea5b2e68c3469ec604a007b367778cdb14d09612c8069ebd616ad"
@@ -4582,32 +4542,6 @@ dependencies = [
  "tokio-util",
  "tracing",
  "url",
-]
-
-[[package]]
-name = "jsonrpsee-core"
-version = "0.16.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2b5dde66c53d6dcdc8caea1874a45632ec0fcf5b437789f1e45766a1512ce803"
-dependencies = [
- "anyhow",
- "arrayvec 0.7.4",
- "async-trait",
- "beef",
- "futures-channel",
- "futures-util",
- "globset",
- "hyper 0.14.30",
- "jsonrpsee-types 0.16.3",
- "parking_lot 0.12.3",
- "rand 0.8.5",
- "rustc-hash",
- "serde",
- "serde_json",
- "soketto 0.7.1",
- "thiserror",
- "tokio",
- "tracing",
 ]
 
 [[package]]
@@ -4688,28 +4622,6 @@ dependencies = [
 
 [[package]]
 name = "jsonrpsee-server"
-version = "0.16.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cf4d945a6008c9b03db3354fb3c83ee02d2faa9f2e755ec1dfb69c3551b8f4ba"
-dependencies = [
- "futures-channel",
- "futures-util",
- "http 0.2.12",
- "hyper 0.14.30",
- "jsonrpsee-core 0.16.3",
- "jsonrpsee-types 0.16.3",
- "serde",
- "serde_json",
- "soketto 0.7.1",
- "tokio",
- "tokio-stream",
- "tokio-util",
- "tower",
- "tracing",
-]
-
-[[package]]
-name = "jsonrpsee-server"
 version = "0.22.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "12d8b6a9674422a8572e0b0abb12feeb3f2aeda86528c80d0350c2bd0923ab41"
@@ -4757,20 +4669,6 @@ dependencies = [
  "tokio-stream",
  "tokio-util",
  "tower",
- "tracing",
-]
-
-[[package]]
-name = "jsonrpsee-types"
-version = "0.16.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "245ba8e5aa633dd1c1e4fae72bce06e71f42d34c14a2767c6b4d173b57bee5e5"
-dependencies = [
- "anyhow",
- "beef",
- "serde",
- "serde_json",
- "thiserror",
  "tracing",
 ]
 
@@ -5514,7 +5412,7 @@ dependencies = [
  "ed25519-dalek 1.0.1",
  "futures",
  "futures-timer",
- "hex-literal 0.4.1",
+ "hex-literal",
  "indexmap 2.2.6",
  "libc",
  "mockall 0.12.1",
@@ -5569,7 +5467,7 @@ dependencies = [
  "ed25519-dalek 2.1.1",
  "futures",
  "futures-timer",
- "hex-literal 0.4.1",
+ "hex-literal",
  "indexmap 2.2.6",
  "libc",
  "mockall 0.12.1",
@@ -5730,7 +5628,7 @@ dependencies = [
 
 [[package]]
 name = "macros"
-version = "0.7.0"
+version = "0.8.0"
 dependencies = [
  "quote",
  "sp-core",
@@ -5739,7 +5637,7 @@ dependencies = [
 
 [[package]]
 name = "macros-tests"
-version = "0.7.0"
+version = "0.8.0"
 dependencies = [
  "macros",
 ]
@@ -7078,7 +6976,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-democracy"
-version = "0.7.0"
+version = "0.8.0"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -7115,7 +7013,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-dispenser"
-version = "0.7.0"
+version = "0.8.0"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -7174,7 +7072,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-elections-phragmen"
-version = "0.7.0"
+version = "0.8.0"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -7233,13 +7131,13 @@ dependencies = [
 
 [[package]]
 name = "pallet-funding"
-version = "0.7.0"
+version = "0.8.0"
 dependencies = [
  "env_logger",
  "frame-benchmarking",
  "frame-support",
  "frame-system",
- "itertools 0.10.5",
+ "itertools 0.11.0",
  "log",
  "macros",
  "pallet-assets",
@@ -7364,7 +7262,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-linear-release"
-version = "0.7.0"
+version = "0.8.0"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -7573,7 +7471,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-oracle-ocw"
-version = "0.7.0"
+version = "0.8.0"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -7598,7 +7496,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-parachain-staking"
-version = "0.7.0"
+version = "0.8.0"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -8478,12 +8376,12 @@ checksum = "d231b230927b5e4ad203db57bbcbee2802f6bce620b1e4a9024a07d94e2907ec"
 
 [[package]]
 name = "polimec-common"
-version = "0.7.0"
+version = "0.8.0"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
  "frame-system",
- "itertools 0.10.5",
+ "itertools 0.11.0",
  "jwt-compact",
  "pallet-timestamp",
  "parity-scale-codec",
@@ -8496,7 +8394,7 @@ dependencies = [
 
 [[package]]
 name = "polimec-common-test-utils"
-version = "0.7.0"
+version = "0.8.0"
 dependencies = [
  "chrono",
  "frame-support",
@@ -8508,7 +8406,7 @@ dependencies = [
 
 [[package]]
 name = "polimec-node"
-version = "0.7.0"
+version = "0.8.0"
 dependencies = [
  "clap",
  "color-print",
@@ -8524,14 +8422,12 @@ dependencies = [
  "frame-benchmarking-cli",
  "frame-support",
  "futures",
- "hex-literal 0.3.4",
- "itertools 0.10.5",
- "jsonrpsee 0.16.3",
+ "hex-literal",
+ "itertools 0.11.0",
+ "jsonrpsee 0.22.5",
  "log",
- "macros",
  "pallet-funding",
  "pallet-transaction-payment-rpc",
- "polimec-common",
  "polimec-runtime",
  "polkadot-cli",
  "polkadot-primitives",
@@ -8591,7 +8487,7 @@ dependencies = [
 
 [[package]]
 name = "polimec-runtime"
-version = "0.7.0"
+version = "0.8.0"
 dependencies = [
  "array-bytes",
  "cumulus-pallet-aura-ext",
@@ -8609,7 +8505,7 @@ dependencies = [
  "frame-system-benchmarking",
  "frame-system-rpc-runtime-api",
  "frame-try-runtime",
- "hex-literal 0.3.4",
+ "hex-literal",
  "log",
  "orml-oracle",
  "pallet-assets",
@@ -8617,9 +8513,9 @@ dependencies = [
  "pallet-authorship",
  "pallet-balances",
  "pallet-collective",
- "pallet-democracy 0.7.0",
+ "pallet-democracy 0.8.0",
  "pallet-dispenser",
- "pallet-elections-phragmen 0.7.0",
+ "pallet-elections-phragmen 0.8.0",
  "pallet-funding",
  "pallet-identity",
  "pallet-insecure-randomness-collective-flip",
@@ -9467,7 +9363,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5a4879609f4340138930c3c7313256941104a3ff6f7ecb2569d15223da9b35b2"
 dependencies = [
  "bitvec",
- "hex-literal 0.4.1",
+ "hex-literal",
  "log",
  "parity-scale-codec",
  "polkadot-core-primitives",
@@ -9653,7 +9549,7 @@ dependencies = [
  "frame-system",
  "frame-system-rpc-runtime-api",
  "futures",
- "hex-literal 0.4.1",
+ "hex-literal",
  "is_executable",
  "kvdb",
  "kvdb-rocksdb",
@@ -10783,7 +10679,7 @@ dependencies = [
  "frame-system-benchmarking",
  "frame-system-rpc-runtime-api",
  "frame-try-runtime",
- "hex-literal 0.4.1",
+ "hex-literal",
  "log",
  "pallet-asset-rate",
  "pallet-authority-discovery",
@@ -12815,7 +12711,7 @@ dependencies = [
 
 [[package]]
 name = "shared-configuration"
-version = "0.7.0"
+version = "0.8.0"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -12887,7 +12783,7 @@ version = "2.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fa42c91313f1d05da9b26f267f931cf178d4aba455b4c4622dd7355eb80c6640"
 dependencies = [
- "bstr 0.2.17",
+ "bstr",
  "unicode-segmentation",
 ]
 
@@ -13643,9 +13539,9 @@ dependencies = [
 
 [[package]]
 name = "sp-runtime"
-version = "38.0.0"
+version = "38.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "89ef409c414546b655ec1e94aaea178e4a97e21284a91b24c762aebf836d3b49"
+checksum = "5273900f0b0bef48b2e1ff9c4fb5e188b8168ee5891418a427f4be2af92ee40f"
 dependencies = [
  "docify",
  "either",
@@ -13665,6 +13561,7 @@ dependencies = [
  "sp-io",
  "sp-std",
  "sp-weights",
+ "tracing",
 ]
 
 [[package]]
@@ -13999,9 +13896,9 @@ dependencies = [
 
 [[package]]
 name = "staging-xcm"
-version = "14.0.1"
+version = "14.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "536c5c8f8f25589e714a3be6b068d174debcc882e648dc9b0c3bd6ce45434de3"
+checksum = "f2b7b5f531c6bf9629514ef8e5fda0e9e80dd84516957f710940d0e01d3fb36c"
 dependencies = [
  "array-bytes",
  "bounded-collections 0.2.0",
@@ -15744,7 +15641,7 @@ dependencies = [
  "frame-system-benchmarking",
  "frame-system-rpc-runtime-api",
  "frame-try-runtime",
- "hex-literal 0.4.1",
+ "hex-literal",
  "log",
  "pallet-asset-rate",
  "pallet-authority-discovery",
@@ -16290,9 +16187,9 @@ dependencies = [
 
 [[package]]
 name = "xcm-procedural"
-version = "10.0.0"
+version = "10.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e0fd01495dfeb643167557631b34b54d312c1e70cf7eb64249ab687d84fd6045"
+checksum = "87fb4f14094d65c500a59bcf540cf42b99ee82c706edd6226a92e769ad60563e"
 dependencies = [
  "Inflector",
  "proc-macro2",

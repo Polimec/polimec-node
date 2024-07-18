@@ -227,40 +227,39 @@ pub struct BaseCallFilter;
 impl Contains<RuntimeCall> for BaseCallFilter {
 	fn contains(c: &RuntimeCall) -> bool {
 		match c {
-			RuntimeCall::Funding(call) => {
+			RuntimeCall::Funding(call) =>
 				if cfg!(feature = "development-settings") {
 					true
 				} else {
 					matches!(
 						call,
-						pallet_funding::Call::create_project { .. }
-							| pallet_funding::Call::remove_project { .. }
-							| pallet_funding::Call::edit_project { .. }
-							| pallet_funding::Call::start_evaluation { .. }
-							| pallet_funding::Call::root_do_evaluation_end { .. }
-							| pallet_funding::Call::evaluate { .. }
-							| pallet_funding::Call::start_auction { .. }
-							| pallet_funding::Call::root_do_auction_opening { .. }
-							| pallet_funding::Call::root_do_start_auction_closing { .. }
-							| pallet_funding::Call::bid { .. }
-							| pallet_funding::Call::root_do_end_auction_closing { .. }
-							| pallet_funding::Call::community_contribute { .. }
-							| pallet_funding::Call::remaining_contribute { .. }
-							| pallet_funding::Call::decide_project_outcome { .. }
-							| pallet_funding::Call::root_do_community_funding { .. }
-							| pallet_funding::Call::root_do_remainder_funding { .. }
-							| pallet_funding::Call::root_do_end_funding { .. }
-							| pallet_funding::Call::root_do_project_decision { .. }
-							| pallet_funding::Call::root_do_start_settlement { .. }
-							| pallet_funding::Call::settle_successful_evaluation { .. }
-							| pallet_funding::Call::settle_failed_evaluation { .. }
-							| pallet_funding::Call::settle_successful_bid { .. }
-							| pallet_funding::Call::settle_failed_bid { .. }
-							| pallet_funding::Call::settle_successful_contribution { .. }
-							| pallet_funding::Call::settle_failed_contribution { .. }
+						pallet_funding::Call::create_project { .. } |
+							pallet_funding::Call::remove_project { .. } |
+							pallet_funding::Call::edit_project { .. } |
+							pallet_funding::Call::start_evaluation { .. } |
+							pallet_funding::Call::root_do_evaluation_end { .. } |
+							pallet_funding::Call::evaluate { .. } |
+							pallet_funding::Call::start_auction { .. } |
+							pallet_funding::Call::root_do_auction_opening { .. } |
+							pallet_funding::Call::root_do_start_auction_closing { .. } |
+							pallet_funding::Call::bid { .. } |
+							pallet_funding::Call::root_do_end_auction_closing { .. } |
+							pallet_funding::Call::community_contribute { .. } |
+							pallet_funding::Call::remaining_contribute { .. } |
+							pallet_funding::Call::decide_project_outcome { .. } |
+							pallet_funding::Call::root_do_community_funding { .. } |
+							pallet_funding::Call::root_do_remainder_funding { .. } |
+							pallet_funding::Call::root_do_end_funding { .. } |
+							pallet_funding::Call::root_do_project_decision { .. } |
+							pallet_funding::Call::root_do_start_settlement { .. } |
+							pallet_funding::Call::settle_successful_evaluation { .. } |
+							pallet_funding::Call::settle_failed_evaluation { .. } |
+							pallet_funding::Call::settle_successful_bid { .. } |
+							pallet_funding::Call::settle_failed_bid { .. } |
+							pallet_funding::Call::settle_successful_contribution { .. } |
+							pallet_funding::Call::settle_failed_contribution { .. }
 					)
-				}
-			},
+				},
 			_ => true,
 		}
 	}
@@ -294,13 +293,13 @@ impl InstanceFilter<RuntimeCall> for ProxyType {
 			),
 			ProxyType::Governance => matches!(
 				c,
-				RuntimeCall::Treasury(..)
-					| RuntimeCall::Democracy(..)
-					| RuntimeCall::Council(..)
-					| RuntimeCall::TechnicalCommittee(..)
-					| RuntimeCall::Elections(..)
-					| RuntimeCall::Preimage(..)
-					| RuntimeCall::Scheduler(..)
+				RuntimeCall::Treasury(..) |
+					RuntimeCall::Democracy(..) |
+					RuntimeCall::Council(..) |
+					RuntimeCall::TechnicalCommittee(..) |
+					RuntimeCall::Elections(..) |
+					RuntimeCall::Preimage(..) |
+					RuntimeCall::Scheduler(..)
 			),
 			ProxyType::Staking => {
 				matches!(c, RuntimeCall::ParachainStaking(..))

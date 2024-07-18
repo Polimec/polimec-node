@@ -32,16 +32,17 @@ const DEFAULT_PARA_ID: ParaId = LOWEST_PUBLIC_ID;
 
 /// Helper function to generate a crypto pair from seed
 pub fn get_from_seed<TPublic: Public>(seed: &str) -> <TPublic::Pair as Pair>::Public {
-	TPublic::Pair::from_string(&format!("//{seed}"), None).expect("static values are valid; qed").public()
+	TPublic::Pair::from_string(&format!("//{}", seed), None).expect("static values are valid; qed").public()
 }
 
 /// The extensions for the [`ChainSpec`].
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, ChainSpecGroup, ChainSpecExtension)]
-#[serde(deny_unknown_fields)]
 pub struct Extensions {
 	/// The relay chain of the Parachain.
+	#[serde(alias = "relayChain", alias = "RelayChain")]
 	pub relay_chain: String,
 	/// The id of the Parachain.
+	#[serde(alias = "paraId", alias = "ParaId")]
 	pub para_id: u32,
 }
 
@@ -52,7 +53,7 @@ impl Extensions {
 	}
 }
 
-/// Generic chain spec for all polkadot-parachain runtimes
+/// Generic chain spec for all the Polimec runtimes
 pub type GenericChainSpec = sc_service::GenericChainSpec<(), Extensions>;
 
 type AccountPublic = <Signature as Verify>::Signer;
@@ -66,7 +67,7 @@ where
 }
 
 pub fn get_properties(symbol: &str, decimals: u32, ss58format: u32) -> Properties {
-	let mut properties = Properties::new();
+	let mut properties = sc_chain_spec::Properties::new();
 	properties.insert("tokenSymbol".into(), symbol.into());
 	properties.insert("tokenDecimals".into(), decimals.into());
 	properties.insert("ss58Format".into(), ss58format.into());
