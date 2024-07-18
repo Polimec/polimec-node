@@ -29,7 +29,7 @@ use crate::{
 	auto_compound::{AutoCompoundConfig, AutoCompoundDelegations},
 	delegation_requests::{CancelledScheduledRequest, DelegationAction, ScheduledRequest},
 	mock::{
-		roll_blocks, roll_to, roll_to_round_begin, roll_to_round_end, set_author, Balances, BlockNumber, ExtBuilder,
+		roll_blocks, roll_to, roll_to_round_begin, roll_to_round_end, set_author, Balances, ExtBuilder,
 		ParachainStaking, RuntimeOrigin, Test,
 	},
 	AtStake, Bond, CollatorStatus, DelegationScheduledRequests, DelegatorAdded, DelegatorState, DelegatorStatus, Error,
