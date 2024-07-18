@@ -1010,7 +1010,7 @@ impl pallet_assets::Config<ContributionTokensInstance> for Runtime {
 
 parameter_types! {
 	pub ContributionTreasuryAccount: AccountId = FundingPalletId::get().into_account_truncating();
-	pub PolimecReceiverInfo: xcm::v3::PalletInfo = xcm::v3::PalletInfo::new(
+	pub PolimecReceiverInfo: xcm::v4::PalletInfo = xcm::v4::PalletInfo::new(
 		51, "PolimecReceiver".into(), "polimec_receiver".into(), 0, 1, 0
 	).unwrap();
 	pub MaxMessageSizeThresholds: (u32, u32) = (50000, 102_400);

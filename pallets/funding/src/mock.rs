@@ -131,7 +131,7 @@ impl ExecuteXcm<RuntimeCall> for MockXcmExecutor {
 		_id: &mut XcmHash,
 		_weight_credit: Weight,
 	) -> Outcome {
-		Outcome::Complete(Weight::zero())
+		Outcome::Complete { used: Weight::zero() }
 	}
 
 	fn charge_fees(_location: impl Into<Location>, _fees: Assets) -> XcmResult {
@@ -313,7 +313,7 @@ parameter_types! {
 	pub const MinVestedTransfer: u64 = 256 * 2;
 	pub UnvestedFundsAllowedWithdrawReasons: WithdrawReasons =
 		WithdrawReasons::except(WithdrawReasons::TRANSFER | WithdrawReasons::RESERVE);
-	pub PolimecReceiverInfo: xcm::v3::PalletInfo = xcm::v3::PalletInfo::new(
+	pub PolimecReceiverInfo: xcm::v4::PalletInfo = xcm::v4::PalletInfo::new(
 		51, "PolimecReceiver".into(), "polimec_receiver".into(), 0, 1, 0
 	).unwrap();
 }

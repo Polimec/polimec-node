@@ -146,7 +146,7 @@ pub mod migration_types {
 	#[derive(Clone, Encode, Decode, Eq, PartialEq, Ord, PartialOrd, RuntimeDebug, TypeInfo, MaxEncodedLen)]
 	pub enum MigrationStatus {
 		NotStarted,
-		Sent(xcm::v3::QueryId),
+		Sent(xcm::v4::QueryId),
 		Confirmed,
 		Failed,
 	}

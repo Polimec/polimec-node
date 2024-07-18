@@ -44,7 +44,7 @@ use sp_arithmetic::Percent;
 use sp_core::H256;
 use sp_io::hashing::blake2_256;
 use sp_runtime::traits::{Get, Member, TrailingZeroInput, Zero};
-use xcm::v3::MaxPalletNameLen;
+use xcm::v4::MaxPalletNameLen;
 
 const IPFS_CID: &str = "QmbvsJBhQtu9uAGVp7x4H77JkwAQxV7TA6xTfdeALuDiYB";
 const CT_DECIMALS: u8 = 17;
@@ -702,11 +702,9 @@ mod benchmarks {
 		assert!(correct, "Evaluation is not stored correctly");
 
 		// Balances
-		let bonded_plmc = inst.get_reserved_plmc_balances_for(
-			vec![extrinsic_evaluation.account.clone()],
-			HoldReason::Evaluation(project_id).into(),
-		)[0]
-		.plmc_amount;
+		let bonded_plmc = inst
+			.get_reserved_plmc_balances_for(vec![extrinsic_evaluation.account.clone()], HoldReason::Evaluation.into())[0]
+			.plmc_amount;
 		assert_eq!(bonded_plmc, total_expected_plmc_bonded);
 
 		// Events
@@ -971,9 +969,8 @@ mod benchmarks {
 		assert_eq!(current_bucket, starting_bucket);
 
 		// Balances
-		let bonded_plmc = inst
-			.get_reserved_plmc_balances_for(vec![bidder.clone()], HoldReason::Participation(project_id).into())[0]
-			.plmc_amount;
+		let bonded_plmc =
+			inst.get_reserved_plmc_balances_for(vec![bidder.clone()], HoldReason::Participation.into())[0].plmc_amount;
 		assert_eq!(bonded_plmc, total_plmc_bonded);
 
 		let free_plmc = inst.get_free_plmc_balances_for(vec![bidder.clone()])[0].plmc_amount;
@@ -1234,7 +1231,7 @@ mod benchmarks {
 
 		// Balances
 		let bonded_plmc = inst
-			.get_reserved_plmc_balances_for(vec![contributor.clone()], HoldReason::Participation(project_id).into())[0]
+			.get_reserved_plmc_balances_for(vec![contributor.clone()], HoldReason::Participation.into())[0]
 			.plmc_amount;
 		assert_eq!(bonded_plmc, total_plmc_bonded);
 
@@ -1566,9 +1563,8 @@ mod benchmarks {
 		assert!(Evaluations::<T>::get((project_id, evaluator.clone(), evaluation_to_settle.id)).is_none());
 		let slashed_amount = T::EvaluatorSlash::get() * evaluation_to_settle.original_plmc_bond;
 
-		let reserved_plmc = inst
-			.get_reserved_plmc_balances_for(vec![evaluator.clone()], HoldReason::Evaluation(project_id).into())[0]
-			.plmc_amount;
+		let reserved_plmc =
+			inst.get_reserved_plmc_balances_for(vec![evaluator.clone()], HoldReason::Evaluation.into())[0].plmc_amount;
 		assert_eq!(reserved_plmc, 0.into());
 
 		let treasury_account = T::BlockchainOperationTreasury::get();

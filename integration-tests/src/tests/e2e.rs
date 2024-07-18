@@ -486,14 +486,14 @@ fn ct_migrated() {
 	PolimecNet::execute_with(|| {
 		let _account_id: PolimecAccountId = ISSUER.into();
 		assert_ok!(PolimecFunding::do_start_pallet_migration(&ISSUER.into(), project_id, ParaId::from(6969u32),));
-		let open_channel_message = xcm::v3::opaque::Instruction::HrmpNewChannelOpenRequest {
+		let open_channel_message = xcm::v4::opaque::Instruction::HrmpNewChannelOpenRequest {
 			sender: 6969,
 			max_message_size: 102_300,
 			max_capacity: 1000,
 		};
 		assert_ok!(PolimecFunding::do_handle_channel_open_request(open_channel_message));
 
-		let channel_accepted_message = xcm::v3::opaque::Instruction::HrmpChannelAccepted { recipient: 6969u32 };
+		let channel_accepted_message = xcm::v4::opaque::Instruction::HrmpChannelAccepted { recipient: 6969u32 };
 		assert_ok!(PolimecFunding::do_handle_channel_accepted(channel_accepted_message));
 	});
 
