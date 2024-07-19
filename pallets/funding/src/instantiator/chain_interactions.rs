@@ -288,7 +288,6 @@ impl<
 		project_id: ProjectId,
 		maybe_did: Option<Did>,
 		expected_metadata: ProjectMetadataOf<T>,
-		creation_start_block: BlockNumberFor<T>,
 	) {
 		let metadata = self.get_project_metadata(project_id);
 		let details = self.get_project_details(project_id);

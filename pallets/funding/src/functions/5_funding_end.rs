@@ -34,7 +34,6 @@ impl<T: Config> Pallet<T> {
 	pub fn do_end_funding(project_id: ProjectId) -> DispatchResultWithPostInfo {
 		// * Get variables *
 		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
-		let project_metadata = ProjectsMetadata::<T>::get(project_id).ok_or(Error::<T>::ProjectMetadataNotFound)?;
 		let remaining_cts = project_details.remaining_contribution_tokens;
 		let round_end_block = project_details.round_duration.end().ok_or(Error::<T>::ImpossibleState)?;
 		let now = <frame_system::Pallet<T>>::block_number();

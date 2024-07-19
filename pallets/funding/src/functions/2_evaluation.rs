@@ -73,7 +73,7 @@ impl<T: Config> Pallet<T> {
 	#[transactional]
 	pub fn do_evaluation_end(project_id: ProjectId) -> DispatchResult {
 		// * Get variables *
-		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
+		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 
 		// * Calculate new variables *
 		let usd_total_amount_bonded = project_details.evaluation_round_info.total_bonded_usd;

@@ -113,7 +113,7 @@ impl<T: Config> Pallet<T> {
 			.partition(|bid| matches!(bid.status, BidStatus::Accepted | BidStatus::PartiallyAccepted(..)));
 
 		let accepted_bid_len = accepted_bids.len() as u32;
-		let mut total_auction_allocation_usd: BalanceOf<T> = accepted_bids.into_iter()
+		let total_auction_allocation_usd: BalanceOf<T> = accepted_bids.into_iter()
 		.try_fold(Zero::zero(), |acc: BalanceOf<T>, bid: BidInfoOf<T>| {
 				bid.final_ct_usd_price.checked_mul_int(bid.final_ct_amount).and_then(
 					|ticket| acc.checked_add(&ticket)
@@ -131,7 +131,7 @@ impl<T: Config> Pallet<T> {
 			}
 		})?;
 
-		Ok((accepted_bid_len, 0))
+		Ok((accepted_bid_len, rejected_bids.len() as u32))
 	}
 
 
@@ -193,7 +193,6 @@ impl<T: Config> Pallet<T> {
 
 		// Determine how much funding has been achieved.
 		let funding_amount_reached = project_details.funding_amount_reached_usd;
-		let fundraising_target = project_details.fundraising_target_usd;
 		let fee_usd = Self::compute_total_fee_from_brackets(funding_amount_reached);
 		let fee_percentage = Perquintill::from_rational(fee_usd, funding_amount_reached);
 

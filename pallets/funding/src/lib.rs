@@ -718,10 +718,9 @@ pub mod pallet {
 		IncorrectRound,
 		/// Too early to execute the action. The action can likely be called again at a later stage.
 		TooEarlyForRound,
-		/// A round transition was already executed, so the transition cannot be
-		/// executed again. This is likely to happen when the issuer manually transitions the project,
-		/// after which the automatic transition is executed.
-		RoundTransitionAlreadyHappened,
+		/// Too late to execute the action. Round has already ended, but transition to new
+		/// round has still to be executed.
+		TooLateForRound,
 		/// A project's transition point (block number) was not set.
 		TransitionPointNotSet,
 
@@ -1188,24 +1187,6 @@ pub mod pallet {
 			let _caller = ensure_signed(origin)?;
 
 			Self::do_mark_project_ct_migration_as_finished(project_id)
-		}
-	}
-
-	fn update_weight(used_weight: &mut Weight, call: DispatchResultWithPostInfo, fallback_weight: Weight) {
-		match call {
-			Ok(post_dispatch_info) =>
-				if let Some(actual_weight) = post_dispatch_info.actual_weight {
-					*used_weight = used_weight.saturating_add(actual_weight);
-				} else {
-					*used_weight = used_weight.saturating_add(fallback_weight);
-				},
-			Err(DispatchErrorWithPostInfo::<PostDispatchInfo> { error: _error, post_info }) => {
-				if let Some(actual_weight) = post_info.actual_weight {
-					*used_weight = used_weight.saturating_add(actual_weight);
-				} else {
-					*used_weight = used_weight.saturating_add(fallback_weight);
-				}
-			},
 		}
 	}
 }

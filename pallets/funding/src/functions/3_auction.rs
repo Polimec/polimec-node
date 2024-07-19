@@ -45,7 +45,6 @@ impl<T: Config> Pallet<T> {
 	#[transactional]
 	pub fn do_end_auction(project_id: ProjectId) -> DispatchResultWithPostInfo {
 		// * Get variables *
-		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 		let project_metadata = ProjectsMetadata::<T>::get(project_id).ok_or(Error::<T>::ProjectMetadataNotFound)?;
 		let bucket = Buckets::<T>::get(project_id).ok_or(Error::<T>::BucketNotFound)?;	
 		
@@ -240,19 +239,10 @@ impl<T: Config> Pallet<T> {
 		ensure!(total_bids_by_bidder < T::MaxBidsPerUser::get(), Error::<T>::TooManyUserParticipations);
 		ensure!(total_bids_for_project < T::MaxBidsPerProject::get(), Error::<T>::TooManyProjectParticipations);
 
-		let funding_asset_id = funding_asset.to_assethub_id();
-		let funding_asset_decimals = T::FundingCurrency::decimals(funding_asset_id);
-		let funding_asset_usd_price =
-			T::PriceProvider::get_decimals_aware_price(funding_asset_id, USD_DECIMALS, funding_asset_decimals)
-				.ok_or(Error::<T>::PriceNotFound)?;
-
 		// * Calculate new variables *
 		let plmc_bond =
 			Self::calculate_plmc_bond(ticket_size, multiplier).map_err(|_| Error::<T>::BadMath)?;
-
-		let funding_asset_amount_locked =
-			funding_asset_usd_price.reciprocal().ok_or(Error::<T>::BadMath)?.saturating_mul_int(ticket_size);
-		let asset_id = funding_asset.to_assethub_id();
+		let funding_asset_amount_locked = Self::calculate_funding_asset_amount(ticket_size, funding_asset)?;
 
 		let new_bid = BidInfoOf::<T> {
 			id: bid_id,
@@ -272,7 +262,7 @@ impl<T: Config> Pallet<T> {
 		};
 
 		Self::try_plmc_participation_lock(bidder, project_id, plmc_bond)?;
-		Self::try_funding_asset_hold(bidder, project_id, funding_asset_amount_locked, asset_id)?;
+		Self::try_funding_asset_hold(bidder, project_id, funding_asset_amount_locked, funding_asset.to_assethub_id())?;
 
 		Bids::<T>::insert((project_id, bidder, bid_id), &new_bid);
 		NextBidId::<T>::set(bid_id.saturating_add(One::one()));

@@ -24,7 +24,6 @@ impl<T: Config> Pallet<T> {
 	) -> DispatchResultWithPostInfo {
 		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 		let did_has_winning_bid = DidWithWinningBids::<T>::get(project_id, did.clone());
-		let round_start_block = project_details.round_duration.start().ok_or(Error::<T>::ImpossibleState)?;
 		
 		let remainder_start = match project_details.status {
 			ProjectStatus::CommunityRound(remainder_start) => remainder_start,
@@ -33,7 +32,9 @@ impl<T: Config> Pallet<T> {
 		
 		let now = <frame_system::Pallet<T>>::block_number();
 		let remainder_started = now > remainder_start;
+		let round_end = project_details.round_duration.end().ok_or(Error::<T>::ImpossibleState)?;
 		ensure!(!did_has_winning_bid || remainder_started, Error::<T>::UserHasWinningBid);
+		ensure!(now < round_end, Error::<T>::TooLateForRound);
 
 		let buyable_tokens = token_amount.min(project_details.remaining_contribution_tokens);
 		project_details.remaining_contribution_tokens.saturating_reduce(buyable_tokens);
