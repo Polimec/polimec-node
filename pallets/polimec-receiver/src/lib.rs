@@ -77,7 +77,7 @@ pub mod pallet {
 	{
 		/// A Migration executed sucessfully
 		MigrationExecuted { migration: Migration },
-		/// A Migration was found which wa already executed, and was skipped.
+		/// A Migration was found which was already executed, and was skipped.
 		DuplicatedMigrationSkipped { migration: Migration },
 	}
 
