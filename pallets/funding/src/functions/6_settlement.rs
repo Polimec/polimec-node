@@ -4,9 +4,9 @@ use frame_support::{
 	dispatch::DispatchResult,
 	ensure,
 	traits::{
-		fungible::MutateHold as FungibleMutateHold,
+		fungible::{Inspect, MutateHold as FungibleMutateHold},
 		fungibles::Mutate as FungiblesMutate,
-		tokens::{Fortitude, Precision, Preservation, Restriction},
+		tokens::{DepositConsequence, Fortitude, Precision, Preservation, Provenance, Restriction},
 		Get,
 	},
 };
@@ -261,8 +261,8 @@ impl<T: Config> Pallet<T> {
 
 		let new_plmc_bond = Self::calculate_plmc_bond(new_ticket_size, bid.multiplier)?;
 		let new_funding_asset_amount = Self::calculate_funding_asset_amount(new_ticket_size, bid.funding_asset)?;
-		let refund_plmc = bid.plmc_bond.saturating_sub(new_plmc_bond);
-		let refund_funding_asset = bid.funding_asset_amount_locked.saturating_sub(new_funding_asset_amount);
+		let mut refund_plmc = bid.plmc_bond.saturating_sub(new_plmc_bond);
+		let mut refund_funding_asset = bid.funding_asset_amount_locked.saturating_sub(new_funding_asset_amount);
 		if T::FundingCurrency::can_deposit(
 			bid.funding_asset.to_assethub_id(),
 			&bid.bidder,
