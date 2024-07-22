@@ -167,54 +167,57 @@ impl<T: Config> AccountMerge for Vec<UserToUSDBalance<T>> {
 }
 
 #[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
-pub struct UserToForeignAssets<T: Config> {
+pub struct UserToFundingAsset<T: Config> {
 	pub account: AccountIdOf<T>,
 	pub asset_amount: BalanceOf<T>,
 	pub asset_id: AssetIdOf<T>,
 }
-impl<T: Config> UserToForeignAssets<T> {
+impl<T: Config> UserToFundingAsset<T> {
 	pub fn new(account: AccountIdOf<T>, asset_amount: BalanceOf<T>, asset_id: AssetIdOf<T>) -> Self {
 		Self { account, asset_amount, asset_id }
 	}
 }
-impl<T: Config> From<(AccountIdOf<T>, BalanceOf<T>, AssetIdOf<T>)> for UserToForeignAssets<T> {
+impl<T: Config> From<(AccountIdOf<T>, BalanceOf<T>, AssetIdOf<T>)> for UserToFundingAsset<T> {
 	fn from((account, asset_amount, asset_id): (AccountIdOf<T>, BalanceOf<T>, AssetIdOf<T>)) -> Self {
-		UserToForeignAssets::<T>::new(account, asset_amount, asset_id)
+		UserToFundingAsset::<T>::new(account, asset_amount, asset_id)
 	}
 }
-impl<T: Config> From<(AccountIdOf<T>, BalanceOf<T>)> for UserToForeignAssets<T> {
+impl<T: Config> From<(AccountIdOf<T>, BalanceOf<T>)> for UserToFundingAsset<T> {
 	fn from((account, asset_amount): (AccountIdOf<T>, BalanceOf<T>)) -> Self {
-		UserToForeignAssets::<T>::new(account, asset_amount, AcceptedFundingAsset::USDT.to_assethub_id())
+		UserToFundingAsset::<T>::new(account, asset_amount, AcceptedFundingAsset::USDT.id())
 	}
 }
-impl<T: Config> Accounts for Vec<UserToForeignAssets<T>> {
+impl<T: Config> Accounts for Vec<UserToFundingAsset<T>> {
 	type Account = AccountIdOf<T>;
 
 	fn accounts(&self) -> Vec<Self::Account> {
 		let mut btree = BTreeSet::new();
-		for UserToForeignAssets { account, .. } in self.iter() {
+		for UserToFundingAsset { account, .. } in self.iter() {
 			btree.insert(account.clone());
 		}
 		btree.into_iter().collect_vec()
 	}
 }
-impl<T: Config> AccountMerge for Vec<UserToForeignAssets<T>> {
-	type Inner = UserToForeignAssets<T>;
+impl<T: Config> AccountMerge for Vec<UserToFundingAsset<T>> {
+	type Inner = UserToFundingAsset<T>;
 
 	fn merge_accounts(&self, ops: MergeOperation) -> Self {
 		let mut btree = BTreeMap::new();
-		for UserToForeignAssets { account, asset_amount, asset_id } in self.iter() {
+		for UserToFundingAsset { account, asset_amount, asset_id } in self.iter() {
 			btree
-				.entry(account.clone())
-				.and_modify(|e: &mut (BalanceOf<T>, u32)| {
-					e.0 = match ops {
-						MergeOperation::Add => e.0.saturating_add(*asset_amount),
-						MergeOperation::Subtract => e.0.saturating_sub(*asset_amount),
+				.entry((account.clone(), asset_id.clone()))
+				.and_modify(|e: &mut BalanceOf<T>| {
+					*e = match ops {
+						MergeOperation::Add => e.saturating_add(*asset_amount),
+						MergeOperation::Subtract => e.saturating_sub(*asset_amount),
 					}
 				})
-				.or_insert((*asset_amount, *asset_id));
+				.or_insert(*asset_amount);
 		}
-		btree.into_iter().map(|(account, info)| UserToForeignAssets::new(account, info.0, info.1)).collect()
+		btree
+			.into_iter()
+			.map(|((account, asset_id), asset_amount)| UserToFundingAsset::new(account, asset_amount, asset_id))
+			.collect()
 	}
 
 	fn subtract_accounts(&self, other_list: Self) -> Self {

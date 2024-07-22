@@ -1,4 +1,5 @@
 use super::*;
+use itertools::GroupBy;
 use polimec_common::USD_DECIMALS;
 
 impl<
@@ -36,6 +37,7 @@ impl<
 		output
 	}
 
+	// A single bid can be split into multiple buckets. This function splits the bid into multiple ones at different prices.
 	pub fn get_actual_price_charged_for_bucketed_bids(
 		&self,
 		bids: &Vec<BidParams<T>>,
@@ -197,10 +199,10 @@ impl<
 		&mut self,
 		bids: &Vec<BidParams<T>>,
 		ct_price: PriceOf<T>,
-	) -> Vec<UserToForeignAssets<T>> {
+	) -> Vec<UserToFundingAsset<T>> {
 		let mut output = Vec::new();
 		for bid in bids {
-			let funding_asset_id = bid.asset.to_assethub_id();
+			let funding_asset_id = bid.asset.id();
 			let funding_asset_decimals = self.execute(|| T::FundingCurrency::decimals(funding_asset_id));
 			let funding_asset_usd_price = self.execute(|| {
 				T::PriceProvider::get_decimals_aware_price(funding_asset_id, USD_DECIMALS, funding_asset_decimals)
@@ -208,7 +210,7 @@ impl<
 			});
 			let usd_ticket_size = ct_price.saturating_mul_int(bid.amount);
 			let funding_asset_spent = funding_asset_usd_price.reciprocal().unwrap().saturating_mul_int(usd_ticket_size);
-			output.push(UserToForeignAssets::new(bid.bidder.clone(), funding_asset_spent, bid.asset.to_assethub_id()));
+			output.push(UserToFundingAsset::new(bid.bidder.clone(), funding_asset_spent, bid.asset.id()));
 		}
 		output
 	}
@@ -219,11 +221,11 @@ impl<
 		bids: &Vec<BidParams<T>>,
 		project_metadata: ProjectMetadataOf<T>,
 		maybe_bucket: Option<BucketOf<T>>,
-	) -> Vec<UserToForeignAssets<T>> {
+	) -> Vec<UserToFundingAsset<T>> {
 		let mut output = Vec::new();
 
 		for (bid, price) in self.get_actual_price_charged_for_bucketed_bids(bids, project_metadata, maybe_bucket) {
-			let funding_asset_id = bid.asset.to_assethub_id();
+			let funding_asset_id = bid.asset.id();
 			let funding_asset_decimals = self.execute(|| T::FundingCurrency::decimals(funding_asset_id));
 			let funding_asset_usd_price = self.execute(|| {
 				T::PriceProvider::get_decimals_aware_price(funding_asset_id, USD_DECIMALS, funding_asset_decimals)
@@ -232,24 +234,19 @@ impl<
 			});
 			let usd_ticket_size = price.saturating_mul_int(bid.amount);
 			let funding_asset_spent = funding_asset_usd_price.reciprocal().unwrap().saturating_mul_int(usd_ticket_size);
-			output.push(UserToForeignAssets::<T>::new(
-				bid.bidder.clone(),
-				funding_asset_spent,
-				bid.asset.to_assethub_id(),
-			));
+			output.push(UserToFundingAsset::<T>::new(bid.bidder.clone(), funding_asset_spent, bid.asset.id()));
 		}
 
 		output.merge_accounts(MergeOperation::Add)
 	}
 
-	// WARNING: Only put bids that you are sure will be done before the random end of the closing auction
 	pub fn calculate_auction_funding_asset_returned_from_all_bids_made(
 		&mut self,
 		// bids in the order they were made
 		bids: &Vec<BidParams<T>>,
 		project_metadata: ProjectMetadataOf<T>,
 		weighted_average_price: PriceOf<T>,
-	) -> Vec<UserToForeignAssets<T>> {
+	) -> Vec<UserToFundingAsset<T>> {
 		let mut output = Vec::new();
 		let charged_bids = self.get_actual_price_charged_for_bucketed_bids(bids, project_metadata.clone(), None);
 		let grouped_by_price_bids = charged_bids.clone().into_iter().group_by(|&(_, price)| price);
@@ -264,7 +261,7 @@ impl<
 
 		for (price_charged, bids) in grouped_by_price_bids {
 			for bid in bids {
-				let funding_asset_id = bid.asset.to_assethub_id();
+				let funding_asset_id = bid.asset.id();
 				let funding_asset_decimals = self.execute(|| T::FundingCurrency::decimals(funding_asset_id));
 				let funding_asset_usd_price = self.execute(|| {
 					T::PriceProvider::get_decimals_aware_price(funding_asset_id, USD_DECIMALS, funding_asset_decimals)
@@ -272,17 +269,12 @@ impl<
 						.unwrap()
 				});
 				let charged_usd_ticket_size = price_charged.saturating_mul_int(bid.amount);
-				let charged_usd_bond =
-					bid.multiplier.calculate_bonding_requirement::<T>(charged_usd_ticket_size).unwrap();
+
 				let charged_funding_asset =
-					funding_asset_usd_price.reciprocal().unwrap().saturating_mul_int(charged_usd_bond);
+					funding_asset_usd_price.reciprocal().unwrap().saturating_mul_int(charged_usd_ticket_size);
 
 				if remaining_cts <= Zero::zero() {
-					output.push(UserToForeignAssets::new(
-						bid.bidder,
-						charged_funding_asset,
-						bid.asset.to_assethub_id(),
-					));
+					output.push(UserToFundingAsset::new(bid.bidder, charged_funding_asset, bid.asset.id()));
 					continue
 				}
 
@@ -293,18 +285,12 @@ impl<
 					if weighted_average_price > price_charged { price_charged } else { weighted_average_price };
 
 				let actual_usd_ticket_size = final_price.saturating_mul_int(bought_cts);
-				let actual_usd_bond =
-					bid.multiplier.calculate_bonding_requirement::<T>(actual_usd_ticket_size).unwrap();
 				let actual_funding_asset_spent =
-					funding_asset_usd_price.reciprocal().unwrap().saturating_mul_int(actual_usd_bond);
+					funding_asset_usd_price.reciprocal().unwrap().saturating_mul_int(actual_usd_ticket_size);
 
 				let returned_foreign_asset = charged_funding_asset - actual_funding_asset_spent;
 
-				output.push(UserToForeignAssets::<T>::new(
-					bid.bidder,
-					returned_foreign_asset,
-					bid.asset.to_assethub_id(),
-				));
+				output.push(UserToFundingAsset::<T>::new(bid.bidder, returned_foreign_asset, bid.asset.id()));
 			}
 		}
 
@@ -316,7 +302,7 @@ impl<
 		bids: &Vec<BidParams<T>>,
 		project_metadata: ProjectMetadataOf<T>,
 		weighted_average_price: PriceOf<T>,
-	) -> Vec<UserToForeignAssets<T>> {
+	) -> Vec<UserToFundingAsset<T>> {
 		let funding_asset_charged = self.calculate_auction_funding_asset_charged_from_all_bids_made_or_with_bucket(
 			bids,
 			project_metadata.clone(),
@@ -428,10 +414,10 @@ impl<
 		&mut self,
 		contributions: Vec<ContributionParams<T>>,
 		token_usd_price: PriceOf<T>,
-	) -> Vec<UserToForeignAssets<T>> {
+	) -> Vec<UserToFundingAsset<T>> {
 		let mut output = Vec::new();
 		for cont in contributions {
-			let funding_asset_id = cont.asset.to_assethub_id();
+			let funding_asset_id = cont.asset.id();
 			let funding_asset_decimals = self.execute(|| T::FundingCurrency::decimals(funding_asset_id));
 			let funding_asset_usd_price = self.execute(|| {
 				T::PriceProvider::get_decimals_aware_price(funding_asset_id, USD_DECIMALS, funding_asset_decimals)
@@ -440,7 +426,7 @@ impl<
 			});
 			let usd_ticket_size = token_usd_price.saturating_mul_int(cont.amount);
 			let funding_asset_spent = funding_asset_usd_price.reciprocal().unwrap().saturating_mul_int(usd_ticket_size);
-			output.push(UserToForeignAssets::new(cont.contributor, funding_asset_spent, cont.asset.to_assethub_id()));
+			output.push(UserToFundingAsset::new(cont.contributor, funding_asset_spent, cont.asset.id()));
 		}
 		output
 	}
@@ -508,14 +494,22 @@ impl<
 		output
 	}
 
-	pub fn sum_foreign_mappings(&self, mut mappings: Vec<Vec<UserToForeignAssets<T>>>) -> BalanceOf<T> {
-		let mut output = mappings
-			.swap_remove(0)
-			.into_iter()
-			.map(|user_to_asset| user_to_asset.asset_amount)
-			.fold(Zero::zero(), |a, b| a + b);
-		for map in mappings {
-			output += map.into_iter().map(|user_to_asset| user_to_asset.asset_amount).fold(Zero::zero(), |a, b| a + b);
+	pub fn sum_funding_asset_mappings(
+		&self,
+		mappings: Vec<Vec<UserToFundingAsset<T>>>,
+	) -> Vec<(AssetIdOf<T>, BalanceOf<T>)> {
+		let flattened_list = mappings.into_iter().flatten().collect_vec();
+
+		let ordered_list = flattened_list.into_iter().sorted_by(|a, b| a.asset_id.cmp(&b.asset_id)).collect_vec();
+
+		let asset_lists: GroupBy<AssetIdOf<T>, _, fn(&UserToFundingAsset<T>) -> AssetIdOf<T>> =
+			ordered_list.into_iter().group_by(|item| item.asset_id);
+
+		let mut output = Vec::new();
+
+		for (asset_id, asset_list) in &asset_lists {
+			let sum = asset_list.fold(Zero::zero(), |acc, item| acc + item.asset_amount);
+			output.push((asset_id, sum));
 		}
 		output
 	}
@@ -643,54 +637,6 @@ impl<
 		early_evaluators_rewards.saturating_add(normal_evaluators_rewards)
 	}
 
-	// Assuming all purchases done before random end
-	pub fn dry_run_wap(&self, mut bucket: BucketOf<T>, token_allocation: BalanceOf<T>) -> PriceOf<T> {
-		let mut accounted_tokens: BalanceOf<T> = Zero::zero();
-		let mut tickets = Vec::new();
-
-		if bucket.current_price == bucket.initial_price {
-			return bucket.initial_price
-		}
-
-		// Do a reverse iteration over the bucket increments to see which tickets are accepted
-		while accounted_tokens < token_allocation {
-			let tokens_sold = if bucket.initial_price == bucket.current_price {
-				bucket.delta_amount * 10u32.into()
-			} else {
-				bucket.delta_amount - bucket.amount_left
-			};
-			let price = bucket.current_price;
-			let remaining_tokens: BalanceOf<T> = token_allocation - accounted_tokens;
-			let accepted_tokens = remaining_tokens.min(tokens_sold);
-			tickets.push((accepted_tokens, price));
-			accounted_tokens += accepted_tokens;
-
-			if price > bucket.initial_price {
-				bucket.amount_left = Zero::zero();
-				bucket.current_price = bucket.current_price - bucket.delta_price;
-			}
-		}
-
-		// Use the accepted tickets to calculate the WAP
-		let total_usd = tickets
-			.clone()
-			.into_iter()
-			.map(|(tokens, price)| price.saturating_mul_int(tokens.into()))
-			.reduce(|a, b| a + b)
-			.unwrap();
-		let partial_waps = tickets
-			.into_iter()
-			.map(|(tokens, price)| {
-				let weight = PriceOf::<T>::saturating_from_rational(price.saturating_mul_int(tokens.into()), total_usd);
-				let partial_wap = weight * price;
-				partial_wap
-			})
-			.collect::<Vec<PriceOf<T>>>();
-		let wap = partial_waps.into_iter().reduce(|a, b| a + b).unwrap();
-
-		wap
-	}
-
 	pub fn find_bucket_for_wap(&self, project_metadata: ProjectMetadataOf<T>, target_wap: PriceOf<T>) -> BucketOf<T> {
 		let mut bucket = <Pallet<T>>::create_bucket_from_metadata(&project_metadata).unwrap();
 		let auction_allocation =
@@ -705,9 +651,12 @@ impl<
 
 		// Fill remaining buckets till we pass by the wap
 		loop {
-			dbg!(&bucket.current_price);
-			let wap = self.dry_run_wap(bucket.clone(), auction_allocation);
+			dbg!(&bucket);
+			let wap = bucket.calculate_wap(auction_allocation);
 
+			if wap == target_wap {
+				return bucket
+			}
 			if wap < target_wap {
 				bucket.update(bucket.delta_amount);
 			} else {
@@ -719,28 +668,31 @@ impl<
 		bucket.amount_left = bucket.delta_amount;
 		bucket.current_price = bucket.current_price - bucket.delta_price;
 
+		dbg!(bucket.calculate_wap(auction_allocation));
+		dbg!(target_wap);
+
 		// Do a binary search on the amount to reach the desired wap
 		let mut lower_bound: BalanceOf<T> = Zero::zero();
 		let mut upper_bound: BalanceOf<T> = bucket.delta_amount;
-		let mid_point = |l: BalanceOf<T>, u: BalanceOf<T>| -> BalanceOf<T> { (l.clone() + u.clone()) / 2u32.into() };
-		bucket.amount_left = mid_point(lower_bound, upper_bound);
-		let mut new_wap = self.dry_run_wap(bucket.clone(), auction_allocation);
-		while new_wap != target_wap {
-			if new_wap > target_wap {
-				lower_bound = mid_point(lower_bound, upper_bound);
-				bucket.amount_left = mid_point(lower_bound, upper_bound);
+
+		while lower_bound <= upper_bound {
+			let mid_point = (lower_bound + upper_bound) / 2u32.into();
+			bucket.amount_left = mid_point;
+			let new_wap = bucket.calculate_wap(auction_allocation);
+			dbg!(&lower_bound);
+			dbg!(&upper_bound);
+			dbg!(&mid_point);
+			dbg!(&new_wap);
+
+			if new_wap == target_wap {
+				return bucket
+			} else if new_wap < target_wap {
+				upper_bound = mid_point.saturating_sub(1u32.into());
 			} else {
-				upper_bound = mid_point(lower_bound, upper_bound);
-				bucket.amount_left = mid_point(lower_bound, upper_bound);
+				lower_bound = mid_point.saturating_add(1u32.into());
 			}
-
-			if lower_bound == upper_bound {
-				break
-			}
-
-			new_wap = self.dry_run_wap(bucket.clone(), auction_allocation);
 		}
-		dbg!(&bucket);
+
 		bucket
 	}
 
@@ -804,5 +756,22 @@ impl<
 			next_bidder_account,
 			AcceptedFundingAsset::USDT,
 		)
+	}
+
+	// Make sure the bids are in the order they were made
+	pub fn calculate_wap_from_all_bids_made(
+		&self,
+		project_metadata: &ProjectMetadataOf<T>,
+		bids: &Vec<BidParams<T>>,
+	) -> PriceOf<T> {
+		let mut bucket = Pallet::<T>::create_bucket_from_metadata(project_metadata).unwrap();
+
+		for bid in bids {
+			bucket.update(bid.amount);
+		}
+
+		let auction_allocation =
+			project_metadata.auction_round_allocation_percentage * project_metadata.total_allocation_size;
+		bucket.calculate_wap(auction_allocation)
 	}
 }
