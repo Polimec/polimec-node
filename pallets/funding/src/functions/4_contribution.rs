@@ -125,7 +125,7 @@ impl<T: Config> Pallet<T> {
 
 		// Try adding the new contribution to the system
 		Self::try_plmc_participation_lock(contributor, project_id, plmc_bond)?;
-		Self::try_funding_asset_hold(contributor, project_id, funding_asset_amount, funding_asset.to_assethub_id())?;
+		Self::try_funding_asset_hold(contributor, project_id, funding_asset_amount, funding_asset.id())?;
 
 		Contributions::<T>::insert((project_id, contributor, contribution_id), &new_contribution);
 		NextContributionId::<T>::set(contribution_id.saturating_add(One::one()));

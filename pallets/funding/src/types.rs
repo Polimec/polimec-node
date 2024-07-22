@@ -683,7 +683,7 @@ pub mod inner_types {
 		DOT,
 	}
 	impl AcceptedFundingAsset {
-		pub const fn to_assethub_id(&self) -> u32 {
+		pub const fn id(&self) -> u32 {
 			match self {
 				AcceptedFundingAsset::USDT => 1984,
 				AcceptedFundingAsset::DOT => 10,

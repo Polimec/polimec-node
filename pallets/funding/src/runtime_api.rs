@@ -133,7 +133,7 @@ impl<T: Config> Pallet<T> {
 		asset_amount: BalanceOf<T>,
 	) -> BalanceOf<T> {
 		let project_details = ProjectsDetails::<T>::get(project_id).expect("Project not found");
-		let funding_asset_id = asset.to_assethub_id();
+		let funding_asset_id = asset.id();
 		let funding_asset_decimals = T::FundingCurrency::decimals(funding_asset_id);
 		let funding_asset_usd_price =
 			T::PriceProvider::get_decimals_aware_price(funding_asset_id, USD_DECIMALS, funding_asset_decimals)

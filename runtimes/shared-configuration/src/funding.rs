@@ -102,9 +102,9 @@ parameter_types! {
 	pub const SuccessToSettlementTime: BlockNumber = SUCCESS_TO_SETTLEMENT_TIME;
 	pub const FundingPalletId: PalletId = PalletId(*b"plmc/fun");
 	pub PriceMap: BTreeMap<AssetIdForTrustBackedAssets, FixedU128> = BTreeMap::from_iter(vec![
-		(AcceptedFundingAsset::DOT.to_assethub_id(), FixedU128::from_rational(69, 1)), // DOT
-		(AcceptedFundingAsset::USDC.to_assethub_id(), FixedU128::from_rational(100, 100)), // USDC
-		(AcceptedFundingAsset::USDT.to_assethub_id(), FixedU128::from_rational(100, 100)), // USDT
+		(AcceptedFundingAsset::DOT.id(), FixedU128::from_rational(69, 1)), // DOT
+		(AcceptedFundingAsset::USDC.id(), FixedU128::from_rational(100, 100)), // USDC
+		(AcceptedFundingAsset::USDT.id(), FixedU128::from_rational(100, 100)), // USDT
 		(pallet_funding::PLMC_FOREIGN_ID, FixedU128::from_rational(840, 100)), // PLMC
 	]);
 	pub FeeBrackets: Vec<(Percent, Balance)> = vec![

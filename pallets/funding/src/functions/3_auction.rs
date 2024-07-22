@@ -259,7 +259,7 @@ impl<T: Config> Pallet<T> {
 		};
 
 		Self::try_plmc_participation_lock(bidder, project_id, plmc_bond)?;
-		Self::try_funding_asset_hold(bidder, project_id, funding_asset_amount_locked, funding_asset.to_assethub_id())?;
+		Self::try_funding_asset_hold(bidder, project_id, funding_asset_amount_locked, funding_asset.id())?;
 
 		Bids::<T>::insert((project_id, bidder, bid_id), &new_bid);
 		NextBidId::<T>::set(bid_id.saturating_add(One::one()));
