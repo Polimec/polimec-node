@@ -574,7 +574,7 @@ fn all_project_participations_by_did() {
 		let jwt =
 			get_mock_jwt_with_cid(contribution.contributor, InvestorType::Professional, did_user.clone(), cid.clone());
 		inst.execute(|| {
-			PolimecFunding::remaining_contribute(
+			PolimecFunding::contribute(
 				RuntimeOrigin::signed(contribution.contributor),
 				jwt,
 				project_id,
