@@ -7494,29 +7494,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "pallet-sandbox"
-version = "0.1.0"
-dependencies = [
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "pallet-assets",
- "pallet-balances",
- "pallet-funding",
- "pallet-insecure-randomness-collective-flip",
- "parachains-common",
- "parity-scale-codec",
- "polimec-common",
- "scale-info",
- "serde",
- "sp-arithmetic",
- "sp-core",
- "sp-io",
- "sp-runtime",
- "sp-std",
-]
-
-[[package]]
 name = "pallet-scheduler"
 version = "29.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"

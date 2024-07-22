@@ -410,9 +410,7 @@ impl<T: Config> Pallet<T> {
 		// * Update storage *
 		ProjectsDetails::<T>::insert(project_id, project_details);
 
-		// TODO: FIX event transmition by either doing it outside function or map ProjectStatus
-		// -> ProjectPhase
-		// * Emit events *
+		// // * Emit events *
 		// Self::deposit_event(Event::ProjectPhaseTransition { project_id, phase: next_round });
 
 		Ok(())

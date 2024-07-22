@@ -490,7 +490,7 @@ pub fn create_finished_project_with_usd_raised(
 	inst.mint_foreign_asset_to(usdt_required);
 	inst.contribute_for_users(project_id, community_contributions).unwrap();
 	inst.start_remainder_or_end_funding(project_id).unwrap();
-	if inst.get_project_details(project_id).status == ProjectStatus::RemainderRound {
+	if matches!(inst.get_project_details(project_id).status, ProjectStatus::CommunityRound(_)) {
 		inst.finish_funding(project_id, Some(FundingOutcomeDecision::AcceptFunding)).unwrap();
 	}
 
