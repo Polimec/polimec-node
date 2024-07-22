@@ -386,9 +386,9 @@ pub mod polimec {
 	#[allow(unused)]
 	pub fn set_prices() {
 		PolimecNet::execute_with(|| {
-			let dot = (AcceptedFundingAsset::DOT.to_assethub_id(), FixedU128::from_rational(69, 1));
-			let usdc = (AcceptedFundingAsset::USDC.to_assethub_id(), FixedU128::from_rational(1, 1));
-			let usdt = (AcceptedFundingAsset::USDT.to_assethub_id(), FixedU128::from_rational(1, 1));
+			let dot = (AcceptedFundingAsset::DOT.id(), FixedU128::from_rational(69, 1));
+			let usdc = (AcceptedFundingAsset::USDC.id(), FixedU128::from_rational(1, 1));
+			let usdt = (AcceptedFundingAsset::USDT.id(), FixedU128::from_rational(1, 1));
 			let plmc = (pallet_funding::PLMC_FOREIGN_ID, FixedU128::from_rational(840, 100));
 
 			let values: BoundedVec<(u32, FixedU128), <PolimecRuntime as orml_oracle::Config>::MaxFeedValues> =
@@ -424,9 +424,9 @@ pub mod polimec {
 	}
 
 	pub fn genesis() -> Storage {
-		let dot_asset_id = AcceptedFundingAsset::DOT.to_assethub_id();
-		let usdt_asset_id = AcceptedFundingAsset::USDT.to_assethub_id();
-		let usdc_asset_id = AcceptedFundingAsset::USDC.to_assethub_id();
+		let dot_asset_id = AcceptedFundingAsset::DOT.id();
+		let usdt_asset_id = AcceptedFundingAsset::USDT.id();
+		let usdc_asset_id = AcceptedFundingAsset::USDC.id();
 		let mut funded_accounts = vec![
 			(
 				PolimecNet::sovereign_account_id_of((Parent, xcm::prelude::Parachain(penpal::PARA_ID)).into()),

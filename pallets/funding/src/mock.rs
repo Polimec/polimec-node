@@ -371,9 +371,9 @@ impl ConvertBack<AccountId, [u8; 32]> for DummyConverter {
 }
 thread_local! {
 	pub static PRICE_MAP: RefCell<BTreeMap<AssetId, FixedU128>> = RefCell::new(BTreeMap::from_iter(vec![
-		(AcceptedFundingAsset::DOT.to_assethub_id(), FixedU128::from_float(69f64)), // DOT
-		(AcceptedFundingAsset::USDC.to_assethub_id(), FixedU128::from_float(0.97f64)), // USDC
-		(AcceptedFundingAsset::USDT.to_assethub_id(), FixedU128::from_float(1.0f64)), // USDT
+		(AcceptedFundingAsset::DOT.id(), FixedU128::from_float(69f64)), // DOT
+		(AcceptedFundingAsset::USDC.id(), FixedU128::from_float(0.97f64)), // USDC
+		(AcceptedFundingAsset::USDT.id(), FixedU128::from_float(1.0f64)), // USDT
 		(PLMC_FOREIGN_ID, FixedU128::from_float(8.4f64)), // PLMC
 	]));
 }
@@ -478,38 +478,28 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
 		foreign_assets: ForeignAssetsConfig {
 			assets: vec![
 				(
-					AcceptedFundingAsset::USDT.to_assethub_id(),
+					AcceptedFundingAsset::USDT.id(),
 					<TestRuntime as Config>::PalletId::get().into_account_truncating(),
 					false,
 					10,
 				),
 				(
-					AcceptedFundingAsset::USDC.to_assethub_id(),
+					AcceptedFundingAsset::USDC.id(),
 					<TestRuntime as Config>::PalletId::get().into_account_truncating(),
 					false,
 					10,
 				),
 				(
-					AcceptedFundingAsset::DOT.to_assethub_id(),
+					AcceptedFundingAsset::DOT.id(),
 					<TestRuntime as Config>::PalletId::get().into_account_truncating(),
 					false,
 					10,
 				),
 			],
 			metadata: vec![
-				(
-					AcceptedFundingAsset::USDT.to_assethub_id(),
-					"USDT".as_bytes().to_vec(),
-					"USDT".as_bytes().to_vec(),
-					6,
-				),
-				(
-					AcceptedFundingAsset::USDC.to_assethub_id(),
-					"USDC".as_bytes().to_vec(),
-					"USDC".as_bytes().to_vec(),
-					6,
-				),
-				(AcceptedFundingAsset::DOT.to_assethub_id(), "DOT".as_bytes().to_vec(), "DOT".as_bytes().to_vec(), 10),
+				(AcceptedFundingAsset::USDT.id(), "USDT".as_bytes().to_vec(), "USDT".as_bytes().to_vec(), 6),
+				(AcceptedFundingAsset::USDC.id(), "USDC".as_bytes().to_vec(), "USDC".as_bytes().to_vec(), 6),
+				(AcceptedFundingAsset::DOT.id(), "DOT".as_bytes().to_vec(), "DOT".as_bytes().to_vec(), 10),
 			],
 			accounts: vec![],
 		},
@@ -529,18 +519,15 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
 sp_api::mock_impl_runtime_apis! {
 	impl Leaderboards<Block, TestRuntime> for TestRuntime {
 		fn top_evaluations(project_id: ProjectId, amount: u32) -> Vec<EvaluationInfoOf<TestRuntime>> {
-			PolimecFunding::top_evaluations
-(project_id, amount)
+			PolimecFunding::top_evaluations(project_id, amount)
 		}
 
 		fn top_bids(project_id: ProjectId, amount: u32) -> Vec<BidInfoOf<TestRuntime>> {
-			PolimecFunding::top_bids
-(project_id, amount)
+			PolimecFunding::top_bids(project_id, amount)
 		}
 
 		fn top_contributions(project_id: ProjectId, amount: u32) -> Vec<ContributionInfoOf<TestRuntime>> {
-			PolimecFunding::top_contributions
-(project_id, amount)
+			PolimecFunding::top_contributions(project_id, amount)
 		}
 
 		fn top_projects_by_usd_raised(amount: u32) -> Vec<(ProjectId, ProjectMetadataOf<TestRuntime>, ProjectDetailsOf<TestRuntime>)> {
