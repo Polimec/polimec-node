@@ -1,7 +1,6 @@
 use super::*;
 
 impl<T: Config> Pallet<T> {
-
 	/// Buy tokens in the Community Round at the price set in the Bidding Round
 	///
 	/// # Arguments
@@ -24,14 +23,14 @@ impl<T: Config> Pallet<T> {
 	) -> DispatchResultWithPostInfo {
 		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 		let did_has_winning_bid = DidWithWinningBids::<T>::get(project_id, did.clone());
-		
+
 		let remainder_start = match project_details.status {
 			ProjectStatus::CommunityRound(remainder_start) => remainder_start,
 			_ => return Err(Error::<T>::IncorrectRound.into()),
 		};
-		
+
 		let now = <frame_system::Pallet<T>>::block_number();
-		let remainder_started = now > remainder_start;
+		let remainder_started = now >= remainder_start;
 		let round_end = project_details.round_duration.end().ok_or(Error::<T>::ImpossibleState)?;
 		ensure!(!did_has_winning_bid || remainder_started, Error::<T>::UserHasWinningBid);
 		ensure!(now < round_end, Error::<T>::TooLateForRound);
@@ -104,7 +103,11 @@ impl<T: Config> Pallet<T> {
 			caller_existing_contributions.len() < T::MaxContributionsPerUser::get() as usize,
 			Error::<T>::TooManyUserParticipations
 		);
-		ensure!(contributor_ticket_size.usd_ticket_above_minimum_per_participation(ticket_size) || project_details.remaining_contribution_tokens.is_zero(), Error::<T>::TooLow);
+		ensure!(
+			contributor_ticket_size.usd_ticket_above_minimum_per_participation(ticket_size) ||
+				project_details.remaining_contribution_tokens.is_zero(),
+			Error::<T>::TooLow
+		);
 		ensure!(
 			contributor_ticket_size.usd_ticket_below_maximum_per_did(total_usd_bought_by_did + ticket_size),
 			Error::<T>::TooHigh

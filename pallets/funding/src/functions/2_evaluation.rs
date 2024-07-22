@@ -22,15 +22,15 @@ impl<T: Config> Pallet<T> {
 		// * Get variables *
 		let project_metadata = ProjectsMetadata::<T>::get(project_id).ok_or(Error::<T>::ProjectMetadataNotFound)?;
 		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
-		
+
 		// * Validity checks *
 		ensure!(project_details.issuer_account == caller, Error::<T>::NotIssuer);
 		ensure!(!project_details.is_frozen, Error::<T>::ProjectAlreadyFrozen);
 		ensure!(project_metadata.policy_ipfs_cid.is_some(), Error::<T>::CidNotProvided);
-		
+
 		// * Update storage *
 		project_details.is_frozen = true;
-		
+
 		// * Transition Round *
 		Self::transition_project(
 			project_id,
@@ -77,7 +77,8 @@ impl<T: Config> Pallet<T> {
 
 		// * Calculate new variables *
 		let usd_total_amount_bonded = project_details.evaluation_round_info.total_bonded_usd;
-		let evaluation_target_usd = <T as Config>::EvaluationSuccessThreshold::get() * project_details.fundraising_target_usd;
+		let evaluation_target_usd =
+			<T as Config>::EvaluationSuccessThreshold::get() * project_details.fundraising_target_usd;
 
 		// Check which logic path to follow
 		let is_funded = usd_total_amount_bonded >= evaluation_target_usd;
@@ -86,10 +87,10 @@ impl<T: Config> Pallet<T> {
 		// Successful path
 		if is_funded {
 			return Self::transition_project(
-				project_id, 
-				project_details, 
-				ProjectStatus::EvaluationRound, 
-				ProjectStatus::AuctionInitializePeriod, 
+				project_id,
+				project_details,
+				ProjectStatus::EvaluationRound,
+				ProjectStatus::AuctionInitializePeriod,
 				T::AuctionInitializePeriodDuration::get(),
 				false,
 			)

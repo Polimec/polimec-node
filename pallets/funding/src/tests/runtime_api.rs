@@ -2,8 +2,7 @@ use super::*;
 use crate::runtime_api::{ExtrinsicHelpers, Leaderboards, ProjectInformation, UserInformation};
 
 #[test]
-fn top_evaluations
-() {
+fn top_evaluations() {
 	let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 	let evaluations = vec![
 		UserToUSDBalance::new(EVALUATOR_1, 500_000 * USD_UNIT),
@@ -16,21 +15,18 @@ fn top_evaluations
 
 	inst.execute(|| {
 		let block_hash = System::block_hash(System::block_number());
-		let top_1 = TestRuntime::top_evaluations
-(&TestRuntime, block_hash, project_id, 1).unwrap();
+		let top_1 = TestRuntime::top_evaluations(&TestRuntime, block_hash, project_id, 1).unwrap();
 		let evaluator_4_evaluation = Evaluations::<TestRuntime>::get((project_id, EVALUATOR_4, 3)).unwrap();
 		assert!(top_1.len() == 1 && top_1[0] == evaluator_4_evaluation);
 
-		let top_4_evaluators = TestRuntime::top_evaluations
-(&TestRuntime, block_hash, project_id, 4)
+		let top_4_evaluators = TestRuntime::top_evaluations(&TestRuntime, block_hash, project_id, 4)
 			.unwrap()
 			.into_iter()
 			.map(|evaluation| evaluation.evaluator)
 			.collect_vec();
 		assert_eq!(top_4_evaluators, vec![EVALUATOR_4, EVALUATOR_1, EVALUATOR_3, EVALUATOR_2]);
 
-		let top_6_evaluators = TestRuntime::top_evaluations
-(&TestRuntime, block_hash, project_id, 6)
+		let top_6_evaluators = TestRuntime::top_evaluations(&TestRuntime, block_hash, project_id, 6)
 			.unwrap()
 			.into_iter()
 			.map(|evaluation| evaluation.evaluator)
@@ -40,8 +36,7 @@ fn top_evaluations
 }
 
 #[test]
-fn top_bids
-() {
+fn top_bids() {
 	let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 	let bids = vec![
 		(BIDDER_1, 8000 * CT_UNIT).into(),
@@ -60,21 +55,18 @@ fn top_bids
 
 	inst.execute(|| {
 		let block_hash = System::block_hash(System::block_number());
-		let top_1 = TestRuntime::top_bids
-(&TestRuntime, block_hash, project_id, 1).unwrap();
+		let top_1 = TestRuntime::top_bids(&TestRuntime, block_hash, project_id, 1).unwrap();
 		let bidder_4_evaluation = Bids::<TestRuntime>::get((project_id, BIDDER_4, 3)).unwrap();
 		assert!(top_1.len() == 1 && top_1[0] == bidder_4_evaluation);
 
-		let top_4_bidders = TestRuntime::top_bids
-(&TestRuntime, block_hash, project_id, 4)
+		let top_4_bidders = TestRuntime::top_bids(&TestRuntime, block_hash, project_id, 4)
 			.unwrap()
 			.into_iter()
 			.map(|evaluation| evaluation.bidder)
 			.collect_vec();
 		assert_eq!(top_4_bidders, vec![BIDDER_4, BIDDER_1, BIDDER_3, BIDDER_2]);
 
-		let top_6_bidders = TestRuntime::top_bids
-(&TestRuntime, block_hash, project_id, 6)
+		let top_6_bidders = TestRuntime::top_bids(&TestRuntime, block_hash, project_id, 6)
 			.unwrap()
 			.into_iter()
 			.map(|evaluation| evaluation.bidder)
@@ -84,8 +76,7 @@ fn top_bids
 }
 
 #[test]
-fn top_contributions
-() {
+fn top_contributions() {
 	let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 	let community_contributors =
 		vec![(BUYER_1, 8000 * CT_UNIT).into(), (BUYER_2, 501 * CT_UNIT).into(), (BUYER_3, 1200 * CT_UNIT).into()];
@@ -102,21 +93,18 @@ fn top_contributions
 
 	inst.execute(|| {
 		let block_hash = System::block_hash(System::block_number());
-		let top_1 = TestRuntime::top_contributions
-(&TestRuntime, block_hash, project_id, 1).unwrap();
+		let top_1 = TestRuntime::top_contributions(&TestRuntime, block_hash, project_id, 1).unwrap();
 		let contributor_4_evaluation = Contributions::<TestRuntime>::get((project_id, BUYER_4, 3)).unwrap();
 		assert!(top_1.len() == 1 && top_1[0] == contributor_4_evaluation);
 
-		let top_4_contributors = TestRuntime::top_contributions
-(&TestRuntime, block_hash, project_id, 4)
+		let top_4_contributors = TestRuntime::top_contributions(&TestRuntime, block_hash, project_id, 4)
 			.unwrap()
 			.into_iter()
 			.map(|evaluation| evaluation.contributor)
 			.collect_vec();
 		assert_eq!(top_4_contributors, vec![BUYER_4, BUYER_1, BUYER_3, BUYER_2]);
 
-		let top_6_contributors = TestRuntime::top_contributions
-(&TestRuntime, block_hash, project_id, 6)
+		let top_6_contributors = TestRuntime::top_contributions(&TestRuntime, block_hash, project_id, 6)
 			.unwrap()
 			.into_iter()
 			.map(|evaluation| evaluation.contributor)
