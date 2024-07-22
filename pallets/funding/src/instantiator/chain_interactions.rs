@@ -689,11 +689,7 @@ impl<
 		self.advance_time(1u32.into()).unwrap();
 		let project_details = self.get_project_details(project_id);
 		assert!(
-			matches!(
-				project_details.status,
-				ProjectStatus::FundingSuccessful |
-					ProjectStatus::FundingFailed
-			),
+			matches!(project_details.status, ProjectStatus::FundingSuccessful | ProjectStatus::FundingFailed),
 			"Project should be in Finished status"
 		);
 		if project_details.status == ProjectStatus::AwaitingProjectDecision {

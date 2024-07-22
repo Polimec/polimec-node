@@ -65,29 +65,25 @@ impl<T: Config> Pallet<T> {
 		};
 
 		project_details.evaluation_round_info.evaluators_outcome = evaluator_outcome;
-		
+
 		let (next_status, duration, actual_weight) = if funding_ratio <= T::FundingSuccessThreshold::get() {
-				(
-					ProjectStatus::FundingFailed,
-					1u32.into(),
-					WeightInfoOf::<T>::end_funding_automatically_rejected_evaluators_slashed(1)
-				)
-			} else {
-				(
-					ProjectStatus::FundingSuccessful,
-					T::SuccessToSettlementTime::get(),
-					WeightInfoOf::<T>::end_funding_automatically_accepted_evaluators_rewarded(1,1)
-				)
+			(
+				ProjectStatus::FundingFailed,
+				1u32.into(),
+				WeightInfoOf::<T>::end_funding_automatically_rejected_evaluators_slashed(1),
+			)
+		} else {
+			(
+				ProjectStatus::FundingSuccessful,
+				T::SuccessToSettlementTime::get(),
+				WeightInfoOf::<T>::end_funding_automatically_accepted_evaluators_rewarded(1, 1),
+			)
 		};
 
 		let round_end = now.saturating_add(duration).saturating_sub(One::one());
 		project_details.round_duration.update(Some(now), Some(round_end));
 		project_details.status = next_status;
 
-		Ok(PostDispatchInfo {
-			actual_weight: Some(actual_weight),
-			pays_fee: Pays::Yes,
-		})
+		Ok(PostDispatchInfo { actual_weight: Some(actual_weight), pays_fee: Pays::Yes })
 	}
-
 }
