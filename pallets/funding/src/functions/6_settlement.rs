@@ -235,12 +235,13 @@ impl<T: Config> Pallet<T> {
 	pub fn do_settle_contribution(contribution: ContributionInfoOf<T>, project_id: ProjectId) -> DispatchResult {
 		let project_metadata = ProjectsMetadata::<T>::get(project_id).ok_or(Error::<T>::ProjectMetadataNotFound)?;
 		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
-		let funding_end_block = project_details.funding_end_block.ok_or(Error::<T>::ImpossibleState)?;
 		let mut final_ct_amount = Zero::zero();
 
 		let ProjectStatus::SettlementStarted(outcome) = project_details.status else {
 			return Err(Error::<T>::SettlementNotStarted.into());
 		};
+		let funding_end_block = project_details.funding_end_block.ok_or(Error::<T>::ImpossibleState)?;
+
 		if outcome == FundingOutcome::Failure {
 			// Release the held PLMC bond
 			Self::release_participation_bond(project_id, &contribution.contributor, contribution.plmc_bond)?;
@@ -350,13 +351,7 @@ impl<T: Config> Pallet<T> {
 			return Ok(());
 		}
 		let project_pot = Self::fund_account_id(project_id);
-		T::FundingCurrency::transfer(
-			asset.to_assethub_id(),
-			&project_pot,
-			participant,
-			amount,
-			Preservation::Expendable,
-		)?;
+		T::FundingCurrency::transfer(asset.id(), &project_pot, participant, amount, Preservation::Expendable)?;
 		Ok(())
 	}
 

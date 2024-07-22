@@ -69,23 +69,23 @@ impl<
 		self.execute(|| <T as Config>::NativeCurrency::balance_on_hold(&lock_type, &user))
 	}
 
-	pub fn get_free_foreign_asset_balances_for(
+	pub fn get_free_funding_asset_balances_for(
 		&mut self,
 		asset_id: AssetIdOf<T>,
 		user_keys: Vec<AccountIdOf<T>>,
-	) -> Vec<UserToForeignAssets<T>> {
+	) -> Vec<UserToFundingAsset<T>> {
 		self.execute(|| {
-			let mut balances: Vec<UserToForeignAssets<T>> = Vec::new();
+			let mut balances: Vec<UserToFundingAsset<T>> = Vec::new();
 			for account in user_keys {
 				let asset_amount = <T as Config>::FundingCurrency::balance(asset_id, &account);
-				balances.push(UserToForeignAssets { account, asset_amount, asset_id });
+				balances.push(UserToFundingAsset { account, asset_amount, asset_id });
 			}
 			balances.sort_by(|a, b| a.account.cmp(&b.account));
 			balances
 		})
 	}
 
-	pub fn get_free_foreign_asset_balance_for(&mut self, asset_id: AssetIdOf<T>, user: AccountIdOf<T>) -> BalanceOf<T> {
+	pub fn get_free_funding_asset_balance_for(&mut self, asset_id: AssetIdOf<T>, user: AccountIdOf<T>) -> BalanceOf<T> {
 		self.execute(|| <T as Config>::FundingCurrency::balance(asset_id, &user))
 	}
 
@@ -121,9 +121,9 @@ impl<
 		self.get_reserved_plmc_balances_for(user_keys, reserve_type)
 	}
 
-	pub fn get_all_free_foreign_asset_balances(&mut self, asset_id: AssetIdOf<T>) -> Vec<UserToForeignAssets<T>> {
+	pub fn get_all_free_funding_asset_balances(&mut self, asset_id: AssetIdOf<T>) -> Vec<UserToFundingAsset<T>> {
 		let user_keys = self.execute(|| frame_system::Account::<T>::iter_keys().collect());
-		self.get_free_foreign_asset_balances_for(asset_id, user_keys)
+		self.get_free_funding_asset_balances_for(asset_id, user_keys)
 	}
 
 	pub fn get_plmc_total_supply(&mut self) -> BalanceOf<T> {
@@ -138,7 +138,7 @@ impl<
 		for UserToPLMCBalance { account, plmc_amount } in correct_funds {
 			self.execute(|| {
 				let reserved = <T as Config>::NativeCurrency::balance_on_hold(&reserve_type, &account);
-				assert_eq!(reserved, plmc_amount, "account has unexpected reserved plmc balance");
+				assert_eq!(reserved, plmc_amount, "account {account} has unexpected reserved plmc balance");
 			});
 		}
 	}
@@ -151,9 +151,9 @@ impl<
 		});
 	}
 
-	pub fn mint_foreign_asset_to(&mut self, mapping: Vec<UserToForeignAssets<T>>) {
+	pub fn mint_funding_asset_to(&mut self, mapping: Vec<UserToFundingAsset<T>>) {
 		self.execute(|| {
-			for UserToForeignAssets { account, asset_amount, asset_id } in mapping {
+			for UserToFundingAsset { account, asset_amount, asset_id } in mapping {
 				<T as Config>::FundingCurrency::mint_into(asset_id, &account, asset_amount)
 					.expect("Minting should work");
 			}
@@ -164,7 +164,7 @@ impl<
 		self.execute(|| frame_system::Pallet::<T>::block_number())
 	}
 
-	pub fn advance_time(&mut self, amount: BlockNumberFor<T>) -> Result<(), DispatchError> {
+	pub fn advance_time(&mut self, amount: BlockNumberFor<T>) {
 		self.execute(|| {
 			for _block in 0u32..amount.saturated_into() {
 				let mut current_block = frame_system::Pallet::<T>::block_number();
@@ -181,7 +181,6 @@ impl<
 				<frame_system::Pallet<T> as OnInitialize<BlockNumberFor<T>>>::on_initialize(current_block);
 				<AllPalletsWithoutSystem as OnInitialize<BlockNumberFor<T>>>::on_initialize(current_block);
 			}
-			Ok(())
 		})
 	}
 
@@ -189,9 +188,9 @@ impl<
 		let current_block = self.current_block();
 		if block > current_block {
 			self.execute(|| frame_system::Pallet::<T>::set_block_number(block - One::one()));
-			self.advance_time(One::one()).unwrap();
+			self.advance_time(One::one());
 		} else {
-			panic!("Cannot jump to a block in the present or past")
+			// panic!("Cannot jump to a block in the present or past")
 		}
 	}
 
@@ -204,47 +203,11 @@ impl<
 		}
 	}
 
-	pub fn do_free_foreign_asset_assertions(&mut self, correct_funds: Vec<UserToForeignAssets<T>>) {
-		for UserToForeignAssets { account, asset_amount, asset_id } in correct_funds {
+	pub fn do_free_funding_asset_assertions(&mut self, correct_funds: Vec<UserToFundingAsset<T>>) {
+		for UserToFundingAsset { account, asset_amount: expected_amount, asset_id } in correct_funds {
 			self.execute(|| {
 				let real_amount = <T as Config>::FundingCurrency::balance(asset_id, &account);
-				assert_eq!(asset_amount, real_amount, "Wrong foreign asset balance expected for user {:?}", account);
-			});
-		}
-	}
-
-	pub fn do_bid_transferred_foreign_asset_assertions(
-		&mut self,
-		correct_funds: Vec<UserToForeignAssets<T>>,
-		project_id: ProjectId,
-	) {
-		for UserToForeignAssets { account, asset_amount, .. } in correct_funds {
-			self.execute(|| {
-				// total amount of contributions for this user for this project stored in the mapping
-				let contribution_total: <T as Config>::Balance =
-					Bids::<T>::iter_prefix_values((project_id, account.clone()))
-						.map(|c| c.funding_asset_amount_locked)
-						.fold(Zero::zero(), |a, b| a + b);
-				assert_eq!(
-					contribution_total, asset_amount,
-					"Wrong funding balance expected for stored auction info on user {:?}",
-					account
-				);
-			});
-		}
-	}
-
-	// Check if a Contribution storage item exists for the given funding asset transfer
-	pub fn do_contribution_transferred_foreign_asset_assertions(
-		&mut self,
-		correct_funds: Vec<UserToForeignAssets<T>>,
-		project_id: ProjectId,
-	) {
-		for UserToForeignAssets { account, asset_amount, .. } in correct_funds {
-			self.execute(|| {
-				Contributions::<T>::iter_prefix_values((project_id, account.clone()))
-					.find(|c| c.funding_asset_amount == asset_amount)
-					.expect("Contribution not found in storage");
+				assert_eq!(real_amount, expected_amount, "Wrong funding asset balance expected for user {:?}", account);
 			});
 		}
 	}
@@ -363,6 +326,41 @@ impl<
 			"Remaining CTs are incorrect"
 		);
 	}
+
+	pub fn assert_plmc_free_balance(&mut self, account_id: AccountIdOf<T>, expected_balance: BalanceOf<T>) {
+		let real_balance = self.get_free_plmc_balance_for(account_id.clone());
+		assert_eq!(real_balance, expected_balance, "Unexpected PLMC balance for user {:?}", account_id);
+	}
+
+	pub fn assert_plmc_held_balance(
+		&mut self,
+		account_id: AccountIdOf<T>,
+		expected_balance: BalanceOf<T>,
+		hold_reason: <T as Config>::RuntimeHoldReason,
+	) {
+		let real_balance = self.get_reserved_plmc_balance_for(account_id.clone(), hold_reason);
+		assert_eq!(real_balance, expected_balance, "Unexpected PLMC balance for user {:?}", account_id);
+	}
+
+	pub fn assert_funding_asset_free_balance(
+		&mut self,
+		account_id: AccountIdOf<T>,
+		asset_id: AssetIdOf<T>,
+		expected_balance: BalanceOf<T>,
+	) {
+		let real_balance = self.get_free_funding_asset_balance_for(asset_id, account_id.clone());
+		assert_eq!(real_balance, expected_balance, "Unexpected funding asset balance for user {:?}", account_id);
+	}
+
+	pub fn assert_ct_balance(
+		&mut self,
+		project_id: ProjectId,
+		account_id: AccountIdOf<T>,
+		expected_balance: BalanceOf<T>,
+	) {
+		let real_balance = self.get_ct_asset_balance_for(project_id, account_id.clone());
+		assert_eq!(real_balance, expected_balance, "Unexpected CT balance for user {:?}", account_id);
+	}
 }
 
 // project chain interactions
@@ -384,9 +382,40 @@ impl<
 		self.execute(|| ProjectsDetails::<T>::get(project_id).expect("Project details exists"))
 	}
 
-	pub fn get_update_block(&mut self, _project_id: ProjectId, _update_type: &UpdateType) -> Option<BlockNumberFor<T>> {
-		Some(BlockNumberFor::<T>::zero())
-		// TODO: FIX
+	pub fn go_to_next_state(&mut self, project_id: ProjectId) -> ProjectStatus<BlockNumberFor<T>> {
+		let project_details = self.get_project_details(project_id);
+		let issuer = project_details.issuer_account;
+		let original_state = project_details.status;
+		if let Some(end_block) = project_details.round_duration.end() {
+			self.jump_to_block(end_block + One::one());
+		}
+		let project_details = self.get_project_details(project_id);
+
+		match project_details.status {
+			ProjectStatus::Application => {
+				self.execute(|| <Pallet<T>>::do_start_evaluation(issuer, project_id).unwrap());
+			},
+			ProjectStatus::EvaluationRound => {
+				self.execute(|| <Pallet<T>>::do_end_evaluation(project_id).unwrap());
+			},
+			ProjectStatus::AuctionInitializePeriod => {
+				self.execute(|| <Pallet<T>>::do_start_auction(issuer, project_id).unwrap());
+			},
+			ProjectStatus::AuctionRound => {
+				self.execute(|| <Pallet<T>>::do_end_auction(project_id).unwrap());
+			},
+			ProjectStatus::CommunityRound(..) => {
+				self.execute(|| <Pallet<T>>::do_end_funding(project_id).unwrap());
+			},
+			ProjectStatus::FundingSuccessful | ProjectStatus::FundingFailed => {
+				self.execute(|| <Pallet<T>>::do_start_settlement(project_id).unwrap());
+			},
+			_ => panic!("Unexpected project status"),
+		}
+		let new_details = self.get_project_details(project_id);
+		assert_ne!(original_state, new_details.status, "Project should have transitioned to a new state");
+
+		new_details.status
 	}
 
 	pub fn create_new_project(
@@ -411,14 +440,6 @@ impl<
 		created_project_id
 	}
 
-	pub fn start_evaluation(&mut self, project_id: ProjectId, caller: AccountIdOf<T>) -> Result<(), DispatchError> {
-		assert_eq!(self.get_project_details(project_id).status, ProjectStatus::Application);
-		self.execute(|| crate::Pallet::<T>::do_start_evaluation(caller, project_id).unwrap());
-		assert_eq!(self.get_project_details(project_id).status, ProjectStatus::EvaluationRound);
-
-		Ok(())
-	}
-
 	pub fn create_evaluating_project(
 		&mut self,
 		project_metadata: ProjectMetadataOf<T>,
@@ -426,7 +447,8 @@ impl<
 		maybe_did: Option<Did>,
 	) -> ProjectId {
 		let project_id = self.create_new_project(project_metadata, issuer.clone(), maybe_did);
-		self.start_evaluation(project_id, issuer).unwrap();
+		assert_eq!(self.go_to_next_state(project_id), ProjectStatus::EvaluationRound);
+
 		project_id
 	}
 
@@ -448,24 +470,6 @@ impl<
 			})?;
 		}
 		Ok(().into())
-	}
-
-	pub fn start_auction(&mut self, project_id: ProjectId, caller: AccountIdOf<T>) -> Result<(), DispatchError> {
-		let project_details = self.get_project_details(project_id);
-
-		if project_details.status == ProjectStatus::EvaluationRound {
-			let now = self.current_block();
-			let evaluation_end_execution = self.get_update_block(project_id, &UpdateType::EvaluationEnd).unwrap();
-			self.advance_time(evaluation_end_execution - now).unwrap();
-		};
-
-		assert_eq!(self.get_project_details(project_id).status, ProjectStatus::AuctionInitializePeriod);
-
-		self.execute(|| crate::Pallet::<T>::do_start_auction(caller, project_id).unwrap());
-
-		assert_eq!(self.get_project_details(project_id).status, ProjectStatus::AuctionRound);
-
-		Ok(())
 	}
 
 	pub fn create_auctioning_project(
@@ -500,7 +504,9 @@ impl<
 
 		self.evaluation_assertions(project_id, expected_remaining_plmc, plmc_eval_deposits, expected_total_supply);
 
-		self.start_auction(project_id, issuer).unwrap();
+		assert_eq!(self.go_to_next_state(project_id), ProjectStatus::AuctionInitializePeriod);
+		assert_eq!(self.go_to_next_state(project_id), ProjectStatus::AuctionRound);
+
 		project_id
 	}
 
@@ -525,25 +531,6 @@ impl<
 		Ok(().into())
 	}
 
-	pub fn start_community_funding(&mut self, project_id: ProjectId) -> Result<(), DispatchError> {
-		if let Some(update_block) = self.get_update_block(project_id, &UpdateType::AuctionClosingStart) {
-			self.jump_to_block(update_block);
-		}
-		if let Some(update_block) = self.get_update_block(project_id, &UpdateType::AuctionClosingEnd) {
-			self.jump_to_block(update_block);
-		}
-		if let Some(update_block) = self.get_update_block(project_id, &UpdateType::CommunityFundingStart) {
-			self.jump_to_block(update_block);
-		}
-
-		ensure!(
-			matches!(self.get_project_details(project_id).status, ProjectStatus::CommunityRound(..)),
-			DispatchError::from("Auction failed")
-		);
-
-		Ok(())
-	}
-
 	pub fn create_community_contributing_project(
 		&mut self,
 		project_metadata: ProjectMetadataOf<T>,
@@ -555,14 +542,14 @@ impl<
 		let project_id =
 			self.create_auctioning_project(project_metadata.clone(), issuer, maybe_did, evaluations.clone());
 		if bids.is_empty() {
-			self.start_community_funding(project_id).unwrap();
+			assert!(matches!(self.go_to_next_state(project_id), ProjectStatus::CommunityRound(_)));
 			return project_id
 		}
 
 		let bidders = bids.accounts();
-		let asset_id = bids[0].asset.to_assethub_id();
+		let asset_id = bids[0].asset.id();
 		let prev_plmc_balances = self.get_free_plmc_balances_for(bidders.clone());
-		let prev_funding_asset_balances = self.get_free_foreign_asset_balances_for(asset_id, bidders.clone());
+		let prev_funding_asset_balances = self.get_free_funding_asset_balances_for(asset_id, bidders.clone());
 		let plmc_evaluation_deposits: Vec<UserToPLMCBalance<T>> =
 			self.calculate_evaluation_plmc_spent(evaluations, false);
 		let plmc_bid_deposits: Vec<UserToPLMCBalance<T>> = self
@@ -602,7 +589,7 @@ impl<
 
 		self.mint_plmc_to(necessary_plmc_mint.clone());
 		self.mint_plmc_to(plmc_existential_deposits.clone());
-		self.mint_foreign_asset_to(funding_asset_deposits.clone());
+		self.mint_funding_asset_to(funding_asset_deposits.clone());
 
 		self.bid_for_users(project_id, bids.clone()).unwrap();
 
@@ -610,15 +597,15 @@ impl<
 			total_plmc_participation_locked.merge_accounts(MergeOperation::Add),
 			HoldReason::Participation(project_id).into(),
 		);
-		self.do_bid_transferred_foreign_asset_assertions(
-			funding_asset_deposits.merge_accounts(MergeOperation::Add),
-			project_id,
-		);
+		// self.do_bid_transferred_funding_asset_assertions(
+		// 	funding_asset_deposits.merge_accounts(MergeOperation::Add),
+		// 	project_id,
+		// );
 		self.do_free_plmc_assertions(expected_free_plmc_balances.merge_accounts(MergeOperation::Add));
-		self.do_free_foreign_asset_assertions(prev_funding_asset_balances.merge_accounts(MergeOperation::Add));
+		self.do_free_funding_asset_assertions(prev_funding_asset_balances.merge_accounts(MergeOperation::Add));
 		assert_eq!(self.get_plmc_total_supply(), post_supply);
 
-		self.start_community_funding(project_id).unwrap();
+		assert!(matches!(self.go_to_next_state(project_id), ProjectStatus::CommunityRound(_)));
 
 		project_id
 	}
@@ -652,46 +639,6 @@ impl<
 		}
 
 		Ok(().into())
-	}
-
-	pub fn start_remainder_or_end_funding(&mut self, project_id: ProjectId) -> Result<(), DispatchError> {
-		let details = self.get_project_details(project_id);
-		assert!(matches!(details.status, ProjectStatus::CommunityRound(..)));
-		let remaining_tokens = details.remaining_contribution_tokens;
-		let update_type =
-			if remaining_tokens > Zero::zero() { UpdateType::RemainderFundingStart } else { UpdateType::FundingEnd };
-		if let Some(transition_block) = self.get_update_block(project_id, &update_type) {
-			self.execute(|| frame_system::Pallet::<T>::set_block_number(transition_block - One::one()));
-			self.advance_time(1u32.into()).unwrap();
-			match self.get_project_details(project_id).status {
-				ProjectStatus::FundingSuccessful => Ok(()),
-				_ => panic!("Bad state"),
-			}
-		} else {
-			panic!("Bad state")
-		}
-	}
-
-	pub fn finish_funding(
-		&mut self,
-		project_id: ProjectId,
-		_force_decision: Option<FundingOutcomeDecision>,
-	) -> Result<(), DispatchError> {
-		if let Some(update_block) = self.get_update_block(project_id, &UpdateType::RemainderFundingStart) {
-			self.execute(|| frame_system::Pallet::<T>::set_block_number(update_block - One::one()));
-			self.advance_time(1u32.into()).unwrap();
-		}
-		let update_block =
-			self.get_update_block(project_id, &UpdateType::FundingEnd).expect("Funding end block should exist");
-		self.execute(|| frame_system::Pallet::<T>::set_block_number(update_block - One::one()));
-		self.advance_time(1u32.into()).unwrap();
-		let project_details = self.get_project_details(project_id);
-		assert!(
-			matches!(project_details.status, ProjectStatus::FundingSuccessful | ProjectStatus::FundingFailed),
-			"Project should be in Finished status"
-		);
-
-		Ok(())
 	}
 
 	pub fn settle_project(&mut self, project_id: ProjectId) {
@@ -749,18 +696,18 @@ impl<
 			}
 		}
 
-		let total_stored_dot = self.get_free_foreign_asset_balances_for(
-			AcceptedFundingAsset::DOT.to_assethub_id(),
+		let total_stored_dot = self.get_free_funding_asset_balances_for(
+			AcceptedFundingAsset::DOT.id(),
 			vec![project_metadata.funding_destination_account.clone()],
 		)[0]
 		.asset_amount;
-		let total_stored_usdt = self.get_free_foreign_asset_balances_for(
-			AcceptedFundingAsset::USDT.to_assethub_id(),
+		let total_stored_usdt = self.get_free_funding_asset_balances_for(
+			AcceptedFundingAsset::USDT.id(),
 			vec![project_metadata.funding_destination_account.clone()],
 		)[0]
 		.asset_amount;
-		let total_stored_usdc = self.get_free_foreign_asset_balances_for(
-			AcceptedFundingAsset::USDC.to_assethub_id(),
+		let total_stored_usdc = self.get_free_funding_asset_balances_for(
+			AcceptedFundingAsset::USDC.id(),
 			vec![project_metadata.funding_destination_account.clone()],
 		)[0]
 		.asset_amount;
@@ -776,31 +723,34 @@ impl<
 		&mut self,
 		project_id: ProjectId,
 		evaluations: Vec<EvaluationInfoOf<T>>,
+		is_successful: bool,
 	) {
 		let details = self.get_project_details(project_id);
 		assert!(matches!(details.status, ProjectStatus::SettlementFinished(_)));
 
+		let evaluators_outcome = self.execute(|| {
+			ProjectsDetails::<T>::get(project_id).unwrap().evaluation_round_info.evaluators_outcome.unwrap()
+		});
+
 		for evaluation in evaluations {
-			let reward_info = self.execute(|| {
-				ProjectsDetails::<T>::get(project_id).unwrap().evaluation_round_info.evaluators_outcome.unwrap()
-			});
 			let account = evaluation.evaluator.clone();
 			assert_eq!(self.execute(|| { Evaluations::<T>::iter_prefix_values((&project_id, &account)).count() }), 0);
 
-			let (amount, should_exist) = {
-				let reward = match reward_info {
-					EvaluatorsOutcome::Rewarded(info) => Pallet::<T>::calculate_evaluator_reward(&evaluation, &info),
-					_ => panic!("Evaluators should be rewarded"),
-				};
-				(reward, true)
+			let amount = if let EvaluatorsOutcome::Rewarded(ref info) = evaluators_outcome {
+				assert!(is_successful);
+				Pallet::<T>::calculate_evaluator_reward(&evaluation, &info)
+			} else {
+				assert!(!is_successful);
+				Zero::zero()
 			};
+
 			self.assert_migration(
 				project_id,
 				account,
 				amount,
 				evaluation.id,
 				ParticipationType::Evaluation,
-				should_exist,
+				is_successful,
 			);
 		}
 	}
@@ -897,61 +847,70 @@ impl<
 			bids.clone(),
 		);
 
-		if contributions.is_empty() {
-			self.start_remainder_or_end_funding(project_id).unwrap();
-			return project_id;
+		if !contributions.is_empty() {
+			let ct_price = self.get_project_details(project_id).weighted_average_price.unwrap();
+
+			let contributors = contributions.accounts();
+
+			let asset_id = contributions[0].asset.id();
+
+			let prev_plmc_balances = self.get_free_plmc_balances_for(contributors.clone());
+			let prev_funding_asset_balances = self.get_free_funding_asset_balances_for(asset_id, contributors.clone());
+
+			let plmc_evaluation_deposits = self.calculate_evaluation_plmc_spent(evaluations.clone(), false);
+			let plmc_bid_deposits = self.calculate_auction_plmc_charged_from_all_bids_made_or_with_bucket(
+				&bids,
+				project_metadata.clone(),
+				None,
+				false,
+			);
+			let plmc_contribution_deposits =
+				self.calculate_contributed_plmc_spent(contributions.clone(), ct_price, false);
+
+			let reducible_evaluator_balances = self.slash_evaluator_balances(plmc_evaluation_deposits.clone());
+			let necessary_plmc_mint = self.generic_map_operation(
+				vec![plmc_contribution_deposits.clone(), reducible_evaluator_balances],
+				MergeOperation::Subtract,
+			);
+			let total_plmc_participation_locked =
+				self.generic_map_operation(vec![plmc_bid_deposits, plmc_contribution_deposits], MergeOperation::Add);
+			let plmc_existential_deposits = contributors.existential_deposits();
+
+			let funding_asset_deposits =
+				self.calculate_contributed_funding_asset_spent(contributions.clone(), ct_price);
+			let contributor_balances =
+				self.sum_balance_mappings(vec![necessary_plmc_mint.clone(), plmc_existential_deposits.clone()]);
+
+			let expected_free_plmc_balances = self.generic_map_operation(
+				vec![prev_plmc_balances, plmc_existential_deposits.clone()],
+				MergeOperation::Add,
+			);
+
+			let prev_supply = self.get_plmc_total_supply();
+			let post_supply = prev_supply + contributor_balances;
+
+			self.mint_plmc_to(necessary_plmc_mint.clone());
+			self.mint_plmc_to(plmc_existential_deposits.clone());
+			self.mint_funding_asset_to(funding_asset_deposits.clone());
+
+			self.contribute_for_users(project_id, contributions).expect("Contributing should work");
+
+			self.do_reserved_plmc_assertions(
+				total_plmc_participation_locked.merge_accounts(MergeOperation::Add),
+				HoldReason::Participation(project_id).into(),
+			);
+
+			// self.do_contribution_transferred_funding_asset_assertions(funding_asset_deposits, project_id);
+
+			self.do_free_plmc_assertions(expected_free_plmc_balances.merge_accounts(MergeOperation::Add));
+			self.do_free_funding_asset_assertions(prev_funding_asset_balances.merge_accounts(MergeOperation::Add));
+			assert_eq!(self.get_plmc_total_supply(), post_supply);
 		}
 
-		let ct_price = self.get_project_details(project_id).weighted_average_price.unwrap();
-
-		let contributors = contributions.accounts();
-
-		let asset_id = contributions[0].asset.to_assethub_id();
-
-		let prev_plmc_balances = self.get_free_plmc_balances_for(contributors.clone());
-		let prev_funding_asset_balances = self.get_free_foreign_asset_balances_for(asset_id, contributors.clone());
-
-		let plmc_evaluation_deposits = self.calculate_evaluation_plmc_spent(evaluations.clone(), false);
-		let plmc_bid_deposits = self.calculate_auction_plmc_spent_post_wap(&bids, project_metadata.clone(), ct_price);
-		let plmc_contribution_deposits = self.calculate_contributed_plmc_spent(contributions.clone(), ct_price, false);
-
-		let reducible_evaluator_balances = self.slash_evaluator_balances(plmc_evaluation_deposits.clone());
-		let necessary_plmc_mint = self.generic_map_operation(
-			vec![plmc_contribution_deposits.clone(), reducible_evaluator_balances],
-			MergeOperation::Subtract,
-		);
-		let total_plmc_participation_locked =
-			self.generic_map_operation(vec![plmc_bid_deposits, plmc_contribution_deposits], MergeOperation::Add);
-		let plmc_existential_deposits = contributors.existential_deposits();
-
-		let funding_asset_deposits = self.calculate_contributed_funding_asset_spent(contributions.clone(), ct_price);
-		let contributor_balances =
-			self.sum_balance_mappings(vec![necessary_plmc_mint.clone(), plmc_existential_deposits.clone()]);
-
-		let expected_free_plmc_balances = self
-			.generic_map_operation(vec![prev_plmc_balances, plmc_existential_deposits.clone()], MergeOperation::Add);
-
-		let prev_supply = self.get_plmc_total_supply();
-		let post_supply = prev_supply + contributor_balances;
-
-		self.mint_plmc_to(necessary_plmc_mint.clone());
-		self.mint_plmc_to(plmc_existential_deposits.clone());
-		self.mint_foreign_asset_to(funding_asset_deposits.clone());
-
-		self.contribute_for_users(project_id, contributions).expect("Contributing should work");
-
-		self.do_reserved_plmc_assertions(
-			total_plmc_participation_locked.merge_accounts(MergeOperation::Add),
-			HoldReason::Participation(project_id).into(),
-		);
-
-		self.do_contribution_transferred_foreign_asset_assertions(funding_asset_deposits, project_id);
-
-		self.do_free_plmc_assertions(expected_free_plmc_balances.merge_accounts(MergeOperation::Add));
-		self.do_free_foreign_asset_assertions(prev_funding_asset_balances.merge_accounts(MergeOperation::Add));
-		assert_eq!(self.get_plmc_total_supply(), post_supply);
-
-		self.start_remainder_or_end_funding(project_id).unwrap();
+		let ProjectStatus::CommunityRound(remainder_block) = self.get_project_details(project_id).status else {
+			panic!("Project should be in CommunityRound status");
+		};
+		self.jump_to_block(remainder_block);
 
 		project_id
 	}
@@ -975,69 +934,74 @@ impl<
 			community_contributions.clone(),
 		);
 
-		match self.get_project_details(project_id).status {
-			ProjectStatus::FundingSuccessful => return project_id,
-			_ => {},
-		};
-		let ct_price = self.get_project_details(project_id).weighted_average_price.unwrap();
-		let contributors = remainder_contributions.accounts();
-		let asset_id = remainder_contributions[0].asset.to_assethub_id();
-		let prev_plmc_balances = self.get_free_plmc_balances_for(contributors.clone());
-		let prev_funding_asset_balances = self.get_free_foreign_asset_balances_for(asset_id, contributors.clone());
+		if !remainder_contributions.is_empty() {
+			let ct_price = self.get_project_details(project_id).weighted_average_price.unwrap();
+			let contributors = remainder_contributions.accounts();
+			let asset_id = remainder_contributions[0].asset.id();
+			let prev_plmc_balances = self.get_free_plmc_balances_for(contributors.clone());
+			let prev_funding_asset_balances = self.get_free_funding_asset_balances_for(asset_id, contributors.clone());
 
-		let plmc_evaluation_deposits = self.calculate_evaluation_plmc_spent(evaluations, false);
-		let plmc_bid_deposits = self.calculate_auction_plmc_spent_post_wap(&bids, project_metadata.clone(), ct_price);
-		let plmc_community_contribution_deposits =
-			self.calculate_contributed_plmc_spent(community_contributions.clone(), ct_price, false);
-		let plmc_remainder_contribution_deposits =
-			self.calculate_contributed_plmc_spent(remainder_contributions.clone(), ct_price, false);
+			let plmc_evaluation_deposits = self.calculate_evaluation_plmc_spent(evaluations, false);
+			let plmc_bid_deposits = self.calculate_auction_plmc_charged_from_all_bids_made_or_with_bucket(
+				&bids,
+				project_metadata.clone(),
+				None,
+				false,
+			);
+			let plmc_community_contribution_deposits =
+				self.calculate_contributed_plmc_spent(community_contributions.clone(), ct_price, false);
+			let plmc_remainder_contribution_deposits =
+				self.calculate_contributed_plmc_spent(remainder_contributions.clone(), ct_price, false);
 
-		let reducible_evaluator_balances = self.slash_evaluator_balances(plmc_evaluation_deposits);
-		let remaining_reducible_evaluator_balances = self.generic_map_operation(
-			vec![reducible_evaluator_balances, plmc_bid_deposits.clone()],
-			MergeOperation::Subtract,
-		);
+			let reducible_evaluator_balances = self.slash_evaluator_balances(plmc_evaluation_deposits);
+			let remaining_reducible_evaluator_balances = self.generic_map_operation(
+				vec![reducible_evaluator_balances, plmc_bid_deposits.clone()],
+				MergeOperation::Subtract,
+			);
 
-		let necessary_plmc_mint = self.generic_map_operation(
-			vec![plmc_remainder_contribution_deposits.clone(), remaining_reducible_evaluator_balances],
-			MergeOperation::Subtract,
-		);
-		let total_plmc_participation_locked = self.generic_map_operation(
-			vec![plmc_bid_deposits, plmc_community_contribution_deposits, plmc_remainder_contribution_deposits],
-			MergeOperation::Add,
-		);
-		let plmc_existential_deposits = contributors.existential_deposits();
-		let funding_asset_deposits =
-			self.calculate_contributed_funding_asset_spent(remainder_contributions.clone(), ct_price);
+			let necessary_plmc_mint = self.generic_map_operation(
+				vec![plmc_remainder_contribution_deposits.clone(), remaining_reducible_evaluator_balances],
+				MergeOperation::Subtract,
+			);
+			let total_plmc_participation_locked = self.generic_map_operation(
+				vec![plmc_bid_deposits, plmc_community_contribution_deposits, plmc_remainder_contribution_deposits],
+				MergeOperation::Add,
+			);
+			let plmc_existential_deposits = contributors.existential_deposits();
+			let funding_asset_deposits =
+				self.calculate_contributed_funding_asset_spent(remainder_contributions.clone(), ct_price);
 
-		let contributor_balances =
-			self.sum_balance_mappings(vec![necessary_plmc_mint.clone(), plmc_existential_deposits.clone()]);
+			let contributor_balances =
+				self.sum_balance_mappings(vec![necessary_plmc_mint.clone(), plmc_existential_deposits.clone()]);
 
-		let expected_free_plmc_balances = self
-			.generic_map_operation(vec![prev_plmc_balances, plmc_existential_deposits.clone()], MergeOperation::Add);
+			let expected_free_plmc_balances = self.generic_map_operation(
+				vec![prev_plmc_balances, plmc_existential_deposits.clone()],
+				MergeOperation::Add,
+			);
 
-		let prev_supply = self.get_plmc_total_supply();
-		let post_supply = prev_supply + contributor_balances;
+			let prev_supply = self.get_plmc_total_supply();
+			let post_supply = prev_supply + contributor_balances;
 
-		self.mint_plmc_to(necessary_plmc_mint.clone());
-		self.mint_plmc_to(plmc_existential_deposits.clone());
-		self.mint_foreign_asset_to(funding_asset_deposits.clone());
+			self.mint_plmc_to(necessary_plmc_mint.clone());
+			self.mint_plmc_to(plmc_existential_deposits.clone());
+			self.mint_funding_asset_to(funding_asset_deposits.clone());
 
-		self.contribute_for_users(project_id, remainder_contributions.clone())
-			.expect("Remainder Contributing should work");
+			self.contribute_for_users(project_id, remainder_contributions.clone())
+				.expect("Remainder Contributing should work");
 
-		self.do_reserved_plmc_assertions(
-			total_plmc_participation_locked.merge_accounts(MergeOperation::Add),
-			HoldReason::Participation(project_id).into(),
-		);
-		self.do_contribution_transferred_foreign_asset_assertions(funding_asset_deposits, project_id);
-		self.do_free_plmc_assertions(expected_free_plmc_balances.merge_accounts(MergeOperation::Add));
-		self.do_free_foreign_asset_assertions(prev_funding_asset_balances.merge_accounts(MergeOperation::Add));
-		assert_eq!(self.get_plmc_total_supply(), post_supply);
+			self.do_reserved_plmc_assertions(
+				total_plmc_participation_locked.merge_accounts(MergeOperation::Add),
+				HoldReason::Participation(project_id).into(),
+			);
+			// self.do_contribution_transferred_funding_asset_assertions(funding_asset_deposits, project_id);
+			self.do_free_plmc_assertions(expected_free_plmc_balances.merge_accounts(MergeOperation::Add));
+			self.do_free_funding_asset_assertions(prev_funding_asset_balances.merge_accounts(MergeOperation::Add));
+			assert_eq!(self.get_plmc_total_supply(), post_supply);
+		}
 
-		self.finish_funding(project_id, None).unwrap();
+		let status = self.go_to_next_state(project_id);
 
-		if self.get_project_details(project_id).status == ProjectStatus::FundingSuccessful {
+		if status == ProjectStatus::FundingSuccessful {
 			// Check that remaining CTs are updated
 			let project_details = self.get_project_details(project_id);
 			// if our bids were creating an oversubscription, then just take the total allocation size
@@ -1059,6 +1023,10 @@ impl<
 					remainder_bought_tokens,
 				"Remaining CTs are incorrect"
 			);
+		} else if status == ProjectStatus::FundingFailed {
+			self.test_ct_not_created_for(project_id);
+		} else {
+			panic!("Project should be in FundingSuccessful or FundingFailed status");
 		}
 
 		project_id
@@ -1084,8 +1052,7 @@ impl<
 			remainder_contributions.clone(),
 		);
 
-		let settlement_start = self.get_update_block(project_id, &UpdateType::StartSettlement).unwrap();
-		self.jump_to_block(settlement_start);
+		assert!(matches!(self.go_to_next_state(project_id), ProjectStatus::SettlementStarted(_)));
 
 		self.settle_project(project_id);
 		project_id

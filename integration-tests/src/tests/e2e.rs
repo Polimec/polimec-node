@@ -374,9 +374,8 @@ fn remainder_round_completed() {
 		let total_stored =
 			contributions.into_iter().fold(0, |acc, contribution| acc + contribution.funding_asset_amount);
 
-		let usdt_decimals = <PolimecRuntime as pallet_funding::Config>::FundingCurrency::decimals(
-			AcceptedFundingAsset::USDT.to_assethub_id(),
-		);
+		let usdt_decimals =
+			<PolimecRuntime as pallet_funding::Config>::FundingCurrency::decimals(AcceptedFundingAsset::USDT.id());
 		let usdt_total_from_excel_f64 = 503_945.4_517_000_000f64;
 		let usdt_total_from_excel_fixed = FixedU128::from_float(usdt_total_from_excel_f64);
 		let usdt_total_from_excel = usdt_total_from_excel_fixed.saturating_mul_int(10u128.pow(usdt_decimals as u32));
@@ -392,7 +391,7 @@ fn funds_raised() {
 	let mut inst = IntegrationInstantiator::new(None);
 
 	PolimecNet::execute_with(|| {
-		let project_id = inst.create_finished_project(
+		let _project_id = inst.create_settled_project(
 			excel_project(),
 			ISSUER.into(),
 			None,
@@ -403,14 +402,13 @@ fn funds_raised() {
 		);
 
 		inst.execute(|| {
-			let project_specific_account: AccountId = PolimecFunding::fund_account_id(project_id);
+			let funding_destination_account: AccountId = excel_project().funding_destination_account;
 			let stored_usdt_funded =
-				PolimecForeignAssets::balance(AcceptedFundingAsset::USDT.to_assethub_id(), project_specific_account);
+				PolimecForeignAssets::balance(AcceptedFundingAsset::USDT.id(), funding_destination_account);
 			let excel_usdt_funded_f64 = 1_004_256.0_140_000_000f64;
 			let excet_usdt_funding_fixed = FixedU128::from_float(excel_usdt_funded_f64);
-			let usdt_decimals = <PolimecRuntime as pallet_funding::Config>::FundingCurrency::decimals(
-				AcceptedFundingAsset::USDT.to_assethub_id(),
-			);
+			let usdt_decimals =
+				<PolimecRuntime as pallet_funding::Config>::FundingCurrency::decimals(AcceptedFundingAsset::USDT.id());
 			let excel_usdt_funded = excet_usdt_funding_fixed.saturating_mul_int(10u128.pow(usdt_decimals as u32));
 			assert_close_enough!(stored_usdt_funded, excel_usdt_funded, Perquintill::from_float(0.99));
 		})
@@ -424,7 +422,7 @@ fn ct_minted() {
 	let mut inst = IntegrationInstantiator::new(None);
 
 	PolimecNet::execute_with(|| {
-		let project_id = inst.create_finished_project(
+		let project_id = inst.create_settled_project(
 			excel_project(),
 			ISSUER.into(),
 			None,
@@ -433,9 +431,6 @@ fn ct_minted() {
 			excel_contributions(),
 			excel_remainders(),
 		);
-		inst.advance_time(<PolimecRuntime as Config>::SuccessToSettlementTime::get()).unwrap();
-
-		inst.settle_project(project_id).unwrap();
 
 		for (contributor, expected_amount_fixed, project_id) in excel_ct_amounts() {
 			let minted = inst
@@ -453,7 +448,7 @@ fn ct_migrated() {
 	let mut inst = IntegrationInstantiator::new(None);
 
 	let project_id = PolimecNet::execute_with(|| {
-		let project_id = inst.create_finished_project(
+		let project_id = inst.create_settled_project(
 			excel_project(),
 			ISSUER.into(),
 			None,
@@ -462,22 +457,19 @@ fn ct_migrated() {
 			excel_contributions(),
 			excel_remainders(),
 		);
-		inst.advance_time(<PolimecRuntime as Config>::SuccessToSettlementTime::get()).unwrap();
-
-		inst.settle_project(project_id).unwrap();
 
 		for (contributor, expected_amount_fixed, project_id) in excel_ct_amounts() {
 			let minted = inst
 				.execute(|| <PolimecRuntime as Config>::ContributionTokenCurrency::balance(project_id, &contributor));
 			let expected_amount = expected_amount_fixed.saturating_mul_int(CT_UNIT);
-			assert_close_enough!(minted, expected_amount, Perquintill::from_float(0.99));
+			assert_close_enough!(minted, expected_amount, Perquintill::from_float(0.999));
 		}
 
 		project_id
 	});
 
 	let project_details = PolimecNet::execute_with(|| inst.get_project_details(project_id));
-	assert!(matches!(project_details.evaluation_round_info.evaluators_outcome, EvaluatorsOutcome::Rewarded(_)));
+	assert!(matches!(project_details.evaluation_round_info.evaluators_outcome, Some(EvaluatorsOutcome::Rewarded(_))));
 	let ct_issued =
 		PolimecNet::execute_with(|| <PolimecRuntime as Config>::ContributionTokenCurrency::total_issuance(project_id));
 
@@ -540,7 +532,7 @@ fn ct_migrated() {
 			));
 			let key: [u8; 32] = account.clone().into();
 			println!("Migrated CTs for {}", names[&key]);
-			inst.advance_time(1u32).unwrap();
+			inst.advance_time(1u32);
 		});
 	}
 

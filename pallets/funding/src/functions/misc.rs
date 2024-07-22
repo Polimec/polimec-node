@@ -46,7 +46,7 @@ impl<T: Config> Pallet<T> {
 		ticket_size: BalanceOf<T>,
 		asset_id: AcceptedFundingAsset,
 	) -> Result<BalanceOf<T>, DispatchError> {
-		let asset_id = asset_id.to_assethub_id();
+		let asset_id = asset_id.id();
 		let asset_decimals = T::FundingCurrency::decimals(asset_id);
 		let asset_usd_price = T::PriceProvider::get_decimals_aware_price(asset_id, USD_DECIMALS, asset_decimals)
 			.ok_or(Error::<T>::PriceNotFound)?;
@@ -336,7 +336,7 @@ impl<T: Config> Pallet<T> {
 	) -> Xcm<()> {
 		// TODO: adjust this as benchmarks for polimec-receiver are written
 		const MAX_WEIGHT: Weight = Weight::from_parts(10_000, 0);
-		const MAX_RESPONSE_WEIGHT: Weight = Weight::from_parts(700_000_000, 10_000);
+		const MAX_RESPONSE_WEIGHT: Weight = Weight::from_parts(700_000_000, 50_000);
 		let migrations_item = Migrations::from(migrations.into());
 
 		// First byte is the pallet index, second byte is the call index

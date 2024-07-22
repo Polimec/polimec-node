@@ -1,5 +1,5 @@
 use crate::{
-	instantiator::{UserToForeignAssets, UserToPLMCBalance},
+	instantiator::{UserToFundingAsset, UserToPLMCBalance},
 	mock::{new_test_ext, TestRuntime, PLMC},
 	tests::{
 		defaults::{bounded_name, bounded_symbol, default_evaluations, default_project_metadata, ipfs_hash},
@@ -62,14 +62,14 @@ fn dry_run_wap() {
 		.collect_vec();
 	let usdt_fundings = accounts
 		.iter()
-		.map(|acc| UserToForeignAssets {
+		.map(|acc| UserToFundingAsset {
 			account: acc.clone(),
 			asset_amount: USD_UNIT * 1_000_000,
-			asset_id: AcceptedFundingAsset::USDT.to_assethub_id(),
+			asset_id: AcceptedFundingAsset::USDT.id(),
 		})
 		.collect_vec();
 	inst.mint_plmc_to(plmc_fundings);
-	inst.mint_foreign_asset_to(usdt_fundings);
+	inst.mint_funding_asset_to(usdt_fundings);
 
 	let project_id = inst.create_auctioning_project(project_metadata.clone(), 0, None, default_evaluations());
 
@@ -84,17 +84,13 @@ fn dry_run_wap() {
 
 	inst.bid_for_users(project_id, bids).unwrap();
 
-	inst.start_community_funding(project_id).unwrap();
+	assert!(matches!(inst.go_to_next_state(project_id), ProjectStatus::CommunityRound(_)));
 
 	let project_details = inst.get_project_details(project_id);
 	let wap = project_details.weighted_average_price.unwrap();
 	let bucket = inst.execute(|| Buckets::<TestRuntime>::get(project_id).unwrap());
-	dbg!(bucket);
-	let dry_run_price = inst.dry_run_wap(
-		bucket,
-		project_metadata.auction_round_allocation_percentage * project_metadata.total_allocation_size,
-	);
-	dbg!(project_details.funding_amount_reached_usd);
+	let dry_run_price = bucket
+		.calculate_wap(project_metadata.auction_round_allocation_percentage * project_metadata.total_allocation_size);
 
 	assert_eq!(dry_run_price, wap);
 }
@@ -148,14 +144,14 @@ fn find_bucket_for_wap() {
 		.collect_vec();
 	let usdt_fundings = accounts
 		.iter()
-		.map(|acc| UserToForeignAssets {
+		.map(|acc| UserToFundingAsset {
 			account: acc.clone(),
 			asset_amount: USD_UNIT * 1_000_000,
-			asset_id: AcceptedFundingAsset::USDT.to_assethub_id(),
+			asset_id: AcceptedFundingAsset::USDT.id(),
 		})
 		.collect_vec();
 	inst.mint_plmc_to(plmc_fundings);
-	inst.mint_foreign_asset_to(usdt_fundings);
+	inst.mint_funding_asset_to(usdt_fundings);
 
 	let project_id = inst.create_auctioning_project(project_metadata.clone(), 0, None, default_evaluations());
 
@@ -170,26 +166,17 @@ fn find_bucket_for_wap() {
 
 	inst.bid_for_users(project_id, bids).unwrap();
 
-	inst.start_community_funding(project_id).unwrap();
+	assert!(matches!(inst.go_to_next_state(project_id), ProjectStatus::CommunityRound(_)));
 
 	let project_details = inst.get_project_details(project_id);
 	let wap = project_details.weighted_average_price.unwrap();
-	dbg!(wap);
-	let bucket = inst.execute(|| Buckets::<TestRuntime>::get(project_id).unwrap());
-	dbg!(bucket);
-	let dry_run_price = inst.dry_run_wap(
-		bucket,
-		project_metadata.auction_round_allocation_percentage * project_metadata.total_allocation_size,
-	);
-	dbg!(project_details.funding_amount_reached_usd);
-
-	assert_eq!(dry_run_price, wap);
+	let bucket_stored = inst.execute(|| Buckets::<TestRuntime>::get(project_id).unwrap());
 
 	let bucket_found = inst.find_bucket_for_wap(project_metadata.clone(), wap);
-	let wap_found = inst.dry_run_wap(
-		bucket_found,
-		project_metadata.auction_round_allocation_percentage * project_metadata.total_allocation_size,
-	);
+	assert_eq!(bucket_found, bucket_stored);
+
+	let wap_found = bucket_found
+		.calculate_wap(project_metadata.auction_round_allocation_percentage * project_metadata.total_allocation_size);
 	assert_eq!(wap_found, wap);
 }
 
@@ -203,9 +190,7 @@ fn generate_bids_from_bucket() {
 	let desired_price_aware_wap =
 		PriceProviderOf::<TestRuntime>::calculate_decimals_aware_price(desired_real_wap, USD_DECIMALS, CT_DECIMALS)
 			.unwrap();
-	dbg!(desired_price_aware_wap);
 	let necessary_bucket = inst.find_bucket_for_wap(project_metadata.clone(), desired_price_aware_wap);
-	dbg!(&necessary_bucket);
 	let bids = inst.generate_bids_from_bucket(
 		project_metadata.clone(),
 		necessary_bucket,
@@ -213,7 +198,6 @@ fn generate_bids_from_bucket() {
 		|x| x + 1,
 		AcceptedFundingAsset::USDT,
 	);
-	dbg!(&bids);
 	let project_id =
 		inst.create_community_contributing_project(project_metadata.clone(), 0, None, default_evaluations(), bids);
 	let project_details = inst.get_project_details(project_id);
