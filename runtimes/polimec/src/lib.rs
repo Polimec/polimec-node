@@ -34,14 +34,16 @@ use frame_support::{
 };
 use frame_system::{EnsureRoot, EnsureRootWithSuccess, EnsureSigned, EnsureSignedBy};
 use pallet_democracy::GetElectorate;
-use pallet_funding::DaysToBlocks;
-
+use pallet_funding::{
+	runtime_api::ProjectParticipationIds, types::AcceptedFundingAsset, BidInfoOf, ContributionInfoOf, DaysToBlocks,
+	EvaluationInfoOf, ProjectDetailsOf, ProjectId, ProjectMetadataOf,
+};
 use parachains_common::{
 	message_queue::{NarrowOriginToSibling, ParaIdToSibling},
 	AssetIdForTrustBackedAssets as AssetId,
 };
 use parity_scale_codec::Encode;
-use polimec_common::credentials::EnsureInvestor;
+use polimec_common::credentials::{Did, EnsureInvestor};
 use polkadot_runtime_common::{
 	xcm_sender::NoPriceForMessageDelivery, BlockHashCount, CurrencyToVote, SlowAdjustingFeeUpdate,
 };
@@ -54,7 +56,7 @@ use sp_runtime::{
 		IdentifyAccount, IdentityLookup, OpaqueKeys, Verify,
 	},
 	transaction_validity::{TransactionSource, TransactionValidity},
-	ApplyExtrinsicResult, MultiSignature, SaturatedConversion,
+	ApplyExtrinsicResult, FixedU128, MultiSignature, SaturatedConversion,
 };
 use sp_std::{cmp::Ordering, prelude::*};
 use sp_version::RuntimeVersion;
@@ -1388,6 +1390,54 @@ impl_runtime_apis! {
 	impl cumulus_primitives_core::CollectCollationInfo<Block> for Runtime {
 		fn collect_collation_info(header: &<Block as BlockT>::Header) -> cumulus_primitives_core::CollationInfo {
 			ParachainSystem::collect_collation_info(header)
+		}
+	}
+
+	impl pallet_funding::runtime_api::Leaderboards<Block, Runtime> for Runtime {
+		fn top_evaluations(project_id: ProjectId, amount: u32) -> Vec<EvaluationInfoOf<Runtime>> {
+			Funding::top_evaluations(project_id, amount)
+		}
+
+		fn top_bids(project_id: ProjectId, amount: u32) -> Vec<BidInfoOf<Runtime>> {
+			Funding::top_bids(project_id, amount)
+		}
+
+		fn top_contributions(project_id: ProjectId, amount: u32) -> Vec<ContributionInfoOf<Runtime>> {
+			Funding::top_contributions(project_id, amount)
+		}
+
+		fn top_projects_by_usd_raised(amount: u32) -> Vec<(ProjectId, ProjectMetadataOf<Runtime>, ProjectDetailsOf<Runtime>)> {
+			Funding::top_projects_by_usd_raised(amount)
+		}
+
+		fn top_projects_by_usd_target_percent_reached(amount: u32) -> Vec<(ProjectId, ProjectMetadataOf<Runtime>, ProjectDetailsOf<Runtime>)> {
+			Funding::top_projects_by_usd_target_percent_reached(amount)
+		}
+	}
+
+	impl pallet_funding::runtime_api::UserInformation<Block, Runtime> for Runtime {
+		fn contribution_tokens(account: AccountId) -> Vec<(ProjectId, Balance)> {
+			Funding::contribution_tokens(account)
+		}
+
+		fn all_project_participations_by_did(project_id: ProjectId, did: Did) -> Vec<ProjectParticipationIds<Runtime>> {
+			Funding::all_project_participations_by_did(project_id, did)
+		}
+	}
+
+	impl pallet_funding::runtime_api::ProjectInformation<Block, Runtime> for Runtime {
+		fn usd_target_percent_reached(project_id: ProjectId) -> FixedU128 {
+			Funding::usd_target_percent_reached(project_id)
+		}
+
+		fn projects_by_did(did: Did) -> Vec<ProjectId> {
+			Funding::projects_by_did(did)
+		}
+	}
+
+	impl pallet_funding::runtime_api::ExtrinsicHelpers<Block, Runtime> for Runtime {
+		fn funding_asset_to_ct_amount(project_id: ProjectId, asset: AcceptedFundingAsset, asset_amount: Balance) -> Balance {
+			Funding::funding_asset_to_ct_amount(project_id, asset, asset_amount)
 		}
 	}
 

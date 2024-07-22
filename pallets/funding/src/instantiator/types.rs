@@ -284,6 +284,16 @@ impl<T: Config> From<(AccountIdOf<T>, BalanceOf<T>, u8, AcceptedFundingAsset)> f
 		}
 	}
 }
+impl<T: Config> From<(AccountIdOf<T>, BalanceOf<T>, AcceptedFundingAsset)> for BidParams<T> {
+	fn from((bidder, amount, asset): (AccountIdOf<T>, BalanceOf<T>, AcceptedFundingAsset)) -> Self {
+		Self {
+			bidder,
+			amount,
+			multiplier: 1u8.try_into().unwrap_or_else(|_| panic!("multiplier could not be created from 1u8")),
+			asset,
+		}
+	}
+}
 
 impl<T: Config> Accounts for Vec<BidParams<T>> {
 	type Account = AccountIdOf<T>;

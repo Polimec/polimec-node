@@ -67,3 +67,6 @@ pub mod calculations;
 
 #[cfg(any(feature = "std", feature = "runtime-benchmarks"))]
 pub mod chain_interactions;
+
+#[cfg(test)]
+mod tests;

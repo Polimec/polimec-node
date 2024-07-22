@@ -127,6 +127,7 @@ fn pallet_funding_works() {
 		let _project_id = inst.create_finished_project(
 			default_project_metadata(ISSUER.into()),
 			ISSUER.into(),
+			None,
 			default_evaluations(),
 			default_bids(),
 			default_community_contributions(),

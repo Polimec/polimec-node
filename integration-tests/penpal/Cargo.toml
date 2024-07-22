@@ -87,10 +87,9 @@ assets-common = { version = "0.7.0", default-features = false }
 snowbridge-rococo-common = { version = "0.1.0", default-features = false }
 
 [features]
-default = ["std"]
+default = [ "std" ]
 std = [
 	"assets-common/std",
-	"parity-scale-codec/std",
 	"cumulus-pallet-aura-ext/std",
 	"cumulus-pallet-dmp-queue/std",
 	"cumulus-pallet-parachain-system/std",
@@ -119,12 +118,17 @@ std = [
 	"pallet-timestamp/std",
 	"pallet-transaction-payment-rpc-runtime-api/std",
 	"pallet-transaction-payment/std",
+	"pallet-vesting/std",
 	"pallet-xcm/std",
 	"parachain-info/std",
 	"parachains-common/std",
+	"parity-scale-codec/std",
+	"polimec-common/std",
+	"polimec-receiver/std",
 	"polkadot-parachain-primitives/std",
 	"polkadot-primitives/std",
 	"polkadot-runtime-common/std",
+	"polkadot-runtime-parachains/std",
 	"scale-info/std",
 	"snowbridge-rococo-common/std",
 	"sp-api/std",
@@ -166,11 +170,15 @@ runtime-benchmarks = [
 	"pallet-message-queue/runtime-benchmarks",
 	"pallet-sudo/runtime-benchmarks",
 	"pallet-timestamp/runtime-benchmarks",
+	"pallet-vesting/runtime-benchmarks",
 	"pallet-xcm/runtime-benchmarks",
 	"parachains-common/runtime-benchmarks",
+	"polimec-common/runtime-benchmarks",
+	"polimec-receiver/runtime-benchmarks",
 	"polkadot-parachain-primitives/runtime-benchmarks",
 	"polkadot-primitives/runtime-benchmarks",
 	"polkadot-runtime-common/runtime-benchmarks",
+	"polkadot-runtime-parachains/runtime-benchmarks",
 	"snowbridge-rococo-common/runtime-benchmarks",
 	"sp-runtime/runtime-benchmarks",
 	"xcm-builder/runtime-benchmarks",
@@ -198,10 +206,14 @@ try-runtime = [
 	"pallet-sudo/try-runtime",
 	"pallet-timestamp/try-runtime",
 	"pallet-transaction-payment/try-runtime",
+	"pallet-vesting/try-runtime",
 	"pallet-xcm/try-runtime",
 	"parachain-info/try-runtime",
+	"polimec-common/try-runtime",
+	"polimec-receiver/try-runtime",
 	"polkadot-runtime-common/try-runtime",
+	"polkadot-runtime-parachains/try-runtime",
 	"sp-runtime/try-runtime",
 ]
 
-experimental = ["pallet-aura/experimental"]
+experimental = [ "pallet-aura/experimental" ]

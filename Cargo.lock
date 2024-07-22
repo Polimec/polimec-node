@@ -6990,6 +6990,7 @@ dependencies = [
  "polkadot-parachain-primitives",
  "scale-info",
  "serde",
+ "sp-api",
  "sp-arithmetic",
  "sp-core",
  "sp-io",

@@ -286,14 +286,17 @@ impl<
 	pub fn creation_assertions(
 		&mut self,
 		project_id: ProjectId,
+		maybe_did: Option<Did>,
 		expected_metadata: ProjectMetadataOf<T>,
 		creation_start_block: BlockNumberFor<T>,
 	) {
 		let metadata = self.get_project_metadata(project_id);
 		let details = self.get_project_details(project_id);
+		let issuer_did =
+			if let Some(did) = maybe_did { did } else { generate_did_from_account(self.get_issuer(project_id)) };
 		let expected_details = ProjectDetailsOf::<T> {
 			issuer_account: self.get_issuer(project_id),
-			issuer_did: generate_did_from_account(self.get_issuer(project_id)),
+			issuer_did,
 			is_frozen: false,
 			weighted_average_price: None,
 			status: ProjectStatus::Application,
@@ -396,24 +399,26 @@ impl<
 		})
 	}
 
-	pub fn create_new_project(&mut self, project_metadata: ProjectMetadataOf<T>, issuer: AccountIdOf<T>) -> ProjectId {
+	pub fn create_new_project(
+		&mut self,
+		project_metadata: ProjectMetadataOf<T>,
+		issuer: AccountIdOf<T>,
+		maybe_did: Option<Did>,
+	) -> ProjectId {
 		let now = self.current_block();
 		// one ED for the issuer, one ED for the escrow account
 		self.mint_plmc_to(vec![UserToPLMCBalance::new(issuer.clone(), self.get_ed() * 2u64.into())]);
 
+		let did = if let Some(did) = maybe_did.clone() { did } else { generate_did_from_account(issuer.clone()) };
+
 		self.execute(|| {
-			crate::Pallet::<T>::do_create_project(
-				&issuer,
-				project_metadata.clone(),
-				generate_did_from_account(issuer.clone()),
-			)
-			.unwrap();
+			crate::Pallet::<T>::do_create_project(&issuer, project_metadata.clone(), did).unwrap();
 			let last_project_metadata = ProjectsMetadata::<T>::iter().last().unwrap();
 			log::trace!("Last project metadata: {:?}", last_project_metadata);
 		});
 
 		let created_project_id = self.execute(|| NextProjectId::<T>::get().saturating_sub(One::one()));
-		self.creation_assertions(created_project_id, project_metadata, now);
+		self.creation_assertions(created_project_id, maybe_did, project_metadata, now);
 		created_project_id
 	}
 
@@ -429,8 +434,9 @@ impl<
 		&mut self,
 		project_metadata: ProjectMetadataOf<T>,
 		issuer: AccountIdOf<T>,
+		maybe_did: Option<Did>,
 	) -> ProjectId {
-		let project_id = self.create_new_project(project_metadata, issuer.clone());
+		let project_id = self.create_new_project(project_metadata, issuer.clone(), maybe_did);
 		self.start_evaluation(project_id, issuer).unwrap();
 		project_id
 	}
@@ -478,9 +484,10 @@ impl<
 		&mut self,
 		project_metadata: ProjectMetadataOf<T>,
 		issuer: AccountIdOf<T>,
+		maybe_did: Option<Did>,
 		evaluations: Vec<UserToUSDBalance<T>>,
 	) -> ProjectId {
-		let project_id = self.create_evaluating_project(project_metadata, issuer.clone());
+		let project_id = self.create_evaluating_project(project_metadata, issuer.clone(), maybe_did);
 
 		let evaluators = evaluations.accounts();
 		let prev_supply = self.get_plmc_total_supply();
@@ -553,10 +560,12 @@ impl<
 		&mut self,
 		project_metadata: ProjectMetadataOf<T>,
 		issuer: AccountIdOf<T>,
+		maybe_did: Option<Did>,
 		evaluations: Vec<UserToUSDBalance<T>>,
 		bids: Vec<BidParams<T>>,
 	) -> ProjectId {
-		let project_id = self.create_auctioning_project(project_metadata.clone(), issuer, evaluations.clone());
+		let project_id =
+			self.create_auctioning_project(project_metadata.clone(), issuer, maybe_did, evaluations.clone());
 		if bids.is_empty() {
 			self.start_community_funding(project_id).unwrap();
 			return project_id
@@ -692,7 +701,11 @@ impl<
 		}
 	}
 
-	pub fn finish_funding(&mut self, project_id: ProjectId) -> Result<(), DispatchError> {
+	pub fn finish_funding(
+		&mut self,
+		project_id: ProjectId,
+		force_decision: Option<FundingOutcomeDecision>,
+	) -> Result<(), DispatchError> {
 		if let Some(update_block) = self.get_update_block(project_id, &UpdateType::RemainderFundingStart) {
 			self.execute(|| frame_system::Pallet::<T>::set_block_number(update_block - One::one()));
 			self.advance_time(1u32.into()).unwrap();
@@ -711,6 +724,13 @@ impl<
 			),
 			"Project should be in Finished status"
 		);
+		if project_details.status == ProjectStatus::AwaitingProjectDecision {
+			if let Some(decision) = force_decision {
+				self.execute(|| {
+					crate::Pallet::<T>::do_project_decision(project_id, decision).unwrap();
+				});
+			}
+		}
 		Ok(())
 	}
 
@@ -946,6 +966,7 @@ impl<
 		&mut self,
 		project_metadata: ProjectMetadataOf<T>,
 		issuer: AccountIdOf<T>,
+		maybe_did: Option<Did>,
 		evaluations: Vec<UserToUSDBalance<T>>,
 		bids: Vec<BidParams<T>>,
 		contributions: Vec<ContributionParams<T>>,
@@ -953,6 +974,7 @@ impl<
 		let project_id = self.create_community_contributing_project(
 			project_metadata.clone(),
 			issuer,
+			maybe_did,
 			evaluations.clone(),
 			bids.clone(),
 		);
@@ -1020,6 +1042,7 @@ impl<
 		&mut self,
 		project_metadata: ProjectMetadataOf<T>,
 		issuer: AccountIdOf<T>,
+		maybe_did: Option<Did>,
 		evaluations: Vec<UserToUSDBalance<T>>,
 		bids: Vec<BidParams<T>>,
 		community_contributions: Vec<ContributionParams<T>>,
@@ -1028,6 +1051,7 @@ impl<
 		let project_id = self.create_remainder_contributing_project(
 			project_metadata.clone(),
 			issuer,
+			maybe_did,
 			evaluations.clone(),
 			bids.clone(),
 			community_contributions.clone(),
@@ -1036,7 +1060,7 @@ impl<
 		match self.get_project_details(project_id).status {
 			ProjectStatus::FundingSuccessful => return project_id,
 			ProjectStatus::RemainderRound if remainder_contributions.is_empty() => {
-				self.finish_funding(project_id).unwrap();
+				self.finish_funding(project_id, None).unwrap();
 				return project_id;
 			},
 			_ => {},
@@ -1097,7 +1121,7 @@ impl<
 		self.do_free_foreign_asset_assertions(prev_funding_asset_balances.merge_accounts(MergeOperation::Add));
 		assert_eq!(self.get_plmc_total_supply(), post_supply);
 
-		self.finish_funding(project_id).unwrap();
+		self.finish_funding(project_id, None).unwrap();
 
 		if self.get_project_details(project_id).status == ProjectStatus::FundingSuccessful {
 			// Check that remaining CTs are updated
@@ -1126,6 +1150,33 @@ impl<
 		project_id
 	}
 
+	pub fn create_settled_project(
+		&mut self,
+		project_metadata: ProjectMetadataOf<T>,
+		issuer: AccountIdOf<T>,
+		maybe_did: Option<Did>,
+		evaluations: Vec<UserToUSDBalance<T>>,
+		bids: Vec<BidParams<T>>,
+		community_contributions: Vec<ContributionParams<T>>,
+		remainder_contributions: Vec<ContributionParams<T>>,
+	) -> ProjectId {
+		let project_id = self.create_finished_project(
+			project_metadata.clone(),
+			issuer.clone(),
+			maybe_did,
+			evaluations.clone(),
+			bids.clone(),
+			community_contributions.clone(),
+			remainder_contributions.clone(),
+		);
+
+		let settlement_start = self.get_update_block(project_id, &UpdateType::StartSettlement).unwrap();
+		self.jump_to_block(settlement_start);
+
+		self.settle_project(project_id).unwrap();
+		project_id
+	}
+
 	pub fn create_project_at(
 		&mut self,
 		status: ProjectStatus,
@@ -1140,6 +1191,7 @@ impl<
 			ProjectStatus::FundingSuccessful => self.create_finished_project(
 				project_metadata,
 				issuer,
+				None,
 				evaluations,
 				bids,
 				community_contributions,
@@ -1148,15 +1200,17 @@ impl<
 			ProjectStatus::RemainderRound => self.create_remainder_contributing_project(
 				project_metadata,
 				issuer,
+				None,
 				evaluations,
 				bids,
 				community_contributions,
 			),
 			ProjectStatus::CommunityRound =>
-				self.create_community_contributing_project(project_metadata, issuer, evaluations, bids),
-			ProjectStatus::AuctionOpening => self.create_auctioning_project(project_metadata, issuer, evaluations),
-			ProjectStatus::EvaluationRound => self.create_evaluating_project(project_metadata, issuer),
-			ProjectStatus::Application => self.create_new_project(project_metadata, issuer),
+				self.create_community_contributing_project(project_metadata, issuer, None, evaluations, bids),
+			ProjectStatus::AuctionOpening =>
+				self.create_auctioning_project(project_metadata, issuer, None, evaluations),
+			ProjectStatus::EvaluationRound => self.create_evaluating_project(project_metadata, issuer, None),
+			ProjectStatus::Application => self.create_new_project(project_metadata, issuer, None),
 			_ => panic!("unsupported project creation in that status"),
 		}
 	}
