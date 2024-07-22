@@ -248,7 +248,7 @@ pub mod polkadot {
 pub mod asset_hub {
 	use super::*;
 	use crate::{AssetHub, PolkadotNet};
-	use xcm::v3::Parent;
+	use xcm::v4::Parent;
 
 	pub const PARA_ID: u32 = 1000;
 	pub const ED: Balance = system_parachains_constants::polkadot::currency::SYSTEM_PARA_EXISTENTIAL_DEPOSIT;
@@ -314,7 +314,7 @@ pub mod asset_hub {
 pub mod penpal {
 	use super::*;
 	use crate::{ParaId, Penpal, PolkadotNet};
-	use xcm::v3::Parent;
+	use xcm::v4::Parent;
 	pub const PARA_ID: u32 = 6969;
 	pub const ED: Balance = penpal_runtime::EXISTENTIAL_DEPOSIT;
 
@@ -372,7 +372,7 @@ pub mod polimec {
 	use crate::{PolimecNet, PolimecOrigin, PolimecRuntime};
 	use pallet_funding::AcceptedFundingAsset;
 	use polimec_runtime::{BlockchainOperationTreasury, TreasuryAccount};
-	use xcm::v3::Parent;
+	use xcm::v4::Parent;
 	use xcm_emulator::TestExt;
 
 	pub const PARA_ID: u32 = 3344;

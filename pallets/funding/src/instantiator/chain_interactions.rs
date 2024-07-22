@@ -338,7 +338,8 @@ impl<
 		assert_eq!(project_details.status, ProjectStatus::EvaluationRound);
 		assert_eq!(self.get_plmc_total_supply(), total_plmc_supply);
 		self.do_free_plmc_assertions(expected_free_plmc_balances);
-		self.do_reserved_plmc_assertions(expected_reserved_plmc_balances, HoldReason::Evaluation(project_id).into());
+		self.do_reserved_plmc_assertions(expected_reserved_plmc_balances, HoldReason::Evaluation.into());
+		// TODO: Check the `Reason`
 	}
 
 	pub fn finalized_bids_assertions(
@@ -611,7 +612,7 @@ impl<
 
 		self.do_reserved_plmc_assertions(
 			total_plmc_participation_locked.merge_accounts(MergeOperation::Add),
-			HoldReason::Participation(project_id).into(),
+			HoldReason::Participation.into(), // TODO: Check the `Reason`
 		);
 		self.do_bid_transferred_foreign_asset_assertions(
 			funding_asset_deposits.merge_accounts(MergeOperation::Add),
@@ -918,8 +919,8 @@ impl<
 			(_, Some((_, migrations))) => {
 				let maybe_migration = migrations.into_iter().find(|migration| {
 					let user = T::AccountId32Conversion::convert(account.clone());
-					let multilocation_user = MultiLocation{parents: 0, interior: X1(AccountId32 {network: None, id: user})};
-					matches!(migration.origin, MigrationOrigin { user: m_user, id: m_id, participation_type: m_participation_type } if m_user == multilocation_user && m_id == id && m_participation_type == participation_type)
+					let location_user = Location::new(0,AccountId32 {network: None, id: user});
+					matches!(&migration.origin, MigrationOrigin { user: m_user, id: m_id, participation_type: m_participation_type } if *m_user == location_user && *m_id == id && *m_participation_type == participation_type)
 				});
 				match maybe_migration {
 					// Migration exists so we check if the amount is correct and if it should exist
@@ -1002,7 +1003,7 @@ impl<
 
 		self.do_reserved_plmc_assertions(
 			total_plmc_participation_locked.merge_accounts(MergeOperation::Add),
-			HoldReason::Participation(project_id).into(),
+			HoldReason::Participation.into(), // TODO: Check the `Reason`
 		);
 
 		self.do_contribution_transferred_foreign_asset_assertions(funding_asset_deposits, project_id);
@@ -1090,7 +1091,7 @@ impl<
 
 		self.do_reserved_plmc_assertions(
 			total_plmc_participation_locked.merge_accounts(MergeOperation::Add),
-			HoldReason::Participation(project_id).into(),
+			HoldReason::Participation.into(), // TODO: Check the `Reason`
 		);
 		self.do_contribution_transferred_foreign_asset_assertions(funding_asset_deposits, project_id);
 		self.do_free_plmc_assertions(expected_free_plmc_balances.merge_accounts(MergeOperation::Add));

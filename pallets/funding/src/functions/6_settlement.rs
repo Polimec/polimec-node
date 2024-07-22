@@ -109,7 +109,7 @@ impl<T: Config> Pallet<T> {
 
 		// Release the held PLMC bond
 		T::NativeCurrency::release(
-			&HoldReason::Evaluation(project_id).into(),
+			&HoldReason::Evaluation.into(), // TODO: Check the `Reason`
 			&evaluation.evaluator,
 			bond,
 			Precision::Exact,
@@ -156,7 +156,7 @@ impl<T: Config> Pallet<T> {
 
 		// Release the held PLMC bond
 		T::NativeCurrency::release(
-			&HoldReason::Evaluation(project_id).into(),
+			&HoldReason::Evaluation.into(), // TODO: Check the `Reason`
 			&evaluation.evaluator,
 			bond,
 			Precision::Exact,
@@ -203,7 +203,7 @@ impl<T: Config> Pallet<T> {
 				vest_info.total_amount,
 				vest_info.amount_per_block,
 				funding_end_block,
-				HoldReason::Participation(project_id).into(),
+				HoldReason::Participation.into(), // TODO: Check the `Reason`
 			)?;
 		} else {
 			// Release the held PLMC bond
@@ -293,7 +293,7 @@ impl<T: Config> Pallet<T> {
 				vest_info.total_amount,
 				vest_info.amount_per_block,
 				funding_end_block,
-				HoldReason::Participation(project_id).into(),
+				HoldReason::Participation.into(), // TODO: Check the `Reason`
 			)?;
 		} else {
 			// Release the held PLMC bond
@@ -429,7 +429,7 @@ impl<T: Config> Pallet<T> {
 	) -> DispatchResult {
 		// Release the held PLMC bond
 		T::NativeCurrency::release(
-			&HoldReason::Participation(project_id).into(),
+			&HoldReason::Participation.into(), // TODO: Check the `Reason`
 			participant,
 			amount,
 			Precision::Exact,
@@ -446,7 +446,7 @@ impl<T: Config> Pallet<T> {
 		let slashed_amount = slash_percentage * evaluation.original_plmc_bond;
 
 		T::NativeCurrency::transfer_on_hold(
-			&HoldReason::Evaluation(project_id).into(),
+			&HoldReason::Evaluation.into(), // TODO: Check the `Reason`
 			&evaluation.evaluator,
 			&treasury_account,
 			slashed_amount,
@@ -490,11 +490,9 @@ impl<T: Config> Pallet<T> {
 		vesting_time: BlockNumberFor<T>,
 	) -> DispatchResult {
 		UserMigrations::<T>::try_mutate((project_id, origin), |maybe_migrations| -> DispatchResult {
-			let multilocation_user = MultiLocation::new(
-				0,
-				X1(AccountId32 { network: None, id: T::AccountId32Conversion::convert(origin.clone()) }),
-			);
-			let migration_origin = MigrationOrigin { user: multilocation_user, id, participation_type };
+			let location_user =
+				Location::new(0, AccountId32 { network: None, id: T::AccountId32Conversion::convert(origin.clone()) });
+			let migration_origin = MigrationOrigin { user: location_user, id, participation_type };
 			let vesting_time: u64 = vesting_time.try_into().map_err(|_| Error::<T>::BadMath)?;
 			let migration_info: MigrationInfo = (ct_amount.into(), vesting_time).into();
 			let migration = Migration::new(migration_origin, migration_info);

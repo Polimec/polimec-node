@@ -18,5 +18,4 @@
 #![allow(clippy::all)]
 
 pub mod deposit_dust;
-pub mod init_pallet;
 pub mod unhashed_migration;

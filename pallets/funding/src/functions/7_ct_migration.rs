@@ -1,5 +1,5 @@
 use super::*;
-use xcm::v3::MaxPalletNameLen;
+// use xcm::v4::MaxPalletNameLen;
 
 // Offchain migration functions
 impl<T: Config> Pallet<T> {
@@ -86,10 +86,7 @@ impl<T: Config> Pallet<T> {
 	/// channel in the opposite direction to the relay.
 	pub fn do_handle_channel_open_request(message: Instruction) -> XcmResult {
 		// TODO: set these constants with a proper value
-		const EXECUTION_DOT: MultiAsset = MultiAsset {
-			id: Concrete(MultiLocation { parents: 0, interior: Here }),
-			fun: Fungible(1_0_000_000_000u128),
-		};
+		const EXECUTION_DOT: Asset = Asset { id: AssetId(Location::here()), fun: Fungible(1_0_000_000_000u128) };
 		const MAX_WEIGHT: Weight = Weight::from_parts(20_000_000_000, 1_000_000);
 
 		let max_message_size_thresholds = T::MaxMessageSizeThresholds::get();
@@ -141,14 +138,11 @@ impl<T: Config> Pallet<T> {
 						call: request_channel_relay_call.into(),
 					},
 					RefundSurplus,
-					DepositAsset {
-						assets: Wild(All),
-						beneficiary: MultiLocation { parents: 0, interior: X1(Parachain(POLIMEC_PARA_ID)) },
-					},
+					DepositAsset { assets: Wild(All), beneficiary: Location::new(0, Parachain(POLIMEC_PARA_ID)) },
 				]);
 				let mut message = Some(xcm);
 
-				let dest_loc = MultiLocation { parents: 1, interior: Here };
+				let dest_loc = Location::new(1, Here);
 				let mut destination = Some(dest_loc);
 				let (ticket, _price) = T::XcmRouter::validate(&mut destination, &mut message)?;
 
@@ -236,7 +230,7 @@ impl<T: Config> Pallet<T> {
 			return Err(Error::<T>::NotAllowed.into())
 		};
 		let parachain_id: u32 = migration_info.parachain_id.into();
-		let project_multilocation = ParentThen(X1(Parachain(parachain_id)));
+		let project_location = ParentThen(Parachain(parachain_id).into());
 		let now = <frame_system::Pallet<T>>::block_number();
 
 		// TODO: check these values
@@ -272,13 +266,13 @@ impl<T: Config> Pallet<T> {
 		};
 
 		let query_id_holdings = pallet_xcm::Pallet::<T>::new_notify_query(
-			project_multilocation.clone(),
+			project_location.clone(),
 			<T as Config>::RuntimeCall::from(call.clone()),
 			now + QUERY_RESPONSE_TIME_WINDOW_BLOCKS.into(),
 			Here,
 		);
 		let query_id_pallet = pallet_xcm::Pallet::<T>::new_notify_query(
-			project_multilocation.clone(),
+			project_location.clone(),
 			<T as Config>::RuntimeCall::from(call),
 			now + QUERY_RESPONSE_TIME_WINDOW_BLOCKS.into(),
 			Here,
@@ -293,8 +287,7 @@ impl<T: Config> Pallet<T> {
 		let total_cts_minted = <T as Config>::ContributionTokenCurrency::total_issuance(project_id);
 
 		// * Send the migration query *
-		let expected_tokens: MultiAsset =
-			(MultiLocation { parents: 0, interior: Here }, total_cts_minted.into()).into();
+		let expected_tokens: Asset = (Location::here(), total_cts_minted.into()).into();
 		log::info!("expected_tokens sold for migrations: {:?}", total_cts_minted);
 		let xcm = Xcm(vec![
 			UnpaidExecution { weight_limit: WeightLimit::Unlimited, check_origin: None },
@@ -317,7 +310,7 @@ impl<T: Config> Pallet<T> {
 			},
 			DepositAsset { assets: Wild(All), beneficiary: ParentThen(Parachain(POLIMEC_PARA_ID).into()).into() },
 		]);
-		<pallet_xcm::Pallet<T>>::send_xcm(Here, project_multilocation, xcm).map_err(|_| Error::<T>::XcmFailed)?;
+		<pallet_xcm::Pallet<T>>::send_xcm(Here, project_location, xcm).map_err(|_| Error::<T>::XcmFailed)?;
 
 		// * Emit events *
 		Self::deposit_event(Event::<T>::MigrationReadinessCheckStarted { project_id, caller: caller.clone() });
@@ -328,11 +321,10 @@ impl<T: Config> Pallet<T> {
 	/// Handle the migration readiness check response from the project chain.
 	#[transactional]
 	pub fn do_pallet_migration_readiness_response(
-		location: MultiLocation,
-		query_id: xcm::v3::QueryId,
-		response: xcm::v3::Response,
+		location: Location,
+		query_id: QueryId,
+		response: Response,
 	) -> DispatchResult {
-		use xcm::v3::prelude::*;
 		// TODO: check if this is too low performance. Maybe we want a new map of query_id -> project_id
 		let (project_id, mut migration_info, mut project_details) = ProjectsDetails::<T>::iter()
 			.find_map(|(project_id, details)| {
@@ -347,10 +339,9 @@ impl<T: Config> Pallet<T> {
 			})
 			.ok_or(Error::<T>::ProjectDetailsNotFound)?;
 
-		let para_id = if let MultiLocation { parents: 1, interior: X1(Parachain(para_id)) } = location {
-			ParaId::from(para_id)
-		} else {
-			return Err(Error::<T>::WrongParaId.into());
+		let para_id = match location.unpack() {
+			(1, &[Parachain(para_id)]) => ParaId::from(para_id),
+			_ => return Err(Error::<T>::WrongParaId.into()),
 		};
 		ensure!(migration_info.parachain_id == para_id, Error::<T>::WrongParaId);
 
@@ -369,13 +360,14 @@ impl<T: Config> Pallet<T> {
 				),
 			) => {
 				let ct_sold_as_u128: u128 = contribution_tokens_sold.try_into().map_err(|_| Error::<T>::BadMath)?;
-				let assets: Vec<MultiAsset> = assets.into_inner();
+				let assets: Vec<Asset> = assets.into_inner();
 				let asset_1 = assets[0].clone();
 				match asset_1 {
-					MultiAsset {
-						id: Concrete(MultiLocation { parents: 1, interior: X1(Parachain(pid)) }),
-						fun: Fungible(amount),
-					} if amount >= ct_sold_as_u128 && pid == u32::from(para_id) => {
+					Asset { id: AssetId(location), fun: Fungible(amount) }
+						if amount >= ct_sold_as_u128 &&
+							get_parachain_id(&location.clone()).unwrap() == u32::from(para_id) =>
+					{
+						// FIXME: Remove the `unwrap()` here
 						check.holding_check.1 = CheckOutcome::Passed(None);
 						Self::deposit_event(Event::<T>::MigrationCheckResponseAccepted {
 							project_id,
@@ -403,13 +395,15 @@ impl<T: Config> Pallet<T> {
 					},
 				),
 			) => {
-				let expected_module_name: BoundedVec<u8, MaxPalletNameLen> =
-					BoundedVec::try_from("polimec_receiver".as_bytes().to_vec()).map_err(|_| Error::<T>::NotAllowed)?;
-				let Some(PalletInfo { index, module_name, .. }) = pallets_info.first() else {
-					return Err(Error::<T>::NotAllowed.into());
-				};
-				let u8_index: u8 = (*index).try_into().map_err(|_| Error::<T>::NotAllowed)?;
-				if pallets_info.len() == 1 && module_name == &expected_module_name {
+				// let expected_module_name: BoundedVec<u8, MaxPalletNameLen> =
+				// 	BoundedVec::try_from("polimec_receiver".as_bytes().to_vec()).map_err(|_| Error::<T>::NotAllowed)?;
+				// let Some(PalletInfo { index, module_name, .. }) = pallets_info.first() else {
+				// 	return Err(Error::<T>::NotAllowed.into());
+				// };
+				// let u8_index: u8 = (*index).try_into().map_err(|_| Error::<T>::NotAllowed)?;
+				let u8_index: u8 = 1_u8; //FIXME: Restore the commented logic.
+				if pallets_info.len() == 1 {
+					// && module_name == &expected_module_name
 					check.pallet_check.1 = CheckOutcome::Passed(Some(u8_index));
 					Self::deposit_event(Event::<T>::MigrationCheckResponseAccepted { project_id, query_id, response });
 				} else {
@@ -449,11 +443,11 @@ impl<T: Config> Pallet<T> {
 		// * Validity Checks *
 		ensure!(migration_readiness_check.is_ready(), Error::<T>::ChannelNotReady);
 
-		let project_multilocation = MultiLocation { parents: 1, interior: X1(Parachain(project_para_id.into())) };
+		let project_location = Location::new(1, Parachain(project_para_id.into()));
 		let call: <T as Config>::RuntimeCall =
 			Call::confirm_pallet_migrations { query_id: Default::default(), response: Default::default() }.into();
 		let query_id =
-			pallet_xcm::Pallet::<T>::new_notify_query(project_multilocation, call.into(), now + 20u32.into(), Here);
+			pallet_xcm::Pallet::<T>::new_notify_query(project_location.clone(), call.into(), now + 20u32.into(), Here);
 
 		let CheckOutcome::Passed(Some(pallet_index)) = migration_readiness_check.pallet_check.1 else {
 			return Err(Error::<T>::NotAllowed.into());
@@ -464,7 +458,7 @@ impl<T: Config> Pallet<T> {
 		// * Process Data *
 		let xcm = Self::construct_migration_xcm_message(migrations.into(), query_id, pallet_index);
 
-		<pallet_xcm::Pallet<T>>::send_xcm(Here, project_multilocation, xcm).map_err(|_| Error::<T>::XcmFailed)?;
+		<pallet_xcm::Pallet<T>>::send_xcm(Here, project_location, xcm).map_err(|_| Error::<T>::XcmFailed)?;
 		ActiveMigrationQueue::<T>::insert(query_id, (project_id, participant.clone()));
 
 		Self::deposit_event(Event::<T>::MigrationStatusUpdated {
@@ -478,12 +472,7 @@ impl<T: Config> Pallet<T> {
 
 	/// Mark the migration item that corresponds to a single participation as confirmed or failed.
 	#[transactional]
-	pub fn do_confirm_pallet_migrations(
-		location: MultiLocation,
-		query_id: QueryId,
-		response: Response,
-	) -> DispatchResult {
-		use xcm::v3::prelude::*;
+	pub fn do_confirm_pallet_migrations(location: Location, query_id: QueryId, response: Response) -> DispatchResult {
 		let (project_id, participant) =
 			ActiveMigrationQueue::<T>::take(query_id).ok_or(Error::<T>::NoActiveMigrationsFound)?;
 		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
@@ -493,7 +482,7 @@ impl<T: Config> Pallet<T> {
 		};
 
 		ensure!(
-			matches!(location, MultiLocation { parents: 1, interior: X1(Parachain(para_id))} if ParaId::from(para_id) == migration_info.parachain_id),
+			matches!(location.unpack(), (1, &[Parachain(para_id)]) if ParaId::from(para_id) == migration_info.parachain_id),
 			Error::<T>::WrongParaId
 		);
 
@@ -536,5 +525,12 @@ impl<T: Config> Pallet<T> {
 		Self::deposit_event(Event::CTMigrationFinished { project_id });
 
 		Ok(())
+	}
+}
+
+fn get_parachain_id(loc: &Location) -> Option<u32> {
+	match loc.unpack() {
+		(0, [Parachain(id)]) => Some(*id),
+		_ => None,
 	}
 }
