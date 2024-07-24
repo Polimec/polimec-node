@@ -110,6 +110,7 @@ fn lock_and_freeze_after_reserve_does_work() {
 /// Test that correct members are set with the default genesis config.
 #[test]
 fn council_and_technical_committee_members_set_correctly() {
+	use pallet_collective::{Instance1, Instance2, Members};
 	let alice = PolimecNet::account_id_of(ALICE);
 	let bob = PolimecNet::account_id_of(BOB);
 	let charlie = PolimecNet::account_id_of(CHARLIE);
@@ -117,8 +118,8 @@ fn council_and_technical_committee_members_set_correctly() {
 	let eve = PolimecNet::account_id_of(EVE);
 	let accounts = vec![alice, bob, charlie, dave, eve];
 	PolimecNet::execute_with(|| {
-		assert_same_members(Council::members(), &accounts);
-		assert_same_members(TechnicalCommittee::members(), &accounts);
+		assert_same_members(Members::<PolimecRuntime, Instance1>::get(), &accounts);
+		assert_same_members(Members::<PolimecRuntime, Instance2>::get(), &accounts);
 	});
 }
 

@@ -1461,7 +1461,7 @@ impl_runtime_apis! {
 			/// TODO: Update these benchmarks once we enable PLMC Teleportation and upgrade pallet_xcm. New version has
 			/// a better and quite different trait
 			impl pallet_xcm::benchmarking::Config for Runtime {
-				fn reachable_dest() -> Option<MultiLocation> {
+				fn reachable_dest() -> Option<Location> {
 					PolkadotXcm::force_xcm_version(
 						RuntimeOrigin::root(),
 						Box::new(crate::xcm_config::AssetHubLocation::get()),
@@ -1470,16 +1470,16 @@ impl_runtime_apis! {
 					Some(crate::xcm_config::AssetHubLocation::get())
 				}
 
-				fn reserve_transferable_asset_and_dest() -> Option<(MultiAsset, MultiLocation)> {
+				fn reserve_transferable_asset_and_dest() -> Option<(Asset, Location)> {
 					PolkadotXcm::force_xcm_version(
 						RuntimeOrigin::root(),
 						Box::new(crate::xcm_config::AssetHubLocation::get()),
 						xcm::prelude::XCM_VERSION
 					).unwrap();
 					Some((
-						MultiAsset {
+						Asset {
 							fun: Fungible(ExistentialDeposit::get()),
-							id: Concrete(Here.into())
+							id: AssetId(Here.into())
 						},
 						crate::xcm_config::AssetHubLocation::get(),
 					))

@@ -1615,11 +1615,13 @@ mod remaining_contribute_extrinsic {
 			let plmc_existential_deposits = plmc_funding.accounts().existential_deposits();
 			inst.mint_plmc_to(plmc_funding.clone());
 			inst.mint_plmc_to(plmc_existential_deposits.clone());
-			Balances::burn_from(&BUYER_1, 1, Preservation::Expendable, Precision::BestEffort, Fortitude::Force);
 
 			let foreign_funding = inst.calculate_contributed_funding_asset_spent(vec![contribution.clone()], wap);
 			inst.mint_foreign_asset_to(foreign_funding.clone());
 			inst.execute(|| {
+				let _ =
+					Balances::burn_from(&BUYER_1, 1, Preservation::Expendable, Precision::BestEffort, Fortitude::Force);
+
 				assert_noop!(
 					Pallet::<TestRuntime>::remaining_contribute(
 						RuntimeOrigin::signed(BUYER_1),

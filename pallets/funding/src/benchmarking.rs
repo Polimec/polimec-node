@@ -3025,15 +3025,14 @@ mod benchmarks {
 
 		let ct_issuance: u128 = <T as crate::Config>::ContributionTokenCurrency::total_issuance(project_id).into();
 		let xcm_response = Response::Assets(
-			vec![MultiAsset { id: Concrete(MultiLocation::new(1, X1(Parachain(6969)))), fun: Fungible(ct_issuance) }]
-				.into(),
+			vec![Asset { id: AssetId(Location::new(1, (Parachain(6969).into()))), fun: Fungible(ct_issuance) }].into(),
 		);
 
 		#[block]
 		{
 			// We call the inner function directly to avoid having to hardcode a benchmark pallet_xcm origin as a config type
 			crate::Pallet::<T>::do_pallet_migration_readiness_response(
-				MultiLocation::new(1, X1(Parachain(6969))),
+				Location::new(1, (Parachain(6969)).into()),
 				0,
 				xcm_response.clone(),
 			)
@@ -3123,7 +3122,7 @@ mod benchmarks {
 		{
 			// We call the inner function directly to avoid having to hardcode a benchmark pallet_xcm origin as a config type
 			crate::Pallet::<T>::do_pallet_migration_readiness_response(
-				MultiLocation::new(1, X1(Parachain(6969))),
+				Location::new(1, (Parachain(6969)).into()),
 				1,
 				xcm_response.clone(),
 			)
@@ -3321,7 +3320,7 @@ mod benchmarks {
 		)
 		.unwrap();
 
-		let project_location = MultiLocation::new(1, X1(Parachain(6969)));
+		let project_location = Location::new(1, (Parachain(6969)).into());
 		let xcm_response = Response::DispatchResult(MaybeErrorCode::Success);
 
 		#[block]

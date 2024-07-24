@@ -31,7 +31,7 @@ pub use xcm_emulator::{
 };
 
 decl_test_relay_chains! {
-	#[api_version(5)]
+	#[api_version(11)]
 	pub struct PolkadotRelay {
 			genesis = polkadot::genesis(),
 			on_init = (),

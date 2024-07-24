@@ -20,7 +20,6 @@ scale-info = { workspace = true, features = ["derive"] }
 
 # Local
 polimec-receiver.workspace = true
-polimec-xcm-executor.workspace = true
 macros.workspace = true
 polimec-common.workspace = true
 polimec-common-test-utils.workspace = true
