@@ -26,10 +26,10 @@ impl SetPrices for SetOraclePrices {
 			234, 207, 35, 20, 100, 153, 101, 254, 34,
 		];
 
-		frame_support::assert_ok!(Oracle::feed_values(RuntimeOrigin::signed(alice.clone().into()), values.clone()));
+		frame_support::assert_ok!(Oracle::feed_values(RuntimeOrigin::signed(alice.into()), values.clone()));
 
-		frame_support::assert_ok!(Oracle::feed_values(RuntimeOrigin::signed(bob.clone().into()), values.clone()));
+		frame_support::assert_ok!(Oracle::feed_values(RuntimeOrigin::signed(bob.into()), values.clone()));
 
-		frame_support::assert_ok!(Oracle::feed_values(RuntimeOrigin::signed(charlie.clone().into()), values.clone()));
+		frame_support::assert_ok!(Oracle::feed_values(RuntimeOrigin::signed(charlie.into()), values.clone()));
 	}
 }

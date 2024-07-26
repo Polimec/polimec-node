@@ -112,10 +112,7 @@ pub type FungibleTransactor = FungibleAdapter<
 pub struct SupportedAssets;
 impl frame_support::traits::Contains<Location> for SupportedAssets {
 	fn contains(l: &Location) -> bool {
-		match l.unpack() {
-			(1, []) | (1, USDC_JUNCTION) | (1, USDT_JUNCTION) => true,
-			_ => false,
-		}
+		matches!(l.unpack(), (1, []) | (1, USDC_JUNCTION) | (1, USDT_JUNCTION))
 	}
 }
 
@@ -165,17 +162,15 @@ impl ContainsPair<Asset, Location> for AssetHubAssetsAsReserve {
 		if &asset_hub_loc != origin {
 			return false;
 		}
-		match &asset.id {
-			id => SupportedAssets::contains(&id.0),
-		}
+		SupportedAssets::contains(&asset.id.0)
 	}
 }
 impl Contains<(Location, Vec<Asset>)> for AssetHubAssetsAsReserve {
 	fn contains(item: &(Location, Vec<Asset>)) -> bool {
 		// We allow all signed origins to send back the AssetHub reserve assets.
 		let (_, assets) = item;
-		assets.iter().all(|asset| match &asset.id {
-			id => SupportedAssets::contains(&id.0),
+		assets.iter().all(|asset| {
+			SupportedAssets::contains(&asset.id.0)
 		})
 	}
 }
