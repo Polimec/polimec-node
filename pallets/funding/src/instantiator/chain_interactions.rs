@@ -310,7 +310,7 @@ impl<
 			evaluation_round_info: EvaluationRoundInfoOf::<T> {
 				total_bonded_usd: Zero::zero(),
 				total_bonded_plmc: Zero::zero(),
-				evaluators_outcome: EvaluatorsOutcome::Unchanged,
+				evaluators_outcome: None,
 			},
 			usd_bid_on_oversubscription: None,
 			funding_end_block: None,
@@ -464,7 +464,7 @@ impl<
 
 		self.execute(|| crate::Pallet::<T>::do_start_auction(caller, project_id).unwrap());
 
-		assert_eq!(self.get_project_details(project_id).status, ProjectStatus::Auction);
+		assert_eq!(self.get_project_details(project_id).status, ProjectStatus::AuctionRound);
 
 		Ok(())
 	}
@@ -695,49 +695,19 @@ impl<
 		Ok(())
 	}
 
-	pub fn settle_project(&mut self, project_id: ProjectId) -> Result<(), DispatchError> {
-		let details = self.get_project_details(project_id);
-		match details.status {
-			ProjectStatus::SettlementStarted(FundingOutcome::FundingSuccessful) =>
-				self.settle_successful_project(project_id).unwrap(),
-			ProjectStatus::SettlementStarted(FundingOutcome::FundingFailed) =>
-				self.settle_failed_project(project_id).unwrap(),
-			_ => panic!("Project should be in SettlementStarted status"),
-		}
+	pub fn settle_project(&mut self, project_id: ProjectId) {
 		self.execute(|| {
+			Evaluations::<T>::iter_prefix((project_id,))
+				.for_each(|(_, evaluation)| Pallet::<T>::do_settle_evaluation(evaluation, project_id).unwrap());
+
+			Bids::<T>::iter_prefix((project_id,))
+				.for_each(|(_, bid)| Pallet::<T>::do_settle_bid(bid, project_id).unwrap());
+
+			Contributions::<T>::iter_prefix((project_id,))
+				.for_each(|(_, contribution)| Pallet::<T>::do_settle_contribution(contribution, project_id).unwrap());
+
 			crate::Pallet::<T>::do_mark_project_as_settled(project_id).unwrap();
 		});
-		Ok(())
-	}
-
-	fn settle_successful_project(&mut self, project_id: ProjectId) -> Result<(), DispatchError> {
-		self.execute(|| {
-			Evaluations::<T>::iter_prefix((project_id,))
-				.try_for_each(|(_, evaluation)| Pallet::<T>::do_settle_successful_evaluation(evaluation, project_id))?;
-
-			Bids::<T>::iter_prefix((project_id,))
-				.try_for_each(|(_, bid)| Pallet::<T>::do_settle_successful_bid(bid, project_id))?;
-
-			Contributions::<T>::iter_prefix((project_id,)).try_for_each(|(_, contribution)| {
-				Pallet::<T>::do_settle_successful_contribution(contribution, project_id)
-			})
-		})
-	}
-
-	fn settle_failed_project(&mut self, project_id: ProjectId) -> Result<(), DispatchError> {
-		self.execute(|| {
-			Evaluations::<T>::iter_prefix((project_id,))
-				.try_for_each(|(_, evaluation)| Pallet::<T>::do_settle_failed_evaluation(evaluation, project_id))?;
-
-			Bids::<T>::iter_prefix((project_id,))
-				.try_for_each(|(_, bid)| Pallet::<T>::do_settle_failed_bid(bid, project_id))?;
-
-			Contributions::<T>::iter_prefix((project_id,)).try_for_each(|(_, contribution)| {
-				Pallet::<T>::do_settle_failed_contribution(contribution, project_id)
-			})?;
-
-			Ok(())
-		})
 	}
 
 	pub fn get_evaluations(&mut self, project_id: ProjectId) -> Vec<EvaluationInfoOf<T>> {
@@ -807,35 +777,23 @@ impl<
 		&mut self,
 		project_id: ProjectId,
 		evaluations: Vec<EvaluationInfoOf<T>>,
-		percentage: u64,
 	) {
 		let details = self.get_project_details(project_id);
 		assert!(matches!(details.status, ProjectStatus::SettlementFinished(_)));
 
 		for evaluation in evaluations {
-			let reward_info = self
-				.execute(|| ProjectsDetails::<T>::get(project_id).unwrap().evaluation_round_info.evaluators_outcome);
+			let reward_info = self.execute(|| {
+				ProjectsDetails::<T>::get(project_id).unwrap().evaluation_round_info.evaluators_outcome.unwrap()
+			});
 			let account = evaluation.evaluator.clone();
 			assert_eq!(self.execute(|| { Evaluations::<T>::iter_prefix_values((&project_id, &account)).count() }), 0);
 
-			let (amount, should_exist) = match percentage {
-				0..=75 => {
-					assert!(matches!(reward_info, EvaluatorsOutcome::Slashed));
-					(0u64.into(), false)
-				},
-				76..=89 => {
-					assert!(matches!(reward_info, EvaluatorsOutcome::Unchanged));
-					(0u64.into(), false)
-				},
-				90..=100 => {
-					let reward = match reward_info {
-						EvaluatorsOutcome::Rewarded(info) =>
-							Pallet::<T>::calculate_evaluator_reward(&evaluation, &info),
-						_ => panic!("Evaluators should be rewarded"),
-					};
-					(reward, true)
-				},
-				_ => panic!("Percentage should be between 0 and 100"),
+			let (amount, should_exist) = {
+				let reward = match reward_info {
+					EvaluatorsOutcome::Rewarded(info) => Pallet::<T>::calculate_evaluator_reward(&evaluation, &info),
+					_ => panic!("Evaluators should be rewarded"),
+				};
+				(reward, true)
 			};
 			self.assert_migration(
 				project_id,
@@ -1130,7 +1088,7 @@ impl<
 		let settlement_start = self.get_update_block(project_id, &UpdateType::StartSettlement).unwrap();
 		self.jump_to_block(settlement_start);
 
-		self.settle_project(project_id).unwrap();
+		self.settle_project(project_id);
 		project_id
 	}
 
@@ -1156,7 +1114,7 @@ impl<
 			),
 			ProjectStatus::CommunityRound(..) =>
 				self.create_community_contributing_project(project_metadata, issuer, None, evaluations, bids),
-			ProjectStatus::Auction => self.create_auctioning_project(project_metadata, issuer, None, evaluations),
+			ProjectStatus::AuctionRound => self.create_auctioning_project(project_metadata, issuer, None, evaluations),
 			ProjectStatus::EvaluationRound => self.create_evaluating_project(project_metadata, issuer, None),
 			ProjectStatus::Application => self.create_new_project(project_metadata, issuer, None),
 			_ => panic!("unsupported project creation in that status"),
