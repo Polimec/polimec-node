@@ -40,7 +40,7 @@ impl<T: Config> Pallet<T> {
 			evaluation_round_info: EvaluationRoundInfoOf::<T> {
 				total_bonded_usd: Zero::zero(),
 				total_bonded_plmc: Zero::zero(),
-				evaluators_outcome: EvaluatorsOutcome::Unchanged,
+				evaluators_outcome: None,
 			},
 			usd_bid_on_oversubscription: None,
 			funding_end_block: None,
