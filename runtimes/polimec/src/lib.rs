@@ -56,7 +56,7 @@ use sp_runtime::{
 		IdentifyAccount, IdentityLookup, OpaqueKeys, Verify,
 	},
 	transaction_validity::{TransactionSource, TransactionValidity},
-	ApplyExtrinsicResult, FixedU128, MultiSignature, Perquintill, SaturatedConversion,
+	ApplyExtrinsicResult, FixedU128, MultiSignature, SaturatedConversion,
 };
 use sp_std::{cmp::Ordering, prelude::*};
 use sp_version::RuntimeVersion;
@@ -240,7 +240,6 @@ impl Contains<RuntimeCall> for BaseCallFilter {
 							pallet_funding::Call::remove_project { .. } |
 							pallet_funding::Call::edit_project { .. } |
 							pallet_funding::Call::start_evaluation { .. } |
-							pallet_funding::Call::end_evaluation { .. } |
 							pallet_funding::Call::evaluate { .. } |
 							pallet_funding::Call::end_evaluation { .. } |
 							pallet_funding::Call::start_auction { .. } |
@@ -249,12 +248,9 @@ impl Contains<RuntimeCall> for BaseCallFilter {
 							pallet_funding::Call::contribute { .. } |
 							pallet_funding::Call::end_funding { .. } |
 							pallet_funding::Call::start_settlement { .. } |
-							pallet_funding::Call::settle_successful_evaluation { .. } |
-							pallet_funding::Call::settle_failed_evaluation { .. } |
-							pallet_funding::Call::settle_successful_bid { .. } |
-							pallet_funding::Call::settle_failed_bid { .. } |
-							pallet_funding::Call::settle_successful_contribution { .. } |
-							pallet_funding::Call::settle_failed_contribution { .. }
+							pallet_funding::Call::settle_evaluation { .. } |
+							pallet_funding::Call::settle_bid { .. } |
+							pallet_funding::Call::settle_contribution { .. }
 					)
 				},
 			_ => true,

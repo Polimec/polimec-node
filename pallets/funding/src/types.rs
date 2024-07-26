@@ -699,7 +699,7 @@ pub mod inner_types {
 		Application,
 		EvaluationRound,
 		AuctionInitializePeriod,
-		Auction,
+		AuctionRound,
 		CommunityRound(BlockNumber),
 		FundingFailed,
 		FundingSuccessful,
@@ -711,8 +711,8 @@ pub mod inner_types {
 
 	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen, Serialize, Deserialize)]
 	pub enum FundingOutcome {
-		FundingSuccessful,
-		FundingFailed,
+		Success,
+		Failure,
 	}
 
 	#[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
@@ -788,33 +788,17 @@ pub mod inner_types {
 		Migration,
 	}
 
-	/// An enum representing all possible outcomes for a project.
-	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
-	pub enum ProjectOutcome {
-		/// 90%+ of the funding target was reached, so the project is successful.
-		FundingSuccessful,
-		/// 33%- of the funding target was reached, so the project failed.
-		FundingFailed,
-	}
-
 	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
 	pub struct EvaluationRoundInfo<Balance> {
 		pub total_bonded_usd: Balance,
 		pub total_bonded_plmc: Balance,
-		pub evaluators_outcome: EvaluatorsOutcome<Balance>,
+		pub evaluators_outcome: Option<EvaluatorsOutcome<Balance>>,
 	}
 
 	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
 	pub enum EvaluatorsOutcome<Balance> {
-		Unchanged,
 		Rewarded(RewardInfo<Balance>),
 		Slashed,
-	}
-
-	#[derive(Clone, Copy, Encode, Decode, Eq, PartialEq, PartialOrd, Ord, RuntimeDebug, TypeInfo, MaxEncodedLen)]
-	pub enum RewardOrSlash<Balance> {
-		Reward(Balance),
-		Slash(Balance),
 	}
 
 	#[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]

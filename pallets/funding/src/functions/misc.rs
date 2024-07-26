@@ -79,7 +79,6 @@ impl<T: Config> Pallet<T> {
 		auction_allocation_size: BalanceOf<T>,
 		wap: PriceOf<T>,
 	) -> Result<(u32, u32), DispatchError> {
-		// Get all the bids that were made before the end of the closing period.
 		let mut bids = Bids::<T>::iter_prefix_values((project_id,)).collect::<Vec<_>>();
 		// temp variable to store the sum of the bids
 		let mut bid_token_amount_sum = Zero::zero();
@@ -91,6 +90,7 @@ impl<T: Config> Pallet<T> {
 				let buyable_amount = auction_allocation_size.saturating_sub(bid_token_amount_sum);
 				if buyable_amount.is_zero() {
 					bid.status = BidStatus::Rejected;
+					bid.final_ct_amount = Zero::zero();
 				} else if bid.original_ct_amount <= buyable_amount {
 					if bid.final_ct_usd_price > wap {
 						bid.final_ct_usd_price = wap;
@@ -126,6 +126,8 @@ impl<T: Config> Pallet<T> {
 			if let Some(info) = maybe_info {
 				info.remaining_contribution_tokens.saturating_reduce(bid_token_amount_sum);
 				info.funding_amount_reached_usd.saturating_accrue(total_auction_allocation_usd);
+				info.weighted_average_price = Some(wap);
+
 				Ok(())
 			} else {
 				Err(Error::<T>::ProjectDetailsNotFound.into())

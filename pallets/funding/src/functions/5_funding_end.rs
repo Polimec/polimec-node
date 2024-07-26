@@ -55,24 +55,17 @@ impl<T: Config> Pallet<T> {
 
 		// * Update Storage *
 		DidWithActiveProjects::<T>::set(issuer_did, None);
-		let evaluator_outcome = match funding_ratio {
-			ratio if ratio <= Perquintill::from_percent(75u64) => EvaluatorsOutcome::Slashed,
-			ratio if ratio < Perquintill::from_percent(90u64) => EvaluatorsOutcome::Unchanged,
-			_ => {
-				let reward_info = Self::generate_evaluator_rewards_info(project_id)?;
-				EvaluatorsOutcome::Rewarded(reward_info)
-			},
-		};
 
-		project_details.evaluation_round_info.evaluators_outcome = evaluator_outcome;
-
-		let (next_status, duration, actual_weight) = if funding_ratio <= T::FundingSuccessThreshold::get() {
+		let (next_status, duration, actual_weight) = if funding_ratio < T::FundingSuccessThreshold::get() {
+			project_details.evaluation_round_info.evaluators_outcome = Some(EvaluatorsOutcome::Slashed);
 			(
 				ProjectStatus::FundingFailed,
 				1u32.into(),
 				WeightInfoOf::<T>::end_funding_automatically_rejected_evaluators_slashed(1),
 			)
 		} else {
+			let reward_info = Self::generate_evaluator_rewards_info(project_id)?;
+			project_details.evaluation_round_info.evaluators_outcome = Some(EvaluatorsOutcome::Rewarded(reward_info));
 			(
 				ProjectStatus::FundingSuccessful,
 				T::SuccessToSettlementTime::get(),
@@ -83,6 +76,7 @@ impl<T: Config> Pallet<T> {
 		let round_end = now.saturating_add(duration).saturating_sub(One::one());
 		project_details.round_duration.update(Some(now), Some(round_end));
 		project_details.status = next_status;
+		ProjectsDetails::<T>::insert(project_id, project_details);
 
 		Ok(PostDispatchInfo { actual_weight: Some(actual_weight), pays_fee: Pays::Yes })
 	}

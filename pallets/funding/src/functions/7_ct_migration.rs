@@ -9,8 +9,8 @@ impl<T: Config> Pallet<T> {
 
 		ensure!(project_details.issuer_account == caller, Error::<T>::NotIssuer);
 		match project_details.status {
-			ProjectStatus::SettlementFinished(FundingOutcome::FundingSuccessful) => (),
-			ProjectStatus::FundingSuccessful | ProjectStatus::SettlementStarted(FundingOutcome::FundingSuccessful) =>
+			ProjectStatus::SettlementFinished(FundingOutcome::Success) => (),
+			ProjectStatus::FundingSuccessful | ProjectStatus::SettlementStarted(FundingOutcome::Success) =>
 				return Err(Error::<T>::SettlementNotComplete.into()),
 			_ => return Err(Error::<T>::IncorrectRound.into()),
 		}
@@ -56,8 +56,8 @@ impl<T: Config> Pallet<T> {
 		// * Validity checks *
 		ensure!(&(project_details.issuer_account) == caller, Error::<T>::NotIssuer);
 		match project_details.status {
-			ProjectStatus::SettlementFinished(FundingOutcome::FundingSuccessful) => (),
-			ProjectStatus::FundingSuccessful | ProjectStatus::SettlementStarted(FundingOutcome::FundingSuccessful) =>
+			ProjectStatus::SettlementFinished(FundingOutcome::Success) => (),
+			ProjectStatus::FundingSuccessful | ProjectStatus::SettlementStarted(FundingOutcome::Success) =>
 				return Err(Error::<T>::SettlementNotComplete.into()),
 			_ => return Err(Error::<T>::IncorrectRound.into()),
 		}
