@@ -17,7 +17,7 @@
 use super::{
 	AccountId, AllPalletsWithSystem, AssetId as AssetIdPalletAssets, Balance, Balances, EnsureRoot, ForeignAssets,
 	ParachainInfo, ParachainSystem, PolkadotXcm, Runtime, RuntimeCall, RuntimeEvent, RuntimeOrigin, ToTreasury,
-	TreasuryAccount, Vec, XcmpQueue,
+	TreasuryAccount, Vec, WeightToFee, XcmpQueue,
 };
 use core::marker::PhantomData;
 use frame_support::{
@@ -298,7 +298,7 @@ impl xcm_executor::Config for XcmConfig {
 	type SubscriptionService = PolkadotXcm;
 	type Trader = (
 		// TODO: `WeightToFee` has to be carefully considered. For now use default
-		UsingComponents<shared_configuration::WeightToFee, HereLocation, AccountId, Balances, ToTreasury>,
+		UsingComponents<WeightToFee, HereLocation, AccountId, Balances, ToTreasury>,
 		FixedRateOfFungible<UsdtTraderParams, TakeRevenueToTreasury>,
 		FixedRateOfFungible<DotTraderParams, TakeRevenueToTreasury>,
 		FixedRateOfFungible<UsdcTraderParams, TakeRevenueToTreasury>,
