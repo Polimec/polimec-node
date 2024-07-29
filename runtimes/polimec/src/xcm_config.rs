@@ -169,9 +169,7 @@ impl Contains<(Location, Vec<Asset>)> for AssetHubAssetsAsReserve {
 	fn contains(item: &(Location, Vec<Asset>)) -> bool {
 		// We allow all signed origins to send back the AssetHub reserve assets.
 		let (_, assets) = item;
-		assets.iter().all(|asset| {
-			SupportedAssets::contains(&asset.id.0)
-		})
+		assets.iter().all(|asset| SupportedAssets::contains(&asset.id.0))
 	}
 }
 
