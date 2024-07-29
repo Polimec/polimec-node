@@ -38,7 +38,8 @@ mod benchmarks {
 		let caller: T::AccountId = whitelisted_caller();
 		let did = generate_did_from_account(1);
 		assert_eq!(Dispensed::<T>::get(did.clone()), None);
-		CurrencyOf::<T>::deposit_creating(&Dispenser::<T>::dispense_account(), T::InitialDispenseAmount::get());
+		let _imbalance =
+			CurrencyOf::<T>::deposit_creating(&Dispenser::<T>::dispense_account(), T::InitialDispenseAmount::get());
 
 		let jwt = get_mock_jwt_with_cid(caller.clone(), InvestorType::Retail, did.clone(), T::WhitelistedPolicy::get());
 		#[extrinsic_call]
