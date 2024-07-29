@@ -32,7 +32,7 @@ use frame_system::{pallet_prelude::BlockNumberFor, RawOrigin};
 #[cfg(test)]
 use sp_runtime::BuildStorage;
 use sp_runtime::{Perbill, Percent};
-use sp_std::{default::Default, vec, vec::Vec};
+use sp_std::{vec, vec::Vec};
 
 /// Minimum collator candidate stake
 fn min_candidate_stk<T: Config>() -> BalanceOf<T> {

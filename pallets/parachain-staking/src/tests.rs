@@ -3800,9 +3800,9 @@ fn deferred_payment_steady_state_event_flow() {
 				let new_issuance = Balances::total_issuance();
 				let diff = new_issuance - initial_issuance;
 				assert_ok!(Balances::burn(Some(111).into(), diff, false));
-				let burned_balance = PositiveImbalance::<Test>::new(diff);
+				let burned_imbalance = PositiveImbalance::<Test>::new(diff);
 
-				Balances::settle(&111, burned_balance, WithdrawReasons::FEE, ExistenceRequirement::AllowDeath)
+				Balances::settle(&111, burned_imbalance, WithdrawReasons::FEE, ExistenceRequirement::AllowDeath)
 					.expect("Account can absorb burn");
 			};
 
@@ -3843,30 +3843,30 @@ fn deferred_payment_steady_state_event_flow() {
 
 				roll_blocks(1);
 				assert_events_eq!(
-					Event::Rewarded { account: 3, rewards: 19 },
-					Event::Rewarded { account: 22, rewards: 6 },
-					Event::Rewarded { account: 33, rewards: 6 },
+					Event::Rewarded { account: 3, rewards: 21 },
+					Event::Rewarded { account: 22, rewards: 7 },
+					Event::Rewarded { account: 33, rewards: 7 },
 				);
 
 				roll_blocks(1);
 				assert_events_eq!(
-					Event::Rewarded { account: 4, rewards: 19 },
-					Event::Rewarded { account: 33, rewards: 6 },
-					Event::Rewarded { account: 44, rewards: 6 },
+					Event::Rewarded { account: 4, rewards: 21 },
+					Event::Rewarded { account: 33, rewards: 7 },
+					Event::Rewarded { account: 44, rewards: 7 },
 				);
 
 				roll_blocks(1);
 				assert_events_eq!(
-					Event::Rewarded { account: 1, rewards: 19 },
-					Event::Rewarded { account: 11, rewards: 6 },
-					Event::Rewarded { account: 44, rewards: 6 },
+					Event::Rewarded { account: 1, rewards: 21 },
+					Event::Rewarded { account: 11, rewards: 7 },
+					Event::Rewarded { account: 44, rewards: 7 },
 				);
 
 				roll_blocks(1);
 				assert_events_eq!(
-					Event::Rewarded { account: 2, rewards: 19 },
-					Event::Rewarded { account: 11, rewards: 6 },
-					Event::Rewarded { account: 22, rewards: 6 },
+					Event::Rewarded { account: 2, rewards: 21 },
+					Event::Rewarded { account: 11, rewards: 7 },
+					Event::Rewarded { account: 22, rewards: 7 },
 				);
 
 				roll_blocks(1);
