@@ -43,6 +43,7 @@ use std::cell::RefCell;
 use system::EnsureSigned;
 use xcm_builder::{EnsureXcmOrigin, FixedWeightBounds, ParentIsPreset, SiblingParachainConvertsVia};
 use xcm_executor::traits::XcmAssetTransfers;
+use xcm::v4::PalletInfo as XcmPalletInfo;
 
 pub const PLMC: Balance = 10u128.pow(PLMC_DECIMALS as u32);
 pub const MILLI_PLMC: Balance = PLMC / 10u128.pow(3);
@@ -313,14 +314,14 @@ parameter_types! {
 	pub const MinVestedTransfer: u64 = 256 * 2;
 	pub UnvestedFundsAllowedWithdrawReasons: WithdrawReasons =
 		WithdrawReasons::except(WithdrawReasons::TRANSFER | WithdrawReasons::RESERVE);
-	pub PolimecReceiverInfo: xcm::v4::PalletInfo = xcm::v4::PalletInfo::new(
+	pub PolimecReceiverInfo: XcmPalletInfo = XcmPalletInfo::new(
 		51, "PolimecReceiver".into(), "polimec_receiver".into(), 0, 1, 0
 	).unwrap();
 }
 
 #[cfg(feature = "runtime-benchmarks")]
 parameter_types! {
-	pub BenchmarkReason: RuntimeHoldReason = RuntimeHoldReason::PolimecFunding(crate::HoldReason::Participation(0));
+	pub BenchmarkReason: RuntimeHoldReason = RuntimeHoldReason::PolimecFunding(crate::HoldReason::Participation);
 }
 impl pallet_linear_release::Config for TestRuntime {
 	type Balance = Balance;

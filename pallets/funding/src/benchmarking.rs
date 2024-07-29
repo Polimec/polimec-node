@@ -24,8 +24,6 @@ use crate::{
 	traits::{ProvideAssetPrice, SetPrices},
 };
 use frame_benchmarking::v2::*;
-#[cfg(test)]
-use frame_support::assert_ok;
 use frame_support::{
 	dispatch::RawOrigin,
 	traits::{
@@ -35,8 +33,6 @@ use frame_support::{
 	Parameter,
 };
 use itertools::Itertools;
-#[allow(unused_imports)]
-use pallet::Pallet as PalletFunding;
 use parity_scale_codec::{Decode, Encode};
 use polimec_common::{credentials::InvestorType, USD_DECIMALS, USD_UNIT};
 use polimec_common_test_utils::{generate_did_from_account, get_mock_jwt_with_cid};
@@ -324,6 +320,10 @@ pub fn run_blocks_to_execute_next_transition<T: Config>(
 )]
 mod benchmarks {
 	use super::*;
+
+	// This is actually used in the benchmarking setup, check one line below.
+	#[allow(unused_imports)]
+	use pallet::Pallet as PalletFunding;
 
 	impl_benchmark_test_suite!(PalletFunding, crate::mock::new_test_ext(), crate::mock::TestRuntime);
 
@@ -3025,14 +3025,14 @@ mod benchmarks {
 
 		let ct_issuance: u128 = <T as crate::Config>::ContributionTokenCurrency::total_issuance(project_id).into();
 		let xcm_response = Response::Assets(
-			vec![Asset { id: AssetId(Location::new(1, (Parachain(6969).into()))), fun: Fungible(ct_issuance) }].into(),
+			vec![Asset { id: AssetId(Location::new(1, [Parachain(6969)])), fun: Fungible(ct_issuance) }].into(),
 		);
 
 		#[block]
 		{
 			// We call the inner function directly to avoid having to hardcode a benchmark pallet_xcm origin as a config type
 			crate::Pallet::<T>::do_pallet_migration_readiness_response(
-				Location::new(1, (Parachain(6969)).into()),
+				Location::new(1, [Parachain(6969)]),
 				0,
 				xcm_response.clone(),
 			)
@@ -3104,25 +3104,25 @@ mod benchmarks {
 
 		let module_name: BoundedVec<u8, MaxPalletNameLen> =
 			BoundedVec::try_from("polimec_receiver".as_bytes().to_vec()).unwrap();
-		let pallet_info = xcm::latest::PalletInfo {
+		let pallet_info = PalletInfo::new(
 			// index is used for future `Transact` calls to the pallet for migrating a user
-			index: 69,
+			69,
 			// Doesn't matter
-			name: module_name.clone(),
+			module_name.to_vec(),
 			// Main check that the receiver pallet is there
-			module_name,
+			module_name.to_vec(),
 			// These might be useful in the future, but not for now
-			major: 0,
-			minor: 0,
-			patch: 0,
-		};
+			0,
+			0,
+			0,
+		).unwrap();
 		let xcm_response = Response::PalletsInfo(vec![pallet_info].try_into().unwrap());
 
 		#[block]
 		{
 			// We call the inner function directly to avoid having to hardcode a benchmark pallet_xcm origin as a config type
 			crate::Pallet::<T>::do_pallet_migration_readiness_response(
-				Location::new(1, (Parachain(6969)).into()),
+				Location::new(1, [Parachain(6969)]),
 				1,
 				xcm_response.clone(),
 			)
@@ -3320,7 +3320,7 @@ mod benchmarks {
 		)
 		.unwrap();
 
-		let project_location = Location::new(1, (Parachain(6969)).into());
+		let project_location = Location::new(1, [Parachain(6969)]);
 		let xcm_response = Response::DispatchResult(MaybeErrorCode::Success);
 
 		#[block]
@@ -3440,6 +3440,7 @@ mod benchmarks {
 	mod tests {
 		use super::*;
 		use crate::mock::{new_test_ext, TestRuntime};
+		use frame_support::assert_ok;
 
 		#[test]
 		fn bench_create_project() {

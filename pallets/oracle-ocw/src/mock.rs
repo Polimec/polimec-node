@@ -82,6 +82,8 @@ parameter_types! {
 }
 
 impl orml_oracle::Config for Test {
+	#[cfg(feature = "runtime-benchmarks")]
+	type BenchmarkHelper = ();
 	type CombineData = orml_oracle::DefaultCombineData<Test, ConstU32<3>, ConstU32<10>, ()>;
 	type MaxFeedValues = MaxFeedValues;
 	type MaxHasDispatchedSize = ConstU32<20>;
@@ -93,8 +95,6 @@ impl orml_oracle::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type Time = Timestamp;
 	type WeightInfo = ();
-	#[cfg(feature = "runtime-benchmarks")]
-	type BenchmarkHelper = ();
 }
 
 pub struct AssetPriceConverter;
