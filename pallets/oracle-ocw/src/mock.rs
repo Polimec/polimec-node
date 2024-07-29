@@ -92,15 +92,16 @@ impl orml_oracle::Config for Test {
 	type RootOperatorAccountId = RootOperatorAccountId;
 	type RuntimeEvent = RuntimeEvent;
 	type Time = Timestamp;
-	// TODO Add weight info
 	type WeightInfo = ();
+	#[cfg(feature = "runtime-benchmarks")]
+	type BenchmarkHelper = ();
 }
 
 pub struct AssetPriceConverter;
 impl Convert<(AssetName, FixedU128), (OracleKey, OracleValue)> for AssetPriceConverter {
 	fn convert((asset, price): (AssetName, FixedU128)) -> (OracleKey, OracleValue) {
 		match asset {
-			AssetName::DOT => (0, price),
+			AssetName::DOT => (10, price),
 			AssetName::USDC => (1337, price),
 			AssetName::USDT => (1984, price),
 			AssetName::PLMC => (3344, price),
