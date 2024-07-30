@@ -521,10 +521,6 @@ pub mod pallet {
 		BalanceOf<T>,
 		ValueQuery,
 	>;
-	#[pallet::storage]
-	// After 25 participations, the retail user has access to the max multiplier of 10x, so no need to keep tracking it
-	pub type RetailParticipations<T: Config> =
-		StorageMap<_, Blake2_128Concat, Did, BoundedVec<ProjectId, MaxParticipationsForMaxMultiplier>, ValueQuery>;
 
 	#[pallet::storage]
 	pub type UserMigrations<T: Config> = StorageNMap<
@@ -629,7 +625,8 @@ pub mod pallet {
 			project_id: ProjectId,
 			account: AccountIdOf<T>,
 			id: u32,
-			ct_amount: BalanceOf<T>,
+			final_ct_amount: BalanceOf<T>,
+			final_ct_price: PriceOf<T>,
 		},
 		ContributionSettled {
 			project_id: ProjectId,
@@ -869,10 +866,10 @@ pub mod pallet {
 			project_id: ProjectId,
 			#[pallet::compact] usd_amount: BalanceOf<T>,
 		) -> DispatchResultWithPostInfo {
-			let (account, did, investor_type, whitelisted_policy) =
+			let (account, did, _investor_type, whitelisted_policy) =
 				T::InvestorOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get())?;
 
-			Self::do_evaluate(&account, project_id, usd_amount, did, investor_type, whitelisted_policy)
+			Self::do_evaluate(&account, project_id, usd_amount, did, whitelisted_policy)
 		}
 
 		#[pallet::call_index(5)]

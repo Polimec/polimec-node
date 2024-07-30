@@ -443,7 +443,6 @@ impl<
 					project_id,
 					usd_amount,
 					generate_did_from_account(account),
-					InvestorType::Professional,
 					project_policy.clone(),
 				)
 			})?;
@@ -816,7 +815,7 @@ impl<
 		for bid in bids {
 			let account = bid.bidder.clone();
 			assert_eq!(self.execute(|| { Bids::<T>::iter_prefix_values((&project_id, &account)).count() }), 0);
-			let amount: BalanceOf<T> = if is_successful { bid.final_ct_amount } else { 0u64.into() };
+			let amount: BalanceOf<T> = bid.final_ct_amount();
 			self.assert_migration(project_id, account, amount, bid.id, ParticipationType::Bid, is_successful);
 		}
 	}
