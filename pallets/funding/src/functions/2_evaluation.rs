@@ -117,7 +117,6 @@ impl<T: Config> Pallet<T> {
 		project_id: ProjectId,
 		usd_amount: BalanceOf<T>,
 		did: Did,
-		investor_type: InvestorType,
 		whitelisted_policy: Cid,
 	) -> DispatchResultWithPostInfo {
 		// * Get variables *
@@ -142,15 +141,6 @@ impl<T: Config> Pallet<T> {
 		ensure!(total_evaluations_count < T::MaxEvaluationsPerProject::get(), Error::<T>::TooManyProjectParticipations);
 		ensure!(user_evaluations_count < T::MaxEvaluationsPerUser::get(), Error::<T>::TooManyUserParticipations);
 
-		// * Calculate new variables *
-		if investor_type == InvestorType::Retail {
-			RetailParticipations::<T>::mutate(&did, |project_participations| {
-				if project_participations.contains(&project_id).not() {
-					// We don't care if it fails, since it means the user already has access to the max multiplier
-					let _ = project_participations.try_push(project_id);
-				}
-			});
-		}
 		let plmc_bond = plmc_usd_price
 			.reciprocal()
 			.ok_or(Error::<T>::BadMath)?

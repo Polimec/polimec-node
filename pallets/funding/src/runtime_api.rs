@@ -70,7 +70,7 @@ impl<T: Config> Pallet<T> {
 
 	pub fn top_bids(project_id: ProjectId, amount: u32) -> Vec<BidInfoOf<T>> {
 		Bids::<T>::iter_prefix_values((project_id,))
-			.sorted_by(|a, b| b.final_ct_amount.cmp(&a.final_ct_amount))
+			.sorted_by(|a, b| b.final_ct_amount().cmp(&a.final_ct_amount()))
 			.take(amount as usize)
 			.collect_vec()
 	}

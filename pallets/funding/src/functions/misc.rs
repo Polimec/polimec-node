@@ -90,20 +90,14 @@ impl<T: Config> Pallet<T> {
 				let buyable_amount = auction_allocation_size.saturating_sub(bid_token_amount_sum);
 				if buyable_amount.is_zero() {
 					bid.status = BidStatus::Rejected;
-					bid.final_ct_amount = Zero::zero();
 				} else if bid.original_ct_amount <= buyable_amount {
-					if bid.final_ct_usd_price > wap {
-						bid.final_ct_usd_price = wap;
-					}
 					bid_token_amount_sum.saturating_accrue(bid.original_ct_amount);
-					bid.final_ct_amount = bid.original_ct_amount;
 					bid.status = BidStatus::Accepted;
 					DidWithWinningBids::<T>::mutate(project_id, bid.did.clone(), |flag| {
 						*flag = true;
 					});
 				} else {
 					bid_token_amount_sum.saturating_accrue(buyable_amount);
-					bid.final_ct_amount = buyable_amount;
 					bid.status = BidStatus::PartiallyAccepted(buyable_amount);
 					DidWithWinningBids::<T>::mutate(project_id, bid.did.clone(), |flag| {
 						*flag = true;
@@ -118,7 +112,9 @@ impl<T: Config> Pallet<T> {
 		let total_auction_allocation_usd: BalanceOf<T> = accepted_bids
 			.into_iter()
 			.try_fold(Zero::zero(), |acc: BalanceOf<T>, bid: BidInfoOf<T>| {
-				bid.final_ct_usd_price.checked_mul_int(bid.final_ct_amount).and_then(|ticket| acc.checked_add(&ticket))
+				let final_ct_usd_price = if bid.original_ct_usd_price > wap { wap } else { bid.original_ct_usd_price };
+				let final_ct_amount = bid.final_ct_amount();
+				final_ct_usd_price.checked_mul_int(final_ct_amount).and_then(|usd_ticket| acc.checked_add(&usd_ticket))
 			})
 			.ok_or(Error::<T>::BadMath)?;
 

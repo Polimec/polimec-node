@@ -149,22 +149,14 @@ pub mod config_types {
 		}
 	}
 
-	pub type MaxParticipationsForMaxMultiplier = ConstU32<25>;
-	pub const fn retail_max_multiplier_for_participations(participations: u8) -> u8 {
-		match participations {
-			0..=2 => 1,
-			3..=4 => 2,
-			5..=9 => 4,
-			10..=24 => 7,
-			25..=u8::MAX => 10,
-		}
-	}
+	pub const RETAIL_MAX_MULTIPLIER: u8 = 5u8;
 	pub const PROFESSIONAL_MAX_MULTIPLIER: u8 = 10u8;
 	pub const INSTITUTIONAL_MAX_MULTIPLIER: u8 = 25u8;
 }
 
 pub mod storage_types {
 	use super::*;
+	use sp_runtime::traits::Zero;
 
 	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo, Serialize, Deserialize)]
 	pub struct ProjectMetadata<BoundedString, Balance: PartialOrd + Copy, Price: FixedPointNumber, AccountId, Cid> {
@@ -383,13 +375,22 @@ pub mod storage_types {
 		#[codec(compact)]
 		pub original_ct_amount: Balance,
 		pub original_ct_usd_price: Price,
-		pub final_ct_amount: Balance,
-		pub final_ct_usd_price: Price,
 		pub funding_asset: AcceptedFundingAsset,
 		pub funding_asset_amount_locked: Balance,
 		pub multiplier: Multiplier,
 		pub plmc_bond: Balance,
 		pub when: BlockNumber,
+	}
+	impl<ProjectId, Did, Balance: BalanceT, Price: FixedPointNumber, AccountId, BlockNumber, Multiplier>
+		BidInfo<ProjectId, Did, Balance, Price, AccountId, BlockNumber, Multiplier>
+	{
+		pub fn final_ct_amount(&self) -> Balance {
+			match self.status {
+				BidStatus::Accepted => self.original_ct_amount,
+				BidStatus::PartiallyAccepted(amount) => amount,
+				_ => Zero::zero(),
+			}
+		}
 	}
 
 	impl<
