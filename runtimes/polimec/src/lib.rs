@@ -418,7 +418,7 @@ impl pallet_balances::Config for Runtime {
 impl pallet_transaction_payment::Config for Runtime {
 	type FeeMultiplierUpdate = SlowAdjustingFeeUpdate<Self>;
 	type LengthToFee = ConstantMultiplier<Balance, TransactionByteFee>;
-	type OnChargeTransaction = shared_configuration::fee::FungibleAdapter<Balances, DealWithFees<Runtime>>;
+	type OnChargeTransaction = pallet_transaction_payment::FungibleAdapter<Balances, DealWithFees<Runtime>>;
 	type OperationalFeeMultiplier = frame_support::traits::ConstU8<5>;
 	type RuntimeEvent = RuntimeEvent;
 	type WeightToFee = WeightToFee;
@@ -524,19 +524,14 @@ impl cumulus_pallet_xcmp_queue::Config for Runtime {
 	type XcmpQueue = TransformOrigin<MessageQueue, AggregateMessageOrigin, ParaId, ParaIdToSibling>;
 }
 
-// impl cumulus_pallet_dmp_queue::Config for Runtime {
-// 	type DmpSink = frame_support::traits::EnqueueWithOrigin<MessageQueue, RelayOrigin>;
-// 	type RuntimeEvent = RuntimeEvent;
-// 	type WeightInfo = weights::cumulus_pallet_dmp_queue::WeightInfo<Runtime>;
-// }
-
 parameter_types! {
 	pub MessageQueueServiceWeight: Weight = Perbill::from_percent(35) * RuntimeBlockWeights::get().max_block;
+	pub MessageQueueIdleServiceWeight: Weight = Perbill::from_percent(20) * RuntimeBlockWeights::get().max_block;
 }
 
 impl pallet_message_queue::Config for Runtime {
 	type HeapSize = sp_core::ConstU32<{ 64 * 1024 }>;
-	type IdleMaxServiceWeight = ();
+	type IdleMaxServiceWeight = MessageQueueIdleServiceWeight;
 	type MaxStale = sp_core::ConstU32<8>;
 	#[cfg(feature = "runtime-benchmarks")]
 	type MessageProcessor = pallet_message_queue::mock_helpers::NoopMessageProcessor<AggregateMessageOrigin>;
@@ -1172,7 +1167,7 @@ construct_runtime!(
 		XcmpQueue: cumulus_pallet_xcmp_queue = 30,
 		PolkadotXcm: pallet_xcm = 31,
 		CumulusXcm: cumulus_pallet_xcm = 32,
-		// DmpQueue: cumulus_pallet_dmp_queue = 33,
+		// It was used for: DmpQueue: cumulus_pallet_dmp_queue = 33,
 		MessageQueue: pallet_message_queue = 34,
 
 		// Governance
@@ -1222,7 +1217,6 @@ mod benches {
 		// XCM helpers.
 		[cumulus_pallet_xcmp_queue, XcmpQueue]
 		[pallet_xcm, PalletXcmExtrinsiscsBenchmark::<Runtime>]
-		// [cumulus_pallet_dmp_queue, DmpQueue]
 		[pallet_message_queue, MessageQueue]
 
 		// Governance

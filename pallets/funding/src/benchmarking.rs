@@ -3115,7 +3115,8 @@ mod benchmarks {
 			0,
 			0,
 			0,
-		).unwrap();
+		)
+		.unwrap();
 		let xcm_response = Response::PalletsInfo(vec![pallet_info].try_into().unwrap());
 
 		#[block]

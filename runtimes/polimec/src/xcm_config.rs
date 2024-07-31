@@ -34,10 +34,10 @@ use xcm::v4::prelude::*;
 use xcm_builder::{
 	AccountId32Aliases, AllowExplicitUnpaidExecutionFrom, AllowKnownQueryResponses, AllowSubscriptionsFrom,
 	AllowTopLevelPaidExecutionFrom, CreateMatcher, DenyReserveTransferToRelayChain, DenyThenTry, EnsureXcmOrigin,
-	FixedRateOfFungible, FixedWeightBounds, FungibleAdapter, FungiblesAdapter, IsConcrete, MatchXcm,
-	MatchedConvertedConcreteId, MintLocation, NoChecking, ParentIsPreset, RelayChainAsNative, SiblingParachainAsNative,
-	SiblingParachainConvertsVia, SignedAccountId32AsNative, SignedToAccountId32, SovereignSignedViaLocation,
-	TakeWeightCredit, TrailingSetTopicAsId, UsingComponents, WithComputedOrigin,
+	FixedRateOfFungible, FixedWeightBounds, FrameTransactionalProcessor, FungibleAdapter, FungiblesAdapter, IsConcrete,
+	MatchXcm, MatchedConvertedConcreteId, MintLocation, NoChecking, ParentIsPreset, RelayChainAsNative,
+	SiblingParachainAsNative, SiblingParachainConvertsVia, SignedAccountId32AsNative, SignedToAccountId32,
+	SovereignSignedViaLocation, TakeWeightCredit, TrailingSetTopicAsId, UsingComponents, WithComputedOrigin,
 };
 use xcm_executor::{
 	traits::{JustTry, Properties, ShouldExecute},
@@ -296,7 +296,7 @@ impl xcm_executor::Config for XcmConfig {
 		FixedRateOfFungible<DotTraderParams, TakeRevenueToTreasury>,
 		FixedRateOfFungible<UsdcTraderParams, TakeRevenueToTreasury>,
 	);
-	type TransactionalProcessor = ();
+	type TransactionalProcessor = FrameTransactionalProcessor;
 	type UniversalAliases = Nothing;
 	type UniversalLocation = UniversalLocation;
 	type Weigher = FixedWeightBounds<UnitWeightCost, RuntimeCall, MaxInstructions>;

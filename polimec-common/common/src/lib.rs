@@ -19,7 +19,7 @@
 use frame_support::{pallet_prelude::*, traits::tokens::fungible};
 use sp_runtime::RuntimeDebug;
 use sp_std::prelude::*;
-pub use xcm::v4::{opaque::Xcm, Assets, Location, SendError, SendResult, SendXcm, XcmHash};
+pub use xcm::v4::{opaque::Xcm, Assets, Location, QueryId, SendError, SendResult, SendXcm, XcmHash};
 
 pub mod credentials;
 
@@ -146,7 +146,7 @@ pub mod migration_types {
 	#[derive(Clone, Encode, Decode, Eq, PartialEq, Ord, PartialOrd, RuntimeDebug, TypeInfo, MaxEncodedLen)]
 	pub enum MigrationStatus {
 		NotStarted,
-		Sent(xcm::v4::QueryId),
+		Sent(QueryId),
 		Confirmed,
 		Failed,
 	}
