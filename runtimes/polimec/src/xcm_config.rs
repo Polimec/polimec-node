@@ -292,9 +292,9 @@ impl xcm_executor::Config for XcmConfig {
 	type Trader = (
 		// TODO: `WeightToFee` has to be carefully considered. For now use default
 		UsingComponents<WeightToFee, HereLocation, AccountId, Balances, ToTreasury>,
-		FixedRateOfFungible<UsdtTraderParams, TakeRevenueToTreasury>,
 		FixedRateOfFungible<DotTraderParams, TakeRevenueToTreasury>,
 		FixedRateOfFungible<UsdcTraderParams, TakeRevenueToTreasury>,
+		FixedRateOfFungible<UsdtTraderParams, TakeRevenueToTreasury>,
 	);
 	type TransactionalProcessor = FrameTransactionalProcessor;
 	type UniversalAliases = Nothing;

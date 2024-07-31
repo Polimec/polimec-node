@@ -21,15 +21,15 @@ fn execution_fees_go_to_treasury() {
 
 	let beneficiary: PolimecAccountId = [0u8; 32].into();
 
-	let assert_reserve_asset_fee_goes_to_treasury = |multi_asset: Asset| {
-		let asset_location = multi_asset.id.0.clone();
+	let assert_reserve_asset_fee_goes_to_treasury = |asset: Asset| {
+		let asset_location = asset.id.0.clone();
 		let asset_id = SupportedAssets::convert(&asset_location).unwrap();
-		let asset_amount = if let Fungible(amount) = multi_asset.fun { amount } else { unreachable!() };
+		let asset_amount = if let Fungible(amount) = asset.fun { amount } else { unreachable!() };
 
 		let xcm = Xcm::<PolimecCall>(vec![
-			ReserveAssetDeposited(vec![multi_asset.clone()].into()),
+			ReserveAssetDeposited(vec![asset.clone()].into()),
 			ClearOrigin,
-			BuyExecution { fees: multi_asset, weight_limit: Unlimited },
+			BuyExecution { fees: asset, weight_limit: Unlimited },
 			DepositAsset {
 				assets: WildAsset::All.into(),
 				beneficiary: Location::new(0, [AccountId32 { network: None, id: beneficiary.clone().into() }]),
@@ -63,11 +63,11 @@ fn execution_fees_go_to_treasury() {
 
 	let assert_plmc_fee_goes_to_treasury = || {
 		let asset_amount = 100_0_000_000_000;
-		let multi_asset = Asset { id: AssetId(Location::here()), fun: Fungible(asset_amount) };
+		let asset = Asset { id: AssetId(Location::here()), fun: Fungible(asset_amount) };
 
 		let xcm = Xcm::<PolimecCall>(vec![
-			WithdrawAsset(vec![multi_asset.clone()].into()),
-			BuyExecution { fees: multi_asset, weight_limit: Unlimited },
+			WithdrawAsset(vec![asset.clone()].into()),
+			BuyExecution { fees: asset, weight_limit: Unlimited },
 			DepositAsset {
 				assets: WildAsset::All.into(),
 				beneficiary: Location::new(0, [AccountId32 { network: None, id: beneficiary.clone().into() }]),
