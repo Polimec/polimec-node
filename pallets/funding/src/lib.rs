@@ -137,7 +137,7 @@ use sp_arithmetic::traits::{One, Saturating};
 use sp_runtime::{traits::AccountIdConversion, FixedPointNumber, FixedPointOperand, FixedU128};
 use sp_std::{marker::PhantomData, prelude::*};
 pub use types::*;
-use xcm::v4::{opaque::Instruction, prelude::*, SendXcm};
+use xcm::v4::{prelude::*, SendXcm};
 
 mod functions;
 pub mod storage_migrations;
@@ -1424,24 +1424,18 @@ pub mod pallet {
 			used_weight
 		}
 	}
-}
 
-pub mod xcm_executor_impl {
-	use super::*;
 	use xcm_executor::traits::{HandleHrmpChannelAccepted, HandleHrmpNewChannelOpenRequest};
 
-	pub struct HrmpHandler<T: Config>(PhantomData<T>);
-	impl<T: Config> HandleHrmpChannelAccepted for HrmpHandler<T> {
-		fn handle(message: u32) -> XcmResult {
-			unimplemented!("HandleHrmpChannelAccepted")
-			// <Pallet<T>>::do_handle_channel_accepted(message)
+	impl<T: Config> HandleHrmpChannelAccepted for Pallet<T> {
+		fn handle(recipient: u32) -> XcmResult {
+			<Pallet<T>>::do_handle_channel_accepted(recipient)
 		}
 	}
 
-	impl<T: Config> HandleHrmpNewChannelOpenRequest for HrmpHandler<T> {
-		fn handle(message: u32, param2: u32, param3: u32) -> XcmResult {
-			unimplemented!("HandleHrmpNewChannelOpenRequest")
-			// <Pallet<T>>::do_handle_channel_accepted(message)
+	impl<T: Config> HandleHrmpNewChannelOpenRequest for Pallet<T> {
+		fn handle(sender: u32, _max_message_size: u32, _max_capacity: u32) -> XcmResult {
+			<Pallet<T>>::do_handle_channel_open_request(sender)
 		}
 	}
 }

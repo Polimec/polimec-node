@@ -150,7 +150,7 @@ pallet-membership = { version = "35.0.0", default-features = false }
 pallet-multisig = { version = "35.0.0", default-features = false }
 pallet-preimage = { version = "35.0.0", default-features = false }
 pallet-grandpa = { version = "35.0.0", default-features = false }
-pallet-transaction-payment-rpc = { version = "37.0.0",  default-features = false }
+pallet-transaction-payment-rpc = { version = "37.0.0", default-features = false }
 pallet-vesting = { version = "35.0.0", default-features = false }
 pallet-staking = { version = "35.0.0", default-features = false }
 pallet-proxy = { version = "35.0.0", default-features = false }

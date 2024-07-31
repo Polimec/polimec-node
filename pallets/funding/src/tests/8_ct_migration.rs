@@ -83,19 +83,14 @@ mod pallet_migration {
 
 	fn fake_hrmp_establishment() {
 		// Notification sent by the relay when the project starts a project->polimec channel
-		let open_channel_message = xcm::v4::opaque::Instruction::HrmpNewChannelOpenRequest {
-			sender: 6969,
-			max_message_size: 102_300,
-			max_capacity: 1000,
-		};
+		const SENDER: u32 = 6969;
+
 		// This makes Polimec send an acceptance + open channel (polimec->project) message back to the relay
-		assert_ok!(PolimecFunding::do_handle_channel_open_request(open_channel_message));
+		assert_ok!(PolimecFunding::do_handle_channel_open_request(SENDER));
 
-		// Finally the relay notifies the channel polimec->project has been accepted by the project
-		let channel_accepted_message = xcm::v4::opaque::Instruction::HrmpChannelAccepted { recipient: 6969u32 };
-
+		// Finally the relay notifies the channel Polimec->project has been accepted by the project
 		// We set the hrmp flags as "Open" and start the receiver pallet check
-		assert_ok!(PolimecFunding::do_handle_channel_accepted(channel_accepted_message));
+		assert_ok!(PolimecFunding::do_handle_channel_accepted(SENDER));
 	}
 
 	#[test]

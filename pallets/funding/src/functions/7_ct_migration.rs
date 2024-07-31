@@ -84,95 +84,77 @@ impl<T: Config> Pallet<T> {
 	/// Handle the channel open request from the relay on behalf of a parachain.
 	/// If the parachain id belongs to a funded project with the same project id, then send an acceptance message and a request for a
 	/// channel in the opposite direction to the relay.
-	pub fn do_handle_channel_open_request(message: Instruction) -> XcmResult {
+	pub fn do_handle_channel_open_request(sender: u32) -> XcmResult {
 		// TODO: set these constants with a proper value
 		const EXECUTION_DOT: Asset = Asset { id: AssetId(Location::here()), fun: Fungible(1_0_000_000_000u128) };
 		const MAX_WEIGHT: Weight = Weight::from_parts(20_000_000_000, 1_000_000);
 
-		let max_message_size_thresholds = T::MaxMessageSizeThresholds::get();
-		let max_capacity_thresholds = T::MaxCapacityThresholds::get();
+		log::trace!(target: "pallet_funding::hrmp", "HrmpNewChannelOpenRequest accepted");
 
-		log::trace!(target: "pallet_funding::hrmp", "HrmpNewChannelOpenRequest received: {:?}", message);
-
-		match message {
-			Instruction::HrmpNewChannelOpenRequest { sender, max_message_size, max_capacity }
-				if max_message_size >= max_message_size_thresholds.0 &&
-					max_message_size <= max_message_size_thresholds.1 &&
-					max_capacity >= max_capacity_thresholds.0 &&
-					max_capacity <= max_capacity_thresholds.1 =>
-			{
-				log::trace!(target: "pallet_funding::hrmp", "HrmpNewChannelOpenRequest accepted");
-
-				let (project_id, mut project_details) = ProjectsDetails::<T>::iter()
-					.find(|(_id, details)| {
-						matches!(
+		let (project_id, mut project_details) = ProjectsDetails::<T>::iter()
+			.find(|(_id, details)| {
+				matches!(
 							&details.migration_type,
 							Some(MigrationType::Pallet(info)) if
 								info.parachain_id == ParaId::from(sender) && details.status == ProjectStatus::CTMigrationStarted)
-					})
-					.ok_or(XcmError::BadOrigin)?;
+			})
+			.ok_or(XcmError::BadOrigin)?;
 
-				let mut accept_channel_relay_call = vec![60u8, 1];
-				let sender_id = ParaId::from(sender).encode();
-				accept_channel_relay_call.extend_from_slice(&sender_id);
+		let mut accept_channel_relay_call = vec![60u8, 1];
+		let sender_id = ParaId::from(sender).encode();
+		accept_channel_relay_call.extend_from_slice(&sender_id);
 
-				let mut request_channel_relay_call = vec![60u8, 0];
-				let recipient = ParaId::from(sender).encode();
-				request_channel_relay_call.extend_from_slice(&recipient);
-				let proposed_max_capacity = T::RequiredMaxCapacity::get().encode();
-				request_channel_relay_call.extend_from_slice(&proposed_max_capacity);
-				let proposed_max_message_size = T::RequiredMaxMessageSize::get().encode();
-				request_channel_relay_call.extend_from_slice(&proposed_max_message_size);
+		let mut request_channel_relay_call = vec![60u8, 0];
+		let recipient = ParaId::from(sender).encode();
+		request_channel_relay_call.extend_from_slice(&recipient);
+		let proposed_max_capacity = T::RequiredMaxCapacity::get().encode();
+		request_channel_relay_call.extend_from_slice(&proposed_max_capacity);
+		let proposed_max_message_size = T::RequiredMaxMessageSize::get().encode();
+		request_channel_relay_call.extend_from_slice(&proposed_max_message_size);
 
-				let xcm: Xcm<()> = Xcm(vec![
-					WithdrawAsset(vec![EXECUTION_DOT.clone()].into()),
-					BuyExecution { fees: EXECUTION_DOT.clone(), weight_limit: Unlimited },
-					Transact {
-						origin_kind: OriginKind::Native,
-						require_weight_at_most: MAX_WEIGHT,
-						call: accept_channel_relay_call.into(),
-					},
-					Transact {
-						origin_kind: OriginKind::Native,
-						require_weight_at_most: MAX_WEIGHT,
-						call: request_channel_relay_call.into(),
-					},
-					RefundSurplus,
-					DepositAsset { assets: Wild(All), beneficiary: Location::new(0, Parachain(POLIMEC_PARA_ID)) },
-				]);
-				let mut message = Some(xcm);
-
-				let dest_loc = Location::new(1, Here);
-				let mut destination = Some(dest_loc);
-				let (ticket, _price) = T::XcmRouter::validate(&mut destination, &mut message)?;
-
-				match T::XcmRouter::deliver(ticket) {
-					Ok(_) => {
-						log::trace!(target: "pallet_funding::hrmp", "HrmpNewChannelOpenRequest: acceptance successfully sent");
-						match project_details.migration_type {
-							Some(MigrationType::Pallet(ref mut info)) => {
-								info.hrmp_channel_status.project_to_polimec = ChannelStatus::Open;
-								info.hrmp_channel_status.polimec_to_project = ChannelStatus::AwaitingAcceptance;
-							},
-							_ => return Err(XcmError::Transport("Migration type not set")),
-						}
-
-						ProjectsDetails::<T>::insert(project_id, project_details);
-
-						Pallet::<T>::deposit_event(Event::<T>::HrmpChannelAccepted {
-							project_id,
-							para_id: ParaId::from(sender),
-						});
-						Ok(())
-					},
-					Err(e) => {
-						log::trace!(target: "pallet_funding::hrmp", "HrmpNewChannelOpenRequest: acceptance sending failed - {:?}", e);
-						Err(XcmError::Unimplemented)
-					},
-				}
+		let xcm: Xcm<()> = Xcm(vec![
+			WithdrawAsset(vec![EXECUTION_DOT.clone()].into()),
+			BuyExecution { fees: EXECUTION_DOT.clone(), weight_limit: Unlimited },
+			Transact {
+				origin_kind: OriginKind::Native,
+				require_weight_at_most: MAX_WEIGHT,
+				call: accept_channel_relay_call.into(),
 			},
-			instr => {
-				log::trace!(target: "pallet_funding::hrmp", "Bad instruction: {:?}", instr);
+			Transact {
+				origin_kind: OriginKind::Native,
+				require_weight_at_most: MAX_WEIGHT,
+				call: request_channel_relay_call.into(),
+			},
+			RefundSurplus,
+			DepositAsset { assets: Wild(All), beneficiary: Location::new(0, Parachain(POLIMEC_PARA_ID)) },
+		]);
+		let mut message = Some(xcm);
+
+		let dest_loc = Location::new(1, Here);
+		let mut destination = Some(dest_loc);
+		let (ticket, _price) = T::XcmRouter::validate(&mut destination, &mut message)?;
+
+		match T::XcmRouter::deliver(ticket) {
+			Ok(_) => {
+				log::trace!(target: "pallet_funding::hrmp", "HrmpNewChannelOpenRequest: acceptance successfully sent");
+				match project_details.migration_type {
+					Some(MigrationType::Pallet(ref mut info)) => {
+						info.hrmp_channel_status.project_to_polimec = ChannelStatus::Open;
+						info.hrmp_channel_status.polimec_to_project = ChannelStatus::AwaitingAcceptance;
+					},
+					_ => return Err(XcmError::Transport("Migration type not set")),
+				}
+
+				ProjectsDetails::<T>::insert(project_id, project_details);
+
+				Pallet::<T>::deposit_event(Event::<T>::HrmpChannelAccepted {
+					project_id,
+					para_id: ParaId::from(sender),
+				});
+				Ok(())
+			},
+			Err(e) => {
+				log::trace!(target: "pallet_funding::hrmp", "HrmpNewChannelOpenRequest: acceptance sending failed - {:?}", e);
 				Err(XcmError::Unimplemented)
 			},
 		}
@@ -180,44 +162,33 @@ impl<T: Config> Pallet<T> {
 
 	/// Handle the channel accepted message of project->Polimec from the relay on behalf of the project parachain.
 	/// Start the migration readiness check for the project.
-	pub fn do_handle_channel_accepted(message: Instruction) -> XcmResult {
-		match message {
-			Instruction::HrmpChannelAccepted { recipient } => {
-				log::trace!(target: "pallet_funding::hrmp", "HrmpChannelAccepted received: {:?}", message);
-				let (project_id, mut project_details) = ProjectsDetails::<T>::iter()
-					.find(|(_id, details)| {
-						matches!(
+	pub fn do_handle_channel_accepted(recipient: u32) -> XcmResult {
+		log::trace!(target: "pallet_funding::hrmp", "HrmpChannelAccepted received: {:?}", recipient);
+		let (project_id, mut project_details) = ProjectsDetails::<T>::iter()
+			.find(|(_id, details)| {
+				matches!(
 							&details.migration_type,
 							Some(MigrationType::Pallet(info)) if
 								info.parachain_id == ParaId::from(recipient) && details.status == ProjectStatus::CTMigrationStarted)
-					})
-					.ok_or(XcmError::BadOrigin)?;
+			})
+			.ok_or(XcmError::BadOrigin)?;
 
-				match project_details.migration_type {
-					Some(MigrationType::Pallet(ref mut info)) => {
-						info.hrmp_channel_status.polimec_to_project = ChannelStatus::Open;
-					},
-					_ => return Err(XcmError::Transport("Unexpected automatic flow")),
-				}
-
-				ProjectsDetails::<T>::insert(project_id, project_details);
-				Pallet::<T>::deposit_event(Event::<T>::HrmpChannelEstablished {
-					project_id,
-					para_id: ParaId::from(recipient),
-				});
-
-				Pallet::<T>::do_start_pallet_migration_readiness_check(
-					&(T::PalletId::get().into_account_truncating()),
-					project_id,
-				)
-				.map_err(|_| XcmError::Transport("Unexpected automatic flow"))?;
-				Ok(())
+		match project_details.migration_type {
+			Some(MigrationType::Pallet(ref mut info)) => {
+				info.hrmp_channel_status.polimec_to_project = ChannelStatus::Open;
 			},
-			instr => {
-				log::trace!(target: "pallet_funding::hrmp", "Bad instruction: {:?}", instr);
-				Err(XcmError::Unimplemented)
-			},
+			_ => return Err(XcmError::Transport("Unexpected automatic flow")),
 		}
+
+		ProjectsDetails::<T>::insert(project_id, project_details);
+		Pallet::<T>::deposit_event(Event::<T>::HrmpChannelEstablished { project_id, para_id: ParaId::from(recipient) });
+
+		Pallet::<T>::do_start_pallet_migration_readiness_check(
+			&(T::PalletId::get().into_account_truncating()),
+			project_id,
+		)
+		.map_err(|_| XcmError::Transport("Unexpected automatic flow"))?;
+		Ok(())
 	}
 
 	/// After the bidirectional HRMP channels are established, check that the project chain has the Polimec receiver pallet,

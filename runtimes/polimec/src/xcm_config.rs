@@ -16,8 +16,8 @@
 
 use super::{
 	AccountId, AllPalletsWithSystem, AssetId as AssetIdPalletAssets, Balance, Balances, EnsureRoot, ForeignAssets,
-	ParachainInfo, ParachainSystem, PolkadotXcm, Runtime, RuntimeCall, RuntimeEvent, RuntimeOrigin, ToTreasury,
-	TreasuryAccount, Vec, WeightToFee, XcmpQueue,
+	Funding, ParachainInfo, ParachainSystem, PolkadotXcm, Runtime, RuntimeCall, RuntimeEvent, RuntimeOrigin,
+	ToTreasury, TreasuryAccount, Vec, WeightToFee, XcmpQueue,
 };
 use core::marker::PhantomData;
 use frame_support::{
@@ -273,9 +273,9 @@ impl xcm_executor::Config for XcmConfig {
 	type Barrier = Barrier;
 	type CallDispatcher = RuntimeCall;
 	type FeeManager = ();
-	type HrmpChannelAcceptedHandler = ();
+	type HrmpChannelAcceptedHandler = Funding;
 	type HrmpChannelClosingHandler = ();
-	type HrmpNewChannelOpenRequestHandler = ();
+	type HrmpNewChannelOpenRequestHandler = Funding;
 	/// Locations that we trust to act as reserves for specific assets.
 	type IsReserve = Reserves;
 	/// Currently we do not support teleportation of PLMC or other assets.
