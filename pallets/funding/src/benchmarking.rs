@@ -1884,7 +1884,7 @@ mod benchmarks {
 		// Instead of advancing in time for the automatic `do_evaluation_end` call in on_initialize, we call it directly to benchmark it
 		#[block]
 		{
-			Pallet::<T>::do_evaluation_end(project_id).unwrap();
+			Pallet::<T>::do_end_evaluation(project_id).unwrap();
 		}
 
 		// * validity checks *
@@ -1945,7 +1945,7 @@ mod benchmarks {
 		// Instead of advancing in time for the automatic `do_evaluation_end` call in on_initialize, we call it directly to benchmark it
 		#[block]
 		{
-			Pallet::<T>::do_evaluation_end(project_id).unwrap();
+			Pallet::<T>::do_end_evaluation(project_id).unwrap();
 		}
 
 		// * validity checks *

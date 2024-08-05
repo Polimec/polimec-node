@@ -16,7 +16,7 @@ impl<T: Config> Pallet<T> {
 	///
 	/// # Next step
 	/// Users will pond PLMC for this project, and when the time comes, the project will be transitioned
-	/// to the next round by `on_initialize` using [`do_evaluation_end`](Self::do_evaluation_end)
+	/// to the next round by `on_initialize` using [`do_evaluation_end`](Self::do_end_evaluation)
 	#[transactional]
 	pub fn do_start_evaluation(caller: AccountIdOf<T>, project_id: ProjectId) -> DispatchResult {
 		// * Get variables *
@@ -71,7 +71,7 @@ impl<T: Config> Pallet<T> {
 	/// * Bonding failed - `on_idle` at some point checks for failed evaluation projects, and
 	/// unbonds the evaluators funds.
 	#[transactional]
-	pub fn do_evaluation_end(project_id: ProjectId) -> DispatchResult {
+	pub fn do_end_evaluation(project_id: ProjectId) -> DispatchResult {
 		// * Get variables *
 		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 
