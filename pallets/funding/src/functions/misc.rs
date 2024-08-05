@@ -248,16 +248,8 @@ impl<T: Config> Pallet<T> {
 		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 		let total_fee_allocation = Self::calculate_fee_allocation(project_id)?;
 
-		// Calculate the percentage of target funding based on available documentation.
-		// A.K.A variable "Y" in the documentation. We mean it to saturate to 1 even if the ratio is above 1 when funding raised
-		// is above the target.
-		let percentage_of_target_funding = Perquintill::from_rational(
-			project_details.funding_amount_reached_usd,
-			project_details.fundraising_target_usd,
-		);
-
 		// Calculate rewards.
-		let evaluator_rewards = percentage_of_target_funding * Perquintill::from_percent(30) * total_fee_allocation;
+		let evaluator_rewards = Perquintill::from_percent(30) * total_fee_allocation;
 
 		// Distribute rewards between early and normal evaluators.
 		let early_evaluator_reward_pot = Perquintill::from_percent(20) * evaluator_rewards;
@@ -286,12 +278,8 @@ impl<T: Config> Pallet<T> {
 		let details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 		let total_fee_allocation = Self::calculate_fee_allocation(project_id)?;
 
-		// Calculate the percentage of target funding based on available documentation.
-		// A.K.A variable "Y" in the documentation. We mean it to saturate to 1 even if the ratio is above 1 when funding raised
-		// is above the target.
 		let percentage_of_target_funding =
 			Perquintill::from_rational(details.funding_amount_reached_usd, details.fundraising_target_usd);
-		let inverse_percentage_of_target_funding = Perquintill::from_percent(100) - percentage_of_target_funding;
 
 		let liquidity_pools_percentage = Perquintill::from_percent(50);
 		let liquidity_pools_reward_pot = liquidity_pools_percentage * total_fee_allocation;
@@ -299,7 +287,7 @@ impl<T: Config> Pallet<T> {
 		let long_term_holder_percentage = if percentage_of_target_funding < Perquintill::from_percent(90) {
 			Perquintill::from_percent(50)
 		} else {
-			Perquintill::from_percent(20) + Perquintill::from_percent(30) * inverse_percentage_of_target_funding
+			Perquintill::from_percent(20)
 		};
 		let long_term_holder_reward_pot = long_term_holder_percentage * total_fee_allocation;
 
@@ -350,7 +338,7 @@ impl<T: Config> Pallet<T> {
 	) -> Xcm<()> {
 		// TODO: adjust this as benchmarks for polimec-receiver are written
 		const MAX_WEIGHT: Weight = Weight::from_parts(10_000, 0);
-		const MAX_RESPONSE_WEIGHT: Weight = Weight::from_parts(1_000_000_000, 50_000);
+		const MAX_RESPONSE_WEIGHT: Weight = Weight::from_parts(700_000_000, 10_000);
 		let migrations_item = Migrations::from(migrations.into());
 
 		// First byte is the pallet index, second byte is the call index
