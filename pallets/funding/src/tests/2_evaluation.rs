@@ -288,7 +288,10 @@ mod start_evaluation_extrinsic {
 				is_frozen: true,
 				weighted_average_price: None,
 				status: ProjectStatus::EvaluationRound,
-				round_duration: BlockNumberPair::new(Some(1), Some(<TestRuntime as Config>::EvaluationDuration::get())),
+				round_duration: BlockNumberPair::new(
+					Some(1),
+					Some(<TestRuntime as Config>::EvaluationRoundDuration::get()),
+				),
 				random_end_block: None,
 				fundraising_target_usd: project_metadata
 					.minimum_price

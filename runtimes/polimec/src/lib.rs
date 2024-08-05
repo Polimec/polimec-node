@@ -1023,25 +1023,23 @@ impl pallet_funding::Config for Runtime {
 	#[cfg(any(test, feature = "runtime-benchmarks", feature = "std"))]
 	type AllPalletsWithoutSystem =
 		(Balances, ContributionTokens, ForeignAssets, Oracle, Funding, LinearRelease, Random);
-	type AuctionClosingDuration = AuctionClosingDuration;
 	type AuctionInitializePeriodDuration = AuctionInitializePeriodDuration;
-	type AuctionOpeningDuration = AuctionOpeningDuration;
+	type AuctionRoundDuration = AuctionRoundDuration;
 	type Balance = Balance;
 	type BlockNumber = BlockNumber;
 	type BlockNumberToBalance = ConvertInto;
 	type BlockchainOperationTreasury = BlockchainOperationTreasury;
-	type CommunityFundingDuration = CommunityFundingDuration;
+	type CommunityRoundDuration = CommunityRoundDuration;
 	type ContributionTokenCurrency = ContributionTokens;
 	type ContributionTreasury = ContributionTreasuryAccount;
 	type DaysToBlocks = DaysToBlocks;
-	type EvaluationDuration = EvaluationDuration;
+	type EvaluationRoundDuration = EvaluationRoundDuration;
 	type EvaluationSuccessThreshold = EarlyEvaluationThreshold;
 	type EvaluatorSlash = EvaluatorSlash;
 	type FeeBrackets = FeeBrackets;
 	type FundingCurrency = ForeignAssets;
 	type FundingSuccessThreshold = FundingSuccessThreshold;
 	type InvestorOrigin = EnsureInvestor<Runtime>;
-	type ManualAcceptanceDuration = ManualAcceptanceDuration;
 	type MaxBidsPerProject = ConstU32<512>;
 	type MaxBidsPerUser = ConstU32<16>;
 	type MaxCapacityThresholds = MaxCapacityThresholds;
@@ -1056,7 +1054,7 @@ impl pallet_funding::Config for Runtime {
 	type Price = Price;
 	type PriceProvider = OraclePriceProvider<AssetId, Price, Oracle>;
 	type Randomness = Random;
-	type RemainderFundingDuration = RemainderFundingDuration;
+	type RemainderRoundDuration = RemainderRoundDuration;
 	type RequiredMaxCapacity = RequiredMaxCapacity;
 	type RequiredMaxMessageSize = RequiredMaxMessageSize;
 	type RuntimeCall = RuntimeCall;
