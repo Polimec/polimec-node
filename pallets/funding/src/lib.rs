@@ -244,13 +244,9 @@ pub mod pallet {
 		/// The length (expressed in number of blocks) of the Auction Round, Closing period.
 		type BlockNumberToBalance: Convert<BlockNumberFor<Self>, BalanceOf<Self>>;
 
-		/// The length (expressed in number of blocks) of the Auction Round, Closing period.
-		#[pallet::constant]
-		type AuctionClosingDuration: Get<BlockNumberFor<Self>>;
-
 		/// The length (expressed in number of blocks) of the Community Round.
 		#[pallet::constant]
-		type CommunityFundingDuration: Get<BlockNumberFor<Self>>;
+		type CommunityRoundDuration: Get<BlockNumberFor<Self>>;
 
 		/// The currency used for minting contribution tokens as fungible assets (i.e pallet-assets)
 		type ContributionTokenCurrency: fungibles::Create<AccountIdOf<Self>, AssetId = ProjectId, Balance = BalanceOf<Self>>
@@ -270,13 +266,13 @@ pub mod pallet {
 		/// Convert 24 hours as FixedU128, to the corresponding amount of blocks in the same type as frame_system
 		type DaysToBlocks: Convert<FixedU128, BlockNumberFor<Self>>;
 
-		/// The length (expressed in number of blocks) of the Auction Round, Opening period.
+		/// The length (expressed in number of blocks) of the Auction Round.
 		#[pallet::constant]
-		type AuctionOpeningDuration: Get<BlockNumberFor<Self>>;
+		type AuctionRoundDuration: Get<BlockNumberFor<Self>>;
 
 		/// The length (expressed in number of blocks) of the evaluation period.
 		#[pallet::constant]
-		type EvaluationDuration: Get<BlockNumberFor<Self>>;
+		type EvaluationRoundDuration: Get<BlockNumberFor<Self>>;
 
 		/// What percentage of the target funding amount is required to be reached in the evaluation, for it to continue to the funding round.
 		#[pallet::constant]
@@ -303,10 +299,6 @@ pub mod pallet {
 			<Self as frame_system::Config>::RuntimeOrigin,
 			Success = (AccountIdOf<Self>, Did, InvestorType, Cid),
 		>;
-
-		/// How long an issuer has to accept or reject the funding of a project if the funding is between two thresholds.
-		#[pallet::constant]
-		type ManualAcceptanceDuration: Get<BlockNumberFor<Self>>;
 
 		/// Max individual bids per project. Used to estimate worst case weight for price calculation
 		#[pallet::constant]
@@ -375,7 +367,7 @@ pub mod pallet {
 
 		/// The length (expressed in number of blocks) of the Remainder Round.
 		#[pallet::constant]
-		type RemainderFundingDuration: Get<BlockNumberFor<Self>>;
+		type RemainderRoundDuration: Get<BlockNumberFor<Self>>;
 
 		/// max_capacity config required for the channel from polimec to the project
 		#[pallet::constant]
