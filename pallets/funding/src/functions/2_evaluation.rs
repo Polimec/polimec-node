@@ -37,7 +37,7 @@ impl<T: Config> Pallet<T> {
 			project_details,
 			ProjectStatus::Application,
 			ProjectStatus::EvaluationRound,
-			T::EvaluationDuration::get(),
+			Some(T::EvaluationDuration::get()),
 			false,
 		)
 	}
@@ -91,7 +91,7 @@ impl<T: Config> Pallet<T> {
 				project_details,
 				ProjectStatus::EvaluationRound,
 				ProjectStatus::AuctionInitializePeriod,
-				T::AuctionInitializePeriodDuration::get(),
+				Some(T::AuctionInitializePeriodDuration::get()),
 				false,
 			)
 		// Unsuccessful path
@@ -104,7 +104,7 @@ impl<T: Config> Pallet<T> {
 				project_details,
 				ProjectStatus::EvaluationRound,
 				ProjectStatus::FundingFailed,
-				One::one(),
+				Some(One::one()),
 				false,
 			)
 		}

@@ -8,18 +8,18 @@ impl<T: Config> Pallet<T> {
 		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 
 		ensure!(project_details.issuer_account == caller, Error::<T>::NotIssuer);
-		match project_details.status {
-			ProjectStatus::SettlementFinished(FundingOutcome::Success) => (),
-			ProjectStatus::FundingSuccessful | ProjectStatus::SettlementStarted(FundingOutcome::Success) =>
-				return Err(Error::<T>::SettlementNotComplete.into()),
-			_ => return Err(Error::<T>::IncorrectRound.into()),
-		}
 
 		project_details.migration_type = Some(MigrationType::Offchain);
-		project_details.status = ProjectStatus::CTMigrationStarted;
-		ProjectsDetails::<T>::insert(project_id, project_details);
 
-		// * Emit events *
+		Self::transition_project(
+			project_id,
+			project_details,
+			ProjectStatus::SettlementFinished(FundingOutcome::Success),
+			ProjectStatus::CTMigrationStarted,
+			None,
+			false,
+		)?;
+
 		Ok(())
 	}
 
@@ -72,11 +72,15 @@ impl<T: Config> Pallet<T> {
 			migration_readiness_check: None,
 		};
 		project_details.migration_type = Some(MigrationType::Pallet(parachain_receiver_pallet_info));
-		project_details.status = ProjectStatus::CTMigrationStarted;
-		ProjectsDetails::<T>::insert(project_id, project_details);
 
-		// * Emit events *
-		Self::deposit_event(Event::PalletMigrationStarted { project_id, para_id });
+		Self::transition_project(
+			project_id,
+			project_details,
+			ProjectStatus::SettlementFinished(FundingOutcome::Success),
+			ProjectStatus::CTMigrationStarted,
+			None,
+			false,
+		)?;
 
 		Ok(())
 	}
