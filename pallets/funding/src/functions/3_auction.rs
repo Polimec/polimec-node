@@ -35,7 +35,7 @@ impl<T: Config> Pallet<T> {
 			project_details,
 			ProjectStatus::AuctionInitializePeriod,
 			ProjectStatus::AuctionRound,
-			T::AuctionOpeningDuration::get(),
+			Some(T::AuctionOpeningDuration::get()),
 			skip_round_end_check,
 		)
 	}
@@ -72,7 +72,7 @@ impl<T: Config> Pallet<T> {
 					updated_project_details,
 					ProjectStatus::AuctionRound,
 					ProjectStatus::CommunityRound(now.saturating_add(T::CommunityFundingDuration::get())),
-					T::CommunityFundingDuration::get() + T::RemainderFundingDuration::get(),
+					Some(T::CommunityFundingDuration::get() + T::RemainderFundingDuration::get()),
 					false,
 				)?;
 				Ok(PostDispatchInfo {
