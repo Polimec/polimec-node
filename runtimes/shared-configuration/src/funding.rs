@@ -20,6 +20,7 @@ use pallet_funding::types::AcceptedFundingAsset;
 use parachains_common::AssetIdForTrustBackedAssets;
 use polimec_common::USD_UNIT;
 use sp_arithmetic::{FixedU128, Percent};
+use sp_runtime::Perquintill;
 use sp_std::{collections::btree_map::BTreeMap, vec, vec::Vec};
 
 #[cfg(not(feature = "instant-mode"))]
@@ -113,4 +114,5 @@ parameter_types! {
 	];
 	pub EarlyEvaluationThreshold: Percent = Percent::from_percent(10);
 	pub EvaluatorSlash: Percent = Percent::from_percent(20);
+	pub FundingSuccessThreshold: Perquintill = Perquintill::from_percent(33);
 }

@@ -45,6 +45,7 @@ impl<T: Config> Pallet<T> {
 	#[transactional]
 	pub fn do_end_auction(project_id: ProjectId) -> DispatchResultWithPostInfo {
 		// * Get variables *
+		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 		let project_metadata = ProjectsMetadata::<T>::get(project_id).ok_or(Error::<T>::ProjectMetadataNotFound)?;
 		let bucket = Buckets::<T>::get(project_id).ok_or(Error::<T>::BucketNotFound)?;
 

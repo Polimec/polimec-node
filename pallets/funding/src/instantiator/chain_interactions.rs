@@ -384,7 +384,7 @@ impl<
 		self.execute(|| ProjectsDetails::<T>::get(project_id).expect("Project details exists"))
 	}
 
-	pub fn get_update_block(&mut self, project_id: ProjectId, update_type: &UpdateType) -> Option<BlockNumberFor<T>> {
+	pub fn get_update_block(&mut self, _project_id: ProjectId, _update_type: &UpdateType) -> Option<BlockNumberFor<T>> {
 		Some(BlockNumberFor::<T>::zero())
 		// TODO: FIX
 	}
@@ -395,7 +395,6 @@ impl<
 		issuer: AccountIdOf<T>,
 		maybe_did: Option<Did>,
 	) -> ProjectId {
-		let now = self.current_block();
 		// one ED for the issuer, one ED for the escrow account
 		self.mint_plmc_to(vec![UserToPLMCBalance::new(issuer.clone(), self.get_ed() * 2u64.into())]);
 
@@ -408,7 +407,7 @@ impl<
 		});
 
 		let created_project_id = self.execute(|| NextProjectId::<T>::get().saturating_sub(One::one()));
-		self.creation_assertions(created_project_id, maybe_did, project_metadata, now);
+		self.creation_assertions(created_project_id, maybe_did, project_metadata);
 		created_project_id
 	}
 
@@ -677,7 +676,7 @@ impl<
 	pub fn finish_funding(
 		&mut self,
 		project_id: ProjectId,
-		force_decision: Option<FundingOutcomeDecision>,
+		_force_decision: Option<FundingOutcomeDecision>,
 	) -> Result<(), DispatchError> {
 		if let Some(update_block) = self.get_update_block(project_id, &UpdateType::RemainderFundingStart) {
 			self.execute(|| frame_system::Pallet::<T>::set_block_number(update_block - One::one()));
@@ -692,13 +691,7 @@ impl<
 			matches!(project_details.status, ProjectStatus::FundingSuccessful | ProjectStatus::FundingFailed),
 			"Project should be in Finished status"
 		);
-		if project_details.status == ProjectStatus::AwaitingProjectDecision {
-			if let Some(decision) = force_decision {
-				self.execute(|| {
-					crate::Pallet::<T>::do_project_decision(project_id, decision).unwrap();
-				});
-			}
-		}
+
 		Ok(())
 	}
 
@@ -1162,10 +1155,10 @@ impl<
 				remainder_contributions,
 			),
 			ProjectStatus::CommunityRound(..) =>
-				self.create_community_contributing_project(project_metadata, issuer, evaluations, bids),
-			ProjectStatus::Auction => self.create_auctioning_project(project_metadata, issuer, evaluations),
-			ProjectStatus::EvaluationRound => self.create_evaluating_project(project_metadata, issuer),
-			ProjectStatus::Application => self.create_new_project(project_metadata, issuer),
+				self.create_community_contributing_project(project_metadata, issuer, None, evaluations, bids),
+			ProjectStatus::Auction => self.create_auctioning_project(project_metadata, issuer, None, evaluations),
+			ProjectStatus::EvaluationRound => self.create_evaluating_project(project_metadata, issuer, None),
+			ProjectStatus::Application => self.create_new_project(project_metadata, issuer, None),
 			_ => panic!("unsupported project creation in that status"),
 		}
 	}

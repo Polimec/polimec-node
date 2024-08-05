@@ -56,7 +56,7 @@ use sp_runtime::{
 		IdentifyAccount, IdentityLookup, OpaqueKeys, Verify,
 	},
 	transaction_validity::{TransactionSource, TransactionValidity},
-	ApplyExtrinsicResult, FixedU128, MultiSignature, SaturatedConversion,
+	ApplyExtrinsicResult, FixedU128, MultiSignature, Perquintill, SaturatedConversion,
 };
 use sp_std::{cmp::Ordering, prelude::*};
 use sp_version::RuntimeVersion;
@@ -159,11 +159,10 @@ pub type Migrations = migrations::Unreleased;
 /// The runtime migrations per release.
 #[allow(missing_docs)]
 pub mod migrations {
-	use crate::Runtime;
 
 	/// Unreleased migrations. Add new ones here:
 	#[allow(unused_parens)]
-	pub type Unreleased = (pallet_funding::storage_migrations::v3tov4::MigrationToV4<Runtime>);
+	pub type Unreleased = ();
 }
 
 /// Executive: handles dispatch to the various modules.
@@ -243,15 +242,13 @@ impl Contains<RuntimeCall> for BaseCallFilter {
 							pallet_funding::Call::start_evaluation { .. } |
 							pallet_funding::Call::end_evaluation { .. } |
 							pallet_funding::Call::evaluate { .. } |
+							pallet_funding::Call::end_evaluation { .. } |
 							pallet_funding::Call::start_auction { .. } |
-							pallet_funding::Call::root_do_auction_opening { .. } |
-							pallet_funding::Call::root_do_start_auction_closing { .. } |
 							pallet_funding::Call::bid { .. } |
-							pallet_funding::Call::root_do_end_auction { .. } |
+							pallet_funding::Call::end_auction { .. } |
 							pallet_funding::Call::contribute { .. } |
-							pallet_funding::Call::root_do_community_funding { .. } |
-							pallet_funding::Call::root_do_end_funding { .. } |
-							pallet_funding::Call::root_do_start_settlement { .. } |
+							pallet_funding::Call::end_funding { .. } |
+							pallet_funding::Call::start_settlement { .. } |
 							pallet_funding::Call::settle_successful_evaluation { .. } |
 							pallet_funding::Call::settle_failed_evaluation { .. } |
 							pallet_funding::Call::settle_successful_bid { .. } |
@@ -1046,6 +1043,7 @@ impl pallet_funding::Config for Runtime {
 	type EvaluatorSlash = EvaluatorSlash;
 	type FeeBrackets = FeeBrackets;
 	type FundingCurrency = ForeignAssets;
+	type FundingSuccessThreshold = FundingSuccessThreshold;
 	type InvestorOrigin = EnsureInvestor<Runtime>;
 	type ManualAcceptanceDuration = ManualAcceptanceDuration;
 	type MaxBidsPerProject = ConstU32<512>;
