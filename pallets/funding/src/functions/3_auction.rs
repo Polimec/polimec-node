@@ -46,10 +46,11 @@ impl<T: Config> Pallet<T> {
 	pub fn do_end_auction(project_id: ProjectId) -> DispatchResultWithPostInfo {
 		// * Get variables *
 		let project_metadata = ProjectsMetadata::<T>::get(project_id).ok_or(Error::<T>::ProjectMetadataNotFound)?;
-		let bucket = Buckets::<T>::get(project_id).ok_or(Error::<T>::BucketNotFound)?;	
-		
+		let bucket = Buckets::<T>::get(project_id).ok_or(Error::<T>::BucketNotFound)?;
+
 		// * Calculate WAP *
-		let auction_allocation_size = project_metadata.auction_round_allocation_percentage * project_metadata.total_allocation_size;
+		let auction_allocation_size =
+			project_metadata.auction_round_allocation_percentage * project_metadata.total_allocation_size;
 		let weighted_token_price = bucket.calculate_wap(auction_allocation_size);
 
 		// * Update Storage *
@@ -149,10 +150,7 @@ impl<T: Config> Pallet<T> {
 
 		ensure!(ct_amount > Zero::zero(), Error::<T>::TooLow);
 		ensure!(did != project_details.issuer_did, Error::<T>::ParticipationToOwnProject);
-		ensure!(
-			matches!(project_details.status, ProjectStatus::Auction),
-			Error::<T>::IncorrectRound
-		);
+		ensure!(matches!(project_details.status, ProjectStatus::Auction), Error::<T>::IncorrectRound);
 		ensure!(
 			project_metadata.participation_currencies.contains(&funding_asset),
 			Error::<T>::FundingAssetNotAccepted
@@ -240,8 +238,7 @@ impl<T: Config> Pallet<T> {
 		ensure!(total_bids_for_project < T::MaxBidsPerProject::get(), Error::<T>::TooManyProjectParticipations);
 
 		// * Calculate new variables *
-		let plmc_bond =
-			Self::calculate_plmc_bond(ticket_size, multiplier).map_err(|_| Error::<T>::BadMath)?;
+		let plmc_bond = Self::calculate_plmc_bond(ticket_size, multiplier).map_err(|_| Error::<T>::BadMath)?;
 		let funding_asset_amount_locked = Self::calculate_funding_asset_amount(ticket_size, funding_asset)?;
 
 		let new_bid = BidInfoOf::<T> {

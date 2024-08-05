@@ -15,7 +15,6 @@ impl<T: Config> Pallet<T> {
 		T::PalletId::get().into_sub_account_truncating(index.saturating_add(One::one()))
 	}
 
-
 	pub fn create_bucket_from_metadata(metadata: &ProjectMetadataOf<T>) -> Result<BucketOf<T>, DispatchError> {
 		let auction_allocation_size = metadata.auction_round_allocation_percentage * metadata.total_allocation_size;
 		let bucket_delta_amount = Percent::from_percent(10) * auction_allocation_size;
@@ -36,7 +35,11 @@ impl<T: Config> Pallet<T> {
 		let plmc_usd_price = T::PriceProvider::get_decimals_aware_price(PLMC_FOREIGN_ID, USD_DECIMALS, PLMC_DECIMALS)
 			.ok_or(Error::<T>::PriceNotFound)?;
 		let usd_bond = multiplier.calculate_bonding_requirement::<T>(ticket_size).map_err(|_| Error::<T>::BadMath)?;
-		plmc_usd_price.reciprocal().ok_or(Error::<T>::BadMath)?.checked_mul_int(usd_bond).ok_or(Error::<T>::BadMath.into())
+		plmc_usd_price
+			.reciprocal()
+			.ok_or(Error::<T>::BadMath)?
+			.checked_mul_int(usd_bond)
+			.ok_or(Error::<T>::BadMath.into())
 	}
 
 	pub fn calculate_funding_asset_amount(
@@ -45,13 +48,12 @@ impl<T: Config> Pallet<T> {
 	) -> Result<BalanceOf<T>, DispatchError> {
 		let asset_id = asset_id.to_assethub_id();
 		let asset_decimals = T::FundingCurrency::decimals(asset_id);
-		let asset_usd_price =
-			T::PriceProvider::get_decimals_aware_price(asset_id, USD_DECIMALS, asset_decimals)
-				.ok_or(Error::<T>::PriceNotFound)?;
+		let asset_usd_price = T::PriceProvider::get_decimals_aware_price(asset_id, USD_DECIMALS, asset_decimals)
+			.ok_or(Error::<T>::PriceNotFound)?;
 		asset_usd_price
-		.reciprocal()
-		.and_then(|recip| recip.checked_mul_int(ticket_size))
-		.ok_or(Error::<T>::BadMath.into())
+			.reciprocal()
+			.and_then(|recip| recip.checked_mul_int(ticket_size))
+			.ok_or(Error::<T>::BadMath.into())
 	}
 
 	// Based on the amount of tokens and price to buy, a desired multiplier, and the type of investor the caller is,
@@ -113,13 +115,12 @@ impl<T: Config> Pallet<T> {
 			.partition(|bid| matches!(bid.status, BidStatus::Accepted | BidStatus::PartiallyAccepted(..)));
 
 		let accepted_bid_len = accepted_bids.len() as u32;
-		let total_auction_allocation_usd: BalanceOf<T> = accepted_bids.into_iter()
-		.try_fold(Zero::zero(), |acc: BalanceOf<T>, bid: BidInfoOf<T>| {
-				bid.final_ct_usd_price.checked_mul_int(bid.final_ct_amount).and_then(
-					|ticket| acc.checked_add(&ticket)
-				)
-			}
-		).ok_or(Error::<T>::BadMath)?;
+		let total_auction_allocation_usd: BalanceOf<T> = accepted_bids
+			.into_iter()
+			.try_fold(Zero::zero(), |acc: BalanceOf<T>, bid: BidInfoOf<T>| {
+				bid.final_ct_usd_price.checked_mul_int(bid.final_ct_amount).and_then(|ticket| acc.checked_add(&ticket))
+			})
+			.ok_or(Error::<T>::BadMath)?;
 
 		ProjectsDetails::<T>::mutate(project_id, |maybe_info| -> DispatchResult {
 			if let Some(info) = maybe_info {
@@ -133,7 +134,6 @@ impl<T: Config> Pallet<T> {
 
 		Ok((accepted_bid_len, rejected_bids.len() as u32))
 	}
-
 
 	pub fn try_plmc_participation_lock(
 		who: &T::AccountId,
@@ -248,10 +248,13 @@ impl<T: Config> Pallet<T> {
 		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 		let total_fee_allocation = Self::calculate_fee_allocation(project_id)?;
 
-        // Calculate the percentage of target funding based on available documentation.
-        // A.K.A variable "Y" in the documentation. We mean it to saturate to 1 even if the ratio is above 1 when funding raised
-        // is above the target.
-		let percentage_of_target_funding = Perquintill::from_rational(project_details.funding_amount_reached_usd, project_details.fundraising_target_usd);
+		// Calculate the percentage of target funding based on available documentation.
+		// A.K.A variable "Y" in the documentation. We mean it to saturate to 1 even if the ratio is above 1 when funding raised
+		// is above the target.
+		let percentage_of_target_funding = Perquintill::from_rational(
+			project_details.funding_amount_reached_usd,
+			project_details.fundraising_target_usd,
+		);
 
 		// Calculate rewards.
 		let evaluator_rewards = percentage_of_target_funding * Perquintill::from_percent(30) * total_fee_allocation;
@@ -263,7 +266,8 @@ impl<T: Config> Pallet<T> {
 		let normal_evaluator_total_bonded_usd = project_details.evaluation_round_info.total_bonded_usd;
 		let early_evaluation_reward_threshold_usd =
 			T::EvaluationSuccessThreshold::get() * project_details.fundraising_target_usd;
-		let early_evaluator_total_bonded_usd = normal_evaluator_total_bonded_usd.min(early_evaluation_reward_threshold_usd);
+		let early_evaluator_total_bonded_usd =
+			normal_evaluator_total_bonded_usd.min(early_evaluation_reward_threshold_usd);
 
 		// Construct the reward information object.
 		let reward_info = RewardInfo {
@@ -282,10 +286,11 @@ impl<T: Config> Pallet<T> {
 		let details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 		let total_fee_allocation = Self::calculate_fee_allocation(project_id)?;
 
-        // Calculate the percentage of target funding based on available documentation.
-        // A.K.A variable "Y" in the documentation. We mean it to saturate to 1 even if the ratio is above 1 when funding raised
-        // is above the target.
-		let percentage_of_target_funding = Perquintill::from_rational(details.funding_amount_reached_usd, details.fundraising_target_usd);
+		// Calculate the percentage of target funding based on available documentation.
+		// A.K.A variable "Y" in the documentation. We mean it to saturate to 1 even if the ratio is above 1 when funding raised
+		// is above the target.
+		let percentage_of_target_funding =
+			Perquintill::from_rational(details.funding_amount_reached_usd, details.fundraising_target_usd);
 		let inverse_percentage_of_target_funding = Perquintill::from_percent(100) - percentage_of_target_funding;
 
 		let liquidity_pools_percentage = Perquintill::from_percent(50);
@@ -409,15 +414,14 @@ impl<T: Config> Pallet<T> {
 		let now = <frame_system::Pallet<T>>::block_number();
 		ensure!(project_details.round_duration.ended(now) || skip_end_check, Error::<T>::TooEarlyForRound);
 		ensure!(project_details.status == current_round, Error::<T>::IncorrectRound);
-		
-		
+
 		let round_end = now.saturating_add(round_duration).saturating_sub(One::one());
 		project_details.round_duration.update(Some(now), Some(round_end));
 		project_details.status = next_round;
-		
+
 		// * Update storage *
 		ProjectsDetails::<T>::insert(project_id, project_details);
-		
+
 		// TODO: FIX event transmition by either doing it outside function or map ProjectStatus
 		// -> ProjectPhase
 		// * Emit events *

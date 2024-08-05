@@ -223,7 +223,6 @@ mod helper_functions {
 
 	#[test]
 	fn bucket_wap_calculation() {
-
 		let initial_price = FixedU128::from_float(10.0);
 		let mut bucket = Bucket::new(100u32, initial_price, FixedU128::from_float(1.0), 10u32);
 		let wap = bucket.calculate_wap(100u32);

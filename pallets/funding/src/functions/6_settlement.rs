@@ -4,9 +4,9 @@ use frame_support::{
 	dispatch::DispatchResult,
 	ensure,
 	traits::{
-		fungible::{MutateHold as FungibleMutateHold, Inspect as FungibleInspect},
-		fungibles::{Inspect, Mutate as FungiblesMutate},
-		tokens::{Fortitude, Precision, Preservation, Restriction, Provenance, DepositConsequence},
+		fungible::MutateHold as FungibleMutateHold,
+		fungibles::Mutate as FungiblesMutate,
+		tokens::{Fortitude, Precision, Preservation, Restriction},
 		Get,
 	},
 };
@@ -192,7 +192,7 @@ impl<T: Config> Pallet<T> {
 		ensure!(T::ContributionTokenCurrency::asset_exists(project_id), Error::<T>::TooEarlyForRound);
 
 		let (refund_plmc, refund_funding_asset) = Self::calculate_refund(&bid)?;
-		
+
 		let bidder = bid.bidder;
 		// Calculate the vesting info and add the release schedule
 		let funding_end_block = project_details.funding_end_block.ok_or(Error::<T>::ImpossibleState)?;
@@ -222,7 +222,7 @@ impl<T: Config> Pallet<T> {
 
 		let new_funding_asset_amount_locked = bid.funding_asset_amount_locked.saturating_sub(refund_funding_asset);
 		if refund_funding_asset > Zero::zero() {
-			Self::release_funding_asset(project_id, &bidder, refund_funding_asset , bid.funding_asset)?;
+			Self::release_funding_asset(project_id, &bidder, refund_funding_asset, bid.funding_asset)?;
 		}
 
 		// Payout the bid funding asset amount to the project account
@@ -257,14 +257,19 @@ impl<T: Config> Pallet<T> {
 	/// Calculate the amount of funds the biider should receive back based on the original bid
 	/// amount and price compared to the final bid amount and price.
 	fn calculate_refund(bid: &BidInfoOf<T>) -> Result<(BalanceOf<T>, BalanceOf<T>), DispatchError> {
-		let new_ticket_size =
-			bid.final_ct_usd_price.checked_mul_int(bid.final_ct_amount).ok_or(Error::<T>::BadMath)?;
-		
+		let new_ticket_size = bid.final_ct_usd_price.checked_mul_int(bid.final_ct_amount).ok_or(Error::<T>::BadMath)?;
+
 		let new_plmc_bond = Self::calculate_plmc_bond(new_ticket_size, bid.multiplier)?;
 		let new_funding_asset_amount = Self::calculate_funding_asset_amount(new_ticket_size, bid.funding_asset)?;
 		let refund_plmc = bid.plmc_bond.saturating_sub(new_plmc_bond);
 		let refund_funding_asset = bid.funding_asset_amount_locked.saturating_sub(new_funding_asset_amount);
-		if T::FundingCurrency::can_deposit(bid.funding_asset.to_assethub_id(), &bid.bidder, refund_funding_asset, Provenance::Extant) != DepositConsequence::Success  {
+		if T::FundingCurrency::can_deposit(
+			bid.funding_asset.to_assethub_id(),
+			&bid.bidder,
+			refund_funding_asset,
+			Provenance::Extant,
+		) != DepositConsequence::Success
+		{
 			refund_funding_asset = Zero::zero();
 		}
 		if T::NativeCurrency::can_deposit(&bid.bidder, refund_plmc, Provenance::Extant) != DepositConsequence::Success {
@@ -277,7 +282,8 @@ impl<T: Config> Pallet<T> {
 	pub fn do_settle_failed_bid(bid: BidInfoOf<T>, project_id: ProjectId) -> DispatchResult {
 		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 		ensure!(
-			matches!(project_details.status, ProjectStatus::SettlementStarted(FundingOutcome::FundingFailed)) || bid.status == BidStatus::Rejected,
+			matches!(project_details.status, ProjectStatus::SettlementStarted(FundingOutcome::FundingFailed)) ||
+				bid.status == BidStatus::Rejected,
 			Error::<T>::FundingFailedSettlementNotStarted
 		);
 
