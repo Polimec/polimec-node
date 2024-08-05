@@ -27,11 +27,11 @@ use sp_std::{collections::btree_map::BTreeMap, vec, vec::Vec};
 use parachains_common::HOURS;
 
 #[cfg(feature = "instant-mode")]
-pub const EVALUATION_DURATION: BlockNumber = 3;
+pub const EVALUATION_ROUND_DURATION: BlockNumber = 3;
 #[cfg(feature = "fast-mode")]
-pub const EVALUATION_DURATION: BlockNumber = 10 * crate::MINUTES;
+pub const EVALUATION_ROUND_DURATION: BlockNumber = 10 * crate::MINUTES;
 #[cfg(not(any(feature = "fast-mode", feature = "instant-mode")))]
-pub const EVALUATION_DURATION: BlockNumber = 28 * crate::DAYS;
+pub const EVALUATION_ROUND_DURATION: BlockNumber = 28 * crate::DAYS;
 
 #[cfg(feature = "instant-mode")]
 pub const AUCTION_INITIALIZE_PERIOD_DURATION: BlockNumber = 3;
@@ -41,32 +41,25 @@ pub const AUCTION_INITIALIZE_PERIOD_DURATION: BlockNumber = 10 * crate::MINUTES;
 pub const AUCTION_INITIALIZE_PERIOD_DURATION: BlockNumber = 7 * crate::DAYS;
 
 #[cfg(feature = "instant-mode")]
-pub const AUCTION_OPENING_DURATION: BlockNumber = 2;
+pub const AUCTION_ROUND_DURATION: BlockNumber = 2;
 #[cfg(feature = "fast-mode")]
-pub const AUCTION_OPENING_DURATION: BlockNumber = 7 * crate::MINUTES;
+pub const AUCTION_ROUND_DURATION: BlockNumber = 7 * crate::MINUTES;
 #[cfg(not(any(feature = "fast-mode", feature = "instant-mode")))]
-pub const AUCTION_OPENING_DURATION: BlockNumber = 4 * crate::DAYS;
+pub const AUCTION_ROUND_DURATION: BlockNumber = 5 * crate::DAYS;
 
 #[cfg(feature = "instant-mode")]
-pub const AUCTION_CLOSING_DURATION: BlockNumber = 2;
+pub const COMMUNITY_ROUND_DURATION: BlockNumber = 3;
 #[cfg(feature = "fast-mode")]
-pub const AUCTION_CLOSING_DURATION: BlockNumber = 7 * crate::MINUTES;
+pub const COMMUNITY_ROUND_DURATION: BlockNumber = 15 * crate::MINUTES;
 #[cfg(not(any(feature = "fast-mode", feature = "instant-mode")))]
-pub const AUCTION_CLOSING_DURATION: BlockNumber = 1 * crate::DAYS;
+pub const COMMUNITY_ROUND_DURATION: BlockNumber = 5 * crate::DAYS;
 
 #[cfg(feature = "instant-mode")]
-pub const COMMUNITY_FUNDING_DURATION: BlockNumber = 3;
+pub const REMAINDER_ROUND_DURATION: BlockNumber = 3;
 #[cfg(feature = "fast-mode")]
-pub const COMMUNITY_FUNDING_DURATION: BlockNumber = 15 * crate::MINUTES;
+pub const REMAINDER_ROUND_DURATION: BlockNumber = 15 * crate::MINUTES;
 #[cfg(not(any(feature = "fast-mode", feature = "instant-mode")))]
-pub const COMMUNITY_FUNDING_DURATION: BlockNumber = 5 * crate::DAYS;
-
-#[cfg(feature = "instant-mode")]
-pub const REMAINDER_FUNDING_DURATION: BlockNumber = 3;
-#[cfg(feature = "fast-mode")]
-pub const REMAINDER_FUNDING_DURATION: BlockNumber = 15 * crate::MINUTES;
-#[cfg(not(any(feature = "fast-mode", feature = "instant-mode")))]
-pub const REMAINDER_FUNDING_DURATION: BlockNumber = crate::DAYS;
+pub const REMAINDER_ROUND_DURATION: BlockNumber = crate::DAYS;
 
 #[cfg(feature = "instant-mode")]
 pub const CONTRIBUTION_VESTING_DURATION: BlockNumber = 5;
@@ -92,12 +85,11 @@ pub const SUCCESS_TO_SETTLEMENT_TIME: BlockNumber = 1 * HOURS;
 pub type ProjectIdentifier = u32;
 
 parameter_types! {
-	pub const EvaluationDuration: BlockNumber = EVALUATION_DURATION;
+	pub const EvaluationRoundDuration: BlockNumber = EVALUATION_ROUND_DURATION;
 	pub const AuctionInitializePeriodDuration: BlockNumber = AUCTION_INITIALIZE_PERIOD_DURATION;
-	pub const AuctionOpeningDuration: BlockNumber = AUCTION_OPENING_DURATION;
-	pub const AuctionClosingDuration: BlockNumber = AUCTION_CLOSING_DURATION;
-	pub const CommunityFundingDuration: BlockNumber = COMMUNITY_FUNDING_DURATION;
-	pub const RemainderFundingDuration: BlockNumber = REMAINDER_FUNDING_DURATION;
+	pub const AuctionRoundDuration: BlockNumber = AUCTION_ROUND_DURATION;
+	pub const CommunityRoundDuration: BlockNumber = COMMUNITY_ROUND_DURATION;
+	pub const RemainderRoundDuration: BlockNumber = REMAINDER_ROUND_DURATION;
 	pub const ManualAcceptanceDuration: BlockNumber = MANUAL_ACCEPTANCE_DURATION;
 	pub const SuccessToSettlementTime: BlockNumber = SUCCESS_TO_SETTLEMENT_TIME;
 	pub const FundingPalletId: PalletId = PalletId(*b"plmc/fun");
