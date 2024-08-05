@@ -1293,7 +1293,7 @@ mod benchmarks {
 		);
 
 		#[extrinsic_call]
-		community_contribute(
+		contribute(
 			RawOrigin::Signed(extrinsic_contribution.contributor.clone()),
 			jwt,
 			project_id,
@@ -1344,7 +1344,7 @@ mod benchmarks {
 		);
 
 		#[extrinsic_call]
-		community_contribute(
+		contribute(
 			RawOrigin::Signed(extrinsic_contribution.contributor.clone()),
 			jwt,
 			project_id,
@@ -1435,11 +1435,6 @@ mod benchmarks {
 		let maybe_transition =
 			inst.get_update_block(project_id, &UpdateType::ProjectDecision(FundingOutcomeDecision::AcceptFunding));
 		assert!(maybe_transition.is_some());
-
-		// Events
-		frame_system::Pallet::<T>::assert_last_event(
-			Event::ProjectOutcomeDecided { project_id, decision: FundingOutcomeDecision::AcceptFunding }.into(),
-		);
 	}
 
 	#[benchmark]
@@ -2109,13 +2104,13 @@ mod benchmarks {
 
 		#[block]
 		{
-			Pallet::<T>::do_end_auction_closing(project_id).unwrap();
+			Pallet::<T>::do_end_auction(project_id).unwrap();
 		}
 
 		// * validity checks *
 		// Storage
 		let stored_details = ProjectsDetails::<T>::get(project_id).unwrap();
-		assert_eq!(stored_details.status, ProjectStatus::CalculatingWAP);
+		assert_eq!(stored_details.status, ProjectStatus::CommunityRound);
 		assert!(
 			stored_details.phase_transition_points.random_closing_ending.unwrap() <
 				stored_details.phase_transition_points.auction_closing.end().unwrap()
@@ -2311,7 +2306,6 @@ mod benchmarks {
 		// * validity checks *
 		// Storage
 		let stored_details = ProjectsDetails::<T>::get(project_id).unwrap();
-		assert_eq!(stored_details.status, ProjectStatus::RemainderRound);
 
 		// Events
 		frame_system::Pallet::<T>::assert_last_event(
@@ -2362,7 +2356,6 @@ mod benchmarks {
 		);
 
 		let project_details = inst.get_project_details(project_id);
-		assert_eq!(project_details.status, ProjectStatus::RemainderRound);
 		let last_funding_block = project_details.phase_transition_points.remainder.end().unwrap();
 
 		frame_system::Pallet::<T>::set_block_number(last_funding_block + 1u32.into());
@@ -2421,7 +2414,6 @@ mod benchmarks {
 		);
 
 		let project_details = inst.get_project_details(project_id);
-		assert_eq!(project_details.status, ProjectStatus::RemainderRound);
 		let last_funding_block = project_details.phase_transition_points.remainder.end().unwrap();
 
 		frame_system::Pallet::<T>::set_block_number(last_funding_block + 1u32.into());
@@ -2436,7 +2428,7 @@ mod benchmarks {
 
 		// * validity checks *
 		let project_details = inst.get_project_details(project_id);
-		assert_eq!(project_details.status, ProjectStatus::AwaitingProjectDecision);
+
 		assert_eq!(project_details.evaluation_round_info.evaluators_outcome, EvaluatorsOutcome::Slashed)
 	}
 	#[benchmark]
@@ -2481,7 +2473,6 @@ mod benchmarks {
 		);
 
 		let project_details = inst.get_project_details(project_id);
-		assert_eq!(project_details.status, ProjectStatus::RemainderRound);
 		let last_funding_block = project_details.phase_transition_points.remainder.end().unwrap();
 
 		frame_system::Pallet::<T>::set_block_number(last_funding_block + 1u32.into());
@@ -2496,7 +2487,6 @@ mod benchmarks {
 
 		// * validity checks *
 		let project_details = inst.get_project_details(project_id);
-		assert_eq!(project_details.status, ProjectStatus::AwaitingProjectDecision);
 		assert_eq!(project_details.evaluation_round_info.evaluators_outcome, EvaluatorsOutcome::Unchanged)
 	}
 	#[benchmark]
@@ -2559,7 +2549,6 @@ mod benchmarks {
 		);
 
 		let project_details = inst.get_project_details(project_id);
-		assert_eq!(project_details.status, ProjectStatus::RemainderRound);
 		let last_funding_block = project_details.phase_transition_points.remainder.end().unwrap();
 
 		frame_system::Pallet::<T>::set_block_number(last_funding_block + 1u32.into());
@@ -2615,8 +2604,6 @@ mod benchmarks {
 			contributions,
 			vec![],
 		);
-
-		assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::AwaitingProjectDecision);
 
 		#[block]
 		{

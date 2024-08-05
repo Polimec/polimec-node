@@ -23,9 +23,6 @@ impl<T: Config> Pallet<T> {
 		}
 		let total_allocation_size = project_metadata.total_allocation_size;
 
-		// * Calculate new variables *
-		let now = <frame_system::Pallet<T>>::block_number();
-
 		let fundraising_target =
 			project_metadata.minimum_price.checked_mul_int(total_allocation_size).ok_or(Error::<T>::BadMath)?;
 
@@ -36,7 +33,8 @@ impl<T: Config> Pallet<T> {
 			weighted_average_price: None,
 			fundraising_target_usd: fundraising_target,
 			status: ProjectStatus::Application,
-			phase_transition_points: PhaseTransitionPoints::new(now),
+			round_duration: BlockNumberPair::new(None, None),
+			random_end_block: None,
 			remaining_contribution_tokens: project_metadata.total_allocation_size,
 			funding_amount_reached_usd: BalanceOf::<T>::zero(),
 			evaluation_round_info: EvaluationRoundInfoOf::<T> {

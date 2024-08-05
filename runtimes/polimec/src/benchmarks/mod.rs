@@ -9,8 +9,6 @@ fn output_max_pallet_funding_values() {
 
 	use crate::Runtime;
 
-	let max_projects_to_update_insertion_attempts: u32 =
-		<Runtime as pallet_funding::Config>::MaxProjectsToUpdateInsertionAttempts::get();
 	let max_evaluations_per_user: u32 = <Runtime as pallet_funding::Config>::MaxEvaluationsPerUser::get();
 	let max_bids_per_user: u32 = <Runtime as pallet_funding::Config>::MaxBidsPerUser::get();
 	let max_contributions_per_user: u32 = <Runtime as pallet_funding::Config>::MaxContributionsPerUser::get();
@@ -26,11 +24,11 @@ fn output_max_pallet_funding_values() {
 	let edit_project = SubstrateWeight::<Runtime>::edit_project();
 	dbg!(edit_project);
 
-	let start_evaluation = SubstrateWeight::<Runtime>::start_evaluation(max_projects_to_update_insertion_attempts - 1);
+	let start_evaluation = SubstrateWeight::<Runtime>::start_evaluation(1);
 	dbg!(start_evaluation);
 
 	let start_auction_manually =
-		SubstrateWeight::<Runtime>::start_auction_manually(max_projects_to_update_insertion_attempts - 1);
+		SubstrateWeight::<Runtime>::start_auction_manually(1);
 	dbg!(start_auction_manually);
 
 	let evaluation = SubstrateWeight::<Runtime>::evaluation(max_evaluations_per_user - 1);
@@ -44,13 +42,9 @@ fn output_max_pallet_funding_values() {
 
 	let contribution_ends_round = SubstrateWeight::<Runtime>::contribution_ends_round(
 		max_contributions_per_user - 1,
-		max_projects_to_update_insertion_attempts - 1,
+		1,
 	);
 	dbg!(contribution_ends_round);
-
-	let decide_project_outcome =
-		SubstrateWeight::<Runtime>::decide_project_outcome(max_projects_to_update_insertion_attempts - 1);
-	dbg!(decide_project_outcome);
 
 	let settle_successful_evaluation = SubstrateWeight::<Runtime>::settle_successful_evaluation();
 	dbg!(settle_successful_evaluation);
@@ -71,56 +65,56 @@ fn output_max_pallet_funding_values() {
 	dbg!(settle_failed_contribution);
 
 	let end_evaluation_success =
-		SubstrateWeight::<Runtime>::end_evaluation_success(max_projects_to_update_insertion_attempts - 1);
+		SubstrateWeight::<Runtime>::end_evaluation_success(1);
 	dbg!(end_evaluation_success);
 
 	let end_evaluation_failure =
-		SubstrateWeight::<Runtime>::end_evaluation_failure(max_projects_to_update_insertion_attempts - 1);
+		SubstrateWeight::<Runtime>::end_evaluation_failure(1);
 	dbg!(end_evaluation_failure);
 
 	let start_auction_closing_phase =
-		SubstrateWeight::<Runtime>::start_auction_closing_phase(max_projects_to_update_insertion_attempts - 1);
+		SubstrateWeight::<Runtime>::start_auction_closing_phase(1);
 	dbg!(start_auction_closing_phase);
 
 	let end_auction_closing = SubstrateWeight::<Runtime>::end_auction_closing(
-		max_projects_to_update_insertion_attempts - 1,
+		1,
 		max_bids_per_project,
 		0,
 	);
 	dbg!(end_auction_closing);
 
 	let start_community_funding = SubstrateWeight::<Runtime>::start_community_funding(
-		max_projects_to_update_insertion_attempts - 1,
+		1,
 		max_bids_per_project,
 		0,
 	);
 	dbg!(start_community_funding);
 
 	let start_remainder_funding =
-		SubstrateWeight::<Runtime>::start_remainder_funding(max_projects_to_update_insertion_attempts - 1);
+		SubstrateWeight::<Runtime>::start_remainder_funding(1);
 	dbg!(start_remainder_funding);
 
 	let end_funding_automatically_rejected_evaluators_slashed =
 		SubstrateWeight::<Runtime>::end_funding_automatically_rejected_evaluators_slashed(
-			max_projects_to_update_insertion_attempts - 1,
+			1,
 		);
 	dbg!(end_funding_automatically_rejected_evaluators_slashed);
 
 	let end_funding_awaiting_decision_evaluators_slashed =
 		SubstrateWeight::<Runtime>::end_funding_awaiting_decision_evaluators_slashed(
-			max_projects_to_update_insertion_attempts - 1,
+			1,
 		);
 	dbg!(end_funding_awaiting_decision_evaluators_slashed);
 
 	let end_funding_awaiting_decision_evaluators_unchanged =
 		SubstrateWeight::<Runtime>::end_funding_awaiting_decision_evaluators_unchanged(
-			max_projects_to_update_insertion_attempts - 1,
+			1,
 		);
 	dbg!(end_funding_awaiting_decision_evaluators_unchanged);
 
 	let end_funding_automatically_accepted_evaluators_rewarded =
 		SubstrateWeight::<Runtime>::end_funding_automatically_accepted_evaluators_rewarded(
-			max_projects_to_update_insertion_attempts - 1,
+			1,
 			max_evaluations_per_project,
 		);
 	dbg!(end_funding_automatically_accepted_evaluators_rewarded);

@@ -398,18 +398,8 @@ pub fn create_project_with_funding_percentage(
 		inst.create_finished_project(project_metadata, ISSUER_1, None, evaluations, bids, contributions, vec![]);
 
 	match inst.get_project_details(project_id).status {
-		ProjectStatus::AwaitingProjectDecision => {
-			assert!(percentage > 33 && percentage < 90);
-			assert!(maybe_decision.is_some());
-			inst.execute(|| PolimecFunding::do_decide_project_outcome(ISSUER_1, project_id, maybe_decision.unwrap()))
-				.unwrap();
-
-			let decision_execution =
-				inst.get_update_block(project_id, &UpdateType::ProjectDecision(maybe_decision.unwrap())).unwrap();
-			inst.jump_to_block(decision_execution);
-		},
 		ProjectStatus::FundingSuccessful => {
-			assert!(percentage >= 90);
+			assert!(percentage >= 33);
 		},
 		ProjectStatus::FundingFailed => {
 			assert!(percentage <= 33);

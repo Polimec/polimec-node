@@ -12,7 +12,7 @@ impl Default for BoxToFunction {
 #[derive(Clone, PartialEq, Eq, Debug, Encode, Decode, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields, bound(serialize = ""), bound(deserialize = ""))]
 pub struct TestProjectParams<T: Config> {
-	pub expected_state: ProjectStatus,
+	pub expected_state: ProjectStatus<BlockNumberFor<T>>,
 	pub metadata: ProjectMetadataOf<T>,
 	pub issuer: AccountIdOf<T>,
 	pub evaluations: Vec<UserToUSDBalance<T>>,

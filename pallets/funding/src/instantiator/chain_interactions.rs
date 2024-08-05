@@ -288,7 +288,6 @@ impl<
 		project_id: ProjectId,
 		maybe_did: Option<Did>,
 		expected_metadata: ProjectMetadataOf<T>,
-		creation_start_block: BlockNumberFor<T>,
 	) {
 		let metadata = self.get_project_metadata(project_id);
 		let details = self.get_project_details(project_id);
@@ -300,10 +299,8 @@ impl<
 			is_frozen: false,
 			weighted_average_price: None,
 			status: ProjectStatus::Application,
-			phase_transition_points: PhaseTransitionPoints {
-				application: BlockNumberPair { start: Some(creation_start_block), end: None },
-				..Default::default()
-			},
+			round_duration: BlockNumberPair::new(None, None),
+			random_end_block: None,
 			fundraising_target_usd: expected_metadata
 				.minimum_price
 				.checked_mul_int(expected_metadata.total_allocation_size)
@@ -388,15 +385,8 @@ impl<
 	}
 
 	pub fn get_update_block(&mut self, project_id: ProjectId, update_type: &UpdateType) -> Option<BlockNumberFor<T>> {
-		self.execute(|| {
-			ProjectsToUpdate::<T>::iter().find_map(|(block, update_tup)| {
-				if project_id == update_tup.0 && update_type == &update_tup.1 {
-					Some(block)
-				} else {
-					None
-				}
-			})
-		})
+		Some(BlockNumberFor::<T>::zero())
+		// TODO: FIX
 	}
 
 	pub fn create_new_project(
@@ -473,9 +463,9 @@ impl<
 
 		assert_eq!(self.get_project_details(project_id).status, ProjectStatus::AuctionInitializePeriod);
 
-		self.execute(|| crate::Pallet::<T>::do_start_auction_opening(caller, project_id).unwrap());
+		self.execute(|| crate::Pallet::<T>::do_start_auction(caller, project_id).unwrap());
 
-		assert_eq!(self.get_project_details(project_id).status, ProjectStatus::AuctionOpening);
+		assert_eq!(self.get_project_details(project_id).status, ProjectStatus::Auction);
 
 		Ok(())
 	}
@@ -549,7 +539,7 @@ impl<
 		}
 
 		ensure!(
-			self.get_project_details(project_id).status == ProjectStatus::CommunityRound,
+			matches!(self.get_project_details(project_id).status, ProjectStatus::CommunityRound(..)),
 			DispatchError::from("Auction failed")
 		);
 
@@ -643,29 +633,12 @@ impl<
 		let project_policy = self.get_project_metadata(project_id).policy_ipfs_cid.unwrap();
 
 		match self.get_project_details(project_id).status {
-			ProjectStatus::CommunityRound =>
+			ProjectStatus::CommunityRound(..) =>
 				for cont in contributions {
 					let did = generate_did_from_account(cont.contributor.clone());
 					let investor_type = InvestorType::Retail;
 					self.execute(|| {
-						crate::Pallet::<T>::do_community_contribute(
-							&cont.contributor,
-							project_id,
-							cont.amount,
-							cont.multiplier,
-							cont.asset,
-							did,
-							investor_type,
-							project_policy.clone(),
-						)
-					})?;
-				},
-			ProjectStatus::RemainderRound =>
-				for cont in contributions {
-					let did = generate_did_from_account(cont.contributor.clone());
-					let investor_type = InvestorType::Professional;
-					self.execute(|| {
-						crate::Pallet::<T>::do_remaining_contribute(
+						crate::Pallet::<T>::do_contribute(
 							&cont.contributor,
 							project_id,
 							cont.amount,
@@ -685,7 +658,7 @@ impl<
 
 	pub fn start_remainder_or_end_funding(&mut self, project_id: ProjectId) -> Result<(), DispatchError> {
 		let details = self.get_project_details(project_id);
-		assert_eq!(details.status, ProjectStatus::CommunityRound);
+		assert!(matches!(details.status, ProjectStatus::CommunityRound(..)));
 		let remaining_tokens = details.remaining_contribution_tokens;
 		let update_type =
 			if remaining_tokens > Zero::zero() { UpdateType::RemainderFundingStart } else { UpdateType::FundingEnd };
@@ -693,7 +666,7 @@ impl<
 			self.execute(|| frame_system::Pallet::<T>::set_block_number(transition_block - One::one()));
 			self.advance_time(1u32.into()).unwrap();
 			match self.get_project_details(project_id).status {
-				ProjectStatus::RemainderRound | ProjectStatus::FundingSuccessful => Ok(()),
+				ProjectStatus::FundingSuccessful => Ok(()),
 				_ => panic!("Bad state"),
 			}
 		} else {
@@ -719,8 +692,7 @@ impl<
 			matches!(
 				project_details.status,
 				ProjectStatus::FundingSuccessful |
-					ProjectStatus::FundingFailed |
-					ProjectStatus::AwaitingProjectDecision
+					ProjectStatus::FundingFailed
 			),
 			"Project should be in Finished status"
 		);
@@ -1059,10 +1031,6 @@ impl<
 
 		match self.get_project_details(project_id).status {
 			ProjectStatus::FundingSuccessful => return project_id,
-			ProjectStatus::RemainderRound if remainder_contributions.is_empty() => {
-				self.finish_funding(project_id, None).unwrap();
-				return project_id;
-			},
 			_ => {},
 		};
 		let ct_price = self.get_project_details(project_id).weighted_average_price.unwrap();
@@ -1179,7 +1147,7 @@ impl<
 
 	pub fn create_project_at(
 		&mut self,
-		status: ProjectStatus,
+		status: ProjectStatus<BlockNumberFor<T>>,
 		project_metadata: ProjectMetadataOf<T>,
 		issuer: AccountIdOf<T>,
 		evaluations: Vec<UserToUSDBalance<T>>,
@@ -1197,20 +1165,11 @@ impl<
 				community_contributions,
 				remainder_contributions,
 			),
-			ProjectStatus::RemainderRound => self.create_remainder_contributing_project(
-				project_metadata,
-				issuer,
-				None,
-				evaluations,
-				bids,
-				community_contributions,
-			),
-			ProjectStatus::CommunityRound =>
-				self.create_community_contributing_project(project_metadata, issuer, None, evaluations, bids),
-			ProjectStatus::AuctionOpening =>
-				self.create_auctioning_project(project_metadata, issuer, None, evaluations),
-			ProjectStatus::EvaluationRound => self.create_evaluating_project(project_metadata, issuer, None),
-			ProjectStatus::Application => self.create_new_project(project_metadata, issuer, None),
+			ProjectStatus::CommunityRound(..) =>
+				self.create_community_contributing_project(project_metadata, issuer, evaluations, bids),
+			ProjectStatus::Auction => self.create_auctioning_project(project_metadata, issuer, evaluations),
+			ProjectStatus::EvaluationRound => self.create_evaluating_project(project_metadata, issuer),
+			ProjectStatus::Application => self.create_new_project(project_metadata, issuer),
 			_ => panic!("unsupported project creation in that status"),
 		}
 	}

@@ -27,7 +27,7 @@ use polimec_common::USD_DECIMALS;
 use polkadot_parachain_primitives::primitives::Id as ParaId;
 use serde::{Deserialize, Serialize};
 use sp_arithmetic::{FixedPointNumber, FixedPointOperand, Percent};
-use sp_runtime::traits::{CheckedDiv, CheckedMul, One, Saturating, Zero};
+use sp_runtime::traits::{CheckedDiv, CheckedMul, One};
 use sp_std::{cmp::Eq, prelude::*};
 pub use storage_types::*;
 
@@ -326,9 +326,11 @@ pub mod storage_types {
 		/// The price in USD per token decided after the Auction Round
 		pub weighted_average_price: Option<Price>,
 		/// The current status of the project
-		pub status: ProjectStatus,
+		pub status: ProjectStatus<BlockNumber>,
 		/// When the different project phases start and end
-		pub phase_transition_points: PhaseTransitionPoints<BlockNumber>,
+		pub round_duration: BlockNumberPair<BlockNumber>,
+		/// Random block end for auction round
+		pub random_end_block: Option<BlockNumber>,
 		/// Fundraising target amount in USD (6 decimals)
 		pub fundraising_target_usd: Balance,
 		/// The amount of Contribution Tokens that have not yet been sold
@@ -455,7 +457,7 @@ pub mod storage_types {
 		pub delta_amount: Balance,
 	}
 
-	impl<Balance: Copy + Saturating + One + Zero, Price: FixedPointNumber> Bucket<Balance, Price> {
+	impl<Balance: BalanceT, Price: FixedPointNumber> Bucket<Balance, Price> {
 		/// Creates a new bucket with the given parameters.
 		pub const fn new(
 			amount_left: Balance,
@@ -480,6 +482,34 @@ pub mod storage_types {
 		fn next(&mut self) {
 			self.amount_left = self.delta_amount;
 			self.current_price = self.current_price.saturating_add(self.delta_price);
+		}
+
+		pub fn calculate_wap(self, mut total_amount: Balance) -> Price {
+			// First bucket is not empty so wap is the same as the initial price
+			if self.current_price == self.initial_price {
+				return self.current_price;
+			}
+			let mut amount: Balance = self.delta_amount.saturating_sub(self.amount_left);
+			let mut price: Price = self.current_price;
+			let mut bucket_sizes: Vec<(Balance, Price)> = Vec::new();
+			while price > self.initial_price && total_amount > Balance::zero() {
+				total_amount.saturating_reduce(amount);
+				bucket_sizes.push((price.saturating_mul_int(amount), price));
+				price = price.saturating_sub(self.delta_price);
+				amount = self.delta_amount;
+			}
+			
+			if total_amount > Balance::zero() {
+				bucket_sizes.push((self.initial_price.saturating_mul_int(total_amount), self.initial_price));
+			}
+
+			let sum = bucket_sizes.iter().map(|x| x.0).fold(Balance::zero(), |acc, x| acc.saturating_add(x));
+
+			let wap = bucket_sizes.into_iter()
+				.map(|x| <Price as FixedPointNumber>::saturating_from_rational(x.0, sum).saturating_mul(x.1)  )
+				.fold(Price::zero(), |acc: Price, p: Price| acc.saturating_add(p));
+
+			return wap
 		}
 	}
 }
@@ -663,18 +693,14 @@ pub mod inner_types {
 	#[derive(
 		Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen, Serialize, Deserialize,
 	)]
-	pub enum ProjectStatus {
+	pub enum ProjectStatus<BlockNumber> {
 		#[default]
 		Application,
 		EvaluationRound,
 		AuctionInitializePeriod,
-		AuctionOpening,
-		AuctionClosing,
-		CalculatingWAP,
-		CommunityRound,
-		RemainderRound,
+		Auction,
+		CommunityRound(BlockNumber),
 		FundingFailed,
-		AwaitingProjectDecision,
 		FundingSuccessful,
 		SettlementStarted(FundingOutcome),
 		SettlementFinished(FundingOutcome),
@@ -688,32 +714,7 @@ pub mod inner_types {
 		FundingFailed,
 	}
 
-	#[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
-	pub struct PhaseTransitionPoints<BlockNumber> {
-		pub application: BlockNumberPair<BlockNumber>,
-		pub evaluation: BlockNumberPair<BlockNumber>,
-		pub auction_initialize_period: BlockNumberPair<BlockNumber>,
-		pub auction_opening: BlockNumberPair<BlockNumber>,
-		pub random_closing_ending: Option<BlockNumber>,
-		pub auction_closing: BlockNumberPair<BlockNumber>,
-		pub community: BlockNumberPair<BlockNumber>,
-		pub remainder: BlockNumberPair<BlockNumber>,
-	}
 
-	impl<BlockNumber: Copy> PhaseTransitionPoints<BlockNumber> {
-		pub const fn new(now: BlockNumber) -> Self {
-			Self {
-				application: BlockNumberPair::new(Some(now), None),
-				evaluation: BlockNumberPair::new(None, None),
-				auction_initialize_period: BlockNumberPair::new(None, None),
-				auction_opening: BlockNumberPair::new(None, None),
-				random_closing_ending: None,
-				auction_closing: BlockNumberPair::new(None, None),
-				community: BlockNumberPair::new(None, None),
-				remainder: BlockNumberPair::new(None, None),
-			}
-		}
-	}
 
 	#[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
 	pub struct BlockNumberPair<BlockNumber> {
@@ -721,7 +722,7 @@ pub mod inner_types {
 		pub end: Option<BlockNumber>,
 	}
 
-	impl<BlockNumber: Copy> BlockNumberPair<BlockNumber> {
+	impl<BlockNumber: Copy + sp_std::cmp::PartialOrd> BlockNumberPair<BlockNumber> {
 		pub const fn new(start: Option<BlockNumber>, end: Option<BlockNumber>) -> Self {
 			Self { start, end }
 		}
@@ -732,6 +733,14 @@ pub mod inner_types {
 
 		pub const fn end(&self) -> Option<BlockNumber> {
 			self.end
+		}
+
+		pub fn started(&self, at: BlockNumber) -> bool {
+			self.start.map_or(true, |start| start <= at)
+		}
+
+		pub fn ended(&self, at: BlockNumber) -> bool {
+			self.end.map_or(true, |end| end <= at)
 		}
 
 		pub fn update(&mut self, start: Option<BlockNumber>, end: Option<BlockNumber>) {
@@ -756,21 +765,12 @@ pub mod inner_types {
 		YetUnknown,
 		/// The bid is accepted
 		Accepted,
-		/// The bid is rejected, and the reason is provided
-		Rejected(RejectionReason),
-		/// The bid is partially accepted. The amount accepted and reason for rejection are provided
-		PartiallyAccepted(Balance, RejectionReason),
+		/// The bid is rejected because the ct tokens ran out
+		Rejected,
+		/// The bid is partially accepted as there were not enough tokens to fill the full bid
+		PartiallyAccepted(Balance),
 	}
 
-	#[derive(Clone, Copy, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
-	pub enum RejectionReason {
-		/// The bid was submitted after the closing period ended
-		AfterClosingEnd,
-		/// The bid was accepted but too many tokens were requested. A partial amount was accepted
-		NoTokensLeft,
-		/// Error in calculating ticket_size for partially funded request
-		BadMath,
-	}
 
 	#[derive(Clone, Copy, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
 	pub struct VestingInfo<BlockNumber, Balance> {
@@ -783,13 +783,9 @@ pub mod inner_types {
 	pub enum ProjectPhases {
 		Evaluation,
 		AuctionInitializePeriod,
-		AuctionOpening,
-		AuctionClosing,
-		CalculatingWAP,
+		Auction,
 		CommunityFunding,
-		RemainderFunding,
-		DecisionPeriod,
-		FundingFinalization(ProjectOutcome),
+		FundingFinalization,
 		Settlement,
 		Migration,
 	}
@@ -797,16 +793,10 @@ pub mod inner_types {
 	/// An enum representing all possible outcomes for a project.
 	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
 	pub enum ProjectOutcome {
-		/// The evaluation funding target was not reached.
-		EvaluationFailed,
 		/// 90%+ of the funding target was reached, so the project is successful.
 		FundingSuccessful,
 		/// 33%- of the funding target was reached, so the project failed.
 		FundingFailed,
-		/// The project issuer accepted the funding outcome between 33% and 90% of the target.
-		FundingAccepted,
-		/// The project issuer rejected the funding outcome between 33% and 90% of the target.
-		FundingRejected,
 	}
 
 	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
