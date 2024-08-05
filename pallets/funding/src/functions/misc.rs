@@ -393,7 +393,7 @@ impl<T: Config> Pallet<T> {
 		mut project_details: ProjectDetailsOf<T>,
 		current_round: ProjectStatus<BlockNumberFor<T>>,
 		next_round: ProjectStatus<BlockNumberFor<T>>,
-		round_duration: BlockNumberFor<T>,
+		maybe_round_duration: Option<BlockNumberFor<T>>,
 		skip_end_check: bool,
 	) -> DispatchResult {
 		/* Verify */
@@ -401,15 +401,19 @@ impl<T: Config> Pallet<T> {
 		ensure!(project_details.round_duration.ended(now) || skip_end_check, Error::<T>::TooEarlyForRound);
 		ensure!(project_details.status == current_round, Error::<T>::IncorrectRound);
 
-		let round_end = now.saturating_add(round_duration).saturating_sub(One::one());
-		project_details.round_duration.update(Some(now), Some(round_end));
-		project_details.status = next_round;
+		let round_end = if let Some(round_duration) = maybe_round_duration {
+			Some(now.saturating_add(round_duration).saturating_sub(One::one()))
+		} else {
+			None
+		};
+		project_details.round_duration.update(Some(now), round_end);
+		project_details.status = next_round.clone();
 
 		// * Update storage *
 		ProjectsDetails::<T>::insert(project_id, project_details);
 
-		// // * Emit events *
-		// Self::deposit_event(Event::ProjectPhaseTransition { project_id, phase: next_round });
+		// * Emit events *
+		Self::deposit_event(Event::ProjectPhaseTransition { project_id, phase: next_round });
 
 		Ok(())
 	}
