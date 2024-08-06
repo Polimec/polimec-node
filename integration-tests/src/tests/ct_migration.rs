@@ -190,7 +190,7 @@ fn create_settled_project() -> (ProjectId, Vec<AccountId>) {
 		participants.sort();
 		participants.dedup();
 
-		inst.settle_project(project_id);
+		inst.settle_project(project_id, true);
 		(project_id, participants)
 	})
 }

@@ -740,20 +740,6 @@ pub mod inner_types {
 		pub fn ended(&self, at: BlockNumber) -> bool {
 			self.end.map_or(true, |end| end <= at)
 		}
-
-		pub fn update(&mut self, start: Option<BlockNumber>, end: Option<BlockNumber>) {
-			let new_state = match (start, end) {
-				(Some(start), None) => (Some(start), self.end),
-				(None, Some(end)) => (self.start, Some(end)),
-				(Some(start), Some(end)) => (Some(start), Some(end)),
-				(None, None) => (self.start, self.end),
-			};
-			(self.start, self.end) = (new_state.0, new_state.1);
-		}
-
-		pub fn force_update(&mut self, start: Option<BlockNumber>, end: Option<BlockNumber>) -> Self {
-			Self { start, end }
-		}
 	}
 
 	#[derive(Default, Clone, Copy, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]

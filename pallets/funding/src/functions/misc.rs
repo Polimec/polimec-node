@@ -273,20 +273,12 @@ impl<T: Config> Pallet<T> {
 	pub fn generate_liquidity_pools_and_long_term_holder_rewards(
 		project_id: ProjectId,
 	) -> Result<(BalanceOf<T>, BalanceOf<T>), DispatchError> {
-		let details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 		let total_fee_allocation = Self::calculate_fee_allocation(project_id)?;
-
-		let percentage_of_target_funding =
-			Perquintill::from_rational(details.funding_amount_reached_usd, details.fundraising_target_usd);
 
 		let liquidity_pools_percentage = Perquintill::from_percent(50);
 		let liquidity_pools_reward_pot = liquidity_pools_percentage * total_fee_allocation;
 
-		let long_term_holder_percentage = if percentage_of_target_funding < Perquintill::from_percent(90) {
-			Perquintill::from_percent(50)
-		} else {
-			Perquintill::from_percent(20)
-		};
+		let long_term_holder_percentage = Perquintill::from_percent(20);
 		let long_term_holder_reward_pot = long_term_holder_percentage * total_fee_allocation;
 
 		Ok((liquidity_pools_reward_pot, long_term_holder_reward_pot))
@@ -398,15 +390,15 @@ impl<T: Config> Pallet<T> {
 	) -> DispatchResult {
 		/* Verify */
 		let now = <frame_system::Pallet<T>>::block_number();
-		ensure!(project_details.round_duration.ended(now) || skip_end_check, Error::<T>::TooEarlyForRound);
 		ensure!(project_details.status == current_round, Error::<T>::IncorrectRound);
+		ensure!(project_details.round_duration.ended(now) || skip_end_check, Error::<T>::TooEarlyForRound);
 
 		let round_end = if let Some(round_duration) = maybe_round_duration {
 			Some(now.saturating_add(round_duration).saturating_sub(One::one()))
 		} else {
 			None
 		};
-		project_details.round_duration.update(Some(now), round_end);
+		project_details.round_duration = BlockNumberPair::new(Some(now), round_end);
 		project_details.status = next_round.clone();
 
 		// * Update storage *
