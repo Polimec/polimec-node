@@ -19,7 +19,7 @@ mod pallet_migration {
 			default_remainder_contributions(),
 		);
 		assert_eq!(inst.go_to_next_state(project_id), ProjectStatus::SettlementStarted(FundingOutcome::Success));
-		inst.settle_project(project_id);
+		inst.settle_project(project_id, true);
 
 		inst.execute(|| {
 			assert_err!(
@@ -72,7 +72,7 @@ mod pallet_migration {
 			default_remainder_contributions(),
 		);
 		assert_eq!(inst.go_to_next_state(project_id), ProjectStatus::SettlementStarted(FundingOutcome::Success));
-		inst.settle_project(project_id);
+		inst.settle_project(project_id, true);
 		inst.execute(|| {
 			assert_ok!(crate::Pallet::<TestRuntime>::do_start_pallet_migration(
 				&ISSUER_1,
@@ -202,7 +202,7 @@ mod offchain_migration {
 			default_remainder_contributions(),
 		);
 		assert_eq!(inst.go_to_next_state(project_id), ProjectStatus::SettlementStarted(FundingOutcome::Success));
-		inst.settle_project(project_id);
+		inst.settle_project(project_id, true);
 
 		let project_id = inst.create_finished_project(
 			default_project_metadata(ISSUER_1),
@@ -214,7 +214,7 @@ mod offchain_migration {
 			default_remainder_contributions(),
 		);
 		assert_eq!(inst.go_to_next_state(project_id), ProjectStatus::SettlementStarted(FundingOutcome::Success));
-		inst.settle_project(project_id);
+		inst.settle_project(project_id, true);
 
 		inst.execute(|| {
 			assert_err!(
@@ -241,7 +241,7 @@ mod offchain_migration {
 			default_remainder_contributions(),
 		);
 		assert_eq!(inst.go_to_next_state(project_id), ProjectStatus::SettlementStarted(FundingOutcome::Success));
-		inst.settle_project(project_id);
+		inst.settle_project(project_id, true);
 		inst.execute(|| {
 			assert_ok!(crate::Pallet::<TestRuntime>::do_start_offchain_migration(project_id, ISSUER_1,));
 		});
