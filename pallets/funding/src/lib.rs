@@ -170,6 +170,7 @@ pub type AssetIdOf<T> =
 	<<T as Config>::FundingCurrency as fungibles::Inspect<<T as frame_system::Config>::AccountId>>::AssetId;
 pub type RewardInfoOf<T> = RewardInfo<BalanceOf<T>>;
 pub type EvaluatorsOutcomeOf<T> = EvaluatorsOutcome<BalanceOf<T>>;
+pub type VestingInfoOf<T> = VestingInfo<BlockNumberFor<T>, BalanceOf<T>>;
 
 pub type TicketSizeOf<T> = TicketSize<BalanceOf<T>>;
 pub type ProjectMetadataOf<T> =
@@ -621,8 +622,8 @@ pub mod pallet {
 			project_id: ProjectId,
 			account: AccountIdOf<T>,
 			id: u32,
-			ct_amount: BalanceOf<T>,
-			slashed_plmc_amount: BalanceOf<T>,
+			ct_rewarded: BalanceOf<T>,
+			plmc_released: BalanceOf<T>,
 		},
 		BidSettled {
 			project_id: ProjectId,
@@ -795,10 +796,8 @@ pub mod pallet {
 		WrongParaId,
 		/// Migration channel is not ready for migrations.
 		ChannelNotReady,
-		/// Settlement for this project/outcome has not yet started.
-		FundingSuccessSettlementNotStarted,
-		/// Settlement for this project/outcome has not yet started.
-		FundingFailedSettlementNotStarted,
+		/// Settlement for this project has not yet started.
+		SettlementNotStarted,
 		/// Wanted to settle as successful when it failed, or vice versa.
 		WrongSettlementOutcome,
 		/// User still has participations that need to be settled before migration.
@@ -890,10 +889,8 @@ pub mod pallet {
 		/// Any bids from this point until the auction_closing starts, will be considered as valid.
 		#[pallet::call_index(6)]
 		#[pallet::weight(WeightInfoOf::<T>::start_auction_manually(1))]
-		pub fn start_auction(origin: OriginFor<T>, jwt: UntrustedToken, project_id: ProjectId) -> DispatchResult {
-			let (account, _did, investor_type, _cid) =
-				T::InvestorOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get())?;
-			ensure!(investor_type == InvestorType::Institutional, Error::<T>::WrongInvestorType);
+		pub fn start_auction(origin: OriginFor<T>, project_id: ProjectId) -> DispatchResult {
+			let account = ensure_signed(origin)?;
 			Self::do_start_auction(account, project_id)
 		}
 
@@ -984,7 +981,7 @@ pub mod pallet {
 
 		#[pallet::call_index(12)]
 		#[pallet::weight(WeightInfoOf::<T>::settle_successful_evaluation())]
-		pub fn settle_successful_evaluation(
+		pub fn settle_evaluation(
 			origin: OriginFor<T>,
 			project_id: ProjectId,
 			evaluator: AccountIdOf<T>,
@@ -993,12 +990,12 @@ pub mod pallet {
 			let _caller = ensure_signed(origin)?;
 			let bid = Evaluations::<T>::get((project_id, evaluator, evaluation_id))
 				.ok_or(Error::<T>::ParticipationNotFound)?;
-			Self::do_settle_successful_evaluation(bid, project_id)
+			Self::do_settle_evaluation(bid, project_id)
 		}
 
 		#[pallet::call_index(13)]
 		#[pallet::weight(WeightInfoOf::<T>::settle_successful_bid())]
-		pub fn settle_successful_bid(
+		pub fn settle_bid(
 			origin: OriginFor<T>,
 			project_id: ProjectId,
 			bidder: AccountIdOf<T>,
@@ -1006,53 +1003,12 @@ pub mod pallet {
 		) -> DispatchResult {
 			let _caller = ensure_signed(origin)?;
 			let bid = Bids::<T>::get((project_id, bidder, bid_id)).ok_or(Error::<T>::ParticipationNotFound)?;
-			Self::do_settle_successful_bid(bid, project_id)
-		}
-
-		#[pallet::call_index(14)]
-		#[pallet::weight(WeightInfoOf::<T>::settle_successful_contribution())]
-		pub fn settle_successful_contribution(
-			origin: OriginFor<T>,
-			project_id: ProjectId,
-			contributor: AccountIdOf<T>,
-			contribution_id: u32,
-		) -> DispatchResult {
-			let _caller = ensure_signed(origin)?;
-			let bid = Contributions::<T>::get((project_id, contributor, contribution_id))
-				.ok_or(Error::<T>::ParticipationNotFound)?;
-			Self::do_settle_successful_contribution(bid, project_id)
-		}
-
-		#[pallet::call_index(15)]
-		#[pallet::weight(WeightInfoOf::<T>::settle_failed_evaluation())]
-		pub fn settle_failed_evaluation(
-			origin: OriginFor<T>,
-			project_id: ProjectId,
-			evaluator: AccountIdOf<T>,
-			evaluation_id: u32,
-		) -> DispatchResult {
-			let _caller = ensure_signed(origin)?;
-			let bid = Evaluations::<T>::get((project_id, evaluator, evaluation_id))
-				.ok_or(Error::<T>::ParticipationNotFound)?;
-			Self::do_settle_failed_evaluation(bid, project_id)
-		}
-
-		#[pallet::call_index(16)]
-		#[pallet::weight(WeightInfoOf::<T>::settle_failed_bid())]
-		pub fn settle_failed_bid(
-			origin: OriginFor<T>,
-			project_id: ProjectId,
-			bidder: AccountIdOf<T>,
-			bid_id: u32,
-		) -> DispatchResult {
-			let _caller = ensure_signed(origin)?;
-			let bid = Bids::<T>::get((project_id, bidder, bid_id)).ok_or(Error::<T>::ParticipationNotFound)?;
-			Self::do_settle_failed_bid(bid, project_id)
+			Self::do_settle_bid(bid, project_id)
 		}
 
 		#[pallet::call_index(17)]
 		#[pallet::weight(WeightInfoOf::<T>::settle_failed_contribution())]
-		pub fn settle_failed_contribution(
+		pub fn settle_contribution(
 			origin: OriginFor<T>,
 			project_id: ProjectId,
 			contributor: AccountIdOf<T>,
@@ -1061,7 +1017,7 @@ pub mod pallet {
 			let _caller = ensure_signed(origin)?;
 			let bid = Contributions::<T>::get((project_id, contributor, contribution_id))
 				.ok_or(Error::<T>::ParticipationNotFound)?;
-			Self::do_settle_failed_contribution(bid, project_id)
+			Self::do_settle_contribution(bid, project_id)
 		}
 
 		#[pallet::call_index(18)]
