@@ -1,5 +1,8 @@
 use super::*;
-use frame_support::traits::fungible::InspectFreeze;
+use frame_support::traits::{fungible::InspectFreeze, fungibles::metadata::Inspect};
+use sp_core::bounded_vec;
+use std::collections::HashSet;
+
 #[cfg(test)]
 mod round_flow {
 	use super::*;
@@ -7,9 +10,6 @@ mod round_flow {
 	#[cfg(test)]
 	mod success {
 		use super::*;
-		use frame_support::traits::fungibles::metadata::Inspect;
-		use sp_core::bounded_vec;
-		use std::collections::HashSet;
 
 		#[test]
 		fn auction_round_completed() {
@@ -35,102 +35,6 @@ mod round_flow {
 			inst.create_community_contributing_project(project2, ISSUER_2, None, evaluations.clone(), bids.clone());
 			inst.create_community_contributing_project(project3, ISSUER_3, None, evaluations.clone(), bids.clone());
 			inst.create_community_contributing_project(project4, ISSUER_4, None, evaluations, bids);
-		}
-
-		#[test]
-		fn wap_is_accurate() {
-			// From the knowledge hub: https://hub.polimec.org/learn/calculation-example#auction-round-calculation-example
-			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
-
-			const ADAM: u32 = 60;
-			const TOM: u32 = 61;
-			const SOFIA: u32 = 62;
-			const FRED: u32 = 63;
-			const ANNA: u32 = 64;
-			const DAMIAN: u32 = 65;
-
-			let accounts = vec![ADAM, TOM, SOFIA, FRED, ANNA, DAMIAN];
-
-			let bounded_name = bounded_name();
-			let bounded_symbol = bounded_symbol();
-			let metadata_hash = ipfs_hash();
-			let normalized_price = PriceOf::<TestRuntime>::from_float(10.0);
-			let decimal_aware_price = PriceProviderOf::<TestRuntime>::calculate_decimals_aware_price(
-				normalized_price,
-				USD_DECIMALS,
-				CT_DECIMALS,
-			)
-			.unwrap();
-			let project_metadata = ProjectMetadata {
-				token_information: CurrencyMetadata {
-					name: bounded_name,
-					symbol: bounded_symbol,
-					decimals: CT_DECIMALS,
-				},
-				mainnet_token_max_supply: 8_000_000 * CT_UNIT,
-				total_allocation_size: 100_000 * CT_UNIT,
-				auction_round_allocation_percentage: Percent::from_percent(50u8),
-				minimum_price: decimal_aware_price,
-				bidding_ticket_sizes: BiddingTicketSizes {
-					professional: TicketSize::new(5000 * USD_UNIT, None),
-					institutional: TicketSize::new(5000 * USD_UNIT, None),
-					phantom: Default::default(),
-				},
-				contributing_ticket_sizes: ContributingTicketSizes {
-					retail: TicketSize::new(USD_UNIT, None),
-					professional: TicketSize::new(USD_UNIT, None),
-					institutional: TicketSize::new(USD_UNIT, None),
-					phantom: Default::default(),
-				},
-				participation_currencies: vec![AcceptedFundingAsset::USDT].try_into().unwrap(),
-				funding_destination_account: ISSUER_1,
-				policy_ipfs_cid: Some(metadata_hash),
-			};
-
-			// overfund with plmc
-			let plmc_fundings = accounts
-				.iter()
-				.map(|acc| UserToPLMCBalance { account: acc.clone(), plmc_amount: PLMC * 1_000_000 })
-				.collect_vec();
-			let usdt_fundings = accounts
-				.iter()
-				.map(|acc| UserToFundingAsset {
-					account: acc.clone(),
-					asset_amount: USD_UNIT * 1_000_000,
-					asset_id: AcceptedFundingAsset::USDT.id(),
-				})
-				.collect_vec();
-			inst.mint_plmc_to(plmc_fundings);
-			inst.mint_funding_asset_to(usdt_fundings);
-
-			let project_id =
-				inst.create_auctioning_project(project_metadata.clone(), ISSUER_1, None, default_evaluations());
-
-			let bids = vec![
-				(ADAM, 10_000 * CT_UNIT).into(),
-				(TOM, 20_000 * CT_UNIT).into(),
-				(SOFIA, 20_000 * CT_UNIT).into(),
-				(FRED, 10_000 * CT_UNIT).into(),
-				(ANNA, 5_000 * CT_UNIT).into(),
-				(DAMIAN, 5_000 * CT_UNIT).into(),
-			];
-
-			inst.bid_for_users(project_id, bids).unwrap();
-
-			assert!(matches!(inst.go_to_next_state(project_id), ProjectStatus::CommunityRound(..)));
-
-			let project_details = inst.get_project_details(project_id);
-			let token_price = inst.get_project_details(project_id).weighted_average_price.unwrap();
-			let normalized_wap =
-				PriceProviderOf::<TestRuntime>::convert_back_to_normal_price(token_price, USD_DECIMALS, CT_DECIMALS)
-					.unwrap();
-			let desired_price = PriceOf::<TestRuntime>::from_float(11.1818f64);
-
-			assert_close_enough!(
-				normalized_wap.saturating_mul_int(CT_UNIT),
-				desired_price.saturating_mul_int(CT_UNIT),
-				Perquintill::from_float(0.99)
-			);
 		}
 
 		#[test]
@@ -179,138 +83,6 @@ mod round_flow {
 			assert_eq!(project_details.remaining_contribution_tokens, total_allocation - auction_allocation);
 		}
 
-		// Partial acceptance at price <= wap (refund due to less CT bought)
-		// Full Acceptance at price > wap (refund due to final price lower than original price paid)
-		// Rejection due to no more tokens left (full refund)
-		#[test]
-		fn bids_get_rejected_and_refunded() {
-			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
-			let issuer = ISSUER_1;
-			let mut project_metadata = default_project_metadata(issuer);
-			project_metadata.total_allocation_size = 100_000 * CT_UNIT;
-			project_metadata.mainnet_token_max_supply = project_metadata.total_allocation_size;
-			project_metadata.auction_round_allocation_percentage = Percent::from_percent(50);
-			project_metadata.minimum_price = ConstPriceProvider::calculate_decimals_aware_price(
-				FixedU128::from_float(10.0f64),
-				USD_DECIMALS,
-				CT_DECIMALS,
-			)
-			.unwrap();
-			project_metadata.participation_currencies =
-				bounded_vec![AcceptedFundingAsset::USDT, AcceptedFundingAsset::USDC, AcceptedFundingAsset::DOT];
-
-			let evaluations = default_evaluations();
-
-			// We use multiplier > 1 so after settlement, only the refunds defined above are done. The rest will be done
-			// through the linear release pallet
-			let bid_1 = BidParams::new(BIDDER_1, 5000 * CT_UNIT, 5u8, AcceptedFundingAsset::USDT);
-			let bid_2 = BidParams::new(BIDDER_2, 40_000 * CT_UNIT, 5u8, AcceptedFundingAsset::USDC);
-			let bid_3 = BidParams::new(BIDDER_1, 10_000 * CT_UNIT, 5u8, AcceptedFundingAsset::DOT);
-			let bid_4 = BidParams::new(BIDDER_3, 6000 * CT_UNIT, 5u8, AcceptedFundingAsset::USDT);
-			let bid_5 = BidParams::new(BIDDER_4, 2000 * CT_UNIT, 5u8, AcceptedFundingAsset::DOT);
-			// post bucketing, the bids look like this:
-			// (BIDDER_1, 5k) - (BIDDER_2, 40k) - (BIDDER_1, 5k) - (BIDDER_1, 5k) - (BIDDER_3 - 5k) - (BIDDER_3 - 1k) - (BIDDER_4 - 2k)
-			// | -------------------- 10USD ----------------------|---- 11 USD ---|---- 12 USD ----|----------- 13 USD -------------|
-			// post wap ~ 1.0557252:
-			// (Accepted, 5k) - (Partially, 32k) - (Rejected, 5k) - (Accepted, 5k) - (Accepted - 5k) - (Accepted - 1k) - (Accepted - 2k)
-
-			let bids = vec![bid_1, bid_2, bid_3, bid_4, bid_5];
-
-			let project_id = inst.create_auctioning_project(project_metadata.clone(), issuer, None, evaluations);
-
-			let plmc_amounts = inst.calculate_auction_plmc_charged_from_all_bids_made_or_with_bucket(
-				&bids,
-				project_metadata.clone(),
-				None,
-				false,
-			);
-			let funding_asset_amounts = inst.calculate_auction_funding_asset_charged_from_all_bids_made_or_with_bucket(
-				&bids,
-				project_metadata.clone(),
-				None,
-			);
-
-			let plmc_existential_amounts = plmc_amounts.accounts().existential_deposits();
-
-			inst.mint_plmc_to(plmc_amounts.clone());
-			inst.mint_plmc_to(plmc_existential_amounts.clone());
-			inst.mint_funding_asset_to(funding_asset_amounts.clone());
-
-			inst.bid_for_users(project_id, bids.clone()).unwrap();
-
-			inst.do_free_plmc_assertions(vec![
-				UserToPLMCBalance::new(BIDDER_1, inst.get_ed()),
-				UserToPLMCBalance::new(BIDDER_2, inst.get_ed()),
-			]);
-			inst.do_reserved_plmc_assertions(plmc_amounts.clone(), HoldReason::Participation(project_id).into());
-
-			assert!(matches!(inst.go_to_next_state(project_id), ProjectStatus::CommunityRound(_)));
-
-			let wap = inst.get_project_details(project_id).weighted_average_price.unwrap();
-			let returned_auction_plmc =
-				inst.calculate_auction_plmc_returned_from_all_bids_made(&bids, project_metadata.clone(), wap);
-			let returned_funding_assets =
-				inst.calculate_auction_funding_asset_returned_from_all_bids_made(&bids, project_metadata, wap);
-
-			let expected_free_plmc = inst.generic_map_operation(
-				vec![returned_auction_plmc.clone(), plmc_existential_amounts],
-				MergeOperation::Add,
-			);
-			let expected_free_funding_assets =
-				inst.generic_map_operation(vec![returned_funding_assets.clone()], MergeOperation::Add);
-			let expected_reserved_plmc =
-				inst.generic_map_operation(vec![plmc_amounts.clone(), returned_auction_plmc], MergeOperation::Subtract);
-			let expected_final_funding_spent = inst.generic_map_operation(
-				vec![funding_asset_amounts.clone(), returned_funding_assets],
-				MergeOperation::Subtract,
-			);
-			let expected_issuer_funding = inst.sum_funding_asset_mappings(vec![expected_final_funding_spent]);
-
-			// Assertions about rejected bid
-			let rejected_bid = inst.execute(|| Bids::<TestRuntime>::get((project_id, BIDDER_1, 2)).unwrap());
-			assert_eq!(rejected_bid.status, BidStatus::Rejected);
-			let bidder_plmc_pre_balance = inst.get_free_plmc_balance_for(rejected_bid.bidder);
-			let bidder_funding_asset_pre_balance =
-				inst.get_free_funding_asset_balance_for(rejected_bid.funding_asset.id(), rejected_bid.bidder);
-			inst.execute(|| {
-				PolimecFunding::settle_bid(
-					RuntimeOrigin::signed(rejected_bid.bidder),
-					project_id,
-					rejected_bid.bidder,
-					2,
-				)
-			})
-			.unwrap();
-			let bidder_plmc_post_balance = inst.get_free_plmc_balance_for(rejected_bid.bidder);
-			let bidder_funding_asset_post_balance =
-				inst.get_free_funding_asset_balance_for(rejected_bid.funding_asset.id(), rejected_bid.bidder);
-			assert!(inst.execute(|| Bids::<TestRuntime>::get((project_id, BIDDER_1, 2))).is_none());
-			assert_eq!(bidder_plmc_post_balance, bidder_plmc_pre_balance + rejected_bid.plmc_bond);
-			assert_eq!(
-				bidder_funding_asset_post_balance,
-				bidder_funding_asset_pre_balance + rejected_bid.funding_asset_amount_locked
-			);
-
-			// Any refunds on bids that were accepted/partially accepted will be done at the settlement once funding finishes
-			assert_eq!(
-				inst.execute(|| Bids::<TestRuntime>::get((project_id, BIDDER_2, 1)).unwrap()).status,
-				BidStatus::PartiallyAccepted(32_000 * CT_UNIT)
-			);
-			assert_eq!(inst.go_to_next_state(project_id), ProjectStatus::FundingSuccessful);
-			assert_eq!(inst.go_to_next_state(project_id), ProjectStatus::SettlementStarted(FundingOutcome::Success));
-
-			inst.settle_project(project_id);
-
-			inst.do_free_plmc_assertions(expected_free_plmc);
-			inst.do_reserved_plmc_assertions(expected_reserved_plmc, HoldReason::Participation(project_id).into());
-			inst.do_free_funding_asset_assertions(expected_free_funding_assets);
-
-			for (asset, expected_amount) in expected_issuer_funding {
-				let real_amount = inst.get_free_funding_asset_balance_for(asset, ISSUER_1);
-				assert_eq!(real_amount, expected_amount);
-			}
-		}
-
 		#[test]
 		fn no_bids_made() {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
@@ -324,76 +96,6 @@ mod round_flow {
 			assert_eq!(
 				inst.get_project_details(project_id).weighted_average_price,
 				Some(project_metadata.minimum_price)
-			);
-		}
-
-		#[test]
-		fn wap_from_different_funding_assets() {
-			// From the knowledge hub: https://hub.polimec.org/learn/calculation-example#auction-round-calculation-example
-			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
-
-			const ADAM: u32 = 60;
-			const TOM: u32 = 61;
-			const SOFIA: u32 = 62;
-			const FRED: u32 = 63;
-			const ANNA: u32 = 64;
-			const DAMIAN: u32 = 65;
-
-			let accounts = vec![ADAM, TOM, SOFIA, FRED, ANNA, DAMIAN];
-			let mut project_metadata = default_project_metadata(ISSUER_1);
-			project_metadata.total_allocation_size = 100_000 * CT_UNIT;
-			project_metadata.participation_currencies =
-				bounded_vec![AcceptedFundingAsset::USDT, AcceptedFundingAsset::USDC, AcceptedFundingAsset::DOT,];
-
-			// overfund with plmc
-			let plmc_fundings = accounts
-				.iter()
-				.map(|acc| UserToPLMCBalance { account: acc.clone(), plmc_amount: PLMC * 1_000_000 })
-				.collect_vec();
-
-			let fundings = [AcceptedFundingAsset::USDT, AcceptedFundingAsset::USDC, AcceptedFundingAsset::DOT];
-			assert_eq!(fundings.len(), AcceptedFundingAsset::VARIANT_COUNT);
-			let mut fundings = fundings.into_iter().cycle();
-
-			let usdt_fundings = accounts
-				.iter()
-				.map(|acc| {
-					let accepted_asset = fundings.next().unwrap();
-					let asset_id = accepted_asset.id();
-					let asset_decimals = inst.execute(|| <TestRuntime as Config>::FundingCurrency::decimals(asset_id));
-					let asset_unit = 10u128.checked_pow(asset_decimals.into()).unwrap();
-					UserToFundingAsset { account: acc.clone(), asset_amount: asset_unit * 1_000_000, asset_id }
-				})
-				.collect_vec();
-			inst.mint_plmc_to(plmc_fundings);
-			inst.mint_funding_asset_to(usdt_fundings);
-
-			let project_id = inst.create_auctioning_project(project_metadata, ISSUER_1, None, default_evaluations());
-
-			let bids = vec![
-				(ADAM, 10_000 * CT_UNIT, 1, AcceptedFundingAsset::USDT).into(),
-				(TOM, 20_000 * CT_UNIT, 1, AcceptedFundingAsset::USDC).into(),
-				(SOFIA, 20_000 * CT_UNIT, 1, AcceptedFundingAsset::DOT).into(),
-				(FRED, 10_000 * CT_UNIT, 1, AcceptedFundingAsset::USDT).into(),
-				(ANNA, 5_000 * CT_UNIT, 1, AcceptedFundingAsset::USDC).into(),
-				(DAMIAN, 5_000 * CT_UNIT, 1, AcceptedFundingAsset::DOT).into(),
-			];
-
-			inst.bid_for_users(project_id, bids).unwrap();
-
-			assert!(matches!(inst.go_to_next_state(project_id), ProjectStatus::CommunityRound(..)));
-
-			let token_price = inst.get_project_details(project_id).weighted_average_price.unwrap();
-			let normalized_wap =
-				PriceProviderOf::<TestRuntime>::convert_back_to_normal_price(token_price, USD_DECIMALS, CT_DECIMALS)
-					.unwrap();
-
-			let desired_price = PriceOf::<TestRuntime>::from_float(11.1818f64);
-
-			assert_close_enough!(
-				normalized_wap.saturating_mul_int(USD_UNIT),
-				desired_price.saturating_mul_int(USD_UNIT),
-				Perquintill::from_float(0.99)
 			);
 		}
 
@@ -1955,6 +1657,359 @@ mod bid_extrinsic {
 						AcceptedFundingAsset::USDT
 					),
 					Error::<TestRuntime>::PolicyMismatch
+				);
+			});
+		}
+	}
+}
+
+#[cfg(test)]
+mod end_auction_extrinsic {
+	use super::*;
+
+	#[cfg(test)]
+	mod success {
+		use super::*;
+
+		#[test]
+		fn wap_is_accurate() {
+			// From the knowledge hub: https://hub.polimec.org/learn/calculation-example#auction-round-calculation-example
+			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+
+			const ADAM: u32 = 60;
+			const TOM: u32 = 61;
+			const SOFIA: u32 = 62;
+			const FRED: u32 = 63;
+			const ANNA: u32 = 64;
+			const DAMIAN: u32 = 65;
+
+			let accounts = vec![ADAM, TOM, SOFIA, FRED, ANNA, DAMIAN];
+
+			let bounded_name = bounded_name();
+			let bounded_symbol = bounded_symbol();
+			let metadata_hash = ipfs_hash();
+			let normalized_price = PriceOf::<TestRuntime>::from_float(10.0);
+			let decimal_aware_price = PriceProviderOf::<TestRuntime>::calculate_decimals_aware_price(
+				normalized_price,
+				USD_DECIMALS,
+				CT_DECIMALS,
+			)
+			.unwrap();
+			let project_metadata = ProjectMetadata {
+				token_information: CurrencyMetadata {
+					name: bounded_name,
+					symbol: bounded_symbol,
+					decimals: CT_DECIMALS,
+				},
+				mainnet_token_max_supply: 8_000_000 * CT_UNIT,
+				total_allocation_size: 100_000 * CT_UNIT,
+				auction_round_allocation_percentage: Percent::from_percent(50u8),
+				minimum_price: decimal_aware_price,
+				bidding_ticket_sizes: BiddingTicketSizes {
+					professional: TicketSize::new(5000 * USD_UNIT, None),
+					institutional: TicketSize::new(5000 * USD_UNIT, None),
+					phantom: Default::default(),
+				},
+				contributing_ticket_sizes: ContributingTicketSizes {
+					retail: TicketSize::new(USD_UNIT, None),
+					professional: TicketSize::new(USD_UNIT, None),
+					institutional: TicketSize::new(USD_UNIT, None),
+					phantom: Default::default(),
+				},
+				participation_currencies: vec![AcceptedFundingAsset::USDT].try_into().unwrap(),
+				funding_destination_account: ISSUER_1,
+				policy_ipfs_cid: Some(metadata_hash),
+			};
+
+			// overfund with plmc
+			let plmc_fundings = accounts
+				.iter()
+				.map(|acc| UserToPLMCBalance { account: acc.clone(), plmc_amount: PLMC * 1_000_000 })
+				.collect_vec();
+			let usdt_fundings = accounts
+				.iter()
+				.map(|acc| UserToFundingAsset {
+					account: acc.clone(),
+					asset_amount: USD_UNIT * 1_000_000,
+					asset_id: AcceptedFundingAsset::USDT.id(),
+				})
+				.collect_vec();
+			inst.mint_plmc_to(plmc_fundings);
+			inst.mint_funding_asset_to(usdt_fundings);
+
+			let project_id =
+				inst.create_auctioning_project(project_metadata.clone(), ISSUER_1, None, default_evaluations());
+
+			let bids = vec![
+				(ADAM, 10_000 * CT_UNIT).into(),
+				(TOM, 20_000 * CT_UNIT).into(),
+				(SOFIA, 20_000 * CT_UNIT).into(),
+				(FRED, 10_000 * CT_UNIT).into(),
+				(ANNA, 5_000 * CT_UNIT).into(),
+				(DAMIAN, 5_000 * CT_UNIT).into(),
+			];
+
+			inst.bid_for_users(project_id, bids).unwrap();
+
+			assert!(matches!(inst.go_to_next_state(project_id), ProjectStatus::CommunityRound(..)));
+
+			let project_details = inst.get_project_details(project_id);
+			dbg!(&project_details);
+			let token_price = inst.get_project_details(project_id).weighted_average_price.unwrap();
+			let normalized_wap =
+				PriceProviderOf::<TestRuntime>::convert_back_to_normal_price(token_price, USD_DECIMALS, CT_DECIMALS)
+					.unwrap();
+			let desired_price = PriceOf::<TestRuntime>::from_float(11.1818f64);
+
+			assert_close_enough!(
+				normalized_wap.saturating_mul_int(CT_UNIT),
+				desired_price.saturating_mul_int(CT_UNIT),
+				Perquintill::from_float(0.99)
+			);
+		}
+
+		// Partial acceptance at price <= wap (refund due to less CT bought)
+		// Full Acceptance at price > wap (refund due to final price lower than original price paid)
+		// Rejection due to no more tokens left (full refund)
+		#[test]
+		fn bids_get_rejected_and_refunded() {
+			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+			let issuer = ISSUER_1;
+			let mut project_metadata = default_project_metadata(issuer);
+			project_metadata.total_allocation_size = 100_000 * CT_UNIT;
+			project_metadata.mainnet_token_max_supply = project_metadata.total_allocation_size;
+			project_metadata.auction_round_allocation_percentage = Percent::from_percent(50);
+			project_metadata.minimum_price = ConstPriceProvider::calculate_decimals_aware_price(
+				FixedU128::from_float(10.0f64),
+				USD_DECIMALS,
+				CT_DECIMALS,
+			)
+			.unwrap();
+			project_metadata.participation_currencies =
+				bounded_vec![AcceptedFundingAsset::USDT, AcceptedFundingAsset::USDC, AcceptedFundingAsset::DOT];
+
+			let evaluations = default_evaluations();
+
+			// We use multiplier > 1 so after settlement, only the refunds defined above are done. The rest will be done
+			// through the linear release pallet
+			let bid_1 = BidParams::new(BIDDER_1, 5000 * CT_UNIT, 5u8, AcceptedFundingAsset::USDT);
+			let bid_2 = BidParams::new(BIDDER_2, 40_000 * CT_UNIT, 5u8, AcceptedFundingAsset::USDC);
+			let bid_3 = BidParams::new(BIDDER_1, 10_000 * CT_UNIT, 5u8, AcceptedFundingAsset::DOT);
+			let bid_4 = BidParams::new(BIDDER_3, 6000 * CT_UNIT, 5u8, AcceptedFundingAsset::USDT);
+			let bid_5 = BidParams::new(BIDDER_4, 2000 * CT_UNIT, 5u8, AcceptedFundingAsset::DOT);
+			// post bucketing, the bids look like this:
+			// (BIDDER_1, 5k) - (BIDDER_2, 40k) - (BIDDER_1, 5k) - (BIDDER_1, 5k) - (BIDDER_3 - 5k) - (BIDDER_3 - 1k) - (BIDDER_4 - 2k)
+			// | -------------------- 10USD ----------------------|---- 11 USD ---|---- 12 USD ----|----------- 13 USD -------------|
+			// post wap ~ 1.0557252:
+			// (Accepted, 5k) - (Partially, 32k) - (Rejected, 5k) - (Accepted, 5k) - (Accepted - 5k) - (Accepted - 1k) - (Accepted - 2k)
+
+			let bids = vec![bid_1, bid_2, bid_3, bid_4, bid_5];
+
+			let project_id = inst.create_auctioning_project(project_metadata.clone(), issuer, None, evaluations);
+
+			let plmc_amounts = inst.calculate_auction_plmc_charged_from_all_bids_made_or_with_bucket(
+				&bids,
+				project_metadata.clone(),
+				None,
+				false,
+			);
+			let funding_asset_amounts = inst.calculate_auction_funding_asset_charged_from_all_bids_made_or_with_bucket(
+				&bids,
+				project_metadata.clone(),
+				None,
+			);
+
+			let plmc_existential_amounts = plmc_amounts.accounts().existential_deposits();
+
+			inst.mint_plmc_to(plmc_amounts.clone());
+			inst.mint_plmc_to(plmc_existential_amounts.clone());
+			inst.mint_funding_asset_to(funding_asset_amounts.clone());
+
+			inst.bid_for_users(project_id, bids.clone()).unwrap();
+
+			inst.do_free_plmc_assertions(vec![
+				UserToPLMCBalance::new(BIDDER_1, inst.get_ed()),
+				UserToPLMCBalance::new(BIDDER_2, inst.get_ed()),
+			]);
+			inst.do_reserved_plmc_assertions(plmc_amounts.clone(), HoldReason::Participation(project_id).into());
+
+			assert!(matches!(inst.go_to_next_state(project_id), ProjectStatus::CommunityRound(_)));
+
+			let wap = inst.get_project_details(project_id).weighted_average_price.unwrap();
+			let returned_auction_plmc =
+				inst.calculate_auction_plmc_returned_from_all_bids_made(&bids, project_metadata.clone(), wap);
+			let returned_funding_assets =
+				inst.calculate_auction_funding_asset_returned_from_all_bids_made(&bids, project_metadata, wap);
+
+			let expected_free_plmc = inst.generic_map_operation(
+				vec![returned_auction_plmc.clone(), plmc_existential_amounts],
+				MergeOperation::Add,
+			);
+			let expected_free_funding_assets =
+				inst.generic_map_operation(vec![returned_funding_assets.clone()], MergeOperation::Add);
+			let expected_reserved_plmc =
+				inst.generic_map_operation(vec![plmc_amounts.clone(), returned_auction_plmc], MergeOperation::Subtract);
+			let expected_final_funding_spent = inst.generic_map_operation(
+				vec![funding_asset_amounts.clone(), returned_funding_assets],
+				MergeOperation::Subtract,
+			);
+			let expected_issuer_funding = inst.sum_funding_asset_mappings(vec![expected_final_funding_spent]);
+
+			// Assertions about rejected bid
+			let rejected_bid = inst.execute(|| Bids::<TestRuntime>::get((project_id, BIDDER_1, 2)).unwrap());
+			assert_eq!(rejected_bid.status, BidStatus::Rejected);
+			let bidder_plmc_pre_balance = inst.get_free_plmc_balance_for(rejected_bid.bidder);
+			let bidder_funding_asset_pre_balance =
+				inst.get_free_funding_asset_balance_for(rejected_bid.funding_asset.id(), rejected_bid.bidder);
+			inst.execute(|| {
+				PolimecFunding::settle_bid(
+					RuntimeOrigin::signed(rejected_bid.bidder),
+					project_id,
+					rejected_bid.bidder,
+					2,
+				)
+			})
+			.unwrap();
+			let bidder_plmc_post_balance = inst.get_free_plmc_balance_for(rejected_bid.bidder);
+			let bidder_funding_asset_post_balance =
+				inst.get_free_funding_asset_balance_for(rejected_bid.funding_asset.id(), rejected_bid.bidder);
+			assert!(inst.execute(|| Bids::<TestRuntime>::get((project_id, BIDDER_1, 2))).is_none());
+			assert_eq!(bidder_plmc_post_balance, bidder_plmc_pre_balance + rejected_bid.plmc_bond);
+			assert_eq!(
+				bidder_funding_asset_post_balance,
+				bidder_funding_asset_pre_balance + rejected_bid.funding_asset_amount_locked
+			);
+
+			// Any refunds on bids that were accepted/partially accepted will be done at the settlement once funding finishes
+			assert_eq!(
+				inst.execute(|| Bids::<TestRuntime>::get((project_id, BIDDER_2, 1)).unwrap()).status,
+				BidStatus::PartiallyAccepted(32_000 * CT_UNIT)
+			);
+			assert_eq!(inst.go_to_next_state(project_id), ProjectStatus::FundingSuccessful);
+			assert_eq!(inst.go_to_next_state(project_id), ProjectStatus::SettlementStarted(FundingOutcome::Success));
+
+			inst.settle_project(project_id, true);
+
+			inst.do_free_plmc_assertions(expected_free_plmc);
+			inst.do_reserved_plmc_assertions(expected_reserved_plmc, HoldReason::Participation(project_id).into());
+			inst.do_free_funding_asset_assertions(expected_free_funding_assets);
+
+			for (asset, expected_amount) in expected_issuer_funding {
+				let real_amount = inst.get_free_funding_asset_balance_for(asset, ISSUER_1);
+				assert_eq!(real_amount, expected_amount);
+			}
+		}
+
+		#[test]
+		fn wap_from_different_funding_assets() {
+			// From the knowledge hub: https://hub.polimec.org/learn/calculation-example#auction-round-calculation-example
+			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+
+			const ADAM: u32 = 60;
+			const TOM: u32 = 61;
+			const SOFIA: u32 = 62;
+			const FRED: u32 = 63;
+			const ANNA: u32 = 64;
+			const DAMIAN: u32 = 65;
+
+			let accounts = vec![ADAM, TOM, SOFIA, FRED, ANNA, DAMIAN];
+			let mut project_metadata = default_project_metadata(ISSUER_1);
+			project_metadata.total_allocation_size = 100_000 * CT_UNIT;
+			project_metadata.participation_currencies =
+				bounded_vec![AcceptedFundingAsset::USDT, AcceptedFundingAsset::USDC, AcceptedFundingAsset::DOT,];
+
+			// overfund with plmc
+			let plmc_fundings = accounts
+				.iter()
+				.map(|acc| UserToPLMCBalance { account: acc.clone(), plmc_amount: PLMC * 1_000_000 })
+				.collect_vec();
+
+			let fundings = [AcceptedFundingAsset::USDT, AcceptedFundingAsset::USDC, AcceptedFundingAsset::DOT];
+			assert_eq!(fundings.len(), AcceptedFundingAsset::VARIANT_COUNT);
+			let mut fundings = fundings.into_iter().cycle();
+
+			let usdt_fundings = accounts
+				.iter()
+				.map(|acc| {
+					let accepted_asset = fundings.next().unwrap();
+					let asset_id = accepted_asset.id();
+					let asset_decimals = inst.execute(|| <TestRuntime as Config>::FundingCurrency::decimals(asset_id));
+					let asset_unit = 10u128.checked_pow(asset_decimals.into()).unwrap();
+					UserToFundingAsset { account: acc.clone(), asset_amount: asset_unit * 1_000_000, asset_id }
+				})
+				.collect_vec();
+			inst.mint_plmc_to(plmc_fundings);
+			inst.mint_funding_asset_to(usdt_fundings);
+
+			let project_id = inst.create_auctioning_project(project_metadata, ISSUER_1, None, default_evaluations());
+
+			let bids = vec![
+				(ADAM, 10_000 * CT_UNIT, 1, AcceptedFundingAsset::USDT).into(),
+				(TOM, 20_000 * CT_UNIT, 1, AcceptedFundingAsset::USDC).into(),
+				(SOFIA, 20_000 * CT_UNIT, 1, AcceptedFundingAsset::DOT).into(),
+				(FRED, 10_000 * CT_UNIT, 1, AcceptedFundingAsset::USDT).into(),
+				(ANNA, 5_000 * CT_UNIT, 1, AcceptedFundingAsset::USDC).into(),
+				(DAMIAN, 5_000 * CT_UNIT, 1, AcceptedFundingAsset::DOT).into(),
+			];
+
+			inst.bid_for_users(project_id, bids).unwrap();
+
+			assert!(matches!(inst.go_to_next_state(project_id), ProjectStatus::CommunityRound(..)));
+
+			let token_price = inst.get_project_details(project_id).weighted_average_price.unwrap();
+			let normalized_wap =
+				PriceProviderOf::<TestRuntime>::convert_back_to_normal_price(token_price, USD_DECIMALS, CT_DECIMALS)
+					.unwrap();
+
+			let desired_price = PriceOf::<TestRuntime>::from_float(11.1818f64);
+
+			assert_close_enough!(
+				normalized_wap.saturating_mul_int(USD_UNIT),
+				desired_price.saturating_mul_int(USD_UNIT),
+				Perquintill::from_float(0.99)
+			);
+		}
+	}
+
+	#[cfg(test)]
+	mod failure {
+		use super::*;
+
+		#[test]
+		fn cannot_be_called_early() {
+			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+			let project_metadata = default_project_metadata(ISSUER_1);
+			let project_id =
+				inst.create_auctioning_project(project_metadata.clone(), ISSUER_1, None, default_evaluations());
+
+			let project_details = inst.get_project_details(project_id);
+			let now = inst.current_block();
+			assert!(now < project_details.round_duration.end().unwrap());
+
+			inst.execute(|| {
+				assert_noop!(
+					PolimecFunding::end_auction(RuntimeOrigin::signed(420), project_id,),
+					Error::<TestRuntime>::TooEarlyForRound
+				);
+			});
+		}
+
+		#[test]
+		fn cannot_be_called_twice() {
+			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+			let project_metadata = default_project_metadata(ISSUER_1);
+			let project_id =
+				inst.create_auctioning_project(project_metadata.clone(), ISSUER_1, None, default_evaluations());
+
+			let project_details = inst.get_project_details(project_id);
+
+			inst.jump_to_block(project_details.round_duration.end().unwrap());
+
+			inst.execute(|| {
+				assert_ok!(PolimecFunding::end_auction(RuntimeOrigin::signed(420), project_id,));
+				assert_noop!(
+					PolimecFunding::end_auction(RuntimeOrigin::signed(420), project_id,),
+					Error::<TestRuntime>::IncorrectRound
 				);
 			});
 		}
