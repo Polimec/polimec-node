@@ -146,6 +146,8 @@ impl<T: Config> Pallet<T> {
 			ProjectStatus::SettlementStarted(FundingOutcome::Success) => true,
 			_ => false,
 		};
+		let wap = project_details.weighted_average_price.ok_or(Error::<T>::ImpossibleState)?;
+
 		ensure!(
 			matches!(project_details.status, ProjectStatus::SettlementStarted(..)) || bid.status == BidStatus::Rejected,
 			Error::<T>::SettlementNotStarted
@@ -153,7 +155,8 @@ impl<T: Config> Pallet<T> {
 
 		// Return either the full amount to refund if bid is rejected/project failed,
 		// or a partial amount when the wap > paid price/bid is partially accepted
-		let (refunded_plmc, refunded_funding_asset_amount) = Self::calculate_refund(&bid, funding_success)?;
+		let (final_ct_price, final_ct_amount, refunded_plmc, refunded_funding_asset_amount) =
+			Self::calculate_refund(&bid, funding_success, wap)?;
 
 		Self::release_participation_bond(project_id, &bid.bidder, refunded_plmc)?;
 		Self::release_funding_asset(project_id, &bid.bidder, refunded_funding_asset_amount, bid.funding_asset)?;
@@ -173,14 +176,14 @@ impl<T: Config> Pallet<T> {
 				HoldReason::Participation(project_id).into(),
 			)?;
 
-			Self::mint_contribution_tokens(project_id, &bid.bidder, bid.final_ct_amount)?;
+			Self::mint_contribution_tokens(project_id, &bid.bidder, final_ct_amount)?;
 
 			Self::create_migration(
 				project_id,
 				&bid.bidder,
 				bid.id,
 				ParticipationType::Bid,
-				bid.final_ct_amount,
+				final_ct_amount,
 				plmc_vesting_info.duration,
 			)?;
 
@@ -198,7 +201,8 @@ impl<T: Config> Pallet<T> {
 			project_id,
 			account: bid.bidder,
 			id: bid.id,
-			ct_amount: bid.final_ct_amount,
+			final_ct_amount,
+			final_ct_price,
 		});
 
 		Ok(())
@@ -209,18 +213,23 @@ impl<T: Config> Pallet<T> {
 	fn calculate_refund(
 		bid: &BidInfoOf<T>,
 		funding_success: bool,
-	) -> Result<(BalanceOf<T>, BalanceOf<T>), DispatchError> {
+		wap: PriceOf<T>,
+	) -> Result<(PriceOf<T>, BalanceOf<T>, BalanceOf<T>, BalanceOf<T>), DispatchError> {
+		let final_ct_usd_price = if bid.original_ct_usd_price > wap { wap } else { bid.original_ct_usd_price };
+
 		if bid.status == BidStatus::Rejected || !funding_success {
-			return Ok((bid.plmc_bond, bid.funding_asset_amount_locked));
+			return Ok((final_ct_usd_price, Zero::zero(), bid.plmc_bond, bid.funding_asset_amount_locked));
 		}
 
-		let new_ticket_size = bid.final_ct_usd_price.checked_mul_int(bid.final_ct_amount).ok_or(Error::<T>::BadMath)?;
+		let final_ct_amount = bid.final_ct_amount();
+
+		let new_ticket_size = final_ct_usd_price.checked_mul_int(final_ct_amount).ok_or(Error::<T>::BadMath)?;
 		let new_plmc_bond = Self::calculate_plmc_bond(new_ticket_size, bid.multiplier)?;
 		let new_funding_asset_amount = Self::calculate_funding_asset_amount(new_ticket_size, bid.funding_asset)?;
 		let refund_plmc = bid.plmc_bond.saturating_sub(new_plmc_bond);
 		let refund_funding_asset = bid.funding_asset_amount_locked.saturating_sub(new_funding_asset_amount);
 
-		Ok((refund_plmc, refund_funding_asset))
+		Ok((final_ct_usd_price, final_ct_amount, refund_plmc, refund_funding_asset))
 	}
 
 	pub fn do_settle_contribution(contribution: ContributionInfoOf<T>, project_id: ProjectId) -> DispatchResult {

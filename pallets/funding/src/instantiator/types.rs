@@ -399,12 +399,6 @@ impl<T: Config> BidInfoFilter<T> {
 		if self.original_ct_usd_price.is_some() && self.original_ct_usd_price.unwrap() != bid.original_ct_usd_price {
 			return false;
 		}
-		if self.final_ct_amount.is_some() && self.final_ct_amount.unwrap() != bid.final_ct_amount {
-			return false;
-		}
-		if self.final_ct_usd_price.is_some() && self.final_ct_usd_price.unwrap() != bid.final_ct_usd_price {
-			return false;
-		}
 		if self.funding_asset.is_some() && self.funding_asset.unwrap() != bid.funding_asset {
 			return false;
 		}

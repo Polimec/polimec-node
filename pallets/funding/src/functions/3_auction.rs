@@ -251,8 +251,6 @@ impl<T: Config> Pallet<T> {
 			status: BidStatus::YetUnknown,
 			original_ct_amount: ct_amount,
 			original_ct_usd_price: ct_usd_price,
-			final_ct_amount: ct_amount,
-			final_ct_usd_price: ct_usd_price,
 			funding_asset,
 			funding_asset_amount_locked,
 			multiplier,
