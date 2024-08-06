@@ -263,7 +263,6 @@ impl<
 			weighted_average_price: None,
 			status: ProjectStatus::Application,
 			round_duration: BlockNumberPair::new(None, None),
-			random_end_block: None,
 			fundraising_target_usd: expected_metadata
 				.minimum_price
 				.checked_mul_int(expected_metadata.total_allocation_size)
