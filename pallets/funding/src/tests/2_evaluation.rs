@@ -292,7 +292,6 @@ mod start_evaluation_extrinsic {
 					Some(1),
 					Some(<TestRuntime as Config>::EvaluationRoundDuration::get()),
 				),
-				random_end_block: None,
 				fundraising_target_usd: project_metadata
 					.minimum_price
 					.saturating_mul_int(project_metadata.total_allocation_size),

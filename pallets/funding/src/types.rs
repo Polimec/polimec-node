@@ -321,8 +321,6 @@ pub mod storage_types {
 		pub status: ProjectStatus<BlockNumber>,
 		/// When the different project phases start and end
 		pub round_duration: BlockNumberPair<BlockNumber>,
-		/// Random block end for auction round
-		pub random_end_block: Option<BlockNumber>,
 		/// Fundraising target amount in USD (6 decimals)
 		pub fundraising_target_usd: Balance,
 		/// The amount of Contribution Tokens that have not yet been sold
