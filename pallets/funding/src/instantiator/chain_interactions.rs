@@ -640,7 +640,7 @@ impl<
 		Ok(().into())
 	}
 
-	pub fn settle_project(&mut self, project_id: ProjectId) {
+	pub fn settle_project(&mut self, project_id: ProjectId, mark_as_settled: bool) {
 		self.execute(|| {
 			Evaluations::<T>::iter_prefix((project_id,))
 				.for_each(|(_, evaluation)| Pallet::<T>::do_settle_evaluation(evaluation, project_id).unwrap());
@@ -651,7 +651,9 @@ impl<
 			Contributions::<T>::iter_prefix((project_id,))
 				.for_each(|(_, contribution)| Pallet::<T>::do_settle_contribution(contribution, project_id).unwrap());
 
-			crate::Pallet::<T>::do_mark_project_as_settled(project_id).unwrap();
+			if mark_as_settled {
+				crate::Pallet::<T>::do_mark_project_as_settled(project_id).unwrap();
+			}
 		});
 	}
 
@@ -1053,7 +1055,7 @@ impl<
 
 		assert!(matches!(self.go_to_next_state(project_id), ProjectStatus::SettlementStarted(_)));
 
-		self.settle_project(project_id);
+		self.settle_project(project_id, true);
 		project_id
 	}
 

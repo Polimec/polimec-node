@@ -1,4 +1,5 @@
 use super::*;
+use frame_support::traits::fungibles::Inspect;
 use sp_runtime::bounded_vec;
 
 #[cfg(test)]
@@ -17,7 +18,7 @@ mod round_flow {
 			let bids = inst.get_bids(project_id);
 			let contributions = inst.get_contributions(project_id);
 
-			inst.settle_project(project_id);
+			inst.settle_project(project_id, true);
 
 			inst.assert_total_funding_paid_out(project_id, bids.clone(), contributions.clone());
 			inst.assert_evaluations_migrations_created(project_id, evaluations, true);
@@ -33,11 +34,115 @@ mod round_flow {
 			let bids = inst.get_bids(project_id);
 			let contributions = inst.get_contributions(project_id);
 
-			inst.settle_project(project_id);
+			inst.settle_project(project_id, true);
 
 			inst.assert_evaluations_migrations_created(project_id, evaluations, false);
 			inst.assert_bids_migrations_created(project_id, bids, false);
 			inst.assert_contributions_migrations_created(project_id, contributions, false);
+		}
+	}
+}
+
+#[cfg(test)]
+mod start_settlement_extrinsic {
+	use super::*;
+
+	#[cfg(test)]
+	mod success {
+		use super::*;
+
+		#[test]
+		fn funding_success_settlement() {
+			let (mut inst, project_id) = create_project_with_funding_percentage(40, false);
+			let ct_treasury = <TestRuntime as Config>::ContributionTreasury::get();
+			let project_details = inst.get_project_details(project_id);
+
+			assert_eq!(project_details.funding_amount_reached_usd, 4_000_000 * USD_UNIT);
+			let usd_fee = Percent::from_percent(10u8) * (1_000_000 * USD_UNIT) +
+				Percent::from_percent(8u8) * (3_000_000 * USD_UNIT);
+			let ct_fee =
+				project_details.weighted_average_price.unwrap().reciprocal().unwrap().saturating_mul_int(usd_fee);
+			// Liquidity Pools and Long Term Holder Bonus treasury allocation
+			let treasury_allocation = Percent::from_percent(50) * ct_fee + Percent::from_percent(20) * ct_fee;
+
+			assert_eq!(project_details.funding_end_block, None);
+			assert_eq!(project_details.status, ProjectStatus::FundingSuccessful);
+			inst.execute(|| {
+				assert_eq!(<TestRuntime as Config>::ContributionTokenCurrency::asset_exists(project_id), false)
+			});
+
+			inst.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get());
+			inst.execute(|| {
+				assert_ok!(PolimecFunding::start_settlement(RuntimeOrigin::signed(80085), project_id));
+			});
+			let project_details = inst.get_project_details(project_id);
+
+			assert_eq!(project_details.funding_end_block, Some(inst.current_block()));
+			assert_eq!(project_details.status, ProjectStatus::SettlementStarted(FundingOutcome::Success));
+			inst.execute(|| {
+				assert_eq!(<TestRuntime as Config>::ContributionTokenCurrency::asset_exists(project_id), true)
+			});
+
+			inst.assert_ct_balance(project_id, ct_treasury, treasury_allocation);
+		}
+
+		#[test]
+		fn funding_failed_settlement() {
+			let (mut inst, project_id) = create_project_with_funding_percentage(32, false);
+			let project_details = inst.get_project_details(project_id);
+
+			assert_eq!(project_details.funding_end_block, None);
+			assert_eq!(project_details.status, ProjectStatus::FundingFailed);
+			inst.execute(|| {
+				assert_eq!(<TestRuntime as Config>::ContributionTokenCurrency::asset_exists(project_id), false)
+			});
+
+			inst.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get());
+			inst.execute(|| {
+				assert_ok!(PolimecFunding::start_settlement(RuntimeOrigin::signed(80085), project_id));
+			});
+			let project_details = inst.get_project_details(project_id);
+
+			assert_eq!(project_details.funding_end_block, Some(inst.current_block()));
+			assert_eq!(project_details.status, ProjectStatus::SettlementStarted(FundingOutcome::Failure));
+			inst.execute(|| {
+				assert_eq!(<TestRuntime as Config>::ContributionTokenCurrency::asset_exists(project_id), false)
+			});
+		}
+	}
+
+	#[cfg(test)]
+	mod failure {
+		use super::*;
+
+		#[test]
+		fn called_too_early() {
+			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+			let project_id = inst.create_remainder_contributing_project(
+				default_project_metadata(ISSUER_1),
+				ISSUER_1,
+				None,
+				default_evaluations(),
+				vec![],
+				vec![],
+			);
+			inst.execute(|| {
+				assert_noop!(
+					PolimecFunding::end_funding(RuntimeOrigin::signed(42), project_id),
+					Error::<TestRuntime>::TooEarlyForRound
+				);
+			});
+		}
+
+		#[test]
+		fn called_twice() {
+			let (mut inst, project_id) = create_project_with_funding_percentage(95, true);
+			inst.execute(|| {
+				assert_noop!(
+					PolimecFunding::start_settlement(RuntimeOrigin::signed(42), project_id),
+					Error::<TestRuntime>::IncorrectRound
+				);
+			});
 		}
 	}
 }
@@ -1169,6 +1274,101 @@ mod settle_contribution_extrinsic {
 						first_contribution.id
 					),
 					Error::<TestRuntime>::SettlementNotStarted
+				);
+			});
+		}
+	}
+}
+
+#[cfg(test)]
+mod mark_project_as_settled_extrinsic {
+	use super::*;
+
+	#[cfg(test)]
+	mod success {
+		use super::*;
+
+		#[test]
+		fn funding_failed_marked_as_settled() {
+			let (mut inst, project_id) = create_project_with_funding_percentage(10, true);
+			inst.settle_project(project_id, false);
+
+			inst.execute(|| {
+				assert_ok!(PolimecFunding::mark_project_as_settled(RuntimeOrigin::signed(80085), project_id));
+			});
+
+			assert_eq!(
+				inst.get_project_details(project_id).status,
+				ProjectStatus::SettlementFinished(FundingOutcome::Failure)
+			);
+		}
+
+		#[test]
+		fn funding_successful_marked_as_settled() {
+			let (mut inst, project_id) = create_project_with_funding_percentage(34, true);
+			inst.settle_project(project_id, false);
+
+			inst.execute(|| {
+				assert_ok!(PolimecFunding::mark_project_as_settled(RuntimeOrigin::signed(80085), project_id));
+			});
+
+			assert_eq!(
+				inst.get_project_details(project_id).status,
+				ProjectStatus::SettlementFinished(FundingOutcome::Success)
+			);
+		}
+	}
+
+	#[cfg(test)]
+	mod failure {
+		use super::*;
+
+		#[test]
+		fn funding_failed_marked_twice() {
+			let (mut inst, project_id) = create_project_with_funding_percentage(10, true);
+			inst.settle_project(project_id, true);
+
+			inst.execute(|| {
+				assert_noop!(
+					PolimecFunding::mark_project_as_settled(RuntimeOrigin::signed(80085), project_id),
+					Error::<TestRuntime>::IncorrectRound
+				);
+			});
+		}
+
+		#[test]
+		fn funding_failed_too_early() {
+			let (mut inst, project_id) = create_project_with_funding_percentage(10, false);
+
+			inst.execute(|| {
+				assert_noop!(
+					PolimecFunding::mark_project_as_settled(RuntimeOrigin::signed(80085), project_id),
+					Error::<TestRuntime>::IncorrectRound
+				);
+			});
+		}
+
+		#[test]
+		fn funding_successful_marked_twice() {
+			let (mut inst, project_id) = create_project_with_funding_percentage(35, true);
+			inst.settle_project(project_id, true);
+
+			inst.execute(|| {
+				assert_noop!(
+					PolimecFunding::mark_project_as_settled(RuntimeOrigin::signed(80085), project_id),
+					Error::<TestRuntime>::IncorrectRound
+				);
+			});
+		}
+
+		#[test]
+		fn funding_successful_too_early() {
+			let (mut inst, project_id) = create_project_with_funding_percentage(35, false);
+
+			inst.execute(|| {
+				assert_noop!(
+					PolimecFunding::mark_project_as_settled(RuntimeOrigin::signed(80085), project_id),
+					Error::<TestRuntime>::IncorrectRound
 				);
 			});
 		}

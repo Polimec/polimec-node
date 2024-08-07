@@ -2703,7 +2703,7 @@ mod benchmarks {
 		let settlement_block = inst.go_to_next_state(project_id).unwrap();
 		inst.jump_to_block(settlement_block);
 
-		inst.settle_project(project_id).unwrap();
+		inst.settle_project(project_id, true).unwrap();
 
 		let jwt = get_mock_jwt_with_cid(
 			issuer.clone(),
@@ -2753,7 +2753,7 @@ mod benchmarks {
 		let settlement_block = inst.go_to_next_state(project_id).unwrap();
 		inst.jump_to_block(settlement_block);
 
-		inst.settle_project(project_id).unwrap();
+		inst.settle_project(project_id, true).unwrap();
 
 		let jwt = get_mock_jwt_with_cid(
 			issuer.clone(),
@@ -2824,7 +2824,7 @@ mod benchmarks {
 		let settlement_block = inst.go_to_next_state(project_id).unwrap();
 		inst.jump_to_block(settlement_block);
 
-		inst.settle_project(project_id).unwrap();
+		inst.settle_project(project_id, true).unwrap();
 
 		let jwt = get_mock_jwt_with_cid(
 			issuer.clone(),
@@ -2870,7 +2870,7 @@ mod benchmarks {
 		let settlement_block = inst.go_to_next_state(project_id).unwrap();
 		inst.jump_to_block(settlement_block);
 
-		inst.settle_project(project_id).unwrap();
+		inst.settle_project(project_id, true).unwrap();
 
 		let jwt = get_mock_jwt_with_cid(
 			issuer.clone(),
@@ -2929,7 +2929,7 @@ mod benchmarks {
 		let settlement_block = inst.go_to_next_state(project_id).unwrap();
 		inst.jump_to_block(settlement_block);
 
-		inst.settle_project(project_id).unwrap();
+		inst.settle_project(project_id, true).unwrap();
 
 		let jwt = get_mock_jwt_with_cid(
 			issuer.clone(),
@@ -2992,7 +2992,7 @@ mod benchmarks {
 		let settlement_block = inst.go_to_next_state(project_id).unwrap();
 		inst.jump_to_block(settlement_block);
 
-		inst.settle_project(project_id).unwrap();
+		inst.settle_project(project_id, true).unwrap();
 
 		let jwt = get_mock_jwt_with_cid(
 			issuer.clone(),
@@ -3073,7 +3073,7 @@ mod benchmarks {
 		let settlement_block = inst.go_to_next_state(project_id).unwrap();
 		inst.jump_to_block(settlement_block);
 
-		inst.settle_project(project_id).unwrap();
+		inst.settle_project(project_id, true).unwrap();
 
 		let jwt = get_mock_jwt_with_cid(
 			issuer.clone(),
@@ -3195,7 +3195,7 @@ mod benchmarks {
 		let settlement_block = inst.go_to_next_state(project_id).unwrap();
 		inst.jump_to_block(settlement_block);
 
-		inst.settle_project(project_id).unwrap();
+		inst.settle_project(project_id, true).unwrap();
 
 		let jwt = get_mock_jwt_with_cid(
 			issuer.clone(),
@@ -3290,7 +3290,7 @@ mod benchmarks {
 		let settlement_block = inst.go_to_next_state(project_id).unwrap();
 		inst.jump_to_block(settlement_block);
 
-		inst.settle_project(project_id).unwrap();
+		inst.settle_project(project_id, true).unwrap();
 
 		let jwt = get_mock_jwt_with_cid(
 			issuer.clone(),
@@ -3366,7 +3366,7 @@ mod benchmarks {
 		let settlement_block = inst.go_to_next_state(project_id).unwrap();
 		inst.jump_to_block(settlement_block);
 
-		inst.settle_project(project_id).unwrap();
+		inst.settle_project(project_id, true).unwrap();
 
 		let jwt = get_mock_jwt_with_cid(
 			issuer.clone(),
@@ -3416,7 +3416,7 @@ mod benchmarks {
 		let settlement_block = inst.go_to_next_state(project_id).unwrap();
 		inst.jump_to_block(settlement_block);
 
-		inst.settle_project(project_id).unwrap();
+		inst.settle_project(project_id, true).unwrap();
 
 		let jwt = get_mock_jwt_with_cid(
 			issuer.clone(),

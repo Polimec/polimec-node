@@ -232,7 +232,7 @@ mod round_flow {
 			assert_eq!(inst.go_to_next_state(project_id), ProjectStatus::FundingFailed);
 			assert_eq!(inst.go_to_next_state(project_id), ProjectStatus::SettlementStarted(FundingOutcome::Failure));
 
-			inst.settle_project(project_id);
+			inst.settle_project(project_id, true);
 			inst.do_free_plmc_assertions(expected_evaluator_balances);
 		}
 	}
