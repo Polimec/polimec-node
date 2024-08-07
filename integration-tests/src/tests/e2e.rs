@@ -399,6 +399,7 @@ fn funds_raised() {
 			excel_bidders(),
 			excel_contributions(),
 			excel_remainders(),
+			true,
 		);
 
 		inst.execute(|| {
@@ -430,6 +431,7 @@ fn ct_minted() {
 			excel_bidders(),
 			excel_contributions(),
 			excel_remainders(),
+			true,
 		);
 
 		for (contributor, expected_amount_fixed, project_id) in excel_ct_amounts() {
@@ -456,6 +458,7 @@ fn ct_migrated() {
 			excel_bidders(),
 			excel_contributions(),
 			excel_remainders(),
+			true,
 		);
 
 		for (contributor, expected_amount_fixed, project_id) in excel_ct_amounts() {

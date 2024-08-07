@@ -238,6 +238,7 @@ fn contribution_tokens() {
 		default_bids(),
 		contributions_with_bob_1,
 		default_remainder_contributions(),
+		true,
 	);
 	let _project_id_2 = inst.create_settled_project(
 		default_project_metadata(ISSUER_2),
@@ -247,6 +248,7 @@ fn contribution_tokens() {
 		default_bids(),
 		default_community_contributions(),
 		default_remainder_contributions(),
+		true,
 	);
 	let _project_id_3 = inst.create_settled_project(
 		default_project_metadata(ISSUER_3),
@@ -256,6 +258,7 @@ fn contribution_tokens() {
 		default_bids(),
 		default_community_contributions(),
 		default_remainder_contributions(),
+		true,
 	);
 	let project_id_4 = inst.create_settled_project(
 		default_project_metadata(ISSUER_4),
@@ -265,6 +268,7 @@ fn contribution_tokens() {
 		default_bids(),
 		contributions_with_bob_2,
 		default_remainder_contributions(),
+		true,
 	);
 	let _project_id_5 = inst.create_settled_project(
 		default_project_metadata(ISSUER_5),
@@ -274,6 +278,7 @@ fn contribution_tokens() {
 		default_bids(),
 		default_community_contributions(),
 		default_remainder_contributions(),
+		true,
 	);
 	let project_id_6 = inst.create_settled_project(
 		default_project_metadata(ISSUER_6),
@@ -283,6 +288,7 @@ fn contribution_tokens() {
 		default_bids(),
 		contributions_with_bob_3,
 		default_remainder_contributions(),
+		true,
 	);
 	let project_id_7 = inst.create_settled_project(
 		default_project_metadata(ISSUER_7),
@@ -292,6 +298,7 @@ fn contribution_tokens() {
 		default_bids(),
 		contributions_with_bob_4,
 		default_remainder_contributions(),
+		true,
 	);
 
 	let expected_items = vec![
@@ -656,6 +663,7 @@ fn projects_by_did() {
 		default_bids(),
 		default_community_contributions(),
 		default_remainder_contributions(),
+		true,
 	);
 
 	let _project_id_2 = inst.create_settled_project(
@@ -666,6 +674,7 @@ fn projects_by_did() {
 		default_bids(),
 		default_community_contributions(),
 		default_remainder_contributions(),
+		true,
 	);
 
 	let project_id_3 = inst.create_settled_project(
@@ -676,6 +685,7 @@ fn projects_by_did() {
 		default_bids(),
 		default_community_contributions(),
 		default_remainder_contributions(),
+		true,
 	);
 
 	let _project_id_4 = inst.create_settled_project(
@@ -686,6 +696,7 @@ fn projects_by_did() {
 		default_bids(),
 		default_community_contributions(),
 		default_remainder_contributions(),
+		true,
 	);
 
 	inst.execute(|| {
