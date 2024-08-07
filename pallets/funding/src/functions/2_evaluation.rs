@@ -37,7 +37,7 @@ impl<T: Config> Pallet<T> {
 			project_details,
 			ProjectStatus::Application,
 			ProjectStatus::EvaluationRound,
-			Some(T::EvaluationDuration::get()),
+			Some(T::EvaluationRoundDuration::get()),
 			false,
 		)
 	}

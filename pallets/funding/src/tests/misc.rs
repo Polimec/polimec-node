@@ -397,9 +397,9 @@ fn project_state_transition_event() {
 		ProjectStatus::AuctionInitializePeriod,
 		ProjectStatus::AuctionRound,
 		ProjectStatus::CommunityRound(
-			EvaluationDuration::get() +
+			EvaluationRoundDuration::get() +
 				AuctionInitializePeriodDuration::get() +
-				AuctionOpeningDuration::get() +
+				AuctionRoundDuration::get() +
 				CommunityRoundDuration::get() +
 				1u64,
 		),
