@@ -762,17 +762,6 @@ pub mod inner_types {
 	}
 
 	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
-	pub enum ProjectPhases {
-		Evaluation,
-		AuctionInitializePeriod,
-		Auction,
-		CommunityFunding,
-		FundingFinalization,
-		Settlement,
-		Migration,
-	}
-
-	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
 	pub struct EvaluationRoundInfo<Balance> {
 		pub total_bonded_usd: Balance,
 		pub total_bonded_plmc: Balance,
