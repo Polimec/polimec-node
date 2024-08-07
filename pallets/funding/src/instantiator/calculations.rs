@@ -651,7 +651,6 @@ impl<
 
 		// Fill remaining buckets till we pass by the wap
 		loop {
-			dbg!(&bucket);
 			let wap = bucket.calculate_wap(auction_allocation);
 
 			if wap == target_wap {
@@ -668,9 +667,6 @@ impl<
 		bucket.amount_left = bucket.delta_amount;
 		bucket.current_price = bucket.current_price - bucket.delta_price;
 
-		dbg!(bucket.calculate_wap(auction_allocation));
-		dbg!(target_wap);
-
 		// Do a binary search on the amount to reach the desired wap
 		let mut lower_bound: BalanceOf<T> = Zero::zero();
 		let mut upper_bound: BalanceOf<T> = bucket.delta_amount;
@@ -679,10 +675,6 @@ impl<
 			let mid_point = (lower_bound + upper_bound) / 2u32.into();
 			bucket.amount_left = mid_point;
 			let new_wap = bucket.calculate_wap(auction_allocation);
-			dbg!(&lower_bound);
-			dbg!(&upper_bound);
-			dbg!(&mid_point);
-			dbg!(&new_wap);
 
 			if new_wap == target_wap {
 				return bucket
@@ -697,14 +689,17 @@ impl<
 	}
 
 	// We assume a single bid can cover the whole first bucket. Make sure the ticket sizes allow this.
-	pub fn generate_bids_from_bucket(
+	pub fn generate_bids_from_bucket<F>(
 		&self,
 		project_metadata: ProjectMetadataOf<T>,
 		bucket: BucketOf<T>,
 		mut starting_account: AccountIdOf<T>,
-		increment_account: fn(AccountIdOf<T>) -> AccountIdOf<T>,
+		mut increment_account: F,
 		funding_asset: AcceptedFundingAsset,
-	) -> Vec<BidParams<T>> {
+	) -> Vec<BidParams<T>>
+	where
+		F: FnMut(AccountIdOf<T>) -> AccountIdOf<T>,
+	{
 		if bucket.current_price == bucket.initial_price {
 			return vec![]
 		}
@@ -741,13 +736,16 @@ impl<
 		bids
 	}
 
-	pub fn generate_bids_that_take_price_to(
+	pub fn generate_bids_that_take_price_to<F>(
 		&self,
 		project_metadata: ProjectMetadataOf<T>,
 		desired_price: PriceOf<T>,
 		bidder_account: AccountIdOf<T>,
-		next_bidder_account: fn(AccountIdOf<T>) -> AccountIdOf<T>,
-	) -> Vec<BidParams<T>> {
+		next_bidder_account: F,
+	) -> Vec<BidParams<T>>
+	where
+		F: FnMut(AccountIdOf<T>) -> AccountIdOf<T>,
+	{
 		let necessary_bucket = self.find_bucket_for_wap(project_metadata.clone(), desired_price);
 		self.generate_bids_from_bucket(
 			project_metadata,
@@ -773,5 +771,12 @@ impl<
 		let auction_allocation =
 			project_metadata.auction_round_allocation_percentage * project_metadata.total_allocation_size;
 		bucket.calculate_wap(auction_allocation)
+	}
+
+	pub fn remainder_round_block(&self) -> BlockNumberFor<T> {
+		T::EvaluationRoundDuration::get() +
+			T::AuctionRoundDuration::get() +
+			T::CommunityRoundDuration::get() +
+			One::one()
 	}
 }

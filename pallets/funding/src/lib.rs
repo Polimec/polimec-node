@@ -835,7 +835,7 @@ pub mod pallet {
 
 		/// Starts the evaluation round of a project. It needs to be called by the project issuer.
 		#[pallet::call_index(3)]
-		#[pallet::weight(WeightInfoOf::<T>::start_evaluation(1))]
+		#[pallet::weight(WeightInfoOf::<T>::start_evaluation())]
 		pub fn start_evaluation(origin: OriginFor<T>, jwt: UntrustedToken, project_id: ProjectId) -> DispatchResult {
 			let (account, _did, investor_type, _cid) =
 				T::InvestorOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get())?;
@@ -845,9 +845,7 @@ pub mod pallet {
 
 		/// Bond PLMC for a project in the evaluation stage
 		#[pallet::call_index(4)]
-		#[pallet::weight(
-			WeightInfoOf::<T>::evaluation(T::MaxEvaluationsPerUser::get() - 1)
-		)]
+		#[pallet::weight(WeightInfoOf::<T>::evaluate(<T as Config>::MaxEvaluationsPerUser::get()))]
 		pub fn evaluate(
 			origin: OriginFor<T>,
 			jwt: UntrustedToken,
@@ -861,9 +859,7 @@ pub mod pallet {
 		}
 
 		#[pallet::call_index(5)]
-		#[pallet::weight(WeightInfoOf::<T>::end_evaluation_success(
-			1,
-		))]
+		#[pallet::weight(WeightInfoOf::<T>::end_evaluation_failure())]
 		pub fn end_evaluation(origin: OriginFor<T>, project_id: ProjectId) -> DispatchResult {
 			ensure_signed(origin)?;
 			Self::do_end_evaluation(project_id)
@@ -873,7 +869,7 @@ pub mod pallet {
 		#[pallet::call_index(7)]
 		#[pallet::weight(
 			WeightInfoOf::<T>::bid(
-				<T as Config>::MaxBidsPerUser::get() - 1,
+				<T as Config>::MaxBidsPerUser::get(),
 				// Assuming the current bucket is full, and has a price higher than the minimum.
 				// This user is buying 100% of the bid allocation.
 				// Since each bucket has 10% of the allocation, one bid can be split into a max of 10
@@ -894,18 +890,15 @@ pub mod pallet {
 		}
 
 		#[pallet::call_index(8)]
-		#[pallet::weight(WeightInfoOf::<T>::end_auction_closing(
-			1,
+		#[pallet::weight(WeightInfoOf::<T>::end_auction(
 			<T as Config>::MaxBidsPerProject::get() / 2,
 			<T as Config>::MaxBidsPerProject::get() / 2,
 		)
-		.max(WeightInfoOf::<T>::end_auction_closing(
-			1,
+		.max(WeightInfoOf::<T>::end_auction(
 			<T as Config>::MaxBidsPerProject::get(),
 			0u32,
 		))
-		.max(WeightInfoOf::<T>::end_auction_closing(
-			1,
+		.max(WeightInfoOf::<T>::end_auction(
 			0u32,
 			<T as Config>::MaxBidsPerProject::get(),
 		)))]
@@ -917,7 +910,7 @@ pub mod pallet {
 		/// Buy tokens in the Community or Remainder round at the price set in the Auction Round
 		#[pallet::call_index(9)]
 		#[pallet::weight(
-			WeightInfoOf::<T>::contribution(T::MaxContributionsPerUser::get() - 1)
+			WeightInfoOf::<T>::contribute(T::MaxContributionsPerUser::get())
 		)]
 		pub fn contribute(
 			origin: OriginFor<T>,
@@ -934,28 +927,21 @@ pub mod pallet {
 		}
 
 		#[pallet::call_index(10)]
-		#[pallet::weight(WeightInfoOf::<T>::end_funding_automatically_rejected_evaluators_slashed(
-			1,
-		)
-		.max(WeightInfoOf::<T>::end_funding_automatically_accepted_evaluators_rewarded(
-			1,
-			<T as Config>::MaxEvaluationsPerProject::get(),
-		)))]
-		pub fn end_funding(origin: OriginFor<T>, project_id: ProjectId) -> DispatchResultWithPostInfo {
+		#[pallet::weight(WeightInfoOf::<T>::end_funding_project_successful())]
+		pub fn end_funding(origin: OriginFor<T>, project_id: ProjectId) -> DispatchResult {
 			ensure_signed(origin)?;
 			Self::do_end_funding(project_id)
 		}
 
 		#[pallet::call_index(11)]
-		#[pallet::weight(WeightInfoOf::<T>::start_settlement_funding_success()
-		.max(WeightInfoOf::<T>::start_settlement_funding_failure()))]
-		pub fn start_settlement(origin: OriginFor<T>, project_id: ProjectId) -> DispatchResultWithPostInfo {
+		#[pallet::weight(WeightInfoOf::<T>::start_settlement())]
+		pub fn start_settlement(origin: OriginFor<T>, project_id: ProjectId) -> DispatchResult {
 			ensure_signed(origin)?;
 			Self::do_start_settlement(project_id)
 		}
 
 		#[pallet::call_index(12)]
-		#[pallet::weight(WeightInfoOf::<T>::settle_successful_evaluation())]
+		#[pallet::weight(WeightInfoOf::<T>::settle_rewarded_evaluation())]
 		pub fn settle_evaluation(
 			origin: OriginFor<T>,
 			project_id: ProjectId,
@@ -969,7 +955,7 @@ pub mod pallet {
 		}
 
 		#[pallet::call_index(13)]
-		#[pallet::weight(WeightInfoOf::<T>::settle_successful_bid())]
+		#[pallet::weight(WeightInfoOf::<T>::settle_accepted_bid_with_refund())]
 		pub fn settle_bid(
 			origin: OriginFor<T>,
 			project_id: ProjectId,
@@ -982,7 +968,7 @@ pub mod pallet {
 		}
 
 		#[pallet::call_index(17)]
-		#[pallet::weight(WeightInfoOf::<T>::settle_failed_contribution())]
+		#[pallet::weight(WeightInfoOf::<T>::settle_contribution_project_successful())]
 		pub fn settle_contribution(
 			origin: OriginFor<T>,
 			project_id: ProjectId,
@@ -996,14 +982,39 @@ pub mod pallet {
 		}
 
 		#[pallet::call_index(18)]
-		// TODO: change this weight
-		#[pallet::weight(WeightInfoOf::<T>::start_pallet_migration())]
+		#[pallet::weight(WeightInfoOf::<T>::mark_project_as_settled())]
 		pub fn mark_project_as_settled(origin: OriginFor<T>, project_id: ProjectId) -> DispatchResult {
 			let _caller = ensure_signed(origin)?;
 			Self::do_mark_project_as_settled(project_id)
 		}
 
 		#[pallet::call_index(19)]
+		#[pallet::weight(WeightInfoOf::<T>::start_offchain_migration())]
+		pub fn start_offchain_migration(
+			origin: OriginFor<T>,
+			jwt: UntrustedToken,
+			project_id: ProjectId,
+		) -> DispatchResult {
+			let (account, _did, investor_type, _cid) =
+				T::InvestorOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get())?;
+			ensure!(investor_type == InvestorType::Institutional, Error::<T>::WrongInvestorType);
+
+			Self::do_start_offchain_migration(project_id, account)
+		}
+
+		#[pallet::call_index(20)]
+		#[pallet::weight(WeightInfoOf::<T>::confirm_offchain_migration(MaxParticipationsPerUser::<T>::get()))]
+		pub fn confirm_offchain_migration(
+			origin: OriginFor<T>,
+			project_id: ProjectId,
+			participant: AccountIdOf<T>,
+		) -> DispatchResult {
+			let caller = ensure_signed(origin)?;
+
+			Self::do_confirm_offchain_migration(project_id, caller, participant)
+		}
+
+		#[pallet::call_index(21)]
 		#[pallet::weight(WeightInfoOf::<T>::start_pallet_migration())]
 		pub fn start_pallet_migration(
 			origin: OriginFor<T>,
@@ -1018,21 +1029,7 @@ pub mod pallet {
 			Self::do_start_pallet_migration(&account, project_id, para_id)
 		}
 
-		#[pallet::call_index(20)]
-		#[pallet::weight(WeightInfoOf::<T>::start_offchain_migration())]
-		pub fn start_offchain_migration(
-			origin: OriginFor<T>,
-			jwt: UntrustedToken,
-			project_id: ProjectId,
-		) -> DispatchResult {
-			let (account, _did, investor_type, _cid) =
-				T::InvestorOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get())?;
-			ensure!(investor_type == InvestorType::Institutional, Error::<T>::WrongInvestorType);
-
-			Self::do_start_offchain_migration(project_id, account)
-		}
-
-		#[pallet::call_index(21)]
+		#[pallet::call_index(22)]
 		#[pallet::weight(WeightInfoOf::<T>::start_pallet_migration_readiness_check())]
 		pub fn start_pallet_migration_readiness_check(
 			origin: OriginFor<T>,
@@ -1046,7 +1043,7 @@ pub mod pallet {
 		}
 
 		/// Called only by other chains through a query response xcm message
-		#[pallet::call_index(22)]
+		#[pallet::call_index(23)]
 		#[pallet::weight(WeightInfoOf::<T>::pallet_migration_readiness_response_pallet_info()
 		.max(WeightInfoOf::<T>::pallet_migration_readiness_response_holding()))]
 		pub fn pallet_migration_readiness_response(
@@ -1059,7 +1056,7 @@ pub mod pallet {
 			Self::do_pallet_migration_readiness_response(location, query_id, response)
 		}
 
-		#[pallet::call_index(23)]
+		#[pallet::call_index(24)]
 		#[pallet::weight(WeightInfoOf::<T>::send_pallet_migration_for(MaxParticipationsPerUser::<T>::get()))]
 		pub fn send_pallet_migration_for(
 			origin: OriginFor<T>,
@@ -1070,7 +1067,7 @@ pub mod pallet {
 			Self::do_send_pallet_migration_for(project_id, participant)
 		}
 
-		#[pallet::call_index(24)]
+		#[pallet::call_index(25)]
 		#[pallet::weight(WeightInfoOf::<T>::confirm_pallet_migrations(MaxParticipationsPerUser::<T>::get()))]
 		pub fn confirm_pallet_migrations(
 			origin: OriginFor<T>,
@@ -1080,18 +1077,6 @@ pub mod pallet {
 			let location = ensure_response(<T as Config>::RuntimeOrigin::from(origin))?;
 
 			Self::do_confirm_pallet_migrations(location, query_id, response)
-		}
-
-		#[pallet::call_index(25)]
-		#[pallet::weight(WeightInfoOf::<T>::confirm_offchain_migration(MaxParticipationsPerUser::<T>::get()))]
-		pub fn confirm_offchain_migration(
-			origin: OriginFor<T>,
-			project_id: ProjectId,
-			participant: AccountIdOf<T>,
-		) -> DispatchResult {
-			let caller = ensure_signed(origin)?;
-
-			Self::do_confirm_offchain_migration(project_id, caller, participant)
 		}
 
 		#[pallet::call_index(26)]
