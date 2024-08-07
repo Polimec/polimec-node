@@ -366,3 +366,50 @@ mod inner_functions {
 		assert_eq!(multiplier_25_duration, FixedU128::from_rational(52008, 1000).saturating_mul_int((DAYS * 7) as u64));
 	}
 }
+
+#[test]
+fn project_state_transition_event() {
+	let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+	let project_id = inst.create_settled_project(
+		default_project_metadata(ISSUER_1),
+		ISSUER_1,
+		None,
+		default_evaluations(),
+		default_bids(),
+		default_community_contributions(),
+		default_remainder_contributions(),
+	);
+
+	let events = inst.execute(|| System::events());
+	let transition_events = events
+		.into_iter()
+		.filter_map(|event| {
+			if let RuntimeEvent::PolimecFunding(e @ crate::Event::ProjectPhaseTransition { .. }) = event.event {
+				Some(e)
+			} else {
+				None
+			}
+		})
+		.collect_vec();
+
+	let mut desired_transitions = vec![
+		ProjectStatus::EvaluationRound,
+		ProjectStatus::AuctionInitializePeriod,
+		ProjectStatus::AuctionRound,
+		ProjectStatus::CommunityRound(
+			EvaluationDuration::get() +
+				AuctionInitializePeriodDuration::get() +
+				AuctionOpeningDuration::get() +
+				CommunityRoundDuration::get() +
+				1u64,
+		),
+		ProjectStatus::FundingSuccessful,
+		ProjectStatus::SettlementStarted(FundingOutcome::Success),
+		ProjectStatus::SettlementFinished(FundingOutcome::Success),
+	]
+	.into_iter();
+
+	transition_events.into_iter().for_each(|event| {
+		assert_eq!(event, Event::ProjectPhaseTransition { project_id, phase: desired_transitions.next().unwrap() });
+	});
+}

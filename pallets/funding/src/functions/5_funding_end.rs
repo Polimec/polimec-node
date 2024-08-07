@@ -73,10 +73,14 @@ impl<T: Config> Pallet<T> {
 			)
 		};
 
-		let round_end = now.saturating_add(duration).saturating_sub(One::one());
-		project_details.round_duration.update(Some(now), Some(round_end));
-		project_details.status = next_status;
-		ProjectsDetails::<T>::insert(project_id, project_details);
+		Self::transition_project(
+			project_id,
+			project_details.clone(),
+			project_details.status,
+			next_status,
+			Some(duration),
+			true,
+		)?;
 
 		Ok(PostDispatchInfo { actual_weight: Some(actual_weight), pays_fee: Pays::Yes })
 	}

@@ -22,22 +22,11 @@ use sp_runtime::{
 impl<T: Config> Pallet<T> {
 	#[transactional]
 	pub fn do_start_settlement(project_id: ProjectId) -> DispatchResultWithPostInfo {
-		// * Get variables *
 		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 		let token_information =
 			ProjectsMetadata::<T>::get(project_id).ok_or(Error::<T>::ProjectMetadataNotFound)?.token_information;
 		let now = <frame_system::Pallet<T>>::block_number();
-		let round_end_block = project_details.round_duration.end().ok_or(Error::<T>::ImpossibleState)?;
 
-		// * Validity checks *
-		ensure!(
-			project_details.status == ProjectStatus::FundingSuccessful ||
-				project_details.status == ProjectStatus::FundingFailed,
-			Error::<T>::IncorrectRound
-		);
-		ensure!(now > round_end_block, Error::<T>::TooEarlyForRound);
-
-		// * Calculate new variables *
 		project_details.funding_end_block = Some(now);
 
 		let escrow_account = Self::fund_account_id(project_id);
@@ -72,16 +61,28 @@ impl<T: Config> Pallet<T> {
 				liquidity_pools_ct_amount,
 			)?;
 
-			project_details.status = ProjectStatus::SettlementStarted(FundingOutcome::Success);
-			ProjectsDetails::<T>::insert(project_id, &project_details);
+			Self::transition_project(
+				project_id,
+				project_details,
+				ProjectStatus::FundingSuccessful,
+				ProjectStatus::SettlementStarted(FundingOutcome::Success),
+				None,
+				false,
+			)?;
 
 			Ok(PostDispatchInfo {
 				actual_weight: Some(WeightInfoOf::<T>::start_settlement_funding_success()),
 				pays_fee: Pays::Yes,
 			})
 		} else {
-			project_details.status = ProjectStatus::SettlementStarted(FundingOutcome::Failure);
-			ProjectsDetails::<T>::insert(project_id, &project_details);
+			Self::transition_project(
+				project_id,
+				project_details,
+				ProjectStatus::FundingFailed,
+				ProjectStatus::SettlementStarted(FundingOutcome::Failure),
+				None,
+				false,
+			)?;
 
 			Ok(PostDispatchInfo {
 				actual_weight: Some(WeightInfoOf::<T>::start_settlement_funding_failure()),
@@ -305,9 +306,9 @@ impl<T: Config> Pallet<T> {
 	}
 
 	pub fn do_mark_project_as_settled(project_id: ProjectId) -> DispatchResult {
-		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
+		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 		let outcome = match project_details.status {
-			ProjectStatus::SettlementStarted(outcome) => outcome,
+			ProjectStatus::SettlementStarted(ref outcome) => outcome.clone(),
 			_ => return Err(Error::<T>::IncorrectRound.into()),
 		};
 
@@ -323,8 +324,14 @@ impl<T: Config> Pallet<T> {
 		);
 
 		// Mark the project as settled
-		project_details.status = ProjectStatus::SettlementFinished(outcome);
-		ProjectsDetails::<T>::insert(project_id, project_details);
+		Self::transition_project(
+			project_id,
+			project_details,
+			ProjectStatus::SettlementStarted(outcome.clone()),
+			ProjectStatus::SettlementFinished(outcome),
+			None,
+			false,
+		)?;
 
 		Ok(())
 	}
