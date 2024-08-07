@@ -21,7 +21,7 @@ use sp_runtime::{
 
 impl<T: Config> Pallet<T> {
 	#[transactional]
-	pub fn do_start_settlement(project_id: ProjectId) -> DispatchResultWithPostInfo {
+	pub fn do_start_settlement(project_id: ProjectId) -> DispatchResult {
 		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 		let token_information =
 			ProjectsMetadata::<T>::get(project_id).ok_or(Error::<T>::ProjectMetadataNotFound)?.token_information;
@@ -69,11 +69,6 @@ impl<T: Config> Pallet<T> {
 				None,
 				false,
 			)?;
-
-			Ok(PostDispatchInfo {
-				actual_weight: Some(WeightInfoOf::<T>::start_settlement_funding_success()),
-				pays_fee: Pays::Yes,
-			})
 		} else {
 			Self::transition_project(
 				project_id,
@@ -83,12 +78,9 @@ impl<T: Config> Pallet<T> {
 				None,
 				false,
 			)?;
-
-			Ok(PostDispatchInfo {
-				actual_weight: Some(WeightInfoOf::<T>::start_settlement_funding_failure()),
-				pays_fee: Pays::Yes,
-			})
 		}
+
+		Ok(())
 	}
 
 	pub fn do_settle_evaluation(evaluation: EvaluationInfoOf<T>, project_id: ProjectId) -> DispatchResult {
