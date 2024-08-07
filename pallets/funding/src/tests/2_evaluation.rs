@@ -54,7 +54,8 @@ mod round_flow {
 			let old_price = <TestRuntime as Config>::PriceProvider::get_price(PLMC_FOREIGN_ID).unwrap();
 			PRICE_MAP.with_borrow_mut(|map| map.insert(PLMC_FOREIGN_ID, old_price / 2.into()));
 
-			inst.start_auction(project_id, ISSUER_1).unwrap();
+			assert_eq!(inst.go_to_next_state(project_id), ProjectStatus::AuctionInitializePeriod);
+			assert_eq!(inst.go_to_next_state(project_id), ProjectStatus::AuctionRound);
 
 			// Increasing the price before the end doesn't make a project under the threshold succeed.
 			let evaluations = vec![(EVALUATOR_1, target_evaluation_usd / 2).into()];
@@ -67,11 +68,8 @@ mod round_flow {
 			let old_price = <TestRuntime as Config>::PriceProvider::get_price(PLMC_FOREIGN_ID).unwrap();
 			PRICE_MAP.with_borrow_mut(|map| map.insert(PLMC_FOREIGN_ID, old_price * 2.into()));
 
-			let update_block = inst.get_update_block(project_id, &UpdateType::EvaluationEnd).unwrap();
-			let now = inst.current_block();
-			inst.advance_time(update_block - now + 1).unwrap();
-			let project_status = inst.get_project_details(project_id).status;
-			assert_eq!(project_status, ProjectStatus::SettlementStarted(FundingOutcome::FundingFailed));
+			assert_eq!(inst.go_to_next_state(project_id), ProjectStatus::FundingFailed);
+			assert_eq!(inst.go_to_next_state(project_id), ProjectStatus::SettlementStarted(FundingOutcome::Failure));
 		}
 
 		#[test]
@@ -180,7 +178,8 @@ mod round_flow {
 				)));
 
 				// The evaluation should succeed when we bond the threshold PLMC amount in total.
-				inst.start_auction(project_id, issuer).unwrap();
+				assert_eq!(inst.go_to_next_state(project_id), ProjectStatus::AuctionInitializePeriod);
+				assert_eq!(inst.go_to_next_state(project_id), ProjectStatus::AuctionRound);
 			};
 
 			for decimals in 6..=18 {
@@ -208,7 +207,6 @@ mod round_flow {
 		#[test]
 		fn round_fails_after_not_enough_bonds() {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
-			let now = inst.current_block();
 			let issuer = ISSUER_1;
 			let project_metadata = default_project_metadata(issuer);
 			let evaluations = default_failing_evaluations();
@@ -226,25 +224,15 @@ mod round_flow {
 
 			let project_id = inst.create_evaluating_project(project_metadata, issuer, None);
 
-			let evaluation_end = inst
-				.get_project_details(project_id)
-				.round_duration
-				.end()
-				.expect("Evaluation round end block should be set");
-
 			inst.evaluate_for_users(project_id, default_failing_evaluations()).expect("Bonding should work");
 
 			inst.do_free_plmc_assertions(plmc_existential_deposits);
 			inst.do_reserved_plmc_assertions(plmc_eval_deposits, HoldReason::Evaluation(project_id).into());
 
-			inst.advance_time(evaluation_end - now + 1).unwrap();
+			assert_eq!(inst.go_to_next_state(project_id), ProjectStatus::FundingFailed);
+			assert_eq!(inst.go_to_next_state(project_id), ProjectStatus::SettlementStarted(FundingOutcome::Failure));
 
-			assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::FundingFailed);
-
-			let settlement_block = inst.get_update_block(project_id, &UpdateType::StartSettlement).unwrap();
-			inst.jump_to_block(settlement_block);
-
-			inst.settle_project(project_id).unwrap();
+			inst.settle_project(project_id);
 			inst.do_free_plmc_assertions(expected_evaluator_balances);
 		}
 	}
@@ -300,7 +288,7 @@ mod start_evaluation_extrinsic {
 				is_frozen: true,
 				weighted_average_price: None,
 				status: ProjectStatus::EvaluationRound,
-				round_duration: BlockNumberPair::new(None, None),
+				round_duration: BlockNumberPair::new(Some(1), Some(<TestRuntime as Config>::EvaluationDuration::get())),
 				random_end_block: None,
 				fundraising_target_usd: project_metadata
 					.minimum_price
@@ -310,7 +298,7 @@ mod start_evaluation_extrinsic {
 				evaluation_round_info: EvaluationRoundInfoOf::<TestRuntime> {
 					total_bonded_usd: 0u128,
 					total_bonded_plmc: 0u128,
-					evaluators_outcome: EvaluatorsOutcome::Unchanged,
+					evaluators_outcome: None,
 				},
 				usd_bid_on_oversubscription: None,
 				funding_end_block: None,
@@ -397,7 +385,7 @@ mod start_evaluation_extrinsic {
 			inst.execute(|| {
 				assert_noop!(
 					PolimecFunding::start_evaluation(RuntimeOrigin::signed(issuer), jwt, project_id),
-					Error::<TestRuntime>::IncorrectRound
+					Error::<TestRuntime>::ProjectAlreadyFrozen
 				);
 			});
 		}
@@ -645,12 +633,11 @@ mod evaluate_extrinsic {
 			inst.mint_plmc_to(new_plmc_required.clone());
 			inst.evaluate_for_users(project_id, new_evaluations).unwrap();
 
-			inst.start_auction(project_id, ISSUER_1).unwrap();
-			inst.start_community_funding(project_id).unwrap();
-			inst.start_remainder_or_end_funding(project_id).unwrap();
-			inst.finish_funding(project_id, None).unwrap();
+			assert_eq!(inst.go_to_next_state(project_id), ProjectStatus::AuctionInitializePeriod);
+			assert_eq!(inst.go_to_next_state(project_id), ProjectStatus::AuctionRound);
 
-			assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::FundingFailed);
+			assert!(matches!(inst.go_to_next_state(project_id), ProjectStatus::CommunityRound(_)));
+			assert_eq!(inst.go_to_next_state(project_id), ProjectStatus::FundingFailed);
 
 			let free_balance = inst.get_free_plmc_balance_for(EVALUATOR_4);
 			let evaluation_held_balance =
@@ -664,17 +651,11 @@ mod evaluate_extrinsic {
 			let treasury_account = <TestRuntime as Config>::BlockchainOperationTreasury::get();
 			let pre_slash_treasury_balance = inst.get_free_plmc_balance_for(treasury_account);
 
-			let settlement_block = inst.get_update_block(project_id, &UpdateType::StartSettlement).unwrap();
-			inst.jump_to_block(settlement_block);
+			assert_eq!(inst.go_to_next_state(project_id), ProjectStatus::SettlementStarted(FundingOutcome::Failure));
 
 			inst.execute(|| {
-				PolimecFunding::settle_failed_evaluation(
-					RuntimeOrigin::signed(EVALUATOR_4),
-					project_id,
-					EVALUATOR_4,
-					0,
-				)
-				.unwrap();
+				PolimecFunding::settle_evaluation(RuntimeOrigin::signed(EVALUATOR_4), project_id, EVALUATOR_4, 0)
+					.unwrap();
 			});
 
 			let post_slash_treasury_balance = inst.get_free_plmc_balance_for(treasury_account);
@@ -889,7 +870,6 @@ mod evaluate_extrinsic {
 					project_id,
 					500 * USD_UNIT,
 					generate_did_from_account(ISSUER_1),
-					InvestorType::Institutional,
 					project_metadata.clone().policy_ipfs_cid.unwrap(),
 				)),
 				Error::<TestRuntime>::ParticipationToOwnProject

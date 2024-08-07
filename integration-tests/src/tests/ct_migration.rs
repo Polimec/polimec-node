@@ -174,7 +174,10 @@ fn create_settled_project() -> (ProjectId, Vec<AccountId>) {
 			default_community_contributions(),
 			default_remainder_contributions(),
 		);
-		inst.advance_time(<PolimecRuntime as pallet_funding::Config>::SuccessToSettlementTime::get()).unwrap();
+		assert_eq!(
+			inst.go_to_next_state(project_id),
+			pallet_funding::ProjectStatus::SettlementStarted(FundingOutcome::Success)
+		);
 		let mut participants: Vec<AccountId> =
 			pallet_funding::Evaluations::<PolimecRuntime>::iter_prefix_values((project_id,))
 				.map(|eval| eval.evaluator)
@@ -187,7 +190,7 @@ fn create_settled_project() -> (ProjectId, Vec<AccountId>) {
 		participants.sort();
 		participants.dedup();
 
-		inst.settle_project(project_id).unwrap();
+		inst.settle_project(project_id);
 		(project_id, participants)
 	})
 }
@@ -229,7 +232,10 @@ fn create_project_with_unsettled_participation(participation_type: Participation
 			default_remainder_contributions(),
 		);
 
-		inst.advance_time(<PolimecRuntime as pallet_funding::Config>::SuccessToSettlementTime::get()).unwrap();
+		assert_eq!(
+			inst.go_to_next_state(project_id),
+			pallet_funding::ProjectStatus::SettlementStarted(FundingOutcome::Success)
+		);
 		let evaluations_to_settle =
 			pallet_funding::Evaluations::<PolimecRuntime>::iter_prefix_values((project_id,)).collect_vec();
 		let bids_to_settle = pallet_funding::Bids::<PolimecRuntime>::iter_prefix_values((project_id,)).collect_vec();
@@ -247,7 +253,7 @@ fn create_project_with_unsettled_participation(participation_type: Participation
 
 		let start = if participation_type == ParticipationType::Evaluation { 1 } else { 0 };
 		for evaluation in evaluations_to_settle[start..].iter() {
-			PolimecFunding::settle_successful_evaluation(
+			PolimecFunding::settle_evaluation(
 				RuntimeOrigin::signed(alice()),
 				project_id,
 				evaluation.evaluator.clone(),
@@ -258,18 +264,12 @@ fn create_project_with_unsettled_participation(participation_type: Participation
 
 		let start = if participation_type == ParticipationType::Bid { 1 } else { 0 };
 		for bid in bids_to_settle[start..].iter() {
-			PolimecFunding::settle_successful_bid(
-				RuntimeOrigin::signed(alice()),
-				project_id,
-				bid.bidder.clone(),
-				bid.id,
-			)
-			.unwrap()
+			PolimecFunding::settle_bid(RuntimeOrigin::signed(alice()), project_id, bid.bidder.clone(), bid.id).unwrap()
 		}
 
 		let start = if participation_type == ParticipationType::Contribution { 1 } else { 0 };
 		for contribution in contributions_to_settle[start..].iter() {
-			PolimecFunding::settle_successful_contribution(
+			PolimecFunding::settle_contribution(
 				RuntimeOrigin::signed(alice()),
 				project_id,
 				contribution.contributor.clone(),
