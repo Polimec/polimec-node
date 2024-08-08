@@ -109,6 +109,10 @@ mod start_settlement_extrinsic {
 				assert_eq!(<TestRuntime as Config>::ContributionTokenCurrency::asset_exists(project_id), false)
 			});
 		}
+
+		#[test]
+		fn vesting_schedules_are_merged() {
+			let mut inst =
 	}
 
 	#[cfg(test)]
