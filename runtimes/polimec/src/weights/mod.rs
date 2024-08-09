@@ -27,6 +27,7 @@ pub mod pallet_collective;
 pub mod pallet_democracy;
 pub mod pallet_dispenser;
 pub mod pallet_elections_phragmen;
+pub mod pallet_funding;
 pub mod pallet_identity;
 pub mod pallet_message_queue;
 pub mod pallet_multisig;
