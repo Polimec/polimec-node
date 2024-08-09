@@ -1068,6 +1068,7 @@ impl pallet_funding::Config for Runtime {
 	type WeightInfo = weights::pallet_funding::WeightInfo<Runtime>;
 }
 
+
 #[cfg(feature = "runtime-benchmarks")]
 parameter_types! {
 	pub BenchmarkReason: RuntimeHoldReason = RuntimeHoldReason::Funding(pallet_funding::HoldReason::Participation(0));
