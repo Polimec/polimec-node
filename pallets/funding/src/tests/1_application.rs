@@ -177,7 +177,6 @@ mod create_project_extrinsic {
 
 			inst.evaluate_for_users(1, default_evaluations()).unwrap();
 
-			assert_eq!(inst.go_to_next_state(1), ProjectStatus::AuctionInitializePeriod);
 			assert_eq!(inst.go_to_next_state(1), ProjectStatus::AuctionRound);
 
 			inst.bid_for_users(1, failing_bids).unwrap();
@@ -206,7 +205,6 @@ mod create_project_extrinsic {
 			assert_eq!(inst.go_to_next_state(2), ProjectStatus::EvaluationRound);
 			inst.evaluate_for_users(2, default_evaluations()).unwrap();
 
-			assert_eq!(inst.go_to_next_state(2), ProjectStatus::AuctionInitializePeriod);
 			assert_eq!(inst.go_to_next_state(2), ProjectStatus::AuctionRound);
 
 			inst.bid_for_users(2, default_bids()).unwrap();

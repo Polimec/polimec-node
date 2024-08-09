@@ -230,10 +230,6 @@ pub mod pallet {
 			+ OnIdle<BlockNumberFor<Self>>
 			+ OnInitialize<BlockNumberFor<Self>>;
 
-		/// The time window (expressed in number of blocks) that an issuer has to start the auction round.
-		#[pallet::constant]
-		type AuctionInitializePeriodDuration: Get<BlockNumberFor<Self>>;
-
 		/// The inner balance type we will use for all of our outer currency types. (e.g native, funding, CTs)
 		type Balance: Balance + From<u64> + FixedPointOperand + MaybeSerializeDeserialize + Into<u128>;
 
@@ -871,16 +867,6 @@ pub mod pallet {
 		pub fn end_evaluation(origin: OriginFor<T>, project_id: ProjectId) -> DispatchResult {
 			ensure_signed(origin)?;
 			Self::do_end_evaluation(project_id)
-		}
-
-		/// Starts the auction round for a project. From the next block forward, any professional or
-		/// institutional user can set bids for a token_amount/token_price pair.
-		/// Any bids from this point until the auction_closing starts, will be considered as valid.
-		#[pallet::call_index(6)]
-		#[pallet::weight(WeightInfoOf::<T>::start_auction_manually(1))]
-		pub fn start_auction(origin: OriginFor<T>, project_id: ProjectId) -> DispatchResult {
-			let account = ensure_signed(origin)?;
-			Self::do_start_auction(account, project_id)
 		}
 
 		/// Bid for a project in the Auction round

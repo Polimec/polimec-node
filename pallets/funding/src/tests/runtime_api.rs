@@ -546,7 +546,6 @@ fn all_project_participations_by_did() {
 		});
 	}
 
-	assert_eq!(inst.go_to_next_state(project_id), ProjectStatus::AuctionInitializePeriod);
 	assert_eq!(inst.go_to_next_state(project_id), ProjectStatus::AuctionRound);
 
 	inst.bid_for_users(project_id, bids[..1].to_vec()).unwrap();

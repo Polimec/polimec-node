@@ -697,7 +697,6 @@ pub mod inner_types {
 		#[default]
 		Application,
 		EvaluationRound,
-		AuctionInitializePeriod,
 		AuctionRound,
 		CommunityRound(BlockNumber),
 		FundingFailed,
