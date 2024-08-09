@@ -295,7 +295,6 @@ pub const HOURS: BlockNumber = 300u64;
 // We need all durations to use different times to catch bugs in the tests.
 parameter_types! {
 	pub const EvaluationRoundDuration: BlockNumber = 10u64;
-	pub const AuctionInitializePeriodDuration: BlockNumber = 12u64;
 	pub const AuctionRoundDuration: BlockNumber = 15u64;
 	pub const CommunityRoundDuration: BlockNumber = 18u64;
 	pub const RemainderRoundDuration: BlockNumber = 6u64;
@@ -397,7 +396,6 @@ impl Config for TestRuntime {
 	type AccountId32Conversion = DummyConverter;
 	type AllPalletsWithoutSystem =
 		(Balances, ContributionTokens, ForeignAssets, PolimecFunding, LinearRelease, RandomnessCollectiveFlip);
-	type AuctionInitializePeriodDuration = AuctionInitializePeriodDuration;
 	type AuctionRoundDuration = AuctionRoundDuration;
 	type Balance = Balance;
 	type BlockNumber = BlockNumber;
