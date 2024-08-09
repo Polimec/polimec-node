@@ -1,45 +1,6 @@
 use super::*;
 
 impl<T: Config> Pallet<T> {
-	/// Called by user extrinsic
-	/// Starts the auction round for a project. From the next block forward, any professional or
-	/// institutional user can set bids for a token_amount/token_price pair.
-	/// Any bids from this point until the auction_closing starts will be considered as valid.
-	///
-	/// # Arguments
-	/// * `project_id` - The project identifier
-	///
-	/// # Storage access
-	/// * [`ProjectsDetails`] - Get the project information, and check if the project is in the correct
-	/// round, and the current block is between the defined start and end blocks of the initialize period.
-	/// Update the project information with the new round status and transition points in case of success.
-	///
-	/// # Success Path
-	/// The validity checks pass, and the project is transitioned to the Auction Opening round.
-	/// The project is scheduled to be transitioned automatically by `on_initialize` at the end of the
-	/// auction opening round.
-	///
-	/// # Next step
-	/// Professional and Institutional users set bids for the project using the [`bid`](Self::bid) extrinsic.
-	/// Later on, `on_initialize` transitions the project into the closing auction round, by calling
-	/// [`do_auction_closing`](Self::do_auction_closing).
-	#[transactional]
-	pub fn do_start_auction(caller: AccountIdOf<T>, project_id: ProjectId) -> DispatchResult {
-		// * Get variables *
-		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
-		// issuer_account can start the auction opening round during the Auction Initialize Period.
-		let skip_round_end_check = caller == project_details.issuer_account;
-
-		Self::transition_project(
-			project_id,
-			project_details,
-			ProjectStatus::AuctionInitializePeriod,
-			ProjectStatus::AuctionRound,
-			Some(T::AuctionRoundDuration::get()),
-			skip_round_end_check,
-		)
-	}
-
 	/// Decides which bids are accepted and which are rejected.
 	/// Deletes and refunds the rejected ones, and prepares the project for the WAP calculation the next block
 	#[transactional]

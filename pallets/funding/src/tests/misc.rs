@@ -394,14 +394,9 @@ fn project_state_transition_event() {
 
 	let mut desired_transitions = vec![
 		ProjectStatus::EvaluationRound,
-		ProjectStatus::AuctionInitializePeriod,
 		ProjectStatus::AuctionRound,
 		ProjectStatus::CommunityRound(
-			EvaluationRoundDuration::get() +
-				AuctionInitializePeriodDuration::get() +
-				AuctionRoundDuration::get() +
-				CommunityRoundDuration::get() +
-				1u64,
+			EvaluationRoundDuration::get() + AuctionRoundDuration::get() + CommunityRoundDuration::get() + 1u64,
 		),
 		ProjectStatus::FundingSuccessful,
 		ProjectStatus::SettlementStarted(FundingOutcome::Success),
