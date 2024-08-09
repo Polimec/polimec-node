@@ -242,7 +242,6 @@ impl Contains<RuntimeCall> for BaseCallFilter {
 							pallet_funding::Call::start_evaluation { .. } |
 							pallet_funding::Call::evaluate { .. } |
 							pallet_funding::Call::end_evaluation { .. } |
-							pallet_funding::Call::start_auction { .. } |
 							pallet_funding::Call::bid { .. } |
 							pallet_funding::Call::end_auction { .. } |
 							pallet_funding::Call::contribute { .. } |
@@ -1023,7 +1022,6 @@ impl pallet_funding::Config for Runtime {
 	#[cfg(any(test, feature = "runtime-benchmarks", feature = "std"))]
 	type AllPalletsWithoutSystem =
 		(Balances, ContributionTokens, ForeignAssets, Oracle, Funding, LinearRelease, Random);
-	type AuctionInitializePeriodDuration = AuctionInitializePeriodDuration;
 	type AuctionRoundDuration = AuctionRoundDuration;
 	type Balance = Balance;
 	type BlockNumber = BlockNumber;

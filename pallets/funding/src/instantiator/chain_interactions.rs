@@ -397,9 +397,6 @@ impl<
 			ProjectStatus::EvaluationRound => {
 				self.execute(|| <Pallet<T>>::do_end_evaluation(project_id).unwrap());
 			},
-			ProjectStatus::AuctionInitializePeriod => {
-				self.execute(|| <Pallet<T>>::do_start_auction(issuer, project_id).unwrap());
-			},
 			ProjectStatus::AuctionRound => {
 				self.execute(|| <Pallet<T>>::do_end_auction(project_id).unwrap());
 			},
@@ -503,7 +500,6 @@ impl<
 
 		self.evaluation_assertions(project_id, expected_remaining_plmc, plmc_eval_deposits, expected_total_supply);
 
-		assert_eq!(self.go_to_next_state(project_id), ProjectStatus::AuctionInitializePeriod);
 		assert_eq!(self.go_to_next_state(project_id), ProjectStatus::AuctionRound);
 
 		project_id

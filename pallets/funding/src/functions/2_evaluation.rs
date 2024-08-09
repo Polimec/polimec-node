@@ -85,21 +85,20 @@ impl<T: Config> Pallet<T> {
 
 		// * Branch in possible project paths *
 		// Successful path
-		if is_funded {
-			return Self::transition_project(
+		return if is_funded {
+			Self::transition_project(
 				project_id,
 				project_details,
 				ProjectStatus::EvaluationRound,
-				ProjectStatus::AuctionInitializePeriod,
-				Some(T::AuctionInitializePeriodDuration::get()),
+				ProjectStatus::AuctionRound,
+				Some(T::AuctionRoundDuration::get()),
 				false,
 			)
 		// Unsuccessful path
 		} else {
 			let issuer_did = project_details.issuer_did.clone();
 			DidWithActiveProjects::<T>::set(issuer_did, None);
-			// * Update storage *
-			return Self::transition_project(
+			Self::transition_project(
 				project_id,
 				project_details,
 				ProjectStatus::EvaluationRound,

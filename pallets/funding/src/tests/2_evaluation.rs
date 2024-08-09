@@ -54,7 +54,6 @@ mod round_flow {
 			let old_price = <TestRuntime as Config>::PriceProvider::get_price(PLMC_FOREIGN_ID).unwrap();
 			PRICE_MAP.with_borrow_mut(|map| map.insert(PLMC_FOREIGN_ID, old_price / 2.into()));
 
-			assert_eq!(inst.go_to_next_state(project_id), ProjectStatus::AuctionInitializePeriod);
 			assert_eq!(inst.go_to_next_state(project_id), ProjectStatus::AuctionRound);
 
 			// Increasing the price before the end doesn't make a project under the threshold succeed.
@@ -178,7 +177,6 @@ mod round_flow {
 				)));
 
 				// The evaluation should succeed when we bond the threshold PLMC amount in total.
-				assert_eq!(inst.go_to_next_state(project_id), ProjectStatus::AuctionInitializePeriod);
 				assert_eq!(inst.go_to_next_state(project_id), ProjectStatus::AuctionRound);
 			};
 
@@ -635,7 +633,6 @@ mod evaluate_extrinsic {
 			inst.mint_plmc_to(new_plmc_required.clone());
 			inst.evaluate_for_users(project_id, new_evaluations).unwrap();
 
-			assert_eq!(inst.go_to_next_state(project_id), ProjectStatus::AuctionInitializePeriod);
 			assert_eq!(inst.go_to_next_state(project_id), ProjectStatus::AuctionRound);
 
 			assert!(matches!(inst.go_to_next_state(project_id), ProjectStatus::CommunityRound(_)));

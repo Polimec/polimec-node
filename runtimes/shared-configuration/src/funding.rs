@@ -86,7 +86,6 @@ pub type ProjectIdentifier = u32;
 
 parameter_types! {
 	pub const EvaluationRoundDuration: BlockNumber = EVALUATION_ROUND_DURATION;
-	pub const AuctionInitializePeriodDuration: BlockNumber = AUCTION_INITIALIZE_PERIOD_DURATION;
 	pub const AuctionRoundDuration: BlockNumber = AUCTION_ROUND_DURATION;
 	pub const CommunityRoundDuration: BlockNumber = COMMUNITY_ROUND_DURATION;
 	pub const RemainderRoundDuration: BlockNumber = REMAINDER_ROUND_DURATION;
