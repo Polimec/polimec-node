@@ -156,35 +156,6 @@ pub mod pallet {
 		}
 	}
 
-	// #[pallet::genesis_build]
-	// impl<T: Config> BuildGenesisConfig for GenesisConfig<T> {
-	// 	fn build(&self) {
-	// 		use sp_runtime::traits::Saturating;
-
-	// 		// Generate initial vesting configuration
-	// 		// * who - Account which we are generating vesting configuration for
-	// 		// * begin - Block when the account will start to vest
-	// 		// * length - Number of blocks from `begin` until fully vested
-	// 		// * liquid - Number of units which can be spent before vesting begins
-	// 		for &(ref who, begin, length, liquid, reason) in self.vesting.iter() {
-	// 			let balance = T::Currency::balance(who);
-	// 			assert!(!balance.is_zero(), "Currencies must be init'd before vesting");
-	// 			// Total genesis `balance` minus `liquid` equals funds locked for vesting
-	// 			let locked = balance.saturating_sub(liquid);
-	// 			let length_as_balance = T::BlockNumberToBalance::convert(length);
-	// 			let per_block = locked / length_as_balance.max(sp_runtime::traits::One::one());
-	// 			let vesting_info = VestingInfo::new(locked, per_block, begin);
-	// 			if !vesting_info.is_valid() {
-	// 				panic!("Invalid VestingInfo params at genesis")
-	// 			};
-
-	// 			Vesting::<T>::try_append(who, reason, vesting_info).expect("Too many vesting schedules at genesis.");
-
-	// 			T::Currency::hold(&reason, who, locked).map_err(|err| panic!("{:?}", err)).unwrap();
-	// 		}
-	// 	}
-	// }
-
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
 		fn integrity_test() {

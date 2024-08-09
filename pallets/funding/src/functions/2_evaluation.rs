@@ -187,7 +187,7 @@ impl<T: Config> Pallet<T> {
 		});
 
 		Ok(PostDispatchInfo {
-			actual_weight: Some(WeightInfoOf::<T>::evaluation(user_evaluations_count)),
+			actual_weight: Some(WeightInfoOf::<T>::evaluate(user_evaluations_count)),
 			pays_fee: Pays::Yes,
 		})
 	}

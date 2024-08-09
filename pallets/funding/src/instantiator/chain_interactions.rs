@@ -138,7 +138,7 @@ impl<
 		for UserToPLMCBalance { account, plmc_amount } in correct_funds {
 			self.execute(|| {
 				let reserved = <T as Config>::NativeCurrency::balance_on_hold(&reserve_type, &account);
-				assert_eq!(reserved, plmc_amount, "account {account} has unexpected reserved plmc balance");
+				assert_eq!(reserved, plmc_amount, "account {:?} has unexpected reserved plmc balance", account);
 			});
 		}
 	}
@@ -1038,6 +1038,7 @@ impl<
 		bids: Vec<BidParams<T>>,
 		community_contributions: Vec<ContributionParams<T>>,
 		remainder_contributions: Vec<ContributionParams<T>>,
+		mark_as_settled: bool,
 	) -> ProjectId {
 		let project_id = self.create_finished_project(
 			project_metadata.clone(),
@@ -1051,7 +1052,7 @@ impl<
 
 		assert!(matches!(self.go_to_next_state(project_id), ProjectStatus::SettlementStarted(_)));
 
-		self.settle_project(project_id, true);
+		self.settle_project(project_id, mark_as_settled);
 		project_id
 	}
 

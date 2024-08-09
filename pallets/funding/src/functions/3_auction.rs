@@ -37,12 +37,7 @@ impl<T: Config> Pallet<T> {
 					false,
 				)?;
 				Ok(PostDispatchInfo {
-					// TODO: make new benchmark
-					actual_weight: Some(WeightInfoOf::<T>::start_community_funding(
-						1,
-						accepted_bids_count,
-						rejected_bids_count,
-					)),
+					actual_weight: Some(WeightInfoOf::<T>::end_auction(accepted_bids_count, rejected_bids_count)),
 					pays_fee: Pays::Yes,
 				})
 			},
