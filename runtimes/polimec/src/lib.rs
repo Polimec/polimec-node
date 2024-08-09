@@ -1065,7 +1065,7 @@ impl pallet_funding::Config for Runtime {
 	type SuccessToSettlementTime = SuccessToSettlementTime;
 	type VerifierPublicKey = VerifierPublicKey;
 	type Vesting = LinearRelease;
-	type WeightInfo = ();
+	type WeightInfo = weights::pallet_funding::WeightInfo<Runtime>;
 }
 
 #[cfg(feature = "runtime-benchmarks")]
