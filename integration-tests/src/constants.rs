@@ -376,7 +376,8 @@ pub mod polimec {
 	use xcm_emulator::TestExt;
 
 	pub const PARA_ID: u32 = 3344;
-	pub const ED: Balance = polimec_runtime::EXISTENTIAL_DEPOSIT;
+	// pub const ED: Balance = polimec_runtime::EXISTENTIAL_DEPOSIT;
+	pub const ED: Balance = 1;
 
 	const GENESIS_BLOCKS_PER_ROUND: BlockNumber = 1800;
 	const GENESIS_COLLATOR_COMMISSION: Perbill = Perbill::from_percent(10);

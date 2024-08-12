@@ -386,11 +386,15 @@ impl tokens::imbalance::OnUnbalanced<CreditOf<Runtime>> for DustRemovalAdapter {
 	}
 }
 
+parameter_types! {
+	pub const ONE: Balance = 1;
+}
 impl pallet_balances::Config for Runtime {
 	type AccountStore = System;
 	type Balance = Balance;
 	type DustRemoval = DustRemovalAdapter;
-	type ExistentialDeposit = ExistentialDeposit;
+	// type ExistentialDeposit = ExistentialDeposit;
+	type ExistentialDeposit = ONE;
 	type FreezeIdentifier = RuntimeFreezeReason;
 	type MaxFreezes = MaxReserves;
 	type MaxHolds = MaxLocks;

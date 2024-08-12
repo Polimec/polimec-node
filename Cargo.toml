@@ -89,6 +89,7 @@ substrate-fixed = { git = "https://github.com/encointer/substrate-fixed", defaul
 
 # External (without extra features and with default disabled if necessary)
 parity-scale-codec = { version = "3.6.5", default-features = false }
+codec = { package = "parity-scale-codec", version = "3.6.5", default-features = false }
 clap = { version = "4.3.24" }
 futures = { version = "0.3.28", features = ["thread-pool"] }
 scale-info = { version = "2.9.0", default-features = false, features = [
@@ -249,3 +250,7 @@ asset-hub-polkadot-runtime = { git = 'https://github.com/polkadot-fellows/runtim
 polkadot-runtime-constants = { git = 'https://github.com/polkadot-fellows/runtimes', default-features = false, rev = '59172d5fb8feea2646490618bead3b2b4fb06220' }
 system-parachains-constants = { git = 'https://github.com/polkadot-fellows/runtimes', default-features = false, rev = '59172d5fb8feea2646490618bead3b2b4fb06220' }
 polkadot-runtime = { git = 'https://github.com/polkadot-fellows/runtimes', default-features = false, rev = '59172d5fb8feea2646490618bead3b2b4fb06220' }
+
+[patch.crates-io]
+pallet-balances = { path = "pallets/balances" }
+frame-support = { path = "pallets/frame-support" }

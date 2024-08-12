@@ -14,16 +14,19 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use crate::{polimec::ED, *};
+use frame_support::assert_err;
+use crate::{polimec::ED, tests::defaults::IntegrationInstantiator, *};
 /// Tests for the oracle pallet integration.
 /// Alice, Bob, Charlie are members of the OracleProvidersMembers.
 /// Only members should be able to feed data into the oracle.
 use frame_support::traits::fungible::Inspect;
-use frame_support::traits::fungible::Mutate;
+use frame_support::traits::{fungible::Mutate, WithdrawReasons};
+use frame_support::traits::tokens::{Precision, Preservation};
+use frame_system::pallet_prelude::BlockNumberFor;
 use macros::generate_accounts;
 use pallet_funding::assert_close_enough;
 use pallet_vesting::VestingInfo;
-use polimec_runtime::{Balances, BlockchainOperationTreasury, ParachainStaking, RuntimeOrigin, Vesting, PLMC};
+use polimec_runtime::{Balances, BlockchainOperationTreasury, ParachainStaking, RuntimeHoldReason, RuntimeOrigin, Vesting, PLMC, RuntimeSlashReason};
 use sp_runtime::Perquintill;
 use xcm_emulator::helpers::get_account_id_from_seed;
 
@@ -179,4 +182,118 @@ fn dust_to_treasury() {
 		let final_treasury_balance = Balances::free_balance(BlockchainOperationTreasury::get());
 		assert_eq!(initial_treasury_balance + ED - 1, final_treasury_balance);
 	})
+}
+
+#[test]
+fn sandbox() {
+	use frame_support::traits::{
+		fungible::{hold::Balanced, Mutate, MutateHold},
+		LockableCurrency,
+	};
+	use pallet_dispenser::VestingSchedule;
+
+	let inst = IntegrationInstantiator::new(None);
+
+	generate_accounts!(ALICE, BOB);
+	let alice: PolimecAccountId = ALICE.into();
+	let bob: PolimecAccountId = BOB.into();
+
+	let get_acc_info = |account: PolimecAccountId| {
+		let account_info = PolimecSystem::account(account);
+		account_info
+	};
+
+	PolimecNet::execute_with(|| {
+		// dbg!(get_acc_info(alice.clone()));
+		Balances::mint_into(&alice.clone(), 100).unwrap();
+		// dbg!(get_acc_info(alice.clone()));
+
+		let locked_amount = 80;
+		// Balances::set_lock(*b"vesting ", &alice.clone(), locked_amount, WithdrawReasons::RESERVE);
+		// dbg!(get_acc_info(alice.clone()));
+
+		let now = PolimecSystem::block_number();
+		PolimecVesting::add_vesting_schedule(&alice.clone(), locked_amount, 10, now).unwrap();
+		dbg!(get_acc_info(alice.clone()));
+
+		let hold_reason = RuntimeHoldReason::Funding(pallet_funding::HoldReason::Evaluation(0));
+		let hold_amount = 95;
+		Balances::hold(&hold_reason, &alice, hold_amount).unwrap();
+		dbg!(get_acc_info(alice.clone()));
+
+		let slash_amount = 40;
+		<Balances as Balanced<PolimecAccountId>>::slash(&hold_reason, &alice, slash_amount);
+		dbg!(get_acc_info(alice.clone()));
+		Balances::release(&hold_reason, &alice, hold_amount-slash_amount, Precision::BestEffort).unwrap();
+		dbg!(get_acc_info(alice.clone()));
+
+		// Balances::mint_into(&alice.clone(), 20).unwrap();
+
+		// assert!(Balances::transfer(&alice.clone(), &alice.clone(), 30, Preservation::Expendable).is_err());
+		// assert!(Balances::transfer(&alice.clone(), &alice.clone(), 1, Preservation::Expendable).is_err());
+
+		// Balances::transfer_all(PolimecOrigin::signed(alice.clone()), bob.clone().into(), false).unwrap();
+		// dbg!(get_acc_info(alice.clone()));
+		// dbg!(get_acc_info(bob.clone()));
+
+		let locked_amount = Balances::locks(&alice.clone()).iter().find(|lock| &lock.id == b"vesting ").unwrap().amount;
+		let total_amount = Balances::total_balance(&alice.clone());
+		let new_locked_amount = total_amount.min(locked_amount);
+		let amount_reduced = locked_amount - new_locked_amount;
+		dbg!(new_locked_amount);
+		dbg!(amount_reduced);
+		let vesting_info = pallet_vesting::Vesting::<PolimecRuntime>::get(alice.clone()).unwrap();
+		assert_eq!(vesting_info.len(), 1);
+		let vesting_info = vesting_info[0];
+
+		let new_start: u32 = vesting_info.starting_block() + (amount_reduced / vesting_info.per_block()) as u32;
+
+		dbg!(now);
+		dbg!(new_start);
+
+		dbg!(get_acc_info(alice.clone()));
+		Vesting::remove_vesting_schedule(&alice.clone(), 0).unwrap();
+		dbg!(get_acc_info(alice.clone()));
+		Vesting::add_vesting_schedule(&alice.clone(), new_locked_amount, vesting_info.per_block(), new_start).unwrap();
+		dbg!(get_acc_info(alice.clone()));
+
+		PolimecSystem::set_block_number((new_start).try_into().unwrap());
+		PolimecVesting::vest(PolimecOrigin::signed(alice.clone())).unwrap();
+		dbg!(get_acc_info(alice.clone()));
+
+		PolimecSystem::set_block_number((new_start + 1).try_into().unwrap());
+		PolimecVesting::vest(PolimecOrigin::signed(alice.clone())).unwrap();
+		dbg!(get_acc_info(alice.clone()));
+
+
+
+
+		fn on_slash() {
+			// calculate freeze reduction after slash:
+			// R = account.frozen - account.free
+			//
+			// 0 -----------------60---80---90---100 PLMC amounts
+			// |-----free -------------|//slashed//|
+			// |-----------------------|~~~~~| ~ = freeze reduction
+			// |-----lock 1------------------|
+			// |-----lock 2--------|
+
+			// Calculate new lock amounts:
+			// min(old_amount, free)
+
+			// |-----free -------------|///slashed///|
+			// |-----lock 1------------|~red.~|
+			// |-----lock 2--------| untouched
+
+			// Calculate new vesting schedules:
+
+			//
+			// 0 ----------------------8---10 Block numbers:
+			// 0 -----------------60---80---90---100 PLMC amounts
+			// | - Schedule lock 1 ---|
+			// |-----lock 1-------------------|
+			// | - Schedule lock 2 ------- |
+			// |-----lock 2--------|
+			}
+	});
 }

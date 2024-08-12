@@ -1,4 +1,5 @@
 use super::*;
+use crate::mock::RuntimeEvent::Balances;
 
 // check that functions created to facilitate testing return the expected results
 mod helper_functions {
