@@ -40,10 +40,10 @@ fn call_offchain_worker() {
 			RuntimeCall::Oracle(orml_oracle::Call::feed_values { values }) =>
 				for (asset, price) in values {
 					match asset {
-						0 => assert_close_enough(price, FixedU128::from_float(6.138485575453039783)),
-						1984 => assert_close_enough(price, FixedU128::from_float(1.000154206100002620)),
-						1337 => assert_close_enough(price, FixedU128::from_float(1.000093378020633965)),
-						3344 => assert_close_enough(price, FixedU128::from_float(0.414564170729477207)),
+						0 => assert_close_enough(price, FixedU128::from_float(6.138_485_575_453_04)),
+						1984 => assert_close_enough(price, FixedU128::from_float(1.000_154_206_100_002_6)),
+						1337 => assert_close_enough(price, FixedU128::from_float(1.000_093_378_020_634)),
+						3344 => assert_close_enough(price, FixedU128::from_float(0.414_564_170_729_477_2)),
 						_ => panic!("Unexpected asset"),
 					}
 				},
@@ -53,9 +53,9 @@ fn call_offchain_worker() {
 }
 
 fn test_fetcher_against_real_api<F: FetchPrice>() {
-	for asset in vec![AssetName::DOT, AssetName::USDC, AssetName::USDT, AssetName::PLMC] {
+	for asset in [AssetName::DOT, AssetName::USDC, AssetName::USDT, AssetName::PLMC] {
 		let url = F::get_url(asset);
-		if url == "" {
+		if url.is_empty() {
 			continue;
 		}
 		let body = do_request(url);

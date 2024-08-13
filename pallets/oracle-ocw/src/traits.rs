@@ -13,13 +13,13 @@
 
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
-use super::*;
-
+use crate::{AssetName, AssetRequest, OpenCloseVolume};
 use sp_runtime::{
 	offchain::{
 		http::{self, PendingRequest},
 		Duration,
 	},
+	traits::Zero,
 	FixedU128, Saturating,
 };
 

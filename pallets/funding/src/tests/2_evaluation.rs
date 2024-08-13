@@ -123,7 +123,7 @@ mod round_flow {
 				let issuer: AccountIdOf<TestRuntime> = (10_000 + inst.get_new_nonce()).try_into().unwrap();
 				let project_id = inst.create_evaluating_project(project_metadata.clone(), issuer, None);
 
-				let evaluation_threshold = inst.execute(|| <TestRuntime as Config>::EvaluationSuccessThreshold::get());
+				let evaluation_threshold = inst.execute(<TestRuntime as Config>::EvaluationSuccessThreshold::get);
 				let evaluation_threshold_ct = evaluation_threshold * project_metadata.total_allocation_size;
 				evaluation_ct_thresholds.push(evaluation_threshold_ct);
 
@@ -662,7 +662,7 @@ mod evaluate_extrinsic {
 			let evaluation_held_balance =
 				inst.get_reserved_plmc_balance_for(EVALUATOR_4, HoldReason::Evaluation(project_id).into());
 			let frozen_balance = inst.execute(|| mock::Balances::balance_frozen(&(), &EVALUATOR_4));
-			let account_data = inst.execute(|| System::account(&EVALUATOR_4)).data;
+			let account_data = inst.execute(|| System::account(EVALUATOR_4)).data;
 
 			let post_slash_evaluation_plmc =
 				frozen_amount - (<TestRuntime as Config>::EvaluatorSlash::get() * frozen_amount);
@@ -747,8 +747,7 @@ mod evaluate_extrinsic {
 			let evaluating_plmc = inst.calculate_evaluation_plmc_spent(evaluations.clone(), false);
 			let mut plmc_insufficient_existential_deposit = evaluating_plmc.accounts().existential_deposits();
 
-			plmc_insufficient_existential_deposit[0].plmc_amount =
-				plmc_insufficient_existential_deposit[0].plmc_amount / 2;
+			plmc_insufficient_existential_deposit[0].plmc_amount /= 2;
 
 			inst.mint_plmc_to(evaluating_plmc);
 			inst.mint_plmc_to(plmc_insufficient_existential_deposit);
@@ -764,7 +763,7 @@ mod evaluate_extrinsic {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 			let project_metadata = default_project_metadata(ISSUER_1);
 			let evaluations = (0u32..<TestRuntime as Config>::MaxEvaluationsPerProject::get())
-				.map(|i| UserToUSDBalance::<TestRuntime>::new(i as u32 + 420u32, (100u128 * CT_UNIT).into()))
+				.map(|i| UserToUSDBalance::<TestRuntime>::new(i + 420u32, (100u128 * CT_UNIT)))
 				.collect_vec();
 			let failing_evaluation = UserToUSDBalance::new(EVALUATOR_1, 1000 * CT_UNIT);
 
@@ -792,7 +791,7 @@ mod evaluate_extrinsic {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 			let project_metadata = default_project_metadata(ISSUER_1);
 			let evaluations = (0u32..<TestRuntime as Config>::MaxEvaluationsPerUser::get())
-				.map(|_| UserToUSDBalance::<TestRuntime>::new(EVALUATOR_1, (100u128 * USD_UNIT).into()))
+				.map(|_| UserToUSDBalance::<TestRuntime>::new(EVALUATOR_1, (100u128 * USD_UNIT)))
 				.collect_vec();
 			let failing_evaluation = UserToUSDBalance::new(EVALUATOR_1, 100 * USD_UNIT);
 
@@ -933,13 +932,13 @@ mod evaluate_extrinsic {
 				project_metadata.clone().policy_ipfs_cid.unwrap(),
 			);
 
-			inst.mint_plmc_to(vec![(evaluator.clone(), 2000 * PLMC).into()]);
+			inst.mint_plmc_to(vec![(evaluator, 2000 * PLMC).into()]);
 
 			// Cannot evaluate with 0 USD
 			inst.execute(|| {
 				assert_noop!(
 					Pallet::<TestRuntime>::evaluate(
-						RuntimeOrigin::signed(evaluator.clone()),
+						RuntimeOrigin::signed(evaluator),
 						jwt.clone(),
 						project_id,
 						0
@@ -952,7 +951,7 @@ mod evaluate_extrinsic {
 			inst.execute(|| {
 				assert_noop!(
 					Pallet::<TestRuntime>::evaluate(
-						RuntimeOrigin::signed(evaluator.clone()),
+						RuntimeOrigin::signed(evaluator),
 						jwt.clone(),
 						project_id,
 						99 * USD_UNIT

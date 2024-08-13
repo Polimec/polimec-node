@@ -111,9 +111,9 @@ pub mod config_types {
 		}
 	}
 
-	impl Into<u8> for Multiplier {
-		fn into(self) -> u8 {
-			self.0
+	impl From<Multiplier> for u8 {
+		fn from(val: Multiplier) -> Self {
+			val.0
 		}
 	}
 
@@ -504,12 +504,12 @@ pub mod storage_types {
 
 			let sum = bucket_sizes.iter().map(|x| x.0).fold(Balance::zero(), |acc, x| acc.saturating_add(x));
 
-			let wap = bucket_sizes
+			
+
+			bucket_sizes
 				.into_iter()
 				.map(|x| <Price as FixedPointNumber>::saturating_from_rational(x.0, sum).saturating_mul(x.1))
-				.fold(Price::zero(), |acc: Price, p: Price| acc.saturating_add(p));
-
-			return wap
+				.fold(Price::zero(), |acc: Price, p: Price| acc.saturating_add(p))
 		}
 	}
 }

@@ -249,33 +249,33 @@ mod helper_functions {
 		const CONTRIBUTOR_1: AccountIdOf<TestRuntime> = 1u32;
 		const TOKEN_AMOUNT_1: u128 = 120 * CT_UNIT;
 		const MULTIPLIER_1: u8 = 1u8;
-		const _TICKET_SIZE_USD_1: u128 = 1_958_4_000_000_000_u128;
-		const EXPECTED_PLMC_AMOUNT_1: f64 = 233.1_428_571_428f64;
+		const _TICKET_SIZE_USD_1: u128 = 19_584_000_000_000_u128;
+		const EXPECTED_PLMC_AMOUNT_1: f64 = 233.142_857_142_8_f64;
 
 		const CONTRIBUTOR_2: AccountIdOf<TestRuntime> = 2u32;
 		const TOKEN_AMOUNT_2: u128 = 5023 * CT_UNIT;
 		const MULTIPLIER_2: u8 = 2u8;
-		const _TICKET_SIZE_USD_2: u128 = 81_975_3_600_000_000_u128;
-		const EXPECTED_PLMC_AMOUNT_2: f64 = 4_879.4_857_142_857f64;
+		const _TICKET_SIZE_USD_2: u128 = 819_753_600_000_000_u128;
+		const EXPECTED_PLMC_AMOUNT_2: f64 = 4_879.485_714_285_7_f64;
 
 		const CONTRIBUTOR_3: AccountIdOf<TestRuntime> = 3u32;
 		const TOKEN_AMOUNT_3: u128 = 20_000 * CT_UNIT;
 		const MULTIPLIER_3: u8 = 17u8;
-		const _TICKET_SIZE_USD_3: u128 = 326_400_0_000_000_000_u128;
-		const EXPECTED_PLMC_AMOUNT_3: f64 = 2_285.7_142_857_142f64;
+		const _TICKET_SIZE_USD_3: u128 = 3_264_000_000_000_000_u128;
+		const EXPECTED_PLMC_AMOUNT_3: f64 = 2_285.714_285_714_2_f64;
 
 		const CONTRIBUTOR_4: AccountIdOf<TestRuntime> = 4u32;
 		const TOKEN_AMOUNT_4: u128 = 1_000_000 * CT_UNIT;
 		const MULTIPLIER_4: u8 = 25u8;
-		const _TICKET_SIZE_4: u128 = 16_320_000_0_000_000_000_u128;
-		const EXPECTED_PLMC_AMOUNT_4: f64 = 77_714.2_857_142_857f64;
+		const _TICKET_SIZE_4: u128 = 163_200_000_000_000_000_u128;
+		const EXPECTED_PLMC_AMOUNT_4: f64 = 77_714.285_714_285_7_f64;
 
 		const CONTRIBUTOR_5: AccountIdOf<TestRuntime> = 5u32;
 		// 0.1233 CTs
 		const TOKEN_AMOUNT_5: u128 = 1_233 * CT_UNIT / 10_000;
 		const MULTIPLIER_5: u8 = 10u8;
-		const _TICKET_SIZE_5: u128 = 2_0_122_562_000_u128;
-		const EXPECTED_PLMC_AMOUNT_5: f64 = 0.0_239_554_285f64;
+		const _TICKET_SIZE_5: u128 = 20_122_562_000_u128;
+		const EXPECTED_PLMC_AMOUNT_5: f64 = 0.023_955_428_5_f64;
 
 		assert_eq!(
 			<TestRuntime as Config>::PriceProvider::get_price(PLMC_FOREIGN_ID).unwrap(),
@@ -381,7 +381,7 @@ fn project_state_transition_event() {
 		true,
 	);
 
-	let events = inst.execute(|| System::events());
+	let events = inst.execute(System::events);
 	let transition_events = events
 		.into_iter()
 		.filter_map(|event| {

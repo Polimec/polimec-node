@@ -25,7 +25,7 @@ use frame_support::{
 	weights::{constants::RocksDbWeight, Weight},
 };
 use frame_system::pallet_prelude::BlockNumberFor;
-use sp_io;
+
 use sp_runtime::{traits::IdentityLookup, BuildStorage, Perbill, Percent};
 
 pub type AccountId = u64;
@@ -349,7 +349,7 @@ pub(crate) fn events() -> Vec<pallet::Event<Test>> {
 #[macro_export]
 macro_rules! assert_no_events {
 	() => {
-		similar_asserts::assert_eq!(Vec::<Event<Test>>::new(), crate::mock::events())
+		similar_asserts::assert_eq!(Vec::<Event<Test>>::new(), $crate::mock::events())
 	};
 }
 
@@ -367,7 +367,7 @@ macro_rules! assert_no_events {
 #[macro_export]
 macro_rules! assert_events_eq {
 	($event:expr) => {
-		similar_asserts::assert_eq!(vec![$event], crate::mock::events());
+		similar_asserts::assert_eq!(vec![$event], $crate::mock::events());
 	};
 	($($events:expr,)+) => {
 		similar_asserts::assert_eq!(vec![$($events,)+], crate::mock::events());
@@ -388,7 +388,7 @@ macro_rules! assert_events_eq {
 macro_rules! assert_events_emitted {
 	($event:expr) => {
 		[$event].into_iter().for_each(|e| assert!(
-			crate::mock::events().into_iter().find(|x| x == &e).is_some(),
+			$crate::mock::events().into_iter().find(|x| x == &e).is_some(),
 			"Event {:?} was not found in events: \n{:#?}",
 			e,
 			crate::mock::events()
@@ -418,7 +418,7 @@ macro_rules! assert_events_emitted {
 macro_rules! assert_events_not_emitted {
 	($event:expr) => {
 		[$event].into_iter().for_each(|e| assert!(
-			crate::mock::events().into_iter().find(|x| x != &e).is_some(),
+			$crate::mock::events().into_iter().find(|x| x != &e).is_some(),
 			"Event {:?} was unexpectedly found in events: \n{:#?}",
 			e,
 			crate::mock::events()
@@ -450,7 +450,7 @@ macro_rules! assert_events_eq_match {
 	($index:expr;) => {
 		assert_eq!(
 			$index,
-			crate::mock::events().len(),
+			$crate::mock::events().len(),
 			"Found {} extra event(s): \n{:#?}",
 			crate::mock::events().len()-$index,
 			crate::mock::events()
@@ -491,7 +491,7 @@ macro_rules! assert_events_eq_match {
 macro_rules! assert_events_emitted_match {
 	($event:pat_param) => {
 		assert!(
-			crate::mock::events().into_iter().any(|x| matches!(x, $event)),
+			$crate::mock::events().into_iter().any(|x| matches!(x, $event)),
 			"Event {:?} was not found in events: \n{:#?}",
 			stringify!($event),
 			crate::mock::events()
@@ -519,7 +519,7 @@ macro_rules! assert_events_emitted_match {
 macro_rules! assert_events_not_emitted_match {
 	($event:pat_param) => {
 		assert!(
-			crate::mock::events().into_iter().any(|x| !matches!(x, $event)),
+			$crate::mock::events().into_iter().any(|x| !matches!(x, $event)),
 			"Event {:?} was unexpectedly found in events: \n{:#?}",
 			stringify!($event),
 			crate::mock::events()
@@ -550,27 +550,27 @@ fn geneses() {
 			assert!(System::events().is_empty());
 			// collators
 			assert_eq!(ParachainStaking::get_collator_stakable_free_balance(&1), 500);
-			assert_eq!(Balances::reserved_balance(&1), 500);
+			assert_eq!(Balances::reserved_balance(1), 500);
 			assert!(ParachainStaking::is_candidate(&1));
-			assert_eq!(Balances::reserved_balance(&2), 200);
+			assert_eq!(Balances::reserved_balance(2), 200);
 			assert_eq!(ParachainStaking::get_collator_stakable_free_balance(&2), 100);
 			assert!(ParachainStaking::is_candidate(&2));
 			// delegators
 			for x in 3..7 {
 				assert!(ParachainStaking::is_delegator(&x));
 				assert_eq!(ParachainStaking::get_delegator_stakable_free_balance(&x), 0);
-				assert_eq!(Balances::reserved_balance(&x), 100);
+				assert_eq!(Balances::reserved_balance(x), 100);
 			}
 			// uninvolved
 			for x in 7..10 {
 				assert!(!ParachainStaking::is_delegator(&x));
 			}
 			// no delegator staking locks
-			assert_eq!(Balances::reserved_balance(&7), 0);
+			assert_eq!(Balances::reserved_balance(7), 0);
 			assert_eq!(ParachainStaking::get_delegator_stakable_free_balance(&7), 100);
-			assert_eq!(Balances::reserved_balance(&8), 0);
+			assert_eq!(Balances::reserved_balance(8), 0);
 			assert_eq!(ParachainStaking::get_delegator_stakable_free_balance(&8), 9);
-			assert_eq!(Balances::reserved_balance(&9), 0);
+			assert_eq!(Balances::reserved_balance(9), 0);
 			assert_eq!(ParachainStaking::get_delegator_stakable_free_balance(&9), 4);
 			// no collator staking locks
 			assert_eq!(ParachainStaking::get_collator_stakable_free_balance(&7), 100);
@@ -598,16 +598,16 @@ fn geneses() {
 			// collators
 			for x in 1..5 {
 				assert!(ParachainStaking::is_candidate(&x));
-				assert_eq!(Balances::reserved_balance(&x), 20);
+				assert_eq!(Balances::reserved_balance(x), 20);
 				assert_eq!(ParachainStaking::get_collator_stakable_free_balance(&x), 80);
 			}
 			assert!(ParachainStaking::is_candidate(&5));
-			assert_eq!(Balances::reserved_balance(&5), 10);
+			assert_eq!(Balances::reserved_balance(5), 10);
 			assert_eq!(ParachainStaking::get_collator_stakable_free_balance(&5), 90);
 			// delegators
 			for x in 6..11 {
 				assert!(ParachainStaking::is_delegator(&x));
-				assert_eq!(Balances::reserved_balance(&x), 10);
+				assert_eq!(Balances::reserved_balance(x), 10);
 				assert_eq!(ParachainStaking::get_delegator_stakable_free_balance(&x), 90);
 			}
 		});

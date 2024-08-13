@@ -170,7 +170,7 @@ pub fn new_test_ext_with_offchain_storage(
 	// let (pool, pool_state) = testing::TestTransactionPoolExt::new();
 	let (pool, pool_state) = testing::TestTransactionPoolExt::new();
 	let keystore = MemoryKeystore::new();
-	keystore.sr25519_generate_new(crate::crypto::POLIMEC_ORACLE, Some(&format!("{}", PHRASE))).unwrap();
+	keystore.sr25519_generate_new(crate::crypto::POLIMEC_ORACLE, Some(&PHRASE.to_string())).unwrap();
 
 	let storage = frame_system::GenesisConfig::<Test>::default().build_storage().unwrap();
 	let mut t: sp_io::TestExternalities = storage.into();
@@ -185,7 +185,7 @@ pub fn price_oracle_response(state: &mut testing::OffchainState) {
 	for (asset, response) in KRAKEN_RESPONSES.iter() {
 		state.expect_request(testing::PendingRequest {
 			method: "GET".into(),
-			uri: format!("https://api.kraken.com/0/public/OHLC?pair={}&interval=1", asset).into(),
+			uri: format!("https://api.kraken.com/0/public/OHLC?pair={}&interval=1", asset),
 			response: Some(response.to_vec()),
 			sent: true,
 			..Default::default()
@@ -195,7 +195,7 @@ pub fn price_oracle_response(state: &mut testing::OffchainState) {
 	for (asset, response) in BITFINEX_RESPONSES.iter() {
 		state.expect_request(testing::PendingRequest {
 			method: "GET".into(),
-			uri: format!("https://api-pub.bitfinex.com/v2/candles/trade%3A1m%3At{}/hist?limit=15", asset).into(),
+			uri: format!("https://api-pub.bitfinex.com/v2/candles/trade%3A1m%3At{}/hist?limit=15", asset),
 			response: Some(response.to_vec()),
 			sent: true,
 			..Default::default()
@@ -204,7 +204,7 @@ pub fn price_oracle_response(state: &mut testing::OffchainState) {
 	for (asset, response) in BITSTAMP_RESPONSES.iter() {
 		state.expect_request(testing::PendingRequest {
 			method: "GET".into(),
-			uri: format!("https://www.bitstamp.net/api/v2/ohlc/{}/?step=60&limit=15", asset).into(),
+			uri: format!("https://www.bitstamp.net/api/v2/ohlc/{}/?step=60&limit=15", asset),
 			response: Some(response.to_vec()),
 			sent: true,
 			..Default::default()
@@ -213,7 +213,7 @@ pub fn price_oracle_response(state: &mut testing::OffchainState) {
 	for (asset, response) in COINBASE_RESPONSES.iter() {
 		state.expect_request(testing::PendingRequest {
 			method: "GET".into(),
-			uri: format!("https://api.exchange.coinbase.com/products/{}/candles?granularity=60", asset).into(),
+			uri: format!("https://api.exchange.coinbase.com/products/{}/candles?granularity=60", asset),
 			response: Some(response.to_vec()),
 			sent: true,
 			..Default::default()

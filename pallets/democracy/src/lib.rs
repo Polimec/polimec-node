@@ -813,12 +813,12 @@ pub mod pallet {
 				return Err(Error::<T>::NoProposal.into());
 			}
 
-			let mut existing_vetoers = <Blacklist<T>>::get(&proposal_hash).map(|pair| pair.1).unwrap_or_default();
+			let mut existing_vetoers = <Blacklist<T>>::get(proposal_hash).map(|pair| pair.1).unwrap_or_default();
 			let insert_position = existing_vetoers.binary_search(&who).err().ok_or(Error::<T>::AlreadyVetoed)?;
 			existing_vetoers.try_insert(insert_position, who.clone()).map_err(|_| Error::<T>::TooMany)?;
 
 			let until = <frame_system::Pallet<T>>::block_number().saturating_add(T::CooloffPeriod::get());
-			<Blacklist<T>>::insert(&proposal_hash, (until, existing_vetoers));
+			<Blacklist<T>>::insert(proposal_hash, (until, existing_vetoers));
 
 			Self::deposit_event(Event::<T>::Vetoed { who, proposal_hash, until });
 			<NextExternal<T>>::kill();
@@ -1020,7 +1020,7 @@ pub mod pallet {
 
 			// Insert the proposal into the blacklist.
 			let permanent = (BlockNumberFor::<T>::max_value(), BoundedVec::<T::AccountId, _>::default());
-			Blacklist::<T>::insert(&proposal_hash, permanent);
+			Blacklist::<T>::insert(proposal_hash, permanent);
 
 			// Remove the queued proposal, if it's there.
 			PublicProps::<T>::mutate(|props| {
@@ -1229,7 +1229,7 @@ impl<T: Config> Pallet<T> {
 	/// Actually enact a vote, if legit.
 	fn try_vote(who: &T::AccountId, ref_index: ReferendumIndex, vote: AccountVote<BalanceOf<T>>) -> DispatchResult {
 		let mut status = Self::referendum_status(ref_index)?;
-		ensure!(vote.balance() <= T::Fungible::total_balance(&who), Error::<T>::InsufficientFunds);
+		ensure!(vote.balance() <= T::Fungible::total_balance(who), Error::<T>::InsufficientFunds);
 		VotingOf::<T>::try_mutate(who, |voting| -> DispatchResult {
 			if let Voting::Direct { ref mut votes, delegations, .. } = voting {
 				match votes.binary_search_by_key(&ref_index, |i| i.0) {
@@ -1479,7 +1479,7 @@ impl<T: Config> Pallet<T> {
 			Self::transfer_metadata(MetadataOwner::External, MetadataOwner::Referendum(ref_index));
 			Ok(())
 		} else {
-			return Err(Error::<T>::NoneWaiting.into());
+			Err(Error::<T>::NoneWaiting.into())
 		}
 	}
 
@@ -1509,7 +1509,7 @@ impl<T: Config> Pallet<T> {
 			}
 			Ok(())
 		} else {
-			return Err(Error::<T>::NoneWaiting.into());
+			Err(Error::<T>::NoneWaiting.into())
 		}
 	}
 

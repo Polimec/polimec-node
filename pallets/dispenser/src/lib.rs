@@ -145,9 +145,9 @@ pub mod pallet {
 	impl<T: Config> Pallet<T> {
 		#[pallet::feeless_if( | origin: &OriginFor<T>, jwt: &UntrustedToken | -> bool {
             if let Ok((_, did, _, _)) = T::InvestorOrigin::ensure_origin(origin.clone(), jwt, T::VerifierPublicKey::get()) {
-                return Dispensed::<T>::get(did).is_none()
+                Dispensed::<T>::get(did).is_none()
             } else {
-                return false
+                false
             }
         })]
 		#[pallet::call_index(0)]

@@ -1,4 +1,5 @@
 use super::*;
+use core::cmp::Ordering;
 use itertools::GroupBy;
 use polimec_common::USD_DECIMALS;
 
@@ -676,12 +677,10 @@ impl<
 			bucket.amount_left = mid_point;
 			let new_wap = bucket.calculate_wap(auction_allocation);
 
-			if new_wap == target_wap {
-				return bucket
-			} else if new_wap < target_wap {
-				upper_bound = mid_point.saturating_sub(1u32.into());
-			} else {
-				lower_bound = mid_point.saturating_add(1u32.into());
+			match new_wap.cmp(&target_wap) {
+				Ordering::Equal => return bucket,
+				Ordering::Less => upper_bound = mid_point.saturating_sub(1u32.into()),
+				Ordering::Greater => lower_bound = mid_point.saturating_add(1u32.into()),
 			}
 		}
 

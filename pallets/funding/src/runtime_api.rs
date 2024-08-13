@@ -198,17 +198,14 @@ impl<T: Config> Pallet<T> {
 			map.entry(account_id).or_insert_with(|| (Vec::new(), Vec::new(), Vec::new())).2.push(contribution_id);
 		}
 
-		let output = map
-			.into_iter()
+		map.into_iter()
 			.map(|(account, (evaluation_ids, bid_ids, contribution_ids))| ProjectParticipationIds {
 				account,
 				evaluation_ids,
 				bid_ids,
 				contribution_ids,
 			})
-			.collect();
-
-		output
+			.collect()
 	}
 
 	pub fn usd_target_percent_reached(project_id: ProjectId) -> FixedU128 {

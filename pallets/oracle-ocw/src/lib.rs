@@ -27,7 +27,7 @@ use core::ops::Rem;
 use frame_system::offchain::{AppCrypto, CreateSignedTransaction, SendSignedTransaction, Signer};
 pub use pallet::*;
 use sp_runtime::{
-	traits::{Convert, Saturating, Zero},
+	traits::{Convert, Saturating},
 	FixedU128, RuntimeAppPublic,
 };
 use sp_std::{collections::btree_map::BTreeMap, vec, vec::Vec};
@@ -152,9 +152,8 @@ pub mod pallet {
 						]),
 					};
 					// Fix for missing PLMC in last_send_for_assets for old nodes, that did not have PLMC in the list.
-					if !last_send_for_assets.contains_key(&AssetName::PLMC) {
-						last_send_for_assets.insert(AssetName::PLMC, Zero::zero());
-					};
+					last_send_for_assets.entry(AssetName::PLMC).or_insert_with(Zero::zero);
+
 					let assets = last_send_for_assets
 						.iter()
 						.filter_map(|(asset_name, last_send)| {
@@ -254,11 +253,11 @@ pub mod pallet {
 			match result {
 				Some((_, Ok(_))) => {
 					log::trace!(target: LOG_TARGET, "offchain tx sent successfully");
-					return Ok(());
+					Ok(())
 				},
 				_ => {
 					log::trace!(target: LOG_TARGET, "failure: offchain_signed_tx");
-					return Err(());
+					Err(())
 				},
 			}
 		}

@@ -218,7 +218,7 @@ impl<Config: config::Config> ExecuteXcm<Config::RuntimeCall> for XcmExecutor<Con
 	fn prepare(mut message: Xcm<Config::RuntimeCall>) -> Result<Self::Prepared, Xcm<Config::RuntimeCall>> {
 		match Config::Weigher::weight(&mut message) {
 			Ok(weight) => Ok(WeighedMessage(weight, message)),
-			Err(_) => Err(message),
+			Err(()) => Err(message),
 		}
 	}
 
@@ -267,7 +267,7 @@ impl<Config: config::Config> ExecuteXcm<Config::RuntimeCall> for XcmExecutor<Con
 		let origin = origin.into();
 		if !Config::FeeManager::is_waived(Some(&origin), FeeReason::ChargeFees) {
 			for asset in fees.inner() {
-				Config::AssetTransactor::withdraw_asset(&asset, &origin, None)?;
+				Config::AssetTransactor::withdraw_asset(asset, &origin, None)?;
 			}
 			Config::FeeManager::handle_fee(fees, None, FeeReason::ChargeFees);
 		}
@@ -434,7 +434,7 @@ impl<Config: config::Config> XcmExecutor<Config> {
 		let paid = if self.fees_mode.jit_withdraw {
 			let origin = self.origin_ref().ok_or(XcmError::BadOrigin)?;
 			for asset in fee.inner() {
-				Config::AssetTransactor::withdraw_asset(&asset, origin, Some(&self.context))?;
+				Config::AssetTransactor::withdraw_asset(asset, origin, Some(&self.context))?;
 			}
 			fee
 		} else {
@@ -452,7 +452,7 @@ impl<Config: config::Config> XcmExecutor<Config> {
 		Ok(match local_querier {
 			None => None,
 			Some(q) => Some(
-				q.reanchored(&destination, Config::UniversalLocation::get()).map_err(|_| XcmError::ReanchorFailed)?,
+				q.reanchored(destination, Config::UniversalLocation::get()).map_err(|_| XcmError::ReanchorFailed)?,
 			),
 		})
 	}
@@ -479,7 +479,7 @@ impl<Config: config::Config> XcmExecutor<Config> {
 		destination: &MultiLocation,
 	) -> Result<(MultiAsset, InteriorMultiLocation), XcmError> {
 		let reanchor_context = Config::UniversalLocation::get();
-		let asset = asset.reanchored(&destination, reanchor_context).map_err(|()| XcmError::ReanchorFailed)?;
+		let asset = asset.reanchored(destination, reanchor_context).map_err(|()| XcmError::ReanchorFailed)?;
 		Ok((asset, reanchor_context))
 	}
 
@@ -488,7 +488,7 @@ impl<Config: config::Config> XcmExecutor<Config> {
 		destination: &MultiLocation,
 	) -> Result<(MultiLocation, InteriorMultiLocation), XcmError> {
 		let reanchor_context = Config::UniversalLocation::get();
-		let location = location.reanchored(&destination, reanchor_context).map_err(|_| XcmError::ReanchorFailed)?;
+		let location = location.reanchored(destination, reanchor_context).map_err(|_| XcmError::ReanchorFailed)?;
 		Ok((location, reanchor_context))
 	}
 
@@ -547,7 +547,7 @@ impl<Config: config::Config> XcmExecutor<Config> {
 				},
 				Err(ref mut error) =>
 					if let Ok(x) = Config::Weigher::instr_weight(&instr) {
-						error.weight.saturating_accrue(x)
+						error.weight.saturating_accrue(x);
 					},
 			}
 		}
@@ -565,7 +565,7 @@ impl<Config: config::Config> XcmExecutor<Config> {
 			WithdrawAsset(assets) => {
 				// Take `assets` from the origin account (on-chain) and place in holding.
 				let origin = *self.origin_ref().ok_or(XcmError::BadOrigin)?;
-				for asset in assets.into_inner().into_iter() {
+				for asset in assets.into_inner() {
 					Config::AssetTransactor::withdraw_asset(&asset, &origin, Some(&self.context))?;
 					self.subsume_asset(asset)?;
 				}
@@ -574,7 +574,7 @@ impl<Config: config::Config> XcmExecutor<Config> {
 			ReserveAssetDeposited(assets) => {
 				// check whether we trust origin to be our reserve location for this asset.
 				let origin = *self.origin_ref().ok_or(XcmError::BadOrigin)?;
-				for asset in assets.into_inner().into_iter() {
+				for asset in assets.into_inner() {
 					// Must ensure that we recognise the asset as being managed by the origin.
 					ensure!(Config::IsReserve::contains(&asset, &origin), XcmError::UntrustedReserveLocation);
 					self.subsume_asset(asset)?;
@@ -585,7 +585,7 @@ impl<Config: config::Config> XcmExecutor<Config> {
 				// Take `assets` from the origin account (on-chain) and place into dest account.
 				let origin = self.origin_ref().ok_or(XcmError::BadOrigin)?;
 				for asset in assets.inner() {
-					Config::AssetTransactor::transfer_asset(&asset, origin, &beneficiary, &self.context)?;
+					Config::AssetTransactor::transfer_asset(asset, origin, &beneficiary, &self.context)?;
 				}
 				Ok(())
 			},
@@ -598,7 +598,7 @@ impl<Config: config::Config> XcmExecutor<Config> {
 				let reanchor_context = Config::UniversalLocation::get();
 				assets.reanchor(&dest, reanchor_context).map_err(|()| XcmError::LocationFull)?;
 				let mut message = vec![ReserveAssetDeposited(assets), ClearOrigin];
-				message.extend(xcm.0.into_iter());
+				message.extend(xcm.0);
 				self.send(dest, Xcm(message), FeeReason::TransferReserveAsset)?;
 				Ok(())
 			},
@@ -615,7 +615,7 @@ impl<Config: config::Config> XcmExecutor<Config> {
 					// innocent chain/user).
 					Config::AssetTransactor::can_check_in(&origin, asset, &self.context)?;
 				}
-				for asset in assets.into_inner().into_iter() {
+				for asset in assets.into_inner() {
 					Config::AssetTransactor::check_in(&origin, &asset, &self.context);
 					self.subsume_asset(asset)?;
 				}
@@ -633,7 +633,7 @@ impl<Config: config::Config> XcmExecutor<Config> {
 				})?;
 
 				// TODO: #2841 #TRANSACTFILTER allow the trait to issue filters for the relay-chain
-				let message_call = call.take_decoded().map_err(|_| {
+				let message_call = call.take_decoded().map_err(|()| {
 					log::trace!(
 						target: "xcm::process_instruction::transact",
 						"Failed to decode call",
@@ -763,7 +763,7 @@ impl<Config: config::Config> XcmExecutor<Config> {
 				// be reanchored  because we have already called `deposit_asset` on all assets.
 				let assets = Self::reanchored(deposited, &dest, None);
 				let mut message = vec![ReserveAssetDeposited(assets), ClearOrigin];
-				message.extend(xcm.0.into_iter());
+				message.extend(xcm.0);
 				self.send(dest, Xcm(message), FeeReason::DepositReserveAsset)?;
 				Ok(())
 			},
@@ -772,7 +772,7 @@ impl<Config: config::Config> XcmExecutor<Config> {
 				// back into Holding.
 				let assets = Self::reanchored(self.holding.saturating_take(assets), &reserve, Some(&mut self.holding));
 				let mut message = vec![WithdrawAsset(assets), ClearOrigin];
-				message.extend(xcm.0.into_iter());
+				message.extend(xcm.0);
 				self.send(reserve, Xcm(message), FeeReason::InitiateReserveWithdraw)?;
 				Ok(())
 			},
@@ -793,7 +793,7 @@ impl<Config: config::Config> XcmExecutor<Config> {
 				// be reanchored  because we have already checked all assets out.
 				let assets = Self::reanchored(assets, &dest, None);
 				let mut message = vec![ReceiveTeleportedAsset(assets), ClearOrigin];
-				message.extend(xcm.0.into_iter());
+				message.extend(xcm.0);
 				self.send(dest, Xcm(message), FeeReason::InitiateTeleport)?;
 				Ok(())
 			},
@@ -842,7 +842,7 @@ impl<Config: config::Config> XcmExecutor<Config> {
 				let origin = self.origin_ref().ok_or(XcmError::BadOrigin)?;
 				let ok = Config::AssetClaims::claim_assets(origin, &ticket, &assets, &self.context);
 				ensure!(ok, XcmError::UnknownClaim);
-				for asset in assets.into_inner().into_iter() {
+				for asset in assets.into_inner() {
 					self.subsume_asset(asset)?;
 				}
 				Ok(())
@@ -886,9 +886,9 @@ impl<Config: config::Config> XcmExecutor<Config> {
 							x.index as u32,
 							x.name.as_bytes().into(),
 							x.module_name.as_bytes().into(),
-							x.crate_version.major as u32,
-							x.crate_version.minor as u32,
-							x.crate_version.patch as u32,
+							u32::from(x.crate_version.major),
+							u32::from(x.crate_version.minor),
+							u32::from(x.crate_version.patch),
 						)
 					})
 					.collect::<Result<Vec<_>, XcmError>>()?;
@@ -907,9 +907,9 @@ impl<Config: config::Config> XcmExecutor<Config> {
 					.ok_or(XcmError::PalletNotFound)?;
 				ensure!(pallet.name.as_bytes() == &name[..], XcmError::NameMismatch);
 				ensure!(pallet.module_name.as_bytes() == &module_name[..], XcmError::NameMismatch);
-				let major = pallet.crate_version.major as u32;
+				let major = u32::from(pallet.crate_version.major);
 				ensure!(major == crate_major, XcmError::VersionIncompatible);
-				let minor = pallet.crate_version.minor as u32;
+				let minor = u32::from(pallet.crate_version.minor);
 				ensure!(minor >= min_crate_minor, XcmError::VersionIncompatible);
 				Ok(())
 			},

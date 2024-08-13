@@ -1384,7 +1384,7 @@ impl<
 			)?;
 		} else {
 			let additional_hold = Into::<T::Balance>::into(self.total).saturating_sub(total_bonded);
-			T::Currency::hold(&HoldReason::StakingDelegator.into(), &self.id.clone().into(), additional_hold.into())?;
+			T::Currency::hold(&HoldReason::StakingDelegator.into(), &self.id.clone().into(), additional_hold)?;
 		}
 
 		Ok(())

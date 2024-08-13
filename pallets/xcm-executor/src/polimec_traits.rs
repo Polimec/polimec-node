@@ -22,7 +22,9 @@ use xcm::v3::{
 pub use xcm_executor::traits::*;
 
 pub trait HrmpHandler {
+	#[allow(clippy::missing_errors_doc)]
 	fn handle_channel_open_request(message: Instruction) -> XcmResult;
+	#[allow(clippy::missing_errors_doc)]
 	fn handle_channel_accepted(message: Instruction) -> XcmResult;
 }
 

@@ -92,7 +92,7 @@ impl<T: Config> Pallet<T> {
 		// TODO: set these constants with a proper value
 		const EXECUTION_DOT: MultiAsset = MultiAsset {
 			id: Concrete(MultiLocation { parents: 0, interior: Here }),
-			fun: Fungible(1_0_000_000_000u128),
+			fun: Fungible(10_000_000_000_u128),
 		};
 		const MAX_WEIGHT: Weight = Weight::from_parts(20_000_000_000, 1_000_000);
 
@@ -466,7 +466,7 @@ impl<T: Config> Pallet<T> {
 		Self::change_migration_status(project_id, participant.clone(), MigrationStatus::Sent(query_id))?;
 
 		// * Process Data *
-		let xcm = Self::construct_migration_xcm_message(migrations.into(), query_id, pallet_index);
+		let xcm = Self::construct_migration_xcm_message(migrations, query_id, pallet_index);
 
 		<pallet_xcm::Pallet<T>>::send_xcm(Here, project_multilocation, xcm).map_err(|_| Error::<T>::XcmFailed)?;
 		ActiveMigrationQueue::<T>::insert(query_id, (project_id, participant.clone()));

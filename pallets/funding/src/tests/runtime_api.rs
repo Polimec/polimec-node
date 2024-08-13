@@ -310,7 +310,7 @@ fn contribution_tokens() {
 
 	inst.execute(|| {
 		let block_hash = System::block_hash(System::block_number());
-		let bob_items = TestRuntime::contribution_tokens(&TestRuntime, block_hash, bob.clone()).unwrap();
+		let bob_items = TestRuntime::contribution_tokens(&TestRuntime, block_hash, bob).unwrap();
 		assert_eq!(bob_items, expected_items);
 	});
 }
@@ -326,7 +326,7 @@ fn funding_asset_to_ct_amount() {
 		PriceOf::<TestRuntime>::from_float(69.0f64)
 	);
 
-	let dot_amount: u128 = 1350_0_000_000_000;
+	let dot_amount: u128 = 13_500_000_000_000;
 	// USD Ticket = 93_150 USD
 
 	// Easy case, wap is already calculated, we want to know how many tokens at wap we can buy with `x` USDT
@@ -432,7 +432,7 @@ fn funding_asset_to_ct_amount() {
 
 	dbg!(current_bucket.current_price.saturating_mul_int(current_bucket.amount_left));
 
-	let dot_amount: u128 = 217_0_000_000_000;
+	let dot_amount: u128 = 2_170_000_000_000;
 	let expected_ct_amount: u128 = 935_812_500_000_000_000;
 
 	inst.execute(|| {
@@ -454,7 +454,7 @@ fn funding_asset_to_ct_amount() {
 	// We need to buy 50k at 16 , 50k at 17, and 13.5k at 18 = 1893k USD
 
 	// Amount needed to spend 1893k USD through several buckets with DOT at 69 USD/DOT
-	let dot_amount = 27_434_7_826_086_956u128;
+	let dot_amount = 274_347_826_086_956_u128;
 	let expected_ct_amount = 113_500 * CT_UNIT;
 
 	inst.execute(|| {
@@ -511,12 +511,12 @@ fn all_project_participations_by_did() {
 	);
 	let community_contributions_plmc = inst.calculate_contributed_plmc_spent(
 		community_contributions.clone(),
-		project_metadata.minimum_price.clone(),
+		project_metadata.minimum_price,
 		true,
 	);
 	let remainder_contributions_plmc = inst.calculate_contributed_plmc_spent(
 		remainder_contributions.clone(),
-		project_metadata.minimum_price.clone(),
+		project_metadata.minimum_price,
 		true,
 	);
 	let all_plmc = inst.generic_map_operation(
@@ -532,11 +532,11 @@ fn all_project_participations_by_did() {
 	);
 	let community_contributions_usdt = inst.calculate_contributed_funding_asset_spent(
 		community_contributions.clone(),
-		project_metadata.minimum_price.clone(),
+		project_metadata.minimum_price,
 	);
 	let remainder_contributions_usdt = inst.calculate_contributed_funding_asset_spent(
 		remainder_contributions.clone(),
-		project_metadata.minimum_price.clone(),
+		project_metadata.minimum_price,
 	);
 	let all_usdt = inst.generic_map_operation(
 		vec![bids_usdt, community_contributions_usdt, remainder_contributions_usdt],

@@ -735,7 +735,7 @@ impl<
 
 			let amount = if let EvaluatorsOutcome::Rewarded(ref info) = evaluators_outcome {
 				assert!(is_successful);
-				Pallet::<T>::calculate_evaluator_reward(&evaluation, &info)
+				Pallet::<T>::calculate_evaluator_reward(&evaluation, info)
 			} else {
 				assert!(!is_successful);
 				Zero::zero()

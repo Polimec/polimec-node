@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-//! Service and ServiceFactory implementation. Specialized wrapper over substrate service.
+//! Service and `ServiceFactory` implementation. Specialized wrapper over substrate service.
 
 // std
 use std::{sync::Arc, time::Duration};
@@ -61,7 +61,7 @@ type ParachainBackend = TFullBackend<Block>;
 
 type ParachainBlockImport = TParachainBlockImport<Block, Arc<ParachainClient>, ParachainBackend>;
 
-/// Assembly of PartialComponents (enough to run chain ops subcommands)
+/// Assembly of `PartialComponents` (enough to run chain ops subcommands)
 pub type Service = PartialComponents<
 	ParachainClient,
 	ParachainBackend,
@@ -126,7 +126,7 @@ pub fn new_partial(config: &Configuration) -> Result<Service, sc_service::Error>
 		client.clone(),
 		block_import.clone(),
 		config,
-		telemetry.as_ref().map(|telemetry| telemetry.handle()),
+		telemetry.as_ref().map(sc_telemetry::Telemetry::handle),
 		&task_manager,
 	)?;
 
@@ -291,7 +291,7 @@ async fn start_node_impl(
 			backend.clone(),
 			block_import,
 			prometheus_registry.as_ref(),
-			telemetry.as_ref().map(|t| t.handle()),
+			telemetry.as_ref().map(sc_telemetry::Telemetry::handle),
 			&task_manager,
 			relay_chain_interface.clone(),
 			transaction_pool,
@@ -329,7 +329,7 @@ fn build_import_queue(
 	>(
 		client,
 		block_import,
-		move |_, _| async move {
+		move |_, ()| async move {
 			let timestamp = sp_timestamp::InherentDataProvider::from_system_time();
 			Ok(timestamp)
 		},

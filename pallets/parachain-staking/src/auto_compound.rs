@@ -290,7 +290,7 @@ mod tests {
 	#[test]
 	fn test_set_for_delegator_inserts_config_and_returns_true_if_entry_missing() {
 		let mut delegations_config = AutoCompoundDelegations::<Test>::new(vec![].try_into().expect("must succeed"));
-		assert_eq!(true, delegations_config.set_for_delegator(1, Percent::from_percent(50)).expect("must succeed"));
+		assert!(delegations_config.set_for_delegator(1, Percent::from_percent(50)).expect("must succeed"));
 		assert_eq!(
 			vec![AutoCompoundConfig { delegator: 1, value: Percent::from_percent(50) }],
 			delegations_config.into_inner().into_inner(),
@@ -304,7 +304,7 @@ mod tests {
 				.try_into()
 				.expect("must succeed"),
 		);
-		assert_eq!(true, delegations_config.set_for_delegator(1, Percent::from_percent(50)).expect("must succeed"));
+		assert!(delegations_config.set_for_delegator(1, Percent::from_percent(50)).expect("must succeed"));
 		assert_eq!(
 			vec![AutoCompoundConfig { delegator: 1, value: Percent::from_percent(50) }],
 			delegations_config.into_inner().into_inner(),
@@ -318,7 +318,7 @@ mod tests {
 				.try_into()
 				.expect("must succeed"),
 		);
-		assert_eq!(false, delegations_config.set_for_delegator(1, Percent::from_percent(10)).expect("must succeed"));
+		assert!(!delegations_config.set_for_delegator(1, Percent::from_percent(10)).expect("must succeed"));
 		assert_eq!(
 			vec![AutoCompoundConfig { delegator: 1, value: Percent::from_percent(10) }],
 			delegations_config.into_inner().into_inner(),
@@ -328,7 +328,7 @@ mod tests {
 	#[test]
 	fn test_remove_for_delegator_returns_false_if_entry_was_missing() {
 		let mut delegations_config = AutoCompoundDelegations::<Test>::new(vec![].try_into().expect("must succeed"));
-		assert_eq!(false, delegations_config.remove_for_delegator(&1),);
+		assert!(!delegations_config.remove_for_delegator(&1),);
 	}
 
 	#[test]
@@ -338,6 +338,6 @@ mod tests {
 				.try_into()
 				.expect("must succeed"),
 		);
-		assert_eq!(true, delegations_config.remove_for_delegator(&1));
+		assert!(delegations_config.remove_for_delegator(&1));
 	}
 }

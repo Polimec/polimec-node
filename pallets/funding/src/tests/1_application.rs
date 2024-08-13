@@ -825,7 +825,7 @@ mod edit_project_extrinsic {
 				project_id,
 				project_metadata.clone()
 			)));
-			let next_project_id = inst.execute(|| NextProjectId::<TestRuntime>::get());
+			let next_project_id = inst.execute(NextProjectId::<TestRuntime>::get);
 			assert_eq!(project_id, next_project_id - 1);
 			let projects_details = inst.execute(|| ProjectsDetails::<TestRuntime>::iter_keys().collect_vec());
 			let project_metadatas = inst.execute(|| ProjectsMetadata::<TestRuntime>::iter_keys().collect_vec());

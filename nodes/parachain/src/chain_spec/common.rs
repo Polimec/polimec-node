@@ -139,9 +139,9 @@ pub fn genesis_config(genesis_config_params: GenesisConfigParams) -> serde_json:
 			],
 			// (id, account_id, amount)
 			"accounts": vec![
-				(usdt_id, funding_assets_owner.clone(), 1000000000000u64),
-				(usdc_id, funding_assets_owner.clone(), 1000000000000u64),
-				(dot_id, funding_assets_owner.clone(), 1000000000000u64)
+				(usdt_id, funding_assets_owner.clone(), 1_000_000_000_000_u64),
+				(usdc_id, funding_assets_owner.clone(), 1_000_000_000_000_u64),
+				(dot_id, funding_assets_owner.clone(), 1_000_000_000_000_u64)
 			],
 		},
 		"parachainStaking": {

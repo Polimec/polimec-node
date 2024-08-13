@@ -102,7 +102,6 @@ use frame_support::{
 	},
 	weights::Weight,
 };
-use log;
 use parity_scale_codec::{Decode, Encode};
 use scale_info::TypeInfo;
 use sp_npos_elections::{ElectionResult, ExtendedBalance};
@@ -572,7 +571,7 @@ pub mod pallet {
 		#[pallet::call_index(5)]
 		#[pallet::weight(T::WeightInfo::clean_defunct_voters(*num_voters, *num_defunct))]
 		pub fn clean_defunct_voters(origin: OriginFor<T>, num_voters: u32, num_defunct: u32) -> DispatchResult {
-			let _ = ensure_root(origin)?;
+			ensure_root(origin)?;
 
 			<Voting<T>>::iter()
 				.take(num_voters as usize)
@@ -729,7 +728,7 @@ pub mod pallet {
 					// once this genesis voter is removed, and for now it is okay because
 					// remove_lock is noop if lock is not there.
 					<Voting<T>>::insert(
-						&member,
+						member,
 						Voter { votes: vec![member.clone()], stake: *stake, lockup_till: T::VotingLockPeriod::get() },
 					);
 
@@ -1373,7 +1372,7 @@ mod tests {
 			self
 		}
 
-		pub fn build_and_execute(self, test: impl FnOnce() -> ()) {
+		pub fn build_and_execute(self, test: impl FnOnce()) {
 			sp_tracing::try_init_simple();
 			MEMBERS.with(|m| *m.borrow_mut() = self.genesis_members.iter().map(|(m, _)| *m).collect::<Vec<_>>());
 			let mut ext: sp_io::TestExternalities = RuntimeGenesisConfig {
@@ -2002,7 +2001,7 @@ mod tests {
 			assert_ok!(vote(RuntimeOrigin::signed(2), vec![5], 20));
 			assert_ok!(vote(RuntimeOrigin::signed(3), vec![5], 30));
 
-			assert_eq_uvec!(all_voters(), vec![2, 3]);
+			assert_eq_uvec!(all_voters(), [2, 3]);
 			assert_eq!(balances(&2), (20, 0));
 			assert_eq!(locked_stake_of(&2), 20);
 			assert_eq!(balances(&3), (30, 0));
@@ -2014,12 +2013,12 @@ mod tests {
 			System::set_block_number(3);
 			assert_ok!(Elections::remove_voter(RuntimeOrigin::signed(2)));
 
-			assert_eq_uvec!(all_voters(), vec![3]);
+			assert_eq_uvec!(all_voters(), [3]);
 			assert!(votes_of(&2).is_empty());
 			assert_eq!(locked_stake_of(&2), 0);
 
 			assert_eq!(balances(&2), (20, 0));
-			assert_eq!(Balances::locks(&2).len(), 0);
+			assert_eq!(Balances::locks(2).len(), 0);
 		});
 	}
 
@@ -2074,7 +2073,7 @@ mod tests {
 			assert_ok!(vote(RuntimeOrigin::signed(4), vec![4], 15));
 			assert_ok!(vote(RuntimeOrigin::signed(3), vec![3], 30));
 
-			assert_eq_uvec!(all_voters(), vec![2, 3, 4]);
+			assert_eq_uvec!(all_voters(), [2, 3, 4]);
 
 			assert_eq!(votes_of(&2), vec![5]);
 			assert_eq!(votes_of(&3), vec![3]);
@@ -2094,7 +2093,7 @@ mod tests {
 			assert_eq!(members_and_stake(), vec![(3, 30), (5, 20)]);
 			assert!(Elections::runners_up().is_empty());
 
-			assert_eq_uvec!(all_voters(), vec![2, 3, 4]);
+			assert_eq_uvec!(all_voters(), [2, 3, 4]);
 			assert!(candidate_ids().is_empty());
 			assert_eq!(<Candidates<Test>>::decode_len(), None);
 
@@ -2170,7 +2169,7 @@ mod tests {
 			// candidate 4 is affected by an old vote.
 			assert_eq!(members_and_stake(), vec![(4, 30), (5, 50)]);
 			assert_eq!(Elections::election_rounds(), 2);
-			assert_eq_uvec!(all_voters(), vec![3, 5]);
+			assert_eq_uvec!(all_voters(), [3, 5]);
 		});
 	}
 
@@ -2402,7 +2401,7 @@ mod tests {
 				// no new candidates but old members and runners-up are always added.
 				assert!(candidate_ids().is_empty());
 				assert_eq!(Elections::election_rounds(), b / 5);
-				assert_eq_uvec!(all_voters(), vec![2, 3, 4, 5]);
+				assert_eq_uvec!(all_voters(), [2, 3, 4, 5]);
 			};
 
 			// this state will always persist when no further input is given.
@@ -2533,7 +2532,7 @@ mod tests {
 			System::set_block_number(5);
 			Elections::on_initialize(System::block_number());
 
-			assert_eq_uvec!(members_ids(), vec![3, 4]);
+			assert_eq_uvec!(members_ids(), [3, 4]);
 			assert_eq!(Elections::election_rounds(), 1);
 		});
 	}
@@ -2941,7 +2940,7 @@ mod tests {
 		// wrong member to remove.
 		ExtBuilder::default().desired_runners_up(1).build_and_execute(|| {
 			setup();
-			assert!(matches!(Elections::remove_and_replace_member(&2, false), Err(_)));
+			assert!(Elections::remove_and_replace_member(&2, false).is_err());
 		});
 	}
 

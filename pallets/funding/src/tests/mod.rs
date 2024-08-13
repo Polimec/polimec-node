@@ -123,7 +123,8 @@ pub mod defaults {
 			CT_DECIMALS,
 		)
 		.unwrap();
-		let project_metadata = ProjectMetadataOf::<TestRuntime> {
+		
+		ProjectMetadataOf::<TestRuntime> {
 			token_information: CurrencyMetadata { name: bounded_name, symbol: bounded_symbol, decimals: CT_DECIMALS },
 			mainnet_token_max_supply: 8_000_000 * CT_UNIT,
 			total_allocation_size: 100_000 * CT_UNIT,
@@ -143,8 +144,7 @@ pub mod defaults {
 			participation_currencies: vec![AcceptedFundingAsset::USDT].try_into().unwrap(),
 			funding_destination_account: ISSUER_1,
 			policy_ipfs_cid: Some(metadata_hash),
-		};
-		project_metadata
+		}
 	}
 
 	pub fn default_plmc_balances() -> Vec<UserToPLMCBalance<TestRuntime>> {

@@ -135,10 +135,8 @@ impl<T: Config> Pallet<T> {
 	pub fn do_settle_bid(bid: BidInfoOf<T>, project_id: ProjectId) -> DispatchResult {
 		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 		let project_metadata = ProjectsMetadata::<T>::get(project_id).ok_or(Error::<T>::ProjectMetadataNotFound)?;
-		let funding_success = match project_details.status {
-			ProjectStatus::SettlementStarted(FundingOutcome::Success) => true,
-			_ => false,
-		};
+		let funding_success =
+			matches!(project_details.status, ProjectStatus::SettlementStarted(FundingOutcome::Success));
 		let wap = project_details.weighted_average_price.ok_or(Error::<T>::ImpossibleState)?;
 
 		ensure!(

@@ -393,11 +393,9 @@ impl<T: Config> Pallet<T> {
 		ensure!(project_details.status == current_round, Error::<T>::IncorrectRound);
 		ensure!(project_details.round_duration.ended(now) || skip_end_check, Error::<T>::TooEarlyForRound);
 
-		let round_end = if let Some(round_duration) = maybe_round_duration {
-			Some(now.saturating_add(round_duration).saturating_sub(One::one()))
-		} else {
-			None
-		};
+		let round_end =
+			maybe_round_duration.map(|round_duration| now.saturating_add(round_duration).saturating_sub(One::one()));
+
 		project_details.round_duration = BlockNumberPair::new(Some(now), round_end);
 		project_details.status = next_round.clone();
 

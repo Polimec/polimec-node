@@ -68,7 +68,7 @@ mod start_settlement_extrinsic {
 			assert_eq!(project_details.funding_end_block, None);
 			assert_eq!(project_details.status, ProjectStatus::FundingSuccessful);
 			inst.execute(|| {
-				assert_eq!(<TestRuntime as Config>::ContributionTokenCurrency::asset_exists(project_id), false)
+				assert!(!<TestRuntime as Config>::ContributionTokenCurrency::asset_exists(project_id))
 			});
 
 			inst.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get());
@@ -80,7 +80,7 @@ mod start_settlement_extrinsic {
 			assert_eq!(project_details.funding_end_block, Some(inst.current_block()));
 			assert_eq!(project_details.status, ProjectStatus::SettlementStarted(FundingOutcome::Success));
 			inst.execute(|| {
-				assert_eq!(<TestRuntime as Config>::ContributionTokenCurrency::asset_exists(project_id), true)
+				assert!(<TestRuntime as Config>::ContributionTokenCurrency::asset_exists(project_id))
 			});
 
 			inst.assert_ct_balance(project_id, ct_treasury, treasury_allocation);
@@ -94,7 +94,7 @@ mod start_settlement_extrinsic {
 			assert_eq!(project_details.funding_end_block, None);
 			assert_eq!(project_details.status, ProjectStatus::FundingFailed);
 			inst.execute(|| {
-				assert_eq!(<TestRuntime as Config>::ContributionTokenCurrency::asset_exists(project_id), false)
+				assert!(!<TestRuntime as Config>::ContributionTokenCurrency::asset_exists(project_id))
 			});
 
 			inst.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get());
@@ -106,7 +106,7 @@ mod start_settlement_extrinsic {
 			assert_eq!(project_details.funding_end_block, Some(inst.current_block()));
 			assert_eq!(project_details.status, ProjectStatus::SettlementStarted(FundingOutcome::Failure));
 			inst.execute(|| {
-				assert_eq!(<TestRuntime as Config>::ContributionTokenCurrency::asset_exists(project_id), false)
+				assert!(!<TestRuntime as Config>::ContributionTokenCurrency::asset_exists(project_id))
 			});
 		}
 	}
@@ -240,9 +240,9 @@ mod settle_evaluation_extrinsic {
 			// Evaluation 2 Total reward = Evaluation 2 Early reward + Evaluation 2 Normal reward = 1_080 + 4_033 = 5'117.383177570093458 CT
 			// Evaluation 3 Total reward = Evaluation 3 Early reward + Evaluation 3 Normal reward = 1_080 + 5_201 = 6'247.850467289719626 CT
 
-			const EVAL_1_REWARD: u128 = 10_234_766355140186916;
-			const EVAL_2_REWARD: u128 = 5_117_383177570093458;
-			const EVAL_3_REWARD: u128 = 6_247_850467289719626;
+			const EVAL_1_REWARD: u128 = 10_234_766_355_140_186_916;
+			const EVAL_2_REWARD: u128 = 5_117_383_177_570_093_458;
+			const EVAL_3_REWARD: u128 = 6_247_850_467_289_719_626;
 
 			let prev_ct_balances = inst.get_ct_asset_balances_for(project_id, vec![ISSUER_1, ISSUER_2, ISSUER_3]);
 			assert!(prev_ct_balances.iter().all(|x| *x == Zero::zero()));

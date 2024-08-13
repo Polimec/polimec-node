@@ -36,6 +36,7 @@ pub enum InvestorType {
 }
 
 impl InvestorType {
+	#[must_use]
 	pub fn as_str(&self) -> &'static str {
 		match self {
 			InvestorType::Retail => "retail",
@@ -87,7 +88,10 @@ where
 		let Ok(now) = Now::<T>::get().try_into() else { return Err(origin) };
 		let Some(date_time) = claims.expiration else { return Err(origin) };
 
-		if claims.custom.subject == who && (date_time.timestamp_millis() as u64) >= now {
+		// Negative timestamp has unintended behavior with underflow.
+		let time_stamp: u64 = date_time.timestamp_millis().try_into().map_err(|_| origin.clone())?;
+
+		if claims.custom.subject == who && time_stamp >= now {
 			return Ok((
 				who,
 				claims.custom.did.clone(),

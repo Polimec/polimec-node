@@ -219,10 +219,8 @@ where
 		len: usize,
 		result: &DispatchResult,
 	) -> Result<(), TransactionValidityError> {
-		if let Some(pre) = pre {
-			if let Some(pre) = pre {
-				S::post_dispatch(Some(pre), info, post_info, len, result)?;
-			}
+		if let Some(Some(pre)) = pre {
+			S::post_dispatch(Some(pre), info, post_info, len, result)?;
 		}
 		Ok(())
 	}

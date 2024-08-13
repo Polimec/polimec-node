@@ -20,7 +20,7 @@
 
 use sc_service::ChainType;
 
-use crate::chain_spec::{common::*, get_properties, Extensions, GenericChainSpec, DEFAULT_PARA_ID};
+use crate::chain_spec::{common::{GenesisConfigParams, alice, bob, charlie, dave, eve, genesis_config}, get_properties, Extensions, GenericChainSpec, DEFAULT_PARA_ID};
 use polimec_runtime::{AccountId, MinCandidateStk};
 
 pub fn get_local_chain_spec() -> GenericChainSpec {
