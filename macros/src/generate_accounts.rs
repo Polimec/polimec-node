@@ -31,7 +31,7 @@ use syn::{
 	Expr, GenericArgument, GenericParam, Generics, Ident, ItemMod, Result, Token, Type, Visibility, WhereClause,
 };
 
-pub fn generate_accounts_impl(input: TokenStream) -> TokenStream {
+pub fn macro_impl(input: TokenStream) -> TokenStream {
 	let inputs = parse_macro_input!(input with Punctuated::<Ident, Token![,]>::parse_terminated);
 	let mut output = quote! {};
 	let mut insertions = Vec::new();
@@ -40,9 +40,7 @@ pub fn generate_accounts_impl(input: TokenStream) -> TokenStream {
 		let name = input.to_string();
 
 		// Ensure the name is all uppercase
-		if name != name.to_uppercase() {
-			panic!("Name must be in all uppercase");
-		}
+		assert_eq!(name, name.to_uppercase(), "Name must be in all uppercase");
 
 		// Generate a unique [u8; 32] value for the constant
 		let mut value = [0u8; 32];

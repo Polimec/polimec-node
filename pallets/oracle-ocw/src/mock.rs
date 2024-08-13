@@ -116,7 +116,7 @@ parameter_types! {
 	];
 }
 impl Config for Test {
-	type AppCrypto = crate::crypto::PolimecCrypto;
+	type AppCrypto = crate::crypto::Polimec;
 	type ConvertAssetPricePair = AssetPriceConverter;
 	type FetchInterval = ConstU64<5u64>;
 	type FetchWindow = ConstU64<1u64>;

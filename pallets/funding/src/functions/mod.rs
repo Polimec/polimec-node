@@ -1,6 +1,5 @@
-use super::*;
-
-use crate::traits::{BondingRequirementCalculation, ProvideAssetPrice, VestingDurationCalculation};
+#[allow(clippy::wildcard_imports)]
+use super::{traits::*, *};
 use core::ops::Not;
 use frame_support::{
 	dispatch::{DispatchErrorWithPostInfo, DispatchResult, DispatchResultWithPostInfo, PostDispatchInfo},

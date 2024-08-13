@@ -499,7 +499,6 @@ fn ct_migrated() {
 
 	PenNet::execute_with(|| {
 		println!("penpal events:");
-		dbg!(PenNet::events());
 	});
 
 	// Migration is ready
@@ -519,10 +518,8 @@ fn ct_migrated() {
 	// Migrate CTs
 	let accounts = excel_ct_amounts().iter().map(|item| item.0.clone()).unique().collect::<Vec<_>>();
 	let total_ct_sold = excel_ct_amounts().iter().fold(FixedU128::zero(), |acc, item| acc + item.1);
-	dbg!(total_ct_sold);
 	let polimec_sov_acc = PenNet::sovereign_account_id_of((Parent, Parachain(polimec::PARA_ID)).into());
 	let polimec_fund_balance = PenNet::account_data_of(polimec_sov_acc);
-	dbg!(polimec_fund_balance);
 
 	let names = names();
 
@@ -550,7 +547,7 @@ fn ct_migrated() {
 		let data = PenNet::account_data_of(item.0.clone());
 		let key: [u8; 32] = item.0.clone().into();
 		println!("Participant {} has {} CTs. Expected {}", names[&key], data.free.clone(), item.1);
-		dbg!(data.clone());
+
 		let amount_as_balance = item.1.saturating_mul_int(CT_UNIT);
 		assert_close_enough!(
 			data.free,

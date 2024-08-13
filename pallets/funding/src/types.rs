@@ -19,25 +19,27 @@
 //! Types for Funding pallet.
 
 use crate::{traits::BondingRequirementCalculation, BalanceOf};
-pub use config_types::*;
+pub use config::*;
+pub use extrinsic::*;
 use frame_support::{pallet_prelude::*, traits::tokens::Balance as BalanceT};
 use frame_system::pallet_prelude::BlockNumberFor;
-pub use inner_types::*;
+pub use inner::*;
+use parachains_common::DAYS;
 use polimec_common::USD_DECIMALS;
 use polkadot_parachain_primitives::primitives::Id as ParaId;
 use serde::{Deserialize, Serialize};
-use sp_arithmetic::{FixedPointNumber, FixedPointOperand, Percent};
-use sp_runtime::traits::{CheckedDiv, CheckedMul, One};
+use sp_arithmetic::{traits::Saturating, FixedPointNumber, FixedPointOperand, FixedU128, Percent};
+use sp_runtime::traits::{CheckedDiv, CheckedMul, Convert, One};
 use sp_std::{cmp::Eq, prelude::*};
-pub use storage_types::*;
+pub use storage::*;
 
-pub mod config_types {
-	use parachains_common::DAYS;
-	use sp_arithmetic::{traits::Saturating, FixedU128};
-	use sp_runtime::traits::{Convert, One};
+use crate::{traits::VestingDurationCalculation, Config};
 
-	use crate::{traits::VestingDurationCalculation, Config};
+use sp_runtime::traits::Zero;
+use variant_count::VariantCount;
 
+pub mod config {
+	#[allow(clippy::wildcard_imports)]
 	use super::*;
 
 	#[derive(
@@ -58,28 +60,15 @@ pub mod config_types {
 	pub struct Multiplier(u8);
 
 	impl Multiplier {
-		/// Creates a new `Multiplier` if the value is between 1 and 25, otherwise returns an error.
-		pub const fn new(x: u8) -> Result<Self, ()> {
-			// The minimum and maximum values are chosen to be 1 and 25 respectively, as defined in the Knowledge Hub.
-			const MIN_VALID: u8 = 1;
-			const MAX_VALID: u8 = 25;
-
-			if x >= MIN_VALID && x <= MAX_VALID {
-				Ok(Self(x))
-			} else {
-				Err(())
-			}
-		}
-
 		pub const fn force_new(x: u8) -> Self {
 			Self(x)
 		}
 	}
 
 	impl BondingRequirementCalculation for Multiplier {
-		fn calculate_bonding_requirement<T: Config>(&self, ticket_size: BalanceOf<T>) -> Result<BalanceOf<T>, ()> {
+		fn calculate_bonding_requirement<T: Config>(&self, ticket_size: BalanceOf<T>) -> Option<BalanceOf<T>> {
 			let balance_multiplier = BalanceOf::<T>::from(self.0);
-			ticket_size.checked_div(&balance_multiplier).ok_or(())
+			ticket_size.checked_div(&balance_multiplier)
 		}
 	}
 
@@ -104,16 +93,24 @@ pub mod config_types {
 	}
 
 	impl TryFrom<u8> for Multiplier {
-		type Error = ();
+		type Error = &'static str;
 
-		fn try_from(x: u8) -> Result<Self, ()> {
-			Self::new(x)
+		fn try_from(x: u8) -> Result<Self, Self::Error> {
+			// The minimum and maximum values are chosen to be 1 and 25 respectively, as defined in the Knowledge Hub.
+			const MIN_VALID: u8 = 1;
+			const MAX_VALID: u8 = 25;
+
+			if (MIN_VALID..=MAX_VALID).contains(&x) {
+				Ok(Self(x))
+			} else {
+				Err("u8 outside the allowed multiplier range")
+			}
 		}
 	}
 
-	impl Into<u8> for Multiplier {
-		fn into(self) -> u8 {
-			self.0
+	impl From<Multiplier> for u8 {
+		fn from(val: Multiplier) -> Self {
+			val.0
 		}
 	}
 
@@ -154,9 +151,9 @@ pub mod config_types {
 	pub const INSTITUTIONAL_MAX_MULTIPLIER: u8 = 25u8;
 }
 
-pub mod storage_types {
+pub mod storage {
+	#[allow(clippy::wildcard_imports)]
 	use super::*;
-	use sp_runtime::traits::Zero;
 
 	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo, Serialize, Deserialize)]
 	pub struct ProjectMetadata<BoundedString, Balance: PartialOrd + Copy, Price: FixedPointNumber, AccountId, Cid> {
@@ -504,19 +501,17 @@ pub mod storage_types {
 
 			let sum = bucket_sizes.iter().map(|x| x.0).fold(Balance::zero(), |acc, x| acc.saturating_add(x));
 
-			let wap = bucket_sizes
+			bucket_sizes
 				.into_iter()
 				.map(|x| <Price as FixedPointNumber>::saturating_from_rational(x.0, sum).saturating_mul(x.1))
-				.fold(Price::zero(), |acc: Price, p: Price| acc.saturating_add(p));
-
-			return wap
+				.fold(Price::zero(), |acc: Price, p: Price| acc.saturating_add(p))
 		}
 	}
 }
 
-pub mod inner_types {
+pub mod inner {
+	#[allow(clippy::wildcard_imports)]
 	use super::*;
-	use variant_count::VariantCount;
 
 	pub enum MetadataError {
 		/// The minimum price per token is too low.
@@ -831,5 +826,70 @@ pub mod inner_types {
 	pub struct ProjectMigrationOrigins<ProjectId, MigrationOrigins> {
 		pub project_id: ProjectId,
 		pub migration_origins: MigrationOrigins,
+	}
+}
+
+pub mod extrinsic {
+	use crate::{
+		AcceptedFundingAsset, AccountIdOf, BalanceOf, Config, MultiplierOf, PriceOf, ProjectDetailsOf, ProjectId,
+		TicketSizeOf,
+	};
+	use frame_system::pallet_prelude::BlockNumberFor;
+	use polimec_common::credentials::{Cid, Did, InvestorType};
+
+	pub struct DoBidParams<T: Config> {
+		pub bidder: AccountIdOf<T>,
+		pub project_id: ProjectId,
+		pub ct_amount: BalanceOf<T>,
+		pub multiplier: MultiplierOf<T>,
+		pub funding_asset: AcceptedFundingAsset,
+		pub did: Did,
+		pub investor_type: InvestorType,
+		pub whitelisted_policy: Cid,
+	}
+
+	pub struct DoPerformBidParams<T: Config> {
+		pub bidder: AccountIdOf<T>,
+		pub project_id: ProjectId,
+		pub ct_amount: BalanceOf<T>,
+		pub ct_usd_price: PriceOf<T>,
+		pub multiplier: MultiplierOf<T>,
+		pub funding_asset: AcceptedFundingAsset,
+		pub bid_id: u32,
+		pub now: BlockNumberFor<T>,
+		pub did: Did,
+		pub metadata_ticket_size_bounds: TicketSizeOf<T>,
+		pub total_bids_by_bidder: u32,
+		pub total_bids_for_project: u32,
+	}
+
+	pub struct DoContributeParams<T: Config> {
+		pub contributor: AccountIdOf<T>,
+		pub project_id: ProjectId,
+		pub ct_amount: BalanceOf<T>,
+		pub multiplier: MultiplierOf<T>,
+		pub funding_asset: AcceptedFundingAsset,
+		pub did: Did,
+		pub investor_type: InvestorType,
+		pub whitelisted_policy: Cid,
+	}
+
+	pub struct DoPerformContributionParams<'a, T: Config> {
+		pub contributor: AccountIdOf<T>,
+		pub project_id: ProjectId,
+		pub project_details: &'a mut ProjectDetailsOf<T>,
+		pub buyable_tokens: BalanceOf<T>,
+		pub multiplier: MultiplierOf<T>,
+		pub funding_asset: AcceptedFundingAsset,
+		pub investor_type: InvestorType,
+		pub did: Did,
+		pub whitelisted_policy: Cid,
+	}
+
+	pub struct BidRefund<T: Config> {
+		pub final_ct_usd_price: PriceOf<T>,
+		pub final_ct_amount: BalanceOf<T>,
+		pub refunded_plmc: BalanceOf<T>,
+		pub refunded_funding_asset_amount: BalanceOf<T>,
 	}
 }

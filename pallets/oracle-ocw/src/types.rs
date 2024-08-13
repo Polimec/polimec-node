@@ -13,7 +13,7 @@
 
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
-use super::*;
+use super::{FetchPrice, FixedU128, LOG_TARGET, NUMBER_OF_CANDLES};
 use core::{ops::Mul, str::FromStr};
 use heapless::{LinearMap, Vec as HVec};
 use parity_scale_codec::{Decode, Encode};
@@ -88,7 +88,7 @@ where
 {
 	let data = HVec::<(u64, &str, &str, &str, &str, &str, &str, u64), 720>::deserialize(deserializer)?;
 	let mut result = Vec::<OpenCloseVolume>::with_capacity(data.len());
-	for row in data.into_iter() {
+	for row in data {
 		let ocv = OpenCloseVolume::from_str(row.2, row.3, row.4, row.6)
 			.map_err(|_| serde::de::Error::custom("Error parsing float"))?;
 		result.push(ocv);
@@ -130,7 +130,7 @@ impl FetchPrice for KrakenFetcher {
 			AssetName::USDT => "https://api.kraken.com/0/public/OHLC?pair=USDTZUSD&interval=1",
 			AssetName::DOT => "https://api.kraken.com/0/public/OHLC?pair=DOTUSD&interval=1",
 			AssetName::USDC => "https://api.kraken.com/0/public/OHLC?pair=USDCUSD&interval=1",
-			_ => "",
+			AssetName::PLMC => "",
 		}
 	}
 }
@@ -173,7 +173,7 @@ where
 	let low_str = "low";
 	let close_str = "close";
 	let volume_str = "volume";
-	for row in data.into_iter() {
+	for row in data {
 		if !row.contains_key(&high_str) && !row.contains_key(&close_str) && !row.contains_key(&volume_str) {
 			return Err(serde::de::Error::custom("Row does not contain required data"));
 		}
@@ -223,7 +223,7 @@ impl FetchPrice for BitStampFetcher {
 			AssetName::USDT => "https://www.bitstamp.net/api/v2/ohlc/usdtusd/?step=60&limit=15",
 			AssetName::DOT => "https://www.bitstamp.net/api/v2/ohlc/dotusd/?step=60&limit=15",
 			AssetName::USDC => "https://www.bitstamp.net/api/v2/ohlc/usdcusd/?step=60&limit=15",
-			_ => "",
+			AssetName::PLMC => "",
 		}
 	}
 }
@@ -254,7 +254,6 @@ impl FetchPrice for CoinbaseFetcher {
 		match name {
 			AssetName::USDT => "https://api.exchange.coinbase.com/products/USDT-USD/candles?granularity=60",
 			AssetName::DOT => "https://api.exchange.coinbase.com/products/DOT-USD/candles?granularity=60",
-			AssetName::USDC => "",
 			_ => "",
 		}
 	}
@@ -277,7 +276,7 @@ where
 {
 	let data = HVec::<XTCandle, 10>::deserialize(deserializer)?;
 	let mut result = Vec::<OpenCloseVolume>::with_capacity(data.len());
-	for row in data.into_iter() {
+	for row in data {
 		let ocv = OpenCloseVolume::from_str(row.h, row.l, row.c, row.v)
 			.map_err(|_| serde::de::Error::custom("Error parsing float"))?;
 		result.push(ocv);

@@ -58,8 +58,8 @@ macro_rules! find_event {
 		    let events = frame_system::Pallet::<$runtime>::events();
 	        events.iter().find_map(|event_record| {
 			    let runtime_event = event_record.event.clone();
-			    let runtime_event = <<$runtime as crate::Config>::RuntimeEvent>::from(runtime_event);
-			    if let Ok(funding_event) = TryInto::<crate::Event<$runtime>>::try_into(runtime_event) {
+			    let runtime_event = <<$runtime as Config>::RuntimeEvent>::from(runtime_event);
+			    if let Ok(funding_event) = TryInto::<Event<$runtime>>::try_into(runtime_event) {
 				     if let $pattern = funding_event {
 	                    let mut is_match = true;
 	                    $(

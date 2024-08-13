@@ -17,6 +17,10 @@
 // If you feel like getting in touch with us, you can do so at info@polimec.org
 
 #![cfg_attr(not(feature = "std"), no_std)]
+// Needed due to empty sections raising the warning
+#![allow(unreachable_patterns)]
+#![allow(clippy::large_enum_variant)]
+
 pub use pallet::*;
 
 pub use crate::weights::WeightInfo;
@@ -45,6 +49,7 @@ pub type AccountIdOf<T> = <T as frame_system::Config>::AccountId;
 type CurrencyOf<T> = <<T as Config>::VestingSchedule as VestingSchedule<AccountIdOf<T>>>::Currency;
 #[frame_support::pallet]
 pub mod pallet {
+	#[allow(clippy::wildcard_imports)]
 	use super::*;
 	use crate::weights::WeightInfo;
 	use frame_support::{
@@ -145,9 +150,9 @@ pub mod pallet {
 	impl<T: Config> Pallet<T> {
 		#[pallet::feeless_if( | origin: &OriginFor<T>, jwt: &UntrustedToken | -> bool {
             if let Ok((_, did, _, _)) = T::InvestorOrigin::ensure_origin(origin.clone(), jwt, T::VerifierPublicKey::get()) {
-                return Dispensed::<T>::get(did).is_none()
+                Dispensed::<T>::get(did).is_none()
             } else {
-                return false
+                false
             }
         })]
 		#[pallet::call_index(0)]

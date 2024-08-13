@@ -1,5 +1,6 @@
 use sp_runtime::traits::CheckedAdd;
 
+#[allow(clippy::wildcard_imports)]
 use super::*;
 
 // Helper functions
@@ -34,7 +35,7 @@ impl<T: Config> Pallet<T> {
 	) -> Result<BalanceOf<T>, DispatchError> {
 		let plmc_usd_price = T::PriceProvider::get_decimals_aware_price(PLMC_FOREIGN_ID, USD_DECIMALS, PLMC_DECIMALS)
 			.ok_or(Error::<T>::PriceNotFound)?;
-		let usd_bond = multiplier.calculate_bonding_requirement::<T>(ticket_size).map_err(|_| Error::<T>::BadMath)?;
+		let usd_bond = multiplier.calculate_bonding_requirement::<T>(ticket_size).ok_or(Error::<T>::BadMath)?;
 		plmc_usd_price
 			.reciprocal()
 			.ok_or(Error::<T>::BadMath)?
@@ -393,11 +394,8 @@ impl<T: Config> Pallet<T> {
 		ensure!(project_details.status == current_round, Error::<T>::IncorrectRound);
 		ensure!(project_details.round_duration.ended(now) || skip_end_check, Error::<T>::TooEarlyForRound);
 
-		let round_end = if let Some(round_duration) = maybe_round_duration {
-			Some(now.saturating_add(round_duration).saturating_sub(One::one()))
-		} else {
-			None
-		};
+		let round_end =
+			maybe_round_duration.map(|round_duration| now.saturating_add(round_duration).saturating_sub(One::one()));
 		project_details.round_duration = BlockNumberPair::new(Some(now), round_end);
 		project_details.status = next_round.clone();
 

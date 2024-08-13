@@ -10,6 +10,9 @@ readme.workspace = true
 repository.workspace = true
 version.workspace = true
 
+[lints]
+workspace = true
+
 [build-dependencies]
 substrate-wasm-builder.workspace = true
 

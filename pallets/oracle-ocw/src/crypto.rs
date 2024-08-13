@@ -35,16 +35,16 @@ mod app_sr25519 {
 
 pub type AuthorityId = app_sr25519::Public;
 
-pub struct PolimecCrypto;
+pub struct Polimec;
 
-impl frame_system::offchain::AppCrypto<MultiSigner, MultiSignature> for PolimecCrypto {
+impl frame_system::offchain::AppCrypto<MultiSigner, MultiSignature> for Polimec {
 	type GenericPublic = sp_core::sr25519::Public;
 	type GenericSignature = sp_core::sr25519::Signature;
 	type RuntimeAppPublic = AuthorityId;
 }
 
 // implemented for mock runtime in test
-impl frame_system::offchain::AppCrypto<<Sr25519Signature as Verify>::Signer, Sr25519Signature> for PolimecCrypto {
+impl frame_system::offchain::AppCrypto<<Sr25519Signature as Verify>::Signer, Sr25519Signature> for Polimec {
 	type GenericPublic = sp_core::sr25519::Public;
 	type GenericSignature = sp_core::sr25519::Signature;
 	type RuntimeAppPublic = AuthorityId;

@@ -1,4 +1,6 @@
+#[allow(clippy::wildcard_imports)]
 use super::*;
+use core::cmp::Ordering;
 use itertools::GroupBy;
 use polimec_common::USD_DECIMALS;
 
@@ -502,6 +504,7 @@ impl<
 
 		let ordered_list = flattened_list.into_iter().sorted_by(|a, b| a.asset_id.cmp(&b.asset_id)).collect_vec();
 
+		#[allow(clippy::type_complexity)]
 		let asset_lists: GroupBy<AssetIdOf<T>, _, fn(&UserToFundingAsset<T>) -> AssetIdOf<T>> =
 			ordered_list.into_iter().group_by(|item| item.asset_id);
 
@@ -676,12 +679,11 @@ impl<
 			bucket.amount_left = mid_point;
 			let new_wap = bucket.calculate_wap(auction_allocation);
 
-			if new_wap == target_wap {
-				return bucket
-			} else if new_wap < target_wap {
-				upper_bound = mid_point.saturating_sub(1u32.into());
-			} else {
-				lower_bound = mid_point.saturating_add(1u32.into());
+			// refactor as match
+			match new_wap.cmp(&target_wap) {
+				Ordering::Equal => return bucket,
+				Ordering::Less => upper_bound = mid_point - 1u32.into(),
+				Ordering::Greater => lower_bound = mid_point + 1u32.into(),
 			}
 		}
 
