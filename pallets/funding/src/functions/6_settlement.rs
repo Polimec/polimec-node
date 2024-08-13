@@ -254,7 +254,7 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
-	/// Calculate the amount of funds the biider should receive back based on the original bid
+	/// Calculate the amount of funds the bidder should receive back based on the original bid
 	/// amount and price compared to the final bid amount and price.
 	fn calculate_refund(bid: &BidInfoOf<T>) -> Result<(BalanceOf<T>, BalanceOf<T>), DispatchError> {
 		let new_ticket_size =
