@@ -1,3 +1,6 @@
+#![allow(clippy::too_many_arguments)]
+
+#[allow(clippy::wildcard_imports)]
 use super::*;
 
 // general chain interactions
@@ -511,16 +514,17 @@ impl<
 		for bid in bids {
 			self.execute(|| {
 				let did = generate_did_from_account(bid.bidder.clone());
-				crate::Pallet::<T>::do_bid(
-					&bid.bidder,
+				let params = DoBidParams::<T> {
+					bidder: bid.bidder,
 					project_id,
-					bid.amount,
-					bid.multiplier,
-					bid.asset,
+					ct_amount: bid.amount,
+					multiplier: bid.multiplier,
+					funding_asset: bid.asset,
 					did,
-					InvestorType::Institutional,
-					project_policy.clone(),
-				)
+					investor_type: InvestorType::Institutional,
+					whitelisted_policy: project_policy.clone(),
+				};
+				crate::Pallet::<T>::do_bid(params)
 			})?;
 		}
 		Ok(().into())
@@ -617,18 +621,17 @@ impl<
 				for cont in contributions {
 					let did = generate_did_from_account(cont.contributor.clone());
 					let investor_type = InvestorType::Retail;
-					self.execute(|| {
-						crate::Pallet::<T>::do_contribute(
-							&cont.contributor,
-							project_id,
-							cont.amount,
-							cont.multiplier,
-							cont.asset,
-							did,
-							investor_type,
-							project_policy.clone(),
-						)
-					})?;
+					let params = DoContributeParams::<T> {
+						contributor: cont.contributor,
+						project_id,
+						ct_amount: cont.amount,
+						multiplier: cont.multiplier,
+						funding_asset: cont.asset,
+						did,
+						investor_type,
+						whitelisted_policy: project_policy.clone(),
+					};
+					self.execute(|| crate::Pallet::<T>::do_contribute(params))?;
 				},
 			_ => panic!("Project should be in Community or Remainder status"),
 		}
@@ -735,7 +738,7 @@ impl<
 
 			let amount = if let EvaluatorsOutcome::Rewarded(ref info) = evaluators_outcome {
 				assert!(is_successful);
-				Pallet::<T>::calculate_evaluator_reward(&evaluation, &info)
+				Pallet::<T>::calculate_evaluator_reward(&evaluation, info)
 			} else {
 				assert!(!is_successful);
 				Zero::zero()

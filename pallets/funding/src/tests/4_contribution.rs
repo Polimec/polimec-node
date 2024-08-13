@@ -965,7 +965,7 @@ mod contribute_extrinsic {
 			assert_eq!(frozen_balance, frozen_amount);
 
 			let vest_duration =
-				MultiplierOf::<TestRuntime>::new(5u8).unwrap().calculate_vesting_duration::<TestRuntime>();
+				MultiplierOf::<TestRuntime>::try_from(5u8).unwrap().calculate_vesting_duration::<TestRuntime>();
 			let now = inst.current_block();
 			inst.jump_to_block(now + vest_duration + 1u64);
 			inst.execute(|| {
@@ -1108,14 +1108,16 @@ mod contribute_extrinsic {
 			);
 			assert_err!(
 				inst.execute(|| crate::Pallet::<TestRuntime>::do_contribute(
-					&(&ISSUER_1 + 1),
+					DoContributeParams::<TestRuntime> {
+					contributor: ISSUER_1,
 					project_id,
-					500 * CT_UNIT,
-					1u8.try_into().unwrap(),
-					AcceptedFundingAsset::USDT,
-					generate_did_from_account(ISSUER_1),
-					InvestorType::Institutional,
-					project_metadata.clone().policy_ipfs_cid.unwrap(),
+					ct_amount: 500 * CT_UNIT,
+					multiplier: 1u8.try_into().unwrap(),
+					funding_asset: AcceptedFundingAsset::USDT,
+					did: generate_did_from_account(ISSUER_1),
+					investor_type: InvestorType::Institutional,
+					whitelisted_policy: project_metadata.policy_ipfs_cid.unwrap(),
+				}
 				)),
 				Error::<TestRuntime>::ParticipationToOwnProject
 			);

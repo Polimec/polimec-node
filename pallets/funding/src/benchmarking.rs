@@ -1396,7 +1396,7 @@ mod benchmarks {
 				account: bidder.clone(),
 				id: bid_to_settle.id,
 				final_ct_amount: bid_to_settle.original_ct_amount,
-				final_ct_price: wap,
+				final_ct_usd_price: wap,
 			}
 			.into(),
 		);

@@ -1,3 +1,4 @@
+#[allow(clippy::wildcard_imports)]
 use super::*;
 use frame_support::{Deserialize, Serialize};
 
@@ -205,7 +206,7 @@ impl<T: Config> AccountMerge for Vec<UserToFundingAsset<T>> {
 		let mut btree = BTreeMap::new();
 		for UserToFundingAsset { account, asset_amount, asset_id } in self.iter() {
 			btree
-				.entry((account.clone(), asset_id.clone()))
+				.entry((account.clone(), asset_id))
 				.and_modify(|e: &mut BalanceOf<T>| {
 					*e = match ops {
 						MergeOperation::Add => e.saturating_add(*asset_amount),
@@ -216,7 +217,7 @@ impl<T: Config> AccountMerge for Vec<UserToFundingAsset<T>> {
 		}
 		btree
 			.into_iter()
-			.map(|((account, asset_id), asset_amount)| UserToFundingAsset::new(account, asset_amount, asset_id))
+			.map(|((account, asset_id), asset_amount)| UserToFundingAsset::new(account, asset_amount, *asset_id))
 			.collect()
 	}
 

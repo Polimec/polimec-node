@@ -91,6 +91,8 @@
 //! - [`Module`]
 
 #![cfg_attr(not(feature = "std"), no_std)]
+// Needed due to empty sections raising the warning
+#![allow(unreachable_patterns)]
 
 use frame_support::{
 	pallet_prelude::DispatchResult,
@@ -102,7 +104,6 @@ use frame_support::{
 	},
 	weights::Weight,
 };
-use log;
 use parity_scale_codec::{Decode, Encode};
 use scale_info::TypeInfo;
 use sp_npos_elections::{ElectionResult, ExtendedBalance};

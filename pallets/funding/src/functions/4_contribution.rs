@@ -1,3 +1,4 @@
+#[allow(clippy::wildcard_imports)]
 use super::*;
 
 impl<T: Config> Pallet<T> {
@@ -11,16 +12,17 @@ impl<T: Config> Pallet<T> {
 	/// * multiplier: Decides how much PLMC bonding is required for buying that amount of tokens
 	/// * asset: The asset used for the contribution
 	#[transactional]
-	pub fn do_contribute(
-		contributor: &AccountIdOf<T>,
-		project_id: ProjectId,
-		token_amount: BalanceOf<T>,
-		multiplier: MultiplierOf<T>,
-		asset: AcceptedFundingAsset,
-		did: Did,
-		investor_type: InvestorType,
-		whitelisted_policy: Cid,
-	) -> DispatchResultWithPostInfo {
+	pub fn do_contribute(params: DoContributeParams<T>) -> DispatchResultWithPostInfo {
+		let DoContributeParams {
+			contributor,
+			project_id,
+			ct_amount: token_amount,
+			multiplier,
+			funding_asset,
+			investor_type,
+			did,
+			whitelisted_policy,
+		} = params;
 		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 		let did_has_winning_bid = DidWithWinningBids::<T>::get(project_id, did.clone());
 
@@ -38,34 +40,38 @@ impl<T: Config> Pallet<T> {
 		let buyable_tokens = token_amount.min(project_details.remaining_contribution_tokens);
 		project_details.remaining_contribution_tokens.saturating_reduce(buyable_tokens);
 
-		Self::do_perform_contribution(
+		let perform_params = DoPerformContributionParams {
 			contributor,
 			project_id,
-			&mut project_details,
+			project_details: &mut project_details,
 			buyable_tokens,
 			multiplier,
-			asset,
+			funding_asset,
 			investor_type,
 			did,
 			whitelisted_policy,
-		)
+		};
+
+		Self::do_perform_contribution(perform_params)
 	}
 
 	#[transactional]
-	fn do_perform_contribution(
-		contributor: &AccountIdOf<T>,
-		project_id: ProjectId,
-		project_details: &mut ProjectDetailsOf<T>,
-		buyable_tokens: BalanceOf<T>,
-		multiplier: MultiplierOf<T>,
-		funding_asset: AcceptedFundingAsset,
-		investor_type: InvestorType,
-		did: Did,
-		whitelisted_policy: Cid,
-	) -> DispatchResultWithPostInfo {
+	fn do_perform_contribution(params: DoPerformContributionParams<T>) -> DispatchResultWithPostInfo {
+		let DoPerformContributionParams {
+			contributor,
+			project_id,
+			project_details,
+			buyable_tokens,
+			multiplier,
+			funding_asset,
+			investor_type,
+			did,
+			whitelisted_policy,
+		} = params;
+
 		let project_metadata = ProjectsMetadata::<T>::get(project_id).ok_or(Error::<T>::ProjectMetadataNotFound)?;
 		let caller_existing_contributions =
-			Contributions::<T>::iter_prefix_values((project_id, contributor)).collect::<Vec<_>>();
+			Contributions::<T>::iter_prefix_values((project_id, contributor.clone())).collect::<Vec<_>>();
 		let total_usd_bought_by_did = ContributionBoughtUSD::<T>::get((project_id, did.clone()));
 		let now = <frame_system::Pallet<T>>::block_number();
 		let ct_usd_price = project_details.weighted_average_price.ok_or(Error::<T>::WapNotSet)?;
@@ -124,10 +130,10 @@ impl<T: Config> Pallet<T> {
 		};
 
 		// Try adding the new contribution to the system
-		Self::try_plmc_participation_lock(contributor, project_id, plmc_bond)?;
-		Self::try_funding_asset_hold(contributor, project_id, funding_asset_amount, funding_asset.id())?;
+		Self::try_plmc_participation_lock(&contributor, project_id, plmc_bond)?;
+		Self::try_funding_asset_hold(&contributor, project_id, funding_asset_amount, funding_asset.id())?;
 
-		Contributions::<T>::insert((project_id, contributor, contribution_id), &new_contribution);
+		Contributions::<T>::insert((project_id, contributor.clone(), contribution_id), &new_contribution);
 		NextContributionId::<T>::set(contribution_id.saturating_add(One::one()));
 		ContributionBoughtUSD::<T>::mutate((project_id, did), |amount| *amount += ticket_size);
 

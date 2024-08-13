@@ -3,6 +3,9 @@ name = "macros"
 version.workspace = true
 edition.workspace = true
 
+[lints]
+workspace = true
+
 [lib]
 name = "macros"
 path = "src/lib.rs"

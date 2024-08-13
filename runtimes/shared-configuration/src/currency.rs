@@ -67,9 +67,8 @@ parameter_types! {
 }
 
 pub mod vesting {
+	use super::{parameter_types, Balance, PLMC};
 	use frame_support::traits::WithdrawReasons;
-
-	use super::*;
 
 	parameter_types! {
 		pub const MinVestedTransfer: Balance = PLMC;

@@ -1,4 +1,6 @@
+#[allow(clippy::wildcard_imports)]
 use super::*;
+
 use xcm::v3::MaxPalletNameLen;
 
 // Offchain migration functions
@@ -372,7 +374,7 @@ impl<T: Config> Pallet<T> {
 					},
 				),
 			) => {
-				let ct_sold_as_u128: u128 = contribution_tokens_sold.try_into().map_err(|_| Error::<T>::BadMath)?;
+				let ct_sold_as_u128: u128 = contribution_tokens_sold.into();
 				let assets: Vec<MultiAsset> = assets.into_inner();
 				let asset_1 = assets[0].clone();
 				match asset_1 {
@@ -466,7 +468,7 @@ impl<T: Config> Pallet<T> {
 		Self::change_migration_status(project_id, participant.clone(), MigrationStatus::Sent(query_id))?;
 
 		// * Process Data *
-		let xcm = Self::construct_migration_xcm_message(migrations.into(), query_id, pallet_index);
+		let xcm = Self::construct_migration_xcm_message(migrations, query_id, pallet_index);
 
 		<pallet_xcm::Pallet<T>>::send_xcm(Here, project_multilocation, xcm).map_err(|_| Error::<T>::XcmFailed)?;
 		ActiveMigrationQueue::<T>::insert(query_id, (project_id, participant.clone()));

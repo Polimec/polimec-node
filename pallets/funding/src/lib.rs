@@ -111,6 +111,8 @@
 
 // Ensure we're `no_std` when compiling for Wasm.
 #![cfg_attr(not(feature = "std"), no_std)]
+// Needed due to empty sections raising the warning
+#![allow(unreachable_patterns)]
 // This recursion limit is needed because we have too many benchmarks and benchmarking will fail if
 // we add more without this limit.
 #![cfg_attr(feature = "runtime-benchmarks", recursion_limit = "512")]
@@ -129,7 +131,7 @@ pub use pallet::*;
 use pallet_xcm::ensure_response;
 use polimec_common::{
 	credentials::{Cid, Did, EnsureOriginWithCredentials, InvestorType, UntrustedToken},
-	migration_types::*,
+	migration_types::{Migration, MigrationStatus, ParticipationType},
 };
 use polkadot_parachain_primitives::primitives::Id as ParaId;
 use sp_arithmetic::traits::{One, Saturating};
@@ -193,6 +195,7 @@ pub const PLMC_DECIMALS: u8 = 10;
 
 #[frame_support::pallet]
 pub mod pallet {
+	#[allow(clippy::wildcard_imports)]
 	use super::*;
 	use crate::traits::{BondingRequirementCalculation, ProvideAssetPrice, VestingDurationCalculation};
 	use frame_support::{
@@ -614,7 +617,7 @@ pub mod pallet {
 			account: AccountIdOf<T>,
 			id: u32,
 			final_ct_amount: BalanceOf<T>,
-			final_ct_price: PriceOf<T>,
+			final_ct_usd_price: PriceOf<T>,
 		},
 		ContributionSettled {
 			project_id: ProjectId,
@@ -881,12 +884,21 @@ pub mod pallet {
 			project_id: ProjectId,
 			#[pallet::compact] ct_amount: BalanceOf<T>,
 			multiplier: T::Multiplier,
-			asset: AcceptedFundingAsset,
+			funding_asset: AcceptedFundingAsset,
 		) -> DispatchResultWithPostInfo {
-			let (account, did, investor_type, whitelisted_policy) =
+			let (bidder, did, investor_type, whitelisted_policy) =
 				T::InvestorOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get())?;
-
-			Self::do_bid(&account, project_id, ct_amount, multiplier, asset, did, investor_type, whitelisted_policy)
+			let params = DoBidParams::<T> {
+				bidder,
+				project_id,
+				ct_amount,
+				multiplier,
+				funding_asset,
+				did,
+				investor_type,
+				whitelisted_policy,
+			};
+			Self::do_bid(params)
 		}
 
 		#[pallet::call_index(8)]
@@ -916,14 +928,23 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			jwt: UntrustedToken,
 			project_id: ProjectId,
-			#[pallet::compact] amount: BalanceOf<T>,
+			#[pallet::compact] ct_amount: BalanceOf<T>,
 			multiplier: MultiplierOf<T>,
-			asset: AcceptedFundingAsset,
+			funding_asset: AcceptedFundingAsset,
 		) -> DispatchResultWithPostInfo {
-			let (account, did, investor_type, whitelisted_policy) =
+			let (contributor, did, investor_type, whitelisted_policy) =
 				T::InvestorOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get())?;
-
-			Self::do_contribute(&account, project_id, amount, multiplier, asset, did, investor_type, whitelisted_policy)
+			let params = DoContributeParams::<T> {
+				contributor,
+				project_id,
+				ct_amount,
+				multiplier,
+				funding_asset,
+				did,
+				investor_type,
+				whitelisted_policy,
+			};
+			Self::do_contribute(params)
 		}
 
 		#[pallet::call_index(10)]
@@ -1090,6 +1111,7 @@ pub mod pallet {
 }
 
 pub mod xcm_executor_impl {
+	#[allow(clippy::wildcard_imports)]
 	use super::*;
 
 	pub struct HrmpHandler<T: Config>(PhantomData<T>);
