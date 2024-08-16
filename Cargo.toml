@@ -35,7 +35,8 @@ homepage = "https://www.polimec.org/"
 license-file = "LICENSE"
 readme = "README.md"
 repository = "https://github.com/Polimec/polimec-node"
-version = "0.7.0"
+version = "0.8.0"
+
 
 [profile.release]
 # Substrate runtime requires unwinding.
