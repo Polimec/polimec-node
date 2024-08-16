@@ -1,5 +1,5 @@
 use super::*;
-// use xcm::v4::MaxPalletNameLen;
+use xcm::v4::MaxPalletNameLen;
 
 // Offchain migration functions
 impl<T: Config> Pallet<T> {
@@ -296,6 +296,7 @@ impl<T: Config> Pallet<T> {
 		query_id: QueryId,
 		response: Response,
 	) -> DispatchResult {
+		use xcm::v4::prelude::*;
 		// TODO: check if this is too low performance. Maybe we want a new map of query_id -> project_id
 		let (project_id, mut migration_info, mut project_details) = ProjectsDetails::<T>::iter()
 			.find_map(|(project_id, details)| {
@@ -366,15 +367,13 @@ impl<T: Config> Pallet<T> {
 					},
 				),
 			) => {
-				// let expected_module_name: BoundedVec<u8, MaxPalletNameLen> =
-				// 	BoundedVec::try_from("polimec_receiver".as_bytes().to_vec()).map_err(|_| Error::<T>::NotAllowed)?;
-				// let Some(PalletInfo { index, module_name, .. }) = pallets_info.first() else {
-				// 	return Err(Error::<T>::NotAllowed.into());
-				// };
-				// let u8_index: u8 = (*index).try_into().map_err(|_| Error::<T>::NotAllowed)?;
-				let u8_index: u8 = 1_u8; //FIXME: Restore the commented logic.
-				if pallets_info.len() == 1 {
-					// && module_name == &expected_module_name
+				let expected_module_name: BoundedVec<u8, MaxPalletNameLen> =
+					BoundedVec::try_from("polimec_receiver".as_bytes().to_vec()).map_err(|_| Error::<T>::NotAllowed)?;
+				let Some(PalletInfo { index, module_name, .. }) = pallets_info.first() else {
+					return Err(Error::<T>::NotAllowed.into());
+				};
+				let u8_index: u8 = (*index).try_into().map_err(|_| Error::<T>::NotAllowed)?;
+				if pallets_info.len() == 1 && module_name == &expected_module_name {
 					check.pallet_check.1 = CheckOutcome::Passed(Some(u8_index));
 					Self::deposit_event(Event::<T>::MigrationCheckResponseAccepted { project_id, query_id, response });
 				} else {

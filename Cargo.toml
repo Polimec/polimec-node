@@ -225,7 +225,7 @@ cumulus-pallet-session-benchmarking = { version = "16.0.0", default-features = f
 
 # Runtimes
 polimec-runtime = { path = "runtimes/polimec" }
-asset-hub-polkadot-runtime = { git = 'https://github.com/polkadot-fellows/runtimes', default-features = false, branch = 'oty-update-sdk' }
-polkadot-runtime-constants = { git = 'https://github.com/polkadot-fellows/runtimes', default-features = false, branch = 'oty-update-sdk' }
-system-parachains-constants = { git = 'https://github.com/polkadot-fellows/runtimes', default-features = false, branch = 'oty-update-sdk' }
-polkadot-runtime = { git = 'https://github.com/polkadot-fellows/runtimes', default-features = false, branch = 'oty-update-sdk' }
+asset-hub-polkadot-runtime = { git = 'https://github.com/polkadot-fellows/runtimes', default-features = false, rev = 'c5080e43321476ec82d69b710ebfaafb634f7475' }
+polkadot-runtime-constants = { git = 'https://github.com/polkadot-fellows/runtimes', default-features = false, rev = 'c5080e43321476ec82d69b710ebfaafb634f7475' }
+system-parachains-constants = { git = 'https://github.com/polkadot-fellows/runtimes', default-features = false, rev = 'c5080e43321476ec82d69b710ebfaafb634f7475' }
+polkadot-runtime = { git = 'https://github.com/polkadot-fellows/runtimes', default-features = false, rev = 'c5080e43321476ec82d69b710ebfaafb634f7475' }

@@ -79,9 +79,9 @@ cumulus-primitives-core = { workspace = true }
 cumulus-primitives-utility = { workspace = true }
 parachain-info = { workspace = true }
 parachains-common = { workspace = true }
+polkadot-runtime-parachains = { workspace = true }
 assets-common = { version = "0.14.0", default-features = false }
 testnet-parachains-constants = { version = "7.0.0", default-features = false }
-xcm-runtime-apis = { version = "0.3.0", default-features = false }
 xcm-fee-payment-runtime-api = { version = "0.4.0", default-features = false }
 
 [features]
@@ -145,7 +145,6 @@ std = [
 	"xcm-builder/std",
 	"xcm-executor/std",
 	"xcm-fee-payment-runtime-api/std",
-	"xcm-runtime-apis/std",
 	"xcm/std",
 ]
 
@@ -176,11 +175,11 @@ runtime-benchmarks = [
 	"polkadot-parachain-primitives/runtime-benchmarks",
 	"polkadot-primitives/runtime-benchmarks",
 	"polkadot-runtime-common/runtime-benchmarks",
+	"polkadot-runtime-parachains/runtime-benchmarks",
 	"sp-runtime/runtime-benchmarks",
 	"xcm-builder/runtime-benchmarks",
 	"xcm-executor/runtime-benchmarks",
 	"xcm-fee-payment-runtime-api/runtime-benchmarks",
-	"xcm-runtime-apis/runtime-benchmarks",
 ]
 
 try-runtime = [

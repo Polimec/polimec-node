@@ -61,24 +61,21 @@ sp_api::decl_runtime_apis! {
 }
 
 impl<T: Config> Pallet<T> {
-	pub fn top_evaluations
-(project_id: ProjectId, amount: u32) -> Vec<EvaluationInfoOf<T>> {
+	pub fn top_evaluations(project_id: ProjectId, amount: u32) -> Vec<EvaluationInfoOf<T>> {
 		Evaluations::<T>::iter_prefix_values((project_id,))
 			.sorted_by(|a, b| b.original_plmc_bond.cmp(&a.original_plmc_bond))
 			.take(amount as usize)
 			.collect_vec()
 	}
 
-	pub fn top_bids
-(project_id: ProjectId, amount: u32) -> Vec<BidInfoOf<T>> {
+	pub fn top_bids(project_id: ProjectId, amount: u32) -> Vec<BidInfoOf<T>> {
 		Bids::<T>::iter_prefix_values((project_id,))
 			.sorted_by(|a, b| b.final_ct_amount.cmp(&a.final_ct_amount))
 			.take(amount as usize)
 			.collect_vec()
 	}
 
-	pub fn top_contributions
-(project_id: ProjectId, amount: u32) -> Vec<ContributionInfoOf<T>> {
+	pub fn top_contributions(project_id: ProjectId, amount: u32) -> Vec<ContributionInfoOf<T>> {
 		Contributions::<T>::iter_prefix_values((project_id,))
 			.sorted_by(|a, b| b.ct_amount.cmp(&a.ct_amount))
 			.take(amount as usize)

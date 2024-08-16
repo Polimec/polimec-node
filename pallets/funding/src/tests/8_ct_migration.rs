@@ -1,6 +1,6 @@
 use super::*;
 use frame_support::{assert_err, traits::fungibles::Inspect};
-// use sp_runtime::bounded_vec;
+use sp_runtime::bounded_vec;
 use xcm::v4::MaxPalletNameLen;
 
 mod pallet_migration {
@@ -162,6 +162,7 @@ mod pallet_migration {
 			0,
 			0,
 		);
+		// FIXME: Why is this returning an error from XCMv3?
 		// inst.execute(|| {
 		// 	assert_ok!(PolimecFunding::do_pallet_migration_readiness_response(
 		// 		Location::new(1u8, [Parachain(6969u32)]),
