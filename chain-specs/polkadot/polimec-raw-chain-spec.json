@@ -8,7 +8,9 @@
     "/dns4/boot.helikon.io/tcp/15320/p2p/12D3KooWT2y3C2nzKGJV1Jss3EyCcwGWeroDFfFdJ5CUVz3iQGJD",
     "/dns4/boot.helikon.io/tcp/15324/wss/p2p/12D3KooWT2y3C2nzKGJV1Jss3EyCcwGWeroDFfFdJ5CUVz3iQGJD",
     "/dns/polimec.bootnode.amforc.com/tcp/29999/wss/p2p/12D3KooWSNA6RHfNC9XPCoftFDsuXM2JkVHJEejHWSe3X8Jf9v9Y",
-    "/dns/polimec.bootnode.amforc.com/tcp/30016/p2p/12D3KooWSNA6RHfNC9XPCoftFDsuXM2JkVHJEejHWSe3X8Jf9v9Y"
+    "/dns/polimec.bootnode.amforc.com/tcp/30016/p2p/12D3KooWSNA6RHfNC9XPCoftFDsuXM2JkVHJEejHWSe3X8Jf9v9Y",
+    "/dns/polimec.boot.stake.plus/tcp/30332/wss/p2p/12D3KooWFq12Wd69TRzwLy3gFx33JDEoJqMxpZ7ApYAPSLHGfXM8",
+    "/dns/polimec.boot.stake.plus/tcp/31332/wss/p2p/12D3KooWDb6fapSji27VZKN2MseDjV4EfmSNQiNVLBTBqb5ueDZk"
   ],
   "telemetryEndpoints": null,
   "protocolId": "polimec",

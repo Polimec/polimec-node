@@ -194,6 +194,7 @@ mod helper_functions {
 		let project_id = inst.create_community_contributing_project(
 			project_metadata.clone(),
 			ISSUER_1,
+			None,
 			default_evaluations(),
 			bids.clone(),
 		);

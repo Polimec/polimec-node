@@ -18,6 +18,7 @@ mod round_flow {
 			let _ = inst.create_finished_project(
 				default_project_metadata(ISSUER_1),
 				ISSUER_1,
+				None,
 				default_evaluations(),
 				default_bids(),
 				default_community_buys(),
@@ -31,6 +32,7 @@ mod round_flow {
 			let project_id = inst.create_remainder_contributing_project(
 				default_project_metadata(ISSUER_1),
 				ISSUER_1,
+				None,
 				default_evaluations(),
 				default_bids(),
 				default_community_buys(),
@@ -85,6 +87,7 @@ mod round_flow {
 			let project_id = inst.create_remainder_contributing_project(
 				project_metadata.clone(),
 				ISSUER_1,
+				None,
 				evaluations.clone(),
 				bids.clone(),
 				vec![],
@@ -207,6 +210,7 @@ mod round_flow {
 				let project_id = inst.create_remainder_contributing_project(
 					project_metadata.clone(),
 					issuer,
+					None,
 					evaluations,
 					vec![],
 					vec![],
@@ -257,7 +261,7 @@ mod round_flow {
 				assert_eq!(inst.get_project_details(project_id).remaining_contribution_tokens, 0);
 
 				// We can successfully finish the project
-				inst.finish_funding(project_id).unwrap();
+				inst.finish_funding(project_id, None).unwrap();
 			};
 
 			for decimals in 6..=18 {
@@ -305,6 +309,7 @@ mod remaining_contribute_extrinsic {
 			let project_id = inst.create_remainder_contributing_project(
 				project_metadata.clone(),
 				ISSUER_1,
+				None,
 				evaluations,
 				default_bids(),
 				vec![],
@@ -402,7 +407,8 @@ mod remaining_contribute_extrinsic {
 			let bob_bid: BidParams<TestRuntime> = (bob, 1337 * CT_UNIT).into();
 			let all_bids = bids.iter().chain(vec![bob_bid.clone()].iter()).cloned().collect_vec();
 
-			let project_id = inst.create_auctioning_project(default_project_metadata(ISSUER_2), ISSUER_2, evaluations);
+			let project_id =
+				inst.create_auctioning_project(default_project_metadata(ISSUER_2), ISSUER_2, None, evaluations);
 
 			let evaluation_plmc_bond = inst.execute(|| Balances::balance_on_hold(&HoldReason::Evaluation.into(), &bob));
 			let slashable_plmc_bond = <TestRuntime as Config>::EvaluatorSlash::get() * evaluation_plmc_bond;
@@ -519,6 +525,7 @@ mod remaining_contribute_extrinsic {
 			let project_id_all = inst.create_remainder_contributing_project(
 				project_metadata_all.clone(),
 				ISSUER_1,
+				None,
 				evaluations.clone(),
 				default_bids(),
 				vec![],
@@ -553,6 +560,7 @@ mod remaining_contribute_extrinsic {
 			let project_id_usdt = inst.create_remainder_contributing_project(
 				project_metadata_usdt.clone(),
 				ISSUER_2,
+				None,
 				evaluations.clone(),
 				usdt_bids,
 				vec![],
@@ -571,6 +579,7 @@ mod remaining_contribute_extrinsic {
 			let project_id_usdc = inst.create_remainder_contributing_project(
 				project_metadata_usdc.clone(),
 				ISSUER_3,
+				None,
 				evaluations.clone(),
 				usdc_bids,
 				vec![],
@@ -589,6 +598,7 @@ mod remaining_contribute_extrinsic {
 			let project_id_dot = inst.create_remainder_contributing_project(
 				project_metadata_dot.clone(),
 				ISSUER_4,
+				None,
 				evaluations.clone(),
 				dot_bids,
 				vec![],
@@ -680,6 +690,7 @@ mod remaining_contribute_extrinsic {
 			let project_id = inst.create_remainder_contributing_project(
 				project_metadata.clone(),
 				ISSUER_1,
+				None,
 				evaluations,
 				bids,
 				vec![],
@@ -742,6 +753,7 @@ mod remaining_contribute_extrinsic {
 				inst.create_remainder_contributing_project(
 					default_project_metadata(issuer),
 					issuer,
+					None,
 					default_evaluations(),
 					default_bids(),
 					vec![],
@@ -811,7 +823,8 @@ mod remaining_contribute_extrinsic {
 				.cloned()
 				.collect_vec();
 
-			let project_id = inst.create_auctioning_project(project_metadata.clone(), ISSUER_1, default_evaluations());
+			let project_id =
+				inst.create_auctioning_project(project_metadata.clone(), ISSUER_1, None, default_evaluations());
 
 			let plmc_fundings = inst.calculate_auction_plmc_charged_from_all_bids_made_or_with_bucket(
 				&all_bids.clone(),
@@ -925,6 +938,7 @@ mod remaining_contribute_extrinsic {
 			let project_id = inst.create_remainder_contributing_project(
 				project_metadata.clone(),
 				issuer,
+				None,
 				default_evaluations(),
 				vec![],
 				vec![],
@@ -969,7 +983,7 @@ mod remaining_contribute_extrinsic {
 				));
 			});
 
-			inst.finish_funding(project_id).unwrap();
+			inst.finish_funding(project_id, None).unwrap();
 
 			assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::FundingFailed);
 
@@ -1023,6 +1037,7 @@ mod remaining_contribute_extrinsic {
 			let project_id = inst.create_remainder_contributing_project(
 				project_metadata.clone(),
 				issuer,
+				None,
 				default_evaluations(),
 				default_bids(),
 				vec![],
@@ -1067,7 +1082,7 @@ mod remaining_contribute_extrinsic {
 				));
 			});
 
-			inst.finish_funding(project_id).unwrap();
+			inst.finish_funding(project_id, None).unwrap();
 
 			assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::AwaitingProjectDecision);
 			inst.execute(|| {
@@ -1175,6 +1190,7 @@ mod remaining_contribute_extrinsic {
 			let _project_id = inst.create_finished_project(
 				project_metadata.clone(),
 				issuer,
+				None,
 				evaluations,
 				bids,
 				community_contributions,
@@ -1198,6 +1214,7 @@ mod remaining_contribute_extrinsic {
 			let project_id = inst.create_remainder_contributing_project(
 				default_project_metadata(ISSUER_1),
 				ISSUER_1,
+				None,
 				default_evaluations(),
 				default_bids(),
 				vec![],
@@ -1268,6 +1285,7 @@ mod remaining_contribute_extrinsic {
 			let project_id = inst.create_remainder_contributing_project(
 				project_metadata.clone(),
 				ISSUER_1,
+				None,
 				default_evaluations(),
 				default_bids(),
 				default_community_buys(),
@@ -1320,6 +1338,7 @@ mod remaining_contribute_extrinsic {
 			let project_id = inst.create_remainder_contributing_project(
 				project_metadata.clone(),
 				ISSUER_1,
+				None,
 				default_evaluations(),
 				default_bids(),
 				vec![],
@@ -1433,6 +1452,7 @@ mod remaining_contribute_extrinsic {
 			let project_id = inst.create_remainder_contributing_project(
 				project_metadata.clone(),
 				ISSUER_1,
+				None,
 				default_evaluations(),
 				default_bids(),
 				vec![],
@@ -1596,6 +1616,7 @@ mod remaining_contribute_extrinsic {
 			let project_id = inst.create_remainder_contributing_project(
 				project_metadata.clone(),
 				ISSUER_1,
+				None,
 				default_evaluations(),
 				default_bids(),
 				vec![],
@@ -1679,6 +1700,7 @@ mod remaining_contribute_extrinsic {
 			let project_id = inst.create_community_contributing_project(
 				project_metadata.clone(),
 				ISSUER_4,
+				None,
 				default_evaluations(),
 				default_bids(),
 			);
@@ -1738,6 +1760,7 @@ mod remaining_contribute_extrinsic {
 			let project_id_usdc = inst.create_remainder_contributing_project(
 				project_metadata_usdc,
 				ISSUER_3,
+				None,
 				evaluations.clone(),
 				usdc_bids,
 				vec![],
@@ -1750,6 +1773,7 @@ mod remaining_contribute_extrinsic {
 			let project_id_usdt = inst.create_remainder_contributing_project(
 				project_metadata_usdt,
 				ISSUER_2,
+				None,
 				evaluations.clone(),
 				usdt_bids,
 				vec![],
@@ -1782,6 +1806,7 @@ mod remaining_contribute_extrinsic {
 			let _project_id_1 = inst.create_remainder_contributing_project(
 				project_metadata_1.clone(),
 				ISSUER_1,
+				None,
 				evaluations_1,
 				default_bids(),
 				vec![],
@@ -1789,6 +1814,7 @@ mod remaining_contribute_extrinsic {
 			let project_id_2 = inst.create_remainder_contributing_project(
 				project_metadata_2.clone(),
 				ISSUER_2,
+				None,
 				evaluations_2,
 				default_bids(),
 				vec![],
@@ -1839,6 +1865,7 @@ mod remaining_contribute_extrinsic {
 			let project_id = inst.create_remainder_contributing_project(
 				project_metadata.clone(),
 				ISSUER_1,
+				None,
 				default_evaluations(),
 				default_bids(),
 				vec![],

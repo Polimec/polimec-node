@@ -161,6 +161,7 @@ fn create_settled_project() -> (ProjectId, Vec<AccountId>) {
 		let project_id = inst.create_finished_project(
 			default_project_metadata(ISSUER.into()),
 			ISSUER.into(),
+			None,
 			default_evaluations(),
 			default_bids(),
 			default_community_contributions(),
@@ -214,6 +215,7 @@ fn create_project_with_unsettled_participation(participation_type: Participation
 		let project_id = inst.create_finished_project(
 			default_project_metadata(ISSUER.into()),
 			ISSUER.into(),
+			None,
 			default_evaluations(),
 			default_bids(),
 			default_community_contributions(),

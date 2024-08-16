@@ -459,6 +459,8 @@ impl<T: Config> Pallet<T> {
 		let total_fee_allocation = total_issuer_fees * token_sold;
 
 		// Calculate the percentage of target funding based on available documentation.
+		// A.K.A variable "Y" in the documentation. We mean it to saturate to 1 even if the ratio is above 1 when funding raised
+		// is above the target.
 		let percentage_of_target_funding = Perquintill::from_rational(funding_amount_reached, fundraising_target);
 
 		// Calculate rewards.
@@ -515,7 +517,8 @@ impl<T: Config> Pallet<T> {
 		let total_fee_allocation = total_issuer_fees * token_sold;
 
 		// Calculate the percentage of target funding based on available documentation.
-		// A.K.A variable "Y" in the documentation.
+		// A.K.A variable "Y" in the documentation. We mean it to saturate to 1 even if the ratio is above 1 when funding raised
+		// is above the target.
 		let percentage_of_target_funding = Perquintill::from_rational(funding_amount_reached, fundraising_target);
 		let inverse_percentage_of_target_funding = Perquintill::from_percent(100) - percentage_of_target_funding;
 
@@ -576,8 +579,7 @@ impl<T: Config> Pallet<T> {
 	) -> Xcm<()> {
 		// TODO: adjust this as benchmarks for polimec-receiver are written
 		const MAX_WEIGHT: Weight = Weight::from_parts(10_000, 0);
-		const MAX_RESPONSE_WEIGHT: Weight = Weight::from_parts(700_000_000, 10_000);
-		// const MAX_WEIGHT: Weight = Weight::from_parts(100_003_000_000_000, 10_000_196_608);
+		const MAX_RESPONSE_WEIGHT: Weight = Weight::from_parts(1_000_000_000, 50_000);
 		let migrations_item = Migrations::from(migrations.into());
 
 		// First byte is the pallet index, second byte is the call index

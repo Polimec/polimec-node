@@ -280,7 +280,7 @@ fn evaluation_round_completed() {
 	let evaluations = excel_evaluators();
 
 	PolimecNet::execute_with(|| {
-		inst.create_auctioning_project(project, issuer, evaluations);
+		inst.create_auctioning_project(project, issuer, None, evaluations);
 	});
 }
 
@@ -296,7 +296,7 @@ fn auction_round_completed() {
 	let bids = excel_bidders();
 
 	PolimecNet::execute_with(|| {
-		let project_id = inst.create_community_contributing_project(project, issuer, evaluations, bids);
+		let project_id = inst.create_community_contributing_project(project, issuer, None, evaluations, bids);
 		let excel_wap_fixed = FixedU128::from_float(10.202357561f64);
 		let excel_wap_usd = excel_wap_fixed.saturating_mul_int(USD_UNIT);
 
@@ -334,6 +334,7 @@ fn community_round_completed() {
 		let _ = inst.create_remainder_contributing_project(
 			excel_project(),
 			ISSUER.into(),
+			None,
 			excel_evaluators(),
 			excel_bidders(),
 			excel_contributions(),
@@ -360,6 +361,7 @@ fn remainder_round_completed() {
 		inst.create_finished_project(
 			excel_project(),
 			ISSUER.into(),
+			None,
 			excel_evaluators(),
 			excel_bidders(),
 			excel_contributions(),
@@ -393,6 +395,7 @@ fn funds_raised() {
 		let project_id = inst.create_finished_project(
 			excel_project(),
 			ISSUER.into(),
+			None,
 			excel_evaluators(),
 			excel_bidders(),
 			excel_contributions(),
@@ -424,6 +427,7 @@ fn ct_minted() {
 		let project_id = inst.create_finished_project(
 			excel_project(),
 			ISSUER.into(),
+			None,
 			excel_evaluators(),
 			excel_bidders(),
 			excel_contributions(),
@@ -452,6 +456,7 @@ fn ct_migrated() {
 		let project_id = inst.create_finished_project(
 			excel_project(),
 			ISSUER.into(),
+			None,
 			excel_evaluators(),
 			excel_bidders(),
 			excel_contributions(),

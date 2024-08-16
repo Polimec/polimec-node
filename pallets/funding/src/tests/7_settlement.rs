@@ -114,6 +114,7 @@ mod settle_successful_evaluation_extrinsic {
 			let project_id = inst.create_finished_project(
 				project_metadata.clone(),
 				ISSUER_1,
+				None,
 				vec![
 					UserToUSDBalance::new(EVALUATOR_1, 500_000 * USD_UNIT),
 					UserToUSDBalance::new(EVALUATOR_2, 250_000 * USD_UNIT),
@@ -323,6 +324,7 @@ mod settle_successful_bid_extrinsic {
 			let project_id = inst.create_finished_project(
 				project_metadata.clone(),
 				issuer,
+				None,
 				evaluations,
 				vec![bid_1, bid_2],
 				community_contributions,
@@ -475,7 +477,7 @@ mod settle_successful_bid_extrinsic {
 			bids.extend(rejected_bid.clone());
 			bids.extend(accepted_bid.clone());
 
-			let project_id = inst.create_auctioning_project(project_metadata.clone(), issuer, evaluations);
+			let project_id = inst.create_auctioning_project(project_metadata.clone(), issuer, None, evaluations);
 
 			// Mint the necessary bidding balances
 			let bidders_plmc = inst.calculate_auction_plmc_charged_from_all_bids_made_or_with_bucket(
@@ -514,7 +516,7 @@ mod settle_successful_bid_extrinsic {
 
 			// Finish and Settle project
 			inst.start_remainder_or_end_funding(project_id).unwrap();
-			inst.finish_funding(project_id).unwrap();
+			inst.finish_funding(project_id, None).unwrap();
 			inst.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get()).unwrap();
 			inst.settle_project(project_id).unwrap();
 
@@ -658,6 +660,7 @@ mod settle_successful_contribution_extrinsic {
 			let project_id = inst.create_remainder_contributing_project(
 				project_metadata.clone(),
 				issuer,
+				None,
 				evaluations,
 				bids,
 				community_contributions,
@@ -688,7 +691,7 @@ mod settle_successful_contribution_extrinsic {
 				));
 			});
 
-			inst.finish_funding(project_id).unwrap();
+			inst.finish_funding(project_id, None).unwrap();
 			assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::FundingSuccessful);
 			let settlement_block = inst.get_update_block(project_id, &UpdateType::StartSettlement).unwrap();
 			inst.jump_to_block(settlement_block);
@@ -1056,6 +1059,7 @@ mod settle_failed_bid_extrinsic {
 			let project_id = inst.create_finished_project(
 				project_metadata.clone(),
 				issuer,
+				None,
 				evaluations,
 				vec![bid_1, bid_2],
 				community_contributions,
@@ -1253,6 +1257,7 @@ mod settle_failed_contribution_extrinsic {
 			let project_id = inst.create_remainder_contributing_project(
 				project_metadata.clone(),
 				issuer,
+				None,
 				evaluations,
 				bids,
 				community_contributions,
@@ -1283,7 +1288,7 @@ mod settle_failed_contribution_extrinsic {
 				));
 			});
 
-			inst.finish_funding(project_id).unwrap();
+			inst.finish_funding(project_id, None).unwrap();
 			assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::FundingFailed);
 			let settlement_block = inst.get_update_block(project_id, &UpdateType::StartSettlement).unwrap();
 			inst.jump_to_block(settlement_block);

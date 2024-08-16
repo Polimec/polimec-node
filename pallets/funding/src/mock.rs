@@ -20,7 +20,10 @@
 
 use super::*;
 use crate as pallet_funding;
-use crate::traits::ProvideAssetPrice;
+use crate::{
+	runtime_api::{ExtrinsicHelpers, Leaderboards, ProjectInformation, ProjectParticipationIds, UserInformation},
+	traits::ProvideAssetPrice,
+};
 use frame_support::{
 	construct_runtime, derive_impl,
 	pallet_prelude::Weight,
@@ -520,4 +523,57 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
 		System::set_block_number(1);
 	});
 	ext
+}
+
+sp_api::mock_impl_runtime_apis! {
+	impl Leaderboards<Block, TestRuntime> for TestRuntime {
+		fn top_evaluations(project_id: ProjectId, amount: u32) -> Vec<EvaluationInfoOf<TestRuntime>> {
+			PolimecFunding::top_evaluations
+(project_id, amount)
+		}
+
+		fn top_bids(project_id: ProjectId, amount: u32) -> Vec<BidInfoOf<TestRuntime>> {
+			PolimecFunding::top_bids
+(project_id, amount)
+		}
+
+		fn top_contributions(project_id: ProjectId, amount: u32) -> Vec<ContributionInfoOf<TestRuntime>> {
+			PolimecFunding::top_contributions
+(project_id, amount)
+		}
+
+		fn top_projects_by_usd_raised(amount: u32) -> Vec<(ProjectId, ProjectMetadataOf<TestRuntime>, ProjectDetailsOf<TestRuntime>)> {
+			PolimecFunding::top_projects_by_usd_raised(amount)
+		}
+
+		fn top_projects_by_usd_target_percent_reached(amount: u32) -> Vec<(ProjectId, ProjectMetadataOf<TestRuntime>, ProjectDetailsOf<TestRuntime>)> {
+			PolimecFunding::top_projects_by_usd_target_percent_reached(amount)
+		}
+	}
+
+	impl UserInformation<Block, TestRuntime> for TestRuntime {
+		fn contribution_tokens(account: AccountId) -> Vec<(ProjectId, BalanceOf<TestRuntime>)> {
+			PolimecFunding::contribution_tokens(account)
+		}
+
+		fn all_project_participations_by_did(project_id: ProjectId, did: Did) -> Vec<ProjectParticipationIds<TestRuntime>> {
+			PolimecFunding::all_project_participations_by_did(project_id, did)
+		}
+	}
+
+	impl ProjectInformation<Block, TestRuntime> for TestRuntime {
+		fn usd_target_percent_reached(project_id: ProjectId) -> FixedU128 {
+			PolimecFunding::usd_target_percent_reached(project_id)
+		}
+
+		fn projects_by_did(did: Did) -> Vec<ProjectId> {
+			PolimecFunding::projects_by_did(did)
+		}
+	}
+
+	impl ExtrinsicHelpers<Block, TestRuntime> for TestRuntime {
+		fn funding_asset_to_ct_amount(project_id: ProjectId, asset: AcceptedFundingAsset, asset_amount: BalanceOf<TestRuntime>) -> BalanceOf<TestRuntime> {
+			PolimecFunding::funding_asset_to_ct_amount(project_id, asset, asset_amount)
+		}
+	}
 }

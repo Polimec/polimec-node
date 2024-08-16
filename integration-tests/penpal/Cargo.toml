@@ -125,6 +125,7 @@ std = [
 	"polkadot-parachain-primitives/std",
 	"polkadot-primitives/std",
 	"polkadot-runtime-common/std",
+	"polkadot-runtime-parachains/std",
 	"scale-info/std",
 	"sp-api/std",
 	"sp-block-builder/std",
@@ -208,5 +209,7 @@ try-runtime = [
 	"polimec-common/try-runtime",
 	"polimec-receiver/try-runtime",
 	"polkadot-runtime-common/try-runtime",
+	"polkadot-runtime-parachains/try-runtime",
 	"sp-runtime/try-runtime",
 ]
+

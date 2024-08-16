@@ -115,6 +115,7 @@ std = [
 	"polimec-common/std",
 	"polimec-receiver/std",
 	"polimec-runtime/std",
+	"polimec-xcm-executor/std",
 	"polkadot-core-primitives/std",
 	"polkadot-parachain-primitives/std",
 	"polkadot-primitives/std",

@@ -117,6 +117,8 @@
 // This recursion limit is needed because we have too many benchmarks and benchmarking will fail if
 // we add more without this limit.
 #![cfg_attr(feature = "runtime-benchmarks", recursion_limit = "512")]
+extern crate alloc;
+
 pub use crate::weights::WeightInfo;
 use frame_support::{
 	traits::{
@@ -157,6 +159,7 @@ pub mod instantiator;
 
 #[cfg(feature = "runtime-benchmarks")]
 pub mod benchmarking;
+pub mod runtime_api;
 
 pub type AccountIdOf<T> = <T as frame_system::Config>::AccountId;
 pub type ProjectId = u32;
@@ -197,6 +200,7 @@ pub mod pallet {
 	use frame_support::{
 		dispatch::{GetDispatchInfo, PostDispatchInfo},
 		pallet_prelude::*,
+		storage::KeyPrefixIterator,
 		traits::{OnFinalize, OnIdle, OnInitialize},
 	};
 	use frame_system::pallet_prelude::*;
@@ -254,8 +258,11 @@ pub mod pallet {
 		/// The currency used for minting contribution tokens as fungible assets (i.e pallet-assets)
 		type ContributionTokenCurrency: fungibles::Create<AccountIdOf<Self>, AssetId = ProjectId, Balance = BalanceOf<Self>>
 			+ fungibles::Destroy<AccountIdOf<Self>, AssetId = ProjectId, Balance = BalanceOf<Self>>
-			+ fungibles::InspectEnumerable<AccountIdOf<Self>, Balance = BalanceOf<Self>>
-			+ fungibles::metadata::Inspect<AccountIdOf<Self>>
+			+ fungibles::InspectEnumerable<
+				AccountIdOf<Self>,
+				Balance = BalanceOf<Self>,
+				AssetsIterator = KeyPrefixIterator<AssetIdOf<Self>>,
+			> + fungibles::metadata::Inspect<AccountIdOf<Self>>
 			+ fungibles::metadata::Mutate<AccountIdOf<Self>>
 			+ fungibles::metadata::MetadataDeposit<BalanceOf<Self>>
 			+ fungibles::Mutate<AccountIdOf<Self>, Balance = BalanceOf<Self>>

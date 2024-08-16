@@ -37,6 +37,7 @@ pallet-xcm.workspace = true
 polkadot-parachain-primitives.workspace = true
 polimec-common-test-utils = { workspace = true, optional = true }
 frame-benchmarking = { workspace = true, optional = true }
+sp-api.workspace = true
 
 # Used in the instantiator.
 itertools.workspace = true
@@ -75,6 +76,7 @@ std = [
 	"polkadot-parachain-primitives/std",
 	"scale-info/std",
 	"serde/std",
+	"sp-api/std",
 	"sp-arithmetic/std",
 	"sp-core/std",
 	"sp-io/std",

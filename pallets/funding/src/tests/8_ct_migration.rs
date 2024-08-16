@@ -12,6 +12,7 @@ mod pallet_migration {
 		let project_id = inst.create_finished_project(
 			default_project_metadata(ISSUER_1),
 			ISSUER_1,
+			None,
 			default_evaluations(),
 			default_bids(),
 			default_community_buys(),
@@ -64,6 +65,7 @@ mod pallet_migration {
 		let project_id = inst.create_finished_project(
 			default_project_metadata(ISSUER_1),
 			ISSUER_1,
+			None,
 			default_evaluations(),
 			default_bids(),
 			default_community_buys(),
@@ -188,6 +190,7 @@ mod offchain_migration {
 		let project_id = inst.create_finished_project(
 			default_project_metadata(ISSUER_1),
 			ISSUER_1,
+			None,
 			default_evaluations(),
 			default_bids(),
 			default_community_buys(),
@@ -199,6 +202,7 @@ mod offchain_migration {
 		let project_id = inst.create_finished_project(
 			default_project_metadata(ISSUER_1),
 			ISSUER_1,
+			None,
 			default_evaluations(),
 			default_bids(),
 			default_community_buys(),
@@ -225,6 +229,7 @@ mod offchain_migration {
 		let project_id = inst.create_finished_project(
 			default_project_metadata(ISSUER_1),
 			ISSUER_1,
+			None,
 			default_evaluations(),
 			default_bids(),
 			default_community_buys(),
