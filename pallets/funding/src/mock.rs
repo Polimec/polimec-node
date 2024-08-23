@@ -294,14 +294,12 @@ pub const HOURS: BlockNumber = 300u64;
 // REMARK: In the production configuration we use DAYS instead of HOURS.
 // We need all durations to use different times to catch bugs in the tests.
 parameter_types! {
-	pub const EvaluationDuration: BlockNumber = 10u64;
-	pub const AuctionInitializePeriodDuration: BlockNumber = 11u64;
-	pub const AuctionOpeningDuration: BlockNumber = 12u64;
-	pub const AuctionClosingDuration: BlockNumber = 13u64;
-	pub const CommunityRoundDuration: BlockNumber = 14u64;
-	pub const RemainderFundingDuration: BlockNumber = 15u64;
-	pub const ManualAcceptanceDuration: BlockNumber = 16u64;
-	pub const SuccessToSettlementTime: BlockNumber = 17u64;
+	pub const EvaluationRoundDuration: BlockNumber = 10u64;
+	pub const AuctionInitializePeriodDuration: BlockNumber = 12u64;
+	pub const AuctionRoundDuration: BlockNumber = 15u64;
+	pub const CommunityRoundDuration: BlockNumber = 18u64;
+	pub const RemainderRoundDuration: BlockNumber = 6u64;
+	pub const SuccessToSettlementTime: BlockNumber = 4u64;
 
 	pub const FundingPalletId: PalletId = PalletId(*b"py/cfund");
 	pub FeeBrackets: Vec<(Percent, Balance)> = vec![
@@ -399,25 +397,23 @@ impl Config for TestRuntime {
 	type AccountId32Conversion = DummyConverter;
 	type AllPalletsWithoutSystem =
 		(Balances, ContributionTokens, ForeignAssets, PolimecFunding, LinearRelease, RandomnessCollectiveFlip);
-	type AuctionClosingDuration = AuctionClosingDuration;
 	type AuctionInitializePeriodDuration = AuctionInitializePeriodDuration;
-	type AuctionOpeningDuration = AuctionOpeningDuration;
+	type AuctionRoundDuration = AuctionRoundDuration;
 	type Balance = Balance;
 	type BlockNumber = BlockNumber;
 	type BlockNumberToBalance = ConvertInto;
 	type BlockchainOperationTreasury = BlockchainOperationTreasuryAccount;
-	type CommunityFundingDuration = CommunityRoundDuration;
+	type CommunityRoundDuration = CommunityRoundDuration;
 	type ContributionTokenCurrency = ContributionTokens;
 	type ContributionTreasury = ContributionTreasury;
 	type DaysToBlocks = DaysToBlocks;
-	type EvaluationDuration = EvaluationDuration;
+	type EvaluationRoundDuration = EvaluationRoundDuration;
 	type EvaluationSuccessThreshold = EarlyEvaluationThreshold;
 	type EvaluatorSlash = EvaluatorSlash;
 	type FeeBrackets = FeeBrackets;
 	type FundingCurrency = ForeignAssets;
 	type FundingSuccessThreshold = FundingSuccessThreshold;
 	type InvestorOrigin = EnsureInvestor<TestRuntime>;
-	type ManualAcceptanceDuration = ManualAcceptanceDuration;
 	type MaxBidsPerProject = ConstU32<512>;
 	type MaxBidsPerUser = ConstU32<25>;
 	type MaxCapacityThresholds = MaxCapacityThresholds;
@@ -432,7 +428,7 @@ impl Config for TestRuntime {
 	type Price = FixedU128;
 	type PriceProvider = ConstPriceProvider;
 	type Randomness = RandomnessCollectiveFlip;
-	type RemainderFundingDuration = RemainderFundingDuration;
+	type RemainderRoundDuration = RemainderRoundDuration;
 	type RequiredMaxCapacity = RequiredMaxCapacity;
 	type RequiredMaxMessageSize = RequiredMaxMessageSize;
 	type RuntimeCall = RuntimeCall;
