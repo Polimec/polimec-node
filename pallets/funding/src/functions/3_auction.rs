@@ -34,7 +34,7 @@ impl<T: Config> Pallet<T> {
 			project_id,
 			project_details,
 			ProjectStatus::AuctionInitializePeriod,
-			ProjectStatus::Auction,
+			ProjectStatus::AuctionRound,
 			T::AuctionOpeningDuration::get(),
 			skip_round_end_check,
 		)
@@ -45,7 +45,6 @@ impl<T: Config> Pallet<T> {
 	#[transactional]
 	pub fn do_end_auction(project_id: ProjectId) -> DispatchResultWithPostInfo {
 		// * Get variables *
-		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 		let project_metadata = ProjectsMetadata::<T>::get(project_id).ok_or(Error::<T>::ProjectMetadataNotFound)?;
 		let bucket = Buckets::<T>::get(project_id).ok_or(Error::<T>::BucketNotFound)?;
 
@@ -60,6 +59,8 @@ impl<T: Config> Pallet<T> {
 			project_metadata.auction_round_allocation_percentage * project_metadata.total_allocation_size,
 			weighted_token_price,
 		);
+		let updated_project_details =
+			ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 
 		match calculation_result {
 			Err(e) => return Err(DispatchErrorWithPostInfo { post_info: ().into(), error: e }),
@@ -68,8 +69,8 @@ impl<T: Config> Pallet<T> {
 				// * Transition Round *
 				Self::transition_project(
 					project_id,
-					project_details,
-					ProjectStatus::Auction,
+					updated_project_details,
+					ProjectStatus::AuctionRound,
 					ProjectStatus::CommunityRound(now.saturating_add(T::CommunityFundingDuration::get())),
 					T::CommunityFundingDuration::get() + T::RemainderFundingDuration::get(),
 					false,
@@ -151,7 +152,7 @@ impl<T: Config> Pallet<T> {
 
 		ensure!(ct_amount > Zero::zero(), Error::<T>::TooLow);
 		ensure!(did != project_details.issuer_did, Error::<T>::ParticipationToOwnProject);
-		ensure!(matches!(project_details.status, ProjectStatus::Auction), Error::<T>::IncorrectRound);
+		ensure!(matches!(project_details.status, ProjectStatus::AuctionRound), Error::<T>::IncorrectRound);
 		ensure!(
 			project_metadata.participation_currencies.contains(&funding_asset),
 			Error::<T>::FundingAssetNotAccepted
