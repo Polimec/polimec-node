@@ -36,6 +36,7 @@ pub enum InvestorType {
 }
 
 impl InvestorType {
+	#[must_use]
 	pub fn as_str(&self) -> &'static str {
 		match self {
 			InvestorType::Retail => "retail",
@@ -82,12 +83,14 @@ where
 	) -> Result<Self::Success, T::RuntimeOrigin> {
 		let Some(who) = origin.clone().into_signer() else { return Err(origin) };
 		let Ok(token) = Self::verify_token(token, verifying_key) else { return Err(origin) };
-		let Ok(claims) = Self::extract_claims(&token) else { return Err(origin) };
+		let claims = token.claims();
 		// Get the current timestamp from the pallet_timestamp. It is in milliseconds.
 		let Ok(now) = Now::<T>::get().try_into() else { return Err(origin) };
 		let Some(date_time) = claims.expiration else { return Err(origin) };
 
-		if claims.custom.subject == who && (date_time.timestamp_millis() as u64) >= now {
+		let timestamp: u64 = date_time.timestamp_millis().try_into().map_err(|_| origin.clone())?;
+
+		if claims.custom.subject == who && timestamp >= now {
 			return Ok((
 				who,
 				claims.custom.did.clone(),
@@ -100,6 +103,7 @@ where
 	}
 }
 
+#[allow(clippy::module_name_repetitions)]
 pub trait EnsureOriginWithCredentials<OuterOrigin>
 where
 	OuterOrigin: OriginTrait,
@@ -119,10 +123,6 @@ where
 		verifying_key: [u8; 32],
 	) -> Result<Self::Success, BadOrigin> {
 		Self::try_origin(origin, token, verifying_key).map_err(|_| BadOrigin)
-	}
-
-	fn extract_claims(token: &jwt_compact::Token<Self::Claims>) -> Result<&StandardClaims<Self::Claims>, ()> {
-		Ok(token.claims())
 	}
 
 	fn verify_token(

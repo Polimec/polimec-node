@@ -9,6 +9,10 @@ repository.workspace = true
 description = "FRAME pallet for democracy"
 readme = "README.md"
 
+[lints]
+clippy.all = "allow"
+clippy.pedantic = "allow"
+
 [package.metadata.docs.rs]
 targets = ["x86_64-unknown-linux-gnu"]
 

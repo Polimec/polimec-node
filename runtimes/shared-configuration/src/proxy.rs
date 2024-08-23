@@ -22,7 +22,7 @@ use sp_runtime::RuntimeDebug;
 #[derive(
 	Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Encode, Decode, RuntimeDebug, MaxEncodedLen, scale_info::TypeInfo,
 )]
-pub enum ProxyType {
+pub enum Type {
 	/// Fully permissioned proxy. Can execute any call on behalf of _proxied_.
 	Any,
 	NonTransfer,
@@ -30,7 +30,7 @@ pub enum ProxyType {
 	Staking,
 	IdentityJudgement,
 }
-impl Default for ProxyType {
+impl Default for Type {
 	fn default() -> Self {
 		Self::Any
 	}

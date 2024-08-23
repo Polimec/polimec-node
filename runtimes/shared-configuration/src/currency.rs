@@ -67,9 +67,8 @@ parameter_types! {
 }
 
 pub mod vesting {
+	use super::{parameter_types, Balance, PLMC};
 	use frame_support::traits::WithdrawReasons;
-
-	use super::*;
 
 	parameter_types! {
 		pub const MinVestedTransfer: Balance = PLMC;
@@ -86,9 +85,9 @@ pub struct AssetPriceConverter;
 impl Convert<(AssetName, FixedU128), (AssetId, Price)> for AssetPriceConverter {
 	fn convert((asset, price): (AssetName, FixedU128)) -> (AssetId, Price) {
 		match asset {
-			AssetName::DOT => (AcceptedFundingAsset::DOT.to_assethub_id(), price),
-			AssetName::USDC => (AcceptedFundingAsset::USDC.to_assethub_id(), price),
-			AssetName::USDT => (AcceptedFundingAsset::USDT.to_assethub_id(), price),
+			AssetName::DOT => (AcceptedFundingAsset::DOT.id(), price),
+			AssetName::USDC => (AcceptedFundingAsset::USDC.id(), price),
+			AssetName::USDT => (AcceptedFundingAsset::USDT.id(), price),
 			AssetName::PLMC => (pallet_funding::PLMC_FOREIGN_ID, price),
 		}
 	}

@@ -10,6 +10,9 @@ readme.workspace = true
 repository.workspace = true
 version.workspace = true
 
+[lints]
+workspace = true
+
 [build-dependencies]
 substrate-wasm-builder.workspace = true
 
@@ -115,6 +118,7 @@ std = [
 	"polimec-common/std",
 	"polimec-receiver/std",
 	"polimec-runtime/std",
+	"polimec-xcm-executor/std",
 	"polkadot-core-primitives/std",
 	"polkadot-parachain-primitives/std",
 	"polkadot-primitives/std",

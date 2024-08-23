@@ -41,7 +41,7 @@ fn members_can_feed_data() {
 
 	PolimecNet::execute_with(|| {
 		// pallet_funding genesis builder already inputs prices, so we need to advance one block to feed new values.
-		inst.advance_time(1u32).unwrap();
+		inst.advance_time(1u32);
 		let alice = PolimecNet::account_id_of(ALICE);
 		assert_ok!(Oracle::feed_values(RuntimeOrigin::signed(alice.clone()), values([4.84, 1.0, 1.0, 0.4])));
 
@@ -81,7 +81,7 @@ fn data_is_correctly_combined() {
 	let mut inst = IntegrationInstantiator::new(None);
 	PolimecNet::execute_with(|| {
 		// pallet_funding genesis builder already inputs prices, so we need to advance one block to feed new values.
-		inst.advance_time(1u32).unwrap();
+		inst.advance_time(1u32);
 
 		let alice = PolimecNet::account_id_of(ALICE);
 		assert_ok!(Oracle::feed_values(RuntimeOrigin::signed(alice.clone()), values([1.0, 1.5, 1.1, 0.11111])));
@@ -113,7 +113,7 @@ fn pallet_funding_works() {
 
 	PolimecNet::execute_with(|| {
 		// pallet_funding genesis builder already inputs prices, so we need to advance one block to feed new values.
-		inst.advance_time(1u32).unwrap();
+		inst.advance_time(1u32);
 
 		let alice = PolimecNet::account_id_of(ALICE);
 		assert_ok!(Oracle::feed_values(RuntimeOrigin::signed(alice.clone()), values([4.84, 1.0, 1.0, 0.4])));
@@ -127,6 +127,7 @@ fn pallet_funding_works() {
 		let _project_id = inst.create_finished_project(
 			default_project_metadata(ISSUER.into()),
 			ISSUER.into(),
+			None,
 			default_evaluations(),
 			default_bids(),
 			default_community_contributions(),

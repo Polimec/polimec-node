@@ -1,3 +1,4 @@
+#[allow(clippy::wildcard_imports)]
 use super::*;
 // use xcm::v4::MaxPalletNameLen;
 
@@ -8,18 +9,18 @@ impl<T: Config> Pallet<T> {
 		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 
 		ensure!(project_details.issuer_account == caller, Error::<T>::NotIssuer);
-		match project_details.status {
-			ProjectStatus::SettlementFinished(FundingOutcome::FundingSuccessful) => (),
-			ProjectStatus::FundingSuccessful | ProjectStatus::SettlementStarted(FundingOutcome::FundingSuccessful) =>
-				return Err(Error::<T>::SettlementNotComplete.into()),
-			_ => return Err(Error::<T>::IncorrectRound.into()),
-		}
 
 		project_details.migration_type = Some(MigrationType::Offchain);
-		project_details.status = ProjectStatus::CTMigrationStarted;
-		ProjectsDetails::<T>::insert(project_id, project_details);
 
-		// * Emit events *
+		Self::transition_project(
+			project_id,
+			project_details,
+			ProjectStatus::SettlementFinished(FundingOutcome::Success),
+			ProjectStatus::CTMigrationStarted,
+			None,
+			false,
+		)?;
+
 		Ok(())
 	}
 
@@ -56,8 +57,8 @@ impl<T: Config> Pallet<T> {
 		// * Validity checks *
 		ensure!(&(project_details.issuer_account) == caller, Error::<T>::NotIssuer);
 		match project_details.status {
-			ProjectStatus::SettlementFinished(FundingOutcome::FundingSuccessful) => (),
-			ProjectStatus::FundingSuccessful | ProjectStatus::SettlementStarted(FundingOutcome::FundingSuccessful) =>
+			ProjectStatus::SettlementFinished(FundingOutcome::Success) => (),
+			ProjectStatus::FundingSuccessful | ProjectStatus::SettlementStarted(FundingOutcome::Success) =>
 				return Err(Error::<T>::SettlementNotComplete.into()),
 			_ => return Err(Error::<T>::IncorrectRound.into()),
 		}
@@ -72,11 +73,15 @@ impl<T: Config> Pallet<T> {
 			migration_readiness_check: None,
 		};
 		project_details.migration_type = Some(MigrationType::Pallet(parachain_receiver_pallet_info));
-		project_details.status = ProjectStatus::CTMigrationStarted;
-		ProjectsDetails::<T>::insert(project_id, project_details);
 
-		// * Emit events *
-		Self::deposit_event(Event::PalletMigrationStarted { project_id, para_id });
+		Self::transition_project(
+			project_id,
+			project_details,
+			ProjectStatus::SettlementFinished(FundingOutcome::Success),
+			ProjectStatus::CTMigrationStarted,
+			None,
+			false,
+		)?;
 
 		Ok(())
 	}
@@ -359,7 +364,7 @@ impl<T: Config> Pallet<T> {
 					},
 				),
 			) => {
-				let ct_sold_as_u128: u128 = contribution_tokens_sold.try_into().map_err(|_| Error::<T>::BadMath)?;
+				let ct_sold_as_u128: u128 = contribution_tokens_sold.into();
 				let assets: Vec<Asset> = assets.into_inner();
 				let asset_1 = assets[0].clone();
 				match asset_1 {
@@ -456,7 +461,7 @@ impl<T: Config> Pallet<T> {
 		Self::change_migration_status(project_id, participant.clone(), MigrationStatus::Sent(query_id))?;
 
 		// * Process Data *
-		let xcm = Self::construct_migration_xcm_message(migrations.into(), query_id, pallet_index);
+		let xcm = Self::construct_migration_xcm_message(migrations, query_id, pallet_index);
 
 		<pallet_xcm::Pallet<T>>::send_xcm(Here, project_location, xcm).map_err(|_| Error::<T>::XcmFailed)?;
 		ActiveMigrationQueue::<T>::insert(query_id, (project_id, participant.clone()));

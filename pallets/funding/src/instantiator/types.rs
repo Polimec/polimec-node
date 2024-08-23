@@ -1,3 +1,4 @@
+#[allow(clippy::wildcard_imports)]
 use super::*;
 use frame_support::{Deserialize, Serialize};
 
@@ -12,7 +13,7 @@ impl Default for BoxToFunction {
 #[derive(Clone, PartialEq, Eq, Debug, Encode, Decode, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields, bound(serialize = ""), bound(deserialize = ""))]
 pub struct TestProjectParams<T: Config> {
-	pub expected_state: ProjectStatus,
+	pub expected_state: ProjectStatus<BlockNumberFor<T>>,
 	pub metadata: ProjectMetadataOf<T>,
 	pub issuer: AccountIdOf<T>,
 	pub evaluations: Vec<UserToUSDBalance<T>>,
@@ -167,54 +168,57 @@ impl<T: Config> AccountMerge for Vec<UserToUSDBalance<T>> {
 }
 
 #[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
-pub struct UserToForeignAssets<T: Config> {
+pub struct UserToFundingAsset<T: Config> {
 	pub account: AccountIdOf<T>,
 	pub asset_amount: BalanceOf<T>,
 	pub asset_id: AssetIdOf<T>,
 }
-impl<T: Config> UserToForeignAssets<T> {
+impl<T: Config> UserToFundingAsset<T> {
 	pub fn new(account: AccountIdOf<T>, asset_amount: BalanceOf<T>, asset_id: AssetIdOf<T>) -> Self {
 		Self { account, asset_amount, asset_id }
 	}
 }
-impl<T: Config> From<(AccountIdOf<T>, BalanceOf<T>, AssetIdOf<T>)> for UserToForeignAssets<T> {
+impl<T: Config> From<(AccountIdOf<T>, BalanceOf<T>, AssetIdOf<T>)> for UserToFundingAsset<T> {
 	fn from((account, asset_amount, asset_id): (AccountIdOf<T>, BalanceOf<T>, AssetIdOf<T>)) -> Self {
-		UserToForeignAssets::<T>::new(account, asset_amount, asset_id)
+		UserToFundingAsset::<T>::new(account, asset_amount, asset_id)
 	}
 }
-impl<T: Config> From<(AccountIdOf<T>, BalanceOf<T>)> for UserToForeignAssets<T> {
+impl<T: Config> From<(AccountIdOf<T>, BalanceOf<T>)> for UserToFundingAsset<T> {
 	fn from((account, asset_amount): (AccountIdOf<T>, BalanceOf<T>)) -> Self {
-		UserToForeignAssets::<T>::new(account, asset_amount, AcceptedFundingAsset::USDT.to_assethub_id())
+		UserToFundingAsset::<T>::new(account, asset_amount, AcceptedFundingAsset::USDT.id())
 	}
 }
-impl<T: Config> Accounts for Vec<UserToForeignAssets<T>> {
+impl<T: Config> Accounts for Vec<UserToFundingAsset<T>> {
 	type Account = AccountIdOf<T>;
 
 	fn accounts(&self) -> Vec<Self::Account> {
 		let mut btree = BTreeSet::new();
-		for UserToForeignAssets { account, .. } in self.iter() {
+		for UserToFundingAsset { account, .. } in self.iter() {
 			btree.insert(account.clone());
 		}
 		btree.into_iter().collect_vec()
 	}
 }
-impl<T: Config> AccountMerge for Vec<UserToForeignAssets<T>> {
-	type Inner = UserToForeignAssets<T>;
+impl<T: Config> AccountMerge for Vec<UserToFundingAsset<T>> {
+	type Inner = UserToFundingAsset<T>;
 
 	fn merge_accounts(&self, ops: MergeOperation) -> Self {
 		let mut btree = BTreeMap::new();
-		for UserToForeignAssets { account, asset_amount, asset_id } in self.iter() {
+		for UserToFundingAsset { account, asset_amount, asset_id } in self.iter() {
 			btree
-				.entry(account.clone())
-				.and_modify(|e: &mut (BalanceOf<T>, u32)| {
-					e.0 = match ops {
-						MergeOperation::Add => e.0.saturating_add(*asset_amount),
-						MergeOperation::Subtract => e.0.saturating_sub(*asset_amount),
+				.entry((account.clone(), asset_id))
+				.and_modify(|e: &mut BalanceOf<T>| {
+					*e = match ops {
+						MergeOperation::Add => e.saturating_add(*asset_amount),
+						MergeOperation::Subtract => e.saturating_sub(*asset_amount),
 					}
 				})
-				.or_insert((*asset_amount, *asset_id));
+				.or_insert(*asset_amount);
 		}
-		btree.into_iter().map(|(account, info)| UserToForeignAssets::new(account, info.0, info.1)).collect()
+		btree
+			.into_iter()
+			.map(|((account, asset_id), asset_amount)| UserToFundingAsset::new(account, asset_amount, *asset_id))
+			.collect()
 	}
 
 	fn subtract_accounts(&self, other_list: Self) -> Self {
@@ -280,6 +284,16 @@ impl<T: Config> From<(AccountIdOf<T>, BalanceOf<T>, u8, AcceptedFundingAsset)> f
 			bidder,
 			amount,
 			multiplier: multiplier.try_into().unwrap_or_else(|_| panic!("Failed to create multiplier")),
+			asset,
+		}
+	}
+}
+impl<T: Config> From<(AccountIdOf<T>, BalanceOf<T>, AcceptedFundingAsset)> for BidParams<T> {
+	fn from((bidder, amount, asset): (AccountIdOf<T>, BalanceOf<T>, AcceptedFundingAsset)) -> Self {
+		Self {
+			bidder,
+			amount,
+			multiplier: 1u8.try_into().unwrap_or_else(|_| panic!("multiplier could not be created from 1u8")),
 			asset,
 		}
 	}
@@ -361,8 +375,6 @@ pub struct BidInfoFilter<T: Config> {
 	pub status: Option<BidStatus<BalanceOf<T>>>,
 	pub original_ct_amount: Option<BalanceOf<T>>,
 	pub original_ct_usd_price: Option<PriceOf<T>>,
-	pub final_ct_amount: Option<BalanceOf<T>>,
-	pub final_ct_usd_price: Option<PriceOf<T>>,
 	pub funding_asset: Option<AcceptedFundingAsset>,
 	pub funding_asset_amount_locked: Option<BalanceOf<T>>,
 	pub multiplier: Option<MultiplierOf<T>>,
@@ -387,12 +399,6 @@ impl<T: Config> BidInfoFilter<T> {
 			return false;
 		}
 		if self.original_ct_usd_price.is_some() && self.original_ct_usd_price.unwrap() != bid.original_ct_usd_price {
-			return false;
-		}
-		if self.final_ct_amount.is_some() && self.final_ct_amount.unwrap() != bid.final_ct_amount {
-			return false;
-		}
-		if self.final_ct_usd_price.is_some() && self.final_ct_usd_price.unwrap() != bid.final_ct_usd_price {
 			return false;
 		}
 		if self.funding_asset.is_some() && self.funding_asset.unwrap() != bid.funding_asset {
@@ -425,8 +431,6 @@ impl<T: Config> Default for BidInfoFilter<T> {
 			status: None,
 			original_ct_amount: None,
 			original_ct_usd_price: None,
-			final_ct_amount: None,
-			final_ct_usd_price: None,
 			funding_asset: None,
 			funding_asset_amount_locked: None,
 			multiplier: None,

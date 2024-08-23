@@ -16,6 +16,9 @@
 
 //! Offchain Worker for Oracle price feed
 #![cfg_attr(not(feature = "std"), no_std)]
+// Needed due to empty sections raising the warning
+#![allow(unreachable_patterns)]
+
 use crate::{
 	traits::FetchPrice,
 	types::{
@@ -24,10 +27,20 @@ use crate::{
 	},
 };
 use core::ops::Rem;
-use frame_system::offchain::{AppCrypto, CreateSignedTransaction, SendSignedTransaction, Signer};
+use frame_support::{pallet_prelude::*, traits::Contains};
+use frame_system::{
+	offchain::{AppCrypto, CreateSignedTransaction, SendSignedTransaction, Signer, SigningTypes},
+	pallet_prelude::*,
+};
+use orml_oracle::Call as OracleCall;
 pub use pallet::*;
 use sp_runtime::{
-	traits::{Convert, Saturating, Zero},
+	offchain::{
+		storage::{StorageRetrievalError, StorageValueRef},
+		storage_lock::{StorageLock, Time},
+		Duration,
+	},
+	traits::{Convert, IdentifyAccount, Saturating, Zero},
 	FixedU128, RuntimeAppPublic,
 };
 use sp_std::{collections::btree_map::BTreeMap, vec, vec::Vec};
@@ -47,18 +60,8 @@ pub(crate) const NUMBER_OF_CANDLES: usize = 15;
 
 #[frame_support::pallet]
 pub mod pallet {
+	#[allow(clippy::wildcard_imports)]
 	use super::*;
-	use frame_support::{pallet_prelude::*, traits::Contains};
-	use frame_system::{offchain::SigningTypes, pallet_prelude::*};
-	use orml_oracle::Call as OracleCall;
-	use sp_runtime::{
-		offchain::{
-			storage::{StorageRetrievalError, StorageValueRef},
-			storage_lock::{StorageLock, Time},
-			Duration,
-		},
-		traits::{IdentifyAccount, Zero},
-	};
 
 	const LOCK_TIMEOUT_EXPIRATION: u64 = 30_000; // 30 seconds
 
@@ -151,10 +154,10 @@ pub mod pallet {
 							(AssetName::PLMC, Zero::zero()),
 						]),
 					};
+
 					// Fix for missing PLMC in last_send_for_assets for old nodes, that did not have PLMC in the list.
-					if !last_send_for_assets.contains_key(&AssetName::PLMC) {
-						last_send_for_assets.insert(AssetName::PLMC, Zero::zero());
-					};
+					last_send_for_assets.entry(AssetName::PLMC).or_insert_with(Zero::zero);
+
 					let assets = last_send_for_assets
 						.iter()
 						.filter_map(|(asset_name, last_send)| {
@@ -254,11 +257,11 @@ pub mod pallet {
 			match result {
 				Some((_, Ok(_))) => {
 					log::trace!(target: LOG_TARGET, "offchain tx sent successfully");
-					return Ok(());
+					Ok(())
 				},
 				_ => {
 					log::trace!(target: LOG_TARGET, "failure: offchain_signed_tx");
-					return Err(());
+					Err(())
 				},
 			}
 		}

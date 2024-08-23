@@ -17,7 +17,7 @@ mod round_flow {
 			let issuer = ISSUER_1;
 			let project_metadata = default_project_metadata(issuer);
 
-			inst.create_evaluating_project(project_metadata, issuer);
+			inst.create_evaluating_project(project_metadata, issuer, None);
 		}
 	}
 }
@@ -38,9 +38,9 @@ mod create_project_extrinsic {
 			let project_2 = default_project_metadata(ISSUER_2);
 			let project_3 = default_project_metadata(ISSUER_3);
 
-			let created_project_1_id = inst.create_evaluating_project(project_1, ISSUER_1);
-			let created_project_2_id = inst.create_evaluating_project(project_2, ISSUER_2);
-			let created_project_3_id = inst.create_evaluating_project(project_3, ISSUER_3);
+			let created_project_1_id = inst.create_evaluating_project(project_1, ISSUER_1, None);
+			let created_project_2_id = inst.create_evaluating_project(project_2, ISSUER_2, None);
+			let created_project_3_id = inst.create_evaluating_project(project_3, ISSUER_3, None);
 
 			assert_eq!(created_project_1_id, 0);
 			assert_eq!(created_project_2_id, 1);
@@ -53,8 +53,8 @@ mod create_project_extrinsic {
 			let mut issuer = ISSUER_1;
 			for _ in 0..512 {
 				let project_metadata = default_project_metadata(issuer);
-				inst.create_evaluating_project(project_metadata, issuer);
-				inst.advance_time(1u64).unwrap();
+				inst.create_evaluating_project(project_metadata, issuer, None);
+				inst.advance_time(1u64);
 				issuer += 1;
 			}
 		}
@@ -128,7 +128,7 @@ mod create_project_extrinsic {
 			let failing_bids = vec![(BIDDER_1, 1000 * CT_UNIT).into(), (BIDDER_2, 1000 * CT_UNIT).into()];
 
 			inst.mint_plmc_to(default_plmc_balances());
-			inst.mint_foreign_asset_to(default_usdt_balances());
+			inst.mint_funding_asset_to(default_usdt_balances());
 
 			// Cannot create 2 projects consecutively
 			inst.execute(|| {
@@ -150,7 +150,8 @@ mod create_project_extrinsic {
 			});
 
 			// A Project is "inactive" after the evaluation fails
-			inst.start_evaluation(0, ISSUER_1).unwrap();
+			assert_eq!(inst.go_to_next_state(0), ProjectStatus::EvaluationRound);
+
 			inst.execute(|| {
 				assert_noop!(
 					Pallet::<TestRuntime>::create_project(
@@ -161,11 +162,8 @@ mod create_project_extrinsic {
 					Error::<TestRuntime>::HasActiveProject
 				);
 			});
-			inst.advance_time(<TestRuntime as Config>::EvaluationDuration::get() + 1).unwrap();
-			assert_eq!(
-				inst.get_project_details(0).status,
-				ProjectStatus::SettlementStarted(FundingOutcome::FundingFailed)
-			);
+			assert_eq!(inst.go_to_next_state(0), ProjectStatus::FundingFailed);
+
 			inst.execute(|| {
 				assert_ok!(Pallet::<TestRuntime>::create_project(
 					RuntimeOrigin::signed(ISSUER_1),
@@ -175,11 +173,15 @@ mod create_project_extrinsic {
 			});
 
 			// A Project is "inactive" after the funding fails
-			inst.start_evaluation(1, ISSUER_1).unwrap();
+			assert_eq!(inst.go_to_next_state(1), ProjectStatus::EvaluationRound);
+
 			inst.evaluate_for_users(1, default_evaluations()).unwrap();
-			inst.start_auction(1, ISSUER_1).unwrap();
+
+			assert_eq!(inst.go_to_next_state(1), ProjectStatus::AuctionRound);
+
 			inst.bid_for_users(1, failing_bids).unwrap();
-			inst.start_community_funding(1).unwrap();
+
+			assert!(matches!(inst.go_to_next_state(1), ProjectStatus::CommunityRound(_)));
 			inst.execute(|| {
 				assert_noop!(
 					Pallet::<TestRuntime>::create_project(
@@ -190,8 +192,7 @@ mod create_project_extrinsic {
 					Error::<TestRuntime>::HasActiveProject
 				);
 			});
-			inst.finish_funding(1).unwrap();
-			assert_eq!(inst.get_project_details(1).status, ProjectStatus::FundingFailed);
+			assert_eq!(inst.go_to_next_state(1), ProjectStatus::FundingFailed);
 			inst.execute(|| {
 				assert_ok!(Pallet::<TestRuntime>::create_project(
 					RuntimeOrigin::signed(ISSUER_1),
@@ -201,16 +202,23 @@ mod create_project_extrinsic {
 			});
 
 			// A project is "inactive" after the funding succeeds
-			inst.start_evaluation(2, ISSUER_1).unwrap();
+			assert_eq!(inst.go_to_next_state(2), ProjectStatus::EvaluationRound);
 			inst.evaluate_for_users(2, default_evaluations()).unwrap();
-			inst.start_auction(2, ISSUER_1).unwrap();
+
+			assert_eq!(inst.go_to_next_state(2), ProjectStatus::AuctionRound);
+
 			inst.bid_for_users(2, default_bids()).unwrap();
-			inst.start_community_funding(2).unwrap();
-			inst.contribute_for_users(2, default_community_buys()).unwrap();
-			inst.start_remainder_or_end_funding(2).unwrap();
-			inst.contribute_for_users(2, default_remainder_buys()).unwrap();
-			inst.finish_funding(2).unwrap();
-			assert_eq!(inst.get_project_details(2).status, ProjectStatus::FundingSuccessful);
+
+			let ProjectStatus::CommunityRound(remainder_start) = inst.go_to_next_state(2) else {
+				panic!("Expected CommunityRound");
+			};
+
+			inst.contribute_for_users(2, default_community_contributions()).unwrap();
+			inst.jump_to_block(remainder_start);
+			inst.contribute_for_users(2, default_remainder_contributions()).unwrap();
+
+			assert_eq!(inst.go_to_next_state(2), ProjectStatus::FundingSuccessful);
+
 			assert_ok!(inst.execute(|| crate::Pallet::<TestRuntime>::create_project(
 				RuntimeOrigin::signed(ISSUER_1),
 				jwt.clone(),
@@ -803,7 +811,7 @@ mod edit_project_extrinsic {
 				generate_did_from_account(ISSUER_1),
 				project_metadata.clone().policy_ipfs_cid.unwrap(),
 			);
-			let project_id = inst.create_new_project(project_metadata.clone(), ISSUER_1);
+			let project_id = inst.create_new_project(project_metadata.clone(), ISSUER_1, None);
 
 			project_metadata.minimum_price = PriceProviderOf::<TestRuntime>::calculate_decimals_aware_price(
 				PriceOf::<TestRuntime>::from_float(15.0),
@@ -836,7 +844,7 @@ mod edit_project_extrinsic {
 				generate_did_from_account(ISSUER_1),
 				project_metadata.clone().policy_ipfs_cid.unwrap(),
 			);
-			let project_id = inst.create_new_project(project_metadata.clone(), ISSUER_1);
+			let project_id = inst.create_new_project(project_metadata.clone(), ISSUER_1, None);
 			let mut new_metadata_1 = project_metadata.clone();
 			let new_policy_hash = ipfs_hash();
 			new_metadata_1.minimum_price = PriceProviderOf::<TestRuntime>::calculate_decimals_aware_price(
@@ -922,7 +930,7 @@ mod edit_project_extrinsic {
 			project_metadata.policy_ipfs_cid = None;
 			inst.mint_plmc_to(default_plmc_balances());
 			let jwt = get_mock_jwt(ISSUER_1, InvestorType::Institutional, generate_did_from_account(ISSUER_1));
-			let project_id = inst.create_new_project(project_metadata.clone(), ISSUER_1);
+			let project_id = inst.create_new_project(project_metadata.clone(), ISSUER_1, None);
 			let mut new_metadata = project_metadata.clone();
 			let new_policy_hash = ipfs_hash();
 			new_metadata.policy_ipfs_cid = Some(new_policy_hash);
@@ -946,7 +954,7 @@ mod edit_project_extrinsic {
 				generate_did_from_account(ISSUER_1),
 				project_metadata.clone().policy_ipfs_cid.unwrap(),
 			);
-			let project_id = inst.create_new_project(project_metadata.clone(), ISSUER_1);
+			let project_id = inst.create_new_project(project_metadata.clone(), ISSUER_1, None);
 			let mut new_metadata = project_metadata.clone();
 
 			let new_price = PriceOf::<TestRuntime>::from_float(1f64);
@@ -1005,8 +1013,8 @@ mod edit_project_extrinsic {
 				project_metadata_2.clone().policy_ipfs_cid.unwrap(),
 			);
 
-			let project_id_1 = inst.create_new_project(project_metadata_1.clone(), ISSUER_1);
-			let project_id_2 = inst.create_new_project(project_metadata_2.clone(), ISSUER_2);
+			let project_id_1 = inst.create_new_project(project_metadata_1.clone(), ISSUER_1, None);
+			let project_id_2 = inst.create_new_project(project_metadata_2.clone(), ISSUER_2, None);
 
 			inst.execute(|| {
 				assert_noop!(
@@ -1041,8 +1049,9 @@ mod edit_project_extrinsic {
 				generate_did_from_account(ISSUER_1),
 				project_metadata.clone().policy_ipfs_cid.unwrap(),
 			);
-			let project_id = inst.create_new_project(project_metadata.clone(), ISSUER_1);
-			inst.start_evaluation(project_id, ISSUER_1).unwrap();
+			let project_id = inst.create_new_project(project_metadata.clone(), ISSUER_1, None);
+			assert_eq!(inst.go_to_next_state(project_id), ProjectStatus::EvaluationRound);
+
 			inst.execute(|| {
 				assert_noop!(
 					crate::Pallet::<TestRuntime>::edit_project(
@@ -1068,7 +1077,7 @@ mod edit_project_extrinsic {
 				project_metadata.clone().policy_ipfs_cid.unwrap(),
 			);
 
-			let project_id = inst.create_new_project(project_metadata.clone(), ISSUER_1);
+			let project_id = inst.create_new_project(project_metadata.clone(), ISSUER_1, None);
 
 			inst.execute(|| {
 				assert_noop!(
@@ -1122,7 +1131,7 @@ mod remove_project_extrinsic {
 				generate_did_from_account(ISSUER_1),
 				project_metadata.clone().policy_ipfs_cid.unwrap(),
 			);
-			let project_id = inst.create_new_project(project_metadata.clone(), ISSUER_1);
+			let project_id = inst.create_new_project(project_metadata.clone(), ISSUER_1, None);
 			assert_ok!(inst.execute(|| crate::Pallet::<TestRuntime>::remove_project(
 				RuntimeOrigin::signed(ISSUER_1),
 				jwt.clone(),
@@ -1202,7 +1211,7 @@ mod remove_project_extrinsic {
 				generate_did_from_account(ISSUER_1),
 				project_metadata.clone().policy_ipfs_cid.unwrap(),
 			);
-			let project_id = inst.create_new_project(project_metadata.clone(), ISSUER_1);
+			let project_id = inst.create_new_project(project_metadata.clone(), ISSUER_1, None);
 			inst.execute(|| {
 				assert_noop!(
 					crate::Pallet::<TestRuntime>::remove_project(
@@ -1227,7 +1236,7 @@ mod remove_project_extrinsic {
 				project_metadata.clone().policy_ipfs_cid.unwrap(),
 			);
 
-			let project_id = inst.create_new_project(project_metadata.clone(), ISSUER_1);
+			let project_id = inst.create_new_project(project_metadata.clone(), ISSUER_1, None);
 
 			inst.execute(|| {
 				assert_noop!(
@@ -1252,8 +1261,8 @@ mod remove_project_extrinsic {
 				generate_did_from_account(ISSUER_1),
 				project_metadata.clone().policy_ipfs_cid.unwrap(),
 			);
-			let project_id = inst.create_new_project(project_metadata.clone(), ISSUER_1);
-			inst.start_evaluation(project_id, ISSUER_1).unwrap();
+			let project_id = inst.create_new_project(project_metadata.clone(), ISSUER_1, None);
+			assert_eq!(inst.go_to_next_state(project_id), ProjectStatus::EvaluationRound);
 			inst.execute(|| {
 				assert_noop!(
 					crate::Pallet::<TestRuntime>::remove_project(

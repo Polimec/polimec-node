@@ -14,6 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+#[allow(clippy::wildcard_imports)]
 use super::*;
 
 impl<T: Config> Pallet<T> {
@@ -21,9 +22,9 @@ impl<T: Config> Pallet<T> {
 	// NOTE: We assume both schedules have had funds unlocked up through the current block.
 	pub fn merge_vesting_info(
 		now: BlockNumberFor<T>,
-		schedule1: VestingInfo<BalanceOf<T>, BlockNumberFor<T>>,
-		schedule2: VestingInfo<BalanceOf<T>, BlockNumberFor<T>>,
-	) -> Option<VestingInfo<BalanceOf<T>, BlockNumberFor<T>>> {
+		schedule1: VestingInfoOf<T>,
+		schedule2: VestingInfoOf<T>,
+	) -> Option<VestingInfoOf<T>> {
 		let schedule1_ending_block = schedule1.ending_block_as_balance::<T::BlockNumberToBalance>();
 		let schedule2_ending_block = schedule2.ending_block_as_balance::<T::BlockNumberToBalance>();
 		let now_as_balance = T::BlockNumberToBalance::convert(now);
@@ -66,7 +67,7 @@ impl<T: Config> Pallet<T> {
 	pub fn do_vested_transfer(
 		source: AccountIdOf<T>,
 		target: AccountIdOf<T>,
-		schedule: VestingInfo<BalanceOf<T>, BlockNumberFor<T>>,
+		schedule: VestingInfoOf<T>,
 		reason: ReasonOf<T>,
 	) -> DispatchResult {
 		// Validate user inputs.
@@ -120,9 +121,9 @@ impl<T: Config> Pallet<T> {
 	///
 	/// NOTE: the amount locked does not include any schedules that are filtered out via `action`.
 	pub fn report_schedule_updates(
-		schedules: Vec<VestingInfo<BalanceOf<T>, BlockNumberFor<T>>>,
+		schedules: Vec<VestingInfoOf<T>>,
 		action: VestingAction,
-	) -> (Vec<VestingInfo<BalanceOf<T>, BlockNumberFor<T>>>, BalanceOf<T>) {
+	) -> (Vec<VestingInfoOf<T>>, BalanceOf<T>) {
 		let now = <frame_system::Pallet<T>>::block_number();
 
 		let mut total_releasable: BalanceOf<T> = Zero::zero();
@@ -163,10 +164,10 @@ impl<T: Config> Pallet<T> {
 	/// Write an accounts updated vesting schedules to storage.
 	pub fn write_vesting_schedule(
 		who: &T::AccountId,
-		schedules: Vec<VestingInfo<BalanceOf<T>, BlockNumberFor<T>>>,
+		schedules: Vec<VestingInfoOf<T>>,
 		reason: ReasonOf<T>,
 	) -> Result<(), DispatchError> {
-		let schedules: BoundedVec<VestingInfo<BalanceOf<T>, BlockNumberFor<T>>, MaxVestingSchedulesGet<T>> =
+		let schedules: BoundedVec<VestingInfoOf<T>, MaxVestingSchedulesGet<T>> =
 			schedules.try_into().map_err(|_| Error::<T>::AtMaxVestingSchedules)?;
 
 		if schedules.len() == 0 {
@@ -192,9 +193,9 @@ impl<T: Config> Pallet<T> {
 	/// Execute a `VestingAction` against the given `schedules`. Returns the updated schedules
 	/// and locked amount.
 	pub fn exec_action(
-		schedules: Vec<VestingInfo<BalanceOf<T>, BlockNumberFor<T>>>,
+		schedules: Vec<VestingInfoOf<T>>,
 		action: VestingAction,
-	) -> Result<(Vec<VestingInfo<BalanceOf<T>, BlockNumberFor<T>>>, BalanceOf<T>), DispatchError> {
+	) -> Result<(Vec<VestingInfoOf<T>>, BalanceOf<T>), DispatchError> {
 		let (schedules, locked_now) = match action {
 			VestingAction::Merge { index1: idx1, index2: idx2 } => {
 				// The schedule index is based off of the schedule ordering prior to filtering out

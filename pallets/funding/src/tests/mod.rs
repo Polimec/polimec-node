@@ -21,11 +21,29 @@ use sp_arithmetic::{traits::Zero, Percent, Perquintill};
 use sp_runtime::TokenError;
 use sp_std::cell::RefCell;
 use std::iter::zip;
-type MockInstantiator =
+
+#[path = "1_application.rs"]
+mod application;
+#[path = "3_auction.rs"]
+mod auction;
+#[path = "4_contribution.rs"]
+mod community;
+#[path = "7_ct_migration.rs"]
+mod ct_migration;
+#[path = "2_evaluation.rs"]
+mod evaluation;
+#[path = "5_funding_end.rs"]
+mod funding_end;
+mod misc;
+mod runtime_api;
+#[path = "6_settlement.rs"]
+mod settlement;
+
+pub type MockInstantiator =
 	Instantiator<TestRuntime, <TestRuntime as crate::Config>::AllPalletsWithoutSystem, RuntimeEvent>;
-const CT_DECIMALS: u8 = 15;
-const CT_UNIT: u128 = 10_u128.pow(CT_DECIMALS as u32);
-const USDT_UNIT: u128 = USD_UNIT;
+pub const CT_DECIMALS: u8 = 15;
+pub const CT_UNIT: u128 = 10_u128.pow(CT_DECIMALS as u32);
+pub const USDT_UNIT: u128 = USD_UNIT;
 
 const IPFS_CID: &str = "QmeuJ24ffwLAZppQcgcggJs3n689bewednYkuc8Bx5Gngz";
 const ISSUER_1: AccountId = 11;
@@ -35,7 +53,6 @@ const ISSUER_4: AccountId = 14;
 const ISSUER_5: AccountId = 15;
 const ISSUER_6: AccountId = 16;
 const ISSUER_7: AccountId = 17;
-const ISSUER_8: AccountId = 18;
 const EVALUATOR_1: AccountId = 21;
 const EVALUATOR_2: AccountId = 22;
 const EVALUATOR_3: AccountId = 23;
@@ -54,26 +71,6 @@ const BUYER_4: AccountId = 44;
 const BUYER_5: AccountId = 45;
 const BUYER_6: AccountId = 46;
 const BUYER_7: AccountId = 47;
-const BUYER_8: AccountId = 48;
-const BUYER_9: AccountId = 49;
-
-#[path = "1_application.rs"]
-mod application;
-#[path = "3_auction.rs"]
-mod auction;
-#[path = "4_community.rs"]
-mod community;
-#[path = "8_ct_migration.rs"]
-mod ct_migration;
-#[path = "2_evaluation.rs"]
-mod evaluation;
-#[path = "6_funding_end.rs"]
-mod funding_end;
-mod misc;
-#[path = "5_remainder.rs"]
-mod remainder;
-#[path = "7_settlement.rs"]
-mod settlement;
 
 pub mod defaults {
 	use super::*;
@@ -166,7 +163,7 @@ pub mod defaults {
 		]
 	}
 
-	pub fn default_usdt_balances() -> Vec<UserToForeignAssets<TestRuntime>> {
+	pub fn default_usdt_balances() -> Vec<UserToFundingAsset<TestRuntime>> {
 		vec![
 			(ISSUER_1, 10_000_000 * USDT_UNIT).into(),
 			(EVALUATOR_1, 10_000_000 * USDT_UNIT).into(),
@@ -221,7 +218,7 @@ pub mod defaults {
 		]
 	}
 
-	pub fn default_community_buys() -> Vec<ContributionParams<TestRuntime>> {
+	pub fn default_community_contributions() -> Vec<ContributionParams<TestRuntime>> {
 		vec![
 			ContributionParams::new(BUYER_1, 50_000 * CT_UNIT, 1u8, AcceptedFundingAsset::USDT),
 			ContributionParams::new(BUYER_2, 130_000 * CT_UNIT, 1u8, AcceptedFundingAsset::USDT),
@@ -231,7 +228,7 @@ pub mod defaults {
 		]
 	}
 
-	pub fn default_remainder_buys() -> Vec<ContributionParams<TestRuntime>> {
+	pub fn default_remainder_contributions() -> Vec<ContributionParams<TestRuntime>> {
 		vec![
 			ContributionParams::new(EVALUATOR_2, 20_000 * CT_UNIT, 1u8, AcceptedFundingAsset::USDT),
 			ContributionParams::new(BUYER_2, 5_000 * CT_UNIT, 1u8, AcceptedFundingAsset::USDT),
@@ -325,7 +322,7 @@ pub mod defaults {
 			default_community_contributors(),
 			default_multipliers(),
 		);
-		instantiator.create_finished_project(project_metadata, ISSUER_1, evaluations, bids, contributions, vec![])
+		instantiator.create_finished_project(project_metadata, ISSUER_1, None, evaluations, bids, contributions, vec![])
 	}
 
 	pub fn default_bids_from_ct_percent(percent: u8) -> Vec<BidParams<TestRuntime>> {
@@ -370,7 +367,6 @@ pub mod defaults {
 
 pub fn create_project_with_funding_percentage(
 	percentage: u64,
-	maybe_decision: Option<FundingOutcomeDecision>,
 	start_settlement: bool,
 ) -> (MockInstantiator, ProjectId) {
 	let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
@@ -393,53 +389,80 @@ pub fn create_project_with_funding_percentage(
 		default_community_contributors(),
 		default_multipliers(),
 	);
-	let project_id = inst.create_finished_project(project_metadata, ISSUER_1, evaluations, bids, contributions, vec![]);
-
-	match inst.get_project_details(project_id).status {
-		ProjectStatus::AwaitingProjectDecision => {
-			assert!(percentage > 33 && percentage < 90);
-			assert!(maybe_decision.is_some());
-			inst.execute(|| PolimecFunding::do_decide_project_outcome(ISSUER_1, project_id, maybe_decision.unwrap()))
-				.unwrap();
-
-			let decision_execution =
-				inst.get_update_block(project_id, &UpdateType::ProjectDecision(maybe_decision.unwrap())).unwrap();
-			inst.jump_to_block(decision_execution);
-		},
-		ProjectStatus::FundingSuccessful => {
-			assert!(percentage >= 90);
-		},
-		ProjectStatus::FundingFailed => {
-			assert!(percentage <= 33);
-		},
-		_ => panic!("unexpected project status"),
-	};
+	let project_id =
+		inst.create_finished_project(project_metadata, ISSUER_1, None, evaluations, bids, contributions, vec![]);
 
 	if start_settlement {
-		let settlement_execution = inst.get_update_block(project_id, &UpdateType::StartSettlement).unwrap();
-		inst.jump_to_block(settlement_execution);
-
-		let funding_sucessful = match percentage {
-			0..=33 => false,
-			34..=89 if matches!(maybe_decision, Some(FundingOutcomeDecision::RejectFunding)) => false,
-			34..=89 if matches!(maybe_decision, Some(FundingOutcomeDecision::AcceptFunding)) => true,
-			90..=100 => true,
-			_ => panic!("unexpected percentage"),
-		};
-		if funding_sucessful {
-			assert_eq!(
-				inst.get_project_details(project_id).status,
-				ProjectStatus::SettlementStarted(FundingOutcome::FundingSuccessful)
-			);
-			inst.test_ct_created_for(project_id);
-		} else {
-			assert_eq!(
-				inst.get_project_details(project_id).status,
-				ProjectStatus::SettlementStarted(FundingOutcome::FundingFailed)
-			);
-			inst.test_ct_not_created_for(project_id);
-		}
+		assert!(matches!(inst.go_to_next_state(project_id), ProjectStatus::SettlementStarted(_)));
 	}
+
+	// Sanity check
+	let project_details = inst.get_project_details(project_id);
+	let percent_reached =
+		Perquintill::from_rational(project_details.funding_amount_reached_usd, project_details.fundraising_target_usd);
+	assert_eq!(percent_reached, Perquintill::from_percent(percentage));
+
+	(inst, project_id)
+}
+
+pub fn create_finished_project_with_usd_raised(
+	mut inst: MockInstantiator,
+	usd_raised: BalanceOf<TestRuntime>,
+	usd_target: BalanceOf<TestRuntime>,
+) -> (MockInstantiator, ProjectId) {
+	let issuer = inst.get_new_nonce() as u32;
+	let mut project_metadata = default_project_metadata(issuer);
+	project_metadata.total_allocation_size =
+		project_metadata.minimum_price.reciprocal().unwrap().saturating_mul_int(usd_target);
+	project_metadata.auction_round_allocation_percentage = Percent::from_percent(50u8);
+
+	let required_price = if usd_raised <= usd_target {
+		project_metadata.minimum_price
+	} else {
+		// It's hard to know how much usd was raised on the auction to take the price to `x`. So we calculate
+		// the price needed to get the project from 0 to `usd_target` buying 50% of the supply in the contribution round.
+		// Later we adjust the exact amount of tokens based on the amount raised in the auction.
+		// This means we will never have 100% CTs sold.
+		let price_increase_percentage = FixedU128::from_rational(usd_raised, usd_target);
+		let required_price = price_increase_percentage * project_metadata.minimum_price;
+
+		// Since we want to reach the usd target with half the tokens, and the usd target is first calculated based on
+		// selling all the CTs, we need the price to be double
+		FixedU128::from_rational(2, 1) * required_price
+	};
+
+	let evaluations = default_evaluations();
+
+	let bids = inst.generate_bids_that_take_price_to(project_metadata.clone(), required_price, 420, |acc| acc + 1u32);
+
+	let project_id = inst.create_community_contributing_project(project_metadata, issuer, None, evaluations, bids);
+
+	let project_details = inst.get_project_details(project_id);
+	let wap = project_details.weighted_average_price.unwrap();
+
+	let usd_raised_so_far = project_details.funding_amount_reached_usd;
+	let usd_remaining = usd_raised - usd_raised_so_far;
+
+	let community_contributions = inst.generate_contributions_from_total_usd(
+		usd_remaining,
+		wap,
+		default_weights(),
+		default_community_contributors(),
+		default_multipliers(),
+	);
+	let plmc_required = inst.calculate_contributed_plmc_spent(community_contributions.clone(), required_price, true);
+	let usdt_required = inst.calculate_contributed_funding_asset_spent(community_contributions.clone(), required_price);
+	inst.mint_plmc_to(plmc_required);
+	inst.mint_funding_asset_to(usdt_required);
+	inst.contribute_for_users(project_id, community_contributions).unwrap();
+
+	assert_eq!(inst.go_to_next_state(project_id), ProjectStatus::FundingSuccessful);
+
+	let project_details = inst.get_project_details(project_id);
+
+	// We are happy if the amount raised is 99.999 of what we wanted
+	assert_close_enough!(project_details.funding_amount_reached_usd, usd_raised, Perquintill::from_float(0.999));
+	assert_eq!(project_details.fundraising_target_usd, usd_target);
 
 	(inst, project_id)
 }

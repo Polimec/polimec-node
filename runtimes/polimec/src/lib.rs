@@ -35,16 +35,20 @@ use frame_support::{
 use frame_system::{EnsureRoot, EnsureRootWithSuccess, EnsureSigned, EnsureSignedBy};
 use pallet_aura::Authorities;
 use pallet_democracy::GetElectorate;
-use pallet_funding::DaysToBlocks;
+use pallet_funding::{
+	runtime_api::ProjectParticipationIds, types::AcceptedFundingAsset, BidInfoOf, ContributionInfoOf, DaysToBlocks,
+	EvaluationInfoOf, ProjectDetailsOf, ProjectId, ProjectMetadataOf,
+};
 use parachains_common::{
 	message_queue::{NarrowOriginToSibling, ParaIdToSibling},
 	AssetIdForTrustBackedAssets as AssetId,
 };
 use parity_scale_codec::Encode;
-use polimec_common::credentials::EnsureInvestor;
+use polimec_common::credentials::{Did, EnsureInvestor};
 use polkadot_runtime_common::{
 	xcm_sender::NoPriceForMessageDelivery, BlockHashCount, CurrencyToVote, SlowAdjustingFeeUpdate,
 };
+use shared_configuration::proxy;
 use sp_api::impl_runtime_apis;
 use sp_core::{crypto::KeyTypeId, ConstU64, OpaqueMetadata};
 use sp_runtime::{
@@ -54,7 +58,7 @@ use sp_runtime::{
 		IdentifyAccount, IdentityLookup, OpaqueKeys, Verify,
 	},
 	transaction_validity::{TransactionSource, TransactionValidity},
-	ApplyExtrinsicResult, MultiSignature, SaturatedConversion,
+	ApplyExtrinsicResult, FixedU128, MultiSignature, SaturatedConversion,
 };
 use sp_std::{cmp::Ordering, prelude::*};
 use sp_version::RuntimeVersion;
@@ -157,6 +161,7 @@ pub type Migrations = migrations::Unreleased;
 /// The runtime migrations per release.
 #[allow(missing_docs)]
 pub mod migrations {
+
 	/// Unreleased migrations. Add new ones here:
 	#[allow(unused_parens)]
 	pub type Unreleased = ();
@@ -177,7 +182,7 @@ pub type Executive = frame_executive::Executive<
 /// of data like extrinsics, allowing for them to continue syncing the network through upgrades
 /// to even the core data structures.
 pub mod opaque {
-	use super::*;
+	use super::BlockNumber;
 	use sp_runtime::{
 		generic,
 		traits::{BlakeTwo256, Hash as HashT},
@@ -205,10 +210,10 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("polimec-mainnet"),
 	impl_name: create_runtime_str!("polimec-mainnet"),
 	authoring_version: 1,
-	spec_version: 0_007_005,
+	spec_version: 0_007_006,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
-	transaction_version: 3,
+	transaction_version: 4,
 	state_version: 1,
 };
 
@@ -237,27 +242,16 @@ impl Contains<RuntimeCall> for BaseCallFilter {
 							pallet_funding::Call::remove_project { .. } |
 							pallet_funding::Call::edit_project { .. } |
 							pallet_funding::Call::start_evaluation { .. } |
-							pallet_funding::Call::root_do_evaluation_end { .. } |
 							pallet_funding::Call::evaluate { .. } |
-							pallet_funding::Call::start_auction { .. } |
-							pallet_funding::Call::root_do_auction_opening { .. } |
-							pallet_funding::Call::root_do_start_auction_closing { .. } |
+							pallet_funding::Call::end_evaluation { .. } |
 							pallet_funding::Call::bid { .. } |
-							pallet_funding::Call::root_do_end_auction_closing { .. } |
-							pallet_funding::Call::community_contribute { .. } |
-							pallet_funding::Call::remaining_contribute { .. } |
-							pallet_funding::Call::decide_project_outcome { .. } |
-							pallet_funding::Call::root_do_community_funding { .. } |
-							pallet_funding::Call::root_do_remainder_funding { .. } |
-							pallet_funding::Call::root_do_end_funding { .. } |
-							pallet_funding::Call::root_do_project_decision { .. } |
-							pallet_funding::Call::root_do_start_settlement { .. } |
-							pallet_funding::Call::settle_successful_evaluation { .. } |
-							pallet_funding::Call::settle_failed_evaluation { .. } |
-							pallet_funding::Call::settle_successful_bid { .. } |
-							pallet_funding::Call::settle_failed_bid { .. } |
-							pallet_funding::Call::settle_successful_contribution { .. } |
-							pallet_funding::Call::settle_failed_contribution { .. }
+							pallet_funding::Call::end_auction { .. } |
+							pallet_funding::Call::contribute { .. } |
+							pallet_funding::Call::end_funding { .. } |
+							pallet_funding::Call::start_settlement { .. } |
+							pallet_funding::Call::settle_evaluation { .. } |
+							pallet_funding::Call::settle_bid { .. } |
+							pallet_funding::Call::settle_contribution { .. }
 					)
 				},
 			_ => true,
@@ -265,11 +259,11 @@ impl Contains<RuntimeCall> for BaseCallFilter {
 	}
 }
 
-impl InstanceFilter<RuntimeCall> for ProxyType {
+impl InstanceFilter<RuntimeCall> for Type {
 	fn filter(&self, c: &RuntimeCall) -> bool {
 		match self {
-			ProxyType::Any => true,
-			ProxyType::NonTransfer => matches!(
+			proxy::Type::Any => true,
+			proxy::Type::NonTransfer => matches!(
 				c,
 				RuntimeCall::System(..) |
 				RuntimeCall::ParachainSystem(..) |
@@ -291,7 +285,7 @@ impl InstanceFilter<RuntimeCall> for ProxyType {
 				RuntimeCall::Oracle(..) |
 				RuntimeCall::OracleProvidersMembership(..)
 			),
-			ProxyType::Governance => matches!(
+			proxy::Type::Governance => matches!(
 				c,
 				RuntimeCall::Treasury(..) |
 					RuntimeCall::Democracy(..) |
@@ -301,21 +295,20 @@ impl InstanceFilter<RuntimeCall> for ProxyType {
 					RuntimeCall::Preimage(..) |
 					RuntimeCall::Scheduler(..)
 			),
-			ProxyType::Staking => {
+			proxy::Type::Staking => {
 				matches!(c, RuntimeCall::ParachainStaking(..))
 			},
-			ProxyType::IdentityJudgement => {
-				matches!(c, RuntimeCall::Identity(pallet_identity::Call::provide_judgement { .. }))
-			},
+			proxy::Type::IdentityJudgement =>
+				matches!(c, RuntimeCall::Identity(pallet_identity::Call::provide_judgement { .. })),
 		}
 	}
 
 	fn is_superset(&self, o: &Self) -> bool {
 		match (self, o) {
 			(x, y) if x == y => true,
-			(ProxyType::Any, _) => true,
-			(_, ProxyType::Any) => false,
-			(ProxyType::NonTransfer, _) => true,
+			(proxy::Type::Any, _) => true,
+			(_, proxy::Type::Any) => false,
+			(proxy::Type::NonTransfer, _) => true,
 			_ => false,
 		}
 	}
@@ -845,7 +838,7 @@ parameter_types! {
 }
 
 impl pallet_oracle_ocw::Config for Runtime {
-	type AppCrypto = pallet_oracle_ocw::crypto::PolimecCrypto;
+	type AppCrypto = pallet_oracle_ocw::crypto::Polimec;
 	type ConvertAssetPricePair = AssetPriceConverter;
 	type FetchInterval = FetchInterval;
 	type FetchWindow = FetchWindow;
@@ -952,7 +945,7 @@ impl pallet_proxy::Config for Runtime {
 	type MaxProxies = MaxProxies;
 	type ProxyDepositBase = ProxyDepositBase;
 	type ProxyDepositFactor = ProxyDepositFactor;
-	type ProxyType = ProxyType;
+	type ProxyType = Type;
 	type RuntimeCall = RuntimeCall;
 	type RuntimeEvent = RuntimeEvent;
 	type WeightInfo = weights::pallet_proxy::WeightInfo<Runtime>;
@@ -1033,24 +1026,22 @@ impl pallet_funding::Config for Runtime {
 	#[cfg(any(test, feature = "runtime-benchmarks", feature = "std"))]
 	type AllPalletsWithoutSystem =
 		(Balances, ContributionTokens, ForeignAssets, Oracle, Funding, LinearRelease, Random);
-	type AuctionClosingDuration = AuctionClosingDuration;
-	type AuctionInitializePeriodDuration = AuctionInitializePeriodDuration;
-	type AuctionOpeningDuration = AuctionOpeningDuration;
+	type AuctionRoundDuration = AuctionRoundDuration;
 	type Balance = Balance;
 	type BlockNumber = BlockNumber;
 	type BlockNumberToBalance = ConvertInto;
 	type BlockchainOperationTreasury = BlockchainOperationTreasury;
-	type CommunityFundingDuration = CommunityFundingDuration;
+	type CommunityRoundDuration = CommunityRoundDuration;
 	type ContributionTokenCurrency = ContributionTokens;
 	type ContributionTreasury = ContributionTreasuryAccount;
 	type DaysToBlocks = DaysToBlocks;
-	type EvaluationDuration = EvaluationDuration;
+	type EvaluationRoundDuration = EvaluationRoundDuration;
 	type EvaluationSuccessThreshold = EarlyEvaluationThreshold;
 	type EvaluatorSlash = EvaluatorSlash;
 	type FeeBrackets = FeeBrackets;
 	type FundingCurrency = ForeignAssets;
+	type FundingSuccessThreshold = FundingSuccessThreshold;
 	type InvestorOrigin = EnsureInvestor<Runtime>;
-	type ManualAcceptanceDuration = ManualAcceptanceDuration;
 	type MaxBidsPerProject = ConstU32<512>;
 	type MaxBidsPerUser = ConstU32<16>;
 	type MaxCapacityThresholds = MaxCapacityThresholds;
@@ -1058,8 +1049,6 @@ impl pallet_funding::Config for Runtime {
 	type MaxEvaluationsPerProject = ConstU32<512>;
 	type MaxEvaluationsPerUser = ConstU32<16>;
 	type MaxMessageSizeThresholds = MaxMessageSizeThresholds;
-	type MaxProjectsToUpdateInsertionAttempts = ConstU32<100>;
-	type MaxProjectsToUpdatePerBlock = ConstU32<1>;
 	type MinUsdPerEvaluation = MinUsdPerEvaluation;
 	type Multiplier = pallet_funding::types::Multiplier;
 	type NativeCurrency = Balances;
@@ -1067,7 +1056,7 @@ impl pallet_funding::Config for Runtime {
 	type Price = Price;
 	type PriceProvider = OraclePriceProvider<AssetId, Price, Oracle>;
 	type Randomness = Random;
-	type RemainderFundingDuration = RemainderFundingDuration;
+	type RemainderRoundDuration = RemainderRoundDuration;
 	type RequiredMaxCapacity = RequiredMaxCapacity;
 	type RequiredMaxMessageSize = RequiredMaxMessageSize;
 	type RuntimeCall = RuntimeCall;
@@ -1080,7 +1069,7 @@ impl pallet_funding::Config for Runtime {
 	type SuccessToSettlementTime = SuccessToSettlementTime;
 	type VerifierPublicKey = VerifierPublicKey;
 	type Vesting = LinearRelease;
-	type WeightInfo = ();
+	type WeightInfo = weights::pallet_funding::WeightInfo<Runtime>;
 }
 
 #[cfg(feature = "runtime-benchmarks")]
@@ -1100,7 +1089,7 @@ impl pallet_linear_release::Config for Runtime {
 	type UnvestedFundsAllowedWithdrawReasons = shared_configuration::vesting::UnvestedFundsAllowedWithdrawReasons;
 	type WeightInfo = pallet_linear_release::weights::SubstrateWeight<Runtime>;
 
-	const MAX_VESTING_SCHEDULES: u32 = 26;
+	const MAX_VESTING_SCHEDULES: u32 = 100;
 }
 
 impl pallet_insecure_randomness_collective_flip::Config for Runtime {}
@@ -1388,6 +1377,54 @@ impl_runtime_apis! {
 	impl cumulus_primitives_core::CollectCollationInfo<Block> for Runtime {
 		fn collect_collation_info(header: &<Block as BlockT>::Header) -> cumulus_primitives_core::CollationInfo {
 			ParachainSystem::collect_collation_info(header)
+		}
+	}
+
+	impl pallet_funding::runtime_api::Leaderboards<Block, Runtime> for Runtime {
+		fn top_evaluations(project_id: ProjectId, amount: u32) -> Vec<EvaluationInfoOf<Runtime>> {
+			Funding::top_evaluations(project_id, amount)
+		}
+
+		fn top_bids(project_id: ProjectId, amount: u32) -> Vec<BidInfoOf<Runtime>> {
+			Funding::top_bids(project_id, amount)
+		}
+
+		fn top_contributions(project_id: ProjectId, amount: u32) -> Vec<ContributionInfoOf<Runtime>> {
+			Funding::top_contributions(project_id, amount)
+		}
+
+		fn top_projects_by_usd_raised(amount: u32) -> Vec<(ProjectId, ProjectMetadataOf<Runtime>, ProjectDetailsOf<Runtime>)> {
+			Funding::top_projects_by_usd_raised(amount)
+		}
+
+		fn top_projects_by_usd_target_percent_reached(amount: u32) -> Vec<(ProjectId, ProjectMetadataOf<Runtime>, ProjectDetailsOf<Runtime>)> {
+			Funding::top_projects_by_usd_target_percent_reached(amount)
+		}
+	}
+
+	impl pallet_funding::runtime_api::UserInformation<Block, Runtime> for Runtime {
+		fn contribution_tokens(account: AccountId) -> Vec<(ProjectId, Balance)> {
+			Funding::contribution_tokens(account)
+		}
+
+		fn all_project_participations_by_did(project_id: ProjectId, did: Did) -> Vec<ProjectParticipationIds<Runtime>> {
+			Funding::all_project_participations_by_did(project_id, did)
+		}
+	}
+
+	impl pallet_funding::runtime_api::ProjectInformation<Block, Runtime> for Runtime {
+		fn usd_target_percent_reached(project_id: ProjectId) -> FixedU128 {
+			Funding::usd_target_percent_reached(project_id)
+		}
+
+		fn projects_by_did(did: Did) -> Vec<ProjectId> {
+			Funding::projects_by_did(did)
+		}
+	}
+
+	impl pallet_funding::runtime_api::ExtrinsicHelpers<Block, Runtime> for Runtime {
+		fn funding_asset_to_ct_amount(project_id: ProjectId, asset: AcceptedFundingAsset, asset_amount: Balance) -> Balance {
+			Funding::funding_asset_to_ct_amount(project_id, asset, asset_amount)
 		}
 	}
 

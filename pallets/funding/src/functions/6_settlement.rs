@@ -1,3 +1,4 @@
+#[allow(clippy::wildcard_imports)]
 use super::*;
 use crate::traits::VestingDurationCalculation;
 use frame_support::{
@@ -5,7 +6,7 @@ use frame_support::{
 	ensure,
 	traits::{
 		fungible::MutateHold as FungibleMutateHold,
-		fungibles::{Inspect, Mutate as FungiblesMutate},
+		fungibles::Mutate as FungiblesMutate,
 		tokens::{Fortitude, Precision, Preservation, Restriction},
 		Get,
 	},
@@ -21,21 +22,12 @@ use sp_runtime::{
 
 impl<T: Config> Pallet<T> {
 	#[transactional]
-	pub fn do_start_settlement(project_id: ProjectId) -> DispatchResultWithPostInfo {
-		// * Get variables *
+	pub fn do_start_settlement(project_id: ProjectId) -> DispatchResult {
 		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 		let token_information =
 			ProjectsMetadata::<T>::get(project_id).ok_or(Error::<T>::ProjectMetadataNotFound)?.token_information;
 		let now = <frame_system::Pallet<T>>::block_number();
 
-		// * Validity checks *
-		ensure!(
-			project_details.status == ProjectStatus::FundingSuccessful ||
-				project_details.status == ProjectStatus::FundingFailed,
-			Error::<T>::IncorrectRound
-		);
-
-		// * Calculate new variables *
 		project_details.funding_end_block = Some(now);
 
 		let escrow_account = Self::fund_account_id(project_id);
@@ -70,53 +62,53 @@ impl<T: Config> Pallet<T> {
 				liquidity_pools_ct_amount,
 			)?;
 
-			project_details.status = ProjectStatus::SettlementStarted(FundingOutcome::FundingSuccessful);
-			ProjectsDetails::<T>::insert(project_id, &project_details);
-
-			Ok(PostDispatchInfo {
-				actual_weight: Some(WeightInfoOf::<T>::start_settlement_funding_success()),
-				pays_fee: Pays::Yes,
-			})
+			Self::transition_project(
+				project_id,
+				project_details,
+				ProjectStatus::FundingSuccessful,
+				ProjectStatus::SettlementStarted(FundingOutcome::Success),
+				None,
+				false,
+			)?;
 		} else {
-			project_details.status = ProjectStatus::SettlementStarted(FundingOutcome::FundingFailed);
-			ProjectsDetails::<T>::insert(project_id, &project_details);
-
-			Ok(PostDispatchInfo {
-				actual_weight: Some(WeightInfoOf::<T>::start_settlement_funding_failure()),
-				pays_fee: Pays::Yes,
-			})
+			Self::transition_project(
+				project_id,
+				project_details,
+				ProjectStatus::FundingFailed,
+				ProjectStatus::SettlementStarted(FundingOutcome::Failure),
+				None,
+				false,
+			)?;
 		}
+
+		Ok(())
 	}
 
-	pub fn do_settle_successful_evaluation(evaluation: EvaluationInfoOf<T>, project_id: ProjectId) -> DispatchResult {
+	pub fn do_settle_evaluation(evaluation: EvaluationInfoOf<T>, project_id: ProjectId) -> DispatchResult {
 		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 
 		ensure!(
-			project_details.status == ProjectStatus::SettlementStarted(FundingOutcome::FundingSuccessful),
-			Error::<T>::FundingSuccessSettlementNotStarted
+			matches!(project_details.status, ProjectStatus::SettlementStarted(..)),
+			Error::<T>::SettlementNotStarted
 		);
 
-		// Based on the results of the funding round, the evaluator is either:
-		// 1. Slashed
-		// 2. Rewarded with CT tokens
-		// 3. Not slashed or Rewarded.
-		let (bond, reward): (BalanceOf<T>, BalanceOf<T>) =
+		let (plmc_released, ct_rewarded): (BalanceOf<T>, BalanceOf<T>) =
 			match project_details.evaluation_round_info.evaluators_outcome {
-				EvaluatorsOutcome::Slashed => (Self::slash_evaluator(project_id, &evaluation)?, Zero::zero()),
-				EvaluatorsOutcome::Rewarded(info) => Self::reward_evaluator(project_id, &evaluation, &info)?,
-				EvaluatorsOutcome::Unchanged => (evaluation.current_plmc_bond, Zero::zero()),
+				Some(EvaluatorsOutcome::Slashed) => (Self::slash_evaluator(project_id, &evaluation)?, Zero::zero()),
+				Some(EvaluatorsOutcome::Rewarded(info)) => Self::reward_evaluator(project_id, &evaluation, &info)?,
+				None => (evaluation.current_plmc_bond, Zero::zero()),
 			};
 
 		// Release the held PLMC bond
 		T::NativeCurrency::release(
 			&HoldReason::Evaluation.into(), // TODO: Check the `Reason`
 			&evaluation.evaluator,
-			bond,
+			plmc_released,
 			Precision::Exact,
 		)?;
 
 		// Create Migration
-		if reward > Zero::zero() {
+		if ct_rewarded > Zero::zero() {
 			let multiplier = MultiplierOf::<T>::try_from(1u8).map_err(|_| Error::<T>::BadMath)?;
 			let duration = multiplier.calculate_vesting_duration::<T>();
 			Self::create_migration(
@@ -124,7 +116,7 @@ impl<T: Config> Pallet<T> {
 				&evaluation.evaluator,
 				evaluation.id,
 				ParticipationType::Evaluation,
-				reward,
+				ct_rewarded,
 				duration,
 			)?;
 		}
@@ -134,244 +126,184 @@ impl<T: Config> Pallet<T> {
 			project_id,
 			account: evaluation.evaluator,
 			id: evaluation.id,
-			ct_amount: reward,
-			slashed_plmc_amount: evaluation.current_plmc_bond.saturating_sub(bond),
+			plmc_released,
+			ct_rewarded,
 		});
 
 		Ok(())
 	}
 
-	pub fn do_settle_failed_evaluation(evaluation: EvaluationInfoOf<T>, project_id: ProjectId) -> DispatchResult {
+	pub fn do_settle_bid(bid: BidInfoOf<T>, project_id: ProjectId) -> DispatchResult {
 		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
-		ensure!(
-			matches!(project_details.status, ProjectStatus::SettlementStarted(FundingOutcome::FundingFailed)),
-			Error::<T>::FundingFailedSettlementNotStarted
-		);
-
-		let bond = if matches!(project_details.evaluation_round_info.evaluators_outcome, EvaluatorsOutcome::Slashed) {
-			Self::slash_evaluator(project_id, &evaluation)?
-		} else {
-			evaluation.current_plmc_bond
-		};
-
-		// Release the held PLMC bond
-		T::NativeCurrency::release(
-			&HoldReason::Evaluation.into(), // TODO: Check the `Reason`
-			&evaluation.evaluator,
-			bond,
-			Precision::Exact,
-		)?;
-
-		Evaluations::<T>::remove((project_id, evaluation.evaluator.clone(), evaluation.id));
-
-		Self::deposit_event(Event::EvaluationSettled {
-			project_id,
-			account: evaluation.evaluator,
-			id: evaluation.id,
-			ct_amount: Zero::zero(),
-			slashed_plmc_amount: evaluation.current_plmc_bond.saturating_sub(bond),
-		});
-
-		Ok(())
-	}
-
-	pub fn do_settle_successful_bid(bid: BidInfoOf<T>, project_id: ProjectId) -> DispatchResult {
 		let project_metadata = ProjectsMetadata::<T>::get(project_id).ok_or(Error::<T>::ProjectMetadataNotFound)?;
-		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
+		let funding_success =
+			matches!(project_details.status, ProjectStatus::SettlementStarted(FundingOutcome::Success));
+		let wap = project_details.weighted_average_price.ok_or(Error::<T>::ImpossibleState)?;
 
 		ensure!(
-			project_details.status == ProjectStatus::SettlementStarted(FundingOutcome::FundingSuccessful),
-			Error::<T>::FundingSuccessSettlementNotStarted
+			matches!(project_details.status, ProjectStatus::SettlementStarted(..)) || bid.status == BidStatus::Rejected,
+			Error::<T>::SettlementNotStarted
 		);
-		ensure!(
-			matches!(bid.status, BidStatus::Accepted | BidStatus::PartiallyAccepted(..)),
-			Error::<T>::ImpossibleState
-		);
-		ensure!(T::ContributionTokenCurrency::asset_exists(project_id), Error::<T>::TooEarlyForRound);
 
-		let bidder = bid.bidder;
+		// Return either the full amount to refund if bid is rejected/project failed,
+		// or a partial amount when the wap > paid price/bid is partially accepted
+		let BidRefund { final_ct_usd_price, final_ct_amount, refunded_plmc, refunded_funding_asset_amount } =
+			Self::calculate_refund(&bid, funding_success, wap)?;
 
-		// Calculate the vesting info and add the release schedule
-		let funding_end_block = project_details.funding_end_block.ok_or(Error::<T>::ImpossibleState)?;
-		let vest_info =
-			Self::calculate_vesting_info(&bidder, bid.multiplier, bid.plmc_bond).map_err(|_| Error::<T>::BadMath)?;
+		Self::release_participation_bond(project_id, &bid.bidder, refunded_plmc)?;
+		Self::release_funding_asset(project_id, &bid.bidder, refunded_funding_asset_amount, bid.funding_asset)?;
 
-		// If the multiplier is greater than 1, add the release schedule else release the held PLMC bond
-		if bid.multiplier.into() > 1u8 {
+		if funding_success && bid.status != BidStatus::Rejected {
+			let funding_end_block = project_details.funding_end_block.ok_or(Error::<T>::ImpossibleState)?;
+
+			let plmc_vesting_info =
+				Self::calculate_vesting_info(&bid.bidder, bid.multiplier, bid.plmc_bond.saturating_sub(refunded_plmc))
+					.map_err(|_| Error::<T>::BadMath)?;
+
 			T::Vesting::add_release_schedule(
-				&bidder,
-				vest_info.total_amount,
-				vest_info.amount_per_block,
+				&bid.bidder,
+				plmc_vesting_info.total_amount,
+				plmc_vesting_info.amount_per_block,
 				funding_end_block,
 				HoldReason::Participation.into(), // TODO: Check the `Reason`
 			)?;
-		} else {
-			// Release the held PLMC bond
-			Self::release_participation_bond(project_id, &bidder, bid.plmc_bond)?;
+
+			Self::mint_contribution_tokens(project_id, &bid.bidder, final_ct_amount)?;
+
+			Self::create_migration(
+				project_id,
+				&bid.bidder,
+				bid.id,
+				ParticipationType::Bid,
+				final_ct_amount,
+				plmc_vesting_info.duration,
+			)?;
+
+			Self::release_funding_asset(
+				project_id,
+				&project_metadata.funding_destination_account,
+				bid.funding_asset_amount_locked.saturating_sub(refunded_funding_asset_amount),
+				bid.funding_asset,
+			)?;
 		}
 
-		// Mint the contribution tokens
-		Self::mint_contribution_tokens(project_id, &bidder, bid.final_ct_amount)?;
-
-		// Payout the bid funding asset amount to the project account
-		Self::release_funding_asset(
-			project_id,
-			&project_metadata.funding_destination_account,
-			bid.funding_asset_amount_locked,
-			bid.funding_asset,
-		)?;
-
-		Self::create_migration(
-			project_id,
-			&bidder,
-			bid.id,
-			ParticipationType::Bid,
-			bid.final_ct_amount,
-			vest_info.duration,
-		)?;
-
-		Bids::<T>::remove((project_id, bidder.clone(), bid.id));
+		Bids::<T>::remove((project_id, bid.bidder.clone(), bid.id));
 
 		Self::deposit_event(Event::BidSettled {
 			project_id,
-			account: bidder,
+			account: bid.bidder,
 			id: bid.id,
-			ct_amount: bid.final_ct_amount,
+			final_ct_amount,
+			final_ct_usd_price,
 		});
 
 		Ok(())
 	}
 
-	pub fn do_settle_failed_bid(bid: BidInfoOf<T>, project_id: ProjectId) -> DispatchResult {
-		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
-		ensure!(
-			matches!(project_details.status, ProjectStatus::SettlementStarted(FundingOutcome::FundingFailed)),
-			Error::<T>::FundingFailedSettlementNotStarted
-		);
+	/// Calculate the amount of funds the bidder should receive back based on the original bid
+	/// amount and price compared to the final bid amount and price.
+	fn calculate_refund(
+		bid: &BidInfoOf<T>,
+		funding_success: bool,
+		wap: PriceOf<T>,
+	) -> Result<BidRefund<T>, DispatchError> {
+		let final_ct_usd_price = if bid.original_ct_usd_price > wap { wap } else { bid.original_ct_usd_price };
 
-		let bidder = bid.bidder;
+		if bid.status == BidStatus::Rejected || !funding_success {
+			return Ok(BidRefund::<T> {
+				final_ct_usd_price,
+				final_ct_amount: Zero::zero(),
+				refunded_plmc: bid.plmc_bond,
+				refunded_funding_asset_amount: bid.funding_asset_amount_locked,
+			});
+		}
+		let final_ct_amount = bid.final_ct_amount();
 
-		// Return the funding assets to the bidder
-		Self::release_funding_asset(project_id, &bidder, bid.funding_asset_amount_locked, bid.funding_asset)?;
+		let new_ticket_size = final_ct_usd_price.checked_mul_int(final_ct_amount).ok_or(Error::<T>::BadMath)?;
+		let new_plmc_bond = Self::calculate_plmc_bond(new_ticket_size, bid.multiplier)?;
+		let new_funding_asset_amount = Self::calculate_funding_asset_amount(new_ticket_size, bid.funding_asset)?;
+		let refunded_plmc = bid.plmc_bond.saturating_sub(new_plmc_bond);
+		let refunded_funding_asset_amount = bid.funding_asset_amount_locked.saturating_sub(new_funding_asset_amount);
 
-		// Release the held PLMC bond
-		Self::release_participation_bond(project_id, &bidder, bid.plmc_bond)?;
-
-		// Remove the bid from the storage
-		Bids::<T>::remove((project_id, bidder.clone(), bid.id));
-
-		Self::deposit_event(Event::BidSettled { project_id, account: bidder, id: bid.id, ct_amount: Zero::zero() });
-
-		Ok(())
+		Ok(BidRefund::<T> { final_ct_usd_price, final_ct_amount, refunded_plmc, refunded_funding_asset_amount })
 	}
 
-	pub fn do_settle_successful_contribution(
-		contribution: ContributionInfoOf<T>,
-		project_id: ProjectId,
-	) -> DispatchResult {
+	pub fn do_settle_contribution(contribution: ContributionInfoOf<T>, project_id: ProjectId) -> DispatchResult {
 		let project_metadata = ProjectsMetadata::<T>::get(project_id).ok_or(Error::<T>::ProjectMetadataNotFound)?;
 		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
-		// Ensure that:
-		// 1. The project is in the FundingSuccessful state
-		// 2. The contribution token exists
-		ensure!(
-			project_details.status == ProjectStatus::SettlementStarted(FundingOutcome::FundingSuccessful),
-			Error::<T>::FundingSuccessSettlementNotStarted
-		);
-		ensure!(T::ContributionTokenCurrency::asset_exists(project_id), Error::<T>::TooEarlyForRound);
+		let mut final_ct_amount = Zero::zero();
 
-		let contributor = contribution.contributor;
-
-		// Calculate the vesting info and add the release schedule
+		let ProjectStatus::SettlementStarted(outcome) = project_details.status else {
+			return Err(Error::<T>::SettlementNotStarted.into());
+		};
 		let funding_end_block = project_details.funding_end_block.ok_or(Error::<T>::ImpossibleState)?;
-		let vest_info = Self::calculate_vesting_info(&contributor, contribution.multiplier, contribution.plmc_bond)
+
+		if outcome == FundingOutcome::Failure {
+			// Release the held PLMC bond
+			Self::release_participation_bond(project_id, &contribution.contributor, contribution.plmc_bond)?;
+
+			Self::release_funding_asset(
+				project_id,
+				&contribution.contributor,
+				contribution.funding_asset_amount,
+				contribution.funding_asset,
+			)?;
+		} else {
+			// Calculate the vesting info and add the release schedule
+			let vest_info = Self::calculate_vesting_info(
+				&contribution.contributor,
+				contribution.multiplier,
+				contribution.plmc_bond,
+			)
 			.map_err(|_| Error::<T>::BadMath)?;
 
-		if contribution.multiplier.into() > 1u8 {
 			T::Vesting::add_release_schedule(
-				&contributor,
+				&contribution.contributor,
 				vest_info.total_amount,
 				vest_info.amount_per_block,
 				funding_end_block,
 				HoldReason::Participation.into(), // TODO: Check the `Reason`
 			)?;
-		} else {
-			// Release the held PLMC bond
-			Self::release_participation_bond(project_id, &contributor, contribution.plmc_bond)?;
+			// Mint the contribution tokens
+			Self::mint_contribution_tokens(project_id, &contribution.contributor, contribution.ct_amount)?;
+
+			// Payout the bid funding asset amount to the project account
+			Self::release_funding_asset(
+				project_id,
+				&project_metadata.funding_destination_account,
+				contribution.funding_asset_amount,
+				contribution.funding_asset,
+			)?;
+
+			// Create Migration
+			Self::create_migration(
+				project_id,
+				&contribution.contributor,
+				contribution.id,
+				ParticipationType::Contribution,
+				contribution.ct_amount,
+				vest_info.duration,
+			)?;
+
+			final_ct_amount = contribution.ct_amount;
 		}
 
-		// Mint the contribution tokens
-		Self::mint_contribution_tokens(project_id, &contributor, contribution.ct_amount)?;
-
-		// Payout the bid funding asset amount to the project account
-		Self::release_funding_asset(
-			project_id,
-			&project_metadata.funding_destination_account,
-			contribution.funding_asset_amount,
-			contribution.funding_asset,
-		)?;
-
-		// Create Migration
-		Self::create_migration(
-			project_id,
-			&contributor,
-			contribution.id,
-			ParticipationType::Contribution,
-			contribution.ct_amount,
-			vest_info.duration,
-		)?;
-
-		Contributions::<T>::remove((project_id, contributor.clone(), contribution.id));
+		Contributions::<T>::remove((project_id, contribution.contributor.clone(), contribution.id));
 
 		Self::deposit_event(Event::ContributionSettled {
 			project_id,
-			account: contributor,
+			account: contribution.contributor,
 			id: contribution.id,
-			ct_amount: contribution.ct_amount,
-		});
-
-		Ok(())
-	}
-
-	pub fn do_settle_failed_contribution(contribution: ContributionInfoOf<T>, project_id: ProjectId) -> DispatchResult {
-		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
-
-		ensure!(
-			matches!(project_details.status, ProjectStatus::SettlementStarted(FundingOutcome::FundingFailed)),
-			Error::<T>::FundingFailedSettlementNotStarted
-		);
-
-		// Check if the bidder has a future deposit held
-		let contributor = contribution.contributor;
-
-		// Return the funding assets to the contributor
-		Self::release_funding_asset(
-			project_id,
-			&contributor,
-			contribution.funding_asset_amount,
-			contribution.funding_asset,
-		)?;
-
-		// Release the held PLMC bond
-		Self::release_participation_bond(project_id, &contributor, contribution.plmc_bond)?;
-
-		// Remove the bid from the storage
-		Contributions::<T>::remove((project_id, contributor.clone(), contribution.id));
-
-		Self::deposit_event(Event::ContributionSettled {
-			project_id,
-			account: contributor,
-			id: contribution.id,
-			ct_amount: Zero::zero(),
+			ct_amount: final_ct_amount,
 		});
 
 		Ok(())
 	}
 
 	pub fn do_mark_project_as_settled(project_id: ProjectId) -> DispatchResult {
-		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
+		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 		let outcome = match project_details.status {
-			ProjectStatus::SettlementStarted(outcome) => outcome,
+			ProjectStatus::SettlementStarted(ref outcome) => outcome.clone(),
 			_ => return Err(Error::<T>::IncorrectRound.into()),
 		};
 
@@ -387,8 +319,14 @@ impl<T: Config> Pallet<T> {
 		);
 
 		// Mark the project as settled
-		project_details.status = ProjectStatus::SettlementFinished(outcome);
-		ProjectsDetails::<T>::insert(project_id, project_details);
+		Self::transition_project(
+			project_id,
+			project_details,
+			ProjectStatus::SettlementStarted(outcome.clone()),
+			ProjectStatus::SettlementFinished(outcome),
+			None,
+			false,
+		)?;
 
 		Ok(())
 	}
@@ -411,14 +349,11 @@ impl<T: Config> Pallet<T> {
 		amount: BalanceOf<T>,
 		asset: AcceptedFundingAsset,
 	) -> DispatchResult {
+		if amount.is_zero() {
+			return Ok(());
+		}
 		let project_pot = Self::fund_account_id(project_id);
-		T::FundingCurrency::transfer(
-			asset.to_assethub_id(),
-			&project_pot,
-			participant,
-			amount,
-			Preservation::Expendable,
-		)?;
+		T::FundingCurrency::transfer(asset.id(), &project_pot, participant, amount, Preservation::Expendable)?;
 		Ok(())
 	}
 
@@ -427,6 +362,9 @@ impl<T: Config> Pallet<T> {
 		participant: &AccountIdOf<T>,
 		amount: BalanceOf<T>,
 	) -> DispatchResult {
+		if amount.is_zero() {
+			return Ok(());
+		}
 		// Release the held PLMC bond
 		T::NativeCurrency::release(
 			&HoldReason::Participation.into(), // TODO: Check the `Reason`

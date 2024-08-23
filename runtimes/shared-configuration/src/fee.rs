@@ -34,6 +34,7 @@ use scale_info::prelude::vec;
 use smallvec::smallvec;
 use sp_arithmetic::Perbill;
 
+#[allow(clippy::module_name_repetitions)]
 pub struct WeightToFee;
 impl frame_support::weights::WeightToFee for WeightToFee {
 	type Balance = Balance;
@@ -48,6 +49,7 @@ impl frame_support::weights::WeightToFee for WeightToFee {
 }
 
 /// Maps the reference time component of `Weight` to a fee.
+#[allow(clippy::module_name_repetitions)]
 pub struct RefTimeToFee;
 impl WeightToFeePolynomial for RefTimeToFee {
 	type Balance = Balance;
@@ -68,6 +70,7 @@ impl WeightToFeePolynomial for RefTimeToFee {
 }
 
 /// Maps the proof size component of `Weight` to a fee.
+#[allow(clippy::module_name_repetitions)]
 pub struct ProofSizeToFee;
 impl WeightToFeePolynomial for ProofSizeToFee {
 	type Balance = Balance;

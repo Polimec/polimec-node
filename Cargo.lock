@@ -7359,6 +7359,7 @@ dependencies = [
  "polkadot-parachain-primitives",
  "scale-info",
  "serde",
+ "sp-api",
  "sp-arithmetic",
  "sp-core",
  "sp-io 37.0.0",
@@ -7876,29 +7877,6 @@ dependencies = [
  "frame-system 35.0.0",
  "parity-scale-codec",
  "scale-info",
- "sp-core",
- "sp-io 37.0.0",
- "sp-runtime 38.0.1",
- "sp-std",
-]
-
-[[package]]
-name = "pallet-sandbox"
-version = "0.1.0"
-dependencies = [
- "frame-benchmarking 35.0.0",
- "frame-support 35.0.0",
- "frame-system 35.0.0",
- "pallet-assets",
- "pallet-balances",
- "pallet-funding",
- "pallet-insecure-randomness-collective-flip",
- "parachains-common",
- "parity-scale-codec",
- "polimec-common",
- "scale-info",
- "serde",
- "sp-arithmetic",
  "sp-core",
  "sp-io 37.0.0",
  "sp-runtime 38.0.1",

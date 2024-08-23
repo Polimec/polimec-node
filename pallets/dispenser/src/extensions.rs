@@ -16,7 +16,7 @@
 
 // If you feel like getting in touch with us, you can do so at info@polimec.org
 
-use crate::*;
+use crate::{Call, Config};
 use frame_support::{
 	dispatch::{CheckIfFeeless, DispatchInfo},
 	pallet_prelude::*,
@@ -120,13 +120,7 @@ where
 		let provides = vec![Encode::encode(&(who, self.0))];
 		let requires = if account.nonce < self.0 { vec![Encode::encode(&(who, self.0 - One::one()))] } else { vec![] };
 
-		Ok(ValidTransaction {
-			priority: 0,
-			requires,
-			provides,
-			longevity: TransactionLongevity::max_value(),
-			propagate: true,
-		})
+		Ok(ValidTransaction { priority: 0, requires, provides, longevity: TransactionLongevity::MAX, propagate: true })
 	}
 }
 
@@ -219,10 +213,8 @@ where
 		len: usize,
 		result: &DispatchResult,
 	) -> Result<(), TransactionValidityError> {
-		if let Some(pre) = pre {
-			if let Some(pre) = pre {
-				S::post_dispatch(Some(pre), info, post_info, len, result)?;
-			}
+		if let Some(Some(pre)) = pre {
+			S::post_dispatch(Some(pre), info, post_info, len, result)?;
 		}
 		Ok(())
 	}

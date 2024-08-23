@@ -10,6 +10,9 @@ readme = "README.md"
 repository = "https://github.com/Polimec/polimec-node"
 version.workspace = true
 
+[lints]
+workspace = true
+
 [dependencies]
 parity-scale-codec = { workspace = true, features = ["derive"] }
 scale-info = { workspace = true, features = ["derive"] }
