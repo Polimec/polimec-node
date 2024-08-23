@@ -574,7 +574,7 @@ pub mod pallet {
 		/// Project transitioned to a new phase.
 		ProjectPhaseTransition {
 			project_id: ProjectId,
-			phase: ProjectPhases,
+			phase: ProjectStatus<BlockNumberFor<T>>,
 		},
 		/// A `bonder` bonded an `amount` of PLMC for `project_id`.
 		Evaluation {
