@@ -1,42 +1,54 @@
 use super::*;
+use sp_runtime::PerThing;
+
 #[cfg(test)]
 mod round_flow {
 	use super::*;
+
 	#[cfg(test)]
 	mod success {
 		use super::*;
 
 		#[test]
-		fn evaluator_outcome_bounds() {
-			let try_for_percentage = |percentage: u8, should_slash: bool| {
-				let (mut inst, project_id) = create_project_with_funding_percentage(percentage.into(), true);
-				if should_slash {
-					assert_eq!(
-						inst.get_project_details(project_id).status,
-						ProjectStatus::SettlementStarted(FundingOutcome::Failure)
-					);
-					assert_eq!(
-						inst.get_project_details(project_id).evaluation_round_info.evaluators_outcome,
-						Some(EvaluatorsOutcome::Slashed)
-					);
-				} else {
-					assert_eq!(
-						inst.get_project_details(project_id).status,
-						ProjectStatus::SettlementStarted(FundingOutcome::Success)
-					);
-					assert!(matches!(
-						inst.get_project_details(project_id).evaluation_round_info.evaluators_outcome,
-						Some(EvaluatorsOutcome::Rewarded(..))
-					));
-				}
-			};
-			for i in 1..=32u8 {
-				try_for_percentage(i, true);
-			}
-			for i in 33..130u8 {
-				try_for_percentage(i, false);
-			}
+		fn auction_oversubscription() {
+			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+			let project_metadata = default_project_metadata(ISSUER_1);
+			let auction_allocation =
+				project_metadata.auction_round_allocation_percentage * project_metadata.total_allocation_size;
+			let bucket_size = Percent::from_percent(10) * auction_allocation;
+			let bids = vec![
+				(BIDDER_1, auction_allocation).into(),
+				(BIDDER_2, bucket_size).into(),
+				(BIDDER_3, bucket_size).into(),
+				(BIDDER_4, bucket_size).into(),
+				(BIDDER_5, bucket_size).into(),
+				(BIDDER_6, bucket_size).into(),
+			];
+
+			let project_id = inst.create_finished_project(
+				project_metadata.clone(),
+				ISSUER_1,
+				None,
+				default_evaluations(),
+				bids,
+				default_community_contributions(),
+				default_remainder_contributions(),
+			);
+
+			let wap = inst.get_project_details(project_id).weighted_average_price.unwrap();
+			dbg!(wap);
+			assert!(wap > project_metadata.minimum_price);
 		}
+	}
+}
+
+#[cfg(test)]
+mod end_funding_extrinsic {
+	use super::*;
+
+	#[cfg(test)]
+	mod success {
+		use super::*;
 
 		#[test]
 		fn evaluator_reward_is_correct() {
@@ -84,34 +96,107 @@ mod round_flow {
 		}
 
 		#[test]
-		fn auction_oversubscription() {
-			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
-			let project_metadata = default_project_metadata(ISSUER_1);
-			let auction_allocation =
-				project_metadata.auction_round_allocation_percentage * project_metadata.total_allocation_size;
-			let bucket_size = Percent::from_percent(10) * auction_allocation;
-			let bids = vec![
-				(BIDDER_1, auction_allocation).into(),
-				(BIDDER_2, bucket_size).into(),
-				(BIDDER_3, bucket_size).into(),
-				(BIDDER_4, bucket_size).into(),
-				(BIDDER_5, bucket_size).into(),
-				(BIDDER_6, bucket_size).into(),
-			];
+		fn evaluator_outcome_bounds() {
+			let try_for_percentage = |percentage: u8, should_slash: bool| {
+				let (mut inst, project_id) = create_project_with_funding_percentage(percentage.into(), true);
+				dbg!(percentage);
+				if should_slash {
+					assert_eq!(
+						inst.get_project_details(project_id).status,
+						ProjectStatus::SettlementStarted(FundingOutcome::Failure)
+					);
+					assert_eq!(
+						inst.get_project_details(project_id).evaluation_round_info.evaluators_outcome,
+						Some(EvaluatorsOutcome::Slashed)
+					);
+				} else {
+					assert_eq!(
+						inst.get_project_details(project_id).status,
+						ProjectStatus::SettlementStarted(FundingOutcome::Success)
+					);
+					assert!(matches!(
+						inst.get_project_details(project_id).evaluation_round_info.evaluators_outcome,
+						Some(EvaluatorsOutcome::Rewarded(..))
+					));
+				}
+			};
+			for i in 1..=32u8 {
+				try_for_percentage(i, true);
+			}
+			for i in 33..130u8 {
+				try_for_percentage(i, false);
+			}
+		}
 
-			let project_id = inst.create_finished_project(
-				project_metadata.clone(),
+		#[test]
+		fn round_end_is_set() {
+			let (mut inst, project_id) = create_project_with_funding_percentage(95, true);
+			let project_details = inst.get_project_details(project_id);
+			assert_eq!(
+				inst.get_project_details(project_id).status,
+				ProjectStatus::SettlementStarted(FundingOutcome::Success)
+			);
+			assert_eq!(
+				project_details.funding_end_block,
+				Some(
+					EvaluationRoundDuration::get() +
+						AuctionInitializePeriodDuration::get() +
+						AuctionRoundDuration::get() +
+						CommunityRoundDuration::get() +
+						RemainderRoundDuration::get() +
+						SuccessToSettlementTime::get() +
+						1
+				)
+			);
+		}
+	}
+
+	#[cfg(test)]
+	mod failure {
+		use super::*;
+
+		#[test]
+		fn called_too_early() {
+			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+			let project_id = inst.create_community_contributing_project(
+				default_project_metadata(ISSUER_1),
 				ISSUER_1,
 				None,
 				default_evaluations(),
-				bids,
-				default_community_contributions(),
-				default_remainder_contributions(),
+				vec![],
 			);
+			inst.execute(|| {
+				assert_noop!(
+					PolimecFunding::end_funding(RuntimeOrigin::signed(42), project_id),
+					Error::<TestRuntime>::TooEarlyForRound
+				);
+			});
+		}
 
-			let wap = inst.get_project_details(project_id).weighted_average_price.unwrap();
-			dbg!(wap);
-			assert!(wap > project_metadata.minimum_price);
+		#[test]
+		fn called_twice() {
+			let (mut inst, project_id) = create_project_with_funding_percentage(95, false);
+			inst.execute(|| {
+				assert_noop!(
+					PolimecFunding::end_funding(RuntimeOrigin::signed(42), project_id),
+					// We don't expect a specific previous state for this transition, so we cannot assert on IncorrectRound error.
+					Error::<TestRuntime>::TooEarlyForRound
+				);
+			});
+		}
+
+		#[test]
+		fn project_fails_if_not_enough_funding() {
+			let funding_threshold = <TestRuntime as Config>::FundingSuccessThreshold::get();
+			let funding_threshold: u128 =
+				funding_threshold.deconstruct() as u128 * 100u128 / Perquintill::ACCURACY as u128;
+
+			dbg!(funding_threshold);
+			let (mut inst, project_id) = create_project_with_funding_percentage(funding_threshold as u64 - 1, true);
+			assert_eq!(
+				inst.get_project_details(project_id).status,
+				ProjectStatus::SettlementStarted(FundingOutcome::Failure)
+			);
 		}
 	}
 }
