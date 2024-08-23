@@ -255,7 +255,7 @@ impl<T: Config> Pallet<T> {
 				contribution.multiplier,
 				contribution.plmc_bond,
 			)
-				.map_err(|_| Error::<T>::BadMath)?;
+			.map_err(|_| Error::<T>::BadMath)?;
 
 			T::Vesting::add_release_schedule(
 				&contribution.contributor,

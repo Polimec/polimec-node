@@ -900,9 +900,8 @@ mod benchmarks {
 		assert_eq!(current_bucket, expected_bucket);
 
 		// Balances
-		let bonded_plmc = inst
-			.get_reserved_plmc_balances_for(vec![bidder.clone()], HoldReason::Participation.into())[0]
-			.plmc_amount;
+		let bonded_plmc =
+			inst.get_reserved_plmc_balances_for(vec![bidder.clone()], HoldReason::Participation.into())[0].plmc_amount;
 		assert_eq!(bonded_plmc, total_plmc_participation_bonded);
 
 		let free_plmc = inst.get_free_plmc_balances_for(vec![bidder.clone()])[0].plmc_amount;
@@ -1152,8 +1151,7 @@ mod benchmarks {
 		assert_eq!(stored_contributions.len(), x as usize + 1);
 
 		// Balances
-		let bonded_plmc =
-			inst.get_reserved_plmc_balance_for(contributor.clone(), HoldReason::Participation.into());
+		let bonded_plmc = inst.get_reserved_plmc_balance_for(contributor.clone(), HoldReason::Participation.into());
 		assert_eq!(bonded_plmc, total_plmc_bonded);
 
 		let free_plmc = inst.get_free_plmc_balance_for(contributor.clone());
