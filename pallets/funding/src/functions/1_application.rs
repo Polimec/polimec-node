@@ -34,7 +34,6 @@ impl<T: Config> Pallet<T> {
 			fundraising_target_usd: fundraising_target,
 			status: ProjectStatus::Application,
 			round_duration: BlockNumberPair::new(None, None),
-			random_end_block: None,
 			remaining_contribution_tokens: project_metadata.total_allocation_size,
 			funding_amount_reached_usd: BalanceOf::<T>::zero(),
 			evaluation_round_info: EvaluationRoundInfoOf::<T> {
