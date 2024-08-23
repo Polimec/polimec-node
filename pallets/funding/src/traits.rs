@@ -24,7 +24,7 @@ use sp_arithmetic::{
 use sp_runtime::DispatchError;
 
 pub trait BondingRequirementCalculation {
-	fn calculate_bonding_requirement<T: Config>(&self, ticket_size: BalanceOf<T>) -> Result<BalanceOf<T>, ()>;
+	fn calculate_bonding_requirement<T: Config>(&self, ticket_size: BalanceOf<T>) -> Option<BalanceOf<T>>;
 }
 
 pub trait VestingDurationCalculation {

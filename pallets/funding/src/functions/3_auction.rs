@@ -1,3 +1,4 @@
+#[allow(clippy::wildcard_imports)]
 use super::*;
 
 impl<T: Config> Pallet<T> {
@@ -57,17 +58,18 @@ impl<T: Config> Pallet<T> {
 	/// * [`BiddingBonds`] - Update the storage with the bidder's PLMC bond for that bid
 	/// * [`Bids`] - Check previous bids by that user, and update the storage with the new bid
 	#[transactional]
-	pub fn do_bid(
-		bidder: &AccountIdOf<T>,
-		project_id: ProjectId,
-		ct_amount: BalanceOf<T>,
-		multiplier: MultiplierOf<T>,
-		funding_asset: AcceptedFundingAsset,
-		did: Did,
-		investor_type: InvestorType,
-		whitelisted_policy: Cid,
-	) -> DispatchResultWithPostInfo {
+	pub fn do_bid(params: DoBidParams<T>) -> DispatchResultWithPostInfo {
 		// * Get variables *
+		let DoBidParams {
+			bidder,
+			project_id,
+			ct_amount,
+			multiplier,
+			funding_asset,
+			investor_type,
+			did,
+			whitelisted_policy,
+		} = params;
 		let project_metadata = ProjectsMetadata::<T>::get(project_id).ok_or(Error::<T>::ProjectMetadataNotFound)?;
 		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 
@@ -84,10 +86,10 @@ impl<T: Config> Pallet<T> {
 		// weight return variables
 		let mut perform_bid_calls = 0;
 
-		let existing_bids = Bids::<T>::iter_prefix_values((project_id, bidder)).collect::<Vec<_>>();
+		let existing_bids = Bids::<T>::iter_prefix_values((project_id, bidder.clone())).collect::<Vec<_>>();
 		let existing_bids_amount = existing_bids.len() as u32;
 
-		let metadata_bidder_ticket_size_bounds = match investor_type {
+		let metadata_ticket_size_bounds = match investor_type {
 			InvestorType::Institutional => project_metadata.bidding_ticket_sizes.institutional,
 			InvestorType::Professional => project_metadata.bidding_ticket_sizes.professional,
 			_ => return Err(Error::<T>::WrongInvestorType.into()),
@@ -115,7 +117,7 @@ impl<T: Config> Pallet<T> {
 		);
 
 		ensure!(
-			metadata_bidder_ticket_size_bounds.usd_ticket_above_minimum_per_participation(min_total_ticket_size),
+			metadata_ticket_size_bounds.usd_ticket_above_minimum_per_participation(min_total_ticket_size),
 			Error::<T>::TooLow
 		);
 		ensure!(multiplier.into() <= max_multiplier && multiplier.into() > 0u8, Error::<T>::ForbiddenMultiplier);
@@ -129,7 +131,7 @@ impl<T: Config> Pallet<T> {
 
 		// While there's a remaining amount to bid for
 		while !amount_to_bid.is_zero() {
-			let bid_amount = if amount_to_bid <= current_bucket.amount_left {
+			let ct_amount = if amount_to_bid <= current_bucket.amount_left {
 				// Simple case, the bucket has enough to cover the bid
 				amount_to_bid
 			} else {
@@ -138,26 +140,27 @@ impl<T: Config> Pallet<T> {
 			};
 			let bid_id = NextBidId::<T>::get();
 
-			Self::perform_do_bid(
-				bidder,
+			let perform_params = DoPerformBidParams {
+				bidder: bidder.clone(),
 				project_id,
-				bid_amount,
-				current_bucket.current_price,
+				ct_amount,
+				ct_usd_price: current_bucket.current_price,
 				multiplier,
 				funding_asset,
 				bid_id,
 				now,
-				did.clone(),
-				metadata_bidder_ticket_size_bounds,
-				existing_bids_amount.saturating_add(perform_bid_calls),
-				total_bids_for_project.saturating_add(perform_bid_calls),
-			)?;
+				did: did.clone(),
+				metadata_ticket_size_bounds,
+				total_bids_by_bidder: existing_bids_amount.saturating_add(perform_bid_calls),
+				total_bids_for_project: total_bids_for_project.saturating_add(perform_bid_calls),
+			};
+			Self::do_perform_bid(perform_params)?;
 
 			perform_bid_calls += 1;
 
 			// Update the current bucket and reduce the amount to bid by the amount we just bid
-			current_bucket.update(bid_amount);
-			amount_to_bid.saturating_reduce(bid_amount);
+			current_bucket.update(ct_amount);
+			amount_to_bid.saturating_reduce(ct_amount);
 		}
 
 		// Note: If the bucket has been exhausted, the 'update' function has already made the 'current_bucket' point to the next one.
@@ -170,20 +173,22 @@ impl<T: Config> Pallet<T> {
 	}
 
 	#[transactional]
-	fn perform_do_bid(
-		bidder: &AccountIdOf<T>,
-		project_id: ProjectId,
-		ct_amount: BalanceOf<T>,
-		ct_usd_price: T::Price,
-		multiplier: MultiplierOf<T>,
-		funding_asset: AcceptedFundingAsset,
-		bid_id: u32,
-		now: BlockNumberFor<T>,
-		did: Did,
-		metadata_ticket_size_bounds: TicketSizeOf<T>,
-		total_bids_by_bidder: u32,
-		total_bids_for_project: u32,
-	) -> Result<BidInfoOf<T>, DispatchError> {
+	fn do_perform_bid(do_perform_bid_params: DoPerformBidParams<T>) -> Result<BidInfoOf<T>, DispatchError> {
+		let DoPerformBidParams {
+			bidder,
+			project_id,
+			ct_amount,
+			ct_usd_price,
+			multiplier,
+			funding_asset,
+			bid_id,
+			now,
+			did,
+			metadata_ticket_size_bounds,
+			total_bids_by_bidder,
+			total_bids_for_project,
+		} = do_perform_bid_params;
+
 		let ticket_size = ct_usd_price.checked_mul_int(ct_amount).ok_or(Error::<T>::BadMath)?;
 		let total_usd_bid_by_did = AuctionBoughtUSD::<T>::get((project_id, did.clone()));
 
@@ -214,10 +219,10 @@ impl<T: Config> Pallet<T> {
 			when: now,
 		};
 
-		Self::try_plmc_participation_lock(bidder, project_id, plmc_bond)?;
-		Self::try_funding_asset_hold(bidder, project_id, funding_asset_amount_locked, funding_asset.id())?;
+		Self::try_plmc_participation_lock(&bidder, project_id, plmc_bond)?;
+		Self::try_funding_asset_hold(&bidder, project_id, funding_asset_amount_locked, funding_asset.id())?;
 
-		Bids::<T>::insert((project_id, bidder, bid_id), &new_bid);
+		Bids::<T>::insert((project_id, bidder.clone(), bid_id), &new_bid);
 		NextBidId::<T>::set(bid_id.saturating_add(One::one()));
 		BidCounts::<T>::mutate(project_id, |c| *c += 1);
 		AuctionBoughtUSD::<T>::mutate((project_id, did), |amount| *amount += ticket_size);

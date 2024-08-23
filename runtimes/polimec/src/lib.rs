@@ -47,6 +47,7 @@ use polimec_common::credentials::{Did, EnsureInvestor};
 use polkadot_runtime_common::{
 	xcm_sender::NoPriceForMessageDelivery, BlockHashCount, CurrencyToVote, SlowAdjustingFeeUpdate,
 };
+use shared_configuration::proxy;
 use sp_api::impl_runtime_apis;
 use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
 use sp_runtime::{
@@ -180,7 +181,7 @@ pub type Executive = frame_executive::Executive<
 /// of data like extrinsics, allowing for them to continue syncing the network through upgrades
 /// to even the core data structures.
 pub mod opaque {
-	use super::*;
+	use super::BlockNumber;
 	use sp_runtime::{
 		generic,
 		traits::{BlakeTwo256, Hash as HashT},
@@ -257,11 +258,11 @@ impl Contains<RuntimeCall> for BaseCallFilter {
 	}
 }
 
-impl InstanceFilter<RuntimeCall> for ProxyType {
+impl InstanceFilter<RuntimeCall> for Type {
 	fn filter(&self, c: &RuntimeCall) -> bool {
 		match self {
-			ProxyType::Any => true,
-			ProxyType::NonTransfer => matches!(
+			proxy::Type::Any => true,
+			proxy::Type::NonTransfer => matches!(
 				c,
 				RuntimeCall::System(..) |
 				RuntimeCall::ParachainSystem(..) |
@@ -283,7 +284,7 @@ impl InstanceFilter<RuntimeCall> for ProxyType {
 				RuntimeCall::Oracle(..) |
 				RuntimeCall::OracleProvidersMembership(..)
 			),
-			ProxyType::Governance => matches!(
+			proxy::Type::Governance => matches!(
 				c,
 				RuntimeCall::Treasury(..) |
 					RuntimeCall::Democracy(..) |
@@ -293,10 +294,10 @@ impl InstanceFilter<RuntimeCall> for ProxyType {
 					RuntimeCall::Preimage(..) |
 					RuntimeCall::Scheduler(..)
 			),
-			ProxyType::Staking => {
+			proxy::Type::Staking => {
 				matches!(c, RuntimeCall::ParachainStaking(..))
 			},
-			ProxyType::IdentityJudgement =>
+			proxy::Type::IdentityJudgement =>
 				matches!(c, RuntimeCall::Identity(pallet_identity::Call::provide_judgement { .. })),
 		}
 	}
@@ -304,9 +305,9 @@ impl InstanceFilter<RuntimeCall> for ProxyType {
 	fn is_superset(&self, o: &Self) -> bool {
 		match (self, o) {
 			(x, y) if x == y => true,
-			(ProxyType::Any, _) => true,
-			(_, ProxyType::Any) => false,
-			(ProxyType::NonTransfer, _) => true,
+			(proxy::Type::Any, _) => true,
+			(_, proxy::Type::Any) => false,
+			(proxy::Type::NonTransfer, _) => true,
 			_ => false,
 		}
 	}
@@ -834,7 +835,7 @@ parameter_types! {
 }
 
 impl pallet_oracle_ocw::Config for Runtime {
-	type AppCrypto = pallet_oracle_ocw::crypto::PolimecCrypto;
+	type AppCrypto = pallet_oracle_ocw::crypto::Polimec;
 	type ConvertAssetPricePair = AssetPriceConverter;
 	type FetchInterval = FetchInterval;
 	type FetchWindow = FetchWindow;
@@ -941,7 +942,7 @@ impl pallet_proxy::Config for Runtime {
 	type MaxProxies = MaxProxies;
 	type ProxyDepositBase = ProxyDepositBase;
 	type ProxyDepositFactor = ProxyDepositFactor;
-	type ProxyType = ProxyType;
+	type ProxyType = Type;
 	type RuntimeCall = RuntimeCall;
 	type RuntimeEvent = RuntimeEvent;
 	type WeightInfo = weights::pallet_proxy::WeightInfo<Runtime>;

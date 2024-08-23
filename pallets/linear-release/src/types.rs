@@ -14,7 +14,25 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use super::*;
+use sp_runtime::traits::Zero;
+
+use sp_runtime::traits::Convert;
+
+use sp_runtime::traits::One;
+
+use sp_runtime::traits::Bounded;
+
+use sp_runtime::traits::AtLeast32BitUnsigned;
+
+use frame_support::pallet_prelude::TypeInfo;
+
+use frame_support::pallet_prelude::MaxEncodedLen;
+
+use frame_support::pallet_prelude::RuntimeDebug;
+
+use frame_support::pallet_prelude::Decode;
+
+use frame_support::pallet_prelude::Encode;
 
 /// Struct to encode the vesting schedule of an individual account.
 #[derive(Encode, Decode, Copy, Clone, PartialEq, Eq, RuntimeDebug, MaxEncodedLen, TypeInfo)]

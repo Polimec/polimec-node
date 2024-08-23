@@ -46,8 +46,8 @@ pub fn get_test_jwt<AccountId: core::fmt::Display>(
 		.expect("Failed to perform the HTTP GET")
 		.text()
 		.expect("Failed to get the response body (jwt) from the specified endpoint");
-	let res = UntrustedToken::new(&jwt).expect("Failed to parse the JWT");
-	res
+
+	UntrustedToken::new(&jwt).expect("Failed to parse the JWT")
 }
 
 fn create_jwt<AccountId: frame_support::Serialize>(
@@ -118,8 +118,8 @@ pub fn get_fake_jwt<AccountId: core::fmt::Display>(
 	.expect("Failed to perform the HTTP GET")
 	.text()
 	.expect("Failed to get the response body (jwt) from the specified endpoint");
-	let res = UntrustedToken::new(&jwt).expect("Failed to parse the JWT");
-	res
+
+	UntrustedToken::new(&jwt).expect("Failed to parse the JWT")
 }
 
 pub fn generate_did_from_account(account_id: impl Parameter) -> Did {

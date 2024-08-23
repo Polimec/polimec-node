@@ -328,16 +328,16 @@ mod round_flow {
 			let investor_type = InvestorType::Retail;
 			inst.execute(|| {
 				assert_noop!(
-					PolimecFunding::do_contribute(
-						&BIDDER_1,
+					PolimecFunding::do_contribute(DoContributeParams::<TestRuntime> {
+						contributor: BIDDER_1,
 						project_id,
-						100,
-						1u8.try_into().unwrap(),
-						AcceptedFundingAsset::USDT,
+						ct_amount: 100,
+						multiplier: 1u8.try_into().unwrap(),
+						funding_asset: AcceptedFundingAsset::USDT,
 						did,
 						investor_type,
-						project_metadata.clone().policy_ipfs_cid.unwrap(),
-					),
+						whitelisted_policy: project_metadata.clone().policy_ipfs_cid.unwrap(),
+					}),
 					Error::<TestRuntime>::IncorrectRound
 				);
 			});
@@ -872,7 +872,7 @@ mod bid_extrinsic {
 			assert_eq!(frozen_balance, frozen_amount);
 
 			let vest_duration =
-				MultiplierOf::<TestRuntime>::new(5u8).unwrap().calculate_vesting_duration::<TestRuntime>();
+				MultiplierOf::<TestRuntime>::try_from(5u8).unwrap().calculate_vesting_duration::<TestRuntime>();
 			let now = inst.current_block();
 			inst.jump_to_block(now + vest_duration + 1u64);
 			inst.execute(|| {
@@ -994,16 +994,16 @@ mod bid_extrinsic {
 
 			inst.execute(|| {
 				assert_noop!(
-					PolimecFunding::do_bid(
-						&BIDDER_2,
-						0,
-						1,
-						1u8.try_into().unwrap(),
-						AcceptedFundingAsset::USDT,
+					PolimecFunding::do_bid(DoBidParams::<TestRuntime> {
+						bidder: BIDDER_2,
+						project_id: 0,
+						ct_amount: 1,
+						multiplier: 1u8.try_into().unwrap(),
+						funding_asset: AcceptedFundingAsset::USDT,
 						did,
 						investor_type,
-						project_metadata.clone().policy_ipfs_cid.unwrap(),
-					),
+						whitelisted_policy: project_metadata.clone().policy_ipfs_cid.unwrap(),
+					}),
 					Error::<TestRuntime>::IncorrectRound
 				);
 			});
@@ -1244,32 +1244,32 @@ mod bid_extrinsic {
 			// bid below 800 CT (8k USD) should fail for professionals
 			inst.execute(|| {
 				assert_noop!(
-					Pallet::<TestRuntime>::do_bid(
-						&BIDDER_1,
+					Pallet::<TestRuntime>::do_bid(DoBidParams::<TestRuntime> {
+						bidder: BIDDER_1,
 						project_id,
-						799 * CT_UNIT,
-						1u8.try_into().unwrap(),
-						AcceptedFundingAsset::USDT,
-						generate_did_from_account(BIDDER_1),
-						InvestorType::Professional,
-						project_metadata.clone().policy_ipfs_cid.unwrap(),
-					),
+						ct_amount: 799 * CT_UNIT,
+						multiplier: 1u8.try_into().unwrap(),
+						funding_asset: AcceptedFundingAsset::USDT,
+						did: generate_did_from_account(BIDDER_1),
+						investor_type: InvestorType::Professional,
+						whitelisted_policy: project_metadata.clone().policy_ipfs_cid.unwrap(),
+					}),
 					Error::<TestRuntime>::TooLow
 				);
 			});
 			// bid below 2000 CT (20k USD) should fail for institutionals
 			inst.execute(|| {
 				assert_noop!(
-					Pallet::<TestRuntime>::do_bid(
-						&BIDDER_2,
+					Pallet::<TestRuntime>::do_bid(DoBidParams::<TestRuntime> {
+						bidder: BIDDER_2,
 						project_id,
-						1999 * CT_UNIT,
-						1u8.try_into().unwrap(),
-						AcceptedFundingAsset::USDT,
-						generate_did_from_account(BIDDER_1),
-						InvestorType::Institutional,
-						project_metadata.clone().policy_ipfs_cid.unwrap(),
-					),
+						ct_amount: 1999 * CT_UNIT,
+						multiplier: 1u8.try_into().unwrap(),
+						funding_asset: AcceptedFundingAsset::USDT,
+						did: generate_did_from_account(BIDDER_1),
+						investor_type: InvestorType::Institutional,
+						whitelisted_policy: project_metadata.clone().policy_ipfs_cid.unwrap(),
+					}),
 					Error::<TestRuntime>::TooLow
 				);
 			});
@@ -1327,16 +1327,16 @@ mod bid_extrinsic {
 				.unwrap() + 1;
 			assert!(smallest_ct_amount_at_8k_usd < 8000 * CT_UNIT);
 			inst.execute(|| {
-				assert_ok!(Pallet::<TestRuntime>::do_bid(
-					&BIDDER_1,
+				assert_ok!(Pallet::<TestRuntime>::do_bid(DoBidParams::<TestRuntime> {
+					bidder: BIDDER_2,
 					project_id,
-					smallest_ct_amount_at_8k_usd,
-					1u8.try_into().unwrap(),
-					AcceptedFundingAsset::USDT,
-					generate_did_from_account(BIDDER_1),
-					InvestorType::Professional,
-					project_metadata.clone().policy_ipfs_cid.unwrap(),
-				));
+					ct_amount: smallest_ct_amount_at_8k_usd,
+					multiplier: 1u8.try_into().unwrap(),
+					funding_asset: AcceptedFundingAsset::USDT,
+					did: generate_did_from_account(BIDDER_1),
+					investor_type: InvestorType::Professional,
+					whitelisted_policy: project_metadata.clone().policy_ipfs_cid.unwrap(),
+				}));
 			});
 			let smallest_ct_amount_at_20k_usd = bucket_increase_price
 				.reciprocal()
@@ -1346,16 +1346,16 @@ mod bid_extrinsic {
 				.unwrap() + 1;
 			assert!(smallest_ct_amount_at_20k_usd < 20_000 * CT_UNIT);
 			inst.execute(|| {
-				assert_ok!(Pallet::<TestRuntime>::do_bid(
-					&BIDDER_2,
+				assert_ok!(Pallet::<TestRuntime>::do_bid(DoBidParams::<TestRuntime> {
+					bidder: BIDDER_3,
 					project_id,
-					smallest_ct_amount_at_20k_usd,
-					1u8.try_into().unwrap(),
-					AcceptedFundingAsset::USDT,
-					generate_did_from_account(BIDDER_1),
-					InvestorType::Institutional,
-					project_metadata.clone().policy_ipfs_cid.unwrap(),
-				));
+					ct_amount: smallest_ct_amount_at_20k_usd,
+					multiplier: 1u8.try_into().unwrap(),
+					funding_asset: AcceptedFundingAsset::USDT,
+					did: generate_did_from_account(BIDDER_1),
+					investor_type: InvestorType::Institutional,
+					whitelisted_policy: project_metadata.clone().policy_ipfs_cid.unwrap(),
+				}));
 			});
 		}
 
@@ -1497,16 +1497,16 @@ mod bid_extrinsic {
 			let project_id =
 				inst.create_auctioning_project(project_metadata.clone(), ISSUER_1, None, default_evaluations());
 			assert_err!(
-				inst.execute(|| crate::Pallet::<TestRuntime>::do_bid(
-					&(&ISSUER_1 + 1),
+				inst.execute(|| crate::Pallet::<TestRuntime>::do_bid(DoBidParams::<TestRuntime> {
+					bidder: ISSUER_1,
 					project_id,
-					500 * CT_UNIT,
-					1u8.try_into().unwrap(),
-					AcceptedFundingAsset::USDT,
-					generate_did_from_account(ISSUER_1),
-					InvestorType::Institutional,
-					project_metadata.clone().policy_ipfs_cid.unwrap(),
-				)),
+					ct_amount: 5000 * CT_UNIT,
+					multiplier: 1u8.try_into().unwrap(),
+					funding_asset: AcceptedFundingAsset::USDT,
+					did: generate_did_from_account(ISSUER_1),
+					investor_type: InvestorType::Professional,
+					whitelisted_policy: project_metadata.clone().policy_ipfs_cid.unwrap(),
+				})),
 				Error::<TestRuntime>::ParticipationToOwnProject
 			);
 		}
@@ -1523,16 +1523,16 @@ mod bid_extrinsic {
 			let investor_type = InvestorType::Institutional;
 
 			let outcome = inst.execute(|| {
-				Pallet::<TestRuntime>::do_bid(
-					&bids[0].bidder,
+				Pallet::<TestRuntime>::do_bid(DoBidParams::<TestRuntime> {
+					bidder: bids[0].bidder,
 					project_id,
-					bids[0].amount,
-					bids[0].multiplier,
-					bids[0].asset,
+					ct_amount: bids[0].amount,
+					multiplier: bids[0].multiplier,
+					funding_asset: bids[0].asset,
 					did,
 					investor_type,
-					project_metadata.clone().policy_ipfs_cid.unwrap(),
-				)
+					whitelisted_policy: project_metadata.clone().policy_ipfs_cid.unwrap(),
+				})
 			});
 			frame_support::assert_err!(outcome, Error::<TestRuntime>::FundingAssetNotAccepted);
 		}
@@ -1657,7 +1657,6 @@ mod end_auction_extrinsic {
 			assert!(matches!(inst.go_to_next_state(project_id), ProjectStatus::CommunityRound(..)));
 
 			let project_details = inst.get_project_details(project_id);
-			dbg!(&project_details);
 			let token_price = inst.get_project_details(project_id).weighted_average_price.unwrap();
 			let normalized_wap =
 				PriceProviderOf::<TestRuntime>::convert_back_to_normal_price(token_price, USD_DECIMALS, CT_DECIMALS)

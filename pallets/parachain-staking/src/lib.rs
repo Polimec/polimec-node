@@ -49,6 +49,8 @@
 //! To leave the set of delegators and revoke all delegations, call `leave_delegators`.
 
 #![cfg_attr(not(feature = "std"), no_std)]
+// Needed due to empty sections raising the warning
+#![allow(unreachable_patterns)]
 
 mod auto_compound;
 mod delegation_requests;

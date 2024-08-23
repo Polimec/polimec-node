@@ -430,8 +430,6 @@ fn funding_asset_to_ct_amount() {
 	let current_bucket = inst.execute(|| Buckets::<TestRuntime>::get(project_id_3).unwrap());
 	assert_eq!(current_bucket.current_price, decimal_aware_expected_price);
 
-	dbg!(current_bucket.current_price.saturating_mul_int(current_bucket.amount_left));
-
 	let dot_amount: u128 = 217_0_000_000_000;
 	let expected_ct_amount: u128 = 935_812_500_000_000_000;
 
@@ -600,7 +598,6 @@ fn all_project_participations_by_did() {
 		let block_hash = System::block_hash(System::block_number());
 		let items =
 			TestRuntime::all_project_participations_by_did(&TestRuntime, block_hash, project_id, did_user).unwrap();
-		dbg!(items);
 	});
 }
 
@@ -701,7 +698,7 @@ fn projects_by_did() {
 
 	inst.execute(|| {
 		let projects = ProjectsDetails::<TestRuntime>::iter().collect_vec();
-		dbg!(projects);
+
 		let block_hash = System::block_hash(System::block_number());
 		let project_ids = TestRuntime::projects_by_did(&TestRuntime, block_hash, did_user).unwrap();
 		assert_eq!(project_ids, vec![project_id_1, project_id_3]);

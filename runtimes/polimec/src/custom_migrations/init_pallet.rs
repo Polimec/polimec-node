@@ -14,8 +14,9 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-#[allow(unused_imports)]
-use crate::*;
+#![allow(dead_code)]
+
+use crate::Runtime;
 
 use frame_support::traits::{GetStorageVersion, PalletInfoAccess, StorageVersion};
 
@@ -28,6 +29,13 @@ pub struct InitializePallet<Pallet: GetStorageVersion<CurrentStorageVersion = St
 impl<Pallet: GetStorageVersion<CurrentStorageVersion = StorageVersion> + PalletInfoAccess>
 	frame_support::traits::OnRuntimeUpgrade for InitializePallet<Pallet>
 {
+	fn on_runtime_upgrade() -> frame_support::weights::Weight {
+		if Pallet::on_chain_storage_version() == StorageVersion::new(0) {
+			Pallet::current_storage_version().put::<Pallet>();
+		}
+		<Runtime as frame_system::Config>::DbWeight::get().reads_writes(1, 1)
+	}
+
 	#[cfg(feature = "try-runtime")]
 	fn pre_upgrade() -> Result<Vec<u8>, DispatchError> {
 		log::info!("{} migrating from {:#?}", Pallet::name(), Pallet::on_chain_storage_version());
@@ -38,12 +46,5 @@ impl<Pallet: GetStorageVersion<CurrentStorageVersion = StorageVersion> + PalletI
 	fn post_upgrade(_state: Vec<u8>) -> Result<(), DispatchError> {
 		log::info!("{} migrated to {:#?}", Pallet::name(), Pallet::on_chain_storage_version());
 		Ok(())
-	}
-
-	fn on_runtime_upgrade() -> frame_support::weights::Weight {
-		if Pallet::on_chain_storage_version() == StorageVersion::new(0) {
-			Pallet::current_storage_version().put::<Pallet>();
-		}
-		<Runtime as frame_system::Config>::DbWeight::get().reads_writes(1, 1)
 	}
 }

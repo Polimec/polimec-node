@@ -201,7 +201,6 @@ fn full_pallet_migration_test() {
 	let (project_id, participants) = create_settled_project();
 	let project_status =
 		PolimecNet::execute_with(|| pallet_funding::ProjectsDetails::<PolimecRuntime>::get(project_id).unwrap().status);
-	dbg!(project_status);
 
 	mock_hrmp_establishment(project_id);
 

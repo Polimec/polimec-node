@@ -1,4 +1,5 @@
-use crate::{traits::ProvideAssetPrice, *};
+#[allow(clippy::wildcard_imports)]
+use crate::{traits::*, *};
 use alloc::collections::BTreeMap;
 use frame_support::traits::fungibles::{metadata::Inspect as MetadataInspect, Inspect, InspectEnumerable};
 use itertools::Itertools;
@@ -184,6 +185,7 @@ impl<T: Config> Pallet<T> {
 			.map(|((account_id, contribution_id), _contribution)| (account_id, contribution_id))
 			.collect_vec();
 
+		#[allow(clippy::type_complexity)]
 		let mut map: BTreeMap<AccountIdOf<T>, (Vec<u32>, Vec<u32>, Vec<u32>)> = BTreeMap::new();
 
 		for (account_id, evaluation_id) in evaluations {
@@ -198,17 +200,14 @@ impl<T: Config> Pallet<T> {
 			map.entry(account_id).or_insert_with(|| (Vec::new(), Vec::new(), Vec::new())).2.push(contribution_id);
 		}
 
-		let output = map
-			.into_iter()
+		map.into_iter()
 			.map(|(account, (evaluation_ids, bid_ids, contribution_ids))| ProjectParticipationIds {
 				account,
 				evaluation_ids,
 				bid_ids,
 				contribution_ids,
 			})
-			.collect();
-
-		output
+			.collect()
 	}
 
 	pub fn usd_target_percent_reached(project_id: ProjectId) -> FixedU128 {

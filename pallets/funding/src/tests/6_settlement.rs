@@ -281,7 +281,6 @@ mod settle_evaluation_extrinsic {
 				Some(EvaluatorsOutcomeOf::<TestRuntime>::Slashed)
 			);
 
-			dbg!(inst.get_project_details(project_id).status);
 			assert_ok!(inst.execute(|| PolimecFunding::settle_evaluation(
 				RuntimeOrigin::signed(evaluator),
 				project_id,

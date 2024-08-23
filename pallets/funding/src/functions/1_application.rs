@@ -1,3 +1,6 @@
+#![allow(clippy::wildcard_imports)]
+#![allow(clippy::type_complexity)]
+
 use super::*;
 
 impl<T: Config> Pallet<T> {

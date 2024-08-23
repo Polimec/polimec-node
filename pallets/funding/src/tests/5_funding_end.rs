@@ -36,7 +36,6 @@ mod round_flow {
 			);
 
 			let wap = inst.get_project_details(project_id).weighted_average_price.unwrap();
-			dbg!(wap);
 			assert!(wap > project_metadata.minimum_price);
 		}
 	}
@@ -99,7 +98,6 @@ mod end_funding_extrinsic {
 		fn evaluator_outcome_bounds() {
 			let try_for_percentage = |percentage: u8, should_slash: bool| {
 				let (mut inst, project_id) = create_project_with_funding_percentage(percentage.into(), true);
-				dbg!(percentage);
 				if should_slash {
 					assert_eq!(
 						inst.get_project_details(project_id).status,
@@ -190,7 +188,6 @@ mod end_funding_extrinsic {
 			let funding_threshold: u128 =
 				funding_threshold.deconstruct() as u128 * 100u128 / Perquintill::ACCURACY as u128;
 
-			dbg!(funding_threshold);
 			let (mut inst, project_id) = create_project_with_funding_percentage(funding_threshold as u64 - 1, true);
 			assert_eq!(
 				inst.get_project_details(project_id).status,

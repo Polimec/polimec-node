@@ -15,7 +15,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 //! Expose the auto generated weight files.
-
+#![allow(clippy::module_name_repetitions)]
 pub mod block_weights;
 pub mod extrinsic_weights;
 pub mod paritydb_weights;

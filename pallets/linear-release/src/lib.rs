@@ -16,6 +16,9 @@
 
 // Ensure we're `no_std` when compiling for Wasm.
 #![cfg_attr(not(feature = "std"), no_std)]
+// Needed due to empty sections raising the warning
+#![allow(unreachable_patterns)]
+#![allow(clippy::type_complexity)]
 
 mod benchmarking;
 pub mod weights;
@@ -25,19 +28,15 @@ use frame_support::{
 	ensure,
 	pallet_prelude::*,
 	traits::{
-		fungible::*,
+		fungible::{BalancedHold, Inspect, InspectHold, Mutate, MutateHold},
 		tokens::{Balance, Precision},
 		Get, WithdrawReasons,
 	},
 };
 use frame_system::pallet_prelude::*;
-use parity_scale_codec::{Decode, Encode, MaxEncodedLen};
+use parity_scale_codec::MaxEncodedLen;
 use polimec_common::ReleaseSchedule;
-use scale_info::TypeInfo;
-use sp_runtime::{
-	traits::{AtLeast32BitUnsigned, Bounded, Convert, One, Saturating, Zero},
-	RuntimeDebug,
-};
+use sp_runtime::traits::{Convert, One, Saturating, Zero};
 use sp_std::{marker::PhantomData, prelude::*};
 
 // Re-export pallet items so that they can be accessed from the crate namespace.
@@ -60,6 +59,7 @@ mod types;
 pub type BalanceOf<T> = <T as Config>::Balance;
 pub type ReasonOf<T> = <T as Config>::RuntimeHoldReason;
 pub type AccountIdOf<T> = <T as frame_system::Config>::AccountId;
+pub type VestingInfoOf<T> = VestingInfo<BalanceOf<T>, BlockNumberFor<T>>;
 
 /// Actions to take against a user's `Vesting` storage entry.
 #[derive(Clone, Copy)]
@@ -85,8 +85,8 @@ impl VestingAction {
 	/// Pick the schedules that this action dictates should continue vesting undisturbed.
 	fn pick_schedules<T: Config>(
 		&self,
-		schedules: Vec<VestingInfo<BalanceOf<T>, BlockNumberFor<T>>>,
-	) -> impl Iterator<Item = VestingInfo<BalanceOf<T>, BlockNumberFor<T>>> + '_ {
+		schedules: Vec<VestingInfoOf<T>>,
+	) -> impl Iterator<Item = VestingInfoOf<T>> + '_ {
 		schedules.into_iter().enumerate().filter_map(
 			move |(index, schedule)| {
 				if self.should_remove(index) {
@@ -110,6 +110,7 @@ impl<T: Config> Get<u32> for MaxVestingSchedulesGet<T> {
 /// Enable `dev_mode` for this pallet.
 #[frame_support::pallet(dev_mode)]
 pub mod pallet {
+	#[allow(clippy::wildcard_imports)]
 	use super::*;
 
 	#[pallet::config]
@@ -213,7 +214,7 @@ pub mod pallet {
 		AccountIdOf<T>,
 		Blake2_128Concat,
 		ReasonOf<T>,
-		BoundedVec<VestingInfo<BalanceOf<T>, BlockNumberFor<T>>, MaxVestingSchedulesGet<T>>,
+		BoundedVec<VestingInfoOf<T>, MaxVestingSchedulesGet<T>>,
 	>;
 
 	#[pallet::call]
@@ -274,7 +275,7 @@ pub mod pallet {
 		pub fn vested_transfer(
 			origin: OriginFor<T>,
 			target: AccountIdOf<T>,
-			schedule: VestingInfo<BalanceOf<T>, BlockNumberFor<T>>,
+			schedule: VestingInfoOf<T>,
 			reason: ReasonOf<T>,
 		) -> DispatchResult {
 			let transactor = ensure_signed(origin)?;
@@ -301,7 +302,7 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			source: AccountIdOf<T>,
 			target: AccountIdOf<T>,
-			schedule: VestingInfo<BalanceOf<T>, BlockNumberFor<T>>,
+			schedule: VestingInfoOf<T>,
 			reason: ReasonOf<T>,
 		) -> DispatchResult {
 			ensure_root(origin)?;
