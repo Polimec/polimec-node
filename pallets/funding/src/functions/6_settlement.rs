@@ -165,7 +165,7 @@ impl<T: Config> Pallet<T> {
 				plmc_vesting_info.total_amount,
 				plmc_vesting_info.amount_per_block,
 				funding_end_block,
-				HoldReason::Participation.into(), // TODO: Check the `Reason`
+				HoldReason::Participation.into(),
 			)?;
 
 			Self::mint_contribution_tokens(project_id, &bid.bidder, final_ct_amount)?;
@@ -255,14 +255,14 @@ impl<T: Config> Pallet<T> {
 				contribution.multiplier,
 				contribution.plmc_bond,
 			)
-			.map_err(|_| Error::<T>::BadMath)?;
+				.map_err(|_| Error::<T>::BadMath)?;
 
 			T::Vesting::add_release_schedule(
 				&contribution.contributor,
 				vest_info.total_amount,
 				vest_info.amount_per_block,
 				funding_end_block,
-				HoldReason::Participation.into(), // TODO: Check the `Reason`
+				HoldReason::Participation.into(),
 			)?;
 			// Mint the contribution tokens
 			Self::mint_contribution_tokens(project_id, &contribution.contributor, contribution.ct_amount)?;

@@ -36,7 +36,6 @@ pub use storage::*;
 use crate::{traits::VestingDurationCalculation, Config};
 
 use sp_runtime::traits::Zero;
-use variant_count::VariantCount;
 
 pub mod config {
 	#[allow(clippy::wildcard_imports)]

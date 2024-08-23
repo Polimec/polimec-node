@@ -17,7 +17,7 @@ impl<T: Config> Pallet<T> {
 	///
 	/// # Next step
 	/// Users will pond PLMC for this project, and when the time comes, the project will be transitioned
-	/// to the next round by `on_initialize` using [`do_evaluation_end`](Self::do_end_evaluation)
+	/// to the next round by `on_initialize` using [`do_evaluation_end`](Self::do_end_evaluation(project_id))
 	#[transactional]
 	pub fn do_start_evaluation(caller: AccountIdOf<T>, project_id: ProjectId) -> DispatchResult {
 		// * Get variables *

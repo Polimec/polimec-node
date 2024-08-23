@@ -251,7 +251,7 @@ mod settle_evaluation_extrinsic {
 
 			for (evaluator, expected_reward) in evals {
 				let evaluation_locked_plmc =
-					inst.get_reserved_plmc_balance_for(evaluator, HoldReason::Evaluation(project_id).into());
+					inst.get_reserved_plmc_balance_for(evaluator, HoldReason::Evaluation.into());
 				let free_plmc = inst.get_free_plmc_balance_for(evaluator);
 				assert_ok!(inst.execute(|| PolimecFunding::settle_evaluation(
 					RuntimeOrigin::signed(evaluator),
@@ -261,7 +261,7 @@ mod settle_evaluation_extrinsic {
 				)));
 				let ct_rewarded = inst.get_ct_asset_balance_for(project_id, evaluator);
 				assert_close_enough!(ct_rewarded, expected_reward, Perquintill::from_float(0.9999));
-				assert_eq!(inst.get_reserved_plmc_balance_for(evaluator, HoldReason::Evaluation(project_id).into()), 0);
+				assert_eq!(inst.get_reserved_plmc_balance_for(evaluator, HoldReason::Evaluation.into()), 0);
 				assert_eq!(inst.get_free_plmc_balance_for(evaluator), free_plmc + evaluation_locked_plmc);
 				inst.assert_migration(project_id, evaluator, expected_reward, 0, ParticipationType::Evaluation, true);
 			}
@@ -312,7 +312,7 @@ mod settle_evaluation_extrinsic {
 			assert_eq!(inst.go_to_next_state(project_id), ProjectStatus::SettlementStarted(FundingOutcome::Failure));
 
 			let evaluation_locked_plmc =
-				inst.get_reserved_plmc_balance_for(EVALUATOR_1, HoldReason::Evaluation(project_id).into());
+				inst.get_reserved_plmc_balance_for(EVALUATOR_1, HoldReason::Evaluation.into());
 			let free_plmc = inst.get_free_plmc_balance_for(EVALUATOR_1);
 
 			assert_ok!(inst.execute(|| PolimecFunding::settle_evaluation(
@@ -323,7 +323,7 @@ mod settle_evaluation_extrinsic {
 			)));
 
 			assert_eq!(inst.get_ct_asset_balance_for(project_id, EVALUATOR_1), 0);
-			assert_eq!(inst.get_reserved_plmc_balance_for(EVALUATOR_1, HoldReason::Evaluation(project_id).into()), 0);
+			assert_eq!(inst.get_reserved_plmc_balance_for(EVALUATOR_1, HoldReason::Evaluation.into()), 0);
 			assert_eq!(inst.get_free_plmc_balance_for(EVALUATOR_1), free_plmc + evaluation_locked_plmc);
 		}
 	}
@@ -467,7 +467,7 @@ mod settle_bid_extrinsic {
 			// Multiplier one should be fully unbonded the next block
 			inst.advance_time(1_u64);
 
-			let hold_reason: RuntimeHoldReason = HoldReason::Participation(project_id).into();
+			let hold_reason: RuntimeHoldReason = HoldReason::Participation.into();
 			inst.execute(|| LinearRelease::vest(RuntimeOrigin::signed(BIDDER_1), hold_reason).expect("Vesting failed"));
 
 			inst.assert_plmc_free_balance(BIDDER_1, expected_plmc_refund + expected_final_plmc_bonded + ed);
@@ -574,7 +574,7 @@ mod settle_bid_extrinsic {
 
 			inst.assert_migration(project_id, BIDDER_1, auction_allocation / 2, 0, ParticipationType::Bid, true);
 
-			let hold_reason: RuntimeHoldReason = HoldReason::Participation(project_id).into();
+			let hold_reason: RuntimeHoldReason = HoldReason::Participation.into();
 
 			let vesting_time = no_refund_bid_params.multiplier.calculate_vesting_duration::<TestRuntime>();
 
@@ -615,7 +615,7 @@ mod settle_bid_extrinsic {
 				vec![],
 			);
 			assert_eq!(inst.go_to_next_state(project_id), ProjectStatus::SettlementStarted(FundingOutcome::Failure));
-			let hold_reason: RuntimeHoldReason = HoldReason::Participation(project_id).into();
+			let hold_reason: RuntimeHoldReason = HoldReason::Participation.into();
 
 			// Partial amount bid assertions
 			let partial_amount_bid_stored =
@@ -738,7 +738,7 @@ mod settle_bid_extrinsic {
 			inst.assert_plmc_free_balance(BIDDER_1, ed + no_refund_bid_stored.plmc_bond);
 			inst.assert_ct_balance(project_id, BIDDER_1, Zero::zero());
 
-			let hold_reason: RuntimeHoldReason = HoldReason::Participation(project_id).into();
+			let hold_reason: RuntimeHoldReason = HoldReason::Participation.into();
 			inst.execute(|| {
 				assert_noop!(
 					LinearRelease::vest(RuntimeOrigin::signed(BIDDER_2), hold_reason),
@@ -795,7 +795,7 @@ mod settle_bid_extrinsic {
 			inst.assert_plmc_free_balance(BIDDER_1, rejected_bid_stored.plmc_bond + ed);
 			inst.assert_ct_balance(project_id, BIDDER_1, Zero::zero());
 
-			let hold_reason = HoldReason::Participation(project_id).into();
+			let hold_reason = HoldReason::Participation.into();
 			inst.execute(|| {
 				assert_noop!(
 					LinearRelease::vest(RuntimeOrigin::signed(BIDDER_2), hold_reason),
@@ -855,7 +855,7 @@ mod settle_bid_extrinsic {
 			inst.assert_plmc_free_balance(BIDDER_1, rejected_bid_stored.plmc_bond + ed);
 			inst.assert_ct_balance(project_id, BIDDER_1, Zero::zero());
 
-			let hold_reason = HoldReason::Participation(project_id).into();
+			let hold_reason = HoldReason::Participation.into();
 			inst.execute(|| {
 				assert_noop!(
 					LinearRelease::vest(RuntimeOrigin::signed(BIDDER_2), hold_reason),
@@ -916,7 +916,7 @@ mod settle_bid_extrinsic {
 			inst.assert_plmc_free_balance(BIDDER_1, rejected_bid_stored.plmc_bond + ed);
 			inst.assert_ct_balance(project_id, BIDDER_1, Zero::zero());
 
-			let hold_reason = HoldReason::Participation(project_id).into();
+			let hold_reason = HoldReason::Participation.into();
 			inst.execute(|| {
 				assert_noop!(
 					LinearRelease::vest(RuntimeOrigin::signed(BIDDER_2), hold_reason),
@@ -1010,7 +1010,7 @@ mod settle_contribution_extrinsic {
 			// First contribution assertions
 			let stored_contribution =
 				inst.execute(|| Contributions::<TestRuntime>::get((project_id, BUYER_1, 0)).unwrap());
-			let hold_reason: RuntimeHoldReason = HoldReason::Participation(project_id).into();
+			let hold_reason: RuntimeHoldReason = HoldReason::Participation.into();
 
 			inst.assert_plmc_free_balance(BUYER_1, ed);
 			inst.assert_plmc_held_balance(BUYER_1, stored_contribution.plmc_bond, hold_reason);
@@ -1123,14 +1123,14 @@ mod settle_contribution_extrinsic {
 				inst.execute(|| Contributions::<TestRuntime>::get((project_id, BUYER_6, 5)).unwrap());
 			let plmc_free_amount = inst.get_free_plmc_balance_for(BUYER_6);
 			let plmc_held_amount =
-				inst.get_reserved_plmc_balance_for(BUYER_6, HoldReason::Participation(project_id).into());
+				inst.get_reserved_plmc_balance_for(BUYER_6, HoldReason::Participation.into());
 			let ct_amount = inst.get_ct_asset_balance_for(project_id, BUYER_6);
 			let issuer_usdt_balance =
 				inst.get_free_funding_asset_balance_for(stored_contribution.funding_asset.id(), issuer);
 			let unvested_amount = inst.execute(|| {
 				<TestRuntime as Config>::Vesting::total_scheduled_amount(
 					&BUYER_6,
-					HoldReason::Participation(project_id).into(),
+					HoldReason::Participation.into(),
 				)
 			});
 
@@ -1147,14 +1147,14 @@ mod settle_contribution_extrinsic {
 			assert!(inst.execute(|| Contributions::<TestRuntime>::get((project_id, BUYER_6, 6)).is_none()));
 			let plmc_free_amount = inst.get_free_plmc_balance_for(BUYER_6);
 			let plmc_held_amount =
-				inst.get_reserved_plmc_balance_for(BUYER_6, HoldReason::Participation(project_id).into());
+				inst.get_reserved_plmc_balance_for(BUYER_6, HoldReason::Participation.into());
 			let ct_amount = inst.get_ct_asset_balance_for(project_id, BUYER_6);
 			let issuer_usdt_balance =
 				inst.get_free_funding_asset_balance_for(stored_contribution.funding_asset.id(), issuer);
 			let unvested_amount = inst.execute(|| {
 				<TestRuntime as Config>::Vesting::total_scheduled_amount(
 					&BUYER_6,
-					HoldReason::Participation(project_id).into(),
+					HoldReason::Participation.into(),
 				)
 			});
 
@@ -1177,14 +1177,14 @@ mod settle_contribution_extrinsic {
 				inst.execute(|| Contributions::<TestRuntime>::get((project_id, BUYER_7, 6)).unwrap());
 			let plmc_free_amount = inst.get_free_plmc_balance_for(BUYER_7);
 			let plmc_held_amount =
-				inst.get_reserved_plmc_balance_for(BUYER_7, HoldReason::Participation(project_id).into());
+				inst.get_reserved_plmc_balance_for(BUYER_7, HoldReason::Participation.into());
 			let ct_amount = inst.get_ct_asset_balance_for(project_id, BUYER_7);
 			let issuer_usdt_balance_2 =
 				inst.get_free_funding_asset_balance_for(stored_contribution.funding_asset.id(), issuer);
 			let unvested_amount = inst.execute(|| {
 				<TestRuntime as Config>::Vesting::total_scheduled_amount(
 					&BUYER_7,
-					HoldReason::Participation(project_id).into(),
+					HoldReason::Participation.into(),
 				)
 			});
 			assert_eq!(plmc_free_amount, inst.get_ed());
@@ -1200,14 +1200,14 @@ mod settle_contribution_extrinsic {
 			assert!(inst.execute(|| Contributions::<TestRuntime>::get((project_id, BUYER_7, 7)).is_none()));
 			let plmc_free_amount = inst.get_free_plmc_balance_for(BUYER_7);
 			let plmc_held_amount =
-				inst.get_reserved_plmc_balance_for(BUYER_7, HoldReason::Participation(project_id).into());
+				inst.get_reserved_plmc_balance_for(BUYER_7, HoldReason::Participation.into());
 			let ct_amount = inst.get_ct_asset_balance_for(project_id, BUYER_7);
 			let issuer_usdt_balance_2 =
 				inst.get_free_funding_asset_balance_for(stored_contribution.funding_asset.id(), issuer);
 			let unvested_amount = inst.execute(|| {
 				<TestRuntime as Config>::Vesting::total_scheduled_amount(
 					&BUYER_7,
-					HoldReason::Participation(project_id).into(),
+					HoldReason::Participation.into(),
 				)
 			});
 

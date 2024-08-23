@@ -1728,7 +1728,7 @@ mod end_auction_extrinsic {
 				UserToPLMCBalance::new(BIDDER_1, inst.get_ed()),
 				UserToPLMCBalance::new(BIDDER_2, inst.get_ed()),
 			]);
-			inst.do_reserved_plmc_assertions(plmc_amounts.clone(), HoldReason::Participation(project_id).into());
+			inst.do_reserved_plmc_assertions(plmc_amounts.clone(), HoldReason::Participation.into());
 
 			assert!(matches!(inst.go_to_next_state(project_id), ProjectStatus::CommunityRound(_)));
 
@@ -1788,7 +1788,7 @@ mod end_auction_extrinsic {
 			inst.settle_project(project_id, true);
 
 			inst.do_free_plmc_assertions(expected_free_plmc);
-			inst.do_reserved_plmc_assertions(expected_reserved_plmc, HoldReason::Participation(project_id).into());
+			inst.do_reserved_plmc_assertions(expected_reserved_plmc, HoldReason::Participation.into());
 			inst.do_free_funding_asset_assertions(expected_free_funding_assets);
 
 			for (asset, expected_amount) in expected_issuer_funding {
