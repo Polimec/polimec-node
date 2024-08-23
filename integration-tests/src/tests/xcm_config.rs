@@ -7,6 +7,7 @@ use xcm_emulator::{Chain, TestExt};
 pub fn fake_message_hash<T>(message: &Xcm<T>) -> XcmHash {
 	message.using_encoded(sp_io::hashing::blake2_256)
 }
+
 #[test]
 fn execution_fees_go_to_treasury() {
 	let dot_amount = Asset { id: AssetId(Location::parent()), fun: Fungible(100_0_000_000_000) };
@@ -35,16 +36,16 @@ fn execution_fees_go_to_treasury() {
 				beneficiary: Location::new(0, [AccountId32 { network: None, id: beneficiary.clone().into() }]),
 			},
 		]);
-		let weighted_xcm = xcm_executor::WeighedMessage::new(Weight::MAX, xcm.clone()); // TODO: Check how much weight we need.
 		PolimecNet::execute_with(|| {
 			let prev_treasury_balance = PolimecForeignAssets::balance(asset_id, TreasuryAccount::get());
 			let prev_beneficiary_balance = PolimecForeignAssets::balance(asset_id, beneficiary.clone());
 
-			let outcome = <PolimecRuntime as pallet_xcm::Config>::XcmExecutor::execute(
+			let outcome = <PolimecRuntime as pallet_xcm::Config>::XcmExecutor::prepare_and_execute(
 				Location::new(1, [Parachain(1000)]),
-				weighted_xcm,
+				xcm.clone(),
 				&mut fake_message_hash(&xcm),
 				Weight::MAX,
+				Weight::zero(),
 			);
 			assert!(outcome.ensure_complete().is_ok());
 
@@ -73,17 +74,17 @@ fn execution_fees_go_to_treasury() {
 				beneficiary: Location::new(0, [AccountId32 { network: None, id: beneficiary.clone().into() }]),
 			},
 		]);
-		let weighted_xcm = xcm_executor::WeighedMessage::new(Weight::MAX, xcm.clone()); // TODO: Check how much weight we need.
 
 		PolimecNet::execute_with(|| {
 			let prev_treasury_balance = PolimecBalances::free_balance(TreasuryAccount::get());
 			let prev_beneficiary_balance = PolimecBalances::free_balance(beneficiary.clone());
 
-			let outcome = <PolimecRuntime as pallet_xcm::Config>::XcmExecutor::execute(
+			let outcome = <PolimecRuntime as pallet_xcm::Config>::XcmExecutor::prepare_and_execute(
 				Location::new(0, [AccountId32 { network: None, id: PolimecNet::account_id_of(ALICE).into() }]),
-				weighted_xcm,
+				xcm.clone(),
 				&mut fake_message_hash(&xcm),
 				Weight::MAX,
+				Weight::zero(),
 			);
 			assert!(outcome.ensure_complete().is_ok());
 
