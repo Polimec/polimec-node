@@ -113,10 +113,7 @@ mod round_flow {
 				0_u128,
 				AcceptedFundingAsset::USDT.id(),
 			)]);
-			inst.do_reserved_plmc_assertions(
-				vec![plmc_fundings[0].clone()],
-				HoldReason::Participation.into(),
-			);
+			inst.do_reserved_plmc_assertions(vec![plmc_fundings[0].clone()], HoldReason::Participation.into());
 		}
 
 		#[test]
@@ -455,8 +452,7 @@ mod contribute_extrinsic {
 			let first_bucket = bucket.amount_left;
 
 			// Failed bids can only happen on oversubscription. We want Bob's bid as the last one of the first bucket
-			let bob_plmc_bond =
-				inst.execute(|| Balances::balance_on_hold(&HoldReason::Evaluation.into(), &bob));
+			let bob_plmc_bond = inst.execute(|| Balances::balance_on_hold(&HoldReason::Evaluation.into(), &bob));
 			let usable_bond = bob_plmc_bond - <TestRuntime as Config>::EvaluatorSlash::get() * bob_plmc_bond;
 			let usable_usd = plmc_price.saturating_mul_int(usable_bond);
 			let usable_bob_ct = bucket.current_price.reciprocal().unwrap().saturating_mul_int(usable_usd);

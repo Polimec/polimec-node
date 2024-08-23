@@ -161,15 +161,14 @@ mod pallet_migration {
 			0,
 			0,
 			0,
-		);
-		// FIXME: Why is this returning an error from XCMv3?
-		// inst.execute(|| {
-		// 	assert_ok!(PolimecFunding::do_pallet_migration_readiness_response(
-		// 		Location::new(1u8, [Parachain(6969u32)]),
-		// 		1u64,
-		// 		Response::PalletsInfo(bounded_vec![pallet_info]),
-		// 	));
-		// });
+		).unwrap();
+		inst.execute(|| {
+			assert_ok!(PolimecFunding::do_pallet_migration_readiness_response(
+				Location::new(1u8, [Parachain(6969u32)]),
+				1u64,
+				Response::PalletsInfo(bounded_vec![pallet_info]),
+			));
+		});
 
 		let project_details = inst.get_project_details(project_id);
 		if let MigrationType::Pallet(info) = project_details.migration_type.unwrap() {

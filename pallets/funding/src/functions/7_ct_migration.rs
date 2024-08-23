@@ -505,7 +505,7 @@ impl<T: Config> Pallet<T> {
 
 fn get_parachain_id(loc: &Location) -> Option<u32> {
 	match loc.unpack() {
-		(0, [Parachain(id)]) => Some(*id),
+		(1, [Parachain(id)]) => Some(*id),
 		_ => None,
 	}
 }
