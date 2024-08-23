@@ -52,7 +52,7 @@ const CT_UNIT: u128 = 10u128.pow(CT_DECIMALS as u32);
 type BenchInstantiator<T> = Instantiator<T, <T as Config>::AllPalletsWithoutSystem, <T as Config>::RuntimeEvent>;
 
 pub fn usdt_id() -> u32 {
-	AcceptedFundingAsset::USDT.to_assethub_id()
+	AcceptedFundingAsset::USDT.id()
 }
 
 pub fn default_project_metadata<T: Config>(issuer: AccountIdOf<T>) -> ProjectMetadataOf<T>
@@ -302,16 +302,6 @@ pub fn fill_projects_to_update<T: Config>(
 	}
 }
 
-pub fn run_blocks_to_execute_next_transition<T: Config>(
-	project_id: ProjectId,
-	update_type: UpdateType,
-	inst: &mut BenchInstantiator<T>,
-) {
-	let update_block = inst.get_update_block(project_id, &update_type).unwrap();
-	frame_system::Pallet::<T>::set_block_number(update_block - 1u32.into());
-	inst.advance_time(One::one()).unwrap();
-}
-
 #[benchmarks(
 	where
 	T: Config + frame_system::Config<RuntimeEvent = <T as Config>::RuntimeEvent> + pallet_balances::Config<Balance = BalanceOf<T>>,
@@ -336,7 +326,7 @@ mod benchmarks {
 		let mut inst = BenchInstantiator::<T>::new(None);
 		<T as Config>::SetPrices::set_prices();
 		// real benchmark starts at block 0, and we can't call `events()` at block 0
-		inst.advance_time(1u32.into()).unwrap();
+		inst.advance_time(1u32.into());
 
 		let ed = inst.get_ed();
 
@@ -387,7 +377,7 @@ mod benchmarks {
 		let mut inst = BenchInstantiator::<T>::new(None);
 		<T as Config>::SetPrices::set_prices();
 		// real benchmark starts at block 0, and we can't call `events()` at block 0
-		inst.advance_time(1u32.into()).unwrap();
+		inst.advance_time(1u32.into());
 
 		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
 		whitelist_account!(issuer);
@@ -420,7 +410,7 @@ mod benchmarks {
 		<T as Config>::SetPrices::set_prices();
 
 		// real benchmark starts at block 0, and we can't call `events()` at block 0
-		inst.advance_time(1u32.into()).unwrap();
+		inst.advance_time(1u32.into());
 
 		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
 		let issuer_funding = account::<AccountIdOf<T>>("issuer_funding", 0, 0);
@@ -524,7 +514,7 @@ mod benchmarks {
 		<T as Config>::SetPrices::set_prices();
 
 		// real benchmark starts at block 0, and we can't call `events()` at block 0
-		inst.advance_time(1u32.into()).unwrap();
+		inst.advance_time(1u32.into());
 
 		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
 		whitelist_account!(issuer);
@@ -591,11 +581,11 @@ mod benchmarks {
 
 		inst.mint_plmc_to(plmc_for_evaluating);
 
-		inst.advance_time(One::one()).unwrap();
+		inst.advance_time(One::one());
 		inst.evaluate_for_users(project_id, evaluations).expect("All evaluations are accepted");
 
 		run_blocks_to_execute_next_transition(project_id, UpdateType::EvaluationEnd, &mut inst);
-		inst.advance_time(1u32.into()).unwrap();
+		inst.advance_time(1u32.into());
 
 		assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::AuctionInitializePeriod);
 
@@ -636,7 +626,7 @@ mod benchmarks {
 		<T as Config>::SetPrices::set_prices();
 
 		// real benchmark starts at block 0, and we can't call `events()` at block 0
-		inst.advance_time(1u32.into()).unwrap();
+		inst.advance_time(1u32.into());
 
 		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
 		let test_evaluator = account::<AccountIdOf<T>>("evaluator", 0, 0);
@@ -659,7 +649,7 @@ mod benchmarks {
 		inst.mint_plmc_to(plmc_for_existing_evaluations.clone());
 		inst.mint_plmc_to(plmc_for_extrinsic_evaluation.clone());
 
-		inst.advance_time(One::one()).unwrap();
+		inst.advance_time(One::one());
 
 		// do "x" evaluations for this user
 		inst.evaluate_for_users(project_id, existing_evaluations).expect("All evaluations are accepted");
@@ -749,7 +739,7 @@ mod benchmarks {
 		<T as Config>::SetPrices::set_prices();
 
 		// real benchmark starts at block 0, and we can't call `events()` at block 0
-		inst.advance_time(1u32.into()).unwrap();
+		inst.advance_time(1u32.into());
 
 		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
 		let bidder = account::<AccountIdOf<T>>("bidder", 0, 0);
@@ -789,7 +779,7 @@ mod benchmarks {
 
 		let existential_deposits: Vec<UserToPLMCBalance<T>> = vec![bidder.clone()].existential_deposits();
 
-		let usdt_for_existing_bids: Vec<UserToForeignAssets<T>> = inst
+		let usdt_for_existing_bids: Vec<UserToFundingAsset<T>> = inst
 			.calculate_auction_funding_asset_charged_from_all_bids_made_or_with_bucket(
 				&existing_bids,
 				project_metadata.clone(),
@@ -797,11 +787,11 @@ mod benchmarks {
 			);
 		let escrow_account = Pallet::<T>::fund_account_id(project_id);
 		let prev_total_escrow_usdt_locked =
-			inst.get_free_foreign_asset_balances_for(usdt_id(), vec![escrow_account.clone()]);
+			inst.get_free_funding_asset_balances_for(usdt_id(), vec![escrow_account.clone()]);
 
 		inst.mint_plmc_to(plmc_for_existing_bids.clone());
 		inst.mint_plmc_to(existential_deposits.clone());
-		inst.mint_foreign_asset_to(usdt_for_existing_bids.clone());
+		inst.mint_funding_asset_to(usdt_for_existing_bids.clone());
 
 		// do "x" contributions for this user
 		inst.bid_for_users(project_id, existing_bids.clone()).unwrap();
@@ -812,11 +802,8 @@ mod benchmarks {
 		let mut maybe_filler_bid = None;
 		let new_bidder = account::<AccountIdOf<T>>("new_bidder", 0, 0);
 
-		let mut usdt_for_filler_bidder = vec![UserToForeignAssets::<T>::new(
-			new_bidder.clone(),
-			Zero::zero(),
-			AcceptedFundingAsset::USDT.to_assethub_id(),
-		)];
+		let mut usdt_for_filler_bidder =
+			vec![UserToFundingAsset::<T>::new(new_bidder.clone(), Zero::zero(), AcceptedFundingAsset::USDT.id())];
 		if do_perform_bid_calls > 0 {
 			let current_bucket = Buckets::<T>::get(project_id).unwrap();
 			// first lets bring the bucket to almost its limit with another bidder:
@@ -836,7 +823,7 @@ mod benchmarks {
 
 			inst.mint_plmc_to(plmc_for_new_bidder);
 			inst.mint_plmc_to(plmc_ed);
-			inst.mint_foreign_asset_to(usdt_for_new_bidder.clone());
+			inst.mint_funding_asset_to(usdt_for_new_bidder.clone());
 
 			inst.bid_for_users(project_id, vec![bid_params]).unwrap();
 
@@ -864,20 +851,20 @@ mod benchmarks {
 				Some(current_bucket),
 				false,
 			);
-		let usdt_for_extrinsic_bids: Vec<UserToForeignAssets<T>> = inst
+		let usdt_for_extrinsic_bids: Vec<UserToFundingAsset<T>> = inst
 			.calculate_auction_funding_asset_charged_from_all_bids_made_or_with_bucket(
 				&vec![extrinsic_bid],
 				project_metadata.clone(),
 				Some(current_bucket),
 			);
 		inst.mint_plmc_to(plmc_for_extrinsic_bids.clone());
-		inst.mint_foreign_asset_to(usdt_for_extrinsic_bids.clone());
+		inst.mint_funding_asset_to(usdt_for_extrinsic_bids.clone());
 
 		let total_free_plmc = existential_deposits[0].plmc_amount;
 		let total_plmc_participation_bonded =
 			inst.sum_balance_mappings(vec![plmc_for_extrinsic_bids.clone(), plmc_for_existing_bids.clone()]);
 		let total_free_usdt = Zero::zero();
-		let total_escrow_usdt_locked = inst.sum_foreign_mappings(vec![
+		let total_escrow_usdt_locked = inst.sum_funding_asset_mappings(vec![
 			prev_total_escrow_usdt_locked.clone(),
 			usdt_for_extrinsic_bids.clone(),
 			usdt_for_existing_bids.clone(),
@@ -981,10 +968,10 @@ mod benchmarks {
 
 		let escrow_account = Pallet::<T>::fund_account_id(project_id);
 		let locked_usdt =
-			inst.get_free_foreign_asset_balances_for(usdt_id(), vec![escrow_account.clone()])[0].asset_amount;
+			inst.get_free_funding_asset_balances_for(usdt_id(), vec![escrow_account.clone()])[0].asset_amount;
 		assert_eq!(locked_usdt, total_usdt_locked);
 
-		let free_usdt = inst.get_free_foreign_asset_balances_for(usdt_id(), vec![bidder])[0].asset_amount;
+		let free_usdt = inst.get_free_funding_asset_balances_for(usdt_id(), vec![bidder])[0].asset_amount;
 		assert_eq!(free_usdt, total_free_usdt);
 
 		// Events
@@ -1131,13 +1118,13 @@ mod benchmarks {
 			plmc_for_extrinsic_contribution.accounts().existential_deposits();
 
 		let escrow_account = Pallet::<T>::fund_account_id(project_id);
-		let prev_total_usdt_locked = inst.get_free_foreign_asset_balances_for(usdt_id(), vec![escrow_account.clone()]);
+		let prev_total_usdt_locked = inst.get_free_funding_asset_balances_for(usdt_id(), vec![escrow_account.clone()]);
 
 		inst.mint_plmc_to(plmc_for_existing_contributions.clone());
 		inst.mint_plmc_to(plmc_for_extrinsic_contribution.clone());
 		inst.mint_plmc_to(existential_deposits.clone());
-		inst.mint_foreign_asset_to(usdt_for_existing_contributions.clone());
-		inst.mint_foreign_asset_to(usdt_for_extrinsic_contribution.clone());
+		inst.mint_funding_asset_to(usdt_for_existing_contributions.clone());
+		inst.mint_funding_asset_to(usdt_for_extrinsic_contribution.clone());
 
 		// do "x" contributions for this user
 		inst.contribute_for_users(project_id, existing_contributions).expect("All contributions are accepted");
@@ -1146,7 +1133,7 @@ mod benchmarks {
 			plmc_for_existing_contributions.clone(),
 			plmc_for_extrinsic_contribution.clone(),
 		]);
-		let mut total_usdt_locked = inst.sum_foreign_mappings(vec![
+		let mut total_usdt_locked = inst.sum_funding_asset_mappings(vec![
 			prev_total_usdt_locked,
 			usdt_for_existing_contributions.clone(),
 			usdt_for_extrinsic_contribution.clone(),
@@ -1244,10 +1231,10 @@ mod benchmarks {
 
 		let escrow_account = Pallet::<T>::fund_account_id(project_id);
 		let locked_usdt =
-			inst.get_free_foreign_asset_balances_for(usdt_id(), vec![escrow_account.clone()])[0].asset_amount;
+			inst.get_free_funding_asset_balances_for(usdt_id(), vec![escrow_account.clone()])[0].asset_amount;
 		assert_eq!(locked_usdt, total_usdt_locked);
 
-		let free_usdt = inst.get_free_foreign_asset_balances_for(usdt_id(), vec![contributor.clone()])[0].asset_amount;
+		let free_usdt = inst.get_free_funding_asset_balances_for(usdt_id(), vec![contributor.clone()])[0].asset_amount;
 		assert_eq!(free_usdt, total_free_usdt);
 
 		// Events
@@ -1414,7 +1401,7 @@ mod benchmarks {
 			vec![],
 		);
 
-		inst.advance_time(One::one()).unwrap();
+		inst.advance_time(One::one());
 
 		let current_block = inst.current_block();
 		let insertion_block_number: BlockNumberFor<T> = current_block + One::one();
@@ -1432,8 +1419,7 @@ mod benchmarks {
 
 		// * validity checks *
 		// Storage
-		let maybe_transition =
-			inst.get_update_block(project_id, &UpdateType::ProjectDecision(FundingOutcomeDecision::AcceptFunding));
+		let maybe_transition = inst.go_to_next_state(project_id);
 		assert!(maybe_transition.is_some());
 	}
 
@@ -1444,7 +1430,7 @@ mod benchmarks {
 		<T as Config>::SetPrices::set_prices();
 
 		// real benchmark starts at block 0, and we can't call `events()` at block 0
-		inst.advance_time(1u32.into()).unwrap();
+		inst.advance_time(1u32.into());
 
 		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
 		let evaluations: Vec<UserToUSDBalance<T>> = default_evaluations::<T>();
@@ -1509,7 +1495,7 @@ mod benchmarks {
 		<T as Config>::SetPrices::set_prices();
 
 		// real benchmark starts at block 0, and we can't call `events()` at block 0
-		inst.advance_time(1u32.into()).unwrap();
+		inst.advance_time(1u32.into());
 
 		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
 		let evaluations = default_evaluations::<T>();
@@ -1538,10 +1524,10 @@ mod benchmarks {
 		let project_id =
 			inst.create_finished_project(project_metadata, issuer, None, evaluations, bids, contributions, vec![]);
 
-		inst.advance_time(One::one()).unwrap();
+		inst.advance_time(One::one());
 		assert_eq!(
 			inst.get_project_details(project_id).status,
-			ProjectStatus::SettlementStarted(FundingOutcome::FundingFailed)
+			ProjectStatus::SettlementStarted(FundingOutcome::Failure)
 		);
 
 		let evaluation_to_settle =
@@ -1593,7 +1579,7 @@ mod benchmarks {
 		<T as Config>::SetPrices::set_prices();
 
 		// real benchmark starts at block 0, and we can't call `events()` at block 0
-		inst.advance_time(1u32.into()).unwrap();
+		inst.advance_time(1u32.into());
 
 		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
 		let bids = default_bids::<T>();
@@ -1614,7 +1600,7 @@ mod benchmarks {
 
 		assert_eq!(
 			inst.get_project_details(project_id).status,
-			ProjectStatus::SettlementStarted(FundingOutcome::FundingSuccessful)
+			ProjectStatus::SettlementStarted(FundingOutcome::Success)
 		);
 
 		let bid_to_settle =
@@ -1644,7 +1630,7 @@ mod benchmarks {
 		<T as Config>::SetPrices::set_prices();
 
 		// real benchmark starts at block 0, and we can't call `events()` at block 0
-		inst.advance_time(1u32.into()).unwrap();
+		inst.advance_time(1u32.into());
 
 		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
 		let evaluations = default_evaluations::<T>();
@@ -1680,16 +1666,16 @@ mod benchmarks {
 			vec![],
 		);
 
-		inst.advance_time(One::one()).unwrap();
+		inst.advance_time(One::one());
 		assert_eq!(
 			inst.get_project_details(project_id).status,
-			ProjectStatus::SettlementStarted(FundingOutcome::FundingFailed)
+			ProjectStatus::SettlementStarted(FundingOutcome::Failure)
 		);
 
 		let bid_to_settle =
 			inst.execute(|| Bids::<T>::iter_prefix_values((project_id, bidder.clone())).next().unwrap());
-		let asset = bid_to_settle.funding_asset.to_assethub_id();
-		let free_assets_before = inst.get_free_foreign_asset_balances_for(asset, vec![bidder.clone()])[0].asset_amount;
+		let asset = bid_to_settle.funding_asset.id();
+		let free_assets_before = inst.get_free_funding_asset_balances_for(asset, vec![bidder.clone()])[0].asset_amount;
 		#[extrinsic_call]
 		settle_failed_bid(RawOrigin::Signed(issuer.clone()), project_id, bidder.clone(), bid_to_settle.id);
 
@@ -1698,7 +1684,7 @@ mod benchmarks {
 		assert!(Bids::<T>::get((project_id, bidder.clone(), bid_to_settle.id)).is_none());
 
 		// Balances
-		let free_assets = inst.get_free_foreign_asset_balances_for(asset, vec![bidder.clone()])[0].asset_amount;
+		let free_assets = inst.get_free_funding_asset_balances_for(asset, vec![bidder.clone()])[0].asset_amount;
 		assert_eq!(free_assets, bid_to_settle.funding_asset_amount_locked + free_assets_before);
 
 		// Events
@@ -1714,7 +1700,7 @@ mod benchmarks {
 		<T as Config>::SetPrices::set_prices();
 
 		// real benchmark starts at block 0, and we can't call `events()` at block 0
-		inst.advance_time(1u32.into()).unwrap();
+		inst.advance_time(1u32.into());
 
 		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
 		let contributions = default_community_contributions::<T>();
@@ -1735,7 +1721,7 @@ mod benchmarks {
 
 		assert_eq!(
 			inst.get_project_details(project_id).status,
-			ProjectStatus::SettlementStarted(FundingOutcome::FundingSuccessful)
+			ProjectStatus::SettlementStarted(FundingOutcome::Success)
 		);
 
 		let contribution_to_settle =
@@ -1776,7 +1762,7 @@ mod benchmarks {
 		<T as Config>::SetPrices::set_prices();
 
 		// real benchmark starts at block 0, and we can't call `events()` at block 0
-		inst.advance_time(1u32.into()).unwrap();
+		inst.advance_time(1u32.into());
 
 		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
 		let evaluations = default_evaluations::<T>();
@@ -1805,18 +1791,18 @@ mod benchmarks {
 		let project_id =
 			inst.create_finished_project(project_metadata, issuer, None, evaluations, bids, contributions, vec![]);
 
-		inst.advance_time(One::one()).unwrap();
+		inst.advance_time(One::one());
 		assert_eq!(
 			inst.get_project_details(project_id).status,
-			ProjectStatus::SettlementStarted(FundingOutcome::FundingFailed)
+			ProjectStatus::SettlementStarted(FundingOutcome::Failure)
 		);
 
 		let contribution_to_settle =
 			inst.execute(|| Contributions::<T>::iter_prefix_values((project_id, contributor.clone())).next().unwrap());
 
-		let asset = contribution_to_settle.funding_asset.to_assethub_id();
+		let asset = contribution_to_settle.funding_asset.id();
 		let free_assets_before =
-			inst.get_free_foreign_asset_balances_for(asset, vec![contributor.clone()])[0].asset_amount;
+			inst.get_free_funding_asset_balances_for(asset, vec![contributor.clone()])[0].asset_amount;
 		#[extrinsic_call]
 		settle_failed_contribution(
 			RawOrigin::Signed(contributor.clone()),
@@ -1830,7 +1816,7 @@ mod benchmarks {
 		assert!(Contributions::<T>::get((project_id, contributor.clone(), contribution_to_settle.id)).is_none());
 
 		// Balances
-		let free_assets = inst.get_free_foreign_asset_balances_for(asset, vec![contributor.clone()])[0].asset_amount;
+		let free_assets = inst.get_free_funding_asset_balances_for(asset, vec![contributor.clone()])[0].asset_amount;
 		assert_eq!(free_assets, contribution_to_settle.funding_asset_amount + free_assets_before);
 
 		// Events
@@ -1856,7 +1842,7 @@ mod benchmarks {
 		<T as Config>::SetPrices::set_prices();
 
 		// real benchmark starts at block 0, and we can't call `events()` at block 0
-		inst.advance_time(1u32.into()).unwrap();
+		inst.advance_time(1u32.into());
 
 		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
 		whitelist_account!(issuer);
@@ -1869,7 +1855,7 @@ mod benchmarks {
 
 		inst.mint_plmc_to(plmc_for_evaluating);
 
-		inst.advance_time(One::one()).unwrap();
+		inst.advance_time(One::one());
 		inst.evaluate_for_users(project_id, evaluations).expect("All evaluations are accepted");
 
 		let evaluation_end_block =
@@ -1902,7 +1888,7 @@ mod benchmarks {
 		<T as Config>::SetPrices::set_prices();
 
 		// real benchmark starts at block 0, and we can't call `events()` at block 0
-		inst.advance_time(1u32.into()).unwrap();
+		inst.advance_time(1u32.into());
 
 		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
 		whitelist_account!(issuer);
@@ -1932,7 +1918,7 @@ mod benchmarks {
 
 		inst.mint_plmc_to(plmc_for_evaluating);
 
-		inst.advance_time(One::one()).unwrap();
+		inst.advance_time(One::one());
 		inst.evaluate_for_users(project_id, evaluations).expect("All evaluations are accepted");
 
 		let evaluation_end_block =
@@ -1964,7 +1950,7 @@ mod benchmarks {
 		<T as Config>::SetPrices::set_prices();
 
 		// real benchmark starts at block 0, and we can't call `events()` at block 0
-		inst.advance_time(1u32.into()).unwrap();
+		inst.advance_time(1u32.into());
 
 		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
 		whitelist_account!(issuer);
@@ -2010,7 +1996,7 @@ mod benchmarks {
 		let mut inst = BenchInstantiator::<T>::new(None);
 		<T as Config>::SetPrices::set_prices();
 		// real benchmark starts at block 0, and we can't call `events()` at block 0
-		inst.advance_time(1u32.into()).unwrap();
+		inst.advance_time(1u32.into());
 
 		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
 		whitelist_account!(issuer);
@@ -2084,11 +2070,11 @@ mod benchmarks {
 
 		inst.mint_plmc_to(plmc_needed_for_bids);
 		inst.mint_plmc_to(plmc_ed);
-		inst.mint_foreign_asset_to(funding_asset_needed_for_bids);
+		inst.mint_funding_asset_to(funding_asset_needed_for_bids);
 
 		inst.bid_for_users(project_id, accepted_bids).unwrap();
 
-		let transition_block = inst.get_update_block(project_id, &UpdateType::AuctionClosingStart).unwrap();
+		let transition_block = inst.go_to_next_state(project_id).unwrap();
 		inst.jump_to_block(transition_block);
 		let auction_closing_end_block =
 			inst.get_project_details(project_id).phase_transition_points.auction_closing.end().unwrap();
@@ -2144,7 +2130,7 @@ mod benchmarks {
 		let mut inst = BenchInstantiator::<T>::new(None);
 		<T as Config>::SetPrices::set_prices();
 		// real benchmark starts at block 0, and we can't call `events()` at block 0
-		inst.advance_time(1u32.into()).unwrap();
+		inst.advance_time(1u32.into());
 
 		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
 		whitelist_account!(issuer);
@@ -2219,7 +2205,7 @@ mod benchmarks {
 
 		inst.mint_plmc_to(plmc_needed_for_bids);
 		inst.mint_plmc_to(plmc_ed);
-		inst.mint_foreign_asset_to(funding_asset_needed_for_bids);
+		inst.mint_funding_asset_to(funding_asset_needed_for_bids);
 
 		inst.bid_for_users(project_id, accepted_bids).unwrap();
 
@@ -2272,7 +2258,7 @@ mod benchmarks {
 		<T as Config>::SetPrices::set_prices();
 
 		// real benchmark starts at block 0, and we can't call `events()` at block 0
-		inst.advance_time(1u32.into()).unwrap();
+		inst.advance_time(1u32.into());
 
 		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
 		whitelist_account!(issuer);
@@ -2642,7 +2628,7 @@ mod benchmarks {
 
 		// * validity checks *
 		let project_details = inst.get_project_details(project_id);
-		assert_eq!(project_details.status, ProjectStatus::SettlementStarted(FundingOutcome::FundingSuccessful));
+		assert_eq!(project_details.status, ProjectStatus::SettlementStarted(FundingOutcome::Success));
 	}
 
 	#[benchmark]
@@ -2692,7 +2678,7 @@ mod benchmarks {
 
 		// * validity checks *
 		let project_details = inst.get_project_details(project_id);
-		assert_eq!(project_details.status, ProjectStatus::SettlementStarted(FundingOutcome::FundingFailed));
+		assert_eq!(project_details.status, ProjectStatus::SettlementStarted(FundingOutcome::Failure));
 	}
 
 	#[benchmark]
@@ -2714,7 +2700,7 @@ mod benchmarks {
 			vec![],
 		);
 
-		let settlement_block = inst.get_update_block(project_id, &UpdateType::StartSettlement).unwrap();
+		let settlement_block = inst.go_to_next_state(project_id).unwrap();
 		inst.jump_to_block(settlement_block);
 
 		inst.settle_project(project_id).unwrap();
@@ -2764,7 +2750,7 @@ mod benchmarks {
 			vec![],
 		);
 
-		let settlement_block = inst.get_update_block(project_id, &UpdateType::StartSettlement).unwrap();
+		let settlement_block = inst.go_to_next_state(project_id).unwrap();
 		inst.jump_to_block(settlement_block);
 
 		inst.settle_project(project_id).unwrap();
@@ -2835,7 +2821,7 @@ mod benchmarks {
 			participant_contributions,
 		);
 
-		let settlement_block = inst.get_update_block(project_id, &UpdateType::StartSettlement).unwrap();
+		let settlement_block = inst.go_to_next_state(project_id).unwrap();
 		inst.jump_to_block(settlement_block);
 
 		inst.settle_project(project_id).unwrap();
@@ -2881,7 +2867,7 @@ mod benchmarks {
 			vec![],
 		);
 
-		let settlement_block = inst.get_update_block(project_id, &UpdateType::StartSettlement).unwrap();
+		let settlement_block = inst.go_to_next_state(project_id).unwrap();
 		inst.jump_to_block(settlement_block);
 
 		inst.settle_project(project_id).unwrap();
@@ -2940,7 +2926,7 @@ mod benchmarks {
 			vec![],
 		);
 
-		let settlement_block = inst.get_update_block(project_id, &UpdateType::StartSettlement).unwrap();
+		let settlement_block = inst.go_to_next_state(project_id).unwrap();
 		inst.jump_to_block(settlement_block);
 
 		inst.settle_project(project_id).unwrap();
@@ -3003,7 +2989,7 @@ mod benchmarks {
 			vec![],
 		);
 
-		let settlement_block = inst.get_update_block(project_id, &UpdateType::StartSettlement).unwrap();
+		let settlement_block = inst.go_to_next_state(project_id).unwrap();
 		inst.jump_to_block(settlement_block);
 
 		inst.settle_project(project_id).unwrap();
@@ -3084,7 +3070,7 @@ mod benchmarks {
 			vec![],
 		);
 
-		let settlement_block = inst.get_update_block(project_id, &UpdateType::StartSettlement).unwrap();
+		let settlement_block = inst.go_to_next_state(project_id).unwrap();
 		inst.jump_to_block(settlement_block);
 
 		inst.settle_project(project_id).unwrap();
@@ -3206,7 +3192,7 @@ mod benchmarks {
 			participant_contributions,
 		);
 
-		let settlement_block = inst.get_update_block(project_id, &UpdateType::StartSettlement).unwrap();
+		let settlement_block = inst.go_to_next_state(project_id).unwrap();
 		inst.jump_to_block(settlement_block);
 
 		inst.settle_project(project_id).unwrap();
@@ -3301,7 +3287,7 @@ mod benchmarks {
 			participant_contributions,
 		);
 
-		let settlement_block = inst.get_update_block(project_id, &UpdateType::StartSettlement).unwrap();
+		let settlement_block = inst.go_to_next_state(project_id).unwrap();
 		inst.jump_to_block(settlement_block);
 
 		inst.settle_project(project_id).unwrap();
@@ -3377,7 +3363,7 @@ mod benchmarks {
 			vec![],
 		);
 
-		let settlement_block = inst.get_update_block(project_id, &UpdateType::StartSettlement).unwrap();
+		let settlement_block = inst.go_to_next_state(project_id).unwrap();
 		inst.jump_to_block(settlement_block);
 
 		inst.settle_project(project_id).unwrap();
@@ -3427,7 +3413,7 @@ mod benchmarks {
 			vec![],
 		);
 
-		let settlement_block = inst.get_update_block(project_id, &UpdateType::StartSettlement).unwrap();
+		let settlement_block = inst.go_to_next_state(project_id).unwrap();
 		inst.jump_to_block(settlement_block);
 
 		inst.settle_project(project_id).unwrap();

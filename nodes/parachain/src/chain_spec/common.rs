@@ -101,9 +101,9 @@ pub fn genesis_config(genesis_config_params: GenesisConfigParams) -> serde_json:
 	#[cfg(feature = "runtime-benchmarks")]
 	let staking_candidates: Vec<(AccountId, Balance)> = vec![];
 
-	let usdt_id = pallet_funding::types::AcceptedFundingAsset::USDT.to_assethub_id();
-	let usdc_id = pallet_funding::types::AcceptedFundingAsset::USDC.to_assethub_id();
-	let dot_id = pallet_funding::types::AcceptedFundingAsset::DOT.to_assethub_id();
+	let usdt_id = pallet_funding::types::AcceptedFundingAsset::USDT.id();
+	let usdc_id = pallet_funding::types::AcceptedFundingAsset::USDC.id();
+	let dot_id = pallet_funding::types::AcceptedFundingAsset::DOT.id();
 
 	serde_json::json!({
 		"balances": {
@@ -114,19 +114,19 @@ pub fn genesis_config(genesis_config_params: GenesisConfigParams) -> serde_json:
 		},
 		"foreignAssets":  {
 			"assets": vec![(
-				pallet_funding::types::AcceptedFundingAsset::USDT.to_assethub_id(),
+				pallet_funding::types::AcceptedFundingAsset::USDT.id(),
 				&AccountIdConversion::<AccountId>::into_account_truncating(&<Runtime as pallet_funding::Config>::PalletId::get()),
 				true,
 				70000,
 			),
 			(
-				pallet_funding::types::AcceptedFundingAsset::USDC.to_assethub_id(),
+				pallet_funding::types::AcceptedFundingAsset::USDC.id(),
 				&AccountIdConversion::<AccountId>::into_account_truncating(&<Runtime as pallet_funding::Config>::PalletId::get()),
 				true,
 				70000,
 			),
 			(
-				pallet_funding::types::AcceptedFundingAsset::DOT.to_assethub_id(),
+				pallet_funding::types::AcceptedFundingAsset::DOT.id(),
 				&AccountIdConversion::<AccountId>::into_account_truncating(&<Runtime as pallet_funding::Config>::PalletId::get()),
 				true,
 				70000,

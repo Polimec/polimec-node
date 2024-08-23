@@ -7,40 +7,45 @@ mod round_flow {
 		use super::*;
 
 		#[test]
-		fn evaluator_slash_is_decided() {
-			let (mut inst, project_id) = create_project_with_funding_percentage(20, None, true);
-			assert_eq!(
-				inst.get_project_details(project_id).status,
-				ProjectStatus::SettlementStarted(FundingOutcome::FundingFailed)
-			);
-			assert_eq!(
-				inst.get_project_details(project_id).evaluation_round_info.evaluators_outcome,
-				EvaluatorsOutcome::Slashed
-			);
+		fn evaluator_outcome_bounds() {
+			let try_for_percentage = |percentage: u8, should_slash: bool| {
+				let (mut inst, project_id) = create_project_with_funding_percentage(percentage.into(), true);
+				if should_slash {
+					assert_eq!(
+						inst.get_project_details(project_id).status,
+						ProjectStatus::SettlementStarted(FundingOutcome::Failure)
+					);
+					assert_eq!(
+						inst.get_project_details(project_id).evaluation_round_info.evaluators_outcome,
+						Some(EvaluatorsOutcome::Slashed)
+					);
+				} else {
+					assert_eq!(
+						inst.get_project_details(project_id).status,
+						ProjectStatus::SettlementStarted(FundingOutcome::Success)
+					);
+					assert!(matches!(
+						inst.get_project_details(project_id).evaluation_round_info.evaluators_outcome,
+						Some(EvaluatorsOutcome::Rewarded(..))
+					));
+				}
+			};
+			for i in 1..=32u8 {
+				try_for_percentage(i, true);
+			}
+			for i in 33..130u8 {
+				try_for_percentage(i, false);
+			}
 		}
 
 		#[test]
-		fn evaluator_unchanged_is_decided() {
-			let (mut inst, project_id) =
-				create_project_with_funding_percentage(80, Some(FundingOutcomeDecision::AcceptFunding), true);
-			assert_eq!(
-				inst.get_project_details(project_id).status,
-				ProjectStatus::SettlementStarted(FundingOutcome::FundingSuccessful)
-			);
-			assert_eq!(
-				inst.get_project_details(project_id).evaluation_round_info.evaluators_outcome,
-				EvaluatorsOutcome::Unchanged
-			);
-		}
-
-		#[test]
-		fn evaluator_reward_is_decided() {
-			let (mut inst, project_id) = create_project_with_funding_percentage(95, None, true);
+		fn evaluator_reward_is_correct() {
+			let (mut inst, project_id) = create_project_with_funding_percentage(95, true);
 			let project_details = inst.get_project_details(project_id);
 			let project_metadata = inst.get_project_metadata(project_id);
 			assert_eq!(
 				inst.get_project_details(project_id).status,
-				ProjectStatus::SettlementStarted(FundingOutcome::FundingSuccessful)
+				ProjectStatus::SettlementStarted(FundingOutcome::Success)
 			);
 
 			// We want to test rewards over the 3 brackets, which means > 5MM USD funded
@@ -58,8 +63,7 @@ mod round_flow {
 			let total_ct_fee =
 				total_fee * (project_metadata.total_allocation_size - project_details.remaining_contribution_tokens);
 
-			let total_evaluator_reward =
-				Perquintill::from_percent(95u64) * Perquintill::from_percent(30) * total_ct_fee;
+			let total_evaluator_reward = Perquintill::from_percent(30) * total_ct_fee;
 
 			let early_evaluator_reward = Perquintill::from_percent(20u64) * total_evaluator_reward;
 
@@ -75,7 +79,7 @@ mod round_flow {
 			};
 			assert_eq!(
 				inst.get_project_details(project_id).evaluation_round_info.evaluators_outcome,
-				EvaluatorsOutcome::Rewarded(expected_reward_info)
+				Some(EvaluatorsOutcome::Rewarded(expected_reward_info))
 			);
 		}
 
@@ -101,8 +105,8 @@ mod round_flow {
 				None,
 				default_evaluations(),
 				bids,
-				default_community_buys(),
-				default_remainder_buys(),
+				default_community_contributions(),
+				default_remainder_contributions(),
 			);
 
 			let wap = inst.get_project_details(project_id).weighted_average_price.unwrap();
