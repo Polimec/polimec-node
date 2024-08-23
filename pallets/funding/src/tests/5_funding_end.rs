@@ -140,7 +140,6 @@ mod end_funding_extrinsic {
 				project_details.funding_end_block,
 				Some(
 					EvaluationRoundDuration::get() +
-						AuctionInitializePeriodDuration::get() +
 						AuctionRoundDuration::get() +
 						CommunityRoundDuration::get() +
 						RemainderRoundDuration::get() +
