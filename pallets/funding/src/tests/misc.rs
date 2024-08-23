@@ -378,6 +378,7 @@ fn project_state_transition_event() {
 		default_bids(),
 		default_community_contributions(),
 		default_remainder_contributions(),
+		true,
 	);
 
 	let events = inst.execute(|| System::events());

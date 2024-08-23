@@ -31,7 +31,7 @@ impl<T: Config> Pallet<T> {
 	///
 	/// If **unsuccessful**, users every user should have their PLMC vesting unbonded.
 	#[transactional]
-	pub fn do_end_funding(project_id: ProjectId) -> DispatchResultWithPostInfo {
+	pub fn do_end_funding(project_id: ProjectId) -> DispatchResult {
 		// * Get variables *
 		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 		let remaining_cts = project_details.remaining_contribution_tokens;
@@ -44,7 +44,7 @@ impl<T: Config> Pallet<T> {
 			// Can end due to running out of CTs
 			remaining_cts == Zero::zero() ||
 				// or the last funding round ending
-				now > round_end_block && matches!(project_details.status, ProjectStatus::CommunityRound(..)),
+				now >= round_end_block && matches!(project_details.status, ProjectStatus::CommunityRound(..)),
 			Error::<T>::TooEarlyForRound
 		);
 
@@ -56,21 +56,13 @@ impl<T: Config> Pallet<T> {
 		// * Update Storage *
 		DidWithActiveProjects::<T>::set(issuer_did, None);
 
-		let (next_status, duration, actual_weight) = if funding_ratio < T::FundingSuccessThreshold::get() {
+		let (next_status, duration) = if funding_ratio < T::FundingSuccessThreshold::get() {
 			project_details.evaluation_round_info.evaluators_outcome = Some(EvaluatorsOutcome::Slashed);
-			(
-				ProjectStatus::FundingFailed,
-				1u32.into(),
-				WeightInfoOf::<T>::end_funding_automatically_rejected_evaluators_slashed(1),
-			)
+			(ProjectStatus::FundingFailed, 1u32.into())
 		} else {
 			let reward_info = Self::generate_evaluator_rewards_info(project_id)?;
 			project_details.evaluation_round_info.evaluators_outcome = Some(EvaluatorsOutcome::Rewarded(reward_info));
-			(
-				ProjectStatus::FundingSuccessful,
-				T::SuccessToSettlementTime::get(),
-				WeightInfoOf::<T>::end_funding_automatically_accepted_evaluators_rewarded(1, 1),
-			)
+			(ProjectStatus::FundingSuccessful, T::SuccessToSettlementTime::get())
 		};
 
 		Self::transition_project(
@@ -82,6 +74,6 @@ impl<T: Config> Pallet<T> {
 			true,
 		)?;
 
-		Ok(PostDispatchInfo { actual_weight: Some(actual_weight), pays_fee: Pays::Yes })
+		Ok(())
 	}
 }

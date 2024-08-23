@@ -1065,7 +1065,7 @@ impl pallet_funding::Config for Runtime {
 	type SuccessToSettlementTime = SuccessToSettlementTime;
 	type VerifierPublicKey = VerifierPublicKey;
 	type Vesting = LinearRelease;
-	type WeightInfo = weights::pallet_funding::SubstrateWeight<Runtime>;
+	type WeightInfo = ();
 }
 
 #[cfg(feature = "runtime-benchmarks")]
@@ -1085,7 +1085,7 @@ impl pallet_linear_release::Config for Runtime {
 	type UnvestedFundsAllowedWithdrawReasons = shared_configuration::vesting::UnvestedFundsAllowedWithdrawReasons;
 	type WeightInfo = pallet_linear_release::weights::SubstrateWeight<Runtime>;
 
-	const MAX_VESTING_SCHEDULES: u32 = 26;
+	const MAX_VESTING_SCHEDULES: u32 = 100;
 }
 
 impl pallet_insecure_randomness_collective_flip::Config for Runtime {}
