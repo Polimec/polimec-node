@@ -469,7 +469,6 @@ pub mod pallet {
 	/// StorageMap containing additional information for the projects, relevant for correctness of the protocol
 	pub type ProjectsDetails<T: Config> = StorageMap<_, Blake2_128Concat, ProjectId, ProjectDetailsOf<T>>;
 
-
 	#[pallet::storage]
 	/// Keep track of the PLMC bonds made to each project by each evaluator
 	pub type Evaluations<T: Config> = StorageNMap<
@@ -853,11 +852,7 @@ pub mod pallet {
 		/// Starts the evaluation round of a project. It needs to be called by the project issuer.
 		#[pallet::call_index(3)]
 		#[pallet::weight(WeightInfoOf::<T>::start_evaluation(1))]
-		pub fn start_evaluation(
-			origin: OriginFor<T>,
-			jwt: UntrustedToken,
-			project_id: ProjectId,
-		) -> DispatchResult {
+		pub fn start_evaluation(origin: OriginFor<T>, jwt: UntrustedToken, project_id: ProjectId) -> DispatchResult {
 			let (account, _did, investor_type, _cid) =
 				T::InvestorOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get())?;
 			ensure!(investor_type == InvestorType::Institutional, Error::<T>::WrongInvestorType);
@@ -869,11 +864,7 @@ pub mod pallet {
 		/// Any bids from this point until the auction_closing starts, will be considered as valid.
 		#[pallet::call_index(4)]
 		#[pallet::weight(WeightInfoOf::<T>::start_auction_manually(1))]
-		pub fn start_auction(
-			origin: OriginFor<T>,
-			jwt: UntrustedToken,
-			project_id: ProjectId,
-		) -> DispatchResult {
+		pub fn start_auction(origin: OriginFor<T>, jwt: UntrustedToken, project_id: ProjectId) -> DispatchResult {
 			let (account, _did, investor_type, _cid) =
 				T::InvestorOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get())?;
 			ensure!(investor_type == InvestorType::Institutional, Error::<T>::WrongInvestorType);
@@ -899,7 +890,7 @@ pub mod pallet {
 
 		#[pallet::call_index(6)]
 		#[pallet::weight(WeightInfoOf::<T>::end_evaluation_success(
-		1,
+			1,
 		))]
 		pub fn root_do_evaluation_end(origin: OriginFor<T>, project_id: ProjectId) -> DispatchResult {
 			ensure_root(origin)?;
@@ -939,19 +930,19 @@ pub mod pallet {
 
 		#[pallet::call_index(10)]
 		#[pallet::weight(WeightInfoOf::<T>::end_auction_closing(
-		1,
-		<T as Config>::MaxBidsPerProject::get() / 2,
-		<T as Config>::MaxBidsPerProject::get() / 2,
+			1,
+			<T as Config>::MaxBidsPerProject::get() / 2,
+			<T as Config>::MaxBidsPerProject::get() / 2,
 		)
 		.max(WeightInfoOf::<T>::end_auction_closing(
-		1,
-		<T as Config>::MaxBidsPerProject::get(),
-		0u32,
+			1,
+			<T as Config>::MaxBidsPerProject::get(),
+			0u32,
 		))
 		.max(WeightInfoOf::<T>::end_auction_closing(
-		1,
-		0u32,
-		<T as Config>::MaxBidsPerProject::get(),
+			1,
+			0u32,
+			<T as Config>::MaxBidsPerProject::get(),
 		)))]
 		pub fn root_do_end_auction(origin: OriginFor<T>, project_id: ProjectId) -> DispatchResultWithPostInfo {
 			ensure_root(origin)?;
@@ -974,31 +965,21 @@ pub mod pallet {
 			let (account, did, investor_type, whitelisted_policy) =
 				T::InvestorOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get())?;
 
-			Self::do_contribute(
-				&account,
-				project_id,
-				amount,
-				multiplier,
-				asset,
-				did,
-				investor_type,
-				whitelisted_policy,
-			)
+			Self::do_contribute(&account, project_id, amount, multiplier, asset, did, investor_type, whitelisted_policy)
 		}
 
 		#[pallet::call_index(15)]
 		#[pallet::weight(WeightInfoOf::<T>::end_funding_automatically_rejected_evaluators_slashed(
-		1,
+			1,
 		)
 		.max(WeightInfoOf::<T>::end_funding_automatically_accepted_evaluators_rewarded(
-		1,
-		<T as Config>::MaxEvaluationsPerProject::get(),
+			1,
+			<T as Config>::MaxEvaluationsPerProject::get(),
 		)))]
 		pub fn root_do_end_funding(origin: OriginFor<T>, project_id: ProjectId) -> DispatchResultWithPostInfo {
 			ensure_root(origin)?;
 			Self::do_end_funding(project_id)
 		}
-
 
 		#[pallet::call_index(18)]
 		#[pallet::weight(WeightInfoOf::<T>::start_settlement_funding_success()

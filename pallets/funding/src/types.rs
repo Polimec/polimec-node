@@ -498,15 +498,16 @@ pub mod storage_types {
 				price = price.saturating_sub(self.delta_price);
 				amount = self.delta_amount;
 			}
-			
+
 			if total_amount > Balance::zero() {
 				bucket_sizes.push((self.initial_price.saturating_mul_int(total_amount), self.initial_price));
 			}
 
 			let sum = bucket_sizes.iter().map(|x| x.0).fold(Balance::zero(), |acc, x| acc.saturating_add(x));
 
-			let wap = bucket_sizes.into_iter()
-				.map(|x| <Price as FixedPointNumber>::saturating_from_rational(x.0, sum).saturating_mul(x.1)  )
+			let wap = bucket_sizes
+				.into_iter()
+				.map(|x| <Price as FixedPointNumber>::saturating_from_rational(x.0, sum).saturating_mul(x.1))
 				.fold(Price::zero(), |acc: Price, p: Price| acc.saturating_add(p));
 
 			return wap
@@ -714,8 +715,6 @@ pub mod inner_types {
 		FundingFailed,
 	}
 
-
-
 	#[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
 	pub struct BlockNumberPair<BlockNumber> {
 		pub start: Option<BlockNumber>,
@@ -770,7 +769,6 @@ pub mod inner_types {
 		/// The bid is partially accepted as there were not enough tokens to fill the full bid
 		PartiallyAccepted(Balance),
 	}
-
 
 	#[derive(Clone, Copy, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
 	pub struct VestingInfo<BlockNumber, Balance> {
