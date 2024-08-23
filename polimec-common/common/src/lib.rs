@@ -102,6 +102,7 @@ pub trait ReleaseSchedule<AccountId, Reason> {
 }
 
 pub mod migration_types {
+	#[allow(clippy::wildcard_imports)]
 	use super::*;
 
 	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
@@ -163,7 +164,7 @@ pub mod migration_types {
 		}
 	}
 
-	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo)]
+	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, Default)]
 	pub struct Migrations(Vec<Migration>);
 	impl FromIterator<Migration> for Migrations {
 		fn from_iter<T: IntoIterator<Item = Migration>>(iter: T) -> Self {
@@ -194,6 +195,10 @@ pub mod migration_types {
 
 		pub fn len(&self) -> usize {
 			self.0.len()
+		}
+
+		pub fn is_empty(&self) -> bool {
+			self.0.is_empty()
 		}
 
 		pub fn origins(&self) -> Vec<MigrationOrigin> {

@@ -1,4 +1,5 @@
-use crate::{traits::ProvideAssetPrice, *};
+#[allow(clippy::wildcard_imports)]
+use crate::{traits::*, *};
 use alloc::collections::BTreeMap;
 use frame_support::traits::fungibles::{metadata::Inspect as MetadataInspect, Inspect, InspectEnumerable};
 use itertools::Itertools;
@@ -70,7 +71,7 @@ impl<T: Config> Pallet<T> {
 
 	pub fn top_bids(project_id: ProjectId, amount: u32) -> Vec<BidInfoOf<T>> {
 		Bids::<T>::iter_prefix_values((project_id,))
-			.sorted_by(|a, b| b.final_ct_amount.cmp(&a.final_ct_amount))
+			.sorted_by(|a, b| b.final_ct_amount().cmp(&a.final_ct_amount()))
 			.take(amount as usize)
 			.collect_vec()
 	}
@@ -133,7 +134,7 @@ impl<T: Config> Pallet<T> {
 		asset_amount: BalanceOf<T>,
 	) -> BalanceOf<T> {
 		let project_details = ProjectsDetails::<T>::get(project_id).expect("Project not found");
-		let funding_asset_id = asset.to_assethub_id();
+		let funding_asset_id = asset.id();
 		let funding_asset_decimals = T::FundingCurrency::decimals(funding_asset_id);
 		let funding_asset_usd_price =
 			T::PriceProvider::get_decimals_aware_price(funding_asset_id, USD_DECIMALS, funding_asset_decimals)
@@ -184,6 +185,7 @@ impl<T: Config> Pallet<T> {
 			.map(|((account_id, contribution_id), _contribution)| (account_id, contribution_id))
 			.collect_vec();
 
+		#[allow(clippy::type_complexity)]
 		let mut map: BTreeMap<AccountIdOf<T>, (Vec<u32>, Vec<u32>, Vec<u32>)> = BTreeMap::new();
 
 		for (account_id, evaluation_id) in evaluations {
@@ -198,17 +200,14 @@ impl<T: Config> Pallet<T> {
 			map.entry(account_id).or_insert_with(|| (Vec::new(), Vec::new(), Vec::new())).2.push(contribution_id);
 		}
 
-		let output = map
-			.into_iter()
+		map.into_iter()
 			.map(|(account, (evaluation_ids, bid_ids, contribution_ids))| ProjectParticipationIds {
 				account,
 				evaluation_ids,
 				bid_ids,
 				contribution_ids,
 			})
-			.collect();
-
-		output
+			.collect()
 	}
 
 	pub fn usd_target_percent_reached(project_id: ProjectId) -> FixedU128 {

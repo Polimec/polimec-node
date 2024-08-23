@@ -222,6 +222,25 @@ mod helper_functions {
 	}
 
 	#[test]
+	fn bucket_wap_calculation() {
+		let initial_price = FixedU128::from_float(10.0);
+		let mut bucket = Bucket::new(100u32, initial_price, FixedU128::from_float(1.0), 10u32);
+		let wap = bucket.calculate_wap(100u32);
+		assert!(wap == initial_price);
+
+		// Initial token amount: 100
+		// Simulate total bidding amount of 128
+		bucket.update(100u32);
+		bucket.update(10u32);
+		bucket.update(10u32);
+		bucket.update(8u32);
+		let wap = bucket.calculate_wap(100u32);
+		let expected = FixedU128::from_float(10.628);
+		let diff = if wap > expected { wap - expected } else { expected - wap };
+		assert!(diff <= FixedU128::from_float(0.001));
+	}
+
+	#[test]
 	fn calculate_contributed_plmc_spent() {
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		const PLMC_PRICE: f64 = 8.4f64;
@@ -318,32 +337,75 @@ mod inner_functions {
 		let default_multiplier_duration = default_multiplier.calculate_vesting_duration::<TestRuntime>();
 		assert_eq!(default_multiplier_duration, 1u64);
 
-		let multiplier_1 = MultiplierOf::<TestRuntime>::new(1u8).unwrap();
+		let multiplier_1 = MultiplierOf::<TestRuntime>::try_from(1u8).unwrap();
 		let multiplier_1_duration = multiplier_1.calculate_vesting_duration::<TestRuntime>();
 		assert_eq!(multiplier_1_duration, 1u64);
 
-		let multiplier_2 = MultiplierOf::<TestRuntime>::new(2u8).unwrap();
+		let multiplier_2 = MultiplierOf::<TestRuntime>::try_from(2u8).unwrap();
 		let multiplier_2_duration = multiplier_2.calculate_vesting_duration::<TestRuntime>();
 		assert_eq!(multiplier_2_duration, FixedU128::from_rational(2167, 1000).saturating_mul_int((DAYS * 7) as u64));
 
-		let multiplier_3 = MultiplierOf::<TestRuntime>::new(3u8).unwrap();
+		let multiplier_3 = MultiplierOf::<TestRuntime>::try_from(3u8).unwrap();
 		let multiplier_3_duration = multiplier_3.calculate_vesting_duration::<TestRuntime>();
 		assert_eq!(multiplier_3_duration, FixedU128::from_rational(4334, 1000).saturating_mul_int((DAYS * 7) as u64));
 
-		let multiplier_19 = MultiplierOf::<TestRuntime>::new(19u8).unwrap();
+		let multiplier_19 = MultiplierOf::<TestRuntime>::try_from(19u8).unwrap();
 		let multiplier_19_duration = multiplier_19.calculate_vesting_duration::<TestRuntime>();
 		assert_eq!(multiplier_19_duration, FixedU128::from_rational(39006, 1000).saturating_mul_int((DAYS * 7) as u64));
 
-		let multiplier_20 = MultiplierOf::<TestRuntime>::new(20u8).unwrap();
+		let multiplier_20 = MultiplierOf::<TestRuntime>::try_from(20u8).unwrap();
 		let multiplier_20_duration = multiplier_20.calculate_vesting_duration::<TestRuntime>();
 		assert_eq!(multiplier_20_duration, FixedU128::from_rational(41173, 1000).saturating_mul_int((DAYS * 7) as u64));
 
-		let multiplier_24 = MultiplierOf::<TestRuntime>::new(24u8).unwrap();
+		let multiplier_24 = MultiplierOf::<TestRuntime>::try_from(24u8).unwrap();
 		let multiplier_24_duration = multiplier_24.calculate_vesting_duration::<TestRuntime>();
 		assert_eq!(multiplier_24_duration, FixedU128::from_rational(49841, 1000).saturating_mul_int((DAYS * 7) as u64));
 
-		let multiplier_25 = MultiplierOf::<TestRuntime>::new(25u8).unwrap();
+		let multiplier_25 = MultiplierOf::<TestRuntime>::try_from(25u8).unwrap();
 		let multiplier_25_duration = multiplier_25.calculate_vesting_duration::<TestRuntime>();
 		assert_eq!(multiplier_25_duration, FixedU128::from_rational(52008, 1000).saturating_mul_int((DAYS * 7) as u64));
 	}
+}
+
+#[test]
+fn project_state_transition_event() {
+	let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+	let project_id = inst.create_settled_project(
+		default_project_metadata(ISSUER_1),
+		ISSUER_1,
+		None,
+		default_evaluations(),
+		default_bids(),
+		default_community_contributions(),
+		default_remainder_contributions(),
+		true,
+	);
+
+	let events = inst.execute(|| System::events());
+	let transition_events = events
+		.into_iter()
+		.filter_map(|event| {
+			if let RuntimeEvent::PolimecFunding(e @ crate::Event::ProjectPhaseTransition { .. }) = event.event {
+				Some(e)
+			} else {
+				None
+			}
+		})
+		.collect_vec();
+
+	let mut desired_transitions = vec![
+		ProjectStatus::EvaluationRound,
+		ProjectStatus::AuctionRound,
+		ProjectStatus::CommunityRound(
+			EvaluationRoundDuration::get() + AuctionRoundDuration::get() + CommunityRoundDuration::get() + 1u64,
+		),
+		ProjectStatus::FundingSuccessful,
+		ProjectStatus::SettlementStarted(FundingOutcome::Success),
+		ProjectStatus::SettlementFinished(FundingOutcome::Success),
+	]
+	.into_iter();
+
+	transition_events.into_iter().for_each(|event| {
+		assert_eq!(event, Event::ProjectPhaseTransition { project_id, phase: desired_transitions.next().unwrap() });
+	});
 }

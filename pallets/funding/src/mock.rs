@@ -39,7 +39,7 @@ use sp_arithmetic::Percent;
 use sp_core::H256;
 use sp_runtime::{
 	traits::{BlakeTwo256, ConvertBack, ConvertInto, Get, IdentityLookup, TryConvert},
-	BuildStorage,
+	BuildStorage, Perquintill,
 };
 use sp_std::collections::btree_map::BTreeMap;
 use std::cell::RefCell;
@@ -291,15 +291,13 @@ impl pallet_timestamp::Config for TestRuntime {
 pub const HOURS: BlockNumber = 300u64;
 
 // REMARK: In the production configuration we use DAYS instead of HOURS.
+// We need all durations to use different times to catch bugs in the tests.
 parameter_types! {
-	pub const EvaluationDuration: BlockNumber = 10u64;
-	pub const AuctionInitializePeriodDuration: BlockNumber = 10u64;
-	pub const AuctionOpeningDuration: BlockNumber = 10u64;
-	pub const AuctionClosingDuration: BlockNumber = 10u64;
-	pub const CommunityRoundDuration: BlockNumber = 10u64;
-	pub const RemainderFundingDuration: BlockNumber = 10u64;
-	pub const ManualAcceptanceDuration: BlockNumber = 10u64;
-	pub const SuccessToSettlementTime: BlockNumber = 10u64;
+	pub const EvaluationRoundDuration: BlockNumber = 10u64;
+	pub const AuctionRoundDuration: BlockNumber = 15u64;
+	pub const CommunityRoundDuration: BlockNumber = 18u64;
+	pub const RemainderRoundDuration: BlockNumber = 6u64;
+	pub const SuccessToSettlementTime: BlockNumber = 4u64;
 
 	pub const FundingPalletId: PalletId = PalletId(*b"py/cfund");
 	pub FeeBrackets: Vec<(Percent, Balance)> = vec![
@@ -311,6 +309,7 @@ parameter_types! {
 	pub EvaluatorSlash: Percent = Percent::from_percent(20);
 	pub BlockchainOperationTreasuryAccount: AccountId = AccountId::from(696969u32);
 	pub ContributionTreasury: AccountId = AccountId::from(4204204206u32);
+	pub FundingSuccessThreshold: Perquintill = Perquintill::from_percent(33);
 }
 
 parameter_types! {
@@ -338,7 +337,7 @@ impl pallet_linear_release::Config for TestRuntime {
 	type UnvestedFundsAllowedWithdrawReasons = UnvestedFundsAllowedWithdrawReasons;
 	type WeightInfo = ();
 
-	const MAX_VESTING_SCHEDULES: u32 = 32;
+	const MAX_VESTING_SCHEDULES: u32 = 100;
 }
 
 parameter_types! {
@@ -369,9 +368,9 @@ impl ConvertBack<AccountId, [u8; 32]> for DummyConverter {
 }
 thread_local! {
 	pub static PRICE_MAP: RefCell<BTreeMap<AssetId, FixedU128>> = RefCell::new(BTreeMap::from_iter(vec![
-		(AcceptedFundingAsset::DOT.to_assethub_id(), FixedU128::from_float(69f64)), // DOT
-		(AcceptedFundingAsset::USDC.to_assethub_id(), FixedU128::from_float(0.97f64)), // USDC
-		(AcceptedFundingAsset::USDT.to_assethub_id(), FixedU128::from_float(1.0f64)), // USDT
+		(AcceptedFundingAsset::DOT.id(), FixedU128::from_float(69f64)), // DOT
+		(AcceptedFundingAsset::USDC.id(), FixedU128::from_float(0.97f64)), // USDC
+		(AcceptedFundingAsset::USDT.id(), FixedU128::from_float(1.0f64)), // USDT
 		(PLMC_FOREIGN_ID, FixedU128::from_float(8.4f64)), // PLMC
 	]));
 }
@@ -396,24 +395,22 @@ impl Config for TestRuntime {
 	type AccountId32Conversion = DummyConverter;
 	type AllPalletsWithoutSystem =
 		(Balances, ContributionTokens, ForeignAssets, PolimecFunding, LinearRelease, RandomnessCollectiveFlip);
-	type AuctionClosingDuration = AuctionClosingDuration;
-	type AuctionInitializePeriodDuration = AuctionInitializePeriodDuration;
-	type AuctionOpeningDuration = AuctionOpeningDuration;
+	type AuctionRoundDuration = AuctionRoundDuration;
 	type Balance = Balance;
 	type BlockNumber = BlockNumber;
 	type BlockNumberToBalance = ConvertInto;
 	type BlockchainOperationTreasury = BlockchainOperationTreasuryAccount;
-	type CommunityFundingDuration = CommunityRoundDuration;
+	type CommunityRoundDuration = CommunityRoundDuration;
 	type ContributionTokenCurrency = ContributionTokens;
 	type ContributionTreasury = ContributionTreasury;
 	type DaysToBlocks = DaysToBlocks;
-	type EvaluationDuration = EvaluationDuration;
+	type EvaluationRoundDuration = EvaluationRoundDuration;
 	type EvaluationSuccessThreshold = EarlyEvaluationThreshold;
 	type EvaluatorSlash = EvaluatorSlash;
 	type FeeBrackets = FeeBrackets;
 	type FundingCurrency = ForeignAssets;
+	type FundingSuccessThreshold = FundingSuccessThreshold;
 	type InvestorOrigin = EnsureInvestor<TestRuntime>;
-	type ManualAcceptanceDuration = ManualAcceptanceDuration;
 	type MaxBidsPerProject = ConstU32<512>;
 	type MaxBidsPerUser = ConstU32<25>;
 	type MaxCapacityThresholds = MaxCapacityThresholds;
@@ -421,8 +418,6 @@ impl Config for TestRuntime {
 	type MaxEvaluationsPerProject = ConstU32<512>;
 	type MaxEvaluationsPerUser = ConstU32<4>;
 	type MaxMessageSizeThresholds = MaxMessageSizeThresholds;
-	type MaxProjectsToUpdateInsertionAttempts = ConstU32<100>;
-	type MaxProjectsToUpdatePerBlock = ConstU32<1>;
 	type MinUsdPerEvaluation = MinUsdPerEvaluation;
 	type Multiplier = Multiplier;
 	type NativeCurrency = Balances;
@@ -430,7 +425,7 @@ impl Config for TestRuntime {
 	type Price = FixedU128;
 	type PriceProvider = ConstPriceProvider;
 	type Randomness = RandomnessCollectiveFlip;
-	type RemainderFundingDuration = RemainderFundingDuration;
+	type RemainderRoundDuration = RemainderRoundDuration;
 	type RequiredMaxCapacity = RequiredMaxCapacity;
 	type RequiredMaxMessageSize = RequiredMaxMessageSize;
 	type RuntimeCall = RuntimeCall;
@@ -477,38 +472,28 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
 		foreign_assets: ForeignAssetsConfig {
 			assets: vec![
 				(
-					AcceptedFundingAsset::USDT.to_assethub_id(),
+					AcceptedFundingAsset::USDT.id(),
 					<TestRuntime as Config>::PalletId::get().into_account_truncating(),
 					false,
 					10,
 				),
 				(
-					AcceptedFundingAsset::USDC.to_assethub_id(),
+					AcceptedFundingAsset::USDC.id(),
 					<TestRuntime as Config>::PalletId::get().into_account_truncating(),
 					false,
 					10,
 				),
 				(
-					AcceptedFundingAsset::DOT.to_assethub_id(),
+					AcceptedFundingAsset::DOT.id(),
 					<TestRuntime as Config>::PalletId::get().into_account_truncating(),
 					false,
 					10,
 				),
 			],
 			metadata: vec![
-				(
-					AcceptedFundingAsset::USDT.to_assethub_id(),
-					"USDT".as_bytes().to_vec(),
-					"USDT".as_bytes().to_vec(),
-					6,
-				),
-				(
-					AcceptedFundingAsset::USDC.to_assethub_id(),
-					"USDC".as_bytes().to_vec(),
-					"USDC".as_bytes().to_vec(),
-					6,
-				),
-				(AcceptedFundingAsset::DOT.to_assethub_id(), "DOT".as_bytes().to_vec(), "DOT".as_bytes().to_vec(), 10),
+				(AcceptedFundingAsset::USDT.id(), "USDT".as_bytes().to_vec(), "USDT".as_bytes().to_vec(), 6),
+				(AcceptedFundingAsset::USDC.id(), "USDC".as_bytes().to_vec(), "USDC".as_bytes().to_vec(), 6),
+				(AcceptedFundingAsset::DOT.id(), "DOT".as_bytes().to_vec(), "DOT".as_bytes().to_vec(), 10),
 			],
 			accounts: vec![],
 		},
@@ -528,18 +513,15 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
 sp_api::mock_impl_runtime_apis! {
 	impl Leaderboards<Block, TestRuntime> for TestRuntime {
 		fn top_evaluations(project_id: ProjectId, amount: u32) -> Vec<EvaluationInfoOf<TestRuntime>> {
-			PolimecFunding::top_evaluations
-(project_id, amount)
+			PolimecFunding::top_evaluations(project_id, amount)
 		}
 
 		fn top_bids(project_id: ProjectId, amount: u32) -> Vec<BidInfoOf<TestRuntime>> {
-			PolimecFunding::top_bids
-(project_id, amount)
+			PolimecFunding::top_bids(project_id, amount)
 		}
 
 		fn top_contributions(project_id: ProjectId, amount: u32) -> Vec<ContributionInfoOf<TestRuntime>> {
-			PolimecFunding::top_contributions
-(project_id, amount)
+			PolimecFunding::top_contributions(project_id, amount)
 		}
 
 		fn top_projects_by_usd_raised(amount: u32) -> Vec<(ProjectId, ProjectMetadataOf<TestRuntime>, ProjectDetailsOf<TestRuntime>)> {

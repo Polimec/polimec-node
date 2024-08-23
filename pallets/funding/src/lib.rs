@@ -53,7 +53,6 @@
 //! | Bid Submissions           | Institutional and Professional users can continue bidding, but this time their bids will only be considered, if they managed to fall before the random ending block calculated at the end of the auction.                                                                                                                                                                                                   | [`AuctionClosing`](ProjectStatus::AuctionClosing)                   |
 //! | Community Funding Start   | After the [`Config::AuctionClosingDuration`] has passed, the auction automatically. A final token price for the next rounds is calculated based on the accepted bids.                                                                                                                                                                                                                                       | [`CommunityRound`](ProjectStatus::CommunityRound)                   |
 //! | Funding Submissions       | Retail investors can call the [`contribute()`](Pallet::contribute) extrinsic to buy tokens at the set price.                                                                                                                                                                                                                                                                                                | [`CommunityRound`](ProjectStatus::CommunityRound)                   |
-//! | Remainder Funding Start   | After the [`Config::CommunityFundingDuration`] has passed, the project is now open to token purchases from any user type                                                                                                                                                                                                                                                                                    | [`RemainderRound`](ProjectStatus::RemainderRound)                   |
 //! | Funding End               | If all tokens were sold, or after the [`Config::RemainderFundingDuration`] has passed, the project automatically ends, and it is calculated if it reached its desired funding or not.                                                                                                                                                                                                                       | [`FundingEnded`](ProjectStatus::FundingSuccessful)                  |
 //! | Evaluator Rewards         | If the funding was successful, evaluators can claim their contribution token rewards with the [`TBD`]() extrinsic. If it failed, evaluators can either call the [`failed_evaluation_unbond_for()`](Pallet::failed_evaluation_unbond_for) extrinsic, or wait for the [`on_idle()`](Pallet::on_initialize) function, to return their funds                                                                    | [`FundingEnded`](ProjectStatus::FundingSuccessful)                  |
 //! | Bidder Rewards            | If the funding was successful, bidders will call [`vested_contribution_token_bid_mint_for()`](Pallet::vested_contribution_token_bid_mint_for) to mint the contribution tokens they are owed, and [`vested_plmc_bid_unbond_for()`](Pallet::vested_plmc_bid_unbond_for) to unbond their PLMC, based on their current vesting schedule.                                                                        | [`FundingEnded`](ProjectStatus::FundingSuccessful)                  |
@@ -82,10 +81,8 @@
 //! ### Storage Items
 //! * [`NextProjectId`] : Increasing counter to get the next id to assign to a project.
 //! * [`NextBidId`]: Increasing counter to get the next id to assign to a bid.
-//! * [`Nonce`]: Increasing counter to be used in random number generation.
 //! * [`ProjectsMetadata`]: Map of the assigned id, to the main information of a project.
 //! * [`ProjectsDetails`]: Map of a project id, to some additional information required for ensuring correctness of the protocol.
-//! * [`ProjectsToUpdate`]: Map of a block number, to a vector of project ids. Used to keep track of projects that need to be updated in on_initialize.
 //! * [`Bids`]: Double map linking a project-user to the bids they made.
 //! * [`Evaluations`]: Double map linking a project-user to the PLMC they bonded in the evaluation round.
 //! * [`Contributions`]: Double map linking a project-user to the contribution tokens they bought in the Community or Remainder round.
@@ -114,6 +111,8 @@
 
 // Ensure we're `no_std` when compiling for Wasm.
 #![cfg_attr(not(feature = "std"), no_std)]
+// Needed due to empty sections raising the warning
+#![allow(unreachable_patterns)]
 // This recursion limit is needed because we have too many benchmarks and benchmarking will fail if
 // we add more without this limit.
 #![cfg_attr(feature = "runtime-benchmarks", recursion_limit = "512")]
@@ -132,7 +131,7 @@ pub use pallet::*;
 use pallet_xcm::ensure_response;
 use polimec_common::{
 	credentials::{Cid, Did, EnsureOriginWithCredentials, InvestorType, UntrustedToken},
-	migration_types::*,
+	migration_types::{Migration, MigrationStatus, ParticipationType},
 };
 use polkadot_parachain_primitives::primitives::Id as ParaId;
 use sp_arithmetic::traits::{One, Saturating};
@@ -173,6 +172,7 @@ pub type AssetIdOf<T> =
 	<<T as Config>::FundingCurrency as fungibles::Inspect<<T as frame_system::Config>::AccountId>>::AssetId;
 pub type RewardInfoOf<T> = RewardInfo<BalanceOf<T>>;
 pub type EvaluatorsOutcomeOf<T> = EvaluatorsOutcome<BalanceOf<T>>;
+pub type VestingInfoOf<T> = VestingInfo<BlockNumberFor<T>, BalanceOf<T>>;
 
 pub type TicketSizeOf<T> = TicketSize<BalanceOf<T>>;
 pub type ProjectMetadataOf<T> =
@@ -195,10 +195,10 @@ pub const PLMC_DECIMALS: u8 = 10;
 
 #[frame_support::pallet]
 pub mod pallet {
+	#[allow(clippy::wildcard_imports)]
 	use super::*;
 	use crate::traits::{BondingRequirementCalculation, ProvideAssetPrice, VestingDurationCalculation};
 	use frame_support::{
-		dispatch::{GetDispatchInfo, PostDispatchInfo},
 		pallet_prelude::*,
 		storage::KeyPrefixIterator,
 		traits::{OnFinalize, OnIdle, OnInitialize},
@@ -207,7 +207,7 @@ pub mod pallet {
 	use sp_arithmetic::Percent;
 	use sp_runtime::{
 		traits::{Convert, ConvertBack, Get},
-		DispatchErrorWithPostInfo,
+		Perquintill,
 	};
 
 	#[pallet::composite_enum]
@@ -233,10 +233,6 @@ pub mod pallet {
 			+ OnIdle<BlockNumberFor<Self>>
 			+ OnInitialize<BlockNumberFor<Self>>;
 
-		/// The time window (expressed in number of blocks) that an issuer has to start the auction round.
-		#[pallet::constant]
-		type AuctionInitializePeriodDuration: Get<BlockNumberFor<Self>>;
-
 		/// The inner balance type we will use for all of our outer currency types. (e.g native, funding, CTs)
 		type Balance: Balance + From<u64> + FixedPointOperand + MaybeSerializeDeserialize + Into<u128>;
 
@@ -247,13 +243,9 @@ pub mod pallet {
 		/// The length (expressed in number of blocks) of the Auction Round, Closing period.
 		type BlockNumberToBalance: Convert<BlockNumberFor<Self>, BalanceOf<Self>>;
 
-		/// The length (expressed in number of blocks) of the Auction Round, Closing period.
-		#[pallet::constant]
-		type AuctionClosingDuration: Get<BlockNumberFor<Self>>;
-
 		/// The length (expressed in number of blocks) of the Community Round.
 		#[pallet::constant]
-		type CommunityFundingDuration: Get<BlockNumberFor<Self>>;
+		type CommunityRoundDuration: Get<BlockNumberFor<Self>>;
 
 		/// The currency used for minting contribution tokens as fungible assets (i.e pallet-assets)
 		type ContributionTokenCurrency: fungibles::Create<AccountIdOf<Self>, AssetId = ProjectId, Balance = BalanceOf<Self>>
@@ -273,13 +265,13 @@ pub mod pallet {
 		/// Convert 24 hours as FixedU128, to the corresponding amount of blocks in the same type as frame_system
 		type DaysToBlocks: Convert<FixedU128, BlockNumberFor<Self>>;
 
-		/// The length (expressed in number of blocks) of the Auction Round, Opening period.
+		/// The length (expressed in number of blocks) of the Auction Round.
 		#[pallet::constant]
-		type AuctionOpeningDuration: Get<BlockNumberFor<Self>>;
+		type AuctionRoundDuration: Get<BlockNumberFor<Self>>;
 
 		/// The length (expressed in number of blocks) of the evaluation period.
 		#[pallet::constant]
-		type EvaluationDuration: Get<BlockNumberFor<Self>>;
+		type EvaluationRoundDuration: Get<BlockNumberFor<Self>>;
 
 		/// What percentage of the target funding amount is required to be reached in the evaluation, for it to continue to the funding round.
 		#[pallet::constant]
@@ -299,15 +291,13 @@ pub mod pallet {
 			+ fungibles::metadata::Mutate<AccountIdOf<Self>, AssetId = u32>
 			+ fungibles::Mutate<AccountIdOf<Self>, Balance = BalanceOf<Self>>;
 
+		type FundingSuccessThreshold: Get<Perquintill>;
+
 		/// Credentialized investor Origin, ensures users are of investing type Retail, or Professional, or Institutional.
 		type InvestorOrigin: EnsureOriginWithCredentials<
 			<Self as frame_system::Config>::RuntimeOrigin,
 			Success = (AccountIdOf<Self>, Did, InvestorType, Cid),
 		>;
-
-		/// How long an issuer has to accept or reject the funding of a project if the funding is between two thresholds.
-		#[pallet::constant]
-		type ManualAcceptanceDuration: Get<BlockNumberFor<Self>>;
 
 		/// Max individual bids per project. Used to estimate worst case weight for price calculation
 		#[pallet::constant]
@@ -340,14 +330,6 @@ pub mod pallet {
 		#[pallet::constant]
 		type MaxMessageSizeThresholds: Get<(u32, u32)>;
 
-		/// max iterations for trying to insert a project on the projects_to_update storage
-		#[pallet::constant]
-		type MaxProjectsToUpdateInsertionAttempts: Get<u32>;
-
-		/// How many projects should we update in on_initialize each block. Likely one to reduce complexity
-		#[pallet::constant]
-		type MaxProjectsToUpdatePerBlock: Get<u32>;
-
 		/// Multiplier type that decides how much PLMC needs to be bonded for a token buy/bid
 		type Multiplier: Parameter
 			+ BondingRequirementCalculation
@@ -366,7 +348,8 @@ pub mod pallet {
 				Balance = BalanceOf<Self>,
 				Reason = <Self as Config>::RuntimeHoldReason,
 			> + fungible::BalancedHold<AccountIdOf<Self>, Balance = BalanceOf<Self>>
-			+ fungible::Mutate<AccountIdOf<Self>, Balance = BalanceOf<Self>>;
+			+ fungible::Mutate<AccountIdOf<Self>, Balance = BalanceOf<Self>>
+			+ fungible::Inspect<AccountIdOf<Self>, Balance = BalanceOf<Self>>;
 
 		/// System account for the funding pallet. Used to derive project escrow accounts.
 		#[pallet::constant]
@@ -383,7 +366,7 @@ pub mod pallet {
 
 		/// The length (expressed in number of blocks) of the Remainder Round.
 		#[pallet::constant]
-		type RemainderFundingDuration: Get<BlockNumberFor<Self>>;
+		type RemainderRoundDuration: Get<BlockNumberFor<Self>>;
 
 		/// max_capacity config required for the channel from polimec to the project
 		#[pallet::constant]
@@ -467,12 +450,6 @@ pub mod pallet {
 	pub type EvaluationCounts<T: Config> = StorageMap<_, Blake2_128Concat, ProjectId, u32, ValueQuery>;
 
 	#[pallet::storage]
-	/// A global counter used in the randomness generation
-	// TODO: PLMC-155. Remove it after using the Randomness from BABE's VRF: https://github.com/PureStake/moonbeam/issues/1391
-	// 	Or use the randomness from Moonbeam.
-	pub type Nonce<T: Config> = StorageValue<_, u32, ValueQuery>;
-
-	#[pallet::storage]
 	/// A StorageMap containing the primary project information of projects
 	pub type ProjectsMetadata<T: Config> = StorageMap<_, Blake2_128Concat, ProjectId, ProjectMetadataOf<T>>;
 
@@ -483,10 +460,6 @@ pub mod pallet {
 	#[pallet::storage]
 	/// StorageMap containing additional information for the projects, relevant for correctness of the protocol
 	pub type ProjectsDetails<T: Config> = StorageMap<_, Blake2_128Concat, ProjectId, ProjectDetailsOf<T>>;
-
-	#[pallet::storage]
-	/// A map to know in which block to update which active projects using on_initialize.
-	pub type ProjectsToUpdate<T: Config> = StorageMap<_, Blake2_128Concat, BlockNumberFor<T>, (ProjectId, UpdateType)>;
 
 	#[pallet::storage]
 	/// Keep track of the PLMC bonds made to each project by each evaluator
@@ -539,10 +512,6 @@ pub mod pallet {
 		BalanceOf<T>,
 		ValueQuery,
 	>;
-	#[pallet::storage]
-	// After 25 participations, the retail user has access to the max multiplier of 10x, so no need to keep tracking it
-	pub type RetailParticipations<T: Config> =
-		StorageMap<_, Blake2_128Concat, Did, BoundedVec<ProjectId, MaxParticipationsForMaxMultiplier>, ValueQuery>;
 
 	#[pallet::storage]
 	pub type UserMigrations<T: Config> = StorageNMap<
@@ -596,7 +565,7 @@ pub mod pallet {
 		/// Project transitioned to a new phase.
 		ProjectPhaseTransition {
 			project_id: ProjectId,
-			phase: ProjectPhases,
+			phase: ProjectStatus<BlockNumberFor<T>>,
 		},
 		/// A `bonder` bonded an `amount` of PLMC for `project_id`.
 		Evaluation {
@@ -628,15 +597,10 @@ pub mod pallet {
 			plmc_bond: BalanceOf<T>,
 			multiplier: MultiplierOf<T>,
 		},
-		ProjectOutcomeDecided {
-			project_id: ProjectId,
-			decision: FundingOutcomeDecision,
-		},
 		BidRefunded {
 			project_id: ProjectId,
 			account: AccountIdOf<T>,
 			bid_id: u32,
-			reason: RejectionReason,
 			plmc_amount: BalanceOf<T>,
 			funding_asset: AcceptedFundingAsset,
 			funding_amount: BalanceOf<T>,
@@ -645,14 +609,15 @@ pub mod pallet {
 			project_id: ProjectId,
 			account: AccountIdOf<T>,
 			id: u32,
-			ct_amount: BalanceOf<T>,
-			slashed_plmc_amount: BalanceOf<T>,
+			ct_rewarded: BalanceOf<T>,
+			plmc_released: BalanceOf<T>,
 		},
 		BidSettled {
 			project_id: ProjectId,
 			account: AccountIdOf<T>,
 			id: u32,
-			ct_amount: BalanceOf<T>,
+			final_ct_amount: BalanceOf<T>,
+			final_ct_usd_price: PriceOf<T>,
 		},
 		ContributionSettled {
 			project_id: ProjectId,
@@ -741,15 +706,11 @@ pub mod pallet {
 		IncorrectRound,
 		/// Too early to execute the action. The action can likely be called again at a later stage.
 		TooEarlyForRound,
-		/// A round transition was already executed, so the transition cannot be
-		/// executed again. This is likely to happen when the issuer manually transitions the project,
-		/// after which the automatic transition is executed.
-		RoundTransitionAlreadyHappened,
+		/// Too late to execute the action. Round has already ended, but transition to new
+		/// round has still to be executed.
+		TooLateForRound,
 		/// A project's transition point (block number) was not set.
 		TransitionPointNotSet,
-		/// Too many insertion attempts were made while inserting a project's round transition
-		/// in the `ProjectsToUpdate` storage. This should not happen in practice.
-		TooManyInsertionAttempts,
 
 		// * Issuer related errors. E.g. the action was not executed by the issuer, or the issuer *
 		/// did not have the correct state to execute an action.
@@ -823,10 +784,8 @@ pub mod pallet {
 		WrongParaId,
 		/// Migration channel is not ready for migrations.
 		ChannelNotReady,
-		/// Settlement for this project/outcome has not yet started.
-		FundingSuccessSettlementNotStarted,
-		/// Settlement for this project/outcome has not yet started.
-		FundingFailedSettlementNotStarted,
+		/// Settlement for this project has not yet started.
+		SettlementNotStarted,
 		/// Wanted to settle as successful when it failed, or vice versa.
 		WrongSettlementOutcome,
 		/// User still has participations that need to be settled before migration.
@@ -879,72 +838,41 @@ pub mod pallet {
 
 		/// Starts the evaluation round of a project. It needs to be called by the project issuer.
 		#[pallet::call_index(3)]
-		#[pallet::weight(WeightInfoOf::<T>::start_evaluation(<T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1))]
-		pub fn start_evaluation(
-			origin: OriginFor<T>,
-			jwt: UntrustedToken,
-			project_id: ProjectId,
-		) -> DispatchResultWithPostInfo {
+		#[pallet::weight(WeightInfoOf::<T>::start_evaluation())]
+		pub fn start_evaluation(origin: OriginFor<T>, jwt: UntrustedToken, project_id: ProjectId) -> DispatchResult {
 			let (account, _did, investor_type, _cid) =
 				T::InvestorOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get())?;
 			ensure!(investor_type == InvestorType::Institutional, Error::<T>::WrongInvestorType);
 			Self::do_start_evaluation(account, project_id)
 		}
 
-		/// Starts the auction round for a project. From the next block forward, any professional or
-		/// institutional user can set bids for a token_amount/token_price pair.
-		/// Any bids from this point until the auction_closing starts, will be considered as valid.
-		#[pallet::call_index(4)]
-		#[pallet::weight(WeightInfoOf::<T>::start_auction_manually(<T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1))]
-		pub fn start_auction(
-			origin: OriginFor<T>,
-			jwt: UntrustedToken,
-			project_id: ProjectId,
-		) -> DispatchResultWithPostInfo {
-			let (account, _did, investor_type, _cid) =
-				T::InvestorOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get())?;
-			ensure!(investor_type == InvestorType::Institutional, Error::<T>::WrongInvestorType);
-			Self::do_start_auction_opening(account, project_id)
-		}
-
 		/// Bond PLMC for a project in the evaluation stage
-		#[pallet::call_index(5)]
-		#[pallet::weight(
-			WeightInfoOf::<T>::evaluation(T::MaxEvaluationsPerUser::get() - 1)
-		)]
+		#[pallet::call_index(4)]
+		#[pallet::weight(WeightInfoOf::<T>::evaluate(<T as Config>::MaxEvaluationsPerUser::get()))]
 		pub fn evaluate(
 			origin: OriginFor<T>,
 			jwt: UntrustedToken,
 			project_id: ProjectId,
 			#[pallet::compact] usd_amount: BalanceOf<T>,
 		) -> DispatchResultWithPostInfo {
-			let (account, did, investor_type, whitelisted_policy) =
+			let (account, did, _investor_type, whitelisted_policy) =
 				T::InvestorOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get())?;
 
-			Self::do_evaluate(&account, project_id, usd_amount, did, investor_type, whitelisted_policy)
+			Self::do_evaluate(&account, project_id, usd_amount, did, whitelisted_policy)
 		}
 
-		#[pallet::call_index(6)]
-		#[pallet::weight(WeightInfoOf::<T>::end_evaluation_success(
-		<T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1,
-		))]
-		pub fn root_do_evaluation_end(origin: OriginFor<T>, project_id: ProjectId) -> DispatchResultWithPostInfo {
-			ensure_root(origin)?;
-			Self::do_evaluation_end(project_id)
-		}
-
-		#[pallet::call_index(7)]
-		#[pallet::weight(WeightInfoOf::<T>::start_auction_manually(<T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1))]
-		pub fn root_do_auction_opening(origin: OriginFor<T>, project_id: ProjectId) -> DispatchResultWithPostInfo {
-			ensure_root(origin)?;
-			Self::do_start_auction_opening(T::PalletId::get().into_account_truncating(), project_id)
+		#[pallet::call_index(5)]
+		#[pallet::weight(WeightInfoOf::<T>::end_evaluation_failure())]
+		pub fn end_evaluation(origin: OriginFor<T>, project_id: ProjectId) -> DispatchResult {
+			ensure_signed(origin)?;
+			Self::do_end_evaluation(project_id)
 		}
 
 		/// Bid for a project in the Auction round
-		#[pallet::call_index(8)]
+		#[pallet::call_index(7)]
 		#[pallet::weight(
 			WeightInfoOf::<T>::bid(
-				<T as Config>::MaxBidsPerUser::get() - 1,
+				<T as Config>::MaxBidsPerUser::get(),
 				// Assuming the current bucket is full, and has a price higher than the minimum.
 				// This user is buying 100% of the bid allocation.
 				// Since each bucket has 10% of the allocation, one bid can be split into a max of 10
@@ -956,283 +884,158 @@ pub mod pallet {
 			project_id: ProjectId,
 			#[pallet::compact] ct_amount: BalanceOf<T>,
 			multiplier: T::Multiplier,
-			asset: AcceptedFundingAsset,
+			funding_asset: AcceptedFundingAsset,
 		) -> DispatchResultWithPostInfo {
-			let (account, did, investor_type, whitelisted_policy) =
+			let (bidder, did, investor_type, whitelisted_policy) =
 				T::InvestorOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get())?;
-
-			Self::do_bid(&account, project_id, ct_amount, multiplier, asset, did, investor_type, whitelisted_policy)
+			let params = DoBidParams::<T> {
+				bidder,
+				project_id,
+				ct_amount,
+				multiplier,
+				funding_asset,
+				did,
+				investor_type,
+				whitelisted_policy,
+			};
+			Self::do_bid(params)
 		}
 
+		#[pallet::call_index(8)]
+		#[pallet::weight(WeightInfoOf::<T>::end_auction(
+			<T as Config>::MaxBidsPerProject::get() / 2,
+			<T as Config>::MaxBidsPerProject::get() / 2,
+		)
+		.max(WeightInfoOf::<T>::end_auction(
+			<T as Config>::MaxBidsPerProject::get(),
+			0u32,
+		))
+		.max(WeightInfoOf::<T>::end_auction(
+			0u32,
+			<T as Config>::MaxBidsPerProject::get(),
+		)))]
+		pub fn end_auction(origin: OriginFor<T>, project_id: ProjectId) -> DispatchResultWithPostInfo {
+			ensure_signed(origin)?;
+			Self::do_end_auction(project_id)
+		}
+
+		/// Buy tokens in the Community or Remainder round at the price set in the Auction Round
 		#[pallet::call_index(9)]
-		#[pallet::weight(WeightInfoOf::<T>::start_auction_closing_phase(
-		<T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1,
-		))]
-		pub fn root_do_start_auction_closing(
+		#[pallet::weight(
+			WeightInfoOf::<T>::contribute(T::MaxContributionsPerUser::get())
+		)]
+		pub fn contribute(
 			origin: OriginFor<T>,
+			jwt: UntrustedToken,
 			project_id: ProjectId,
+			#[pallet::compact] ct_amount: BalanceOf<T>,
+			multiplier: MultiplierOf<T>,
+			funding_asset: AcceptedFundingAsset,
 		) -> DispatchResultWithPostInfo {
-			ensure_root(origin)?;
-			Self::do_start_auction_closing(project_id)
+			let (contributor, did, investor_type, whitelisted_policy) =
+				T::InvestorOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get())?;
+			let params = DoContributeParams::<T> {
+				contributor,
+				project_id,
+				ct_amount,
+				multiplier,
+				funding_asset,
+				did,
+				investor_type,
+				whitelisted_policy,
+			};
+			Self::do_contribute(params)
 		}
 
 		#[pallet::call_index(10)]
-		#[pallet::weight(WeightInfoOf::<T>::end_auction_closing(
-		<T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1,
-		<T as Config>::MaxBidsPerProject::get() / 2,
-		<T as Config>::MaxBidsPerProject::get() / 2,
-		)
-		.max(WeightInfoOf::<T>::end_auction_closing(
-		<T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1,
-		<T as Config>::MaxBidsPerProject::get(),
-		0u32,
-		))
-		.max(WeightInfoOf::<T>::end_auction_closing(
-		<T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1,
-		0u32,
-		<T as Config>::MaxBidsPerProject::get(),
-		)))]
-		pub fn root_do_end_auction_closing(origin: OriginFor<T>, project_id: ProjectId) -> DispatchResultWithPostInfo {
-			ensure_root(origin)?;
-			Self::do_end_auction_closing(project_id)
-		}
-
-		#[pallet::call_index(11)]
-		#[pallet::weight(WeightInfoOf::<T>::start_community_funding(
-		<T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1,
-		<T as Config>::MaxBidsPerProject::get() / 2,
-		<T as Config>::MaxBidsPerProject::get() / 2,
-		)
-		.max(WeightInfoOf::<T>::start_community_funding(
-		<T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1,
-		<T as Config>::MaxBidsPerProject::get(),
-		0u32,
-		))
-		.max(WeightInfoOf::<T>::start_community_funding(
-		<T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1,
-		0u32,
-		<T as Config>::MaxBidsPerProject::get(),
-		)))]
-		pub fn root_do_community_funding(origin: OriginFor<T>, project_id: ProjectId) -> DispatchResultWithPostInfo {
-			ensure_root(origin)?;
-			Self::do_start_community_funding(project_id)
-		}
-
-		/// Buy tokens in the Community or Remainder round at the price set in the Auction Round
-		#[pallet::call_index(12)]
-		#[pallet::weight(
-			WeightInfoOf::<T>::contribution(T::MaxContributionsPerUser::get() - 1)
-			.max(WeightInfoOf::<T>::contribution_ends_round(
-			// Last contribution possible before having to remove an old lower one
-			<T as Config>::MaxContributionsPerUser::get() -1,
-			// Since we didn't remove any previous lower contribution, we can buy all remaining CTs and try to move to the next phase
-			<T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1,
-			))
-		)]
-		pub fn community_contribute(
-			origin: OriginFor<T>,
-			jwt: UntrustedToken,
-			project_id: ProjectId,
-			#[pallet::compact] amount: BalanceOf<T>,
-			multiplier: MultiplierOf<T>,
-			asset: AcceptedFundingAsset,
-		) -> DispatchResultWithPostInfo {
-			let (account, did, investor_type, whitelisted_policy) =
-				T::InvestorOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get())?;
-
-			Self::do_community_contribute(
-				&account,
-				project_id,
-				amount,
-				multiplier,
-				asset,
-				did,
-				investor_type,
-				whitelisted_policy,
-			)
-		}
-
-		#[pallet::call_index(13)]
-		#[pallet::weight(WeightInfoOf::<T>::start_remainder_funding(
-		<T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1,
-		))]
-		pub fn root_do_remainder_funding(origin: OriginFor<T>, project_id: ProjectId) -> DispatchResultWithPostInfo {
-			ensure_root(origin)?;
-			Self::do_start_remainder_funding(project_id)
-		}
-
-		/// Buy tokens in the Community or Remainder round at the price set in the Auction Round
-		#[pallet::call_index(14)]
-		#[pallet::weight(
-			WeightInfoOf::<T>::contribution(T::MaxContributionsPerUser::get() - 1)
-			.max(WeightInfoOf::<T>::contribution_ends_round(
-			// Last contribution possible before having to remove an old lower one
-			<T as Config>::MaxContributionsPerUser::get() -1,
-			// Since we didn't remove any previous lower contribution, we can buy all remaining CTs and try to move to the next phase
-			<T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1
-			))
-		)]
-		pub fn remaining_contribute(
-			origin: OriginFor<T>,
-			jwt: UntrustedToken,
-			project_id: ProjectId,
-			#[pallet::compact] amount: BalanceOf<T>,
-			multiplier: MultiplierOf<T>,
-			asset: AcceptedFundingAsset,
-		) -> DispatchResultWithPostInfo {
-			let (account, did, investor_type, whitelisted_policy) =
-				T::InvestorOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get())?;
-
-			Self::do_remaining_contribute(
-				&account,
-				project_id,
-				amount,
-				multiplier,
-				asset,
-				did,
-				investor_type,
-				whitelisted_policy,
-			)
-		}
-
-		#[pallet::call_index(15)]
-		#[pallet::weight(WeightInfoOf::<T>::end_funding_automatically_rejected_evaluators_slashed(
-		<T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1,
-		)
-		.max(WeightInfoOf::<T>::end_funding_awaiting_decision_evaluators_slashed(
-		<T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1,
-		))
-		.max(WeightInfoOf::<T>::end_funding_awaiting_decision_evaluators_unchanged(
-		<T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1,
-		))
-		.max(WeightInfoOf::<T>::end_funding_automatically_accepted_evaluators_rewarded(
-		<T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1,
-		<T as Config>::MaxEvaluationsPerProject::get(),
-		)))]
-		pub fn root_do_end_funding(origin: OriginFor<T>, project_id: ProjectId) -> DispatchResultWithPostInfo {
-			ensure_root(origin)?;
+		#[pallet::weight(WeightInfoOf::<T>::end_funding_project_successful())]
+		pub fn end_funding(origin: OriginFor<T>, project_id: ProjectId) -> DispatchResult {
+			ensure_signed(origin)?;
 			Self::do_end_funding(project_id)
 		}
 
-		#[pallet::call_index(16)]
-		#[pallet::weight(WeightInfoOf::<T>::decide_project_outcome(
-		<T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1
-		))]
-		pub fn decide_project_outcome(
+		#[pallet::call_index(11)]
+		#[pallet::weight(WeightInfoOf::<T>::start_settlement())]
+		pub fn start_settlement(origin: OriginFor<T>, project_id: ProjectId) -> DispatchResult {
+			ensure_signed(origin)?;
+			Self::do_start_settlement(project_id)
+		}
+
+		#[pallet::call_index(12)]
+		#[pallet::weight(WeightInfoOf::<T>::settle_rewarded_evaluation())]
+		pub fn settle_evaluation(
+			origin: OriginFor<T>,
+			project_id: ProjectId,
+			evaluator: AccountIdOf<T>,
+			evaluation_id: u32,
+		) -> DispatchResult {
+			let _caller = ensure_signed(origin)?;
+			let bid = Evaluations::<T>::get((project_id, evaluator, evaluation_id))
+				.ok_or(Error::<T>::ParticipationNotFound)?;
+			Self::do_settle_evaluation(bid, project_id)
+		}
+
+		#[pallet::call_index(13)]
+		#[pallet::weight(WeightInfoOf::<T>::settle_accepted_bid_with_refund())]
+		pub fn settle_bid(
+			origin: OriginFor<T>,
+			project_id: ProjectId,
+			bidder: AccountIdOf<T>,
+			bid_id: u32,
+		) -> DispatchResult {
+			let _caller = ensure_signed(origin)?;
+			let bid = Bids::<T>::get((project_id, bidder, bid_id)).ok_or(Error::<T>::ParticipationNotFound)?;
+			Self::do_settle_bid(bid, project_id)
+		}
+
+		#[pallet::call_index(17)]
+		#[pallet::weight(WeightInfoOf::<T>::settle_contribution_project_successful())]
+		pub fn settle_contribution(
+			origin: OriginFor<T>,
+			project_id: ProjectId,
+			contributor: AccountIdOf<T>,
+			contribution_id: u32,
+		) -> DispatchResult {
+			let _caller = ensure_signed(origin)?;
+			let bid = Contributions::<T>::get((project_id, contributor, contribution_id))
+				.ok_or(Error::<T>::ParticipationNotFound)?;
+			Self::do_settle_contribution(bid, project_id)
+		}
+
+		#[pallet::call_index(18)]
+		#[pallet::weight(WeightInfoOf::<T>::mark_project_as_settled())]
+		pub fn mark_project_as_settled(origin: OriginFor<T>, project_id: ProjectId) -> DispatchResult {
+			let _caller = ensure_signed(origin)?;
+			Self::do_mark_project_as_settled(project_id)
+		}
+
+		#[pallet::call_index(19)]
+		#[pallet::weight(WeightInfoOf::<T>::start_offchain_migration())]
+		pub fn start_offchain_migration(
 			origin: OriginFor<T>,
 			jwt: UntrustedToken,
 			project_id: ProjectId,
-			outcome: FundingOutcomeDecision,
-		) -> DispatchResultWithPostInfo {
+		) -> DispatchResult {
 			let (account, _did, investor_type, _cid) =
 				T::InvestorOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get())?;
 			ensure!(investor_type == InvestorType::Institutional, Error::<T>::WrongInvestorType);
 
-			Self::do_decide_project_outcome(account, project_id, outcome)
-		}
-
-		#[pallet::call_index(17)]
-		#[pallet::weight(WeightInfoOf::<T>::project_decision())]
-		pub fn root_do_project_decision(
-			origin: OriginFor<T>,
-			project_id: ProjectId,
-			decision: FundingOutcomeDecision,
-		) -> DispatchResultWithPostInfo {
-			ensure_root(origin)?;
-			Self::do_project_decision(project_id, decision)
-		}
-
-		#[pallet::call_index(18)]
-		#[pallet::weight(WeightInfoOf::<T>::start_settlement_funding_success()
-		.max(WeightInfoOf::<T>::start_settlement_funding_failure()))]
-		pub fn root_do_start_settlement(origin: OriginFor<T>, project_id: ProjectId) -> DispatchResultWithPostInfo {
-			ensure_root(origin)?;
-			Self::do_start_settlement(project_id)
-		}
-
-		#[pallet::call_index(19)]
-		#[pallet::weight(WeightInfoOf::<T>::settle_successful_evaluation())]
-		pub fn settle_successful_evaluation(
-			origin: OriginFor<T>,
-			project_id: ProjectId,
-			evaluator: AccountIdOf<T>,
-			evaluation_id: u32,
-		) -> DispatchResult {
-			let _caller = ensure_signed(origin)?;
-			let bid = Evaluations::<T>::get((project_id, evaluator, evaluation_id))
-				.ok_or(Error::<T>::ParticipationNotFound)?;
-			Self::do_settle_successful_evaluation(bid, project_id)
+			Self::do_start_offchain_migration(project_id, account)
 		}
 
 		#[pallet::call_index(20)]
-		#[pallet::weight(WeightInfoOf::<T>::settle_successful_bid())]
-		pub fn settle_successful_bid(
+		#[pallet::weight(WeightInfoOf::<T>::confirm_offchain_migration(MaxParticipationsPerUser::<T>::get()))]
+		pub fn confirm_offchain_migration(
 			origin: OriginFor<T>,
 			project_id: ProjectId,
-			bidder: AccountIdOf<T>,
-			bid_id: u32,
+			participant: AccountIdOf<T>,
 		) -> DispatchResult {
-			let _caller = ensure_signed(origin)?;
-			let bid = Bids::<T>::get((project_id, bidder, bid_id)).ok_or(Error::<T>::ParticipationNotFound)?;
-			Self::do_settle_successful_bid(bid, project_id)
+			let caller = ensure_signed(origin)?;
+
+			Self::do_confirm_offchain_migration(project_id, caller, participant)
 		}
 
 		#[pallet::call_index(21)]
-		#[pallet::weight(WeightInfoOf::<T>::settle_successful_contribution())]
-		pub fn settle_successful_contribution(
-			origin: OriginFor<T>,
-			project_id: ProjectId,
-			contributor: AccountIdOf<T>,
-			contribution_id: u32,
-		) -> DispatchResult {
-			let _caller = ensure_signed(origin)?;
-			let bid = Contributions::<T>::get((project_id, contributor, contribution_id))
-				.ok_or(Error::<T>::ParticipationNotFound)?;
-			Self::do_settle_successful_contribution(bid, project_id)
-		}
-
-		#[pallet::call_index(22)]
-		#[pallet::weight(WeightInfoOf::<T>::settle_failed_evaluation())]
-		pub fn settle_failed_evaluation(
-			origin: OriginFor<T>,
-			project_id: ProjectId,
-			evaluator: AccountIdOf<T>,
-			evaluation_id: u32,
-		) -> DispatchResult {
-			let _caller = ensure_signed(origin)?;
-			let bid = Evaluations::<T>::get((project_id, evaluator, evaluation_id))
-				.ok_or(Error::<T>::ParticipationNotFound)?;
-			Self::do_settle_failed_evaluation(bid, project_id)
-		}
-
-		#[pallet::call_index(23)]
-		#[pallet::weight(WeightInfoOf::<T>::settle_failed_bid())]
-		pub fn settle_failed_bid(
-			origin: OriginFor<T>,
-			project_id: ProjectId,
-			bidder: AccountIdOf<T>,
-			bid_id: u32,
-		) -> DispatchResult {
-			let _caller = ensure_signed(origin)?;
-			let bid = Bids::<T>::get((project_id, bidder, bid_id)).ok_or(Error::<T>::ParticipationNotFound)?;
-			Self::do_settle_failed_bid(bid, project_id)
-		}
-
-		#[pallet::call_index(24)]
-		#[pallet::weight(WeightInfoOf::<T>::settle_failed_contribution())]
-		pub fn settle_failed_contribution(
-			origin: OriginFor<T>,
-			project_id: ProjectId,
-			contributor: AccountIdOf<T>,
-			contribution_id: u32,
-		) -> DispatchResult {
-			let _caller = ensure_signed(origin)?;
-			let bid = Contributions::<T>::get((project_id, contributor, contribution_id))
-				.ok_or(Error::<T>::ParticipationNotFound)?;
-			Self::do_settle_failed_contribution(bid, project_id)
-		}
-
-		#[pallet::call_index(25)]
 		#[pallet::weight(WeightInfoOf::<T>::start_pallet_migration())]
 		pub fn start_pallet_migration(
 			origin: OriginFor<T>,
@@ -1247,21 +1050,7 @@ pub mod pallet {
 			Self::do_start_pallet_migration(&account, project_id, para_id)
 		}
 
-		#[pallet::call_index(26)]
-		#[pallet::weight(WeightInfoOf::<T>::start_offchain_migration())]
-		pub fn start_offchain_migration(
-			origin: OriginFor<T>,
-			jwt: UntrustedToken,
-			project_id: ProjectId,
-		) -> DispatchResult {
-			let (account, _did, investor_type, _cid) =
-				T::InvestorOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get())?;
-			ensure!(investor_type == InvestorType::Institutional, Error::<T>::WrongInvestorType);
-
-			Self::do_start_offchain_migration(project_id, account)
-		}
-
-		#[pallet::call_index(27)]
+		#[pallet::call_index(22)]
 		#[pallet::weight(WeightInfoOf::<T>::start_pallet_migration_readiness_check())]
 		pub fn start_pallet_migration_readiness_check(
 			origin: OriginFor<T>,
@@ -1275,7 +1064,7 @@ pub mod pallet {
 		}
 
 		/// Called only by other chains through a query response xcm message
-		#[pallet::call_index(28)]
+		#[pallet::call_index(23)]
 		#[pallet::weight(WeightInfoOf::<T>::pallet_migration_readiness_response_pallet_info()
 		.max(WeightInfoOf::<T>::pallet_migration_readiness_response_holding()))]
 		pub fn pallet_migration_readiness_response(
@@ -1288,7 +1077,7 @@ pub mod pallet {
 			Self::do_pallet_migration_readiness_response(location, query_id, response)
 		}
 
-		#[pallet::call_index(29)]
+		#[pallet::call_index(24)]
 		#[pallet::weight(WeightInfoOf::<T>::send_pallet_migration_for(MaxParticipationsPerUser::<T>::get()))]
 		pub fn send_pallet_migration_for(
 			origin: OriginFor<T>,
@@ -1299,7 +1088,7 @@ pub mod pallet {
 			Self::do_send_pallet_migration_for(project_id, participant)
 		}
 
-		#[pallet::call_index(30)]
+		#[pallet::call_index(25)]
 		#[pallet::weight(WeightInfoOf::<T>::confirm_pallet_migrations(MaxParticipationsPerUser::<T>::get()))]
 		pub fn confirm_pallet_migrations(
 			origin: OriginFor<T>,
@@ -1311,19 +1100,7 @@ pub mod pallet {
 			Self::do_confirm_pallet_migrations(location, query_id, response)
 		}
 
-		#[pallet::call_index(31)]
-		#[pallet::weight(WeightInfoOf::<T>::confirm_offchain_migration(MaxParticipationsPerUser::<T>::get()))]
-		pub fn confirm_offchain_migration(
-			origin: OriginFor<T>,
-			project_id: ProjectId,
-			participant: AccountIdOf<T>,
-		) -> DispatchResult {
-			let caller = ensure_signed(origin)?;
-
-			Self::do_confirm_offchain_migration(project_id, caller, participant)
-		}
-
-		#[pallet::call_index(32)]
+		#[pallet::call_index(26)]
 		#[pallet::weight(WeightInfoOf::<T>::mark_project_ct_migration_as_finished())]
 		pub fn mark_project_ct_migration_as_finished(origin: OriginFor<T>, project_id: ProjectId) -> DispatchResult {
 			let _caller = ensure_signed(origin)?;
@@ -1331,107 +1108,11 @@ pub mod pallet {
 			Self::do_mark_project_ct_migration_as_finished(project_id)
 		}
 	}
+}
 
-	fn update_weight(used_weight: &mut Weight, call: DispatchResultWithPostInfo, fallback_weight: Weight) {
-		match call {
-			Ok(post_dispatch_info) =>
-				if let Some(actual_weight) = post_dispatch_info.actual_weight {
-					*used_weight = used_weight.saturating_add(actual_weight);
-				} else {
-					*used_weight = used_weight.saturating_add(fallback_weight);
-				},
-			Err(DispatchErrorWithPostInfo::<PostDispatchInfo> { error: _error, post_info }) => {
-				if let Some(actual_weight) = post_info.actual_weight {
-					*used_weight = used_weight.saturating_add(actual_weight);
-				} else {
-					*used_weight = used_weight.saturating_add(fallback_weight);
-				}
-			},
-		}
-	}
-
-	#[pallet::hooks]
-	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
-		fn on_initialize(now: BlockNumberFor<T>) -> Weight {
-			// Get the projects that need to be updated on this block and update them
-			let mut used_weight = Weight::from_parts(0, 0);
-			if let Some((project_id, update_type)) = ProjectsToUpdate::<T>::take(now) {
-				match update_type {
-					// EvaluationRound -> AuctionInitializePeriod | ProjectFailed
-					UpdateType::EvaluationEnd => {
-						let call = Self::do_evaluation_end(project_id);
-						let fallback_weight =
-							Call::<T>::root_do_evaluation_end { project_id }.get_dispatch_info().weight;
-						update_weight(&mut used_weight, call, fallback_weight);
-					},
-
-					// AuctionInitializePeriod -> AuctionOpening
-					// Only if it wasn't first handled by user extrinsic
-					UpdateType::AuctionOpeningStart => {
-						let call =
-							Self::do_start_auction_opening(T::PalletId::get().into_account_truncating(), project_id);
-						let fallback_weight =
-							Call::<T>::root_do_auction_opening { project_id }.get_dispatch_info().weight;
-						update_weight(&mut used_weight, call, fallback_weight);
-					},
-
-					// AuctionOpening -> AuctionClosing
-					UpdateType::AuctionClosingStart => {
-						let call = Self::do_start_auction_closing(project_id);
-						let fallback_weight =
-							Call::<T>::root_do_start_auction_closing { project_id }.get_dispatch_info().weight;
-						update_weight(&mut used_weight, call, fallback_weight);
-					},
-
-					UpdateType::AuctionClosingEnd => {
-						let call = Self::do_end_auction_closing(project_id);
-						let fallback_weight =
-							Call::<T>::root_do_end_auction_closing { project_id }.get_dispatch_info().weight;
-						update_weight(&mut used_weight, call, fallback_weight);
-					},
-
-					// AuctionClosing -> CommunityRound
-					UpdateType::CommunityFundingStart => {
-						let call = Self::do_start_community_funding(project_id);
-						let fallback_weight =
-							Call::<T>::root_do_community_funding { project_id }.get_dispatch_info().weight;
-						update_weight(&mut used_weight, call, fallback_weight);
-					},
-
-					// CommunityRound -> RemainderRound
-					UpdateType::RemainderFundingStart => {
-						let call = Self::do_start_remainder_funding(project_id);
-						let fallback_weight =
-							Call::<T>::root_do_remainder_funding { project_id }.get_dispatch_info().weight;
-						update_weight(&mut used_weight, call, fallback_weight);
-					},
-
-					// CommunityRound || RemainderRound -> FundingEnded
-					UpdateType::FundingEnd => {
-						let call = Self::do_end_funding(project_id);
-						let fallback_weight = Call::<T>::root_do_end_funding { project_id }.get_dispatch_info().weight;
-						update_weight(&mut used_weight, call, fallback_weight);
-					},
-
-					UpdateType::ProjectDecision(decision) => {
-						let call = Self::do_project_decision(project_id, decision);
-						let fallback_weight =
-							Call::<T>::root_do_project_decision { project_id, decision }.get_dispatch_info().weight;
-						update_weight(&mut used_weight, call, fallback_weight);
-					},
-
-					UpdateType::StartSettlement => {
-						let call = Self::do_start_settlement(project_id);
-						let fallback_weight =
-							Call::<T>::root_do_start_settlement { project_id }.get_dispatch_info().weight;
-						update_weight(&mut used_weight, call, fallback_weight);
-					},
-				}
-			}
-			used_weight
-		}
-	}
-
+pub mod xcm_executor_impl {
+	#[allow(clippy::wildcard_imports)]
+	use super::*;
 	use xcm_executor::traits::{HandleHrmpChannelAccepted, HandleHrmpNewChannelOpenRequest};
 
 	impl<T: Config> HandleHrmpChannelAccepted for Pallet<T> {

@@ -19,25 +19,27 @@
 //! Types for Funding pallet.
 
 use crate::{traits::BondingRequirementCalculation, BalanceOf};
-pub use config_types::*;
+pub use config::*;
+pub use extrinsic::*;
 use frame_support::{pallet_prelude::*, traits::tokens::Balance as BalanceT};
 use frame_system::pallet_prelude::BlockNumberFor;
-pub use inner_types::*;
+pub use inner::*;
+use parachains_common::DAYS;
 use polimec_common::USD_DECIMALS;
 use polkadot_parachain_primitives::primitives::Id as ParaId;
 use serde::{Deserialize, Serialize};
-use sp_arithmetic::{FixedPointNumber, FixedPointOperand, Percent};
-use sp_runtime::traits::{CheckedDiv, CheckedMul, One, Saturating, Zero};
+use sp_arithmetic::{traits::Saturating, FixedPointNumber, FixedPointOperand, FixedU128, Percent};
+use sp_runtime::traits::{CheckedDiv, CheckedMul, Convert, One};
 use sp_std::{cmp::Eq, prelude::*};
-pub use storage_types::*;
+pub use storage::*;
 
-pub mod config_types {
-	use parachains_common::DAYS;
-	use sp_arithmetic::{traits::Saturating, FixedU128};
-	use sp_runtime::traits::{Convert, One};
+use crate::{traits::VestingDurationCalculation, Config};
 
-	use crate::{traits::VestingDurationCalculation, Config};
+use sp_runtime::traits::Zero;
+use variant_count::VariantCount;
 
+pub mod config {
+	#[allow(clippy::wildcard_imports)]
 	use super::*;
 
 	#[derive(
@@ -58,28 +60,15 @@ pub mod config_types {
 	pub struct Multiplier(u8);
 
 	impl Multiplier {
-		/// Creates a new `Multiplier` if the value is between 1 and 25, otherwise returns an error.
-		pub const fn new(x: u8) -> Result<Self, ()> {
-			// The minimum and maximum values are chosen to be 1 and 25 respectively, as defined in the Knowledge Hub.
-			const MIN_VALID: u8 = 1;
-			const MAX_VALID: u8 = 25;
-
-			if x >= MIN_VALID && x <= MAX_VALID {
-				Ok(Self(x))
-			} else {
-				Err(())
-			}
-		}
-
 		pub const fn force_new(x: u8) -> Self {
 			Self(x)
 		}
 	}
 
 	impl BondingRequirementCalculation for Multiplier {
-		fn calculate_bonding_requirement<T: Config>(&self, ticket_size: BalanceOf<T>) -> Result<BalanceOf<T>, ()> {
+		fn calculate_bonding_requirement<T: Config>(&self, ticket_size: BalanceOf<T>) -> Option<BalanceOf<T>> {
 			let balance_multiplier = BalanceOf::<T>::from(self.0);
-			ticket_size.checked_div(&balance_multiplier).ok_or(())
+			ticket_size.checked_div(&balance_multiplier)
 		}
 	}
 
@@ -104,16 +93,24 @@ pub mod config_types {
 	}
 
 	impl TryFrom<u8> for Multiplier {
-		type Error = ();
+		type Error = &'static str;
 
-		fn try_from(x: u8) -> Result<Self, ()> {
-			Self::new(x)
+		fn try_from(x: u8) -> Result<Self, Self::Error> {
+			// The minimum and maximum values are chosen to be 1 and 25 respectively, as defined in the Knowledge Hub.
+			const MIN_VALID: u8 = 1;
+			const MAX_VALID: u8 = 25;
+
+			if (MIN_VALID..=MAX_VALID).contains(&x) {
+				Ok(Self(x))
+			} else {
+				Err("u8 outside the allowed multiplier range")
+			}
 		}
 	}
 
-	impl Into<u8> for Multiplier {
-		fn into(self) -> u8 {
-			self.0
+	impl From<Multiplier> for u8 {
+		fn from(val: Multiplier) -> Self {
+			val.0
 		}
 	}
 
@@ -149,21 +146,13 @@ pub mod config_types {
 		}
 	}
 
-	pub type MaxParticipationsForMaxMultiplier = ConstU32<25>;
-	pub const fn retail_max_multiplier_for_participations(participations: u8) -> u8 {
-		match participations {
-			0..=2 => 1,
-			3..=4 => 2,
-			5..=9 => 4,
-			10..=24 => 7,
-			25..=u8::MAX => 10,
-		}
-	}
+	pub const RETAIL_MAX_MULTIPLIER: u8 = 5u8;
 	pub const PROFESSIONAL_MAX_MULTIPLIER: u8 = 10u8;
 	pub const INSTITUTIONAL_MAX_MULTIPLIER: u8 = 25u8;
 }
 
-pub mod storage_types {
+pub mod storage {
+	#[allow(clippy::wildcard_imports)]
 	use super::*;
 
 	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo, Serialize, Deserialize)]
@@ -326,9 +315,9 @@ pub mod storage_types {
 		/// The price in USD per token decided after the Auction Round
 		pub weighted_average_price: Option<Price>,
 		/// The current status of the project
-		pub status: ProjectStatus,
+		pub status: ProjectStatus<BlockNumber>,
 		/// When the different project phases start and end
-		pub phase_transition_points: PhaseTransitionPoints<BlockNumber>,
+		pub round_duration: BlockNumberPair<BlockNumber>,
 		/// Fundraising target amount in USD (6 decimals)
 		pub fundraising_target_usd: Balance,
 		/// The amount of Contribution Tokens that have not yet been sold
@@ -381,13 +370,22 @@ pub mod storage_types {
 		#[codec(compact)]
 		pub original_ct_amount: Balance,
 		pub original_ct_usd_price: Price,
-		pub final_ct_amount: Balance,
-		pub final_ct_usd_price: Price,
 		pub funding_asset: AcceptedFundingAsset,
 		pub funding_asset_amount_locked: Balance,
 		pub multiplier: Multiplier,
 		pub plmc_bond: Balance,
 		pub when: BlockNumber,
+	}
+	impl<ProjectId, Did, Balance: BalanceT, Price: FixedPointNumber, AccountId, BlockNumber, Multiplier>
+		BidInfo<ProjectId, Did, Balance, Price, AccountId, BlockNumber, Multiplier>
+	{
+		pub fn final_ct_amount(&self) -> Balance {
+			match self.status {
+				BidStatus::Accepted => self.original_ct_amount,
+				BidStatus::PartiallyAccepted(amount) => amount,
+				_ => Zero::zero(),
+			}
+		}
 	}
 
 	impl<
@@ -455,7 +453,7 @@ pub mod storage_types {
 		pub delta_amount: Balance,
 	}
 
-	impl<Balance: Copy + Saturating + One + Zero, Price: FixedPointNumber> Bucket<Balance, Price> {
+	impl<Balance: BalanceT, Price: FixedPointNumber> Bucket<Balance, Price> {
 		/// Creates a new bucket with the given parameters.
 		pub const fn new(
 			amount_left: Balance,
@@ -481,10 +479,38 @@ pub mod storage_types {
 			self.amount_left = self.delta_amount;
 			self.current_price = self.current_price.saturating_add(self.delta_price);
 		}
+
+		pub fn calculate_wap(self, mut total_amount: Balance) -> Price {
+			// First bucket is not empty so wap is the same as the initial price
+			if self.current_price == self.initial_price {
+				return self.current_price;
+			}
+			let mut amount: Balance = self.delta_amount.saturating_sub(self.amount_left);
+			let mut price: Price = self.current_price;
+			let mut bucket_sizes: Vec<(Balance, Price)> = Vec::new();
+			while price > self.initial_price && total_amount > Balance::zero() {
+				total_amount.saturating_reduce(amount);
+				bucket_sizes.push((price.saturating_mul_int(amount), price));
+				price = price.saturating_sub(self.delta_price);
+				amount = self.delta_amount;
+			}
+
+			if total_amount > Balance::zero() {
+				bucket_sizes.push((self.initial_price.saturating_mul_int(total_amount), self.initial_price));
+			}
+
+			let sum = bucket_sizes.iter().map(|x| x.0).fold(Balance::zero(), |acc, x| acc.saturating_add(x));
+
+			bucket_sizes
+				.into_iter()
+				.map(|x| <Price as FixedPointNumber>::saturating_from_rational(x.0, sum).saturating_mul(x.1))
+				.fold(Price::zero(), |acc: Price, p: Price| acc.saturating_add(p))
+		}
 	}
 }
 
-pub mod inner_types {
+pub mod inner {
+	#[allow(clippy::wildcard_imports)]
 	use super::*;
 	use variant_count::VariantCount;
 	use xcm::v4::QueryId;
@@ -652,7 +678,7 @@ pub mod inner_types {
 		DOT,
 	}
 	impl AcceptedFundingAsset {
-		pub const fn to_assethub_id(&self) -> u32 {
+		pub const fn id(&self) -> u32 {
 			match self {
 				AcceptedFundingAsset::USDT => 1984,
 				AcceptedFundingAsset::DOT => 10,
@@ -664,18 +690,13 @@ pub mod inner_types {
 	#[derive(
 		Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen, Serialize, Deserialize,
 	)]
-	pub enum ProjectStatus {
+	pub enum ProjectStatus<BlockNumber> {
 		#[default]
 		Application,
 		EvaluationRound,
-		AuctionInitializePeriod,
-		AuctionOpening,
-		AuctionClosing,
-		CalculatingWAP,
-		CommunityRound,
-		RemainderRound,
+		AuctionRound,
+		CommunityRound(BlockNumber),
 		FundingFailed,
-		AwaitingProjectDecision,
 		FundingSuccessful,
 		SettlementStarted(FundingOutcome),
 		SettlementFinished(FundingOutcome),
@@ -685,35 +706,8 @@ pub mod inner_types {
 
 	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen, Serialize, Deserialize)]
 	pub enum FundingOutcome {
-		FundingSuccessful,
-		FundingFailed,
-	}
-
-	#[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
-	pub struct PhaseTransitionPoints<BlockNumber> {
-		pub application: BlockNumberPair<BlockNumber>,
-		pub evaluation: BlockNumberPair<BlockNumber>,
-		pub auction_initialize_period: BlockNumberPair<BlockNumber>,
-		pub auction_opening: BlockNumberPair<BlockNumber>,
-		pub random_closing_ending: Option<BlockNumber>,
-		pub auction_closing: BlockNumberPair<BlockNumber>,
-		pub community: BlockNumberPair<BlockNumber>,
-		pub remainder: BlockNumberPair<BlockNumber>,
-	}
-
-	impl<BlockNumber: Copy> PhaseTransitionPoints<BlockNumber> {
-		pub const fn new(now: BlockNumber) -> Self {
-			Self {
-				application: BlockNumberPair::new(Some(now), None),
-				evaluation: BlockNumberPair::new(None, None),
-				auction_initialize_period: BlockNumberPair::new(None, None),
-				auction_opening: BlockNumberPair::new(None, None),
-				random_closing_ending: None,
-				auction_closing: BlockNumberPair::new(None, None),
-				community: BlockNumberPair::new(None, None),
-				remainder: BlockNumberPair::new(None, None),
-			}
-		}
+		Success,
+		Failure,
 	}
 
 	#[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
@@ -722,7 +716,7 @@ pub mod inner_types {
 		pub end: Option<BlockNumber>,
 	}
 
-	impl<BlockNumber: Copy> BlockNumberPair<BlockNumber> {
+	impl<BlockNumber: Copy + sp_std::cmp::PartialOrd> BlockNumberPair<BlockNumber> {
 		pub const fn new(start: Option<BlockNumber>, end: Option<BlockNumber>) -> Self {
 			Self { start, end }
 		}
@@ -735,18 +729,12 @@ pub mod inner_types {
 			self.end
 		}
 
-		pub fn update(&mut self, start: Option<BlockNumber>, end: Option<BlockNumber>) {
-			let new_state = match (start, end) {
-				(Some(start), None) => (Some(start), self.end),
-				(None, Some(end)) => (self.start, Some(end)),
-				(Some(start), Some(end)) => (Some(start), Some(end)),
-				(None, None) => (self.start, self.end),
-			};
-			(self.start, self.end) = (new_state.0, new_state.1);
+		pub fn started(&self, at: BlockNumber) -> bool {
+			self.start.map_or(true, |start| start <= at)
 		}
 
-		pub fn force_update(&mut self, start: Option<BlockNumber>, end: Option<BlockNumber>) -> Self {
-			Self { start, end }
+		pub fn ended(&self, at: BlockNumber) -> bool {
+			self.end.map_or(true, |end| end <= at)
 		}
 	}
 
@@ -757,20 +745,10 @@ pub mod inner_types {
 		YetUnknown,
 		/// The bid is accepted
 		Accepted,
-		/// The bid is rejected, and the reason is provided
-		Rejected(RejectionReason),
-		/// The bid is partially accepted. The amount accepted and reason for rejection are provided
-		PartiallyAccepted(Balance, RejectionReason),
-	}
-
-	#[derive(Clone, Copy, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
-	pub enum RejectionReason {
-		/// The bid was submitted after the closing period ended
-		AfterClosingEnd,
-		/// The bid was accepted but too many tokens were requested. A partial amount was accepted
-		NoTokensLeft,
-		/// Error in calculating ticket_size for partially funded request
-		BadMath,
+		/// The bid is rejected because the ct tokens ran out
+		Rejected,
+		/// The bid is partially accepted as there were not enough tokens to fill the full bid
+		PartiallyAccepted(Balance),
 	}
 
 	#[derive(Clone, Copy, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
@@ -781,53 +759,16 @@ pub mod inner_types {
 	}
 
 	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
-	pub enum ProjectPhases {
-		Evaluation,
-		AuctionInitializePeriod,
-		AuctionOpening,
-		AuctionClosing,
-		CalculatingWAP,
-		CommunityFunding,
-		RemainderFunding,
-		DecisionPeriod,
-		FundingFinalization(ProjectOutcome),
-		Settlement,
-		Migration,
-	}
-
-	/// An enum representing all possible outcomes for a project.
-	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
-	pub enum ProjectOutcome {
-		/// The evaluation funding target was not reached.
-		EvaluationFailed,
-		/// 90%+ of the funding target was reached, so the project is successful.
-		FundingSuccessful,
-		/// 33%- of the funding target was reached, so the project failed.
-		FundingFailed,
-		/// The project issuer accepted the funding outcome between 33% and 90% of the target.
-		FundingAccepted,
-		/// The project issuer rejected the funding outcome between 33% and 90% of the target.
-		FundingRejected,
-	}
-
-	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
 	pub struct EvaluationRoundInfo<Balance> {
 		pub total_bonded_usd: Balance,
 		pub total_bonded_plmc: Balance,
-		pub evaluators_outcome: EvaluatorsOutcome<Balance>,
+		pub evaluators_outcome: Option<EvaluatorsOutcome<Balance>>,
 	}
 
 	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
 	pub enum EvaluatorsOutcome<Balance> {
-		Unchanged,
 		Rewarded(RewardInfo<Balance>),
 		Slashed,
-	}
-
-	#[derive(Clone, Copy, Encode, Decode, Eq, PartialEq, PartialOrd, Ord, RuntimeDebug, TypeInfo, MaxEncodedLen)]
-	pub enum RewardOrSlash<Balance> {
-		Reward(Balance),
-		Slash(Balance),
 	}
 
 	#[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
@@ -887,5 +828,70 @@ pub mod inner_types {
 	pub struct ProjectMigrationOrigins<ProjectId, MigrationOrigins> {
 		pub project_id: ProjectId,
 		pub migration_origins: MigrationOrigins,
+	}
+}
+
+pub mod extrinsic {
+	use crate::{
+		AcceptedFundingAsset, AccountIdOf, BalanceOf, Config, MultiplierOf, PriceOf, ProjectDetailsOf, ProjectId,
+		TicketSizeOf,
+	};
+	use frame_system::pallet_prelude::BlockNumberFor;
+	use polimec_common::credentials::{Cid, Did, InvestorType};
+
+	pub struct DoBidParams<T: Config> {
+		pub bidder: AccountIdOf<T>,
+		pub project_id: ProjectId,
+		pub ct_amount: BalanceOf<T>,
+		pub multiplier: MultiplierOf<T>,
+		pub funding_asset: AcceptedFundingAsset,
+		pub did: Did,
+		pub investor_type: InvestorType,
+		pub whitelisted_policy: Cid,
+	}
+
+	pub struct DoPerformBidParams<T: Config> {
+		pub bidder: AccountIdOf<T>,
+		pub project_id: ProjectId,
+		pub ct_amount: BalanceOf<T>,
+		pub ct_usd_price: PriceOf<T>,
+		pub multiplier: MultiplierOf<T>,
+		pub funding_asset: AcceptedFundingAsset,
+		pub bid_id: u32,
+		pub now: BlockNumberFor<T>,
+		pub did: Did,
+		pub metadata_ticket_size_bounds: TicketSizeOf<T>,
+		pub total_bids_by_bidder: u32,
+		pub total_bids_for_project: u32,
+	}
+
+	pub struct DoContributeParams<T: Config> {
+		pub contributor: AccountIdOf<T>,
+		pub project_id: ProjectId,
+		pub ct_amount: BalanceOf<T>,
+		pub multiplier: MultiplierOf<T>,
+		pub funding_asset: AcceptedFundingAsset,
+		pub did: Did,
+		pub investor_type: InvestorType,
+		pub whitelisted_policy: Cid,
+	}
+
+	pub struct DoPerformContributionParams<'a, T: Config> {
+		pub contributor: AccountIdOf<T>,
+		pub project_id: ProjectId,
+		pub project_details: &'a mut ProjectDetailsOf<T>,
+		pub buyable_tokens: BalanceOf<T>,
+		pub multiplier: MultiplierOf<T>,
+		pub funding_asset: AcceptedFundingAsset,
+		pub investor_type: InvestorType,
+		pub did: Did,
+		pub whitelisted_policy: Cid,
+	}
+
+	pub struct BidRefund<T: Config> {
+		pub final_ct_usd_price: PriceOf<T>,
+		pub final_ct_amount: BalanceOf<T>,
+		pub refunded_plmc: BalanceOf<T>,
+		pub refunded_funding_asset_amount: BalanceOf<T>,
 	}
 }

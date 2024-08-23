@@ -1,3 +1,6 @@
+#![allow(clippy::wildcard_imports)]
+#![allow(clippy::type_complexity)]
+
 use super::*;
 
 impl<T: Config> Pallet<T> {
@@ -23,9 +26,6 @@ impl<T: Config> Pallet<T> {
 		}
 		let total_allocation_size = project_metadata.total_allocation_size;
 
-		// * Calculate new variables *
-		let now = <frame_system::Pallet<T>>::block_number();
-
 		let fundraising_target =
 			project_metadata.minimum_price.checked_mul_int(total_allocation_size).ok_or(Error::<T>::BadMath)?;
 
@@ -36,13 +36,13 @@ impl<T: Config> Pallet<T> {
 			weighted_average_price: None,
 			fundraising_target_usd: fundraising_target,
 			status: ProjectStatus::Application,
-			phase_transition_points: PhaseTransitionPoints::new(now),
+			round_duration: BlockNumberPair::new(None, None),
 			remaining_contribution_tokens: project_metadata.total_allocation_size,
 			funding_amount_reached_usd: BalanceOf::<T>::zero(),
 			evaluation_round_info: EvaluationRoundInfoOf::<T> {
 				total_bonded_usd: Zero::zero(),
 				total_bonded_plmc: Zero::zero(),
-				evaluators_outcome: EvaluatorsOutcome::Unchanged,
+				evaluators_outcome: None,
 			},
 			usd_bid_on_oversubscription: None,
 			funding_end_block: None,

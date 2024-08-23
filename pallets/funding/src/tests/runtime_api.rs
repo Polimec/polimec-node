@@ -209,22 +209,22 @@ fn top_projects_by_usd_target_percent_reached() {
 #[test]
 fn contribution_tokens() {
 	let bob = 420;
-	let mut contributions_with_bob_1 = default_community_buys();
+	let mut contributions_with_bob_1 = default_community_contributions();
 	let bob_amount_1 = 10_000 * CT_UNIT;
 	contributions_with_bob_1.last_mut().unwrap().contributor = bob;
 	contributions_with_bob_1.last_mut().unwrap().amount = bob_amount_1;
 
-	let mut contributions_with_bob_2 = default_community_buys();
+	let mut contributions_with_bob_2 = default_community_contributions();
 	let bob_amount_2 = 25_000 * CT_UNIT;
 	contributions_with_bob_2.last_mut().unwrap().contributor = bob;
 	contributions_with_bob_2.last_mut().unwrap().amount = bob_amount_2;
 
-	let mut contributions_with_bob_3 = default_community_buys();
+	let mut contributions_with_bob_3 = default_community_contributions();
 	let bob_amount_3 = 5_020 * CT_UNIT;
 	contributions_with_bob_3.last_mut().unwrap().contributor = bob;
 	contributions_with_bob_3.last_mut().unwrap().amount = bob_amount_3;
 
-	let mut contributions_with_bob_4 = default_community_buys();
+	let mut contributions_with_bob_4 = default_community_contributions();
 	let bob_amount_4 = 420 * CT_UNIT;
 	contributions_with_bob_4.last_mut().unwrap().contributor = bob;
 	contributions_with_bob_4.last_mut().unwrap().amount = bob_amount_4;
@@ -237,7 +237,8 @@ fn contribution_tokens() {
 		default_evaluations(),
 		default_bids(),
 		contributions_with_bob_1,
-		default_remainder_buys(),
+		default_remainder_contributions(),
+		true,
 	);
 	let _project_id_2 = inst.create_settled_project(
 		default_project_metadata(ISSUER_2),
@@ -245,8 +246,9 @@ fn contribution_tokens() {
 		None,
 		default_evaluations(),
 		default_bids(),
-		default_community_buys(),
-		default_remainder_buys(),
+		default_community_contributions(),
+		default_remainder_contributions(),
+		true,
 	);
 	let _project_id_3 = inst.create_settled_project(
 		default_project_metadata(ISSUER_3),
@@ -254,8 +256,9 @@ fn contribution_tokens() {
 		None,
 		default_evaluations(),
 		default_bids(),
-		default_community_buys(),
-		default_remainder_buys(),
+		default_community_contributions(),
+		default_remainder_contributions(),
+		true,
 	);
 	let project_id_4 = inst.create_settled_project(
 		default_project_metadata(ISSUER_4),
@@ -264,7 +267,8 @@ fn contribution_tokens() {
 		default_evaluations(),
 		default_bids(),
 		contributions_with_bob_2,
-		default_remainder_buys(),
+		default_remainder_contributions(),
+		true,
 	);
 	let _project_id_5 = inst.create_settled_project(
 		default_project_metadata(ISSUER_5),
@@ -272,8 +276,9 @@ fn contribution_tokens() {
 		None,
 		default_evaluations(),
 		default_bids(),
-		default_community_buys(),
-		default_remainder_buys(),
+		default_community_contributions(),
+		default_remainder_contributions(),
+		true,
 	);
 	let project_id_6 = inst.create_settled_project(
 		default_project_metadata(ISSUER_6),
@@ -282,7 +287,8 @@ fn contribution_tokens() {
 		default_evaluations(),
 		default_bids(),
 		contributions_with_bob_3,
-		default_remainder_buys(),
+		default_remainder_contributions(),
+		true,
 	);
 	let project_id_7 = inst.create_settled_project(
 		default_project_metadata(ISSUER_7),
@@ -291,7 +297,8 @@ fn contribution_tokens() {
 		default_evaluations(),
 		default_bids(),
 		contributions_with_bob_4,
-		default_remainder_buys(),
+		default_remainder_contributions(),
+		true,
 	);
 
 	let expected_items = vec![
@@ -315,7 +322,7 @@ fn funding_asset_to_ct_amount() {
 	// We want to use a funding asset that is not equal to 1 USD
 	// Sanity check
 	assert_eq!(
-		PriceProviderOf::<TestRuntime>::get_price(AcceptedFundingAsset::DOT.to_assethub_id()).unwrap(),
+		PriceProviderOf::<TestRuntime>::get_price(AcceptedFundingAsset::DOT.id()).unwrap(),
 		PriceOf::<TestRuntime>::from_float(69.0f64)
 	);
 
@@ -412,7 +419,7 @@ fn funding_asset_to_ct_amount() {
 		None,
 	);
 	inst.mint_plmc_to(necessary_plmc);
-	inst.mint_foreign_asset_to(necessary_usdt);
+	inst.mint_funding_asset_to(necessary_usdt);
 	inst.bid_for_users(project_id_3, bids).unwrap();
 
 	// Sanity check
@@ -422,8 +429,6 @@ fn funding_asset_to_ct_amount() {
 			.unwrap();
 	let current_bucket = inst.execute(|| Buckets::<TestRuntime>::get(project_id_3).unwrap());
 	assert_eq!(current_bucket.current_price, decimal_aware_expected_price);
-
-	dbg!(current_bucket.current_price.saturating_mul_int(current_bucket.amount_left));
 
 	let dot_amount: u128 = 217_0_000_000_000;
 	let expected_ct_amount: u128 = 935_812_500_000_000_000;
@@ -535,7 +540,7 @@ fn all_project_participations_by_did() {
 		vec![bids_usdt, community_contributions_usdt, remainder_contributions_usdt],
 		MergeOperation::Add,
 	);
-	inst.mint_foreign_asset_to(all_usdt);
+	inst.mint_funding_asset_to(all_usdt);
 
 	inst.evaluate_for_users(project_id, evaluations[..1].to_vec()).unwrap();
 	for evaluation in evaluations[1..].to_vec() {
@@ -546,7 +551,7 @@ fn all_project_participations_by_did() {
 		});
 	}
 
-	inst.start_auction(project_id, ISSUER_1).unwrap();
+	assert_eq!(inst.go_to_next_state(project_id), ProjectStatus::AuctionRound);
 
 	inst.bid_for_users(project_id, bids[..1].to_vec()).unwrap();
 	for bid in bids[1..].to_vec() {
@@ -564,17 +569,18 @@ fn all_project_participations_by_did() {
 		});
 	}
 
-	inst.start_community_funding(project_id).unwrap();
-
+	let ProjectStatus::CommunityRound(remainder_start) = inst.go_to_next_state(project_id) else {
+		panic!("Expected CommunityRound")
+	};
 	inst.contribute_for_users(project_id, community_contributions).unwrap();
 
-	inst.start_remainder_or_end_funding(project_id).unwrap();
+	inst.jump_to_block(remainder_start);
 
 	for contribution in remainder_contributions {
 		let jwt =
 			get_mock_jwt_with_cid(contribution.contributor, InvestorType::Professional, did_user.clone(), cid.clone());
 		inst.execute(|| {
-			PolimecFunding::remaining_contribute(
+			PolimecFunding::contribute(
 				RuntimeOrigin::signed(contribution.contributor),
 				jwt,
 				project_id,
@@ -586,13 +592,12 @@ fn all_project_participations_by_did() {
 		});
 	}
 
-	inst.finish_funding(project_id, None).unwrap();
+	assert_eq!(inst.go_to_next_state(project_id), ProjectStatus::FundingSuccessful);
 
 	inst.execute(|| {
 		let block_hash = System::block_hash(System::block_number());
 		let items =
 			TestRuntime::all_project_participations_by_did(&TestRuntime, block_hash, project_id, did_user).unwrap();
-		dbg!(items);
 	});
 }
 
@@ -653,8 +658,9 @@ fn projects_by_did() {
 		Some(did_user.clone()),
 		default_evaluations(),
 		default_bids(),
-		default_community_buys(),
-		default_remainder_buys(),
+		default_community_contributions(),
+		default_remainder_contributions(),
+		true,
 	);
 
 	let _project_id_2 = inst.create_settled_project(
@@ -663,8 +669,9 @@ fn projects_by_did() {
 		None,
 		default_evaluations(),
 		default_bids(),
-		default_community_buys(),
-		default_remainder_buys(),
+		default_community_contributions(),
+		default_remainder_contributions(),
+		true,
 	);
 
 	let project_id_3 = inst.create_settled_project(
@@ -673,8 +680,9 @@ fn projects_by_did() {
 		Some(did_user.clone()),
 		default_evaluations(),
 		default_bids(),
-		default_community_buys(),
-		default_remainder_buys(),
+		default_community_contributions(),
+		default_remainder_contributions(),
+		true,
 	);
 
 	let _project_id_4 = inst.create_settled_project(
@@ -683,11 +691,14 @@ fn projects_by_did() {
 		None,
 		default_evaluations(),
 		default_bids(),
-		default_community_buys(),
-		default_remainder_buys(),
+		default_community_contributions(),
+		default_remainder_contributions(),
+		true,
 	);
 
 	inst.execute(|| {
+		let projects = ProjectsDetails::<TestRuntime>::iter().collect_vec();
+
 		let block_hash = System::block_hash(System::block_number());
 		let project_ids = TestRuntime::projects_by_did(&TestRuntime, block_hash, did_user).unwrap();
 		assert_eq!(project_ids, vec![project_id_1, project_id_3]);

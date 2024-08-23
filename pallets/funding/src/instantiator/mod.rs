@@ -13,11 +13,8 @@
 
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
-
-use crate::{
-	traits::{BondingRequirementCalculation, ProvideAssetPrice},
-	*,
-};
+#[allow(clippy::wildcard_imports)]
+use crate::{traits::*, *};
 use frame_support::{
 	pallet_prelude::*,
 	traits::{
@@ -39,13 +36,10 @@ use sp_arithmetic::{
 	traits::{SaturatedConversion, Saturating, Zero},
 	FixedPointNumber, Percent, Perquintill,
 };
-use sp_runtime::{
-	traits::{Convert, Member, One},
-	DispatchError,
-};
+use sp_runtime::traits::{Convert, Member, One};
 use sp_std::{
 	cell::RefCell,
-	collections::{btree_map::*, btree_set::*},
+	collections::{btree_map::BTreeMap, btree_set::BTreeSet},
 	iter::zip,
 	marker::PhantomData,
 };

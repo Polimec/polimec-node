@@ -11,6 +11,21 @@ members = [
 default-members = ["nodes/*", "pallets/*"]
 resolver = "2"
 
+[workspace.lints.clippy]
+all = { level = "warn", priority = -1}
+#all = { level = "allow", priority = -1}
+#pedantic = { level = "warn", priority = -1}
+#pedantic = { level = "allow", priority = -1}
+
+inconsistent_digit_grouping = "allow"
+zero_prefixed_literal = "allow"
+missing_errors_doc = "allow"
+must_use_candidate = "allow"
+identity_op = "allow"
+
+[workspace.lints.rust]
+unreachable_patterns = "deny"
+
 [workspace.package]
 authors = ['Polimec Foundation <info@polimec.org>']
 documentation = "https://wiki.polimec.org/"

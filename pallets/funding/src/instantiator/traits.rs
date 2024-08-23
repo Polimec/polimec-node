@@ -1,4 +1,4 @@
-use super::*;
+use super::{Config, UserToPLMCBalance, Vec};
 
 pub trait Deposits<T: Config> {
 	fn existential_deposits(&self) -> Vec<UserToPLMCBalance<T>>;

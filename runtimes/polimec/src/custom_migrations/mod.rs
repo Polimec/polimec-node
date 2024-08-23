@@ -16,6 +16,3 @@
 
 // the generated files do not pass clippy
 #![allow(clippy::all)]
-
-pub mod deposit_dust;
-pub mod unhashed_migration;

@@ -15,11 +15,11 @@ mod pallet_migration {
 			None,
 			default_evaluations(),
 			default_bids(),
-			default_community_buys(),
-			default_remainder_buys(),
+			default_community_contributions(),
+			default_remainder_contributions(),
 		);
-		inst.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get()).unwrap();
-		inst.settle_project(project_id).unwrap();
+		assert_eq!(inst.go_to_next_state(project_id), ProjectStatus::SettlementStarted(FundingOutcome::Success));
+		inst.settle_project(project_id, true);
 
 		inst.execute(|| {
 			assert_err!(
@@ -68,11 +68,11 @@ mod pallet_migration {
 			None,
 			default_evaluations(),
 			default_bids(),
-			default_community_buys(),
-			default_remainder_buys(),
+			default_community_contributions(),
+			default_remainder_contributions(),
 		);
-		inst.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get()).unwrap();
-		inst.settle_project(project_id).unwrap();
+		assert_eq!(inst.go_to_next_state(project_id), ProjectStatus::SettlementStarted(FundingOutcome::Success));
+		inst.settle_project(project_id, true);
 		inst.execute(|| {
 			assert_ok!(crate::Pallet::<TestRuntime>::do_start_pallet_migration(
 				&ISSUER_1,
@@ -194,11 +194,11 @@ mod offchain_migration {
 			None,
 			default_evaluations(),
 			default_bids(),
-			default_community_buys(),
-			default_remainder_buys(),
+			default_community_contributions(),
+			default_remainder_contributions(),
 		);
-		inst.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get()).unwrap();
-		inst.settle_project(project_id).unwrap();
+		assert_eq!(inst.go_to_next_state(project_id), ProjectStatus::SettlementStarted(FundingOutcome::Success));
+		inst.settle_project(project_id, true);
 
 		let project_id = inst.create_finished_project(
 			default_project_metadata(ISSUER_1),
@@ -206,11 +206,11 @@ mod offchain_migration {
 			None,
 			default_evaluations(),
 			default_bids(),
-			default_community_buys(),
-			default_remainder_buys(),
+			default_community_contributions(),
+			default_remainder_contributions(),
 		);
-		inst.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get()).unwrap();
-		inst.settle_project(project_id).unwrap();
+		assert_eq!(inst.go_to_next_state(project_id), ProjectStatus::SettlementStarted(FundingOutcome::Success));
+		inst.settle_project(project_id, true);
 
 		inst.execute(|| {
 			assert_err!(
@@ -233,11 +233,11 @@ mod offchain_migration {
 			None,
 			default_evaluations(),
 			default_bids(),
-			default_community_buys(),
-			default_remainder_buys(),
+			default_community_contributions(),
+			default_remainder_contributions(),
 		);
-		inst.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get()).unwrap();
-		inst.settle_project(project_id).unwrap();
+		assert_eq!(inst.go_to_next_state(project_id), ProjectStatus::SettlementStarted(FundingOutcome::Success));
+		inst.settle_project(project_id, true);
 		inst.execute(|| {
 			assert_ok!(crate::Pallet::<TestRuntime>::do_start_offchain_migration(project_id, ISSUER_1,));
 		});
@@ -280,6 +280,4 @@ mod offchain_migration {
 			assert_ok!(crate::Pallet::<TestRuntime>::do_mark_project_ct_migration_as_finished(project_id));
 		});
 	}
-
-	// Can't start if project is not settled
 }

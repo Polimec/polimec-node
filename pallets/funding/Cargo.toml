@@ -10,6 +10,12 @@ readme.workspace = true
 repository.workspace = true
 version.workspace = true
 
+[lints]
+workspace = true
+
+#[lints.clippy]
+#inconsistent_digit_grouping = "allow"
+
 [dependencies]
 serde = { workspace = true }
 parity-scale-codec = { workspace = true, features = [
