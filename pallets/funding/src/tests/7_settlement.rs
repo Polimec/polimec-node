@@ -693,7 +693,7 @@ mod settle_successful_contribution_extrinsic {
 			inst.mint_foreign_asset_to(usdt_required.clone());
 
 			inst.execute(|| {
-				assert_ok!(PolimecFunding::remaining_contribute(
+				assert_ok!(PolimecFunding::contribute(
 					RuntimeOrigin::signed(BUYER_7),
 					get_mock_jwt_with_cid(
 						BUYER_7,
@@ -1326,7 +1326,7 @@ mod settle_failed_contribution_extrinsic {
 			inst.mint_foreign_asset_to(usdt_required.clone());
 
 			inst.execute(|| {
-				assert_ok!(PolimecFunding::remaining_contribute(
+				assert_ok!(PolimecFunding::contribute(
 					RuntimeOrigin::signed(BUYER_7),
 					get_mock_jwt_with_cid(
 						BUYER_7,

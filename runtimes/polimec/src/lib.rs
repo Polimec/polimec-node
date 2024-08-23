@@ -241,20 +241,16 @@ impl Contains<RuntimeCall> for BaseCallFilter {
 							pallet_funding::Call::remove_project { .. } |
 							pallet_funding::Call::edit_project { .. } |
 							pallet_funding::Call::start_evaluation { .. } |
-							pallet_funding::Call::root_do_evaluation_end { .. } |
+							pallet_funding::Call::end_evaluation { .. } |
 							pallet_funding::Call::evaluate { .. } |
 							pallet_funding::Call::start_auction { .. } |
 							pallet_funding::Call::root_do_auction_opening { .. } |
 							pallet_funding::Call::root_do_start_auction_closing { .. } |
 							pallet_funding::Call::bid { .. } |
-							pallet_funding::Call::root_do_end_auction_closing { .. } |
-							pallet_funding::Call::community_contribute { .. } |
-							pallet_funding::Call::remaining_contribute { .. } |
-							pallet_funding::Call::decide_project_outcome { .. } |
+							pallet_funding::Call::root_do_end_auction { .. } |
+							pallet_funding::Call::contribute { .. } |
 							pallet_funding::Call::root_do_community_funding { .. } |
-							pallet_funding::Call::root_do_remainder_funding { .. } |
 							pallet_funding::Call::root_do_end_funding { .. } |
-							pallet_funding::Call::root_do_project_decision { .. } |
 							pallet_funding::Call::root_do_start_settlement { .. } |
 							pallet_funding::Call::settle_successful_evaluation { .. } |
 							pallet_funding::Call::settle_failed_evaluation { .. } |
@@ -1059,8 +1055,6 @@ impl pallet_funding::Config for Runtime {
 	type MaxEvaluationsPerProject = ConstU32<512>;
 	type MaxEvaluationsPerUser = ConstU32<16>;
 	type MaxMessageSizeThresholds = MaxMessageSizeThresholds;
-	type MaxProjectsToUpdateInsertionAttempts = ConstU32<100>;
-	type MaxProjectsToUpdatePerBlock = ConstU32<1>;
 	type MinUsdPerEvaluation = MinUsdPerEvaluation;
 	type Multiplier = pallet_funding::types::Multiplier;
 	type NativeCurrency = Balances;

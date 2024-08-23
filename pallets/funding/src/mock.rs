@@ -39,7 +39,7 @@ use sp_arithmetic::Percent;
 use sp_core::H256;
 use sp_runtime::{
 	traits::{BlakeTwo256, ConvertBack, ConvertInto, Get, IdentityLookup, TryConvert},
-	BuildStorage,
+	BuildStorage, Perquintill,
 };
 use sp_std::collections::btree_map::BTreeMap;
 use std::cell::RefCell;
@@ -312,6 +312,7 @@ parameter_types! {
 	pub EvaluatorSlash: Percent = Percent::from_percent(20);
 	pub BlockchainOperationTreasuryAccount: AccountId = AccountId::from(696969u32);
 	pub ContributionTreasury: AccountId = AccountId::from(4204204206u32);
+	pub FundingSuccessThreshold: Perquintill = Perquintill::from_percent(33);
 }
 
 parameter_types! {
@@ -413,6 +414,7 @@ impl Config for TestRuntime {
 	type EvaluatorSlash = EvaluatorSlash;
 	type FeeBrackets = FeeBrackets;
 	type FundingCurrency = ForeignAssets;
+	type FundingSuccessThreshold = FundingSuccessThreshold;
 	type InvestorOrigin = EnsureInvestor<TestRuntime>;
 	type ManualAcceptanceDuration = ManualAcceptanceDuration;
 	type MaxBidsPerProject = ConstU32<512>;
@@ -422,8 +424,6 @@ impl Config for TestRuntime {
 	type MaxEvaluationsPerProject = ConstU32<512>;
 	type MaxEvaluationsPerUser = ConstU32<4>;
 	type MaxMessageSizeThresholds = MaxMessageSizeThresholds;
-	type MaxProjectsToUpdateInsertionAttempts = ConstU32<100>;
-	type MaxProjectsToUpdatePerBlock = ConstU32<1>;
 	type MinUsdPerEvaluation = MinUsdPerEvaluation;
 	type Multiplier = Multiplier;
 	type NativeCurrency = Balances;

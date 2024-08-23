@@ -77,7 +77,7 @@ pub mod pallet {
 			let multiplier: MultiplierOf<T> = 1u8.try_into().map_err(|_| Error::<T>::ProjectNotFound)?;
 
 			// Buy tokens with the default multiplier
-			<funding::Pallet<T>>::do_community_contribute(
+			<funding::Pallet<T>>::do_contribute(
 				&retail_user,
 				project_id,
 				amount,
