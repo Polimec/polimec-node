@@ -1651,7 +1651,6 @@ mod end_auction_extrinsic {
 
 			assert!(matches!(inst.go_to_next_state(project_id), ProjectStatus::CommunityRound(..)));
 
-			let project_details = inst.get_project_details(project_id);
 			let token_price = inst.get_project_details(project_id).weighted_average_price.unwrap();
 			let normalized_wap =
 				PriceProviderOf::<TestRuntime>::convert_back_to_normal_price(token_price, USD_DECIMALS, CT_DECIMALS)

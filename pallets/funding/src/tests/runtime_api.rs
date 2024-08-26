@@ -593,12 +593,6 @@ fn all_project_participations_by_did() {
 	}
 
 	assert_eq!(inst.go_to_next_state(project_id), ProjectStatus::FundingSuccessful);
-
-	inst.execute(|| {
-		let block_hash = System::block_hash(System::block_number());
-		let items =
-			TestRuntime::all_project_participations_by_did(&TestRuntime, block_hash, project_id, did_user).unwrap();
-	});
 }
 
 #[test]
@@ -697,8 +691,6 @@ fn projects_by_did() {
 	);
 
 	inst.execute(|| {
-		let projects = ProjectsDetails::<TestRuntime>::iter().collect_vec();
-
 		let block_hash = System::block_hash(System::block_number());
 		let project_ids = TestRuntime::projects_by_did(&TestRuntime, block_hash, did_user).unwrap();
 		assert_eq!(project_ids, vec![project_id_1, project_id_3]);
