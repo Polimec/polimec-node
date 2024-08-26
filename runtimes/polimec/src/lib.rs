@@ -88,9 +88,6 @@ use polimec_common::USD_UNIT;
 #[cfg(any(feature = "std", test))]
 pub use sp_runtime::BuildStorage;
 
-#[cfg(any(feature = "runtime-benchmarks", feature = "std"))]
-pub mod benchmarks;
-
 mod custom_migrations;
 mod weights;
 pub mod xcm_config;
