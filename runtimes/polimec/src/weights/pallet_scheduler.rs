@@ -187,9 +187,11 @@ impl<T: frame_system::Config> pallet_scheduler::WeightInfo for WeightInfo<T> {
 			.saturating_add(T::DbWeight::get().reads(2))
 			.saturating_add(T::DbWeight::get().writes(2))
 	}
-	fn schedule_retry(_: u32) -> cumulus_primitives_core::Weight { todo!() }
-	fn set_retry() -> cumulus_primitives_core::Weight { todo!() }
-	fn set_retry_named() -> cumulus_primitives_core::Weight { todo!() }
-	fn cancel_retry() -> cumulus_primitives_core::Weight { todo!() }
-	fn cancel_retry_named() -> cumulus_primitives_core::Weight { todo!() }
+
+	// TODO: add benches
+	fn schedule_retry(_: u32) -> cumulus_primitives_core::Weight { Weight::zero() }
+	fn set_retry() -> cumulus_primitives_core::Weight { Weight::zero() }
+	fn set_retry_named() -> cumulus_primitives_core::Weight { Weight::zero() }
+	fn cancel_retry() -> cumulus_primitives_core::Weight { Weight::zero() }
+	fn cancel_retry_named() -> cumulus_primitives_core::Weight { Weight::zero() }
 }
