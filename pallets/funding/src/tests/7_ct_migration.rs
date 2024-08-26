@@ -161,7 +161,8 @@ mod pallet_migration {
 			0,
 			0,
 			0,
-		).unwrap();
+		)
+		.unwrap();
 		inst.execute(|| {
 			assert_ok!(PolimecFunding::do_pallet_migration_readiness_response(
 				Location::new(1u8, [Parachain(6969u32)]),

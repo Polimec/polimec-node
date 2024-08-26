@@ -85,14 +85,16 @@ include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 #[cfg(feature = "std")]
 use sp_version::NativeVersion;
 
+use crate::xcm_config::{HereLocation, PriceForSiblingParachainDelivery};
 use polimec_common::USD_UNIT;
 #[cfg(any(feature = "std", test))]
 pub use sp_runtime::BuildStorage;
 
+#[cfg(feature = "runtime-benchmarks")]
+mod benchmark_helpers;
 mod custom_migrations;
 mod weights;
 pub mod xcm_config;
-
 
 /// Alias to 512-bit hash when used in the context of a transaction signature on the chain.
 pub type Signature = MultiSignature;
@@ -509,7 +511,7 @@ impl cumulus_pallet_xcmp_queue::Config for Runtime {
 	// Most on-chain HRMP channels are configured to use 102400 bytes of max message size, so we
 	// need to set the page size larger than that until we reduce the channel size on-chain.
 	type MaxPageSize = ConstU32<{ 103 * 1024 }>;
-	type PriceForSiblingDelivery = NoPriceForMessageDelivery<ParaId>;
+	type PriceForSiblingDelivery = PriceForSiblingParachainDelivery;
 	type RuntimeEvent = RuntimeEvent;
 	type VersionWrapper = PolkadotXcm;
 	type WeightInfo = weights::cumulus_pallet_xcmp_queue::WeightInfo<Runtime>;
@@ -817,6 +819,8 @@ parameter_types! {
 }
 
 impl orml_oracle::Config for Runtime {
+	#[cfg(feature = "runtime-benchmarks")]
+	type BenchmarkHelper = ();
 	type CombineData = orml_oracle::DefaultCombineData<Runtime, MinimumCount, ExpiresIn, ()>;
 	type MaxFeedValues = MaxFeedValues;
 	type MaxHasDispatchedSize = MaxHasDispatchedSize;
@@ -1063,7 +1067,7 @@ impl pallet_funding::Config for Runtime {
 	type RuntimeHoldReason = RuntimeHoldReason;
 	type RuntimeOrigin = RuntimeOrigin;
 	#[cfg(feature = "runtime-benchmarks")]
-	type SetPrices = crate::benchmarks::helpers::SetOraclePrices;
+	type SetPrices = benchmark_helpers::SetOraclePrices;
 	type StringLimit = ConstU32<64>;
 	type SuccessToSettlementTime = SuccessToSettlementTime;
 	type VerifierPublicKey = VerifierPublicKey;
@@ -1073,7 +1077,7 @@ impl pallet_funding::Config for Runtime {
 
 #[cfg(feature = "runtime-benchmarks")]
 parameter_types! {
-	pub BenchmarkReason: RuntimeHoldReason = RuntimeHoldReason::Funding(pallet_funding::HoldReason::Participation(0));
+	pub BenchmarkReason: RuntimeHoldReason = RuntimeHoldReason::Funding(pallet_funding::HoldReason::Participation);
 }
 
 impl pallet_linear_release::Config for Runtime {
@@ -1204,7 +1208,7 @@ mod benches {
 
 		// XCM helpers.
 		[cumulus_pallet_xcmp_queue, XcmpQueue]
-		[pallet_xcm, PalletXcmExtrinsiscsBenchmark::<Runtime>]
+		[pallet_xcm, pallet_xcm::benchmarking::Pallet::<Runtime>]
 		[pallet_message_queue, MessageQueue]
 
 		// Governance
@@ -1456,7 +1460,7 @@ impl_runtime_apis! {
 			use frame_support::traits::StorageInfoTrait;
 			use frame_system_benchmarking::Pallet as SystemBench;
 			use cumulus_pallet_session_benchmarking::Pallet as SessionBench;
-			use super::*;
+			use crate::*;
 
 			let mut list = Vec::<BenchmarkList>::new();
 			list_benchmarks!(list, extra);
@@ -1469,7 +1473,7 @@ impl_runtime_apis! {
 			config: frame_benchmarking::BenchmarkConfig
 		) -> Result<Vec<frame_benchmarking::BenchmarkBatch>, sp_runtime::RuntimeString> {
 			use frame_benchmarking::{BenchmarkError, Benchmarking, BenchmarkBatch};
-			use super::*;
+			use crate::*;
 
 			use frame_system_benchmarking::Pallet as SystemBench;
 			impl frame_system_benchmarking::Config for Runtime {
@@ -1487,10 +1491,40 @@ impl_runtime_apis! {
 
 			use cumulus_pallet_session_benchmarking::Pallet as SessionBench;
 			use xcm::latest::prelude::*;
-			use pallet_xcm::benchmarking::Pallet as PalletXcmExtrinsiscsBenchmark;
 			/// TODO: Update these benchmarks once we enable PLMC Teleportation and upgrade pallet_xcm. New version has
 			/// a better and quite different trait
+			parameter_types! {
+				pub ExistentialDepositAsset: Option<Asset> = Some((
+					HereLocation::get(),
+					ExistentialDeposit::get()
+				).into());
+				pub const RandomParaId: ParaId = ParaId::new(43211234);
+			}
 			impl pallet_xcm::benchmarking::Config for Runtime {
+				type DeliveryHelper = (
+					cumulus_primitives_utility::ToParentDeliveryHelper<
+						xcm_config::XcmConfig,
+						ExistentialDepositAsset,
+						xcm_config::PriceForParentDelivery,
+					>,
+					polkadot_runtime_common::xcm_sender::ToParachainDeliveryHelper<
+						xcm_config::XcmConfig,
+						ExistentialDepositAsset,
+						xcm_config::PriceForSiblingParachainDelivery,
+						RandomParaId,
+						ParachainSystem,
+					>
+				);
+
+				/// Gets an asset that can be handled by the AssetTransactor.
+				///
+				/// Used only in benchmarks.
+				///
+				/// Used, for example, in the benchmark for `claim_assets`.
+				fn get_asset() -> Asset {
+					Asset::from((Here, ExistentialDeposit::get()))
+				}
+
 				fn reachable_dest() -> Option<Location> {
 					PolkadotXcm::force_xcm_version(
 						RuntimeOrigin::root(),

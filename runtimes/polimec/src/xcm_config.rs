@@ -20,6 +20,7 @@ use super::{
 	ToTreasury, TreasuryAccount, Vec, WeightToFee, XcmpQueue,
 };
 use core::marker::PhantomData;
+use cumulus_primitives_core::ParaId;
 use frame_support::{
 	ensure, parameter_types,
 	traits::{ConstU32, Contains, ContainsPair, Everything, Nothing, ProcessMessageError},
@@ -29,6 +30,7 @@ use pallet_xcm::XcmPassthrough;
 #[cfg(feature = "runtime-benchmarks")]
 use polimec_common::DummyXcmSender;
 use polkadot_parachain_primitives::primitives::Sibling;
+use polkadot_runtime_common::xcm_sender::{ExponentialPrice, NoPriceForMessageDelivery};
 use sp_runtime::traits::MaybeEquivalence;
 use xcm::v4::prelude::*;
 use xcm_builder::{
@@ -260,6 +262,10 @@ pub type AssetTransactors = (FungibleTransactor, ForeignAssetsAdapter);
 
 pub type TakeRevenueToTreasury =
 	cumulus_primitives_utility::XcmFeesTo32ByteAccount<AssetTransactors, AccountId, TreasuryAccount>;
+
+pub type PriceForParentDelivery = NoPriceForMessageDelivery<()>;
+
+pub type PriceForSiblingParachainDelivery = NoPriceForMessageDelivery<ParaId>;
 
 pub struct XcmConfig;
 impl xcm_executor::Config for XcmConfig {

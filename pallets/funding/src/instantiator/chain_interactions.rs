@@ -494,10 +494,14 @@ impl<
 
 		self.evaluate_for_users(project_id, evaluations).unwrap();
 
-		let expected_free_plmc_balances =
-			self.generic_map_operation(vec![prev_free_plmc_balances.clone(), plmc_existential_deposits.clone()], MergeOperation::Add);
-		let expected_held_plmc_balances =
-			self.generic_map_operation(vec![prev_held_plmc_balances.clone(), plmc_evaluation_deposits.clone()], MergeOperation::Add);
+		let expected_free_plmc_balances = self.generic_map_operation(
+			vec![prev_free_plmc_balances.clone(), plmc_existential_deposits.clone()],
+			MergeOperation::Add,
+		);
+		let expected_held_plmc_balances = self.generic_map_operation(
+			vec![prev_held_plmc_balances.clone(), plmc_evaluation_deposits.clone()],
+			MergeOperation::Add,
+		);
 		let expected_total_plmc_supply = prev_supply +
 			self.sum_balance_mappings(vec![plmc_existential_deposits.clone(), plmc_evaluation_deposits.clone()]);
 
@@ -586,13 +590,15 @@ impl<
 			None,
 		);
 
-		let bidder_balances =
-			self.sum_balance_mappings(vec![necessary_plmc_contribution_mint.clone(), plmc_existential_deposits.clone()]);
+		let bidder_balances = self
+			.sum_balance_mappings(vec![necessary_plmc_contribution_mint.clone(), plmc_existential_deposits.clone()]);
 
-		let expected_free_plmc_balances = self
-			.generic_map_operation(vec![prev_free_plmc_balances, plmc_existential_deposits.clone()], MergeOperation::Add);
-		let expected_held_plmc_balances = self
-			.generic_map_operation(vec![prev_held_plmc_balances, plmc_bid_deposits], MergeOperation::Add);
+		let expected_free_plmc_balances = self.generic_map_operation(
+			vec![prev_free_plmc_balances, plmc_existential_deposits.clone()],
+			MergeOperation::Add,
+		);
+		let expected_held_plmc_balances =
+			self.generic_map_operation(vec![prev_held_plmc_balances, plmc_bid_deposits], MergeOperation::Add);
 		let expected_plmc_supply = prev_plmc_supply + bidder_balances;
 
 		self.mint_plmc_to(necessary_plmc_contribution_mint.clone());
@@ -600,7 +606,6 @@ impl<
 		self.mint_funding_asset_to(funding_asset_deposits.clone());
 
 		self.bid_for_users(project_id, bids.clone()).unwrap();
-
 
 		self.do_free_plmc_assertions(expected_free_plmc_balances.merge_accounts(MergeOperation::Add));
 		self.do_reserved_plmc_assertions(
@@ -861,7 +866,8 @@ impl<
 			let asset_id = contributions[0].asset.id();
 
 			let prev_free_plmc_balances = self.get_free_plmc_balances_for(contributors.clone());
-			let prev_held_plmc_balances = self.get_reserved_plmc_balances_for(contributors.clone(), HoldReason::Participation.into());
+			let prev_held_plmc_balances =
+				self.get_reserved_plmc_balances_for(contributors.clone(), HoldReason::Participation.into());
 			let prev_funding_asset_balances = self.get_free_funding_asset_balances_for(asset_id, contributors.clone());
 
 			let plmc_contribution_deposits =
@@ -882,11 +888,13 @@ impl<
 				MergeOperation::Add,
 			);
 
-			let expected_held_plmc_balances =
-				self.generic_map_operation(vec![prev_held_plmc_balances, plmc_contribution_deposits], MergeOperation::Add);
+			let expected_held_plmc_balances = self
+				.generic_map_operation(vec![prev_held_plmc_balances, plmc_contribution_deposits], MergeOperation::Add);
 
-			let total_plmc_minted =
-				self.sum_balance_mappings(vec![necessary_plmc_contribution_mint.clone(), plmc_existential_deposits.clone()]);
+			let total_plmc_minted = self.sum_balance_mappings(vec![
+				necessary_plmc_contribution_mint.clone(),
+				plmc_existential_deposits.clone(),
+			]);
 			let prev_plmc_supply = self.get_plmc_total_supply();
 
 			let expected_plmc_supply = prev_plmc_supply + total_plmc_minted;
@@ -937,16 +945,22 @@ impl<
 		if !remainder_contributions.is_empty() {
 			let ct_price = self.get_project_details(project_id).weighted_average_price.unwrap();
 			let contributors = remainder_contributions.accounts();
-			let all_participants = vec![evaluations.accounts(), bids.accounts(), community_contributions.accounts(), remainder_contributions.accounts()]
-				.into_iter()
-				.flatten()
-				.sorted()
-				.dedup()
-				.collect::<Vec<_>>();
+			let all_participants = vec![
+				evaluations.accounts(),
+				bids.accounts(),
+				community_contributions.accounts(),
+				remainder_contributions.accounts(),
+			]
+			.into_iter()
+			.flatten()
+			.sorted()
+			.dedup()
+			.collect::<Vec<_>>();
 
 			let asset_id = remainder_contributions[0].asset.id();
 			let prev_free_plmc_balances = self.get_free_plmc_balances_for(contributors.clone());
-			let prev_held_plmc_balances = self.get_reserved_plmc_balances_for(contributors.clone(), HoldReason::Participation.into());
+			let prev_held_plmc_balances =
+				self.get_reserved_plmc_balances_for(contributors.clone(), HoldReason::Participation.into());
 			let prev_funding_asset_balances = self.get_free_funding_asset_balances_for(asset_id, contributors.clone());
 
 			let plmc_evaluation_deposits = self.calculate_evaluation_plmc_spent(evaluations, false);
@@ -973,12 +987,13 @@ impl<
 			);
 			let plmc_existential_deposits = contributors.existential_deposits();
 
-
 			let funding_asset_deposits =
 				self.calculate_contributed_funding_asset_spent(remainder_contributions.clone(), ct_price);
 
-			let total_plmc_minted =
-				self.sum_balance_mappings(vec![necessary_plmc_contribution_mint.clone(), plmc_existential_deposits.clone()]);
+			let total_plmc_minted = self.sum_balance_mappings(vec![
+				necessary_plmc_contribution_mint.clone(),
+				plmc_existential_deposits.clone(),
+			]);
 
 			let expected_free_plmc_balances = self.generic_map_operation(
 				vec![prev_free_plmc_balances, plmc_existential_deposits.clone()],
