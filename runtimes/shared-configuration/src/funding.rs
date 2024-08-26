@@ -68,7 +68,6 @@ parameter_types! {
 	pub const AuctionRoundDuration: BlockNumber = AUCTION_ROUND_DURATION;
 	pub const CommunityRoundDuration: BlockNumber = COMMUNITY_ROUND_DURATION;
 	pub const RemainderRoundDuration: BlockNumber = REMAINDER_ROUND_DURATION;
-	pub const ManualAcceptanceDuration: BlockNumber = MANUAL_ACCEPTANCE_DURATION;
 	pub const SuccessToSettlementTime: BlockNumber = SUCCESS_TO_SETTLEMENT_TIME;
 	pub const FundingPalletId: PalletId = PalletId(*b"plmc/fun");
 	pub PriceMap: BTreeMap<AssetIdForTrustBackedAssets, FixedU128> = BTreeMap::from_iter(vec![
