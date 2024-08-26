@@ -14028,7 +14028,7 @@ dependencies = [
 
 [[package]]
 name = "sp-runtime"
-version = "38.0.1"
+version = "38.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5273900f0b0bef48b2e1ff9c4fb5e188b8168ee5891418a427f4be2af92ee40f"
 dependencies = [

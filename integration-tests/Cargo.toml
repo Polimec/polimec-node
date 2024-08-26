@@ -140,4 +140,5 @@ std = [
 	"xcm/std",
 ]
 development-settings = [ "polimec-runtime/development-settings" ]
+runtime-benchmarks = []
 
