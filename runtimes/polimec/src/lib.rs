@@ -46,8 +46,7 @@ use parachains_common::{
 };
 use parity_scale_codec::Encode;
 use polimec_common::credentials::{Did, EnsureInvestor};
-use polkadot_runtime_common::{BlockHashCount, CurrencyToVote, SlowAdjustingFeeUpdate,
-};
+use polkadot_runtime_common::{BlockHashCount, CurrencyToVote, SlowAdjustingFeeUpdate};
 use shared_configuration::proxy;
 use sp_api::impl_runtime_apis;
 use sp_core::{crypto::KeyTypeId, ConstU64, OpaqueMetadata};
@@ -84,7 +83,7 @@ include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 #[cfg(feature = "std")]
 use sp_version::NativeVersion;
 
-use crate::xcm_config::{PriceForSiblingParachainDelivery};
+use crate::xcm_config::PriceForSiblingParachainDelivery;
 use polimec_common::USD_UNIT;
 #[cfg(any(feature = "std", test))]
 pub use sp_runtime::BuildStorage;

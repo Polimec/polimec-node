@@ -30,7 +30,11 @@ use super::{
 };
 use crate::{BaseDeliveryFee, FeeAssetId, TransactionByteFee};
 use core::marker::PhantomData;
-use frame_support::{match_types, parameter_types, traits::{ConstU32, Contains, ContainsPair, Everything, EverythingBut, Get, Nothing}, weights::Weight};
+use frame_support::{
+	match_types, parameter_types,
+	traits::{ConstU32, Contains, ContainsPair, Everything, EverythingBut, Get, Nothing},
+	weights::Weight,
+};
 use frame_system::EnsureRoot;
 use pallet_xcm::XcmPassthrough;
 use parachains_common::{xcm_config::AssetFeeAsExistentialDepositMultiplier, TREASURY_PALLET_ID};
@@ -38,7 +42,15 @@ use polkadot_parachain_primitives::primitives::Sibling;
 use polkadot_runtime_common::{impls::ToAuthor, xcm_sender::ExponentialPrice};
 use sp_runtime::traits::{AccountIdConversion, ConvertInto, Identity, TryConvertInto};
 use xcm::latest::prelude::*;
-use xcm_builder::{AccountId32Aliases, AllowExplicitUnpaidExecutionFrom, AllowHrmpNotificationsFromRelayChain, AllowKnownQueryResponses, AllowSubscriptionsFrom, AllowTopLevelPaidExecutionFrom, AsPrefixedGeneralIndex, ConvertedConcreteId, EnsureXcmOrigin, FixedWeightBounds, FrameTransactionalProcessor, FungibleAdapter, FungiblesAdapter, IsConcrete, LocalMint, NativeAsset, NoChecking, ParentAsSuperuser, ParentIsPreset, RelayChainAsNative, SiblingParachainAsNative, SiblingParachainConvertsVia, SignedAccountId32AsNative, SignedToAccountId32, SovereignSignedViaLocation, StartsWith, TakeWeightCredit, TrailingSetTopicAsId, UsingComponents, WithComputedOrigin, WithUniqueTopic, XcmFeeManagerFromComponents, XcmFeeToAccount};
+use xcm_builder::{
+	AccountId32Aliases, AllowExplicitUnpaidExecutionFrom, AllowHrmpNotificationsFromRelayChain,
+	AllowKnownQueryResponses, AllowSubscriptionsFrom, AllowTopLevelPaidExecutionFrom, AsPrefixedGeneralIndex,
+	ConvertedConcreteId, EnsureXcmOrigin, FixedWeightBounds, FrameTransactionalProcessor, FungibleAdapter,
+	FungiblesAdapter, IsConcrete, LocalMint, NativeAsset, NoChecking, ParentAsSuperuser, ParentIsPreset,
+	RelayChainAsNative, SiblingParachainAsNative, SiblingParachainConvertsVia, SignedAccountId32AsNative,
+	SignedToAccountId32, SovereignSignedViaLocation, StartsWith, TakeWeightCredit, TrailingSetTopicAsId,
+	UsingComponents, WithComputedOrigin, WithUniqueTopic, XcmFeeManagerFromComponents, XcmFeeToAccount,
+};
 use xcm_executor::{traits::JustTry, XcmExecutor};
 
 parameter_types! {
@@ -211,7 +223,7 @@ pub type Barrier = TrailingSetTopicAsId<(
 		(
 			// If the message is one that immediately attempts to pay for execution, then
 			// allow it.
-			AllowExplicitUnpaidExecutionFrom<(CommonGoodAssetsParachain, ParentOrParentsExecutivePlurality, Polimec)>,			// Subscriptions for version tracking are OK.
+			AllowExplicitUnpaidExecutionFrom<(CommonGoodAssetsParachain, ParentOrParentsExecutivePlurality, Polimec)>, // Subscriptions for version tracking are OK.
 			AllowSubscriptionsFrom<Everything>,
 			// HRMP notifications from the relay chain are OK.
 			AllowHrmpNotificationsFromRelayChain,

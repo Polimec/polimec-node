@@ -357,10 +357,7 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
-	fn release_participation_bond(
-		participant: &AccountIdOf<T>,
-		amount: BalanceOf<T>,
-	) -> DispatchResult {
+	fn release_participation_bond(participant: &AccountIdOf<T>, amount: BalanceOf<T>) -> DispatchResult {
 		if amount.is_zero() {
 			return Ok(());
 		}
