@@ -945,17 +945,6 @@ impl<
 		if !remainder_contributions.is_empty() {
 			let ct_price = self.get_project_details(project_id).weighted_average_price.unwrap();
 			let contributors = remainder_contributions.accounts();
-			let all_participants = vec![
-				evaluations.accounts(),
-				bids.accounts(),
-				community_contributions.accounts(),
-				remainder_contributions.accounts(),
-			]
-			.into_iter()
-			.flatten()
-			.sorted()
-			.dedup()
-			.collect::<Vec<_>>();
 
 			let asset_id = remainder_contributions[0].asset.id();
 			let prev_free_plmc_balances = self.get_free_plmc_balances_for(contributors.clone());
@@ -970,8 +959,7 @@ impl<
 				None,
 				false,
 			);
-			let plmc_community_contribution_deposits =
-				self.calculate_contributed_plmc_spent(community_contributions.clone(), ct_price, false);
+
 			let plmc_remainder_contribution_deposits =
 				self.calculate_contributed_plmc_spent(remainder_contributions.clone(), ct_price, false);
 

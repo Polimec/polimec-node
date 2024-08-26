@@ -46,8 +46,7 @@ use parachains_common::{
 };
 use parity_scale_codec::Encode;
 use polimec_common::credentials::{Did, EnsureInvestor};
-use polkadot_runtime_common::{
-	xcm_sender::NoPriceForMessageDelivery, BlockHashCount, CurrencyToVote, SlowAdjustingFeeUpdate,
+use polkadot_runtime_common::{BlockHashCount, CurrencyToVote, SlowAdjustingFeeUpdate,
 };
 use shared_configuration::proxy;
 use sp_api::impl_runtime_apis;
@@ -85,7 +84,7 @@ include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 #[cfg(feature = "std")]
 use sp_version::NativeVersion;
 
-use crate::xcm_config::{HereLocation, PriceForSiblingParachainDelivery};
+use crate::xcm_config::{PriceForSiblingParachainDelivery};
 use polimec_common::USD_UNIT;
 #[cfg(any(feature = "std", test))]
 pub use sp_runtime::BuildStorage;
@@ -1495,7 +1494,7 @@ impl_runtime_apis! {
 			/// a better and quite different trait
 			parameter_types! {
 				pub ExistentialDepositAsset: Option<Asset> = Some((
-					HereLocation::get(),
+					xcm_config::HereLocation::get(),
 					ExistentialDeposit::get()
 				).into());
 				pub const RandomParaId: ParaId = ParaId::new(43211234);

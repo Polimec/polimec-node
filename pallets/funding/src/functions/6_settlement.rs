@@ -94,7 +94,7 @@ impl<T: Config> Pallet<T> {
 
 		let (plmc_released, ct_rewarded): (BalanceOf<T>, BalanceOf<T>) =
 			match project_details.evaluation_round_info.evaluators_outcome {
-				Some(EvaluatorsOutcome::Slashed) => (Self::slash_evaluator(project_id, &evaluation)?, Zero::zero()),
+				Some(EvaluatorsOutcome::Slashed) => (Self::slash_evaluator(&evaluation)?, Zero::zero()),
 				Some(EvaluatorsOutcome::Rewarded(info)) => Self::reward_evaluator(project_id, &evaluation, &info)?,
 				None => (evaluation.current_plmc_bond, Zero::zero()),
 			};
@@ -150,7 +150,7 @@ impl<T: Config> Pallet<T> {
 		let BidRefund { final_ct_usd_price, final_ct_amount, refunded_plmc, refunded_funding_asset_amount } =
 			Self::calculate_refund(&bid, funding_success, wap)?;
 
-		Self::release_participation_bond(project_id, &bid.bidder, refunded_plmc)?;
+		Self::release_participation_bond(&bid.bidder, refunded_plmc)?;
 		Self::release_funding_asset(project_id, &bid.bidder, refunded_funding_asset_amount, bid.funding_asset)?;
 
 		if funding_success && bid.status != BidStatus::Rejected {
@@ -240,7 +240,7 @@ impl<T: Config> Pallet<T> {
 
 		if outcome == FundingOutcome::Failure {
 			// Release the held PLMC bond
-			Self::release_participation_bond(project_id, &contribution.contributor, contribution.plmc_bond)?;
+			Self::release_participation_bond(&contribution.contributor, contribution.plmc_bond)?;
 
 			Self::release_funding_asset(
 				project_id,
@@ -358,7 +358,6 @@ impl<T: Config> Pallet<T> {
 	}
 
 	fn release_participation_bond(
-		project_id: ProjectId,
 		participant: &AccountIdOf<T>,
 		amount: BalanceOf<T>,
 	) -> DispatchResult {
@@ -375,7 +374,7 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
-	fn slash_evaluator(project_id: ProjectId, evaluation: &EvaluationInfoOf<T>) -> Result<BalanceOf<T>, DispatchError> {
+	fn slash_evaluator(evaluation: &EvaluationInfoOf<T>) -> Result<BalanceOf<T>, DispatchError> {
 		let slash_percentage = T::EvaluatorSlash::get();
 		let treasury_account = T::BlockchainOperationTreasury::get();
 
