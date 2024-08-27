@@ -88,7 +88,7 @@ mod pallet_migration {
 		const SENDER: u32 = 6969;
 
 		// This makes Polimec send an acceptance + open channel (polimec->project) message back to the relay
-		assert_ok!(PolimecFunding::do_handle_channel_open_request(SENDER));
+		assert_ok!(PolimecFunding::do_handle_channel_open_request(SENDER, 50_000, 8));
 
 		// Finally the relay notifies the channel Polimec->project has been accepted by the project
 		// We set the hrmp flags as "Open" and start the receiver pallet check

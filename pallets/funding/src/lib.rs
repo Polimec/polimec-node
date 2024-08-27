@@ -198,6 +198,7 @@ pub mod pallet {
 	#[allow(clippy::wildcard_imports)]
 	use super::*;
 	use crate::traits::{BondingRequirementCalculation, ProvideAssetPrice, VestingDurationCalculation};
+	use core::ops::RangeInclusive;
 	use frame_support::{
 		pallet_prelude::*,
 		storage::KeyPrefixIterator,
@@ -309,7 +310,7 @@ pub mod pallet {
 
 		/// Range of max_capacity_thresholds values for the hrmp config where we accept the incoming channel request
 		#[pallet::constant]
-		type MaxCapacityThresholds: Get<(u32, u32)>;
+		type MaxCapacityThresholds: Get<RangeInclusive<u32>>;
 
 		/// Max individual contributions per project per user. Used to estimate worst case weight for price calculation
 		#[pallet::constant]
@@ -326,9 +327,9 @@ pub mod pallet {
 		#[pallet::constant]
 		type MinUsdPerEvaluation: Get<BalanceOf<Self>>;
 
-		/// Range of max_message_size values for the hrmp config where we accept the incoming channel request
+		/// RangeInclusive of max_message_size values for the hrmp config where we accept the incoming channel request
 		#[pallet::constant]
-		type MaxMessageSizeThresholds: Get<(u32, u32)>;
+		type MaxMessageSizeThresholds: Get<RangeInclusive<u32>>;
 
 		/// Multiplier type that decides how much PLMC needs to be bonded for a token buy/bid
 		type Multiplier: Parameter
@@ -1118,8 +1119,8 @@ pub mod xcm_executor_impl {
 	}
 
 	impl<T: Config> HandleHrmpNewChannelOpenRequest for Pallet<T> {
-		fn handle(sender: u32, _max_message_size: u32, _max_capacity: u32) -> XcmResult {
-			<Pallet<T>>::do_handle_channel_open_request(sender)
+		fn handle(sender: u32, max_message_size: u32, max_capacity: u32) -> XcmResult {
+			<Pallet<T>>::do_handle_channel_open_request(sender, max_message_size, max_capacity)
 		}
 	}
 }

@@ -2071,99 +2071,89 @@ mod benchmarks {
 		);
 	}
 
-	// #[benchmark]
-	// fn do_handle_channel_open_request() {
-	// 	// setup
-	// 	let mut inst = BenchInstantiator::<T>::new(None);
-	// 	<T as Config>::SetPrices::set_prices();
-	//
-	// 	let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
-	//
-	// 	let project_metadata = default_project_metadata::<T>(issuer.clone());
-	// 	let project_id = inst.create_settled_project(
-	// 		project_metadata.clone(),
-	// 		issuer.clone(),
-	// 		None,
-	// 		default_evaluations::<T>(),
-	// 		default_bids::<T>(),
-	// 		default_community_contributions::<T>(),
-	// 		vec![],
-	// 		true,
-	// 	);
-	//
-	// 	let jwt = get_mock_jwt_with_cid(
-	// 		issuer.clone(),
-	// 		InvestorType::Institutional,
-	// 		generate_did_from_account(issuer.clone()),
-	// 		project_metadata.clone().policy_ipfs_cid.unwrap(),
-	// 	);
-	//
-	// 	<Pallet<T>>::start_pallet_migration(
-	// 		RawOrigin::Signed(issuer.clone()).into(),
-	// 		jwt.clone(),
-	// 		project_id,
-	// 		6969u32.into(),
-	// 	)
-	// 	.unwrap();
-	//
-	// 	#[block]
-	// 	{
-	// 		<Pallet<T>>::do_handle_channel_open_request(Instruction::HrmpNewChannelOpenRequest {
-	// 			sender: 6969u32,
-	// 			max_message_size: 102_400u32,
-	// 			max_capacity: 1000,
-	// 		})
-	// 		.unwrap();
-	// 	}
-	// }
-	//
-	// #[benchmark]
-	// fn do_handle_channel_accepted() {
-	// 	// setup
-	// 	let mut inst = BenchInstantiator::<T>::new(None);
-	// 	<T as Config>::SetPrices::set_prices();
-	//
-	// 	let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
-	//
-	// 	let project_metadata = default_project_metadata::<T>(issuer.clone());
-	// 	let project_id = inst.create_settled_project(
-	// 		project_metadata.clone(),
-	// 		issuer.clone(),
-	// 		None,
-	// 		default_evaluations::<T>(),
-	// 		default_bids::<T>(),
-	// 		default_community_contributions::<T>(),
-	// 		vec![],
-	// 		true,
-	// 	);
-	//
-	// 	let jwt = get_mock_jwt_with_cid(
-	// 		issuer.clone(),
-	// 		InvestorType::Institutional,
-	// 		generate_did_from_account(issuer.clone()),
-	// 		project_metadata.clone().policy_ipfs_cid.unwrap(),
-	// 	);
-	//
-	// 	<Pallet<T>>::start_pallet_migration(
-	// 		RawOrigin::Signed(issuer.clone()).into(),
-	// 		jwt.clone(),
-	// 		project_id,
-	// 		6969u32.into(),
-	// 	)
-	// 	.unwrap();
-	//
-	// 	<Pallet<T>>::do_handle_channel_open_request(Instruction::HrmpNewChannelOpenRequest {
-	// 		sender: 6969u32,
-	// 		max_message_size: 102_400u32,
-	// 		max_capacity: 1000,
-	// 	})
-	// 	.unwrap();
-	//
-	// 	#[block]
-	// 	{
-	// 		<Pallet<T>>::do_handle_channel_accepted(Instruction::HrmpChannelAccepted { recipient: 6969u32 }).unwrap();
-	// 	}
-	// }
+	#[benchmark]
+	fn do_handle_channel_open_request() {
+		// setup
+		let mut inst = BenchInstantiator::<T>::new(None);
+		<T as Config>::SetPrices::set_prices();
+
+		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
+
+		let project_metadata = default_project_metadata::<T>(issuer.clone());
+		let project_id = inst.create_settled_project(
+			project_metadata.clone(),
+			issuer.clone(),
+			None,
+			default_evaluations::<T>(),
+			default_bids::<T>(),
+			default_community_contributions::<T>(),
+			vec![],
+			true,
+		);
+
+		let jwt = get_mock_jwt_with_cid(
+			issuer.clone(),
+			InvestorType::Institutional,
+			generate_did_from_account(issuer.clone()),
+			project_metadata.clone().policy_ipfs_cid.unwrap(),
+		);
+
+		<Pallet<T>>::start_pallet_migration(
+			RawOrigin::Signed(issuer.clone()).into(),
+			jwt.clone(),
+			project_id,
+			6969u32.into(),
+		)
+		.unwrap();
+
+		#[block]
+		{
+			<Pallet<T>>::do_handle_channel_open_request(6969u32, 50_000, 8).unwrap();
+		}
+	}
+
+	#[benchmark]
+	fn do_handle_channel_accepted() {
+		// setup
+		let mut inst = BenchInstantiator::<T>::new(None);
+		<T as Config>::SetPrices::set_prices();
+
+		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
+
+		let project_metadata = default_project_metadata::<T>(issuer.clone());
+		let project_id = inst.create_settled_project(
+			project_metadata.clone(),
+			issuer.clone(),
+			None,
+			default_evaluations::<T>(),
+			default_bids::<T>(),
+			default_community_contributions::<T>(),
+			vec![],
+			true,
+		);
+
+		let jwt = get_mock_jwt_with_cid(
+			issuer.clone(),
+			InvestorType::Institutional,
+			generate_did_from_account(issuer.clone()),
+			project_metadata.clone().policy_ipfs_cid.unwrap(),
+		);
+
+		<Pallet<T>>::start_pallet_migration(
+			RawOrigin::Signed(issuer.clone()).into(),
+			jwt.clone(),
+			project_id,
+			6969u32.into(),
+		)
+		.unwrap();
+
+		<Pallet<T>>::do_handle_channel_open_request(6969u32, 102_400u32, 1000).unwrap();
+
+		#[block]
+		{
+			<Pallet<T>>::do_handle_channel_accepted(6969u32).unwrap();
+		}
+	}
 
 	#[benchmark]
 	fn mark_project_ct_migration_as_finished() {
@@ -2218,187 +2208,5 @@ mod benchmarks {
 				.all(|status| status == MigrationStatus::Confirmed),
 			true
 		);
-	}
-
-	#[cfg(test)]
-	mod tests {
-		use super::*;
-		use crate::mock::{new_test_ext, TestRuntime};
-		use frame_support::assert_ok;
-
-		// #[test]
-		// fn bench_create_project() {
-		// 	new_test_ext().execute_with(|| {
-		// 		assert_ok!(PalletFunding::<TestRuntime>::test_create_project());
-		// 	});
-		// }
-
-		// #[test]
-		// fn bench_remove_project() {
-		// 	new_test_ext().execute_with(|| {
-		// 		assert_ok!(PalletFunding::<TestRuntime>::test_remove_project());
-		// 	});
-		// }
-		//
-		// #[test]
-		// fn bench_edit_project() {
-		// 	new_test_ext().execute_with(|| {
-		// 		assert_ok!(PalletFunding::<TestRuntime>::test_edit_project());
-		// 	});
-		// }
-		//
-		// #[test]
-		// fn bench_start_evaluation() {
-		// 	new_test_ext().execute_with(|| {
-		// 		assert_ok!(PalletFunding::<TestRuntime>::test_start_evaluation());
-		// 	});
-		// }
-		//
-		// #[test]
-		// fn bench_evaluate() {
-		// 	new_test_ext().execute_with(|| {
-		// 		assert_ok!(PalletFunding::<TestRuntime>::test_evaluate());
-		// 	});
-		// }
-		//
-		// #[test]
-		// fn bench_end_evaluation_failure() {
-		// 	new_test_ext().execute_with(|| {
-		// 		assert_ok!(PalletFunding::<TestRuntime>::test_end_evaluation_failure());
-		// 	});
-		// }
-		//
-		// #[test]
-		// fn bench_bid() {
-		// 	new_test_ext().execute_with(|| {
-		// 		assert_ok!(PalletFunding::<TestRuntime>::test_bid());
-		// 	});
-		// }
-		//
-		// #[test]
-		// fn bench_end_auction() {
-		// 	new_test_ext().execute_with(|| {
-		// 		assert_ok!(PalletFunding::<TestRuntime>::test_end_auction());
-		// 	});
-		// }
-		//
-		// #[test]
-		// fn bench_contribute() {
-		// 	new_test_ext().execute_with(|| {
-		// 		assert_ok!(PalletFunding::<TestRuntime>::test_contribute());
-		// 	});
-		// }
-		//
-		// #[test]
-		// fn bench_end_funding_project_successful() {
-		// 	new_test_ext().execute_with(|| {
-		// 		assert_ok!(PalletFunding::<TestRuntime>::test_end_funding_project_successful());
-		// 	});
-		// }
-		//
-		// #[test]
-		// fn bench_start_settlement() {
-		// 	new_test_ext().execute_with(|| {
-		// 		assert_ok!(PalletFunding::<TestRuntime>::test_start_settlement());
-		// 	});
-		// }
-		//
-		// #[test]
-		// fn bench_settle_rewarded_evaluation() {
-		// 	new_test_ext().execute_with(|| {
-		// 		assert_ok!(PalletFunding::<TestRuntime>::test_settle_rewarded_evaluation());
-		// 	});
-		// }
-		//
-		// #[test]
-		// fn bench_settle_accepted_bid_with_refund() {
-		// 	new_test_ext().execute_with(|| {
-		// 		assert_ok!(PalletFunding::<TestRuntime>::test_settle_accepted_bid_with_refund());
-		// 	});
-		// }
-		//
-		// #[test]
-		// fn bench_settle_contribution_project_successful() {
-		// 	new_test_ext().execute_with(|| {
-		// 		assert_ok!(PalletFunding::<TestRuntime>::test_settle_contribution_project_successful());
-		// 	});
-		// }
-		//
-		// #[test]
-		// fn bench_mark_project_as_settled() {
-		// 	new_test_ext().execute_with(|| {
-		// 		assert_ok!(PalletFunding::<TestRuntime>::test_mark_project_as_settled());
-		// 	});
-		// }
-		//
-		// #[test]
-		// fn bench_start_offchain_migration() {
-		// 	new_test_ext().execute_with(|| {
-		// 		assert_ok!(PalletFunding::<TestRuntime>::test_start_offchain_migration());
-		// 	});
-		// }
-		//
-		// #[test]
-		// fn bench_confirm_offchain_migration() {
-		// 	new_test_ext().execute_with(|| {
-		// 		assert_ok!(PalletFunding::<TestRuntime>::test_confirm_offchain_migration());
-		// 	});
-		// }
-		//
-		// #[test]
-		// fn bench_mark_project_ct_migration_as_finished() {
-		// 	new_test_ext().execute_with(|| {
-		// 		assert_ok!(PalletFunding::<TestRuntime>::test_mark_project_ct_migration_as_finished());
-		// 	});
-		// }
-		//
-		// #[test]
-		// fn bench_start_pallet_migration() {
-		// 	new_test_ext().execute_with(|| {
-		// 		assert_ok!(PalletFunding::<TestRuntime>::test_start_pallet_migration());
-		// 	});
-		// }
-		//
-		// #[test]
-		// fn bench_start_pallet_migration_readiness_check() {
-		// 	new_test_ext().execute_with(|| {
-		// 		assert_ok!(PalletFunding::<TestRuntime>::test_start_pallet_migration_readiness_check());
-		// 	});
-		// }
-		//
-		// #[test]
-		// fn bench_pallet_migration_readiness_response_pallet_info() {
-		// 	new_test_ext().execute_with(|| {
-		// 		assert_ok!(PalletFunding::<TestRuntime>::test_pallet_migration_readiness_response_pallet_info());
-		// 	});
-		// }
-		//
-		// #[test]
-		// fn bench_send_pallet_migration_for() {
-		// 	new_test_ext().execute_with(|| {
-		// 		assert_ok!(PalletFunding::<TestRuntime>::test_send_pallet_migration_for());
-		// 	});
-		// }
-		//
-		// #[test]
-		// fn bench_confirm_pallet_migrations() {
-		// 	new_test_ext().execute_with(|| {
-		// 		assert_ok!(PalletFunding::<TestRuntime>::test_confirm_pallet_migrations());
-		// 	});
-		// }
-
-		// #[test]
-		// fn bench_do_handle_channel_open_request() {
-		// 	new_test_ext().execute_with(|| {
-		// 		assert_ok!(PalletFunding::<TestRuntime>::test_do_handle_channel_open_request());
-		// 	});
-		// }
-		//
-		// #[test]
-		// fn bench_do_handle_channel_accepted() {
-		// 	new_test_ext().execute_with(|| {
-		// 		assert_ok!(PalletFunding::<TestRuntime>::test_do_handle_channel_accepted());
-		// 	});
-		// }
 	}
 }

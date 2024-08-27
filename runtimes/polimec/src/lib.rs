@@ -19,6 +19,8 @@
 #![recursion_limit = "256"]
 
 extern crate alloc;
+
+use core::ops::RangeInclusive;
 use cumulus_pallet_parachain_system::RelayNumberMonotonicallyIncreases;
 use cumulus_primitives_core::{AggregateMessageOrigin, ParaId};
 use frame_support::{
@@ -1002,8 +1004,8 @@ parameter_types! {
 	pub PolimecReceiverInfo: xcm::v4::PalletInfo = xcm::v4::PalletInfo::new(
 		51, "PolimecReceiver".into(), "polimec_receiver".into(), 0, 1, 0
 	).unwrap();
-	pub MaxMessageSizeThresholds: (u32, u32) = (50000, 102_400);
-	pub MaxCapacityThresholds: (u32, u32) = (8, 1000);
+	pub MaxMessageSizeThresholds: RangeInclusive<u32> = 50000..=102_400;
+	pub MaxCapacityThresholds: RangeInclusive<u32> = 8..=1000;
 	pub RequiredMaxCapacity: u32 = 1000;
 	pub RequiredMaxMessageSize: u32 = 102_400;
 	pub MinUsdPerEvaluation: Balance = 100 * USD_UNIT;

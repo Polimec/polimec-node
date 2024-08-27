@@ -89,7 +89,7 @@ impl<T: Config> Pallet<T> {
 	/// Handle the channel open request from the relay on behalf of a parachain.
 	/// If the parachain id belongs to a funded project with the same project id, then send an acceptance message and a request for a
 	/// channel in the opposite direction to the relay.
-	pub fn do_handle_channel_open_request(sender: u32) -> XcmResult {
+	pub fn do_handle_channel_open_request(sender: u32, max_message_size: u32, max_capacity: u32) -> XcmResult {
 		// TODO: set these constants with a proper value
 		const EXECUTION_DOT: Asset = Asset { id: AssetId(Location::here()), fun: Fungible(1_0_000_000_000u128) };
 		const MAX_WEIGHT: Weight = Weight::from_parts(20_000_000_000, 1_000_000);
@@ -104,6 +104,13 @@ impl<T: Config> Pallet<T> {
 								info.parachain_id == ParaId::from(sender) && details.status == ProjectStatus::CTMigrationStarted)
 			})
 			.ok_or(XcmError::BadOrigin)?;
+
+		let max_message_size_thresholds = T::MaxMessageSizeThresholds::get();
+		let max_capacity_thresholds = T::MaxCapacityThresholds::get();
+		if !max_message_size_thresholds.contains(&max_message_size) || !max_capacity_thresholds.contains(&max_capacity)
+		{
+			return Err(XcmError::ExceedsMaxMessageSize);
+		}
 
 		let mut accept_channel_relay_call = vec![60u8, 1];
 		let sender_id = ParaId::from(sender).encode();

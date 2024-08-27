@@ -24,6 +24,7 @@ use crate::{
 	runtime_api::{ExtrinsicHelpers, Leaderboards, ProjectInformation, ProjectParticipationIds, UserInformation},
 	traits::ProvideAssetPrice,
 };
+use core::ops::RangeInclusive;
 use frame_support::{
 	construct_runtime, derive_impl,
 	pallet_prelude::Weight,
@@ -340,8 +341,8 @@ impl pallet_linear_release::Config for TestRuntime {
 }
 
 parameter_types! {
-	pub MaxMessageSizeThresholds: (u32, u32) = (50000, 102_400);
-	pub MaxCapacityThresholds: (u32, u32) = (8, 1000);
+	pub MaxMessageSizeThresholds: RangeInclusive<u32> = 50000..=102_400;
+	pub MaxCapacityThresholds: RangeInclusive<u32> = 8..=1000;
 	pub RequiredMaxCapacity: u32 = 8;
 	pub RequiredMaxMessageSize: u32 = 102_400;
 	pub VerifierPublicKey: [u8; 32] = [
