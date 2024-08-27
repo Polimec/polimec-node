@@ -138,7 +138,7 @@ use sp_arithmetic::traits::{One, Saturating};
 use sp_runtime::{traits::AccountIdConversion, FixedPointNumber, FixedPointOperand, FixedU128};
 use sp_std::{marker::PhantomData, prelude::*};
 pub use types::*;
-use xcm::v3::{opaque::Instruction, prelude::*, SendXcm};
+use xcm::v4::{prelude::*, SendXcm};
 
 mod functions;
 pub mod storage_migrations;
@@ -198,6 +198,7 @@ pub mod pallet {
 	#[allow(clippy::wildcard_imports)]
 	use super::*;
 	use crate::traits::{BondingRequirementCalculation, ProvideAssetPrice, VestingDurationCalculation};
+	use core::ops::RangeInclusive;
 	use frame_support::{
 		pallet_prelude::*,
 		storage::KeyPrefixIterator,
@@ -212,8 +213,8 @@ pub mod pallet {
 
 	#[pallet::composite_enum]
 	pub enum HoldReason {
-		Evaluation(ProjectId),
-		Participation(ProjectId),
+		Evaluation,
+		Participation,
 	}
 
 	#[pallet::pallet]
@@ -309,7 +310,7 @@ pub mod pallet {
 
 		/// Range of max_capacity_thresholds values for the hrmp config where we accept the incoming channel request
 		#[pallet::constant]
-		type MaxCapacityThresholds: Get<(u32, u32)>;
+		type MaxCapacityThresholds: Get<RangeInclusive<u32>>;
 
 		/// Max individual contributions per project per user. Used to estimate worst case weight for price calculation
 		#[pallet::constant]
@@ -326,9 +327,9 @@ pub mod pallet {
 		#[pallet::constant]
 		type MinUsdPerEvaluation: Get<BalanceOf<Self>>;
 
-		/// Range of max_message_size values for the hrmp config where we accept the incoming channel request
+		/// RangeInclusive of max_message_size values for the hrmp config where we accept the incoming channel request
 		#[pallet::constant]
-		type MaxMessageSizeThresholds: Get<(u32, u32)>;
+		type MaxMessageSizeThresholds: Get<RangeInclusive<u32>>;
 
 		/// Multiplier type that decides how much PLMC needs to be bonded for a token buy/bid
 		type Multiplier: Parameter
@@ -400,10 +401,6 @@ pub mod pallet {
 		/// The maximum length of data stored on-chain.
 		#[pallet::constant]
 		type StringLimit: Get<u32>;
-
-		/// How long a project has to wait after it gets successfully funded, for the settlement to start.
-		#[pallet::constant]
-		type SuccessToSettlementTime: Get<BlockNumberFor<Self>>;
 
 		/// Account that receive the PLMC slashed from failed evaluations.
 		#[pallet::constant]
@@ -1069,8 +1066,8 @@ pub mod pallet {
 		.max(WeightInfoOf::<T>::pallet_migration_readiness_response_holding()))]
 		pub fn pallet_migration_readiness_response(
 			origin: OriginFor<T>,
-			query_id: xcm::v3::QueryId,
-			response: xcm::v3::Response,
+			query_id: QueryId,
+			response: Response,
 		) -> DispatchResult {
 			let location = ensure_response(<T as Config>::RuntimeOrigin::from(origin))?;
 
@@ -1113,15 +1110,17 @@ pub mod pallet {
 pub mod xcm_executor_impl {
 	#[allow(clippy::wildcard_imports)]
 	use super::*;
+	use xcm_executor::traits::{HandleHrmpChannelAccepted, HandleHrmpNewChannelOpenRequest};
 
-	pub struct HrmpHandler<T: Config>(PhantomData<T>);
-	impl<T: Config> polimec_xcm_executor::HrmpHandler for HrmpHandler<T> {
-		fn handle_channel_open_request(message: Instruction) -> XcmResult {
-			<Pallet<T>>::do_handle_channel_open_request(message)
+	impl<T: Config> HandleHrmpChannelAccepted for Pallet<T> {
+		fn handle(recipient: u32) -> XcmResult {
+			<Pallet<T>>::do_handle_channel_accepted(recipient)
 		}
+	}
 
-		fn handle_channel_accepted(message: Instruction) -> XcmResult {
-			<Pallet<T>>::do_handle_channel_accepted(message)
+	impl<T: Config> HandleHrmpNewChannelOpenRequest for Pallet<T> {
+		fn handle(sender: u32, max_message_size: u32, max_capacity: u32) -> XcmResult {
+			<Pallet<T>>::do_handle_channel_open_request(sender, max_message_size, max_capacity)
 		}
 	}
 }

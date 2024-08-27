@@ -18,11 +18,14 @@
 // `construct_runtime!` does a lot of recursion and requires us to increase the limit to 256.
 #![recursion_limit = "256"]
 
+extern crate alloc;
+
+use core::ops::RangeInclusive;
 use cumulus_pallet_parachain_system::RelayNumberMonotonicallyIncreases;
 use cumulus_primitives_core::{AggregateMessageOrigin, ParaId};
 use frame_support::{
 	construct_runtime,
-	genesis_builder_helper::{build_config, create_default_config},
+	genesis_builder_helper::{build_state, get_preset},
 	ord_parameter_types, parameter_types,
 	traits::{
 		fungible::{Credit, HoldConsideration, Inspect},
@@ -33,6 +36,7 @@ use frame_support::{
 	weights::{ConstantMultiplier, Weight},
 };
 use frame_system::{EnsureRoot, EnsureRootWithSuccess, EnsureSigned, EnsureSignedBy};
+use pallet_aura::Authorities;
 use pallet_democracy::GetElectorate;
 use pallet_funding::{
 	runtime_api::ProjectParticipationIds, types::AcceptedFundingAsset, BidInfoOf, ContributionInfoOf, DaysToBlocks,
@@ -44,12 +48,10 @@ use parachains_common::{
 };
 use parity_scale_codec::Encode;
 use polimec_common::credentials::{Did, EnsureInvestor};
-use polkadot_runtime_common::{
-	xcm_sender::NoPriceForMessageDelivery, BlockHashCount, CurrencyToVote, SlowAdjustingFeeUpdate,
-};
+use polkadot_runtime_common::{BlockHashCount, CurrencyToVote, SlowAdjustingFeeUpdate};
 use shared_configuration::proxy;
 use sp_api::impl_runtime_apis;
-use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
+use sp_core::{crypto::KeyTypeId, ConstU64, OpaqueMetadata};
 use sp_runtime::{
 	create_runtime_str, generic, impl_opaque_keys,
 	traits::{
@@ -83,13 +85,13 @@ include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 #[cfg(feature = "std")]
 use sp_version::NativeVersion;
 
+use crate::xcm_config::PriceForSiblingParachainDelivery;
 use polimec_common::USD_UNIT;
 #[cfg(any(feature = "std", test))]
 pub use sp_runtime::BuildStorage;
 
-#[cfg(any(feature = "runtime-benchmarks", feature = "std"))]
-pub mod benchmarks;
-
+#[cfg(feature = "runtime-benchmarks")]
+mod benchmark_helpers;
 mod custom_migrations;
 mod weights;
 pub mod xcm_config;
@@ -338,6 +340,7 @@ impl frame_system::Config for Runtime {
 	/// The lookup mechanism to get account ID from whatever is passed in dispatchers.
 	type Lookup = AccountIdLookup<AccountId, ()>;
 	type MaxConsumers = frame_support::traits::ConstU32<16>;
+	type MultiBlockMigrator = ();
 	/// The index type for storing how many extrinsics an account has signed.
 	type Nonce = Nonce;
 	/// What to do if an account is fully reaped from the system.
@@ -348,6 +351,9 @@ impl frame_system::Config for Runtime {
 	type OnSetCode = cumulus_pallet_parachain_system::ParachainSetCode<Self>;
 	/// Converts a module to an index of this module in the runtime.
 	type PalletInfo = PalletInfo;
+	type PostInherents = ();
+	type PostTransactions = ();
+	type PreInherents = ();
 	/// The aggregated dispatch type that is available for extrinsics.
 	type RuntimeCall = RuntimeCall;
 	/// The ubiquitous event type.
@@ -358,6 +364,7 @@ impl frame_system::Config for Runtime {
 	type RuntimeTask = RuntimeTask;
 	/// This is used as an identifier of the chain. 42 is the generic substrate prefix.
 	type SS58Prefix = SS58Prefix;
+	type SingleBlockMigrations = ();
 	/// Weight information for the extrinsics of this pallet.
 	type SystemWeightInfo = weights::frame_system::WeightInfo<Runtime>;
 	/// Runtime version.
@@ -393,7 +400,6 @@ impl pallet_balances::Config for Runtime {
 	type ExistentialDeposit = ExistentialDeposit;
 	type FreezeIdentifier = RuntimeFreezeReason;
 	type MaxFreezes = MaxReserves;
-	type MaxHolds = MaxLocks;
 	type MaxLocks = MaxLocks;
 	type MaxReserves = MaxReserves;
 	type ReserveIdentifier = [u8; 8];
@@ -406,7 +412,7 @@ impl pallet_balances::Config for Runtime {
 impl pallet_transaction_payment::Config for Runtime {
 	type FeeMultiplierUpdate = SlowAdjustingFeeUpdate<Self>;
 	type LengthToFee = ConstantMultiplier<Balance, TransactionByteFee>;
-	type OnChargeTransaction = shared_configuration::fee::FungibleAdapter<Balances, DealWithFees<Runtime>>;
+	type OnChargeTransaction = pallet_transaction_payment::FungibleAdapter<Balances, DealWithFees<Runtime>>;
 	type OperationalFeeMultiplier = frame_support::traits::ConstU8<5>;
 	type RuntimeEvent = RuntimeEvent;
 	type WeightToFee = WeightToFee;
@@ -473,7 +479,7 @@ pub struct MockedChannelInfo;
 impl cumulus_primitives_core::GetChannelInfo for MockedChannelInfo {
 	fn get_channel_status(id: ParaId) -> cumulus_primitives_core::ChannelStatus {
 		if id == 1000.into() {
-			return cumulus_primitives_core::ChannelStatus::Ready(usize::MAX, usize::MAX)
+			return cumulus_primitives_core::ChannelStatus::Ready(usize::MAX, usize::MAX);
 		}
 
 		ParachainSystem::get_channel_status(id)
@@ -487,7 +493,7 @@ impl cumulus_primitives_core::GetChannelInfo for MockedChannelInfo {
 				max_message_size: u32::MAX,
 				msg_count: 0,
 				total_size: 0,
-			})
+			});
 		}
 
 		ParachainSystem::get_channel_info(id)
@@ -500,35 +506,32 @@ impl cumulus_pallet_xcmp_queue::Config for Runtime {
 	type ChannelInfo = MockedChannelInfo;
 	type ControllerOrigin = EnsureRoot<AccountId>;
 	type ControllerOriginConverter = XcmOriginToTransactDispatchOrigin;
+	type MaxActiveOutboundChannels = ConstU32<128>;
 	type MaxInboundSuspended = sp_core::ConstU32<1_000>;
-	type PriceForSiblingDelivery = NoPriceForMessageDelivery<ParaId>;
+	// Most on-chain HRMP channels are configured to use 102400 bytes of max message size, so we
+	// need to set the page size larger than that until we reduce the channel size on-chain.
+	type MaxPageSize = ConstU32<{ 103 * 1024 }>;
+	type PriceForSiblingDelivery = PriceForSiblingParachainDelivery;
 	type RuntimeEvent = RuntimeEvent;
 	type VersionWrapper = PolkadotXcm;
 	type WeightInfo = weights::cumulus_pallet_xcmp_queue::WeightInfo<Runtime>;
 	type XcmpQueue = TransformOrigin<MessageQueue, AggregateMessageOrigin, ParaId, ParaIdToSibling>;
 }
 
-impl cumulus_pallet_dmp_queue::Config for Runtime {
-	type DmpSink = frame_support::traits::EnqueueWithOrigin<MessageQueue, RelayOrigin>;
-	type RuntimeEvent = RuntimeEvent;
-	type WeightInfo = weights::cumulus_pallet_dmp_queue::WeightInfo<Runtime>;
-}
-
 parameter_types! {
 	pub MessageQueueServiceWeight: Weight = Perbill::from_percent(35) * RuntimeBlockWeights::get().max_block;
+	pub MessageQueueIdleServiceWeight: Weight = Perbill::from_percent(20) * RuntimeBlockWeights::get().max_block;
 }
 
 impl pallet_message_queue::Config for Runtime {
 	type HeapSize = sp_core::ConstU32<{ 64 * 1024 }>;
+	type IdleMaxServiceWeight = MessageQueueIdleServiceWeight;
 	type MaxStale = sp_core::ConstU32<8>;
 	#[cfg(feature = "runtime-benchmarks")]
 	type MessageProcessor = pallet_message_queue::mock_helpers::NoopMessageProcessor<AggregateMessageOrigin>;
 	#[cfg(not(feature = "runtime-benchmarks"))]
-	type MessageProcessor = xcm_builder::ProcessXcmMessage<
-		AggregateMessageOrigin,
-		polimec_xcm_executor::XcmExecutor<XcmConfig>,
-		RuntimeCall,
-	>;
+	type MessageProcessor =
+		xcm_builder::ProcessXcmMessage<AggregateMessageOrigin, xcm_executor::XcmExecutor<XcmConfig>, RuntimeCall>;
 	// The XCMP queue pallet is only ever able to handle the `Sibling(ParaId)` origin:
 	type QueueChangeHandler = NarrowOriginToSibling<XcmpQueue>;
 	type QueuePausedQuery = NarrowOriginToSibling<XcmpQueue>;
@@ -555,6 +558,7 @@ impl pallet_aura::Config for Runtime {
 	type AuthorityId = AuraId;
 	type DisabledValidators = ();
 	type MaxAuthorities = MaxAuthorities;
+	type SlotDuration = ConstU64<12_000>;
 }
 
 pub struct ToTreasury;
@@ -815,6 +819,8 @@ parameter_types! {
 }
 
 impl orml_oracle::Config for Runtime {
+	#[cfg(feature = "runtime-benchmarks")]
+	type BenchmarkHelper = ();
 	type CombineData = orml_oracle::DefaultCombineData<Runtime, MinimumCount, ExpiresIn, ()>;
 	type MaxFeedValues = MaxFeedValues;
 	type MaxHasDispatchedSize = MaxHasDispatchedSize;
@@ -995,11 +1001,11 @@ impl pallet_assets::Config<ContributionTokensInstance> for Runtime {
 
 parameter_types! {
 	pub ContributionTreasuryAccount: AccountId = FundingPalletId::get().into_account_truncating();
-	pub PolimecReceiverInfo: xcm::v3::PalletInfo = xcm::v3::PalletInfo::new(
+	pub PolimecReceiverInfo: xcm::v4::PalletInfo = xcm::v4::PalletInfo::new(
 		51, "PolimecReceiver".into(), "polimec_receiver".into(), 0, 1, 0
 	).unwrap();
-	pub MaxMessageSizeThresholds: (u32, u32) = (50000, 102_400);
-	pub MaxCapacityThresholds: (u32, u32) = (8, 1000);
+	pub MaxMessageSizeThresholds: RangeInclusive<u32> = 50000..=102_400;
+	pub MaxCapacityThresholds: RangeInclusive<u32> = 8..=1000;
 	pub RequiredMaxCapacity: u32 = 1000;
 	pub RequiredMaxMessageSize: u32 = 102_400;
 	pub MinUsdPerEvaluation: Balance = 100 * USD_UNIT;
@@ -1061,9 +1067,8 @@ impl pallet_funding::Config for Runtime {
 	type RuntimeHoldReason = RuntimeHoldReason;
 	type RuntimeOrigin = RuntimeOrigin;
 	#[cfg(feature = "runtime-benchmarks")]
-	type SetPrices = crate::benchmarks::helpers::SetOraclePrices;
+	type SetPrices = benchmark_helpers::SetOraclePrices;
 	type StringLimit = ConstU32<64>;
-	type SuccessToSettlementTime = SuccessToSettlementTime;
 	type VerifierPublicKey = VerifierPublicKey;
 	type Vesting = LinearRelease;
 	type WeightInfo = weights::pallet_funding::WeightInfo<Runtime>;
@@ -1071,7 +1076,7 @@ impl pallet_funding::Config for Runtime {
 
 #[cfg(feature = "runtime-benchmarks")]
 parameter_types! {
-	pub BenchmarkReason: RuntimeHoldReason = RuntimeHoldReason::Funding(pallet_funding::HoldReason::Participation(0));
+	pub BenchmarkReason: RuntimeHoldReason = RuntimeHoldReason::Funding(pallet_funding::HoldReason::Participation);
 }
 
 impl pallet_linear_release::Config for Runtime {
@@ -1153,7 +1158,7 @@ construct_runtime!(
 		XcmpQueue: cumulus_pallet_xcmp_queue = 30,
 		PolkadotXcm: pallet_xcm = 31,
 		CumulusXcm: cumulus_pallet_xcm = 32,
-		DmpQueue: cumulus_pallet_dmp_queue = 33,
+		// idx 31 was used for DmpQueue: cumulus_pallet_dmp_queue, now replaced by MessageQueue
 		MessageQueue: pallet_message_queue = 34,
 
 		// Governance
@@ -1202,8 +1207,7 @@ mod benches {
 
 		// XCM helpers.
 		[cumulus_pallet_xcmp_queue, XcmpQueue]
-		[pallet_xcm, PalletXcmExtrinsiscsBenchmark::<Runtime>]
-		[cumulus_pallet_dmp_queue, DmpQueue]
+		[pallet_xcm, pallet_xcm::benchmarking::Pallet::<Runtime>]
 		[pallet_message_queue, MessageQueue]
 
 		// Governance
@@ -1232,7 +1236,7 @@ impl_runtime_apis! {
 		}
 
 		fn authorities() -> Vec<AuraId> {
-			Aura::authorities().into_inner()
+			Authorities::<Runtime>::get().into_inner()
 		}
 	}
 
@@ -1254,7 +1258,7 @@ impl_runtime_apis! {
 			Executive::execute_block(block)
 		}
 
-		fn initialize_block(header: &<Block as BlockT>::Header) {
+		fn initialize_block(header: &<Block as BlockT>::Header) -> sp_runtime::ExtrinsicInclusionMode {
 			Executive::initialize_block(header)
 		}
 	}
@@ -1454,8 +1458,8 @@ impl_runtime_apis! {
 			use frame_benchmarking::{Benchmarking, BenchmarkList};
 			use frame_support::traits::StorageInfoTrait;
 			use frame_system_benchmarking::Pallet as SystemBench;
-			use pallet_xcm::benchmarking::Pallet as PalletXcmExtrinsiscsBenchmark;
 			use cumulus_pallet_session_benchmarking::Pallet as SessionBench;
+			use crate::*;
 
 			let mut list = Vec::<BenchmarkList>::new();
 			list_benchmarks!(list, extra);
@@ -1468,7 +1472,6 @@ impl_runtime_apis! {
 			config: frame_benchmarking::BenchmarkConfig
 		) -> Result<Vec<frame_benchmarking::BenchmarkBatch>, sp_runtime::RuntimeString> {
 			use frame_benchmarking::{BenchmarkError, Benchmarking, BenchmarkBatch};
-
 			use frame_system_benchmarking::Pallet as SystemBench;
 			impl frame_system_benchmarking::Config for Runtime {
 				fn setup_set_code_requirements(code: &sp_std::vec::Vec<u8>) -> Result<(), BenchmarkError> {
@@ -1485,11 +1488,41 @@ impl_runtime_apis! {
 
 			use cumulus_pallet_session_benchmarking::Pallet as SessionBench;
 			use xcm::latest::prelude::*;
-			use pallet_xcm::benchmarking::Pallet as PalletXcmExtrinsiscsBenchmark;
 			/// TODO: Update these benchmarks once we enable PLMC Teleportation and upgrade pallet_xcm. New version has
 			/// a better and quite different trait
+			parameter_types! {
+				pub ExistentialDepositAsset: Option<Asset> = Some((
+					xcm_config::HereLocation::get(),
+					ExistentialDeposit::get()
+				).into());
+				pub const RandomParaId: ParaId = ParaId::new(43211234);
+			}
 			impl pallet_xcm::benchmarking::Config for Runtime {
-				fn reachable_dest() -> Option<MultiLocation> {
+				type DeliveryHelper = (
+					cumulus_primitives_utility::ToParentDeliveryHelper<
+						xcm_config::XcmConfig,
+						ExistentialDepositAsset,
+						xcm_config::PriceForParentDelivery,
+					>,
+					polkadot_runtime_common::xcm_sender::ToParachainDeliveryHelper<
+						xcm_config::XcmConfig,
+						ExistentialDepositAsset,
+						xcm_config::PriceForSiblingParachainDelivery,
+						RandomParaId,
+						ParachainSystem,
+					>
+				);
+
+				/// Gets an asset that can be handled by the AssetTransactor.
+				///
+				/// Used only in benchmarks.
+				///
+				/// Used, for example, in the benchmark for `claim_assets`.
+				fn get_asset() -> Asset {
+					Asset::from((Here, ExistentialDeposit::get()))
+				}
+
+				fn reachable_dest() -> Option<Location> {
 					PolkadotXcm::force_xcm_version(
 						RuntimeOrigin::root(),
 						Box::new(crate::xcm_config::AssetHubLocation::get()),
@@ -1498,16 +1531,16 @@ impl_runtime_apis! {
 					Some(crate::xcm_config::AssetHubLocation::get())
 				}
 
-				fn reserve_transferable_asset_and_dest() -> Option<(MultiAsset, MultiLocation)> {
+				fn reserve_transferable_asset_and_dest() -> Option<(Asset, Location)> {
 					PolkadotXcm::force_xcm_version(
 						RuntimeOrigin::root(),
 						Box::new(crate::xcm_config::AssetHubLocation::get()),
 						xcm::prelude::XCM_VERSION
 					).unwrap();
 					Some((
-						MultiAsset {
+						Asset {
 							fun: Fungible(ExistentialDeposit::get()),
-							id: Concrete(Here.into())
+							id: AssetId(Here.into())
 						},
 						crate::xcm_config::AssetHubLocation::get(),
 					))
@@ -1526,12 +1559,16 @@ impl_runtime_apis! {
 	}
 
 	impl sp_genesis_builder::GenesisBuilder<Block> for Runtime {
-		fn create_default_config() -> Vec<u8> {
-			create_default_config::<RuntimeGenesisConfig>()
+		fn build_state(config: Vec<u8>) -> sp_genesis_builder::Result {
+			build_state::<RuntimeGenesisConfig>(config)
 		}
 
-		fn build_config(config: Vec<u8>) -> sp_genesis_builder::Result {
-			build_config::<RuntimeGenesisConfig>(config)
+		fn get_preset(id: &Option<sp_genesis_builder::PresetId>) -> Option<Vec<u8>> {
+			get_preset::<RuntimeGenesisConfig>(id, |_| None)
+		}
+
+		fn preset_names() -> Vec<sp_genesis_builder::PresetId> {
+			Default::default()
 		}
 	}
 }

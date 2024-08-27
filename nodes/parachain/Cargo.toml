@@ -1,6 +1,6 @@
 [package]
 name = "polimec-node"
-description = "A new Cumulus FRAME-based Substrate Node, ready for hacking together a parachain."
+description = "Polimec Node"
 authors.workspace = true
 documentation.workspace = true
 edition.workspace = true
@@ -9,6 +9,7 @@ license-file.workspace = true
 readme.workspace = true
 repository.workspace = true
 version.workspace = true
+build = "build.rs"
 
 [lints]
 clippy.all = "allow"
@@ -16,19 +17,17 @@ clippy.pedantic = "allow"
 
 [dependencies]
 clap = { workspace = true, features = ["derive"] }
-log.workspace = true
 serde = { workspace = true, features = ["derive"] }
-serde_json.workspace = true
 jsonrpsee = { workspace = true, features = ["server"] }
+log.workspace = true
+serde_json.workspace = true
 hex-literal.workspace = true
-color-print = "0.3.5"
+color-print.workspace = true
 futures.workspace = true
 
 # Local
 polimec-runtime.workspace = true
 pallet-funding.workspace = true
-macros = { workspace = true }
-polimec-common.workspace = true
 
 # Substrate
 frame-benchmarking.workspace = true
@@ -92,7 +91,6 @@ runtime-benchmarks = [
 	"frame-benchmarking/runtime-benchmarks",
 	"frame-support/runtime-benchmarks",
 	"pallet-funding/runtime-benchmarks",
-	"polimec-common/runtime-benchmarks",
 	"polimec-runtime/runtime-benchmarks",
 	"polkadot-cli/runtime-benchmarks",
 	"polkadot-primitives/runtime-benchmarks",
@@ -102,29 +100,9 @@ runtime-benchmarks = [
 try-runtime = [
 	"frame-support/try-runtime",
 	"pallet-funding/try-runtime",
-	"polimec-common/try-runtime",
 	"polimec-runtime/try-runtime",
 	"polkadot-cli/try-runtime",
 	"sp-runtime/try-runtime",
-]
-std = [
-	"cumulus-primitives-core/std",
-	"frame-benchmarking/std",
-	"frame-support/std",
-	"log/std",
-	"pallet-funding/std",
-	"polimec-common/std",
-	"polkadot-primitives/std",
-	"serde/std",
-	"sp-api/std",
-	"sp-block-builder/std",
-	"sp-consensus-aura/std",
-	"sp-core/std",
-	"sp-io/std",
-	"sp-keystore/std",
-	"sp-runtime/std",
-	"sp-timestamp/std",
-	"xcm/std",
 ]
 on-chain-release-build = [ "polimec-runtime/on-chain-release-build" ]
 development-settings = [ "polimec-runtime/development-settings" ]

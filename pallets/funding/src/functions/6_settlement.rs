@@ -94,14 +94,14 @@ impl<T: Config> Pallet<T> {
 
 		let (plmc_released, ct_rewarded): (BalanceOf<T>, BalanceOf<T>) =
 			match project_details.evaluation_round_info.evaluators_outcome {
-				Some(EvaluatorsOutcome::Slashed) => (Self::slash_evaluator(project_id, &evaluation)?, Zero::zero()),
+				Some(EvaluatorsOutcome::Slashed) => (Self::slash_evaluator(&evaluation)?, Zero::zero()),
 				Some(EvaluatorsOutcome::Rewarded(info)) => Self::reward_evaluator(project_id, &evaluation, &info)?,
 				None => (evaluation.current_plmc_bond, Zero::zero()),
 			};
 
 		// Release the held PLMC bond
 		T::NativeCurrency::release(
-			&HoldReason::Evaluation(project_id).into(),
+			&HoldReason::Evaluation.into(),
 			&evaluation.evaluator,
 			plmc_released,
 			Precision::Exact,
@@ -150,7 +150,7 @@ impl<T: Config> Pallet<T> {
 		let BidRefund { final_ct_usd_price, final_ct_amount, refunded_plmc, refunded_funding_asset_amount } =
 			Self::calculate_refund(&bid, funding_success, wap)?;
 
-		Self::release_participation_bond(project_id, &bid.bidder, refunded_plmc)?;
+		Self::release_participation_bond(&bid.bidder, refunded_plmc)?;
 		Self::release_funding_asset(project_id, &bid.bidder, refunded_funding_asset_amount, bid.funding_asset)?;
 
 		if funding_success && bid.status != BidStatus::Rejected {
@@ -165,7 +165,7 @@ impl<T: Config> Pallet<T> {
 				plmc_vesting_info.total_amount,
 				plmc_vesting_info.amount_per_block,
 				funding_end_block,
-				HoldReason::Participation(project_id).into(),
+				HoldReason::Participation.into(),
 			)?;
 
 			Self::mint_contribution_tokens(project_id, &bid.bidder, final_ct_amount)?;
@@ -240,7 +240,7 @@ impl<T: Config> Pallet<T> {
 
 		if outcome == FundingOutcome::Failure {
 			// Release the held PLMC bond
-			Self::release_participation_bond(project_id, &contribution.contributor, contribution.plmc_bond)?;
+			Self::release_participation_bond(&contribution.contributor, contribution.plmc_bond)?;
 
 			Self::release_funding_asset(
 				project_id,
@@ -262,7 +262,7 @@ impl<T: Config> Pallet<T> {
 				vest_info.total_amount,
 				vest_info.amount_per_block,
 				funding_end_block,
-				HoldReason::Participation(project_id).into(),
+				HoldReason::Participation.into(),
 			)?;
 			// Mint the contribution tokens
 			Self::mint_contribution_tokens(project_id, &contribution.contributor, contribution.ct_amount)?;
@@ -357,25 +357,16 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
-	fn release_participation_bond(
-		project_id: ProjectId,
-		participant: &AccountIdOf<T>,
-		amount: BalanceOf<T>,
-	) -> DispatchResult {
+	fn release_participation_bond(participant: &AccountIdOf<T>, amount: BalanceOf<T>) -> DispatchResult {
 		if amount.is_zero() {
 			return Ok(());
 		}
 		// Release the held PLMC bond
-		T::NativeCurrency::release(
-			&HoldReason::Participation(project_id).into(),
-			participant,
-			amount,
-			Precision::Exact,
-		)?;
+		T::NativeCurrency::release(&HoldReason::Participation.into(), participant, amount, Precision::Exact)?;
 		Ok(())
 	}
 
-	fn slash_evaluator(project_id: ProjectId, evaluation: &EvaluationInfoOf<T>) -> Result<BalanceOf<T>, DispatchError> {
+	fn slash_evaluator(evaluation: &EvaluationInfoOf<T>) -> Result<BalanceOf<T>, DispatchError> {
 		let slash_percentage = T::EvaluatorSlash::get();
 		let treasury_account = T::BlockchainOperationTreasury::get();
 
@@ -384,7 +375,7 @@ impl<T: Config> Pallet<T> {
 		let slashed_amount = slash_percentage * evaluation.original_plmc_bond;
 
 		T::NativeCurrency::transfer_on_hold(
-			&HoldReason::Evaluation(project_id).into(),
+			&HoldReason::Evaluation.into(),
 			&evaluation.evaluator,
 			&treasury_account,
 			slashed_amount,
@@ -428,11 +419,9 @@ impl<T: Config> Pallet<T> {
 		vesting_time: BlockNumberFor<T>,
 	) -> DispatchResult {
 		UserMigrations::<T>::try_mutate((project_id, origin), |maybe_migrations| -> DispatchResult {
-			let multilocation_user = MultiLocation::new(
-				0,
-				X1(AccountId32 { network: None, id: T::AccountId32Conversion::convert(origin.clone()) }),
-			);
-			let migration_origin = MigrationOrigin { user: multilocation_user, id, participation_type };
+			let location_user =
+				Location::new(0, AccountId32 { network: None, id: T::AccountId32Conversion::convert(origin.clone()) });
+			let migration_origin = MigrationOrigin { user: location_user, id, participation_type };
 			let vesting_time: u64 = vesting_time.try_into().map_err(|_| Error::<T>::BadMath)?;
 			let migration_info: MigrationInfo = (ct_amount.into(), vesting_time).into();
 			let migration = Migration::new(migration_origin, migration_info);

@@ -1234,7 +1234,6 @@ mod tests {
 		type ExistentialDeposit = ConstU64<1>;
 		type FreezeIdentifier = RuntimeFreezeReason;
 		type MaxFreezes = ConstU32<10>;
-		type MaxHolds = ConstU32<10>;
 		type MaxLocks = ();
 		type MaxReserves = ();
 		type ReserveIdentifier = [u8; 8];

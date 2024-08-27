@@ -24,8 +24,9 @@ use crate::{
 	runtime_api::{ExtrinsicHelpers, Leaderboards, ProjectInformation, ProjectParticipationIds, UserInformation},
 	traits::ProvideAssetPrice,
 };
+use core::ops::RangeInclusive;
 use frame_support::{
-	construct_runtime,
+	construct_runtime, derive_impl,
 	pallet_prelude::Weight,
 	parameter_types,
 	traits::{AsEnsureOriginWithArg, ConstU16, ConstU32, ConstU64, Everything, OriginTrait, WithdrawReasons},
@@ -44,6 +45,7 @@ use sp_runtime::{
 use sp_std::collections::btree_map::BTreeMap;
 use std::cell::RefCell;
 use system::EnsureSigned;
+use xcm::v4::PalletInfo as XcmPalletInfo;
 use xcm_builder::{EnsureXcmOrigin, FixedWeightBounds, ParentIsPreset, SiblingParachainConvertsVia};
 use xcm_executor::traits::XcmAssetTransfers;
 
@@ -73,12 +75,12 @@ pub const fn free_deposit() -> Balance {
 pub struct SignedToAccountIndex<RuntimeOrigin, AccountId, Network>(PhantomData<(RuntimeOrigin, AccountId, Network)>);
 
 impl<RuntimeOrigin: OriginTrait + Clone, AccountId: Into<u32>, Network: Get<Option<NetworkId>>>
-	TryConvert<RuntimeOrigin, MultiLocation> for SignedToAccountIndex<RuntimeOrigin, AccountId, Network>
+	TryConvert<RuntimeOrigin, Location> for SignedToAccountIndex<RuntimeOrigin, AccountId, Network>
 where
 	RuntimeOrigin::PalletsOrigin:
 		From<SystemRawOrigin<AccountId>> + TryInto<SystemRawOrigin<AccountId>, Error = RuntimeOrigin::PalletsOrigin>,
 {
-	fn try_convert(o: RuntimeOrigin) -> Result<MultiLocation, RuntimeOrigin> {
+	fn try_convert(o: RuntimeOrigin) -> Result<Location, RuntimeOrigin> {
 		o.try_with_caller(|caller| match caller.try_into() {
 			Ok(SystemRawOrigin::Signed(who)) =>
 				Ok(Junction::AccountIndex64 { network: Network::get(), index: Into::<u32>::into(who).into() }.into()),
@@ -96,7 +98,7 @@ pub type LocationToAccountId = (
 );
 
 parameter_types! {
-	pub UniversalLocation: InteriorMultiLocation = (
+	pub UniversalLocation: InteriorLocation = (
 		GlobalConsensus(Polkadot),
 		 Parachain(3344u32),
 	).into();
@@ -104,7 +106,7 @@ parameter_types! {
 	pub UnitWeightCost: Weight = Weight::from_parts(1_000_000_000, 64 * 1024);
 	pub const MaxInstructions: u32 = 100;
 
-	pub const HereLocation: MultiLocation = MultiLocation::here();
+	pub const HereLocation: Location = Location::here();
 }
 
 pub struct MockPrepared;
@@ -129,15 +131,15 @@ impl ExecuteXcm<RuntimeCall> for MockXcmExecutor {
 	}
 
 	fn execute(
-		_origin: impl Into<MultiLocation>,
+		_origin: impl Into<Location>,
 		_pre: Self::Prepared,
 		_id: &mut XcmHash,
 		_weight_credit: Weight,
 	) -> Outcome {
-		Outcome::Complete(Weight::zero())
+		Outcome::Complete { used: Weight::zero() }
 	}
 
-	fn charge_fees(_location: impl Into<MultiLocation>, _fees: MultiAssets) -> XcmResult {
+	fn charge_fees(_location: impl Into<Location>, _fees: Assets) -> XcmResult {
 		Ok(())
 	}
 }
@@ -233,18 +235,18 @@ parameter_types! {
 	pub const BlockHashCount: u32 = 250;
 }
 
+#[derive_impl(frame_system::config_preludes::TestDefaultConfig)]
 impl system::Config for TestRuntime {
 	type AccountData = pallet_balances::AccountData<Balance>;
 	type AccountId = AccountId;
 	type BaseCallFilter = frame_support::traits::Everything;
 	type Block = Block;
-	type BlockHashCount = BlockHashCount;
 	type BlockLength = ();
 	type BlockWeights = ();
 	type DbWeight = ();
 	type Hash = H256;
 	type Hashing = BlakeTwo256;
-	type Lookup = IdentityLookup<AccountId>;
+	type Lookup = IdentityLookup<Self::AccountId>;
 	type MaxConsumers = frame_support::traits::ConstU32<16>;
 	type Nonce = u64;
 	type OnKilledAccount = ();
@@ -254,7 +256,6 @@ impl system::Config for TestRuntime {
 	type RuntimeCall = RuntimeCall;
 	type RuntimeEvent = RuntimeEvent;
 	type RuntimeOrigin = RuntimeOrigin;
-	type RuntimeTask = RuntimeTask;
 	type SS58Prefix = ConstU16<42>;
 	type SystemWeightInfo = ();
 	type Version = ();
@@ -270,7 +271,6 @@ impl pallet_balances::Config for TestRuntime {
 	type ExistentialDeposit = ExistentialDeposit;
 	type FreezeIdentifier = ();
 	type MaxFreezes = ConstU32<1024>;
-	type MaxHolds = ConstU32<1024>;
 	type MaxLocks = frame_support::traits::ConstU32<1024>;
 	type MaxReserves = frame_support::traits::ConstU32<1024>;
 	type ReserveIdentifier = [u8; 8];
@@ -298,7 +298,6 @@ parameter_types! {
 	pub const AuctionRoundDuration: BlockNumber = 15u64;
 	pub const CommunityRoundDuration: BlockNumber = 18u64;
 	pub const RemainderRoundDuration: BlockNumber = 6u64;
-	pub const SuccessToSettlementTime: BlockNumber = 4u64;
 
 	pub const FundingPalletId: PalletId = PalletId(*b"py/cfund");
 	pub FeeBrackets: Vec<(Percent, Balance)> = vec![
@@ -317,14 +316,14 @@ parameter_types! {
 	pub const MinVestedTransfer: u64 = 256 * 2;
 	pub UnvestedFundsAllowedWithdrawReasons: WithdrawReasons =
 		WithdrawReasons::except(WithdrawReasons::TRANSFER | WithdrawReasons::RESERVE);
-	pub PolimecReceiverInfo: xcm::v3::PalletInfo = xcm::v3::PalletInfo::new(
+	pub PolimecReceiverInfo: XcmPalletInfo = XcmPalletInfo::new(
 		51, "PolimecReceiver".into(), "polimec_receiver".into(), 0, 1, 0
 	).unwrap();
 }
 
 #[cfg(feature = "runtime-benchmarks")]
 parameter_types! {
-	pub BenchmarkReason: RuntimeHoldReason = RuntimeHoldReason::PolimecFunding(crate::HoldReason::Participation(0));
+	pub BenchmarkReason: RuntimeHoldReason = RuntimeHoldReason::PolimecFunding(crate::HoldReason::Participation);
 }
 impl pallet_linear_release::Config for TestRuntime {
 	type Balance = Balance;
@@ -342,8 +341,8 @@ impl pallet_linear_release::Config for TestRuntime {
 }
 
 parameter_types! {
-	pub MaxMessageSizeThresholds: (u32, u32) = (50000, 102_400);
-	pub MaxCapacityThresholds: (u32, u32) = (8, 1000);
+	pub MaxMessageSizeThresholds: RangeInclusive<u32> = 50000..=102_400;
+	pub MaxCapacityThresholds: RangeInclusive<u32> = 8..=1000;
 	pub RequiredMaxCapacity: u32 = 8;
 	pub RequiredMaxMessageSize: u32 = 102_400;
 	pub VerifierPublicKey: [u8; 32] = [
@@ -436,7 +435,6 @@ impl Config for TestRuntime {
 	#[cfg(feature = "runtime-benchmarks")]
 	type SetPrices = ();
 	type StringLimit = ConstU32<64>;
-	type SuccessToSettlementTime = SuccessToSettlementTime;
 	type VerifierPublicKey = VerifierPublicKey;
 	type Vesting = LinearRelease;
 	type WeightInfo = weights::SubstrateWeight<TestRuntime>;

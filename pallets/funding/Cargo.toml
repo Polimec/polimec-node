@@ -38,7 +38,7 @@ parachains-common.workspace = true
 sp-core.workspace = true
 pallet-balances.workspace = true
 xcm.workspace = true
-polimec-xcm-executor.workspace = true
+xcm-executor.workspace = true
 pallet-xcm.workspace = true
 polkadot-parachain-primitives.workspace = true
 polimec-common-test-utils = { workspace = true, optional = true }
@@ -79,7 +79,6 @@ std = [
 	"polimec-common-test-utils",
 	"polimec-common-test-utils/std",
 	"polimec-common/std",
-	"polimec-xcm-executor/std",
 	"polkadot-parachain-primitives/std",
 	"scale-info/std",
 	"serde/std",
@@ -107,7 +106,6 @@ runtime-benchmarks = [
 	"polimec-common-test-utils",
 	"polimec-common-test-utils?/runtime-benchmarks",
 	"polimec-common/runtime-benchmarks",
-	"polimec-xcm-executor/runtime-benchmarks",
 	"polkadot-parachain-primitives/runtime-benchmarks",
 	"sp-runtime/runtime-benchmarks",
 	"xcm-builder/runtime-benchmarks",
@@ -124,6 +122,5 @@ try-runtime = [
 	"pallet-xcm/try-runtime",
 	"polimec-common-test-utils?/try-runtime",
 	"polimec-common/try-runtime",
-	"polimec-xcm-executor/try-runtime",
 	"sp-runtime/try-runtime",
 ]

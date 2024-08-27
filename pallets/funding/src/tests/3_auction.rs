@@ -407,11 +407,11 @@ mod bid_extrinsic {
 
 			inst.do_reserved_plmc_assertions(
 				vec![UserToPLMCBalance::new(evaluator_bidder, necessary_plmc_for_bid)],
-				HoldReason::Participation(project_id).into(),
+				HoldReason::Participation.into(),
 			);
 			inst.do_reserved_plmc_assertions(
 				vec![UserToPLMCBalance::new(evaluator_bidder, already_bonded_plmc - usable_evaluation_plmc)],
-				HoldReason::Evaluation(project_id).into(),
+				HoldReason::Evaluation.into(),
 			);
 		}
 
@@ -747,8 +747,7 @@ mod bid_extrinsic {
 			assert_eq!(inst.go_to_next_state(project_id), ProjectStatus::FundingFailed);
 
 			let free_balance = inst.get_free_plmc_balance_for(BIDDER_4);
-			let bid_held_balance =
-				inst.get_reserved_plmc_balance_for(BIDDER_4, HoldReason::Participation(project_id).into());
+			let bid_held_balance = inst.get_reserved_plmc_balance_for(BIDDER_4, HoldReason::Participation.into());
 			let frozen_balance = inst.execute(|| mock::Balances::balance_frozen(&(), &BIDDER_4));
 
 			assert_eq!(free_balance, inst.get_ed());
@@ -762,8 +761,7 @@ mod bid_extrinsic {
 			});
 
 			let free_balance = inst.get_free_plmc_balance_for(BIDDER_4);
-			let bid_held_balance =
-				inst.get_reserved_plmc_balance_for(BIDDER_4, HoldReason::Evaluation(project_id).into());
+			let bid_held_balance = inst.get_reserved_plmc_balance_for(BIDDER_4, HoldReason::Evaluation.into());
 			let frozen_balance = inst.execute(|| mock::Balances::balance_frozen(&(), &BIDDER_4));
 
 			assert_eq!(free_balance, inst.get_ed() + frozen_amount);
@@ -850,8 +848,7 @@ mod bid_extrinsic {
 			assert_eq!(inst.go_to_next_state(project_id), ProjectStatus::SettlementStarted(FundingOutcome::Success));
 
 			let free_balance = inst.get_free_plmc_balance_for(BIDDER_4);
-			let bid_held_balance =
-				inst.get_reserved_plmc_balance_for(BIDDER_4, HoldReason::Participation(project_id).into());
+			let bid_held_balance = inst.get_reserved_plmc_balance_for(BIDDER_4, HoldReason::Participation.into());
 			let frozen_balance = inst.execute(|| mock::Balances::balance_frozen(&(), &BIDDER_4));
 
 			assert_eq!(free_balance, inst.get_ed());
@@ -863,8 +860,7 @@ mod bid_extrinsic {
 			});
 
 			let free_balance = inst.get_free_plmc_balance_for(BIDDER_4);
-			let bid_held_balance =
-				inst.get_reserved_plmc_balance_for(BIDDER_4, HoldReason::Participation(project_id).into());
+			let bid_held_balance = inst.get_reserved_plmc_balance_for(BIDDER_4, HoldReason::Participation.into());
 			let frozen_balance = inst.execute(|| mock::Balances::balance_frozen(&(), &BIDDER_4));
 
 			assert_eq!(free_balance, inst.get_ed());
@@ -878,13 +874,12 @@ mod bid_extrinsic {
 			inst.execute(|| {
 				assert_ok!(mock::LinearRelease::vest(
 					RuntimeOrigin::signed(BIDDER_4),
-					HoldReason::Participation(project_id).into()
+					HoldReason::Participation.into()
 				));
 			});
 
 			let free_balance = inst.get_free_plmc_balance_for(BIDDER_4);
-			let bid_held_balance =
-				inst.get_reserved_plmc_balance_for(BIDDER_4, HoldReason::Participation(project_id).into());
+			let bid_held_balance = inst.get_reserved_plmc_balance_for(BIDDER_4, HoldReason::Participation.into());
 			let frozen_balance = inst.execute(|| mock::Balances::balance_frozen(&(), &BIDDER_4));
 
 			assert_eq!(free_balance, inst.get_ed() + frozen_amount);
@@ -1656,7 +1651,6 @@ mod end_auction_extrinsic {
 
 			assert!(matches!(inst.go_to_next_state(project_id), ProjectStatus::CommunityRound(..)));
 
-			let project_details = inst.get_project_details(project_id);
 			let token_price = inst.get_project_details(project_id).weighted_average_price.unwrap();
 			let normalized_wap =
 				PriceProviderOf::<TestRuntime>::convert_back_to_normal_price(token_price, USD_DECIMALS, CT_DECIMALS)
@@ -1733,7 +1727,7 @@ mod end_auction_extrinsic {
 				UserToPLMCBalance::new(BIDDER_1, inst.get_ed()),
 				UserToPLMCBalance::new(BIDDER_2, inst.get_ed()),
 			]);
-			inst.do_reserved_plmc_assertions(plmc_amounts.clone(), HoldReason::Participation(project_id).into());
+			inst.do_reserved_plmc_assertions(plmc_amounts.clone(), HoldReason::Participation.into());
 
 			assert!(matches!(inst.go_to_next_state(project_id), ProjectStatus::CommunityRound(_)));
 
@@ -1793,7 +1787,7 @@ mod end_auction_extrinsic {
 			inst.settle_project(project_id, true);
 
 			inst.do_free_plmc_assertions(expected_free_plmc);
-			inst.do_reserved_plmc_assertions(expected_reserved_plmc, HoldReason::Participation(project_id).into());
+			inst.do_reserved_plmc_assertions(expected_reserved_plmc, HoldReason::Participation.into());
 			inst.do_free_funding_asset_assertions(expected_free_funding_assets);
 
 			for (asset, expected_amount) in expected_issuer_funding {

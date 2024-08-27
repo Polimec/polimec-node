@@ -42,6 +42,7 @@ use frame_support::{
 		Fortitude, Preservation,
 	},
 };
+use pallet_balances::PositiveImbalance;
 use sp_runtime::{traits::Zero, Perbill, Percent};
 
 // ~~ ROOT ~~
@@ -3786,10 +3787,10 @@ fn deferred_payment_steady_state_event_flow() {
 		.execute_with(|| {
 			// convenience to set the round points consistently
 			let set_round_points = |round: BlockNumber| {
-				set_author(round as BlockNumber, 1, 1);
-				set_author(round as BlockNumber, 2, 1);
-				set_author(round as BlockNumber, 3, 1);
-				set_author(round as BlockNumber, 4, 1);
+				set_author(round, 1, 1);
+				set_author(round, 2, 1);
+				set_author(round, 3, 1);
+				set_author(round, 4, 1);
 			};
 
 			// grab initial issuance -- we will reset it before round issuance is calculated so that
@@ -3798,8 +3799,10 @@ fn deferred_payment_steady_state_event_flow() {
 			let reset_issuance = || {
 				let new_issuance = Balances::total_issuance();
 				let diff = new_issuance - initial_issuance;
-				let burned = Balances::burn(diff);
-				Balances::settle(&111, burned, WithdrawReasons::FEE, ExistenceRequirement::AllowDeath)
+				assert_ok!(Balances::burn(Some(111).into(), diff, false));
+				let burned_imbalance = PositiveImbalance::<Test>::new(diff);
+
+				Balances::settle(&111, burned_imbalance, WithdrawReasons::FEE, ExistenceRequirement::AllowDeath)
 					.expect("Account can absorb burn");
 			};
 
@@ -3829,7 +3832,7 @@ fn deferred_payment_steady_state_event_flow() {
 					Event::CollatorChosen { round: round as u32, collator_account: 3, total_exposed_amount: 400 },
 					Event::CollatorChosen { round: round as u32, collator_account: 4, total_exposed_amount: 400 },
 					Event::NewRound {
-						starting_block: (round - 1) * 5,
+						starting_block: (round as u32 - 1) * 5,
 						round: round as u32,
 						selected_collators_number: 4,
 						total_balance: 1600,

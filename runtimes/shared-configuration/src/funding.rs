@@ -23,64 +23,33 @@ use sp_arithmetic::{FixedU128, Percent};
 use sp_runtime::Perquintill;
 use sp_std::{collections::btree_map::BTreeMap, vec, vec::Vec};
 
-#[cfg(not(feature = "instant-mode"))]
-use parachains_common::HOURS;
-
 #[cfg(feature = "instant-mode")]
-pub const EVALUATION_ROUND_DURATION: BlockNumber = 3;
+pub const EVALUATION_ROUND_DURATION: BlockNumber = 7;
 #[cfg(feature = "fast-mode")]
-pub const EVALUATION_ROUND_DURATION: BlockNumber = 10 * crate::MINUTES;
+pub const EVALUATION_ROUND_DURATION: BlockNumber = 7 * crate::MINUTES;
 #[cfg(not(any(feature = "fast-mode", feature = "instant-mode")))]
-pub const EVALUATION_ROUND_DURATION: BlockNumber = 28 * crate::DAYS;
+pub const EVALUATION_ROUND_DURATION: BlockNumber = 7 * crate::DAYS;
 
 #[cfg(feature = "instant-mode")]
-pub const AUCTION_INITIALIZE_PERIOD_DURATION: BlockNumber = 3;
-#[cfg(feature = "fast-mode")]
-pub const AUCTION_INITIALIZE_PERIOD_DURATION: BlockNumber = 10 * crate::MINUTES;
-#[cfg(not(any(feature = "fast-mode", feature = "instant-mode")))]
-pub const AUCTION_INITIALIZE_PERIOD_DURATION: BlockNumber = 7 * crate::DAYS;
-
-#[cfg(feature = "instant-mode")]
-pub const AUCTION_ROUND_DURATION: BlockNumber = 2;
+pub const AUCTION_ROUND_DURATION: BlockNumber = 7;
 #[cfg(feature = "fast-mode")]
 pub const AUCTION_ROUND_DURATION: BlockNumber = 7 * crate::MINUTES;
 #[cfg(not(any(feature = "fast-mode", feature = "instant-mode")))]
-pub const AUCTION_ROUND_DURATION: BlockNumber = 5 * crate::DAYS;
+pub const AUCTION_ROUND_DURATION: BlockNumber = 7 * crate::DAYS;
 
 #[cfg(feature = "instant-mode")]
-pub const COMMUNITY_ROUND_DURATION: BlockNumber = 3;
+pub const COMMUNITY_ROUND_DURATION: BlockNumber = 5;
 #[cfg(feature = "fast-mode")]
-pub const COMMUNITY_ROUND_DURATION: BlockNumber = 15 * crate::MINUTES;
+pub const COMMUNITY_ROUND_DURATION: BlockNumber = 5 * crate::MINUTES;
 #[cfg(not(any(feature = "fast-mode", feature = "instant-mode")))]
 pub const COMMUNITY_ROUND_DURATION: BlockNumber = 5 * crate::DAYS;
 
 #[cfg(feature = "instant-mode")]
-pub const REMAINDER_ROUND_DURATION: BlockNumber = 3;
+pub const REMAINDER_ROUND_DURATION: BlockNumber = 2;
 #[cfg(feature = "fast-mode")]
-pub const REMAINDER_ROUND_DURATION: BlockNumber = 15 * crate::MINUTES;
+pub const REMAINDER_ROUND_DURATION: BlockNumber = 2 * crate::MINUTES;
 #[cfg(not(any(feature = "fast-mode", feature = "instant-mode")))]
-pub const REMAINDER_ROUND_DURATION: BlockNumber = crate::DAYS;
-
-#[cfg(feature = "instant-mode")]
-pub const CONTRIBUTION_VESTING_DURATION: BlockNumber = 5;
-#[cfg(feature = "fast-mode")]
-pub const CONTRIBUTION_VESTING_DURATION: BlockNumber = 1 * HOURS;
-#[cfg(not(any(feature = "fast-mode", feature = "instant-mode")))]
-pub const CONTRIBUTION_VESTING_DURATION: BlockNumber = 365 * crate::DAYS;
-
-#[cfg(feature = "instant-mode")]
-pub const MANUAL_ACCEPTANCE_DURATION: BlockNumber = 3;
-#[cfg(feature = "fast-mode")]
-pub const MANUAL_ACCEPTANCE_DURATION: BlockNumber = 1 * HOURS;
-#[cfg(not(any(feature = "fast-mode", feature = "instant-mode")))]
-pub const MANUAL_ACCEPTANCE_DURATION: BlockNumber = 3 * crate::DAYS;
-
-#[cfg(feature = "instant-mode")]
-pub const SUCCESS_TO_SETTLEMENT_TIME: BlockNumber = 4;
-#[cfg(feature = "fast-mode")]
-pub const SUCCESS_TO_SETTLEMENT_TIME: BlockNumber = 5 * crate::MINUTES;
-#[cfg(not(any(feature = "fast-mode", feature = "instant-mode")))]
-pub const SUCCESS_TO_SETTLEMENT_TIME: BlockNumber = 1 * HOURS;
+pub const REMAINDER_ROUND_DURATION: BlockNumber = 2 * crate::DAYS;
 
 pub type ProjectIdentifier = u32;
 
@@ -89,8 +58,6 @@ parameter_types! {
 	pub const AuctionRoundDuration: BlockNumber = AUCTION_ROUND_DURATION;
 	pub const CommunityRoundDuration: BlockNumber = COMMUNITY_ROUND_DURATION;
 	pub const RemainderRoundDuration: BlockNumber = REMAINDER_ROUND_DURATION;
-	pub const ManualAcceptanceDuration: BlockNumber = MANUAL_ACCEPTANCE_DURATION;
-	pub const SuccessToSettlementTime: BlockNumber = SUCCESS_TO_SETTLEMENT_TIME;
 	pub const FundingPalletId: PalletId = PalletId(*b"plmc/fun");
 	pub PriceMap: BTreeMap<AssetIdForTrustBackedAssets, FixedU128> = BTreeMap::from_iter(vec![
 		(AcceptedFundingAsset::DOT.id(), FixedU128::from_rational(69, 1)), // DOT

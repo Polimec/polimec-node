@@ -385,10 +385,10 @@ mod benches {
 		T::Currency::set_balance(&caller, T::Currency::minimum_balance().saturating_add(1024u32.into()));
 
 		add_holds::<T>(&caller, l);
-		// At block zero, everything is vested.
-		assert_eq!(System::<T>::block_number(), BlockNumberFor::<T>::zero());
 		let reason: ReasonOf<T> = T::BenchmarkReason::get();
 		let _ = add_vesting_schedules::<T>(caller.clone(), s, reason)?;
+		// At block zero, everything is vested.
+		assert_eq!(System::<T>::block_number(), BlockNumberFor::<T>::zero());
 		assert_eq!(
 			PalletLinearRelease::<T>::vesting_balance(&caller, reason),
 			Some(BalanceOf::<T>::zero()),

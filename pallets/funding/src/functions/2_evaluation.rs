@@ -17,7 +17,7 @@ impl<T: Config> Pallet<T> {
 	///
 	/// # Next step
 	/// Users will pond PLMC for this project, and when the time comes, the project will be transitioned
-	/// to the next round by `on_initialize` using [`do_evaluation_end`](Self::do_end_evaluation)
+	/// to the next round by `on_initialize` using [`do_evaluation_end`](Self::do_end_evaluation(project_id))
 	#[transactional]
 	pub fn do_start_evaluation(caller: AccountIdOf<T>, project_id: ProjectId) -> DispatchResult {
 		// * Get variables *
@@ -171,7 +171,7 @@ impl<T: Config> Pallet<T> {
 			when: now,
 		};
 
-		T::NativeCurrency::hold(&HoldReason::Evaluation(project_id).into(), evaluator, plmc_bond)?;
+		T::NativeCurrency::hold(&HoldReason::Evaluation.into(), evaluator, plmc_bond)?;
 		Evaluations::<T>::insert((project_id, evaluator, evaluation_id), new_evaluation);
 		NextEvaluationId::<T>::set(evaluation_id.saturating_add(One::one()));
 		evaluation_round_info.total_bonded_usd += usd_amount;

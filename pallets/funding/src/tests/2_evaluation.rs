@@ -225,7 +225,7 @@ mod round_flow {
 			inst.evaluate_for_users(project_id, default_failing_evaluations()).expect("Bonding should work");
 
 			inst.do_free_plmc_assertions(plmc_existential_deposits);
-			inst.do_reserved_plmc_assertions(plmc_eval_deposits, HoldReason::Evaluation(project_id).into());
+			inst.do_reserved_plmc_assertions(plmc_eval_deposits, HoldReason::Evaluation.into());
 
 			assert_eq!(inst.go_to_next_state(project_id), ProjectStatus::FundingFailed);
 			assert_eq!(inst.go_to_next_state(project_id), ProjectStatus::SettlementStarted(FundingOutcome::Failure));
@@ -640,7 +640,7 @@ mod evaluate_extrinsic {
 
 			let free_balance = inst.get_free_plmc_balance_for(EVALUATOR_4);
 			let evaluation_held_balance =
-				inst.get_reserved_plmc_balance_for(EVALUATOR_4, HoldReason::Evaluation(project_id).into());
+				inst.get_reserved_plmc_balance_for(EVALUATOR_4, HoldReason::Evaluation.into());
 			let frozen_balance = inst.execute(|| mock::Balances::balance_frozen(&(), &EVALUATOR_4));
 
 			assert_eq!(free_balance, inst.get_ed());
@@ -660,7 +660,7 @@ mod evaluate_extrinsic {
 			let post_slash_treasury_balance = inst.get_free_plmc_balance_for(treasury_account);
 			let free_balance = inst.get_free_plmc_balance_for(EVALUATOR_4);
 			let evaluation_held_balance =
-				inst.get_reserved_plmc_balance_for(EVALUATOR_4, HoldReason::Evaluation(project_id).into());
+				inst.get_reserved_plmc_balance_for(EVALUATOR_4, HoldReason::Evaluation.into());
 			let frozen_balance = inst.execute(|| mock::Balances::balance_frozen(&(), &EVALUATOR_4));
 			let account_data = inst.execute(|| System::account(&EVALUATOR_4)).data;
 
@@ -833,7 +833,7 @@ mod evaluate_extrinsic {
 
 			inst.execute(|| {
 				<TestRuntime as Config>::NativeCurrency::hold(
-					&RuntimeHoldReason::PolimecFunding(HoldReason::Evaluation(69)),
+					&RuntimeHoldReason::PolimecFunding(HoldReason::Evaluation),
 					&EVALUATOR_1,
 					necessary_plmc[0].plmc_amount,
 				)

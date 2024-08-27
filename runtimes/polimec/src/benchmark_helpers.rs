@@ -1,8 +1,8 @@
 use crate::{Oracle, Runtime, RuntimeOrigin};
-pub use frame_support::BoundedVec;
-pub use pallet_funding::{traits::SetPrices, AcceptedFundingAsset};
-use scale_info::prelude::vec;
-pub use sp_runtime::FixedU128;
+use alloc::vec;
+use pallet_funding::{traits::SetPrices, AcceptedFundingAsset};
+use sp_runtime::{BoundedVec, FixedU128};
+
 pub struct SetOraclePrices;
 impl SetPrices for SetOraclePrices {
 	fn set_prices() {

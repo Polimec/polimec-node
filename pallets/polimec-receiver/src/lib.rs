@@ -34,7 +34,7 @@ pub mod pallet {
 	use polkadot_parachain_primitives::primitives::{Id as ParaId, Sibling};
 	use sp_runtime::traits::{AccountIdConversion, Convert};
 	use sp_std::prelude::*;
-	use xcm::latest::{Junction::AccountId32, Junctions::X1, MultiLocation};
+	use xcm::v4::{Junction::AccountId32, Location};
 
 	type MomentOf<T> = <<T as Config>::Vesting as VestingSchedule<<T as frame_system::Config>::AccountId>>::Moment;
 
@@ -64,7 +64,7 @@ pub mod pallet {
 	pub type ExecutedMigrations<T> = StorageNMap<
 		_,
 		(
-			NMapKey<Blake2_128Concat, xcm::latest::MultiLocation>,
+			NMapKey<Blake2_128Concat, Location>,
 			NMapKey<Blake2_128Concat, ParticipationType>,
 			NMapKey<Blake2_128Concat, u32>,
 		),
@@ -101,40 +101,42 @@ pub mod pallet {
 		#[pallet::call_index(0)]
 		#[pallet::weight(Weight::from_parts(10_000, 0))]
 		pub fn execute_migrations(origin: OriginFor<T>, migrations: Migrations) -> DispatchResult {
-			let para_id: ParaId = ensure_sibling_para(<T as Config>::RuntimeOrigin::from(origin))?;
+			let para_id = ensure_sibling_para(<T as Config>::RuntimeOrigin::from(origin))?;
 			let polimec_id = T::PolimecParaId::get();
-			let polimec_soverign_account = Sibling(polimec_id).into_account_truncating();
+			let polimec_sovereign_account = Sibling(polimec_id).into_account_truncating();
 
-			ensure!(para_id == T::PolimecParaId::get(), "Only Polimec Parachain can call migrations");
+			ensure!(para_id == polimec_id, "Only Polimec Parachain can call migrations");
+
 			for migration @ Migration {
 				origin: MigrationOrigin { user, id, participation_type },
 				info: MigrationInfo { contribution_token_amount, .. },
 				..
-			} in migrations.clone().inner()
+			} in migrations.inner().iter()
 			{
-				let user_32 = match user {
-					MultiLocation { parents: 0, interior: X1(AccountId32 { network: _, id }) } => Ok(id),
+				let user_32 = match user.unpack() {
+					(0, [AccountId32 { id, .. }]) => Ok(*id),
 					_ => Err(Error::<T>::NoneValue),
 				}?;
-				let already_executed = ExecutedMigrations::<T>::get((user, participation_type, id));
-				if already_executed {
-					Self::deposit_event(Event::DuplicatedMigrationSkipped { migration });
+
+				if ExecutedMigrations::<T>::get((&user, &participation_type, &id)) {
+					Self::deposit_event(Event::DuplicatedMigrationSkipped { migration: migration.clone() });
 					continue;
 				}
+
 				T::Balances::transfer(
-					&polimec_soverign_account,
+					&polimec_sovereign_account,
 					&user_32.into(),
-					contribution_token_amount.into(),
+					(*contribution_token_amount).into(),
 					KeepAlive,
 				)?;
 				T::Vesting::add_vesting_schedule(
 					&user_32.into(),
-					contribution_token_amount.into(),
+					(*contribution_token_amount).into(),
 					T::MigrationInfoToPerBlockBalance::convert(migration.info.clone()),
 					T::GenesisMoment::get(),
 				)?;
-				ExecutedMigrations::<T>::insert((user, participation_type, id), true);
-				Self::deposit_event(Event::MigrationExecuted { migration });
+				ExecutedMigrations::<T>::insert((&user, &participation_type, &id), true);
+				Self::deposit_event(Event::MigrationExecuted { migration: migration.clone() });
 			}
 
 			Ok(())

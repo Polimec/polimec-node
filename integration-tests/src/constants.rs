@@ -176,21 +176,13 @@ pub mod polkadot {
 	fn session_keys(
 		babe: BabeId,
 		grandpa: GrandpaId,
-		im_online: ImOnlineId,
+		_im_online: ImOnlineId,
 		para_validator: ValidatorId,
 		para_assignment: AssignmentId,
 		authority_discovery: AuthorityDiscoveryId,
 		beefy: BeefyId,
 	) -> polkadot_runtime::SessionKeys {
-		polkadot_runtime::SessionKeys {
-			babe,
-			grandpa,
-			im_online,
-			para_validator,
-			para_assignment,
-			authority_discovery,
-			beefy,
-		}
+		polkadot_runtime::SessionKeys { babe, grandpa, para_validator, para_assignment, authority_discovery, beefy }
 	}
 
 	pub fn genesis() -> Storage {
@@ -233,7 +225,7 @@ pub mod polkadot {
 			},
 			babe: polkadot_runtime::BabeConfig {
 				authorities: Default::default(),
-				epoch_config: Some(polkadot_runtime::BABE_GENESIS_EPOCH_CONFIG),
+				epoch_config: polkadot_runtime::BABE_GENESIS_EPOCH_CONFIG,
 				..Default::default()
 			},
 			configuration: polkadot_runtime::ConfigurationConfig { config: get_host_config() },
@@ -248,7 +240,7 @@ pub mod polkadot {
 pub mod asset_hub {
 	use super::*;
 	use crate::{AssetHub, PolkadotNet};
-	use xcm::v3::Parent;
+	use xcm::v4::Parent;
 
 	pub const PARA_ID: u32 = 1000;
 	pub const ED: Balance = system_parachains_constants::polkadot::currency::SYSTEM_PARA_EXISTENTIAL_DEPOSIT;
@@ -304,6 +296,8 @@ pub mod asset_hub {
 			assets: Default::default(),
 			foreign_assets: Default::default(),
 			transaction_payment: Default::default(),
+			vesting: Default::default(),
+			pool_assets: Default::default(),
 		};
 
 		genesis_config.build_storage().unwrap()
@@ -314,7 +308,7 @@ pub mod asset_hub {
 pub mod penpal {
 	use super::*;
 	use crate::{ParaId, Penpal, PolkadotNet};
-	use xcm::v3::Parent;
+	use xcm::v4::Parent;
 	pub const PARA_ID: u32 = 6969;
 	pub const ED: Balance = penpal_runtime::EXISTENTIAL_DEPOSIT;
 
@@ -372,7 +366,7 @@ pub mod polimec {
 	use crate::{PolimecNet, PolimecOrigin, PolimecRuntime};
 	use pallet_funding::AcceptedFundingAsset;
 	use polimec_runtime::{BlockchainOperationTreasury, TreasuryAccount};
-	use xcm::v3::Parent;
+	use xcm::v4::Parent;
 	use xcm_emulator::TestExt;
 
 	pub const PARA_ID: u32 = 3344;

@@ -36,7 +36,6 @@ pub use storage::*;
 use crate::{traits::VestingDurationCalculation, Config};
 
 use sp_runtime::traits::Zero;
-use variant_count::VariantCount;
 
 pub mod config {
 	#[allow(clippy::wildcard_imports)]
@@ -512,6 +511,8 @@ pub mod storage {
 pub mod inner {
 	#[allow(clippy::wildcard_imports)]
 	use super::*;
+	use variant_count::VariantCount;
+	use xcm::v4::QueryId;
 
 	pub enum MetadataError {
 		/// The minimum price per token is too low.
@@ -787,8 +788,8 @@ pub mod inner {
 
 	#[derive(Clone, Copy, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
 	pub struct PalletMigrationReadinessCheck {
-		pub holding_check: (xcm::v3::QueryId, CheckOutcome),
-		pub pallet_check: (xcm::v3::QueryId, CheckOutcome),
+		pub holding_check: (QueryId, CheckOutcome),
+		pub pallet_check: (QueryId, CheckOutcome),
 	}
 
 	impl PalletMigrationReadinessCheck {

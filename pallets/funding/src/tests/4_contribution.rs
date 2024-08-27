@@ -113,10 +113,7 @@ mod round_flow {
 				0_u128,
 				AcceptedFundingAsset::USDT.id(),
 			)]);
-			inst.do_reserved_plmc_assertions(
-				vec![plmc_fundings[0].clone()],
-				HoldReason::Participation(project_id).into(),
-			);
+			inst.do_reserved_plmc_assertions(vec![plmc_fundings[0].clone()], HoldReason::Participation.into());
 		}
 
 		#[test]
@@ -360,8 +357,7 @@ mod contribute_extrinsic {
 			)
 			.unwrap();
 
-			let evaluation_plmc_bond =
-				inst.execute(|| Balances::balance_on_hold(&HoldReason::Evaluation(project_id).into(), &BOB));
+			let evaluation_plmc_bond = inst.execute(|| Balances::balance_on_hold(&HoldReason::Evaluation.into(), &BOB));
 			let slashable_plmc = <TestRuntime as Config>::EvaluatorSlash::get() * evaluation_plmc_bond;
 			let usable_plmc = evaluation_plmc_bond - slashable_plmc;
 
@@ -456,8 +452,7 @@ mod contribute_extrinsic {
 			let first_bucket = bucket.amount_left;
 
 			// Failed bids can only happen on oversubscription. We want Bob's bid as the last one of the first bucket
-			let bob_plmc_bond =
-				inst.execute(|| Balances::balance_on_hold(&HoldReason::Evaluation(project_id).into(), &bob));
+			let bob_plmc_bond = inst.execute(|| Balances::balance_on_hold(&HoldReason::Evaluation.into(), &bob));
 			let usable_bond = bob_plmc_bond - <TestRuntime as Config>::EvaluatorSlash::get() * bob_plmc_bond;
 			let usable_usd = plmc_price.saturating_mul_int(usable_bond);
 			let usable_bob_ct = bucket.current_price.reciprocal().unwrap().saturating_mul_int(usable_usd);
@@ -863,8 +858,7 @@ mod contribute_extrinsic {
 			assert_eq!(inst.go_to_next_state(project_id), ProjectStatus::FundingFailed);
 
 			let free_balance = inst.get_free_plmc_balance_for(BUYER_4);
-			let bid_held_balance =
-				inst.get_reserved_plmc_balance_for(BUYER_4, HoldReason::Participation(project_id).into());
+			let bid_held_balance = inst.get_reserved_plmc_balance_for(BUYER_4, HoldReason::Participation.into());
 			let frozen_balance = inst.execute(|| mock::Balances::balance_frozen(&(), &BUYER_4));
 
 			assert_eq!(free_balance, inst.get_ed());
@@ -878,8 +872,7 @@ mod contribute_extrinsic {
 			});
 
 			let free_balance = inst.get_free_plmc_balance_for(BUYER_4);
-			let bid_held_balance =
-				inst.get_reserved_plmc_balance_for(BUYER_4, HoldReason::Evaluation(project_id).into());
+			let bid_held_balance = inst.get_reserved_plmc_balance_for(BUYER_4, HoldReason::Evaluation.into());
 			let frozen_balance = inst.execute(|| mock::Balances::balance_frozen(&(), &BUYER_4));
 
 			assert_eq!(free_balance, inst.get_ed() + frozen_amount);
@@ -943,8 +936,7 @@ mod contribute_extrinsic {
 			assert_eq!(inst.go_to_next_state(project_id), ProjectStatus::SettlementStarted(FundingOutcome::Success));
 
 			let free_balance = inst.get_free_plmc_balance_for(BUYER_4);
-			let bid_held_balance =
-				inst.get_reserved_plmc_balance_for(BUYER_4, HoldReason::Participation(project_id).into());
+			let bid_held_balance = inst.get_reserved_plmc_balance_for(BUYER_4, HoldReason::Participation.into());
 			let frozen_balance = inst.execute(|| mock::Balances::balance_frozen(&(), &BUYER_4));
 
 			assert_eq!(free_balance, inst.get_ed());
@@ -956,8 +948,7 @@ mod contribute_extrinsic {
 			});
 
 			let free_balance = inst.get_free_plmc_balance_for(BUYER_4);
-			let bid_held_balance =
-				inst.get_reserved_plmc_balance_for(BUYER_4, HoldReason::Participation(project_id).into());
+			let bid_held_balance = inst.get_reserved_plmc_balance_for(BUYER_4, HoldReason::Participation.into());
 			let frozen_balance = inst.execute(|| mock::Balances::balance_frozen(&(), &BUYER_4));
 
 			assert_eq!(free_balance, inst.get_ed());
@@ -969,15 +960,11 @@ mod contribute_extrinsic {
 			let now = inst.current_block();
 			inst.jump_to_block(now + vest_duration + 1u64);
 			inst.execute(|| {
-				assert_ok!(mock::LinearRelease::vest(
-					RuntimeOrigin::signed(BUYER_4),
-					HoldReason::Participation(project_id).into()
-				));
+				assert_ok!(mock::LinearRelease::vest(RuntimeOrigin::signed(BUYER_4), HoldReason::Participation.into()));
 			});
 
 			let free_balance = inst.get_free_plmc_balance_for(BUYER_4);
-			let bid_held_balance =
-				inst.get_reserved_plmc_balance_for(BUYER_4, HoldReason::Participation(project_id).into());
+			let bid_held_balance = inst.get_reserved_plmc_balance_for(BUYER_4, HoldReason::Participation.into());
 			let frozen_balance = inst.execute(|| mock::Balances::balance_frozen(&(), &BUYER_4));
 
 			assert_eq!(free_balance, inst.get_ed() + frozen_amount);
@@ -1022,7 +1009,7 @@ mod contribute_extrinsic {
 		use frame_support::traits::{
 			fungible::Mutate as MutateFungible,
 			fungibles::Mutate as MutateFungibles,
-			tokens::{Fortitude, Precision},
+			tokens::{Fortitude, Precision, Preservation},
 		};
 		use sp_runtime::bounded_vec;
 
@@ -1078,7 +1065,7 @@ mod contribute_extrinsic {
 
 			let plmc_bond_stored = inst.execute(|| {
 				<TestRuntime as Config>::NativeCurrency::balance_on_hold(
-					&HoldReason::Participation(project_id.into()).into(),
+					&HoldReason::Participation.into(),
 					&CONTRIBUTOR,
 				)
 			});
@@ -1491,7 +1478,10 @@ mod contribute_extrinsic {
 			let plmc_existential_deposits = plmc_funding.accounts().existential_deposits();
 			inst.mint_plmc_to(plmc_funding.clone());
 			inst.mint_plmc_to(plmc_existential_deposits.clone());
-			inst.execute(|| Balances::burn_from(&BUYER_1, 1, Precision::BestEffort, Fortitude::Force)).unwrap();
+			inst.execute(|| {
+				Balances::burn_from(&BUYER_1, 1, Preservation::Expendable, Precision::BestEffort, Fortitude::Force)
+			})
+			.unwrap();
 
 			let foreign_funding = inst.calculate_contributed_funding_asset_spent(vec![contribution.clone()], wap);
 			inst.mint_funding_asset_to(foreign_funding.clone());
@@ -1524,6 +1514,7 @@ mod contribute_extrinsic {
 					AcceptedFundingAsset::USDT.id(),
 					&BUYER_1,
 					100,
+					Preservation::Expendable,
 					Precision::BestEffort,
 					Fortitude::Force,
 				)

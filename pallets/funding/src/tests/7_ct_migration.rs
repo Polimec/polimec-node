@@ -1,7 +1,7 @@
 use super::*;
 use frame_support::{assert_err, traits::fungibles::Inspect};
 use sp_runtime::bounded_vec;
-use xcm::latest::MaxPalletNameLen;
+use xcm::v4::MaxPalletNameLen;
 
 mod pallet_migration {
 	use super::*;
@@ -85,19 +85,14 @@ mod pallet_migration {
 
 	fn fake_hrmp_establishment() {
 		// Notification sent by the relay when the project starts a project->polimec channel
-		let open_channel_message = xcm::v3::opaque::Instruction::HrmpNewChannelOpenRequest {
-			sender: 6969,
-			max_message_size: 102_300,
-			max_capacity: 1000,
-		};
+		const SENDER: u32 = 6969;
+
 		// This makes Polimec send an acceptance + open channel (polimec->project) message back to the relay
-		assert_ok!(PolimecFunding::do_handle_channel_open_request(open_channel_message));
+		assert_ok!(PolimecFunding::do_handle_channel_open_request(SENDER, 50_000, 8));
 
-		// Finally the relay notifies the channel polimec->project has been accepted by the project
-		let channel_accepted_message = xcm::v3::opaque::Instruction::HrmpChannelAccepted { recipient: 6969u32 };
-
+		// Finally the relay notifies the channel Polimec->project has been accepted by the project
 		// We set the hrmp flags as "Open" and start the receiver pallet check
-		assert_ok!(PolimecFunding::do_handle_channel_accepted(channel_accepted_message));
+		assert_ok!(PolimecFunding::do_handle_channel_accepted(SENDER));
 	}
 
 	#[test]
@@ -139,37 +134,38 @@ mod pallet_migration {
 		// We simulate the response from the project chain
 		let ct_issuance =
 			inst.execute(|| <TestRuntime as crate::Config>::ContributionTokenCurrency::total_issuance(project_id));
-		let ct_multiassets: MultiAssets = vec![MultiAsset {
-			id: Concrete(MultiLocation { parents: 1, interior: X1(Parachain(6969)) }),
+		let ct_assets: Assets = vec![Asset {
+			id: AssetId(Location::new(1u8, [Parachain(6969u32)])),
 			fun: Fungibility::Fungible(ct_issuance),
 		}]
 		.into();
 
 		inst.execute(|| {
 			assert_ok!(PolimecFunding::do_pallet_migration_readiness_response(
-				MultiLocation::new(1u8, X1(Parachain(6969u32))),
+				Location::new(1u8, [Parachain(6969u32)]),
 				0u64,
-				Response::Assets(ct_multiassets),
+				Response::Assets(ct_assets),
 			));
 		});
 
 		let module_name: BoundedVec<u8, MaxPalletNameLen> =
 			BoundedVec::try_from("polimec_receiver".as_bytes().to_vec()).unwrap();
-		let pallet_info = xcm::latest::PalletInfo {
+		let pallet_info = xcm::v4::PalletInfo::new(
 			// index is used for future `Transact` calls to the pallet for migrating a user
-			index: 69,
+			69,
 			// Doesn't matter
-			name: module_name.clone(),
+			module_name.to_vec(),
 			// Main check that the receiver pallet is there
-			module_name,
+			module_name.to_vec(),
 			// These might be useful in the future, but not for now
-			major: 0,
-			minor: 0,
-			patch: 0,
-		};
+			0,
+			0,
+			0,
+		)
+		.unwrap();
 		inst.execute(|| {
 			assert_ok!(PolimecFunding::do_pallet_migration_readiness_response(
-				MultiLocation::new(1u8, X1(Parachain(6969u32))),
+				Location::new(1u8, [Parachain(6969u32)]),
 				1u64,
 				Response::PalletsInfo(bounded_vec![pallet_info]),
 			));

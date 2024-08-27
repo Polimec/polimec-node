@@ -152,14 +152,14 @@ impl<T: Config> Pallet<T> {
 			let converted = to_convert.min(available_to_convert);
 			evaluation.current_plmc_bond = evaluation.current_plmc_bond.saturating_sub(converted);
 			Evaluations::<T>::insert((project_id, who, evaluation.id), evaluation);
-			T::NativeCurrency::release(&HoldReason::Evaluation(project_id).into(), who, converted, Precision::Exact)
+			T::NativeCurrency::release(&HoldReason::Evaluation.into(), who, converted, Precision::Exact)
 				.map_err(|_| Error::<T>::ImpossibleState)?;
-			T::NativeCurrency::hold(&HoldReason::Participation(project_id).into(), who, converted)
+			T::NativeCurrency::hold(&HoldReason::Participation.into(), who, converted)
 				.map_err(|_| Error::<T>::ImpossibleState)?;
 			to_convert = to_convert.saturating_sub(converted)
 		}
 
-		T::NativeCurrency::hold(&HoldReason::Participation(project_id).into(), who, to_convert)
+		T::NativeCurrency::hold(&HoldReason::Participation.into(), who, to_convert)
 			.map_err(|_| Error::<T>::ParticipantNotEnoughFunds)?;
 
 		Ok(())
@@ -343,7 +343,7 @@ impl<T: Config> Pallet<T> {
 			UnpaidExecution { weight_limit: WeightLimit::Unlimited, check_origin: None },
 			Transact { origin_kind: OriginKind::Native, require_weight_at_most: MAX_WEIGHT, call: encoded_call.into() },
 			ReportTransactStatus(QueryResponseInfo {
-				destination: ParentThen(X1(Parachain(POLIMEC_PARA_ID))).into(),
+				destination: ParentThen(Parachain(POLIMEC_PARA_ID).into()).into(),
 				query_id,
 				max_weight: MAX_RESPONSE_WEIGHT,
 			}),

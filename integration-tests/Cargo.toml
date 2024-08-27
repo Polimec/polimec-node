@@ -23,7 +23,6 @@ scale-info = { workspace = true, features = ["derive"] }
 
 # Local
 polimec-receiver.workspace = true
-polimec-xcm-executor.workspace = true
 macros.workspace = true
 polimec-common.workspace = true
 polimec-common-test-utils.workspace = true
@@ -119,7 +118,6 @@ std = [
 	"polimec-common/std",
 	"polimec-receiver/std",
 	"polimec-runtime/std",
-	"polimec-xcm-executor/std",
 	"polkadot-core-primitives/std",
 	"polkadot-parachain-primitives/std",
 	"polkadot-primitives/std",
@@ -142,4 +140,5 @@ std = [
 	"xcm/std",
 ]
 development-settings = [ "polimec-runtime/development-settings" ]
+runtime-benchmarks = []
 

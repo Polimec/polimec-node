@@ -19,7 +19,7 @@
 use frame_support::{pallet_prelude::*, traits::tokens::fungible};
 use sp_runtime::RuntimeDebug;
 use sp_std::prelude::*;
-use xcm::v3::{opaque::Xcm, MultiAssets, MultiLocation, SendError, SendResult, SendXcm, XcmHash};
+pub use xcm::v4::{opaque::Xcm, Assets, Location, QueryId, SendError, SendResult, SendXcm, XcmHash};
 
 pub mod credentials;
 
@@ -107,7 +107,7 @@ pub mod migration_types {
 
 	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
 	pub struct MigrationOrigin {
-		pub user: MultiLocation,
+		pub user: Location,
 		pub id: u32,
 		pub participation_type: ParticipationType,
 	}
@@ -147,7 +147,7 @@ pub mod migration_types {
 	#[derive(Clone, Encode, Decode, Eq, PartialEq, Ord, PartialOrd, RuntimeDebug, TypeInfo, MaxEncodedLen)]
 	pub enum MigrationStatus {
 		NotStarted,
-		Sent(xcm::v3::QueryId),
+		Sent(QueryId),
 		Confirmed,
 		Failed,
 	}
@@ -226,8 +226,8 @@ pub struct DummyXcmSender;
 impl SendXcm for DummyXcmSender {
 	type Ticket = ();
 
-	fn validate(_: &mut Option<MultiLocation>, _: &mut Option<Xcm>) -> SendResult<Self::Ticket> {
-		Ok(((), MultiAssets::new()))
+	fn validate(_: &mut Option<Location>, _: &mut Option<Xcm>) -> SendResult<Self::Ticket> {
+		Ok(((), Assets::new()))
 	}
 
 	/// Actually carry out the delivery operation for a previously validated message sending.

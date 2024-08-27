@@ -36,7 +36,6 @@ impl<T: Config> Pallet<T> {
 		// * Get variables *
 		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 		let remaining_cts = project_details.remaining_contribution_tokens;
-		let round_end_block = project_details.round_duration.end().ok_or(Error::<T>::ImpossibleState)?;
 		let now = <frame_system::Pallet<T>>::block_number();
 		let issuer_did = project_details.issuer_did.clone();
 
@@ -45,7 +44,7 @@ impl<T: Config> Pallet<T> {
 			// Can end due to running out of CTs
 			remaining_cts == Zero::zero() ||
 				// or the last funding round ending
-				now >= round_end_block && matches!(project_details.status, ProjectStatus::CommunityRound(..)),
+				project_details.round_duration.ended(now) && matches!(project_details.status, ProjectStatus::CommunityRound(..)),
 			Error::<T>::TooEarlyForRound
 		);
 
@@ -57,23 +56,16 @@ impl<T: Config> Pallet<T> {
 		// * Update Storage *
 		DidWithActiveProjects::<T>::set(issuer_did, None);
 
-		let (next_status, duration) = if funding_ratio < T::FundingSuccessThreshold::get() {
+		let next_status = if funding_ratio < T::FundingSuccessThreshold::get() {
 			project_details.evaluation_round_info.evaluators_outcome = Some(EvaluatorsOutcome::Slashed);
-			(ProjectStatus::FundingFailed, 1u32.into())
+			ProjectStatus::FundingFailed
 		} else {
 			let reward_info = Self::generate_evaluator_rewards_info(project_id)?;
 			project_details.evaluation_round_info.evaluators_outcome = Some(EvaluatorsOutcome::Rewarded(reward_info));
-			(ProjectStatus::FundingSuccessful, T::SuccessToSettlementTime::get())
+			ProjectStatus::FundingSuccessful
 		};
 
-		Self::transition_project(
-			project_id,
-			project_details.clone(),
-			project_details.status,
-			next_status,
-			Some(duration),
-			true,
-		)?;
+		Self::transition_project(project_id, project_details.clone(), project_details.status, next_status, None, true)?;
 
 		Ok(())
 	}

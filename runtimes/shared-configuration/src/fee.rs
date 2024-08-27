@@ -17,12 +17,11 @@
 use crate::{currency::MILLI_PLMC, Balance, StakingPalletId};
 use frame_support::{
 	ord_parameter_types,
-	pallet_prelude::{InvalidTransaction, PhantomData, TransactionValidityError, Weight},
+	pallet_prelude::Weight,
 	parameter_types,
-	sp_runtime::traits::{AccountIdConversion, DispatchInfoOf, PostDispatchInfoOf},
+	sp_runtime::traits::AccountIdConversion,
 	traits::{
-		fungible::{Balanced, Credit, Debt, Inspect},
-		tokens::Precision,
+		fungible::{Balanced, Credit},
 		Imbalance, OnUnbalanced,
 	},
 	weights::{
@@ -30,14 +29,10 @@ use frame_support::{
 		WeightToFeePolynomial,
 	},
 };
-use pallet_transaction_payment::OnChargeTransaction;
 use parachains_common::{AccountId, SLOT_DURATION};
+use scale_info::prelude::vec;
 use smallvec::smallvec;
-use sp_arithmetic::{
-	traits::{Saturating, Zero},
-	Perbill,
-};
-use sp_std::prelude::*;
+use sp_arithmetic::Perbill;
 
 #[allow(clippy::module_name_repetitions)]
 pub struct WeightToFee;
@@ -151,83 +146,5 @@ where
 			<ToStakingPot<R> as OnUnbalanced<_>>::on_unbalanced(split.0);
 			<ToAuthor<R> as OnUnbalanced<_>>::on_unbalanced(split.1);
 		}
-	}
-}
-
-/// Implements transaction payment for a pallet implementing the [`fungible`]
-/// trait (eg. pallet_balances) using an unbalance handler (implementing
-/// [`OnUnbalanced`]).
-///
-/// The unbalance handler is given 2 unbalanceds in [`OnUnbalanced::on_unbalanceds`]: `fee` and
-/// then `tip`.
-pub struct FungibleAdapter<F, OU>(PhantomData<(F, OU)>);
-
-impl<T, F, OU> OnChargeTransaction<T> for FungibleAdapter<F, OU>
-where
-	T: pallet_transaction_payment::Config,
-	F: Balanced<T::AccountId>,
-	OU: OnUnbalanced<Credit<T::AccountId, F>>,
-{
-	type Balance = <F as Inspect<<T as frame_system::Config>::AccountId>>::Balance;
-	type LiquidityInfo = Option<Credit<T::AccountId, F>>;
-
-	fn withdraw_fee(
-		who: &<T>::AccountId,
-		_call: &<T>::RuntimeCall,
-		_dispatch_info: &DispatchInfoOf<<T>::RuntimeCall>,
-		fee: Self::Balance,
-		_tip: Self::Balance,
-	) -> Result<Self::LiquidityInfo, TransactionValidityError> {
-		if fee.is_zero() {
-			return Ok(None);
-		}
-
-		// TODO: This is a temporary workaround.
-		// As soon the linked PR is merged, the fungible trait will be updated and this can be safely removed.
-		// This will probably be included in v1.6 or 1.7.
-		// src: https://github.com/paritytech/polkadot-sdk/pull/2823
-		if F::can_withdraw(who, fee) != frame_support::traits::tokens::WithdrawConsequence::Success {
-			return Err(InvalidTransaction::Payment.into());
-		};
-
-		match F::withdraw(
-			who,
-			fee,
-			Precision::Exact,
-			frame_support::traits::tokens::Preservation::Preserve,
-			frame_support::traits::tokens::Fortitude::Polite,
-		) {
-			Ok(imbalance) => Ok(Some(imbalance)),
-			Err(_) => Err(InvalidTransaction::Payment.into()),
-		}
-	}
-
-	fn correct_and_deposit_fee(
-		who: &<T>::AccountId,
-		_dispatch_info: &DispatchInfoOf<<T>::RuntimeCall>,
-		_post_info: &PostDispatchInfoOf<<T>::RuntimeCall>,
-		corrected_fee: Self::Balance,
-		tip: Self::Balance,
-		already_withdrawn: Self::LiquidityInfo,
-	) -> Result<(), TransactionValidityError> {
-		if let Some(paid) = already_withdrawn {
-			// Calculate how much refund we should return
-			let refund_amount = paid.peek().saturating_sub(corrected_fee);
-			// refund to the the account that paid the fees. If this fails, the
-			// account might have dropped below the existential balance. In
-			// that case we don't refund anything.
-			let refund_imbalance = F::deposit(who, refund_amount, Precision::BestEffort)
-				.unwrap_or_else(|_| Debt::<T::AccountId, F>::zero());
-			// merge the imbalance caused by paying the fees and refunding parts of it again.
-			let adjusted_paid: Credit<T::AccountId, F> = paid
-				.offset(refund_imbalance)
-				.same()
-				.map_err(|_| TransactionValidityError::Invalid(InvalidTransaction::Payment))?;
-			// Call someone else to handle the imbalance (fee and tip separately)
-			let (tip, fee) = adjusted_paid.split(tip);
-			OU::on_unbalanceds(Some(fee).into_iter().chain(Some(tip)));
-		}
-
-		Ok(())
 	}
 }

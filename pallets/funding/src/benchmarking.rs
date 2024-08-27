@@ -34,8 +34,6 @@ use frame_support::{
 	Parameter,
 };
 use itertools::Itertools;
-#[allow(unused_imports)]
-use pallet::Pallet as PalletFunding;
 use parity_scale_codec::{Decode, Encode};
 use polimec_common::{credentials::InvestorType, ReleaseSchedule, USD_DECIMALS, USD_UNIT};
 use polimec_common_test_utils::{generate_did_from_account, get_mock_jwt_with_cid};
@@ -43,7 +41,7 @@ use sp_arithmetic::Percent;
 use sp_core::H256;
 use sp_io::hashing::blake2_256;
 use sp_runtime::traits::{Get, Member, TrailingZeroInput, Zero};
-use xcm::v3::MaxPalletNameLen;
+use xcm::v4::MaxPalletNameLen;
 
 const IPFS_CID: &str = "QmbvsJBhQtu9uAGVp7x4H77JkwAQxV7TA6xTfdeALuDiYB";
 const CT_DECIMALS: u8 = 17;
@@ -302,6 +300,10 @@ pub fn string_account<AccountId: Decode>(
 mod benchmarks {
 	use super::*;
 
+	// This is actually used in the benchmarking setup, check one line below.
+	#[allow(unused_imports)]
+	use pallet::Pallet as PalletFunding;
+
 	impl_benchmark_test_suite!(PalletFunding, crate::mock::new_test_ext(), crate::mock::TestRuntime);
 
 	#[benchmark]
@@ -510,7 +512,7 @@ mod benchmarks {
 			project_metadata.clone().policy_ipfs_cid.unwrap(),
 		);
 		#[extrinsic_call]
-		start_evaluation(RawOrigin::Signed(issuer), jwt, probject_id);
+		start_evaluation(RawOrigin::Signed(issuer), jwt, project_id);
 
 		// * validity checks *
 		// Storage
@@ -609,11 +611,9 @@ mod benchmarks {
 		assert!(correct, "Evaluation is not stored correctly");
 
 		// Balances
-		let bonded_plmc = inst.get_reserved_plmc_balances_for(
-			vec![extrinsic_evaluation.account.clone()],
-			HoldReason::Evaluation(project_id).into(),
-		)[0]
-		.plmc_amount;
+		let bonded_plmc = inst
+			.get_reserved_plmc_balances_for(vec![extrinsic_evaluation.account.clone()], HoldReason::Evaluation.into())[0]
+			.plmc_amount;
 		assert_eq!(bonded_plmc, total_expected_plmc_bonded);
 
 		// Events
@@ -900,9 +900,8 @@ mod benchmarks {
 		assert_eq!(current_bucket, expected_bucket);
 
 		// Balances
-		let bonded_plmc = inst
-			.get_reserved_plmc_balances_for(vec![bidder.clone()], HoldReason::Participation(project_id).into())[0]
-			.plmc_amount;
+		let bonded_plmc =
+			inst.get_reserved_plmc_balances_for(vec![bidder.clone()], HoldReason::Participation.into())[0].plmc_amount;
 		assert_eq!(bonded_plmc, total_plmc_participation_bonded);
 
 		let free_plmc = inst.get_free_plmc_balances_for(vec![bidder.clone()])[0].plmc_amount;
@@ -1152,8 +1151,7 @@ mod benchmarks {
 		assert_eq!(stored_contributions.len(), x as usize + 1);
 
 		// Balances
-		let bonded_plmc =
-			inst.get_reserved_plmc_balance_for(contributor.clone(), HoldReason::Participation(project_id).into());
+		let bonded_plmc = inst.get_reserved_plmc_balance_for(contributor.clone(), HoldReason::Participation.into());
 		assert_eq!(bonded_plmc, total_plmc_bonded);
 
 		let free_plmc = inst.get_free_plmc_balance_for(contributor.clone());
@@ -1248,8 +1246,6 @@ mod benchmarks {
 			vec![],
 		);
 
-		inst.advance_time(<T as Config>::SuccessToSettlementTime::get());
-
 		#[extrinsic_call]
 		start_settlement(RawOrigin::Signed(anyone), project_id);
 
@@ -1291,7 +1287,6 @@ mod benchmarks {
 		let evaluation_to_settle =
 			inst.execute(|| Evaluations::<T>::iter_prefix_values((project_id, evaluator.clone())).next().unwrap());
 
-		inst.advance_time(<T as Config>::SuccessToSettlementTime::get());
 		assert_ok!(<Pallet<T>>::do_start_settlement(project_id));
 
 		#[extrinsic_call]
@@ -1369,7 +1364,6 @@ mod benchmarks {
 		let bidder = bids.last().unwrap().bidder.clone();
 		whitelist_account!(bidder);
 
-		inst.advance_time(<T as Config>::SuccessToSettlementTime::get());
 		assert_ok!(<Pallet<T>>::do_start_settlement(project_id));
 
 		let bid_to_settle =
@@ -1431,7 +1425,6 @@ mod benchmarks {
 			vec![],
 		);
 
-		inst.advance_time(<T as Config>::SuccessToSettlementTime::get());
 		assert_ok!(<Pallet<T>>::do_start_settlement(project_id));
 
 		let contribution_to_settle =
@@ -1455,10 +1448,10 @@ mod benchmarks {
 		inst.assert_plmc_held_balance(
 			contributor.clone(),
 			contribution_to_settle.plmc_bond,
-			HoldReason::Participation(project_id).into(),
+			HoldReason::Participation.into(),
 		);
 		assert_eq!(
-			<T as Config>::Vesting::total_scheduled_amount(&contributor, HoldReason::Participation(project_id).into()),
+			<T as Config>::Vesting::total_scheduled_amount(&contributor, HoldReason::Participation.into()),
 			Some(contribution_to_settle.plmc_bond)
 		);
 		let funding_account = project_metadata.funding_destination_account;
@@ -1780,15 +1773,14 @@ mod benchmarks {
 
 		let ct_issuance: u128 = <T as crate::Config>::ContributionTokenCurrency::total_issuance(project_id).into();
 		let xcm_response = Response::Assets(
-			vec![MultiAsset { id: Concrete(MultiLocation::new(1, X1(Parachain(6969)))), fun: Fungible(ct_issuance) }]
-				.into(),
+			vec![Asset { id: AssetId(Location::new(1, [Parachain(6969)])), fun: Fungible(ct_issuance) }].into(),
 		);
 
 		#[block]
 		{
 			// We call the inner function directly to avoid having to hardcode a benchmark pallet_xcm origin as a config type
 			crate::Pallet::<T>::do_pallet_migration_readiness_response(
-				MultiLocation::new(1, X1(Parachain(6969))),
+				Location::new(1, [Parachain(6969)]),
 				0,
 				xcm_response.clone(),
 			)
@@ -1857,25 +1849,26 @@ mod benchmarks {
 
 		let module_name: BoundedVec<u8, MaxPalletNameLen> =
 			BoundedVec::try_from("polimec_receiver".as_bytes().to_vec()).unwrap();
-		let pallet_info = xcm::latest::PalletInfo {
+		let pallet_info = PalletInfo::new(
 			// index is used for future `Transact` calls to the pallet for migrating a user
-			index: 69,
+			69,
 			// Doesn't matter
-			name: module_name.clone(),
+			module_name.to_vec(),
 			// Main check that the receiver pallet is there
-			module_name,
+			module_name.to_vec(),
 			// These might be useful in the future, but not for now
-			major: 0,
-			minor: 0,
-			patch: 0,
-		};
+			0,
+			0,
+			0,
+		)
+		.unwrap();
 		let xcm_response = Response::PalletsInfo(vec![pallet_info].try_into().unwrap());
 
 		#[block]
 		{
 			// We call the inner function directly to avoid having to hardcode a benchmark pallet_xcm origin as a config type
 			crate::Pallet::<T>::do_pallet_migration_readiness_response(
-				MultiLocation::new(1, X1(Parachain(6969))),
+				Location::new(1, [Parachain(6969)]),
 				1,
 				xcm_response.clone(),
 			)
@@ -2063,7 +2056,7 @@ mod benchmarks {
 		<Pallet<T>>::send_pallet_migration_for(RawOrigin::Signed(issuer).into(), project_id, participant.clone())
 			.unwrap();
 
-		let project_location = MultiLocation::new(1, X1(Parachain(6969)));
+		let project_location = Location::new(1, [Parachain(6969)]);
 		let xcm_response = Response::DispatchResult(MaybeErrorCode::Success);
 
 		#[block]
@@ -2115,12 +2108,7 @@ mod benchmarks {
 
 		#[block]
 		{
-			<Pallet<T>>::do_handle_channel_open_request(Instruction::HrmpNewChannelOpenRequest {
-				sender: 6969u32,
-				max_message_size: 102_400u32,
-				max_capacity: 1000,
-			})
-			.unwrap();
+			<Pallet<T>>::do_handle_channel_open_request(6969u32, 50_000, 8).unwrap();
 		}
 	}
 
@@ -2159,16 +2147,11 @@ mod benchmarks {
 		)
 		.unwrap();
 
-		<Pallet<T>>::do_handle_channel_open_request(Instruction::HrmpNewChannelOpenRequest {
-			sender: 6969u32,
-			max_message_size: 102_400u32,
-			max_capacity: 1000,
-		})
-		.unwrap();
+		<Pallet<T>>::do_handle_channel_open_request(6969u32, 102_400u32, 1000).unwrap();
 
 		#[block]
 		{
-			<Pallet<T>>::do_handle_channel_accepted(Instruction::HrmpChannelAccepted { recipient: 6969u32 }).unwrap();
+			<Pallet<T>>::do_handle_channel_accepted(6969u32).unwrap();
 		}
 	}
 
@@ -2225,186 +2208,5 @@ mod benchmarks {
 				.all(|status| status == MigrationStatus::Confirmed),
 			true
 		);
-	}
-
-	#[cfg(test)]
-	mod tests {
-		use super::*;
-		use crate::mock::{new_test_ext, TestRuntime};
-
-		#[test]
-		fn bench_create_project() {
-			new_test_ext().execute_with(|| {
-				assert_ok!(PalletFunding::<TestRuntime>::test_create_project());
-			});
-		}
-
-		#[test]
-		fn bench_remove_project() {
-			new_test_ext().execute_with(|| {
-				assert_ok!(PalletFunding::<TestRuntime>::test_remove_project());
-			});
-		}
-
-		#[test]
-		fn bench_edit_project() {
-			new_test_ext().execute_with(|| {
-				assert_ok!(PalletFunding::<TestRuntime>::test_edit_project());
-			});
-		}
-
-		#[test]
-		fn bench_start_evaluation() {
-			new_test_ext().execute_with(|| {
-				assert_ok!(PalletFunding::<TestRuntime>::test_start_evaluation());
-			});
-		}
-
-		#[test]
-		fn bench_evaluate() {
-			new_test_ext().execute_with(|| {
-				assert_ok!(PalletFunding::<TestRuntime>::test_evaluate());
-			});
-		}
-
-		#[test]
-		fn bench_end_evaluation_failure() {
-			new_test_ext().execute_with(|| {
-				assert_ok!(PalletFunding::<TestRuntime>::test_end_evaluation_failure());
-			});
-		}
-
-		#[test]
-		fn bench_bid() {
-			new_test_ext().execute_with(|| {
-				assert_ok!(PalletFunding::<TestRuntime>::test_bid());
-			});
-		}
-
-		#[test]
-		fn bench_end_auction() {
-			new_test_ext().execute_with(|| {
-				assert_ok!(PalletFunding::<TestRuntime>::test_end_auction());
-			});
-		}
-
-		#[test]
-		fn bench_contribute() {
-			new_test_ext().execute_with(|| {
-				assert_ok!(PalletFunding::<TestRuntime>::test_contribute());
-			});
-		}
-
-		#[test]
-		fn bench_end_funding_project_successful() {
-			new_test_ext().execute_with(|| {
-				assert_ok!(PalletFunding::<TestRuntime>::test_end_funding_project_successful());
-			});
-		}
-
-		#[test]
-		fn bench_start_settlement() {
-			new_test_ext().execute_with(|| {
-				assert_ok!(PalletFunding::<TestRuntime>::test_start_settlement());
-			});
-		}
-
-		#[test]
-		fn bench_settle_rewarded_evaluation() {
-			new_test_ext().execute_with(|| {
-				assert_ok!(PalletFunding::<TestRuntime>::test_settle_rewarded_evaluation());
-			});
-		}
-
-		#[test]
-		fn bench_settle_accepted_bid_with_refund() {
-			new_test_ext().execute_with(|| {
-				assert_ok!(PalletFunding::<TestRuntime>::test_settle_accepted_bid_with_refund());
-			});
-		}
-
-		#[test]
-		fn bench_settle_contribution_project_successful() {
-			new_test_ext().execute_with(|| {
-				assert_ok!(PalletFunding::<TestRuntime>::test_settle_contribution_project_successful());
-			});
-		}
-
-		#[test]
-		fn bench_mark_project_as_settled() {
-			new_test_ext().execute_with(|| {
-				assert_ok!(PalletFunding::<TestRuntime>::test_mark_project_as_settled());
-			});
-		}
-
-		#[test]
-		fn bench_start_offchain_migration() {
-			new_test_ext().execute_with(|| {
-				assert_ok!(PalletFunding::<TestRuntime>::test_start_offchain_migration());
-			});
-		}
-
-		#[test]
-		fn bench_confirm_offchain_migration() {
-			new_test_ext().execute_with(|| {
-				assert_ok!(PalletFunding::<TestRuntime>::test_confirm_offchain_migration());
-			});
-		}
-
-		#[test]
-		fn bench_mark_project_ct_migration_as_finished() {
-			new_test_ext().execute_with(|| {
-				assert_ok!(PalletFunding::<TestRuntime>::test_mark_project_ct_migration_as_finished());
-			});
-		}
-
-		#[test]
-		fn bench_start_pallet_migration() {
-			new_test_ext().execute_with(|| {
-				assert_ok!(PalletFunding::<TestRuntime>::test_start_pallet_migration());
-			});
-		}
-
-		#[test]
-		fn bench_start_pallet_migration_readiness_check() {
-			new_test_ext().execute_with(|| {
-				assert_ok!(PalletFunding::<TestRuntime>::test_start_pallet_migration_readiness_check());
-			});
-		}
-
-		#[test]
-		fn bench_pallet_migration_readiness_response_pallet_info() {
-			new_test_ext().execute_with(|| {
-				assert_ok!(PalletFunding::<TestRuntime>::test_pallet_migration_readiness_response_pallet_info());
-			});
-		}
-
-		#[test]
-		fn bench_send_pallet_migration_for() {
-			new_test_ext().execute_with(|| {
-				assert_ok!(PalletFunding::<TestRuntime>::test_send_pallet_migration_for());
-			});
-		}
-
-		#[test]
-		fn bench_confirm_pallet_migrations() {
-			new_test_ext().execute_with(|| {
-				assert_ok!(PalletFunding::<TestRuntime>::test_confirm_pallet_migrations());
-			});
-		}
-
-		#[test]
-		fn bench_do_handle_channel_open_request() {
-			new_test_ext().execute_with(|| {
-				assert_ok!(PalletFunding::<TestRuntime>::test_do_handle_channel_open_request());
-			});
-		}
-
-		#[test]
-		fn bench_do_handle_channel_accepted() {
-			new_test_ext().execute_with(|| {
-				assert_ok!(PalletFunding::<TestRuntime>::test_do_handle_channel_accepted());
-			});
-		}
 	}
 }
