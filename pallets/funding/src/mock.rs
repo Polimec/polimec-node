@@ -297,7 +297,6 @@ parameter_types! {
 	pub const AuctionRoundDuration: BlockNumber = 15u64;
 	pub const CommunityRoundDuration: BlockNumber = 18u64;
 	pub const RemainderRoundDuration: BlockNumber = 6u64;
-	pub const SuccessToSettlementTime: BlockNumber = 4u64;
 
 	pub const FundingPalletId: PalletId = PalletId(*b"py/cfund");
 	pub FeeBrackets: Vec<(Percent, Balance)> = vec![
@@ -435,7 +434,6 @@ impl Config for TestRuntime {
 	#[cfg(feature = "runtime-benchmarks")]
 	type SetPrices = ();
 	type StringLimit = ConstU32<64>;
-	type SuccessToSettlementTime = SuccessToSettlementTime;
 	type VerifierPublicKey = VerifierPublicKey;
 	type Vesting = LinearRelease;
 	type WeightInfo = weights::SubstrateWeight<TestRuntime>;

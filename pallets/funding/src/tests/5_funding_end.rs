@@ -141,7 +141,6 @@ mod end_funding_extrinsic {
 						AuctionRoundDuration::get() +
 						CommunityRoundDuration::get() +
 						RemainderRoundDuration::get() +
-						SuccessToSettlementTime::get() +
 						1
 				)
 			);

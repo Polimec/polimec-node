@@ -71,7 +71,6 @@ mod start_settlement_extrinsic {
 				assert_eq!(<TestRuntime as Config>::ContributionTokenCurrency::asset_exists(project_id), false)
 			});
 
-			inst.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get());
 			inst.execute(|| {
 				assert_ok!(PolimecFunding::start_settlement(RuntimeOrigin::signed(80085), project_id));
 			});
@@ -97,7 +96,6 @@ mod start_settlement_extrinsic {
 				assert_eq!(<TestRuntime as Config>::ContributionTokenCurrency::asset_exists(project_id), false)
 			});
 
-			inst.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get());
 			inst.execute(|| {
 				assert_ok!(PolimecFunding::start_settlement(RuntimeOrigin::signed(80085), project_id));
 			});

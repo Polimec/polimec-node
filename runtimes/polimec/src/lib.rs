@@ -1067,7 +1067,6 @@ impl pallet_funding::Config for Runtime {
 	#[cfg(feature = "runtime-benchmarks")]
 	type SetPrices = benchmark_helpers::SetOraclePrices;
 	type StringLimit = ConstU32<64>;
-	type SuccessToSettlementTime = SuccessToSettlementTime;
 	type VerifierPublicKey = VerifierPublicKey;
 	type Vesting = LinearRelease;
 	type WeightInfo = weights::pallet_funding::WeightInfo<Runtime>;

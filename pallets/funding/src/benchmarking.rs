@@ -1246,8 +1246,6 @@ mod benchmarks {
 			vec![],
 		);
 
-		inst.advance_time(<T as Config>::SuccessToSettlementTime::get());
-
 		#[extrinsic_call]
 		start_settlement(RawOrigin::Signed(anyone), project_id);
 
@@ -1289,7 +1287,6 @@ mod benchmarks {
 		let evaluation_to_settle =
 			inst.execute(|| Evaluations::<T>::iter_prefix_values((project_id, evaluator.clone())).next().unwrap());
 
-		inst.advance_time(<T as Config>::SuccessToSettlementTime::get());
 		assert_ok!(<Pallet<T>>::do_start_settlement(project_id));
 
 		#[extrinsic_call]
@@ -1367,7 +1364,6 @@ mod benchmarks {
 		let bidder = bids.last().unwrap().bidder.clone();
 		whitelist_account!(bidder);
 
-		inst.advance_time(<T as Config>::SuccessToSettlementTime::get());
 		assert_ok!(<Pallet<T>>::do_start_settlement(project_id));
 
 		let bid_to_settle =
@@ -1429,7 +1425,6 @@ mod benchmarks {
 			vec![],
 		);
 
-		inst.advance_time(<T as Config>::SuccessToSettlementTime::get());
 		assert_ok!(<Pallet<T>>::do_start_settlement(project_id));
 
 		let contribution_to_settle =

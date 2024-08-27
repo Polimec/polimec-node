@@ -54,13 +54,6 @@ pub const REMAINDER_ROUND_DURATION: BlockNumber = 2 * crate::MINUTES;
 #[cfg(not(any(feature = "fast-mode", feature = "instant-mode")))]
 pub const REMAINDER_ROUND_DURATION: BlockNumber = 2 * crate::DAYS;
 
-#[cfg(feature = "instant-mode")]
-pub const SUCCESS_TO_SETTLEMENT_TIME: BlockNumber = 1;
-#[cfg(feature = "fast-mode")]
-pub const SUCCESS_TO_SETTLEMENT_TIME: BlockNumber = 1 * crate::MINUTES;
-#[cfg(not(any(feature = "fast-mode", feature = "instant-mode")))]
-pub const SUCCESS_TO_SETTLEMENT_TIME: BlockNumber = 1 * HOURS;
-
 pub type ProjectIdentifier = u32;
 
 parameter_types! {
@@ -68,7 +61,6 @@ parameter_types! {
 	pub const AuctionRoundDuration: BlockNumber = AUCTION_ROUND_DURATION;
 	pub const CommunityRoundDuration: BlockNumber = COMMUNITY_ROUND_DURATION;
 	pub const RemainderRoundDuration: BlockNumber = REMAINDER_ROUND_DURATION;
-	pub const SuccessToSettlementTime: BlockNumber = SUCCESS_TO_SETTLEMENT_TIME;
 	pub const FundingPalletId: PalletId = PalletId(*b"plmc/fun");
 	pub PriceMap: BTreeMap<AssetIdForTrustBackedAssets, FixedU128> = BTreeMap::from_iter(vec![
 		(AcceptedFundingAsset::DOT.id(), FixedU128::from_rational(69, 1)), // DOT

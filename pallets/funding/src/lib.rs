@@ -401,10 +401,6 @@ pub mod pallet {
 		#[pallet::constant]
 		type StringLimit: Get<u32>;
 
-		/// How long a project has to wait after it gets successfully funded, for the settlement to start.
-		#[pallet::constant]
-		type SuccessToSettlementTime: Get<BlockNumberFor<Self>>;
-
 		/// Account that receive the PLMC slashed from failed evaluations.
 		#[pallet::constant]
 		type BlockchainOperationTreasury: Get<AccountIdOf<Self>>;
