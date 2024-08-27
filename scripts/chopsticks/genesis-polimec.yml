@@ -1,0 +1,34 @@
+db: ./db.sqlite
+mock-signature-host: true
+genesis: ./chain-specs/paseo/polimec-paseo.spec.raw.json
+
+import-storage:
+  System:
+    Account:
+      - - - 5EYCAe5ij8xKJ2WTFRZeeUsfaED5wz6z5XFv5LUw9Ni7VCea # Fund the Dispenser account
+        - providers: 1
+          data:
+            free: '230000000000000000'
+      - - - '0xba143e2096e073cb9cddc78e6f4969d8a02160d716a69e08214caf5339d88c42' # Fund the Asset Owner account
+        - providers: 1
+          data:
+            free: '10000000000000000'
+      - - - '5CojJLdz8ers6HBoEo7avwupYhZavXjTmCsUAe8w6aYcasq4' # Fund Felix account with PLMC
+        - providers: 1
+          data:
+            free: '320000000000000'
+  ForeignAssets:
+    Account: [
+      [
+        [10, 5CojJLdz8ers6HBoEo7avwupYhZavXjTmCsUAe8w6aYcasq4],
+        { balance: 200000000000000 }, # Give to Felix 20k DOT
+      ],
+      [
+        [1337, 5CojJLdz8ers6HBoEo7avwupYhZavXjTmCsUAe8w6aYcasq4],
+        { balance: 330000000000 }, # Give to Felix 33k USDC
+      ],
+      [
+        [1984, 5CojJLdz8ers6HBoEo7avwupYhZavXjTmCsUAe8w6aYcasq4],
+        { balance: 1000000000 }, # Give to Felix 100k USDT
+      ],
+    ]

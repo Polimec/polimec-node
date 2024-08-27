@@ -1758,14 +1758,17 @@ mod contribute_extrinsic {
 			let glutton_contribution = ContributionParams::new(BUYER_1, remaining_cts, 4u8, AcceptedFundingAsset::USDT);
 			let wap = project_details.weighted_average_price.unwrap();
 			let plmc_mint = inst.calculate_contributed_plmc_spent(vec![glutton_contribution.clone()], wap, true);
-			let funding_asset_mint = inst.calculate_contributed_funding_asset_spent(vec![glutton_contribution.clone()], wap);
+			let funding_asset_mint =
+				inst.calculate_contributed_funding_asset_spent(vec![glutton_contribution.clone()], wap);
 			inst.mint_plmc_to(plmc_mint);
 			inst.mint_funding_asset_to(funding_asset_mint);
 			inst.contribute_for_users(project_id, vec![glutton_contribution.clone()]).unwrap();
 
-			let failing_contribution = ContributionParams::<TestRuntime>::new(BUYER_2, 1000 * CT_UNIT, 1u8, AcceptedFundingAsset::USDT);
+			let failing_contribution =
+				ContributionParams::<TestRuntime>::new(BUYER_2, 1000 * CT_UNIT, 1u8, AcceptedFundingAsset::USDT);
 			let plmc_mint = inst.calculate_contributed_plmc_spent(vec![glutton_contribution.clone()], wap, true);
-			let funding_asset_mint = inst.calculate_contributed_funding_asset_spent(vec![glutton_contribution.clone()], wap);
+			let funding_asset_mint =
+				inst.calculate_contributed_funding_asset_spent(vec![glutton_contribution.clone()], wap);
 			inst.mint_plmc_to(plmc_mint);
 			inst.mint_funding_asset_to(funding_asset_mint);
 			inst.execute(|| {
