@@ -487,7 +487,7 @@ fn ct_migrated() {
 		let _account_id: PolimecAccountId = ISSUER.into();
 		const SENDER: u32 = 6969;
 		assert_ok!(PolimecFunding::do_start_pallet_migration(&ISSUER.into(), project_id, ParaId::from(SENDER)));
-		assert_ok!(PolimecFunding::do_handle_channel_open_request(SENDER));
+		assert_ok!(PolimecFunding::do_handle_channel_open_request(SENDER, 50_000, 8));
 		assert_ok!(PolimecFunding::do_handle_channel_accepted(SENDER));
 	});
 

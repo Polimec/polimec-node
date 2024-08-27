@@ -349,9 +349,8 @@ impl<T: Config> Pallet<T> {
 				match asset_1 {
 					Asset { id: AssetId(location), fun: Fungible(amount) }
 						if amount >= ct_sold_as_u128 &&
-							get_parachain_id(&location.clone()).unwrap() == u32::from(para_id) =>
+							get_parachain_id(&location.clone()).ok_or(Error::<T>::WrongParaId)? == u32::from(para_id) =>
 					{
-						// FIXME: Remove the `unwrap()` here
 						check.holding_check.1 = CheckOutcome::Passed(None);
 						Self::deposit_event(Event::<T>::MigrationCheckResponseAccepted {
 							project_id,

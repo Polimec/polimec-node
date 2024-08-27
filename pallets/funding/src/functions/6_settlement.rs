@@ -101,7 +101,7 @@ impl<T: Config> Pallet<T> {
 
 		// Release the held PLMC bond
 		T::NativeCurrency::release(
-			&HoldReason::Evaluation.into(), // TODO: Check the `Reason`
+			&HoldReason::Evaluation.into(),
 			&evaluation.evaluator,
 			plmc_released,
 			Precision::Exact,
@@ -363,7 +363,7 @@ impl<T: Config> Pallet<T> {
 		}
 		// Release the held PLMC bond
 		T::NativeCurrency::release(
-			&HoldReason::Participation.into(), // TODO: Check the `Reason`
+			&HoldReason::Participation.into(),
 			participant,
 			amount,
 			Precision::Exact,
@@ -380,7 +380,7 @@ impl<T: Config> Pallet<T> {
 		let slashed_amount = slash_percentage * evaluation.original_plmc_bond;
 
 		T::NativeCurrency::transfer_on_hold(
-			&HoldReason::Evaluation.into(), // TODO: Check the `Reason`
+			&HoldReason::Evaluation.into(),
 			&evaluation.evaluator,
 			&treasury_account,
 			slashed_amount,

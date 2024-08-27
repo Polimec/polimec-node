@@ -152,14 +152,14 @@ impl<T: Config> Pallet<T> {
 			let converted = to_convert.min(available_to_convert);
 			evaluation.current_plmc_bond = evaluation.current_plmc_bond.saturating_sub(converted);
 			Evaluations::<T>::insert((project_id, who, evaluation.id), evaluation);
-			T::NativeCurrency::release(&HoldReason::Evaluation.into(), who, converted, Precision::Exact) // TODO: Check the `Reason`
+			T::NativeCurrency::release(&HoldReason::Evaluation.into(), who, converted, Precision::Exact)
 				.map_err(|_| Error::<T>::ImpossibleState)?;
-			T::NativeCurrency::hold(&HoldReason::Participation.into(), who, converted) // TODO: Check the `Reason`
+			T::NativeCurrency::hold(&HoldReason::Participation.into(), who, converted)
 				.map_err(|_| Error::<T>::ImpossibleState)?;
 			to_convert = to_convert.saturating_sub(converted)
 		}
 
-		T::NativeCurrency::hold(&HoldReason::Participation.into(), who, to_convert) // TODO: Check the `Reason`
+		T::NativeCurrency::hold(&HoldReason::Participation.into(), who, to_convert)
 			.map_err(|_| Error::<T>::ParticipantNotEnoughFunds)?;
 
 		Ok(())

@@ -43,7 +43,7 @@ fn mock_hrmp_establishment(project_id: u32) {
 	PolimecNet::execute_with(|| {
 		const SENDER: u32 = 6969;
 		assert_ok!(Funding::do_start_pallet_migration(&ISSUER.into(), project_id, ParaId::from(SENDER)));
-		assert_ok!(Funding::do_handle_channel_open_request(SENDER));
+		assert_ok!(Funding::do_handle_channel_open_request(SENDER, 50_000, 8));
 		assert_ok!(Funding::do_handle_channel_accepted(SENDER));
 	});
 

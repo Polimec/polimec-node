@@ -171,7 +171,7 @@ impl<T: Config> Pallet<T> {
 			when: now,
 		};
 
-		T::NativeCurrency::hold(&HoldReason::Evaluation.into(), evaluator, plmc_bond)?; // TODO: Check the `Reason`
+		T::NativeCurrency::hold(&HoldReason::Evaluation.into(), evaluator, plmc_bond)?;
 		Evaluations::<T>::insert((project_id, evaluator, evaluation_id), new_evaluation);
 		NextEvaluationId::<T>::set(evaluation_id.saturating_add(One::one()));
 		evaluation_round_info.total_bonded_usd += usd_amount;

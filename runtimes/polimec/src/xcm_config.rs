@@ -263,8 +263,8 @@ pub type AssetTransactors = (FungibleTransactor, ForeignAssetsAdapter);
 pub type TakeRevenueToTreasury =
 	cumulus_primitives_utility::XcmFeesTo32ByteAccount<AssetTransactors, AccountId, TreasuryAccount>;
 
+// TODO: once we open more channels and get more XCM's we should consider adding a fee.
 pub type PriceForParentDelivery = NoPriceForMessageDelivery<()>;
-
 pub type PriceForSiblingParachainDelivery = NoPriceForMessageDelivery<ParaId>;
 
 pub struct XcmConfig;

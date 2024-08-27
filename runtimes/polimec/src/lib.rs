@@ -1158,7 +1158,7 @@ construct_runtime!(
 		XcmpQueue: cumulus_pallet_xcmp_queue = 30,
 		PolkadotXcm: pallet_xcm = 31,
 		CumulusXcm: cumulus_pallet_xcm = 32,
-		// It was used for: DmpQueue: cumulus_pallet_dmp_queue = 33,
+		// idx 31 was used for DmpQueue: cumulus_pallet_dmp_queue, now replaced by MessageQueue
 		MessageQueue: pallet_message_queue = 34,
 
 		// Governance
@@ -1472,8 +1472,6 @@ impl_runtime_apis! {
 			config: frame_benchmarking::BenchmarkConfig
 		) -> Result<Vec<frame_benchmarking::BenchmarkBatch>, sp_runtime::RuntimeString> {
 			use frame_benchmarking::{BenchmarkError, Benchmarking, BenchmarkBatch};
-			use crate::*;
-
 			use frame_system_benchmarking::Pallet as SystemBench;
 			impl frame_system_benchmarking::Config for Runtime {
 				fn setup_set_code_requirements(code: &sp_std::vec::Vec<u8>) -> Result<(), BenchmarkError> {
