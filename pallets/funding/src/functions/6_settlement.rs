@@ -362,12 +362,7 @@ impl<T: Config> Pallet<T> {
 			return Ok(());
 		}
 		// Release the held PLMC bond
-		T::NativeCurrency::release(
-			&HoldReason::Participation.into(),
-			participant,
-			amount,
-			Precision::Exact,
-		)?;
+		T::NativeCurrency::release(&HoldReason::Participation.into(), participant, amount, Precision::Exact)?;
 		Ok(())
 	}
 
