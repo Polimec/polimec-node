@@ -23,9 +23,6 @@ use sp_arithmetic::{FixedU128, Percent};
 use sp_runtime::Perquintill;
 use sp_std::{collections::btree_map::BTreeMap, vec, vec::Vec};
 
-#[cfg(not(feature = "instant-mode"))]
-use parachains_common::HOURS;
-
 #[cfg(feature = "instant-mode")]
 pub const EVALUATION_ROUND_DURATION: BlockNumber = 7;
 #[cfg(feature = "fast-mode")]
