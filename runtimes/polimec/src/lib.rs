@@ -1488,8 +1488,8 @@ impl_runtime_apis! {
 
 			use cumulus_pallet_session_benchmarking::Pallet as SessionBench;
 			use xcm::latest::prelude::*;
-			/// TODO: Update these benchmarks once we enable PLMC Teleportation and upgrade pallet_xcm. New version has
-			/// a better and quite different trait
+			// TODO: Update these benchmarks once we enable PLMC Teleportation and upgrade pallet_xcm. New version has
+			// a better and quite different trait
 			parameter_types! {
 				pub ExistentialDepositAsset: Option<Asset> = Some((
 					xcm_config::HereLocation::get(),
