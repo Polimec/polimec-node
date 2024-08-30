@@ -18,96 +18,51 @@
 //!
 //! Polimec's main business logic. It allows users to create, evaluate, and fund projects.
 //!
-//! It rewards project evaluators and contributors with `Contribution Tokens`. These tokens
-//! can be redeemed for a project's native tokens, after their parachain is deployed on mainnet.
-//! ## 👷 Work in progress 🏗️
-//! Expect major changes between PRs
+//! It rewards project participants with Contribution Tokens. These tokens
+//! can be redeemed for a project's native tokens once the project goes live.
 //!
 //! ## Overview
-//! The official logic for Polimec's blockchain can be found at our [whitepaper](https://polimec.link/whitepaper).
+//! The official logic for Polimec's blockchain can be found at our [knowledge hub](https://hub.polimec.org/).
 //!
 //! There are 3 types of users in Polimec:
 //! - **Issuers**: They create projects and are responsible for their success.
-//! - **Evaluators**: They evaluate projects and are rewarded for their work.
-//! - **Contributors**: They contribute financially to projects and are rewarded on the basis of their contribution
+//! - **Evaluators**: They evaluate projects by locking PLMC and give them access to funding rounds. They are rewarded if the project gets funded, and slashed otherwise.
+//! - **Contributors**: They contribute financially to projects by locking PLMC and paying out USDT/USDC/DOT, and are rewarded in Contribution Tokens.
 //!
-//! A contributor, depending on their investor profile, can participate in different rounds of a project's funding.
+//! A user, depending on their investor profile, can participate in different ways
 //!
-//! There are 3 types of contributors:
-//! - **Institutional**
-//! - **Professional**
-//! - **Retail**
+//! There are 3 types of investors, which are authenticated by a KYC/AML process and a credential minted on the KILT blockchain:
+//! - **Institutional**: has access to creating projects, bidding, and contributing.
+//! - **Professional**: has access to bidding and contributing
+//! - **Retail**: has access to contributing
 //!
 //! Basic flow of a project's lifecycle:
-//!
-//!
-//! | Step                      | Description                                                                                                                                                                                                                                                                                                                                                                                                 | Resulting Project State                                             |
-//! |---------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|---------------------------------------------------------------------|
-//! | Creation                  | Issuer creates a project with the [`create()`](Pallet::create_project) extrinsic.                                                                                                                                                                                                                                                                                                                           | [`Application`](ProjectStatus::Application)                         |
-//! | Evaluation Start          | Issuer starts the evaluation round with the [`start_evaluation()`](Pallet::start_evaluation) extrinsic.                                                                                                                                                                                                                                                                                                     | [`EvaluationRound`](ProjectStatus::EvaluationRound)                 |
-//! | Evaluation Submissions    | Evaluators assess the project information, and if they think it is good enough to get funding, they bond Polimec's native token PLMC with [`bond_evaluation()`](Pallet::evaluate)                                                                                                                                                                                                                           | [`EvaluationRound`](ProjectStatus::EvaluationRound)                 |
-//! | Evaluation End            | Evaluation round ends automatically after the [`Config::EvaluationDuration`] has passed. This is achieved by the [`on_initialize()`](Pallet::on_initialize) function.                                                                                                                                                                                                                                       | [`AuctionInitializePeriod`](ProjectStatus::AuctionInitializePeriod) |
-//! | Auction Start             | Issuer starts the auction round within the [`Config::AuctionInitializePeriodDuration`], by calling the extrinsic [`start_auction()`](Pallet::start_auction)                                                                                                                                                                                                                                                 | [`AuctionOpening`](ProjectStatus::AuctionOpening)                   |
-//! | Bid Submissions           | Institutional and Professional users can place bids with [`bid()`](Pallet::bid) by choosing their desired token price, amount, and multiplier (for vesting). Their bids are guaranteed to be considered                                                                                                                                                                                                     | [`AuctionOpening`](ProjectStatus::AuctionOpening)                   |                                                                                                                                                                                                                |                                                                     |
-//! | Closing Auction Transition| After the [`Config::AuctionOpeningDuration`] has passed, the auction goes into closing mode thanks to [`on_initialize()`](Pallet::on_initialize)                                                                                                                                                                                                                                                            | [`AuctionClosing`](ProjectStatus::AuctionClosing)                   |
-//! | Bid Submissions           | Institutional and Professional users can continue bidding, but this time their bids will only be considered, if they managed to fall before the random ending block calculated at the end of the auction.                                                                                                                                                                                                   | [`AuctionClosing`](ProjectStatus::AuctionClosing)                   |
-//! | Community Funding Start   | After the [`Config::AuctionClosingDuration`] has passed, the auction automatically. A final token price for the next rounds is calculated based on the accepted bids.                                                                                                                                                                                                                                       | [`CommunityRound`](ProjectStatus::CommunityRound)                   |
-//! | Funding Submissions       | Retail investors can call the [`contribute()`](Pallet::contribute) extrinsic to buy tokens at the set price.                                                                                                                                                                                                                                                                                                | [`CommunityRound`](ProjectStatus::CommunityRound)                   |
-//! | Funding End               | If all tokens were sold, or after the [`Config::RemainderFundingDuration`] has passed, the project automatically ends, and it is calculated if it reached its desired funding or not.                                                                                                                                                                                                                       | [`FundingEnded`](ProjectStatus::FundingSuccessful)                  |
-//! | Evaluator Rewards         | If the funding was successful, evaluators can claim their contribution token rewards with the [`TBD`]() extrinsic. If it failed, evaluators can either call the [`failed_evaluation_unbond_for()`](Pallet::failed_evaluation_unbond_for) extrinsic, or wait for the [`on_idle()`](Pallet::on_initialize) function, to return their funds                                                                    | [`FundingEnded`](ProjectStatus::FundingSuccessful)                  |
-//! | Bidder Rewards            | If the funding was successful, bidders will call [`vested_contribution_token_bid_mint_for()`](Pallet::vested_contribution_token_bid_mint_for) to mint the contribution tokens they are owed, and [`vested_plmc_bid_unbond_for()`](Pallet::vested_plmc_bid_unbond_for) to unbond their PLMC, based on their current vesting schedule.                                                                        | [`FundingEnded`](ProjectStatus::FundingSuccessful)                  |
-//! | Buyer Rewards             | If the funding was successful, users who bought tokens on the Community or Remainder round, can call [`vested_contribution_token_purchase_mint_for()`](Pallet::vested_contribution_token_purchase_mint_for) to mint the contribution tokens they are owed, and [`vested_plmc_purchase_unbond_for()`](Pallet::vested_plmc_purchase_unbond_for) to unbond their PLMC, based on their current vesting schedule | [`FundingEnded`](ProjectStatus::FundingSuccessful)                  |
-//!
-//! ## Interface
-//! All users who wish to participate need to have a valid credential, given to them on the KILT parachain, by a KYC/AML provider.
-//! ### Extrinsics
-//! * [`create`](Pallet::create_project) : Creates a new project.
-//! * [`edit_metadata`](Pallet::edit_project) : Submit a new Hash of the project metadata.
-//! * [`start_evaluation`](Pallet::start_evaluation) : Start the Evaluation round of a project.
-//! * [`start_auction`](Pallet::start_auction) : Start the auction round of a project.
-//! * [`bond_evaluation`](Pallet::evaluate) : Bond PLMC on a project in the evaluation stage. A sort of "bet" that you think the project will be funded
-//! * [`failed_evaluation_unbond_for`](Pallet::failed_evaluation_unbond_for) : Unbond the PLMC bonded on a project's evaluation round for any user, if the project failed the evaluation.
-//! * [`bid`](Pallet::bid) : Perform a bid during the auction round.
-//! * [`contribute`](Pallet::contribute) : Buy contribution tokens if a project during the Community or Remainder round
-//! * [`vested_plmc_bid_unbond_for`](Pallet::vested_plmc_bid_unbond_for) : Unbond the PLMC
-//!   bonded on a project's auction round for any user, based on their vesting
-//!   schedule.
-//! * [`vested_plmc_purchase_unbond_for`](Pallet::vested_plmc_purchase_unbond_for) : Unbond the PLMC bonded on a project's Community or Remainder Round for any user, based on their vesting schedule.
-//! * [`vested_contribution_token_bid_mint_for`](Pallet::vested_contribution_token_bid_mint_for)
-//!   : Mint the contribution tokens for a user who participated in the auction round,
-//!   based on their vesting schedule.
-//! * [`vested_contribution_token_purchase_mint_for`](Pallet::vested_contribution_token_purchase_mint_for) : Mint the contribution tokens for a user who participated in the Community or Remainder Round, based on their vesting schedule.
-//!
-//! ### Storage Items
-//! * [`NextProjectId`] : Increasing counter to get the next id to assign to a project.
-//! * [`NextBidId`]: Increasing counter to get the next id to assign to a bid.
-//! * [`ProjectsMetadata`]: Map of the assigned id, to the main information of a project.
-//! * [`ProjectsDetails`]: Map of a project id, to some additional information required for ensuring correctness of the protocol.
-//! * [`Bids`]: Double map linking a project-user to the bids they made.
-//! * [`Evaluations`]: Double map linking a project-user to the PLMC they bonded in the evaluation round.
-//! * [`Contributions`]: Double map linking a project-user to the contribution tokens they bought in the Community or Remainder round.
-//!
-//! ## Credentials
-//! The pallet will only allow users with certain credential types, to execute certain extrinsics.:
-//!
-//!
-//! | Extrinsic                                     | Issuer | Retail Investor | Professional Investor | Institutional Investor |
-//! |-----------------------------------------------|--------|-----------------|-----------------------|------------------------|
-//! | `create`                                      | X      |                 |                       |                        |
-//! | `edit_metadata`                               | X      |                 |                       |                        |
-//! | `start_evaluation`                            | X      |                 |                       |                        |
-//! | `start_auction`                               | X      |                 |                       |                        |
-//! | `bond_evaluation`                             |        | X               | X                     | X                      |
-//! | `failed_evaluation_unbond_for`                |        | X               | X                     | X                      |
-//! | `bid`                                         |        |                 | X                     | X                      |
-//! | `contribute`                                  |        | X               | X*                    | X*                     |
-//! | `vested_plmc_bid_unbond_for`                  |        |                 | X                     | X                      |
-//! | `vested_plmc_purchase_unbond_for`             |        | X               | X                     | X                      |
-//! | `vested_contribution_token_bid_mint_for`      |        |                 | X                     | X                      |
-//! | `vested_contribution_token_purchase_mint_for` |        | X               | X                     | X                      |
-//!
-//! _* They can call contribute only if the project is on the remainder round._
-//!
+//! 1) **Project Creation**: Issuer creates a project with the [`create_project`](Pallet::create_project) extrinsic.
+//! 2) **Evaluation Start**: Issuer starts the evaluation round with the [`start_evaluation`](Pallet::start_evaluation) extrinsic.
+//! 3) **Evaluate**: Evaluators bond PLMC on the project with the [`bond_evaluation`](Pallet::evaluate) extrinsic.
+//! 4) **Evaluation End**: Anyone can end the evaluation round with the [`end_evaluation`](Pallet::end_evaluation) extrinsic after the defined end block.
+//! 5) **Auction Start**: If the project got >=10% of its requested funding (USD) in PLMC bonded, the auction starts immediately after `evaluation_end` was called.
+//! 6) **Bid**: Professional and Institutional investors can bid on the project with the [`bid`](Pallet::bid) extrinsic. Price starts at the issuer defined minimum price, and goes up in a price delta and bucket size of 10%
+//! 7) **Auction End**: Anyone can end the auction round with the [`end_auction`](Pallet::end_auction) extrinsic after the defined end block.
+//! 8) **Community Round Start**: After `end_auction` is called, a weighted average price is calculated from the bids, and the community round starts.
+//! 9) **Contribute**: Anyone without a winning bid can now buy tokens at the calculated price with the [`contribute`](Pallet::contribute) extrinsic.
+//! 10) **Remainder Round Start**: After a defined [period](<T as Config>::CommunityRoundDuration) , the remainder round starts.
+//! 11) **Contribute**: Participants with winning bids can also now buy tokens at the calculated price with the [`contribute`](Pallet::contribute) extrinsic.
+//! 12) **Funding End**: Anyone can end the project with the [`end_project`](Pallet::end_project) extrinsic after the defined end block.
+//! The project will now be considered Failed if it reached <33% of its target funding in USD, and Successful otherwise.
+//! 13) **Settlement Start**: Anyone can start the settlement process with the [`start_settlement`](Pallet::start_settlement) extrinsic after the defined end block.
+//! 14) **Settle Evaluation**: Anyone can now settle an evaluation with the [`settle_evaluation`](Pallet::settle_evaluation) extrinsic.
+//! This will unlock the PLMC bonded, and either apply a slash or reward come CTs to the evaluator.
+//! 15) **Settle Bid**: Anyone can now settle a bid with the [`settle_bid`](Pallet::settle_bid) extrinsic.
+//! This will set a vesting schedule on the PLMC bonded, and pay out the funding assets to the issuer. It will also issue refunds in case the bid failed,
+//! or the price paid was higher than the final price.
+//! 16) **Settle Contribution**: Anyone can now settle a contribution with the [`settle_contribution`](Pallet::settle_contribution) extrinsic.
+//! This will set a vesting schedule on the PLMC bonded, and pay out the funding assets to the issuer.
+//! 17) **Settlement End**: Anyone can now mark the project settlement as finished by calling the [`mark_project_as_settled`](Pallet::mark_project_as_settled) extrinsic.
+//! 18) **Migration Start**: Once the issuer has tokens to distribute on mainnet, he can start the migration process with the [`start_offchain`](Pallet::start_offchain_migration) extrinsic.
+//! 19) **Confirm Migration**: For each participant, the issuer must mark their CTs as migrated with the [`confirm_offchain_migration`](Pallet::confirm_offchain_migration) extrinsic.
+//! 20) **Migration End**: Once all participants have migrated their CTs, anyone can mark the migration as finished with the [`mark_project_ct_migration_as_finished`](Pallet::mark_project_ct_migration_as_finished) extrinsic.
+
 
 // Ensure we're `no_std` when compiling for Wasm.
 #![cfg_attr(not(feature = "std"), no_std)]
