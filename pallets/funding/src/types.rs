@@ -18,6 +18,7 @@
 
 //! Types for Funding pallet.
 
+use super::*;
 use crate::{traits::BondingRequirementCalculation, BalanceOf};
 pub use config::*;
 pub use extrinsic::*;

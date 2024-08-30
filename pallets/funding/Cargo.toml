@@ -41,20 +41,20 @@ xcm.workspace = true
 xcm-executor.workspace = true
 pallet-xcm.workspace = true
 polkadot-parachain-primitives.workspace = true
-polimec-common-test-utils = { workspace = true, optional = true }
 frame-benchmarking = { workspace = true, optional = true }
 sp-api.workspace = true
 
 # Used in the instantiator.
 itertools.workspace = true
 sp-io.workspace = true
+polimec-instantiator = { workspace = true, optional = true }
+
 
 [dev-dependencies]
 pallet-insecure-randomness-collective-flip.workspace = true
 pallet-timestamp.workspace = true
 pallet-assets.workspace = true
 pallet-linear-release.workspace = true
-polimec-common-test-utils.workspace = true
 macros.workspace = true
 xcm-builder.workspace = true
 xcm-executor.workspace = true
@@ -63,6 +63,8 @@ env_logger = "0.10.2"
 [features]
 default = [ "std" ]
 std = [
+	"polimec-instantiator",
+	"polimec-instantiator/std",
 	"frame-benchmarking?/std",
 	"frame-support/std",
 	"frame-system/std",
@@ -76,8 +78,6 @@ std = [
 	"pallet-xcm/std",
 	"parachains-common/std",
 	"parity-scale-codec/std",
-	"polimec-common-test-utils",
-	"polimec-common-test-utils/std",
 	"polimec-common/std",
 	"polkadot-parachain-primitives/std",
 	"scale-info/std",
@@ -91,8 +91,11 @@ std = [
 	"xcm-builder/std",
 	"xcm-executor/std",
 	"xcm/std",
+	"polimec-instantiator/std",
 ]
 runtime-benchmarks = [
+	"polimec-instantiator",
+	"polimec-instantiator/runtime-benchmarks",
 	"frame-benchmarking/runtime-benchmarks",
 	"frame-support/runtime-benchmarks",
 	"frame-system/runtime-benchmarks",
@@ -103,13 +106,11 @@ runtime-benchmarks = [
 	"pallet-timestamp/runtime-benchmarks",
 	"pallet-xcm/runtime-benchmarks",
 	"parachains-common/runtime-benchmarks",
-	"polimec-common-test-utils",
-	"polimec-common-test-utils?/runtime-benchmarks",
-	"polimec-common/runtime-benchmarks",
 	"polkadot-parachain-primitives/runtime-benchmarks",
 	"sp-runtime/runtime-benchmarks",
 	"xcm-builder/runtime-benchmarks",
 	"xcm-executor/runtime-benchmarks",
+	"polimec-instantiator/runtime-benchmarks",
 ]
 try-runtime = [
 	"frame-support/try-runtime",
@@ -120,7 +121,7 @@ try-runtime = [
 	"pallet-linear-release/try-runtime",
 	"pallet-timestamp/try-runtime",
 	"pallet-xcm/try-runtime",
-	"polimec-common-test-utils?/try-runtime",
 	"polimec-common/try-runtime",
 	"sp-runtime/try-runtime",
+	"polimec-instantiator/try-runtime",
 ]

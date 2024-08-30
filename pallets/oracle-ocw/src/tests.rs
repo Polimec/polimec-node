@@ -22,7 +22,7 @@ use crate::{
 	types::{AssetName, BitFinexFetcher, BitStampFetcher, CoinbaseFetcher, KrakenFetcher, MexcFetcher, XTFetcher},
 };
 use parity_scale_codec::Decode;
-use polimec_common_test_utils::do_request;
+use polimec_common::do_request;
 use sp_runtime::FixedU128;
 
 #[test]

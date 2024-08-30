@@ -20,7 +20,7 @@ use frame_support::{derive_impl, ord_parameter_types, parameter_types, traits::t
 use frame_system as system;
 use frame_system::EnsureSignedBy;
 use polimec_common::credentials::{Cid, EnsureInvestor};
-use polimec_common_test_utils::generate_cid_from_string;
+use polimec_instantiator::jwt_utils::generate_cid_from_string;
 use sp_runtime::{traits::ConvertInto, BuildStorage};
 
 type Block = frame_system::mocking::MockBlock<Test>;

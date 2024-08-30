@@ -1,0 +1,122 @@
+[package]
+name = 'polimec-instantiator'
+description = "Testing helper that can interact with the funding logic of Polimec"
+authors.workspace = true
+documentation.workspace = true
+edition.workspace = true
+homepage.workspace = true
+license-file.workspace = true
+readme.workspace = true
+repository.workspace = true
+version.workspace = true
+
+[lints]
+workspace = true
+
+#[lints.clippy]
+#inconsistent_digit_grouping = "allow"
+
+[dependencies]
+pallet-funding.workspace = true
+serde = { workspace = true }
+parity-scale-codec = { workspace = true, features = [
+    "derive",
+], default-features = false }
+scale-info = { workspace = true, default-features = false, features = [
+    "derive",
+] }
+log.workspace = true
+variant_count = "1.1.0"
+jwt-compact.workspace = true
+
+# Substrate dependencies
+frame-support.workspace = true
+frame-system.workspace = true
+sp-std.workspace = true
+sp-runtime.workspace = true
+sp-arithmetic.workspace = true
+polimec-common.workspace = true
+parachains-common.workspace = true
+sp-core.workspace = true
+pallet-balances.workspace = true
+xcm.workspace = true
+xcm-executor.workspace = true
+pallet-xcm.workspace = true
+polkadot-parachain-primitives.workspace = true
+frame-benchmarking = { workspace = true, optional = true }
+sp-api.workspace = true
+
+
+# Used in the instantiator.
+itertools.workspace = true
+sp-io.workspace = true
+pallet-insecure-randomness-collective-flip.workspace = true
+pallet-timestamp.workspace = true
+pallet-assets.workspace = true
+pallet-linear-release.workspace = true
+macros.workspace = true
+xcm-builder.workspace = true
+env_logger = "0.10.2"
+reqwest = "0.11.27"
+chrono = "0.4.38"
+
+
+[features]
+default = [ "std" ]
+std = [
+    "frame-benchmarking?/std",
+    "frame-support/std",
+    "frame-system/std",
+    "itertools/use_std",
+    "log/std",
+    "pallet-assets/std",
+    "pallet-balances/std",
+    "pallet-insecure-randomness-collective-flip/std",
+    "pallet-linear-release/std",
+    "pallet-timestamp/std",
+    "pallet-xcm/std",
+    "parachains-common/std",
+    "parity-scale-codec/std",
+    "polimec-common/std",
+    "polkadot-parachain-primitives/std",
+    "scale-info/std",
+    "serde/std",
+    "sp-api/std",
+    "sp-arithmetic/std",
+    "sp-core/std",
+    "sp-io/std",
+    "sp-runtime/std",
+    "sp-std/std",
+    "xcm-builder/std",
+    "xcm-executor/std",
+    "xcm/std",
+]
+runtime-benchmarks = [
+    "frame-benchmarking/runtime-benchmarks",
+    "frame-support/runtime-benchmarks",
+    "frame-system/runtime-benchmarks",
+    "itertools/use_alloc",
+    "pallet-assets/runtime-benchmarks",
+    "pallet-balances/runtime-benchmarks",
+    "pallet-linear-release/runtime-benchmarks",
+    "pallet-timestamp/runtime-benchmarks",
+    "pallet-xcm/runtime-benchmarks",
+    "parachains-common/runtime-benchmarks",
+    "polimec-common/runtime-benchmarks",
+    "polkadot-parachain-primitives/runtime-benchmarks",
+    "sp-runtime/runtime-benchmarks",
+    "xcm-builder/runtime-benchmarks",
+    "xcm-executor/runtime-benchmarks",
+]
+try-runtime = [
+    "frame-support/try-runtime",
+    "frame-system/try-runtime",
+    "pallet-assets/try-runtime",
+    "pallet-balances/try-runtime",
+    "pallet-insecure-randomness-collective-flip/try-runtime",
+    "pallet-linear-release/try-runtime",
+    "pallet-timestamp/try-runtime",
+    "pallet-xcm/try-runtime",
+    "polimec-common/try-runtime",
+    "sp-runtime/try-runtime",
+]

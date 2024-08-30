@@ -134,19 +134,6 @@ pub fn generate_cid_from_string(cid: &str) -> BoundedVec<u8, ConstU32<96>> {
 	BoundedVec::try_from(cid.as_bytes().to_vec()).unwrap()
 }
 
-#[cfg(feature = "std")]
-pub fn do_request(url: &str) -> String {
-	reqwest::blocking::Client::builder()
-		.user_agent("polimec")
-		.build()
-		.expect("Failed to build Client")
-		.get(url)
-		.send()
-		.expect("Failed to perform the HTTP GET")
-		.text()
-		.expect("Failed to get the response body from the specified endpoint")
-}
-
 #[cfg(test)]
 mod tests {
 	use crate::{generate_did_from_account, get_mock_jwt, get_mock_jwt_with_cid};

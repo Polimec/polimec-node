@@ -317,7 +317,6 @@ mod start_evaluation_extrinsic {
 	#[cfg(test)]
 	mod failure {
 		use super::*;
-		use polimec_common_test_utils::get_mock_jwt;
 
 		#[test]
 		fn non_institutional_jwt() {

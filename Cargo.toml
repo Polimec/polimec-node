@@ -6,7 +6,9 @@ members = [
     "integration-tests",
     "macros",
     "macros/tests",
-    "polimec-common/*",
+    "polimec-common",
+    "instantiator",
+
 ]
 default-members = ["nodes/*", "pallets/*"]
 resolver = "2"
@@ -57,6 +59,7 @@ codegen-units = 1
 substrate-wasm-builder = { version = "23.0.0" }
 
 # Internal pallets (with default disabled)
+polimec-instantiator = { path = "instantiator", default-features = false }
 pallet-dispenser = { path = "pallets/dispenser", default-features = false }
 pallet-funding = { path = "pallets/funding", default-features = false }
 pallet-democracy = { path = "pallets/democracy", default-features = false }
@@ -78,9 +81,7 @@ jwt-compact = { git = "https://github.com/lrazovic/jwt-compact", default-feature
 
 # Internal support (with default disabled)
 shared-configuration = { path = "runtimes/shared-configuration", default-features = false }
-polimec-common = { path = "polimec-common/common", default-features = false }
-polimec-common-test-utils = { path = "polimec-common/test-utils", default-features = false }
-
+polimec-common = { path = "polimec-common", default-features = false }
 # External support (with default disabled)
 substrate-fixed = { git = "https://github.com/encointer/substrate-fixed", default-features = false }
 

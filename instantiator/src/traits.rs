@@ -1,4 +1,6 @@
-use super::{Config, UserToPLMCBalance, Vec};
+use super::{Config, UserToPLMCBalance};
+extern crate alloc;
+use alloc::vec::Vec;
 
 pub trait Deposits<T: Config> {
 	fn existential_deposits(&self) -> Vec<UserToPLMCBalance<T>>;

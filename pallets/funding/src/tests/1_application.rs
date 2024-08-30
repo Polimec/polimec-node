@@ -1,6 +1,5 @@
 use super::*;
 use polimec_common::credentials::InvestorType;
-use polimec_common_test_utils::{generate_did_from_account, get_mock_jwt_with_cid};
 
 #[cfg(test)]
 mod round_flow {
@@ -29,7 +28,6 @@ mod create_project_extrinsic {
 	#[cfg(test)]
 	mod success {
 		use super::*;
-		use polimec_common_test_utils::get_mock_jwt_with_cid;
 
 		#[test]
 		fn project_id_autoincrement_works() {
@@ -799,7 +797,7 @@ mod edit_project_extrinsic {
 	mod success {
 		use super::*;
 		use polimec_common::USD_DECIMALS;
-		use polimec_common_test_utils::get_mock_jwt;
+
 		#[test]
 		fn project_id_stays_the_same() {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));

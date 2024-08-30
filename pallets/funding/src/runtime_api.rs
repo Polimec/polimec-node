@@ -7,7 +7,7 @@ use parity_scale_codec::{Decode, Encode};
 use polimec_common::USD_DECIMALS;
 use scale_info::TypeInfo;
 use sp_runtime::traits::Zero;
-
+use sp_std::result;
 #[derive(Debug, Clone, PartialEq, Eq, Encode, Decode, TypeInfo)]
 pub struct ProjectParticipationIds<T: Config> {
 	account: AccountIdOf<T>,

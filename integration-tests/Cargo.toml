@@ -20,12 +20,12 @@ substrate-wasm-builder.workspace = true
 serde = { workspace = true  }
 parity-scale-codec = { workspace = true, features = ["derive"] }
 scale-info = { workspace = true, features = ["derive"] }
+polimec-instantiator.workspace = true
 
 # Local
 polimec-receiver.workspace = true
 macros.workspace = true
 polimec-common.workspace = true
-polimec-common-test-utils.workspace = true
 sp-arithmetic.workspace = true
 frame-system.workspace = true
 frame-support.workspace = true
@@ -114,7 +114,6 @@ std = [
 	"parachains-common/std",
 	"parity-scale-codec/std",
 	"penpal-runtime/std",
-	"polimec-common-test-utils/std",
 	"polimec-common/std",
 	"polimec-receiver/std",
 	"polimec-runtime/std",

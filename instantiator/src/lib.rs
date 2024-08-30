@@ -13,8 +13,7 @@
 
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
-#[allow(clippy::wildcard_imports)]
-use crate::{traits::*, *};
+use crate::jwt_utils::generate_did_from_account;
 use frame_support::{
 	pallet_prelude::*,
 	traits::{
@@ -30,8 +29,13 @@ use frame_support::{
 };
 use frame_system::pallet_prelude::BlockNumberFor;
 use itertools::Itertools;
+#[allow(clippy::wildcard_imports)]
+use pallet_funding::{traits::*, *};
 use parity_scale_codec::Decode;
-use polimec_common::{credentials::InvestorType, migration_types::MigrationOrigin};
+use polimec_common::{
+	credentials::{Did, InvestorType},
+	migration_types::{MigrationOrigin, ParticipationType},
+};
 use sp_arithmetic::{
 	traits::{SaturatedConversion, Saturating, Zero},
 	FixedPointNumber, Percent, Perquintill,
@@ -43,11 +47,8 @@ use sp_std::{
 	iter::zip,
 	marker::PhantomData,
 };
+use xcm::v4::{Junction::AccountId32, Location};
 
-#[cfg(any(test, feature = "std", feature = "runtime-benchmarks"))]
-use polimec_common_test_utils::generate_did_from_account;
-
-#[cfg(any(feature = "std", feature = "runtime-benchmarks"))]
 pub mod macros;
 
 pub mod types;
@@ -56,11 +57,11 @@ pub use types::*;
 pub mod traits;
 pub use traits::*;
 
-#[cfg(any(feature = "std", feature = "runtime-benchmarks"))]
 pub mod calculations;
 
-#[cfg(any(feature = "std", feature = "runtime-benchmarks"))]
 pub mod chain_interactions;
+
+pub mod jwt_utils;
 
 #[cfg(test)]
 mod tests;

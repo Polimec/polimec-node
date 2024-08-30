@@ -31,13 +31,13 @@ sp-io.workspace = true
 sp-runtime.workspace = true
 sp-std.workspace = true
 substrate-fixed = {workspace = true}
+polimec-common.workspace = true
 
 [dev-dependencies]
 pallet-balances = { workspace = true, features = ["std"] }
 sp-consensus-aura = { workspace = true, features = ["std"] }
 sp-keystore = { workspace = true, features = ["std"] }
 parking_lot = "0.12.1"
-polimec-common-test-utils.workspace = true
 
 [features]
 default = [ "std" ]
@@ -48,7 +48,6 @@ std = [
 	"orml-oracle/std",
 	"pallet-balances/std",
 	"parity-scale-codec/std",
-	"polimec-common-test-utils/std",
 	"scale-info/std",
 	"serde-json-core/std",
 	"serde/std",
@@ -66,7 +65,6 @@ try-runtime = [
 	"frame-system/try-runtime",
 	"orml-oracle/try-runtime",
 	"pallet-balances/try-runtime",
-	"polimec-common-test-utils/try-runtime",
 	"sp-runtime/try-runtime",
 ]
 runtime-benchmarks = [
@@ -74,6 +72,5 @@ runtime-benchmarks = [
 	"frame-system/runtime-benchmarks",
 	"orml-oracle/runtime-benchmarks",
 	"pallet-balances/runtime-benchmarks",
-	"polimec-common-test-utils/runtime-benchmarks",
 	"sp-runtime/runtime-benchmarks",
 ]

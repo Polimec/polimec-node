@@ -20,7 +20,6 @@ use frame_support::{pallet_prelude::*, traits::tokens::fungible};
 use sp_runtime::RuntimeDebug;
 use sp_std::prelude::*;
 pub use xcm::v4::{opaque::Xcm, Assets, Location, QueryId, SendError, SendResult, SendXcm, XcmHash};
-
 pub mod credentials;
 
 /// A release schedule over a fungible. This allows a particular fungible to have release limits
@@ -234,4 +233,17 @@ impl SendXcm for DummyXcmSender {
 	fn deliver(_ticket: Self::Ticket) -> Result<XcmHash, SendError> {
 		Ok([0u8; 32])
 	}
+}
+
+#[cfg(feature = "std")]
+pub fn do_request(url: &str) -> String {
+	reqwest::blocking::Client::builder()
+		.user_agent("polimec")
+		.build()
+		.expect("Failed to build Client")
+		.get(url)
+		.send()
+		.expect("Failed to perform the HTTP GET")
+		.text()
+		.expect("Failed to get the response body from the specified endpoint")
 }

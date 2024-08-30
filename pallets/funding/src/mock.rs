@@ -391,7 +391,8 @@ impl ConstPriceProvider {
 		});
 	}
 }
-impl Config for TestRuntime {
+
+impl pallet::Config for TestRuntime {
 	type AccountId32Conversion = DummyConverter;
 	type AllPalletsWithoutSystem =
 		(Balances, ContributionTokens, ForeignAssets, PolimecFunding, LinearRelease, RandomnessCollectiveFlip);

@@ -21,7 +21,7 @@ use crate as pallet_dispenser;
 use crate::mock::*;
 use frame_support::{assert_noop, assert_ok};
 use polimec_common::credentials::InvestorType;
-use polimec_common_test_utils::{generate_cid_from_string, generate_did_from_account, get_mock_jwt_with_cid};
+use polimec_instantiator::jwt_utils::{generate_cid_from_string, generate_did_from_account, get_mock_jwt_with_cid};
 use sp_runtime::DispatchError;
 
 mod admin {
@@ -59,6 +59,7 @@ mod admin {
 }
 
 mod dispense {
+
 	use super::*;
 	#[test]
 	fn user_can_dispense_for_free() {

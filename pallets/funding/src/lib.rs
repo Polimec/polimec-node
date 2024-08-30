@@ -63,7 +63,6 @@
 //! 19) **Confirm Migration**: For each participant, the issuer must mark their CTs as migrated with the [`confirm_offchain_migration`](Pallet::confirm_offchain_migration) extrinsic.
 //! 20) **Migration End**: Once all participants have migrated their CTs, anyone can mark the migration as finished with the [`mark_project_ct_migration_as_finished`](Pallet::mark_project_ct_migration_as_finished) extrinsic.
 
-
 // Ensure we're `no_std` when compiling for Wasm.
 #![cfg_attr(not(feature = "std"), no_std)]
 // Needed due to empty sections raising the warning
@@ -94,7 +93,7 @@ use sp_runtime::{traits::AccountIdConversion, FixedPointNumber, FixedPointOperan
 use sp_std::{marker::PhantomData, prelude::*};
 pub use types::*;
 use xcm::v4::{prelude::*, SendXcm};
-
+use alloc::{vec, vec::Vec};
 mod functions;
 pub mod storage_migrations;
 pub mod traits;
@@ -106,10 +105,6 @@ pub mod mock;
 
 #[cfg(test)]
 pub mod tests;
-
-// TODO: This is used only in tests. Should we use #[cfg(test)]?
-// If we do that the integration-tests will complain about the missing `use` statement :(
-pub mod instantiator;
 
 #[cfg(feature = "runtime-benchmarks")]
 pub mod benchmarking;
