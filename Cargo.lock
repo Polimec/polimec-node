@@ -490,7 +490,7 @@ dependencies = [
  "sp-runtime",
  "sp-session",
  "sp-std",
- "sp-storage 21.0.0",
+ "sp-storage",
  "sp-transaction-pool",
  "sp-version",
  "sp-weights",
@@ -2138,7 +2138,7 @@ dependencies = [
  "sp-runtime",
  "sp-state-machine",
  "sp-std",
- "sp-storage 21.0.0",
+ "sp-storage",
  "sp-trie",
  "tracing",
 ]
@@ -2534,7 +2534,7 @@ dependencies = [
  "sp-core",
  "sp-runtime",
  "sp-state-machine",
- "sp-storage 21.0.0",
+ "sp-storage",
  "sp-version",
  "thiserror",
  "tokio",
@@ -3475,7 +3475,7 @@ dependencies = [
  "sp-runtime",
  "sp-runtime-interface",
  "sp-std",
- "sp-storage 21.0.0",
+ "sp-storage",
  "static_assertions",
 ]
 
@@ -3523,7 +3523,7 @@ dependencies = [
  "sp-keystore",
  "sp-runtime",
  "sp-state-machine",
- "sp-storage 21.0.0",
+ "sp-storage",
  "sp-trie",
  "sp-wasm-interface",
  "thiserror",
@@ -7983,7 +7983,7 @@ dependencies = [
  "sp-io",
  "sp-runtime",
  "sp-std",
- "sp-storage 21.0.0",
+ "sp-storage",
  "sp-timestamp",
 ]
 
@@ -8501,7 +8501,7 @@ dependencies = [
  "sp-runtime",
  "sp-session",
  "sp-std",
- "sp-storage 19.0.0",
+ "sp-storage",
  "sp-transaction-pool",
  "sp-version",
  "staging-parachain-info",
@@ -9770,7 +9770,7 @@ dependencies = [
  "sp-session",
  "sp-staking",
  "sp-std",
- "sp-storage 21.0.0",
+ "sp-storage",
  "sp-transaction-pool",
  "sp-version",
  "staging-xcm",
@@ -10016,7 +10016,7 @@ dependencies = [
  "sp-runtime",
  "sp-session",
  "sp-state-machine",
- "sp-storage 21.0.0",
+ "sp-storage",
  "sp-timestamp",
  "sp-transaction-pool",
  "sp-version",
@@ -11140,7 +11140,7 @@ dependencies = [
  "sp-session",
  "sp-staking",
  "sp-std",
- "sp-storage 21.0.0",
+ "sp-storage",
  "sp-transaction-pool",
  "sp-version",
  "staging-xcm",
@@ -11654,7 +11654,7 @@ dependencies = [
  "sp-runtime",
  "sp-state-machine",
  "sp-statement-store",
- "sp-storage 21.0.0",
+ "sp-storage",
  "sp-trie",
  "substrate-prometheus-endpoint",
 ]
@@ -12491,7 +12491,7 @@ dependencies = [
  "sp-runtime",
  "sp-session",
  "sp-state-machine",
- "sp-storage 21.0.0",
+ "sp-storage",
  "sp-transaction-pool",
  "sp-transaction-storage-proof",
  "sp-trie",
@@ -13785,7 +13785,7 @@ dependencies = [
  "sp-externalities",
  "sp-runtime-interface",
  "sp-std",
- "sp-storage 21.0.0",
+ "sp-storage",
  "ss58-registry",
  "substrate-bip39",
  "thiserror",
@@ -13848,7 +13848,7 @@ checksum = "a904407d61cb94228c71b55a9d3708e9d6558991f9e83bd42bd91df37a159d30"
 dependencies = [
  "environmental",
  "parity-scale-codec",
- "sp-storage 21.0.0",
+ "sp-storage",
 ]
 
 [[package]]
@@ -14066,7 +14066,7 @@ dependencies = [
  "sp-externalities",
  "sp-runtime-interface-proc-macro",
  "sp-std",
- "sp-storage 21.0.0",
+ "sp-storage",
  "sp-tracing",
  "sp-wasm-interface",
  "static_assertions",
@@ -14166,20 +14166,6 @@ name = "sp-std"
 version = "14.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "12f8ee986414b0a9ad741776762f4083cd3a5128449b982a3919c4df36874834"
-
-[[package]]
-name = "sp-storage"
-version = "19.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1fb92d7b24033a8a856d6e20dd980b653cbd7af7ec471cc988b1b7c1d2e3a32b"
-dependencies = [
- "impl-serde",
- "parity-scale-codec",
- "ref-cast",
- "serde",
- "sp-debug-derive",
- "sp-std",
-]
 
 [[package]]
 name = "sp-storage"
@@ -16269,7 +16255,7 @@ dependencies = [
  "sp-session",
  "sp-staking",
  "sp-std",
- "sp-storage 21.0.0",
+ "sp-storage",
  "sp-transaction-pool",
  "sp-version",
  "staging-xcm",
