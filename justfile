@@ -41,19 +41,42 @@ dry-run-benchmarks mode="fast-mode" pallet="*" extrinsic="*" :
             --heap-pages=4096
     done
 
-# src: https://github.com/polkadot-fellows/runtimes/blob/48ccfae6141d2924f579d81e8b1877efd208693f/system-parachains/asset-hubs/asset-hub-polkadot/src/weights/cumulus_pallet_xcmp_queue.rs
-# Benchmark a specific pallet on the "Polimec" Runtime
-# Use mode="production" to generate production weights.
-benchmark-runtime chain="polimec-paseo-local" pallet="pallet-elections-phragmen" mode="release":
-    cargo run --features runtime-benchmarks --profile {{mode}} -p polimec-node benchmark pallet \
-      --chain={{ chain }} \
-      --steps=50 \
-      --repeat=20 \
-      --pallet={{ pallet }} \
-      --extrinsic=* \
-      --wasm-execution=compiled \
-      --heap-pages=4096 \
-      --output=runtimes/polimec/src/weights/{{ replace(pallet, "-", "_") }}.rs
+benchmark-runtime:
+    #!/bin/bash
+    steps=${4:-50}
+    repeat=${5:-20}
+
+    weightsDir=./runtimes/polimec/src/weights
+    chainSpec="polimec-paseo-local"
+    benchmarkCommand="./target/production/polimec-node benchmark pallet"
+
+
+    cargo run --features runtime-benchmarks --profile=production -p polimec-node benchmark pallet
+    # Load all pallet names in an array.
+    pallets=($(
+      ${benchmarkCommand} --list --chain=${chainSpec}  |\
+        tail -n+2 |\
+        cut -d',' -f1 |\
+        sort |\
+        uniq
+    ))
+
+    echo "[+] Benchmarking ${#pallets[@]} pallets"
+
+    for pallet in ${pallets[@]}
+    do
+      output_pallet=$(echo $pallet | tr '-' '_')
+      echo $output_pallet
+        ${benchmarkCommand} \
+            --chain=${chainSpec} \
+            --wasm-execution=compiled \
+            --pallet=$pallet  \
+            --extrinsic='*' \
+            --steps=$steps  \
+            --repeat=$repeat \
+        --output=$weightsDir/$output_pallet.rs
+
+    done
 
 # src: https://github.com/paritytech/polkadot-sdk/blob/bc2e5e1fe26e2c2c8ee766ff9fe7be7e212a0c62/substrate/frame/nfts/src/weights.rs
 # Run the Runtime benchmarks for a specific pallet
