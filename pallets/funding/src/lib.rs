@@ -107,8 +107,7 @@ pub mod mock;
 #[cfg(test)]
 pub mod tests;
 
-// TODO: This is used only in tests. Should we use #[cfg(test)]?
-// If we do that the integration-tests will complain about the missing `use` statement :(
+#[cfg(not(feature = "on-chain-release-build"))]
 pub mod instantiator;
 
 #[cfg(feature = "runtime-benchmarks")]
