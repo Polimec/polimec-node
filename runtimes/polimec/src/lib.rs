@@ -169,7 +169,6 @@ pub mod migrations {
 	pub type Unreleased = (
 		cumulus_pallet_xcmp_queue::migration::v5::MigrateV4ToV5<Runtime>,
 		crate::custom_migrations::funding_holds::FromFundingV4Migration,
-		pallet_funding::storage_migrations::v5::MigrationToV5<Runtime>,
 	);
 }
 
