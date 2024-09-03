@@ -396,7 +396,7 @@ mod settle_bid_extrinsic {
 			let auction_allocation =
 				project_metadata.auction_round_allocation_percentage * project_metadata.total_allocation_size;
 			let partial_amount_bid_params =
-				BidParams::new(BIDDER_1, auction_allocation, 1u8, AcceptedFundingAsset::USDT);
+				BidParams::new(BIDDER_1, auction_allocation, 3u8, AcceptedFundingAsset::USDT);
 			let lower_price_bid_params = BidParams::new(BIDDER_2, 2000 * CT_UNIT, 5u8, AcceptedFundingAsset::DOT);
 			let bids = vec![partial_amount_bid_params.clone(), lower_price_bid_params.clone()];
 
@@ -461,10 +461,10 @@ mod settle_bid_extrinsic {
 				true,
 			);
 
-			// Multiplier one should be fully unbonded the next block
-			inst.advance_time(1_u64);
-
 			let hold_reason: RuntimeHoldReason = HoldReason::Participation.into();
+			let vesting_time = Multiplier::force_new(3).calculate_vesting_duration::<TestRuntime>();
+			let now = inst.current_block();
+			inst.jump_to_block(now + vesting_time + 1u64);
 			inst.execute(|| LinearRelease::vest(RuntimeOrigin::signed(BIDDER_1), hold_reason).expect("Vesting failed"));
 
 			inst.assert_plmc_free_balance(BIDDER_1, expected_plmc_refund + expected_final_plmc_bonded + ed);

@@ -622,7 +622,8 @@ impl<
 			ProjectStatus::CommunityRound(..) =>
 				for cont in contributions {
 					let did = generate_did_from_account(cont.contributor.clone());
-					let investor_type = InvestorType::Retail;
+					// We use institutional to be able to test most multipliers.
+					let investor_type = InvestorType::Institutional;
 					let params = DoContributeParams::<T> {
 						contributor: cont.contributor,
 						project_id,

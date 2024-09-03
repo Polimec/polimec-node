@@ -139,6 +139,7 @@ pub type ContributionInfoOf<T> =
 pub type BucketOf<T> = Bucket<PriceOf<T>>;
 pub type WeightInfoOf<T> = <T as Config>::WeightInfo;
 pub type VestingOf<T> = pallet_linear_release::Pallet<T>;
+pub type BlockNumberToBalanceOf<T> = <T as pallet_linear_release::Config>::BlockNumberToBalance;
 
 pub const PLMC_FOREIGN_ID: u32 = 3344;
 pub const PLMC_DECIMALS: u8 = 10;
@@ -332,7 +333,7 @@ pub mod pallet {
 			+ Member;
 
 		/// The hold reason enum constructed by the construct_runtime macro
-		type RuntimeHoldReason: From<HoldReason>;
+		type RuntimeHoldReason: From<HoldReason> + Parameter + MaxEncodedLen + Copy;
 
 		/// The origin enum constructed by the construct_runtime macro
 		type RuntimeOrigin: IsType<<Self as frame_system::Config>::RuntimeOrigin>
