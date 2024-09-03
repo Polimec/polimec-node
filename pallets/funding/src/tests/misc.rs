@@ -67,25 +67,25 @@ mod helper_functions {
 	fn calculate_evaluation_plmc_spent() {
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		const EVALUATOR_1: AccountIdOf<TestRuntime> = 1u32;
-		const USD_AMOUNT_1: BalanceOf<TestRuntime> = 150_000 * USD_UNIT;
+		const USD_AMOUNT_1: Balance = 150_000 * USD_UNIT;
 		const EXPECTED_PLMC_AMOUNT_1: f64 = 17_857.1428571428f64;
 
 		const EVALUATOR_2: AccountIdOf<TestRuntime> = 2u32;
-		const USD_AMOUNT_2: BalanceOf<TestRuntime> = 50_000 * USD_UNIT;
+		const USD_AMOUNT_2: Balance = 50_000 * USD_UNIT;
 		const EXPECTED_PLMC_AMOUNT_2: f64 = 5_952.3809523809f64;
 
 		const EVALUATOR_3: AccountIdOf<TestRuntime> = 3u32;
-		const USD_AMOUNT_3: BalanceOf<TestRuntime> = 75_000 * USD_UNIT;
+		const USD_AMOUNT_3: Balance = 75_000 * USD_UNIT;
 		const EXPECTED_PLMC_AMOUNT_3: f64 = 8_928.5714285714f64;
 
 		const EVALUATOR_4: AccountIdOf<TestRuntime> = 4u32;
-		const USD_AMOUNT_4: BalanceOf<TestRuntime> = 100 * USD_UNIT;
+		const USD_AMOUNT_4: Balance = 100 * USD_UNIT;
 		const EXPECTED_PLMC_AMOUNT_4: f64 = 11.9047619047f64;
 
 		const EVALUATOR_5: AccountIdOf<TestRuntime> = 5u32;
 
 		// 123.7 USD
-		const USD_AMOUNT_5: BalanceOf<TestRuntime> = 1237 * USD_UNIT / 10;
+		const USD_AMOUNT_5: Balance = 1237 * USD_UNIT / 10;
 		const EXPECTED_PLMC_AMOUNT_5: f64 = 14.7261904761f64;
 
 		const PLMC_PRICE: f64 = 8.4f64;
@@ -224,17 +224,17 @@ mod helper_functions {
 	#[test]
 	fn bucket_wap_calculation() {
 		let initial_price = FixedU128::from_float(10.0);
-		let mut bucket = Bucket::new(100u32, initial_price, FixedU128::from_float(1.0), 10u32);
-		let wap = bucket.calculate_wap(100u32);
+		let mut bucket = Bucket::new(100u128, initial_price, FixedU128::from_float(1.0), 10u128);
+		let wap = bucket.calculate_wap(100u128);
 		assert!(wap == initial_price);
 
 		// Initial token amount: 100
 		// Simulate total bidding amount of 128
-		bucket.update(100u32);
-		bucket.update(10u32);
-		bucket.update(10u32);
-		bucket.update(8u32);
-		let wap = bucket.calculate_wap(100u32);
+		bucket.update(100u128);
+		bucket.update(10u128);
+		bucket.update(10u128);
+		bucket.update(8u128);
+		let wap = bucket.calculate_wap(100u128);
 		let expected = FixedU128::from_float(10.628);
 		let diff = if wap > expected { wap - expected } else { expected - wap };
 		assert!(diff <= FixedU128::from_float(0.001));

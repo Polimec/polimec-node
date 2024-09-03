@@ -22,10 +22,7 @@ use polimec_common::{
 	migration_types::{MigrationInfo, Migrations},
 	USD_DECIMALS,
 };
-use sp_arithmetic::{
-	traits::{CheckedDiv, CheckedSub, Zero},
-	Percent, Perquintill,
-};
+use sp_arithmetic::{traits::Zero, Percent, Perquintill};
 use sp_runtime::traits::Convert;
 
 const POLIMEC_PARA_ID: u32 = 3344u32;

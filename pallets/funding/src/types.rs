@@ -18,18 +18,18 @@
 
 //! Types for Funding pallet.
 
-use crate::{traits::BondingRequirementCalculation, BalanceOf};
+use crate::traits::BondingRequirementCalculation;
 pub use config::*;
 pub use extrinsic::*;
-use frame_support::{pallet_prelude::*, traits::tokens::Balance as BalanceT};
+use frame_support::pallet_prelude::*;
 use frame_system::pallet_prelude::BlockNumberFor;
 pub use inner::*;
 use parachains_common::DAYS;
 use polimec_common::USD_DECIMALS;
 use polkadot_parachain_primitives::primitives::Id as ParaId;
 use serde::{Deserialize, Serialize};
-use sp_arithmetic::{traits::Saturating, FixedPointNumber, FixedPointOperand, FixedU128, Percent};
-use sp_runtime::traits::{CheckedDiv, CheckedMul, Convert, One};
+use sp_arithmetic::{traits::Saturating, FixedPointNumber, FixedU128, Percent};
+use sp_runtime::traits::{Convert, One};
 use sp_std::{cmp::Eq, prelude::*};
 pub use storage::*;
 
@@ -40,6 +40,7 @@ use sp_runtime::traits::Zero;
 pub mod config {
 	#[allow(clippy::wildcard_imports)]
 	use super::*;
+	use crate::Balance;
 
 	#[derive(
 		Clone,
@@ -65,9 +66,9 @@ pub mod config {
 	}
 
 	impl BondingRequirementCalculation for Multiplier {
-		fn calculate_bonding_requirement<T: Config>(&self, ticket_size: BalanceOf<T>) -> Option<BalanceOf<T>> {
-			let balance_multiplier = BalanceOf::<T>::from(self.0);
-			ticket_size.checked_div(&balance_multiplier)
+		fn calculate_bonding_requirement<T: Config>(&self, ticket_size: Balance) -> Option<Balance> {
+			let balance_multiplier = Balance::from(self.0);
+			ticket_size.checked_div(balance_multiplier)
 		}
 	}
 
@@ -153,9 +154,10 @@ pub mod config {
 pub mod storage {
 	#[allow(clippy::wildcard_imports)]
 	use super::*;
+	use crate::Balance;
 
 	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo, Serialize, Deserialize)]
-	pub struct ProjectMetadata<BoundedString, Balance: PartialOrd + Copy, Price: FixedPointNumber, AccountId, Cid> {
+	pub struct ProjectMetadata<BoundedString, Price: FixedPointNumber, AccountId, Cid> {
 		/// Token Metadata
 		pub token_information: CurrencyMetadata<BoundedString>,
 		/// Mainnet Token Max Supply
@@ -167,9 +169,9 @@ pub mod storage {
 		/// The minimum price per token in USD, decimal-aware. See [`calculate_decimals_aware_price()`](crate::traits::ProvideAssetPrice::calculate_decimals_aware_price) for more information.
 		pub minimum_price: Price,
 		/// Maximum and minimum ticket sizes for auction round
-		pub bidding_ticket_sizes: BiddingTicketSizes<Price, Balance>,
+		pub bidding_ticket_sizes: BiddingTicketSizes<Price>,
 		/// Maximum and minimum ticket sizes for community/remainder rounds
-		pub contributing_ticket_sizes: ContributingTicketSizes<Price, Balance>,
+		pub contributing_ticket_sizes: ContributingTicketSizes<Price>,
 		/// Participation currencies (e.g stablecoin, DOT, KSM)
 		/// e.g. https://github.com/paritytech/substrate/blob/427fd09bcb193c1e79dec85b1e207c718b686c35/frame/uniques/src/types.rs#L110
 		/// For now is easier to handle the case where only just one Currency is accepted
@@ -180,14 +182,7 @@ pub mod storage {
 		pub policy_ipfs_cid: Option<Cid>,
 	}
 
-	impl<
-			BoundedString,
-			Balance: From<u64> + PartialOrd + Copy + FixedPointOperand + One + CheckedMul,
-			Price: FixedPointNumber,
-			AccountId,
-			Cid,
-		> ProjectMetadata<BoundedString, Balance, Price, AccountId, Cid>
-	{
+	impl<BoundedString, Price: FixedPointNumber, AccountId, Cid> ProjectMetadata<BoundedString, Price, AccountId, Cid> {
 		/// Validate issuer metadata for the following checks:
 		/// - Minimum price is not zero
 		/// - Minimum bidding ticket sizes are higher than 5k USD
@@ -196,18 +191,16 @@ pub mod storage {
 			if self.minimum_price == Price::zero() {
 				return Err(MetadataError::PriceTooLow);
 			}
-			let usd_unit = sp_arithmetic::traits::checked_pow(Balance::from(10u64), USD_DECIMALS as usize)
+			let usd_unit = sp_arithmetic::traits::checked_pow(10u128, USD_DECIMALS as usize)
 				.ok_or(MetadataError::BadTokenomics)?;
 
-			let min_bidder_bound_usd: Balance =
-				usd_unit.checked_mul(&5000u64.into()).ok_or(MetadataError::BadTokenomics)?;
+			let min_bidder_bound_usd: Balance = usd_unit.checked_mul(5000u128).ok_or(MetadataError::BadTokenomics)?;
 			self.bidding_ticket_sizes.is_valid(vec![
 				InvestorTypeUSDBounds::Professional((min_bidder_bound_usd, None).into()),
 				InvestorTypeUSDBounds::Institutional((min_bidder_bound_usd, None).into()),
 			])?;
 
-			let min_contributor_bound_usd: Balance =
-				usd_unit.checked_mul(&1u64.into()).ok_or(MetadataError::BadTokenomics)?;
+			let min_contributor_bound_usd: Balance = usd_unit.checked_mul(1u128).ok_or(MetadataError::BadTokenomics)?;
 			self.contributing_ticket_sizes.is_valid(vec![
 				InvestorTypeUSDBounds::Institutional((min_contributor_bound_usd, None).into()),
 				InvestorTypeUSDBounds::Professional((min_contributor_bound_usd, None).into()),
@@ -216,8 +209,7 @@ pub mod storage {
 
 			if self.total_allocation_size == 0u64.into() ||
 				self.total_allocation_size > self.mainnet_token_max_supply ||
-				self.total_allocation_size <
-					Balance::from(10u64).saturating_pow(self.token_information.decimals as usize)
+				self.total_allocation_size < 10u128.saturating_pow(self.token_information.decimals as u32)
 			{
 				return Err(MetadataError::AllocationSizeError);
 			}
@@ -265,21 +257,21 @@ pub mod storage {
 		}
 	}
 
-	pub struct Bound<Balance> {
+	pub struct Bound {
 		pub lower: Balance,
 		pub upper: Option<Balance>,
 	}
 
-	impl<Balance> From<(Balance, Option<Balance>)> for Bound<Balance> {
+	impl From<(Balance, Option<Balance>)> for Bound {
 		fn from(value: (Balance, Option<Balance>)) -> Self {
 			Self { lower: value.0, upper: value.1 }
 		}
 	}
 
-	pub enum InvestorTypeUSDBounds<Balance> {
-		Retail(Bound<Balance>),
-		Professional(Bound<Balance>),
-		Institutional(Bound<Balance>),
+	pub enum InvestorTypeUSDBounds {
+		Retail(Bound),
+		Professional(Bound),
+		Institutional(Bound),
 	}
 
 	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
@@ -299,14 +291,7 @@ pub mod storage {
 	}
 
 	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
-	pub struct ProjectDetails<
-		AccountId,
-		Did,
-		BlockNumber,
-		Price: FixedPointNumber,
-		Balance: BalanceT,
-		EvaluationRoundInfo,
-	> {
+	pub struct ProjectDetails<AccountId, Did, BlockNumber, Price: FixedPointNumber, EvaluationRoundInfo> {
 		pub issuer_account: AccountId,
 		pub issuer_did: Did,
 		/// Whether the project is frozen, so no `metadata` changes are allowed.
@@ -346,7 +331,7 @@ pub mod storage {
 	}
 
 	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen, Ord, PartialOrd)]
-	pub struct EvaluationInfo<Id, Did, ProjectId, AccountId, Balance, BlockNumber> {
+	pub struct EvaluationInfo<Id, Did, ProjectId, AccountId, BlockNumber> {
 		pub id: Id,
 		pub did: Did,
 		pub project_id: ProjectId,
@@ -360,12 +345,12 @@ pub mod storage {
 	}
 
 	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
-	pub struct BidInfo<ProjectId, Did, Balance: BalanceT, Price: FixedPointNumber, AccountId, BlockNumber, Multiplier> {
+	pub struct BidInfo<ProjectId, Did, Price: FixedPointNumber, AccountId, BlockNumber, Multiplier> {
 		pub id: u32,
 		pub project_id: ProjectId,
 		pub bidder: AccountId,
 		pub did: Did,
-		pub status: BidStatus<Balance>,
+		pub status: BidStatus,
 		#[codec(compact)]
 		pub original_ct_amount: Balance,
 		pub original_ct_usd_price: Price,
@@ -375,8 +360,8 @@ pub mod storage {
 		pub plmc_bond: Balance,
 		pub when: BlockNumber,
 	}
-	impl<ProjectId, Did, Balance: BalanceT, Price: FixedPointNumber, AccountId, BlockNumber, Multiplier>
-		BidInfo<ProjectId, Did, Balance, Price, AccountId, BlockNumber, Multiplier>
+	impl<ProjectId, Did, Price: FixedPointNumber, AccountId, BlockNumber, Multiplier>
+		BidInfo<ProjectId, Did, Price, AccountId, BlockNumber, Multiplier>
 	{
 		pub fn final_ct_amount(&self) -> Balance {
 			match self.status {
@@ -387,15 +372,8 @@ pub mod storage {
 		}
 	}
 
-	impl<
-			ProjectId: Eq,
-			Did: Eq,
-			Balance: BalanceT + FixedPointOperand + Ord,
-			Price: FixedPointNumber,
-			AccountId: Eq,
-			BlockNumber: Eq + Ord,
-			Multiplier: Eq,
-		> Ord for BidInfo<ProjectId, Did, Balance, Price, AccountId, BlockNumber, Multiplier>
+	impl<ProjectId: Eq, Did: Eq, Price: FixedPointNumber, AccountId: Eq, BlockNumber: Eq + Ord, Multiplier: Eq> Ord
+		for BidInfo<ProjectId, Did, Price, AccountId, BlockNumber, Multiplier>
 	{
 		fn cmp(&self, other: &Self) -> sp_std::cmp::Ordering {
 			match self.original_ct_usd_price.cmp(&other.original_ct_usd_price) {
@@ -405,15 +383,8 @@ pub mod storage {
 		}
 	}
 
-	impl<
-			ProjectId: Eq,
-			Did: Eq,
-			Balance: BalanceT + FixedPointOperand,
-			Price: FixedPointNumber,
-			AccountId: Eq,
-			BlockNumber: Eq + Ord,
-			Multiplier: Eq,
-		> PartialOrd for BidInfo<ProjectId, Did, Balance, Price, AccountId, BlockNumber, Multiplier>
+	impl<ProjectId: Eq, Did: Eq, Price: FixedPointNumber, AccountId: Eq, BlockNumber: Eq + Ord, Multiplier: Eq>
+		PartialOrd for BidInfo<ProjectId, Did, Price, AccountId, BlockNumber, Multiplier>
 	{
 		fn partial_cmp(&self, other: &Self) -> Option<sp_std::cmp::Ordering> {
 			Some(self.cmp(other))
@@ -421,7 +392,7 @@ pub mod storage {
 	}
 
 	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
-	pub struct ContributionInfo<Id, Did, ProjectId, AccountId, Balance, BlockNumber, Multiplier> {
+	pub struct ContributionInfo<Id, Did, ProjectId, AccountId, BlockNumber, Multiplier> {
 		pub id: Id,
 		pub did: Did,
 		pub project_id: ProjectId,
@@ -439,7 +410,7 @@ pub mod storage {
 	/// Each bucket has a unique ID, an amount of tokens left, a current price, an initial price,
 	/// and constants to define price and amount increments for the next buckets.
 	#[derive(Clone, Copy, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
-	pub struct Bucket<Balance, Price> {
+	pub struct Bucket<Price> {
 		/// The amount of tokens left in this bucket.
 		pub amount_left: Balance,
 		/// The current price of tokens in this bucket.
@@ -452,7 +423,7 @@ pub mod storage {
 		pub delta_amount: Balance,
 	}
 
-	impl<Balance: BalanceT, Price: FixedPointNumber> Bucket<Balance, Price> {
+	impl<Price: FixedPointNumber> Bucket<Price> {
 		/// Creates a new bucket with the given parameters.
 		pub const fn new(
 			amount_left: Balance,
@@ -511,6 +482,7 @@ pub mod storage {
 pub mod inner {
 	#[allow(clippy::wildcard_imports)]
 	use super::*;
+	use crate::Balance;
 	use variant_count::VariantCount;
 	use xcm::v4::QueryId;
 
@@ -553,11 +525,11 @@ pub mod inner {
 	#[derive(
 		Clone, Copy, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo, Serialize, Deserialize,
 	)]
-	pub struct TicketSize<Balance: PartialOrd + Copy> {
+	pub struct TicketSize {
 		pub usd_minimum_per_participation: Balance,
 		pub usd_maximum_per_did: Option<Balance>,
 	}
-	impl<Balance: PartialOrd + Copy> TicketSize<Balance> {
+	impl TicketSize {
 		pub fn new(usd_minimum_per_participation: Balance, usd_maximum_per_did: Option<Balance>) -> Self {
 			Self { usd_minimum_per_participation, usd_maximum_per_did }
 		}
@@ -573,7 +545,7 @@ pub mod inner {
 			}
 		}
 
-		pub fn check_valid(&self, bound: Bound<Balance>) -> bool {
+		pub fn check_valid(&self, bound: Bound) -> bool {
 			if let (min, Some(max)) = (self.usd_minimum_per_participation, self.usd_maximum_per_did) {
 				if min > max {
 					return false
@@ -597,13 +569,13 @@ pub mod inner {
 	#[derive(
 		Clone, Copy, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo, Serialize, Deserialize,
 	)]
-	pub struct BiddingTicketSizes<Price: FixedPointNumber, Balance: PartialOrd + Copy> {
-		pub professional: TicketSize<Balance>,
-		pub institutional: TicketSize<Balance>,
+	pub struct BiddingTicketSizes<Price: FixedPointNumber> {
+		pub professional: TicketSize,
+		pub institutional: TicketSize,
 		pub phantom: PhantomData<(Price, Balance)>,
 	}
-	impl<Price: FixedPointNumber, Balance: PartialOrd + Copy> BiddingTicketSizes<Price, Balance> {
-		pub fn is_valid(&self, usd_bounds: Vec<InvestorTypeUSDBounds<Balance>>) -> Result<(), MetadataError> {
+	impl<Price: FixedPointNumber> BiddingTicketSizes<Price> {
+		pub fn is_valid(&self, usd_bounds: Vec<InvestorTypeUSDBounds>) -> Result<(), MetadataError> {
 			for bound in usd_bounds {
 				match bound {
 					InvestorTypeUSDBounds::Professional(bound) =>
@@ -624,14 +596,14 @@ pub mod inner {
 	#[derive(
 		Clone, Copy, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo, Serialize, Deserialize,
 	)]
-	pub struct ContributingTicketSizes<Price: FixedPointNumber, Balance: PartialOrd + Copy> {
-		pub retail: TicketSize<Balance>,
-		pub professional: TicketSize<Balance>,
-		pub institutional: TicketSize<Balance>,
+	pub struct ContributingTicketSizes<Price: FixedPointNumber> {
+		pub retail: TicketSize,
+		pub professional: TicketSize,
+		pub institutional: TicketSize,
 		pub phantom: PhantomData<(Price, Balance)>,
 	}
-	impl<Price: FixedPointNumber, Balance: PartialOrd + Copy> ContributingTicketSizes<Price, Balance> {
-		pub fn is_valid(&self, usd_bounds: Vec<InvestorTypeUSDBounds<Balance>>) -> Result<(), MetadataError> {
+	impl<Price: FixedPointNumber> ContributingTicketSizes<Price> {
+		pub fn is_valid(&self, usd_bounds: Vec<InvestorTypeUSDBounds>) -> Result<(), MetadataError> {
 			for bound in usd_bounds {
 				match bound {
 					InvestorTypeUSDBounds::Professional(bound) =>
@@ -738,7 +710,7 @@ pub mod inner {
 	}
 
 	#[derive(Default, Clone, Copy, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
-	pub enum BidStatus<Balance: BalanceT> {
+	pub enum BidStatus {
 		/// The bid is not yet accepted or rejected
 		#[default]
 		YetUnknown,
@@ -751,27 +723,27 @@ pub mod inner {
 	}
 
 	#[derive(Clone, Copy, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
-	pub struct VestingInfo<BlockNumber, Balance> {
+	pub struct VestingInfo<BlockNumber> {
 		pub total_amount: Balance,
 		pub amount_per_block: Balance,
 		pub duration: BlockNumber,
 	}
 
 	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
-	pub struct EvaluationRoundInfo<Balance> {
+	pub struct EvaluationRoundInfo {
 		pub total_bonded_usd: Balance,
 		pub total_bonded_plmc: Balance,
-		pub evaluators_outcome: Option<EvaluatorsOutcome<Balance>>,
+		pub evaluators_outcome: Option<EvaluatorsOutcome>,
 	}
 
 	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
-	pub enum EvaluatorsOutcome<Balance> {
-		Rewarded(RewardInfo<Balance>),
+	pub enum EvaluatorsOutcome {
+		Rewarded(RewardInfo),
 		Slashed,
 	}
 
 	#[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
-	pub struct RewardInfo<Balance> {
+	pub struct RewardInfo {
 		// Total "Early Evaluators" rewards amount in Contribution Tokens
 		pub early_evaluator_reward_pot: Balance,
 		// Total "Normal Evaluators" rewards amount in Contribution Tokens
@@ -832,8 +804,8 @@ pub mod inner {
 
 pub mod extrinsic {
 	use crate::{
-		AcceptedFundingAsset, AccountIdOf, BalanceOf, Config, MultiplierOf, PriceOf, ProjectDetailsOf, ProjectId,
-		TicketSizeOf,
+		AcceptedFundingAsset, AccountIdOf, Balance, Config, MultiplierOf, PriceOf, ProjectDetailsOf, ProjectId,
+		TicketSize,
 	};
 	use frame_system::pallet_prelude::BlockNumberFor;
 	use polimec_common::credentials::{Cid, Did, InvestorType};
@@ -841,7 +813,7 @@ pub mod extrinsic {
 	pub struct DoBidParams<T: Config> {
 		pub bidder: AccountIdOf<T>,
 		pub project_id: ProjectId,
-		pub ct_amount: BalanceOf<T>,
+		pub ct_amount: Balance,
 		pub multiplier: MultiplierOf<T>,
 		pub funding_asset: AcceptedFundingAsset,
 		pub did: Did,
@@ -852,14 +824,14 @@ pub mod extrinsic {
 	pub struct DoPerformBidParams<T: Config> {
 		pub bidder: AccountIdOf<T>,
 		pub project_id: ProjectId,
-		pub ct_amount: BalanceOf<T>,
+		pub ct_amount: Balance,
 		pub ct_usd_price: PriceOf<T>,
 		pub multiplier: MultiplierOf<T>,
 		pub funding_asset: AcceptedFundingAsset,
 		pub bid_id: u32,
 		pub now: BlockNumberFor<T>,
 		pub did: Did,
-		pub metadata_ticket_size_bounds: TicketSizeOf<T>,
+		pub metadata_ticket_size_bounds: TicketSize,
 		pub total_bids_by_bidder: u32,
 		pub total_bids_for_project: u32,
 	}
@@ -867,7 +839,7 @@ pub mod extrinsic {
 	pub struct DoContributeParams<T: Config> {
 		pub contributor: AccountIdOf<T>,
 		pub project_id: ProjectId,
-		pub ct_amount: BalanceOf<T>,
+		pub ct_amount: Balance,
 		pub multiplier: MultiplierOf<T>,
 		pub funding_asset: AcceptedFundingAsset,
 		pub did: Did,
@@ -879,7 +851,7 @@ pub mod extrinsic {
 		pub contributor: AccountIdOf<T>,
 		pub project_id: ProjectId,
 		pub project_details: &'a mut ProjectDetailsOf<T>,
-		pub buyable_tokens: BalanceOf<T>,
+		pub buyable_tokens: Balance,
 		pub multiplier: MultiplierOf<T>,
 		pub funding_asset: AcceptedFundingAsset,
 		pub investor_type: InvestorType,
@@ -889,8 +861,8 @@ pub mod extrinsic {
 
 	pub struct BidRefund<T: Config> {
 		pub final_ct_usd_price: PriceOf<T>,
-		pub final_ct_amount: BalanceOf<T>,
-		pub refunded_plmc: BalanceOf<T>,
-		pub refunded_funding_asset_amount: BalanceOf<T>,
+		pub final_ct_amount: Balance,
+		pub refunded_plmc: Balance,
+		pub refunded_funding_asset_amount: Balance,
 	}
 }

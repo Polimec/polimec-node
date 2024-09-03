@@ -270,7 +270,7 @@ impl<T: Config> Pallet<T> {
 		let total_cts_minted = <T as Config>::ContributionTokenCurrency::total_issuance(project_id);
 
 		// * Send the migration query *
-		let expected_tokens: Asset = (Location::here(), total_cts_minted.into()).into();
+		let expected_tokens: Asset = (Location::here(), total_cts_minted).into();
 		log::info!("expected_tokens sold for migrations: {:?}", total_cts_minted);
 		let xcm = Xcm(vec![
 			UnpaidExecution { weight_limit: WeightLimit::Unlimited, check_origin: None },
@@ -343,7 +343,7 @@ impl<T: Config> Pallet<T> {
 					},
 				),
 			) => {
-				let ct_sold_as_u128: u128 = contribution_tokens_sold.into();
+				let ct_sold_as_u128: u128 = contribution_tokens_sold;
 				let assets: Vec<Asset> = assets.into_inner();
 				let asset_1 = assets[0].clone();
 				match asset_1 {

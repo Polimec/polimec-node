@@ -62,38 +62,21 @@ where
 	let metadata_hash = BoundedVec::try_from(IPFS_CID.as_bytes().to_vec()).unwrap();
 	ProjectMetadata {
 		token_information: CurrencyMetadata { name: bounded_name, symbol: bounded_symbol, decimals: CT_DECIMALS },
-		mainnet_token_max_supply: BalanceOf::<T>::try_from(1_000_000 * CT_UNIT)
-			.unwrap_or_else(|_| panic!("Failed to create BalanceOf")),
-		total_allocation_size: BalanceOf::<T>::try_from(1_000_000 * CT_UNIT)
-			.unwrap_or_else(|_| panic!("Failed to create BalanceOf")),
+		mainnet_token_max_supply: 1_000_000u128 * CT_UNIT,
+		total_allocation_size: 1_000_000u128 * CT_UNIT,
 		auction_round_allocation_percentage: Percent::from_percent(50u8),
 		minimum_price: PriceProviderOf::<T>::calculate_decimals_aware_price(10u128.into(), USD_DECIMALS, CT_DECIMALS)
 			.unwrap(),
 
 		bidding_ticket_sizes: BiddingTicketSizes {
-			professional: TicketSize::new(
-				BalanceOf::<T>::try_from(5000 * USD_UNIT).unwrap_or_else(|_| panic!("Failed to create BalanceOf")),
-				None,
-			),
-			institutional: TicketSize::new(
-				BalanceOf::<T>::try_from(5000 * USD_UNIT).unwrap_or_else(|_| panic!("Failed to create BalanceOf")),
-				None,
-			),
+			professional: TicketSize::new(5000u128 * USD_UNIT, None),
+			institutional: TicketSize::new(5000u128 * USD_UNIT, None),
 			phantom: Default::default(),
 		},
 		contributing_ticket_sizes: ContributingTicketSizes {
-			retail: TicketSize::new(
-				BalanceOf::<T>::try_from(USD_UNIT).unwrap_or_else(|_| panic!("Failed to create BalanceOf")),
-				None,
-			),
-			professional: TicketSize::new(
-				BalanceOf::<T>::try_from(USD_UNIT).unwrap_or_else(|_| panic!("Failed to create BalanceOf")),
-				None,
-			),
-			institutional: TicketSize::new(
-				BalanceOf::<T>::try_from(USD_UNIT).unwrap_or_else(|_| panic!("Failed to create BalanceOf")),
-				None,
-			),
+			retail: TicketSize::new(USD_UNIT, None),
+			professional: TicketSize::new(USD_UNIT, None),
+			institutional: TicketSize::new(USD_UNIT, None),
 			phantom: Default::default(),
 		},
 		participation_currencies: vec![AcceptedFundingAsset::USDT].try_into().unwrap(),
@@ -105,7 +88,6 @@ where
 pub fn default_evaluations<T: Config>() -> Vec<UserToUSDBalance<T>>
 where
 	<T as Config>::Price: From<u128>,
-	<T as Config>::Balance: From<u128>,
 	T::Hash: From<H256>,
 {
 	let threshold = <T as Config>::EvaluationSuccessThreshold::get();
@@ -134,7 +116,6 @@ where
 pub fn default_bids<T: Config>() -> Vec<BidParams<T>>
 where
 	<T as Config>::Price: From<u128>,
-	<T as Config>::Balance: From<u128>,
 	T::Hash: From<H256>,
 {
 	let default_project_metadata = default_project_metadata::<T>(account::<AccountIdOf<T>>("issuer", 0, 0));
@@ -156,7 +137,6 @@ pub fn full_bids<T>() -> Vec<BidParams<T>>
 where
 	T: Config,
 	<T as Config>::Price: From<u128>,
-	<T as Config>::Balance: From<u128>,
 	T::Hash: From<H256>,
 {
 	let inst = BenchInstantiator::<T>::new(None);
@@ -175,7 +155,6 @@ where
 pub fn default_community_contributions<T: Config>() -> Vec<ContributionParams<T>>
 where
 	<T as Config>::Price: From<u128>,
-	<T as Config>::Balance: From<u128>,
 	T::Hash: From<H256>,
 {
 	let inst = BenchInstantiator::<T>::new(None);
@@ -201,7 +180,6 @@ where
 pub fn default_remainder_contributions<T: Config>() -> Vec<ContributionParams<T>>
 where
 	<T as Config>::Price: From<u128>,
-	<T as Config>::Balance: From<u128>,
 	T::Hash: From<H256>,
 {
 	let inst = BenchInstantiator::<T>::new(None);
@@ -289,13 +267,12 @@ pub fn string_account<AccountId: Decode>(
 
 #[benchmarks(
 	where
-	T: Config + frame_system::Config<RuntimeEvent = <T as Config>::RuntimeEvent> + pallet_balances::Config<Balance = BalanceOf<T>> + sp_std::fmt::Debug,
+	T: Config + frame_system::Config<RuntimeEvent = <T as Config>::RuntimeEvent> + pallet_balances::Config<Balance = Balance> + sp_std::fmt::Debug,
 	<T as Config>::RuntimeEvent: TryInto<Event<T>> + Parameter + Member,
 	<T as Config>::Price: From<u128>,
-	<T as Config>::Balance: From<u128> + Into<u128>,
 	T::Hash: From<H256>,
 	<T as frame_system::Config>::AccountId: Into<<<T as frame_system::Config>::RuntimeOrigin as OriginTrait>::AccountId> + sp_std::fmt::Debug,
-	<T as pallet_balances::Config>::Balance: Into<BalanceOf<T>>,
+	<T as pallet_balances::Config>::Balance: Into<Balance>,
 )]
 mod benchmarks {
 	use super::*;
@@ -327,7 +304,7 @@ mod benchmarks {
 		let ct_treasury_account_deposit = T::ContributionTokenCurrency::deposit_required(0);
 		inst.mint_plmc_to(vec![UserToPLMCBalance::new(
 			issuer.clone(),
-			ed * 2u64.into() + metadata_deposit + ct_treasury_account_deposit,
+			ed * 2u128 + metadata_deposit + ct_treasury_account_deposit,
 		)]);
 		let jwt = get_mock_jwt_with_cid(
 			issuer.clone(),
@@ -411,10 +388,8 @@ mod benchmarks {
 				symbol: BoundedVec::try_from("CTESTv2".as_bytes().to_vec()).unwrap(),
 				decimals: CT_DECIMALS - 2,
 			},
-			mainnet_token_max_supply: BalanceOf::<T>::try_from(200_000 * CT_UNIT)
-				.unwrap_or_else(|_| panic!("Failed to create BalanceOf")),
-			total_allocation_size: BalanceOf::<T>::try_from(200_000 * CT_UNIT)
-				.unwrap_or_else(|_| panic!("Failed to create BalanceOf")),
+			mainnet_token_max_supply: 200_000u128 * CT_UNIT,
+			total_allocation_size: 200_000u128 * CT_UNIT,
 			auction_round_allocation_percentage: Percent::from_percent(30u8),
 			minimum_price: PriceProviderOf::<T>::calculate_decimals_aware_price(
 				11u128.into(),
@@ -423,44 +398,14 @@ mod benchmarks {
 			)
 			.unwrap(),
 			bidding_ticket_sizes: BiddingTicketSizes {
-				professional: TicketSize::new(
-					BalanceOf::<T>::try_from(5000 * USD_UNIT).unwrap_or_else(|_| panic!("Failed to create BalanceOf")),
-					Some(
-						BalanceOf::<T>::try_from(10_000 * USD_UNIT)
-							.unwrap_or_else(|_| panic!("Failed to create BalanceOf")),
-					),
-				),
-				institutional: TicketSize::new(
-					BalanceOf::<T>::try_from(5000 * USD_UNIT).unwrap_or_else(|_| panic!("Failed to create BalanceOf")),
-					Some(
-						BalanceOf::<T>::try_from(10_000 * USD_UNIT)
-							.unwrap_or_else(|_| panic!("Failed to create BalanceOf")),
-					),
-				),
+				professional: TicketSize::new(5000 * USD_UNIT, Some(10_000 * USD_UNIT)),
+				institutional: TicketSize::new(5000 * USD_UNIT, Some(10_000 * USD_UNIT)),
 				phantom: Default::default(),
 			},
 			contributing_ticket_sizes: ContributingTicketSizes {
-				retail: TicketSize::new(
-					BalanceOf::<T>::try_from(5000 * USD_UNIT).unwrap_or_else(|_| panic!("Failed to create BalanceOf")),
-					Some(
-						BalanceOf::<T>::try_from(10_000 * USD_UNIT)
-							.unwrap_or_else(|_| panic!("Failed to create BalanceOf")),
-					),
-				),
-				professional: TicketSize::new(
-					BalanceOf::<T>::try_from(5000 * USD_UNIT).unwrap_or_else(|_| panic!("Failed to create BalanceOf")),
-					Some(
-						BalanceOf::<T>::try_from(10_000 * USD_UNIT)
-							.unwrap_or_else(|_| panic!("Failed to create BalanceOf")),
-					),
-				),
-				institutional: TicketSize::new(
-					BalanceOf::<T>::try_from(5000 * USD_UNIT).unwrap_or_else(|_| panic!("Failed to create BalanceOf")),
-					Some(
-						BalanceOf::<T>::try_from(10_000 * USD_UNIT)
-							.unwrap_or_else(|_| panic!("Failed to create BalanceOf")),
-					),
-				),
+				retail: TicketSize::new(5000 * USD_UNIT, Some(10_000 * USD_UNIT)),
+				professional: TicketSize::new(5000 * USD_UNIT, Some(10_000 * USD_UNIT)),
+				institutional: TicketSize::new(5000 * USD_UNIT, Some(10_000 * USD_UNIT)),
 				phantom: Default::default(),
 			},
 			participation_currencies: vec![AcceptedFundingAsset::USDT, AcceptedFundingAsset::USDC].try_into().unwrap(),
@@ -518,9 +463,9 @@ mod benchmarks {
 		// Storage
 		let stored_details = ProjectsDetails::<T>::get(project_id).unwrap();
 		assert_eq!(stored_details.status, ProjectStatus::EvaluationRound);
-		let starting_evaluation_info = EvaluationRoundInfoOf::<T> {
-			total_bonded_usd: Zero::zero(),
-			total_bonded_plmc: Zero::zero(),
+		let starting_evaluation_info = EvaluationRoundInfo {
+			total_bonded_usd: Balance::zero(),
+			total_bonded_plmc: Balance::zero(),
 			evaluators_outcome: None,
 		};
 		assert_eq!(stored_details.evaluation_round_info, starting_evaluation_info);
@@ -706,10 +651,8 @@ mod benchmarks {
 		whitelist_account!(bidder);
 
 		let mut project_metadata = default_project_metadata::<T>(issuer.clone());
-		project_metadata.mainnet_token_max_supply =
-			(100_000 * CT_UNIT).try_into().unwrap_or_else(|_| panic!("Failed to create BalanceOf"));
-		project_metadata.total_allocation_size =
-			(100_000 * CT_UNIT).try_into().unwrap_or_else(|_| panic!("Failed to create BalanceOf"));
+		project_metadata.mainnet_token_max_supply = 100_000 * CT_UNIT;
+		project_metadata.total_allocation_size = 100_000 * CT_UNIT;
 		project_metadata.minimum_price = PriceProviderOf::<T>::calculate_decimals_aware_price(
 			PriceOf::<T>::checked_from_rational(100, 1).unwrap(),
 			USD_DECIMALS,
@@ -790,7 +733,7 @@ mod benchmarks {
 			let auction_allocation =
 				project_metadata.auction_round_allocation_percentage * project_metadata.total_allocation_size;
 			let bucket_size = Percent::from_percent(10) * auction_allocation;
-			ct_amount = bucket_size * (y as u128).into();
+			ct_amount = bucket_size * (y as u128);
 			usdt_for_filler_bidder = usdt_for_new_bidder;
 		}
 		let extrinsic_bid = BidParams::new(bidder.clone(), ct_amount, 1u8, AcceptedFundingAsset::USDT);
@@ -949,10 +892,8 @@ mod benchmarks {
 		whitelist_account!(issuer);
 
 		let mut project_metadata = default_project_metadata::<T>(issuer.clone());
-		project_metadata.mainnet_token_max_supply =
-			BalanceOf::<T>::try_from(10_000_000 * CT_UNIT).unwrap_or_else(|_| panic!("Failed to create BalanceOf"));
-		project_metadata.total_allocation_size =
-			BalanceOf::<T>::try_from(10_000_000 * CT_UNIT).unwrap_or_else(|_| panic!("Failed to create BalanceOf"));
+		project_metadata.mainnet_token_max_supply = 10_000_000 * CT_UNIT;
+		project_metadata.total_allocation_size = 10_000_000 * CT_UNIT;
 		project_metadata.auction_round_allocation_percentage = Percent::from_percent(100u8);
 
 		let project_id = inst.create_auctioning_project(
@@ -990,7 +931,7 @@ mod benchmarks {
 			// This one needs to fill the remaining with the bucket, so that all "accepted" bids will take the CT from a rejected one
 			let last_rejected_bid = BidParams::<T>::new(
 				account::<AccountIdOf<T>>("bidder", 0, 420),
-				auction_allocation - (min_bid_amount * CT_UNIT * (y as u128 - 1u128)).into(),
+				auction_allocation - (min_bid_amount * CT_UNIT * (y as u128 - 1u128)),
 				1u8,
 				AcceptedFundingAsset::USDT,
 			);

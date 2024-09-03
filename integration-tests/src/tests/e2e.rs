@@ -423,7 +423,7 @@ fn ct_minted() {
 	let mut inst = IntegrationInstantiator::new(None);
 
 	PolimecNet::execute_with(|| {
-		let project_id = inst.create_settled_project(
+		let _project_id = inst.create_settled_project(
 			excel_project(),
 			ISSUER.into(),
 			None,
@@ -511,10 +511,6 @@ fn ct_migrated() {
 
 	// Migrate CTs
 	let accounts = excel_ct_amounts().iter().map(|item| item.0.clone()).unique().collect::<Vec<_>>();
-	let total_ct_sold = excel_ct_amounts().iter().fold(FixedU128::zero(), |acc, item| acc + item.1);
-	let polimec_sov_acc = PenNet::sovereign_account_id_of((Parent, Parachain(polimec::PARA_ID)).into());
-	let polimec_fund_balance = PenNet::account_data_of(polimec_sov_acc);
-
 	let names = names();
 
 	for account in accounts {

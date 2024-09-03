@@ -38,7 +38,7 @@ sp_api::decl_runtime_apis! {
 	#[api_version(1)]
 	pub trait UserInformation<T: Config> {
 		/// Get all the contribution token balances for the participated projects
-		fn contribution_tokens(account: AccountIdOf<T>) -> Vec<(ProjectId, BalanceOf<T>)>;
+		fn contribution_tokens(account: AccountIdOf<T>) -> Vec<(ProjectId, Balance)>;
 
 		/// Get all the project participations made by a single DID.
 		fn all_project_participations_by_did(project_id: ProjectId, did: Did) -> Vec<ProjectParticipationIds<T>>;
@@ -57,7 +57,7 @@ sp_api::decl_runtime_apis! {
 	pub trait ExtrinsicHelpers<T: Config> {
 		/// Get the current price of a contribution token (either current bucket in the auction, or WAP in contribution phase),
 		/// and calculate the amount of tokens that can be bought with the given amount USDT/USDC/DOT.
-		fn funding_asset_to_ct_amount(project_id: ProjectId, asset: AcceptedFundingAsset, asset_amount: BalanceOf<T>) -> BalanceOf<T>;
+		fn funding_asset_to_ct_amount(project_id: ProjectId, asset: AcceptedFundingAsset, asset_amount: Balance) -> Balance;
 	}
 }
 
@@ -101,7 +101,7 @@ impl<T: Config> Pallet<T> {
 			.map(|(project_id, project_details)| {
 				let funding_reached = project_details.funding_amount_reached_usd;
 				let funding_target = project_details.fundraising_target_usd;
-				let funding_ratio = FixedU128::from_rational(funding_reached.into(), funding_target.into());
+				let funding_ratio = FixedU128::from_rational(funding_reached, funding_target);
 				(project_id, project_details, funding_ratio)
 			})
 			.sorted_by(|a, b| b.2.cmp(&a.2))
@@ -113,7 +113,7 @@ impl<T: Config> Pallet<T> {
 			.collect_vec()
 	}
 
-	pub fn contribution_tokens(account: AccountIdOf<T>) -> Vec<(ProjectId, BalanceOf<T>)> {
+	pub fn contribution_tokens(account: AccountIdOf<T>) -> Vec<(ProjectId, Balance)> {
 		let asset_ids = <T as Config>::ContributionTokenCurrency::asset_ids();
 		asset_ids
 			.filter_map(|asset_id| {
@@ -131,8 +131,8 @@ impl<T: Config> Pallet<T> {
 	pub fn funding_asset_to_ct_amount(
 		project_id: ProjectId,
 		asset: AcceptedFundingAsset,
-		asset_amount: BalanceOf<T>,
-	) -> BalanceOf<T> {
+		asset_amount: Balance,
+	) -> Balance {
 		let project_details = ProjectsDetails::<T>::get(project_id).expect("Project not found");
 		let funding_asset_id = asset.id();
 		let funding_asset_decimals = T::FundingCurrency::decimals(funding_asset_id);
@@ -214,7 +214,7 @@ impl<T: Config> Pallet<T> {
 		let project_details = ProjectsDetails::<T>::get(project_id).expect("Project not found");
 		let funding_reached = project_details.funding_amount_reached_usd;
 		let funding_target = project_details.fundraising_target_usd;
-		FixedU128::from_rational(funding_reached.into(), funding_target.into())
+		FixedU128::from_rational(funding_reached, funding_target)
 	}
 
 	pub fn projects_by_did(did: Did) -> Vec<ProjectId> {

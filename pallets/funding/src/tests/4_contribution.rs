@@ -129,7 +129,7 @@ mod round_flow {
 				default_bids(),
 			);
 			let project_details = inst.get_project_details(project_id);
-			let bid_ct_sold: BalanceOf<TestRuntime> = inst.execute(|| {
+			let bid_ct_sold: Balance = inst.execute(|| {
 				Bids::<TestRuntime>::iter_prefix_values((project_id,)).fold(Zero::zero(), |acc, bid| {
 					assert_eq!(bid.status, BidStatus::Accepted);
 					acc + bid.original_ct_amount
@@ -1029,7 +1029,7 @@ mod contribute_extrinsic {
 			let token_price = project_details.weighted_average_price.unwrap();
 
 			// Create a contribution vector that will reach the limit of contributions for a user-project
-			let token_amount: BalanceOf<TestRuntime> = CT_UNIT;
+			let token_amount: Balance = CT_UNIT;
 			let range = 0..<TestRuntime as Config>::MaxContributionsPerUser::get();
 			let contributions: Vec<ContributionParams<_>> = range
 				.map(|_| ContributionParams::new(CONTRIBUTOR, token_amount, 1u8, AcceptedFundingAsset::USDT))
@@ -1072,7 +1072,7 @@ mod contribute_extrinsic {
 			let foreign_asset_contributions_stored = inst.execute(|| {
 				Contributions::<TestRuntime>::iter_prefix_values((project_id, CONTRIBUTOR))
 					.map(|c| c.funding_asset_amount)
-					.sum::<BalanceOf<TestRuntime>>()
+					.sum::<Balance>()
 			});
 
 			assert_eq!(plmc_bond_stored, inst.sum_balance_mappings(vec![plmc_funding.clone()]));

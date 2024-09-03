@@ -295,7 +295,7 @@ mod start_evaluation_extrinsic {
 					.saturating_mul_int(project_metadata.total_allocation_size),
 				remaining_contribution_tokens: project_metadata.total_allocation_size,
 				funding_amount_reached_usd: 0u128,
-				evaluation_round_info: EvaluationRoundInfoOf::<TestRuntime> {
+				evaluation_round_info: EvaluationRoundInfo {
 					total_bonded_usd: 0u128,
 					total_bonded_plmc: 0u128,
 					evaluators_outcome: None,

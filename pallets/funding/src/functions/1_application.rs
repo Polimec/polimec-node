@@ -38,8 +38,8 @@ impl<T: Config> Pallet<T> {
 			status: ProjectStatus::Application,
 			round_duration: BlockNumberPair::new(None, None),
 			remaining_contribution_tokens: project_metadata.total_allocation_size,
-			funding_amount_reached_usd: BalanceOf::<T>::zero(),
-			evaluation_round_info: EvaluationRoundInfoOf::<T> {
+			funding_amount_reached_usd: Balance::zero(),
+			evaluation_round_info: EvaluationRoundInfo {
 				total_bonded_usd: Zero::zero(),
 				total_bonded_plmc: Zero::zero(),
 				evaluators_outcome: None,

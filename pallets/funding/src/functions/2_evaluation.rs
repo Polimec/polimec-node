@@ -115,7 +115,7 @@ impl<T: Config> Pallet<T> {
 	pub fn do_evaluate(
 		evaluator: &AccountIdOf<T>,
 		project_id: ProjectId,
-		usd_amount: BalanceOf<T>,
+		usd_amount: Balance,
 		did: Did,
 		whitelisted_policy: Cid,
 	) -> DispatchResultWithPostInfo {
@@ -157,7 +157,7 @@ impl<T: Config> Pallet<T> {
 			remaining_bond_to_reach_threshold
 		};
 
-		let late_usd_amount = usd_amount.checked_sub(&early_usd_amount).ok_or(Error::<T>::BadMath)?;
+		let late_usd_amount = usd_amount.checked_sub(early_usd_amount).ok_or(Error::<T>::BadMath)?;
 
 		let new_evaluation = EvaluationInfoOf::<T> {
 			id: evaluation_id,

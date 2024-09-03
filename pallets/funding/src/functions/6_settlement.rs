@@ -1,6 +1,6 @@
 #[allow(clippy::wildcard_imports)]
 use super::*;
-use crate::traits::VestingDurationCalculation;
+use crate::{traits::VestingDurationCalculation, Balance};
 use frame_support::{
 	dispatch::DispatchResult,
 	ensure,
@@ -92,7 +92,7 @@ impl<T: Config> Pallet<T> {
 			Error::<T>::SettlementNotStarted
 		);
 
-		let (plmc_released, ct_rewarded): (BalanceOf<T>, BalanceOf<T>) =
+		let (plmc_released, ct_rewarded): (Balance, Balance) =
 			match project_details.evaluation_round_info.evaluators_outcome {
 				Some(EvaluatorsOutcome::Slashed) => (Self::slash_evaluator(&evaluation)?, Zero::zero()),
 				Some(EvaluatorsOutcome::Rewarded(info)) => Self::reward_evaluator(project_id, &evaluation, &info)?,
@@ -334,7 +334,7 @@ impl<T: Config> Pallet<T> {
 	fn mint_contribution_tokens(
 		project_id: ProjectId,
 		participant: &AccountIdOf<T>,
-		amount: BalanceOf<T>,
+		amount: Balance,
 	) -> DispatchResult {
 		if !T::ContributionTokenCurrency::contains(&project_id, participant) {
 			T::ContributionTokenCurrency::touch(project_id, participant, participant)?;
@@ -346,7 +346,7 @@ impl<T: Config> Pallet<T> {
 	fn release_funding_asset(
 		project_id: ProjectId,
 		participant: &AccountIdOf<T>,
-		amount: BalanceOf<T>,
+		amount: Balance,
 		asset: AcceptedFundingAsset,
 	) -> DispatchResult {
 		if amount.is_zero() {
@@ -357,7 +357,7 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
-	fn release_participation_bond(participant: &AccountIdOf<T>, amount: BalanceOf<T>) -> DispatchResult {
+	fn release_participation_bond(participant: &AccountIdOf<T>, amount: Balance) -> DispatchResult {
 		if amount.is_zero() {
 			return Ok(());
 		}
@@ -366,7 +366,7 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
-	fn slash_evaluator(evaluation: &EvaluationInfoOf<T>) -> Result<BalanceOf<T>, DispatchError> {
+	fn slash_evaluator(evaluation: &EvaluationInfoOf<T>) -> Result<Balance, DispatchError> {
 		let slash_percentage = T::EvaluatorSlash::get();
 		let treasury_account = T::BlockchainOperationTreasury::get();
 
@@ -390,15 +390,15 @@ impl<T: Config> Pallet<T> {
 	fn reward_evaluator(
 		project_id: ProjectId,
 		evaluation: &EvaluationInfoOf<T>,
-		info: &RewardInfoOf<T>,
-	) -> Result<(BalanceOf<T>, BalanceOf<T>), DispatchError> {
+		info: &RewardInfo,
+	) -> Result<(Balance, Balance), DispatchError> {
 		let reward = Self::calculate_evaluator_reward(evaluation, info);
 		Self::mint_contribution_tokens(project_id, &evaluation.evaluator, reward)?;
 
 		Ok((evaluation.current_plmc_bond, reward))
 	}
 
-	pub fn calculate_evaluator_reward(evaluation: &EvaluationInfoOf<T>, info: &RewardInfoOf<T>) -> BalanceOf<T> {
+	pub fn calculate_evaluator_reward(evaluation: &EvaluationInfoOf<T>, info: &RewardInfo) -> Balance {
 		let early_reward_weight =
 			Perquintill::from_rational(evaluation.early_usd_amount, info.early_evaluator_total_bonded_usd);
 		let normal_reward_weight = Perquintill::from_rational(
@@ -415,7 +415,7 @@ impl<T: Config> Pallet<T> {
 		origin: &AccountIdOf<T>,
 		id: u32,
 		participation_type: ParticipationType,
-		ct_amount: BalanceOf<T>,
+		ct_amount: Balance,
 		vesting_time: BlockNumberFor<T>,
 	) -> DispatchResult {
 		UserMigrations::<T>::try_mutate((project_id, origin), |maybe_migrations| -> DispatchResult {
@@ -423,7 +423,7 @@ impl<T: Config> Pallet<T> {
 				Location::new(0, AccountId32 { network: None, id: T::AccountId32Conversion::convert(origin.clone()) });
 			let migration_origin = MigrationOrigin { user: location_user, id, participation_type };
 			let vesting_time: u64 = vesting_time.try_into().map_err(|_| Error::<T>::BadMath)?;
-			let migration_info: MigrationInfo = (ct_amount.into(), vesting_time).into();
+			let migration_info: MigrationInfo = (ct_amount, vesting_time).into();
 			let migration = Migration::new(migration_origin, migration_info);
 			if let Some((_, migrations)) = maybe_migrations {
 				migrations.try_push(migration).map_err(|_| Error::<T>::TooManyMigrations)?;

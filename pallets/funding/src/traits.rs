@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use crate::{BalanceOf, Config, ProjectId};
+use crate::{Balance, Config, ProjectId};
 use frame_support::weights::Weight;
 use frame_system::pallet_prelude::BlockNumberFor;
 use sp_arithmetic::{
@@ -24,7 +24,7 @@ use sp_arithmetic::{
 use sp_runtime::DispatchError;
 
 pub trait BondingRequirementCalculation {
-	fn calculate_bonding_requirement<T: Config>(&self, ticket_size: BalanceOf<T>) -> Option<BalanceOf<T>>;
+	fn calculate_bonding_requirement<T: Config>(&self, ticket_size: Balance) -> Option<Balance>;
 }
 
 pub trait VestingDurationCalculation {
