@@ -37,32 +37,31 @@
 //! - **Retail**: has access to contributing
 //!
 //! Basic flow of a project's lifecycle:
-//! 1) **Project Creation**: Issuer creates a project with the [`create_project`](Pallet::create_project) extrinsic.
-//! 2) **Evaluation Start**: Issuer starts the evaluation round with the [`start_evaluation`](Pallet::start_evaluation) extrinsic.
-//! 3) **Evaluate**: Evaluators bond PLMC on the project with the [`bond_evaluation`](Pallet::evaluate) extrinsic.
-//! 4) **Evaluation End**: Anyone can end the evaluation round with the [`end_evaluation`](Pallet::end_evaluation) extrinsic after the defined end block.
-//! 5) **Auction Start**: If the project got >=10% of its requested funding (USD) in PLMC bonded, the auction starts immediately after `evaluation_end` was called.
-//! 6) **Bid**: Professional and Institutional investors can bid on the project with the [`bid`](Pallet::bid) extrinsic. Price starts at the issuer defined minimum price, and goes up in a price delta and bucket size of 10%
-//! 7) **Auction End**: Anyone can end the auction round with the [`end_auction`](Pallet::end_auction) extrinsic after the defined end block.
-//! 8) **Community Round Start**: After `end_auction` is called, a weighted average price is calculated from the bids, and the community round starts.
-//! 9) **Contribute**: Anyone without a winning bid can now buy tokens at the calculated price with the [`contribute`](Pallet::contribute) extrinsic.
-//! 10) **Remainder Round Start**: After a defined [period](<T as Config>::CommunityRoundDuration) , the remainder round starts.
-//! 11) **Contribute**: Participants with winning bids can also now buy tokens at the calculated price with the [`contribute`](Pallet::contribute) extrinsic.
-//! 12) **Funding End**: Anyone can end the project with the [`end_project`](Pallet::end_project) extrinsic after the defined end block.
-//! The project will now be considered Failed if it reached <33% of its target funding in USD, and Successful otherwise.
-//! 13) **Settlement Start**: Anyone can start the settlement process with the [`start_settlement`](Pallet::start_settlement) extrinsic after the defined end block.
-//! 14) **Settle Evaluation**: Anyone can now settle an evaluation with the [`settle_evaluation`](Pallet::settle_evaluation) extrinsic.
-//! This will unlock the PLMC bonded, and either apply a slash or reward come CTs to the evaluator.
-//! 15) **Settle Bid**: Anyone can now settle a bid with the [`settle_bid`](Pallet::settle_bid) extrinsic.
-//! This will set a vesting schedule on the PLMC bonded, and pay out the funding assets to the issuer. It will also issue refunds in case the bid failed,
-//! or the price paid was higher than the final price.
-//! 16) **Settle Contribution**: Anyone can now settle a contribution with the [`settle_contribution`](Pallet::settle_contribution) extrinsic.
-//! This will set a vesting schedule on the PLMC bonded, and pay out the funding assets to the issuer.
-//! 17) **Settlement End**: Anyone can now mark the project settlement as finished by calling the [`mark_project_as_settled`](Pallet::mark_project_as_settled) extrinsic.
-//! 18) **Migration Start**: Once the issuer has tokens to distribute on mainnet, he can start the migration process with the [`start_offchain`](Pallet::start_offchain_migration) extrinsic.
-//! 19) **Confirm Migration**: For each participant, the issuer must mark their CTs as migrated with the [`confirm_offchain_migration`](Pallet::confirm_offchain_migration) extrinsic.
-//! 20) **Migration End**: Once all participants have migrated their CTs, anyone can mark the migration as finished with the [`mark_project_ct_migration_as_finished`](Pallet::mark_project_ct_migration_as_finished) extrinsic.
-
+//!     1) **Project Creation**: Issuer creates a project with the [`create_project`](Pallet::create_project) extrinsic.
+//!     2) **Evaluation Start**: Issuer starts the evaluation round with the [`start_evaluation`](Pallet::start_evaluation) extrinsic.
+//!     3) **Evaluate**: Evaluators bond PLMC on the project with the [`bond_evaluation`](Pallet::evaluate) extrinsic.
+//!     4) **Evaluation End**: Anyone can end the evaluation round with the [`end_evaluation`](Pallet::end_evaluation) extrinsic after the defined end block.
+//!     5) **Auction Start**: If the project got >=10% of its requested funding (USD) in PLMC bonded, the auction starts immediately after `evaluation_end` was called.
+//!     6) **Bid**: Professional and Institutional investors can bid on the project with the [`bid`](Pallet::bid) extrinsic. Price starts at the issuer defined minimum price, and goes up in a price delta and bucket size of 10%
+//!     7) **Auction End**: Anyone can end the auction round with the [`end_auction`](Pallet::end_auction) extrinsic after the defined end block.
+//!     8) **Community Round Start**: After `end_auction` is called, a weighted average price is calculated from the bids, and the community round starts.
+//!     9) **Contribute**: Anyone without a winning bid can now buy tokens at the calculated price with the [`contribute`](Pallet::contribute) extrinsic.
+//!     10) **Remainder Round Start**: After a defined [period](<T as Config>::CommunityRoundDuration) , the remainder round starts.
+//!     11) **Contribute**: Participants with winning bids can also now buy tokens at the calculated price with the [`contribute`](Pallet::contribute) extrinsic.
+//!     12) **Funding End**: Anyone can end the project with the [`end_project`](Pallet::end_project) extrinsic after the defined end block.
+//!     The project will now be considered Failed if it reached <33% of its target funding in USD, and Successful otherwise.
+//!     13) **Settlement Start**: Anyone can start the settlement process with the [`start_settlement`](Pallet::start_settlement) extrinsic after the defined end block.
+//!     14) **Settle Evaluation**: Anyone can now settle an evaluation with the [`settle_evaluation`](Pallet::settle_evaluation) extrinsic.
+//!     This will unlock the PLMC bonded, and either apply a slash or reward come CTs to the evaluator.
+//!     15) **Settle Bid**: Anyone can now settle a bid with the [`settle_bid`](Pallet::settle_bid) extrinsic.
+//!     This will set a vesting schedule on the PLMC bonded, and pay out the funding assets to the issuer. It will also issue refunds in case the bid failed,
+//!     or the price paid was higher than the final price.
+//!     16) **Settle Contribution**: Anyone can now settle a contribution with the [`settle_contribution`](Pallet::settle_contribution) extrinsic.
+//!     This will set a vesting schedule on the PLMC bonded, and pay out the funding assets to the issuer.
+//!     17) **Settlement End**: Anyone can now mark the project settlement as finished by calling the [`mark_project_as_settled`](Pallet::mark_project_as_settled) extrinsic.
+//!     18) **Migration Start**: Once the issuer has tokens to distribute on mainnet, he can start the migration process with the [`start_offchain`](Pallet::start_offchain_migration) extrinsic.
+//!     19) **Confirm Migration**: For each participant, the issuer must mark their CTs as migrated with the [`confirm_offchain_migration`](Pallet::confirm_offchain_migration) extrinsic.
+//!     20) **Migration End**: Once all participants have migrated their CTs, anyone can mark the migration as finished with the [`mark_project_ct_migration_as_finished`](Pallet::mark_project_ct_migration_as_finished) extrinsic.
 
 // Ensure we're `no_std` when compiling for Wasm.
 #![cfg_attr(not(feature = "std"), no_std)]
