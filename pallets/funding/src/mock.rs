@@ -398,7 +398,6 @@ impl Config for TestRuntime {
 	type AuctionRoundDuration = AuctionRoundDuration;
 	type Balance = Balance;
 	type BlockNumber = BlockNumber;
-	type BlockNumberToBalance = ConvertInto;
 	type BlockchainOperationTreasury = BlockchainOperationTreasuryAccount;
 	type CommunityRoundDuration = CommunityRoundDuration;
 	type ContributionTokenCurrency = ContributionTokens;
@@ -436,7 +435,6 @@ impl Config for TestRuntime {
 	type SetPrices = ();
 	type StringLimit = ConstU32<64>;
 	type VerifierPublicKey = VerifierPublicKey;
-	type Vesting = LinearRelease;
 	type WeightInfo = weights::SubstrateWeight<TestRuntime>;
 }
 

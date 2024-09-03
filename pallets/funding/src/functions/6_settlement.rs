@@ -160,7 +160,7 @@ impl<T: Config> Pallet<T> {
 				Self::calculate_vesting_info(&bid.bidder, bid.multiplier, bid.plmc_bond.saturating_sub(refunded_plmc))
 					.map_err(|_| Error::<T>::BadMath)?;
 
-			T::Vesting::add_release_schedule(
+			VestingOf::<T>::add_release_schedule(
 				&bid.bidder,
 				plmc_vesting_info.total_amount,
 				plmc_vesting_info.amount_per_block,
@@ -257,7 +257,7 @@ impl<T: Config> Pallet<T> {
 			)
 			.map_err(|_| Error::<T>::BadMath)?;
 
-			T::Vesting::add_release_schedule(
+			VestingOf::<T>::add_release_schedule(
 				&contribution.contributor,
 				vest_info.total_amount,
 				vest_info.amount_per_block,

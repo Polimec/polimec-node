@@ -1451,7 +1451,7 @@ mod benchmarks {
 			HoldReason::Participation.into(),
 		);
 		assert_eq!(
-			<T as Config>::Vesting::total_scheduled_amount(&contributor, HoldReason::Participation.into()),
+			VestingOf::<T>::total_scheduled_amount(&contributor, HoldReason::Participation.into()),
 			Some(contribution_to_settle.plmc_bond)
 		);
 		let funding_account = project_metadata.funding_destination_account;

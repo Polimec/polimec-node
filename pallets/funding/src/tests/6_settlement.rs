@@ -1124,7 +1124,7 @@ mod settle_contribution_extrinsic {
 			let issuer_usdt_balance =
 				inst.get_free_funding_asset_balance_for(stored_contribution.funding_asset.id(), issuer);
 			let unvested_amount = inst.execute(|| {
-				<TestRuntime as Config>::Vesting::total_scheduled_amount(&BUYER_6, HoldReason::Participation.into())
+				VestingOf::<TestRuntime>::total_scheduled_amount(&BUYER_6, HoldReason::Participation.into())
 			});
 
 			assert_eq!(plmc_free_amount, inst.get_ed());
@@ -1144,7 +1144,7 @@ mod settle_contribution_extrinsic {
 			let issuer_usdt_balance =
 				inst.get_free_funding_asset_balance_for(stored_contribution.funding_asset.id(), issuer);
 			let unvested_amount = inst.execute(|| {
-				<TestRuntime as Config>::Vesting::total_scheduled_amount(&BUYER_6, HoldReason::Participation.into())
+				VestingOf::<TestRuntime>::total_scheduled_amount(&BUYER_6, HoldReason::Participation.into())
 			});
 
 			assert_eq!(plmc_free_amount, inst.get_ed() + stored_contribution.plmc_bond);
@@ -1170,7 +1170,7 @@ mod settle_contribution_extrinsic {
 			let issuer_usdt_balance_2 =
 				inst.get_free_funding_asset_balance_for(stored_contribution.funding_asset.id(), issuer);
 			let unvested_amount = inst.execute(|| {
-				<TestRuntime as Config>::Vesting::total_scheduled_amount(&BUYER_7, HoldReason::Participation.into())
+				VestingOf::<TestRuntime>::total_scheduled_amount(&BUYER_7, HoldReason::Participation.into())
 			});
 			assert_eq!(plmc_free_amount, inst.get_ed());
 			assert_eq!(plmc_held_amount, stored_contribution.plmc_bond);
@@ -1189,7 +1189,7 @@ mod settle_contribution_extrinsic {
 			let issuer_usdt_balance_2 =
 				inst.get_free_funding_asset_balance_for(stored_contribution.funding_asset.id(), issuer);
 			let unvested_amount = inst.execute(|| {
-				<TestRuntime as Config>::Vesting::total_scheduled_amount(&BUYER_7, HoldReason::Participation.into())
+				VestingOf::<TestRuntime>::total_scheduled_amount(&BUYER_7, HoldReason::Participation.into())
 			});
 
 			assert_eq!(plmc_free_amount, inst.get_ed() + stored_contribution.plmc_bond);
