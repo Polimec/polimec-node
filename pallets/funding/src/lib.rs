@@ -764,6 +764,8 @@ pub mod pallet {
 		ParticipantNotEnoughFunds,
 		/// The JWT included the wrong policy for participating in this project.
 		PolicyMismatch,
+		/// Contribution tokens have all been sold
+		ProjectSoldOut,
 
 		//  * An error related to the migration process. *
 		/// Tried to start a migration check but the bidirectional channel is not yet open

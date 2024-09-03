@@ -1741,5 +1741,51 @@ mod contribute_extrinsic {
 				);
 			});
 		}
+
+		#[test]
+		fn ct_sold_out() {
+			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+			let project_metadata = default_project_metadata(ISSUER_1);
+			let project_id = inst.create_community_contributing_project(
+				project_metadata.clone(),
+				ISSUER_1,
+				None,
+				default_evaluations(),
+				default_bids(),
+			);
+			let project_details = inst.get_project_details(project_id);
+			let remaining_cts = project_details.remaining_contribution_tokens;
+			let glutton_contribution = ContributionParams::new(BUYER_1, remaining_cts, 4u8, AcceptedFundingAsset::USDT);
+			let wap = project_details.weighted_average_price.unwrap();
+			let plmc_mint = inst.calculate_contributed_plmc_spent(vec![glutton_contribution.clone()], wap, true);
+			let funding_asset_mint = inst.calculate_contributed_funding_asset_spent(vec![glutton_contribution.clone()], wap);
+			inst.mint_plmc_to(plmc_mint);
+			inst.mint_funding_asset_to(funding_asset_mint);
+			inst.contribute_for_users(project_id, vec![glutton_contribution.clone()]).unwrap();
+
+			let failing_contribution = ContributionParams::<TestRuntime>::new(BUYER_2, 1000 * CT_UNIT, 1u8, AcceptedFundingAsset::USDT);
+			let plmc_mint = inst.calculate_contributed_plmc_spent(vec![glutton_contribution.clone()], wap, true);
+			let funding_asset_mint = inst.calculate_contributed_funding_asset_spent(vec![glutton_contribution.clone()], wap);
+			inst.mint_plmc_to(plmc_mint);
+			inst.mint_funding_asset_to(funding_asset_mint);
+			inst.execute(|| {
+				assert_noop!(
+					PolimecFunding::contribute(
+						RuntimeOrigin::signed(failing_contribution.contributor),
+						get_mock_jwt_with_cid(
+							failing_contribution.contributor,
+							InvestorType::Retail,
+							generate_did_from_account(failing_contribution.contributor),
+							project_metadata.clone().policy_ipfs_cid.unwrap()
+						),
+						project_id,
+						failing_contribution.amount,
+						failing_contribution.multiplier,
+						failing_contribution.asset
+					),
+					Error::<TestRuntime>::ProjectSoldOut
+				);
+			});
+		}
 	}
 }

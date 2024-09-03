@@ -38,6 +38,9 @@ impl<T: Config> Pallet<T> {
 		ensure!(now < round_end, Error::<T>::TooLateForRound);
 
 		let buyable_tokens = token_amount.min(project_details.remaining_contribution_tokens);
+		if buyable_tokens.is_zero() {
+			return Err(Error::<T>::ProjectSoldOut.into());
+		}
 		project_details.remaining_contribution_tokens.saturating_reduce(buyable_tokens);
 
 		let perform_params = DoPerformContributionParams {
