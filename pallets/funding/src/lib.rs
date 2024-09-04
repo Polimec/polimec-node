@@ -156,6 +156,7 @@ pub mod pallet {
 		traits::{OnFinalize, OnIdle, OnInitialize},
 	};
 	use frame_system::pallet_prelude::*;
+	use on_slash_vesting::OnSlash;
 	use sp_arithmetic::Percent;
 	use sp_runtime::{
 		traits::{Convert, ConvertBack, Get},
@@ -361,6 +362,9 @@ pub mod pallet {
 
 		/// Struct holding information about extrinsic weights
 		type WeightInfo: weights::WeightInfo;
+
+		/// Callbacks for dealing with an evaluator slash on other pallets
+		type OnSlash: OnSlash<AccountIdOf<Self>, Balance>;
 	}
 
 	#[pallet::storage]

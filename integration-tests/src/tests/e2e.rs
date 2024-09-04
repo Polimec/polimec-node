@@ -271,7 +271,7 @@ fn excel_ct_amounts() -> UserToCTBalance {
 
 #[test]
 fn evaluation_round_completed() {
-	polimec::set_prices();
+	polimec::set_prices(None, None, None, None);
 
 	let mut inst = IntegrationInstantiator::new(None);
 
@@ -286,7 +286,7 @@ fn evaluation_round_completed() {
 
 #[test]
 fn auction_round_completed() {
-	polimec::set_prices();
+	polimec::set_prices(None, None, None, None);
 
 	let mut inst = IntegrationInstantiator::new(None);
 
@@ -326,7 +326,7 @@ fn auction_round_completed() {
 
 #[test]
 fn community_round_completed() {
-	polimec::set_prices();
+	polimec::set_prices(None, None, None, None);
 
 	let mut inst = IntegrationInstantiator::new(None);
 
@@ -353,7 +353,7 @@ fn community_round_completed() {
 
 #[test]
 fn remainder_round_completed() {
-	polimec::set_prices();
+	polimec::set_prices(None, None, None, None);
 
 	let mut inst = IntegrationInstantiator::new(None);
 
@@ -386,7 +386,7 @@ fn remainder_round_completed() {
 
 #[test]
 fn funds_raised() {
-	polimec::set_prices();
+	polimec::set_prices(None, None, None, None);
 
 	let mut inst = IntegrationInstantiator::new(None);
 
@@ -418,7 +418,7 @@ fn funds_raised() {
 
 #[test]
 fn ct_minted() {
-	polimec::set_prices();
+	polimec::set_prices(None, None, None, None);
 
 	let mut inst = IntegrationInstantiator::new(None);
 
@@ -445,7 +445,7 @@ fn ct_minted() {
 
 #[test]
 fn ct_migrated() {
-	polimec::set_prices();
+	polimec::set_prices(None, None, None, None);
 
 	let mut inst = IntegrationInstantiator::new(None);
 

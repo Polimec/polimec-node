@@ -37,6 +37,7 @@ pallet-linear-release.workspace = true
 shared-configuration.workspace = true
 polimec-common.workspace = true
 pallet-parachain-staking.workspace = true
+on-slash-vesting.workspace = true
 
 # Substrate
 frame-benchmarking = { workspace = true, optional = true }

@@ -66,6 +66,7 @@ pallet-sandbox = { path = "pallets/sandbox", default-features = false }
 pallet-parachain-staking = { path = "pallets/parachain-staking", default-features = false }
 pallet-linear-release = { path = "pallets/linear-release", default-features = false }
 polimec-receiver = { path = "pallets/polimec-receiver", default-features = false }
+on-slash-vesting = { path = "pallets/on-slash-vesting", default-features = false }
 
 # Internal macros
 macros = { path = "macros" }
@@ -109,6 +110,7 @@ color-print = "0.3.5"
 xcm-emulator = { version = "0.12.0", default-features = false }
 
 # Substrate (with default disabled)
+impl-trait-for-tuples = { version = "0.2.2", default-features = false }
 frame-benchmarking = { version = "35.0.0", default-features = false }
 frame-benchmarking-cli = { version = "39.0.0" }
 frame-executive = { version = "35.0.0", default-features = false }

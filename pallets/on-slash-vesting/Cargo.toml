@@ -1,0 +1,42 @@
+[package]
+name = "on-slash-vesting"
+authors.workspace = true
+documentation.workspace = true
+edition.workspace = true
+homepage.workspace = true
+license-file.workspace = true
+readme.workspace = true
+repository.workspace = true
+version.workspace = true
+
+[dependencies]
+pallet-vesting.workspace = true
+impl-trait-for-tuples.workspace = true
+frame-support.workspace = true
+frame-system.workspace = true
+pallet-balances.workspace = true
+log.workspace = true
+parity-scale-codec.workspace = true
+scale-info.workspace = true
+sp-runtime.workspace = true
+sp-io.workspace = true
+serde.workspace = true
+[lints]
+workspace = true
+
+
+[features]
+default = [ "std" ]
+
+std = [
+    "pallet-vesting/std",
+    "frame-support/std",
+    "frame-system/std",
+    "pallet-balances/std",
+    "log/std",
+    "parity-scale-codec/std",
+    "scale-info/std",
+    "sp-runtime/std",
+    "sp-io/std",
+    "serde/std",
+]

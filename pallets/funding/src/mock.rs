@@ -418,6 +418,7 @@ impl Config for TestRuntime {
 	type MinUsdPerEvaluation = MinUsdPerEvaluation;
 	type Multiplier = Multiplier;
 	type NativeCurrency = Balances;
+	type OnSlash = ();
 	type PalletId = FundingPalletId;
 	type Price = FixedU128;
 	type PriceProvider = ConstPriceProvider;

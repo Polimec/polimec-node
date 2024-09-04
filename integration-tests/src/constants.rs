@@ -378,12 +378,22 @@ pub mod polimec {
 	const GENESIS_NUM_SELECTED_CANDIDATES: u32 = 5;
 
 	#[allow(unused)]
-	pub fn set_prices() {
+	pub fn set_prices(
+		dot: Option<FixedU128>,
+		usdc: Option<FixedU128>,
+		usdt: Option<FixedU128>,
+		plmc: Option<FixedU128>,
+	) {
 		PolimecNet::execute_with(|| {
-			let dot = (AcceptedFundingAsset::DOT.id(), FixedU128::from_rational(69, 1));
-			let usdc = (AcceptedFundingAsset::USDC.id(), FixedU128::from_rational(1, 1));
-			let usdt = (AcceptedFundingAsset::USDT.id(), FixedU128::from_rational(1, 1));
-			let plmc = (pallet_funding::PLMC_FOREIGN_ID, FixedU128::from_rational(840, 100));
+			let dot_price = dot.unwrap_or(FixedU128::from_rational(69, 1));
+			let usdc_price = usdc.unwrap_or(FixedU128::from_rational(1, 1));
+			let usdt_price = usdt.unwrap_or(FixedU128::from_rational(1, 1));
+			let plmc_price = plmc.unwrap_or(FixedU128::from_rational(840, 100));
+
+			let dot = (AcceptedFundingAsset::DOT.id(), dot_price);
+			let usdc = (AcceptedFundingAsset::USDC.id(), usdc_price);
+			let usdt = (AcceptedFundingAsset::USDT.id(), usdt_price);
+			let plmc = (pallet_funding::PLMC_FOREIGN_ID, plmc_price);
 
 			let values: BoundedVec<(u32, FixedU128), <PolimecRuntime as orml_oracle::Config>::MaxFeedValues> =
 				vec![dot, usdc, usdt, plmc].try_into().expect("benchmarks can panic");

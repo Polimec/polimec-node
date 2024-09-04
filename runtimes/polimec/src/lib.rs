@@ -1057,6 +1057,7 @@ impl pallet_funding::Config for Runtime {
 	type MinUsdPerEvaluation = MinUsdPerEvaluation;
 	type Multiplier = pallet_funding::types::Multiplier;
 	type NativeCurrency = Balances;
+	type OnSlash = Vesting;
 	type PalletId = FundingPalletId;
 	type Price = Price;
 	type PriceProvider = OraclePriceProvider<AssetId, Price, Oracle>;
