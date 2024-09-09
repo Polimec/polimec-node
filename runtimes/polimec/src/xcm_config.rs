@@ -17,7 +17,7 @@
 use super::{
 	AccountId, AllPalletsWithSystem, AssetId as AssetIdPalletAssets, Balance, Balances, EnsureRoot, ForeignAssets,
 	Funding, ParachainInfo, ParachainSystem, PolkadotXcm, Runtime, RuntimeCall, RuntimeEvent, RuntimeOrigin,
-	ToTreasury, TreasuryAccount, Vec, WeightToFee, XcmpQueue,
+	ToTreasury, TreasuryAccount, Vec, WeightToFee,
 };
 use core::marker::PhantomData;
 use cumulus_primitives_core::ParaId;
@@ -320,7 +320,7 @@ pub type XcmRouter = (
 	// Two routers - use UMP to communicate with the relay chain:
 	cumulus_primitives_utility::ParentAsUmp<ParachainSystem, PolkadotXcm, ()>,
 	// ..and XCMP to communicate with the sibling chains.
-	XcmpQueue,
+	super::XcmpQueue,
 );
 #[cfg(feature = "runtime-benchmarks")]
 pub type XcmRouter = DummyXcmSender;

@@ -119,6 +119,7 @@ frame-system = { version = "35.0.0", default-features = false }
 frame-system-rpc-runtime-api = { version = "33.0.0", default-features = false }
 frame-system-benchmarking = { version = "35.0.0", default-features = false }
 frame-try-runtime = { version = "0.41.0", default-features = false }
+frame-metadata-hash-extension = { version = "0.3.0", default-features = false }
 sp-api = { version = "33.0.0", default-features = false }
 sp-debug-derive = { version = "14.0.0", default-features = false }
 sp-std = { version = "14.0.0", default-features = false }

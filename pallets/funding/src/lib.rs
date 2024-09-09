@@ -29,8 +29,8 @@
 //! There are 3 types of users in Polimec:
 //! - **Issuers**: They create projects and are responsible for their success.
 //! - **Evaluators**: They are incentivized to assess projects accurately by locking their PLMC. If at least 10% of its
-//! target funding (in USD) is locked in PLMC, a project is given access to the funding round. Evaluators are either
-//! rewarded in contribution tokens if the project gets funded, or have their PLMC slashed otherwise.
+//!     target funding (in USD) is locked in PLMC, a project is given access to the funding round. Evaluators are either
+//!     rewarded in contribution tokens if the project gets funded, or have their PLMC slashed otherwise.
 //! - **Participants**: They contribute financially to projects by locking PLMC and paying out USDT/USDC/DOT, and are rewarded in contribution tokens.
 //!
 //! Users need to go through a KYC/AML by a third party in order to use the protocol. This process classifies them
@@ -52,15 +52,15 @@
 //! 10) **Remainder Round Start**: After a defined [period](<T as Config>::CommunityRoundDuration), the remainder round starts.
 //! 11) **Contribute**: Participants with winning bids can also contribute at the weighted average price with the [`contribute`](Pallet::contribute) extrinsic.
 //! 12) **Funding End**: Anyone can end the project with the [`end_project`](Pallet::end_project) extrinsic after the defined end block.
-//! The project will now be considered Failed if it reached <=33% of its target funding in USD, and Successful otherwise.
+//!     The project will now be considered Failed if it reached <=33% of its target funding in USD, and Successful otherwise.
 //! 13) **Settlement Start**: Anyone can start the settlement process with the [`start_settlement`](Pallet::start_settlement) extrinsic after the defined end block.
 //! 14) **Settle Evaluation**: Anyone can now settle an evaluation with the [`settle_evaluation`](Pallet::settle_evaluation) extrinsic.
-//! This will unlock the PLMC bonded, and either apply a slash to the PLMC, or reward CTs to the evaluator.
+//!     This will unlock the PLMC bonded, and either apply a slash to the PLMC, or reward CTs to the evaluator.
 //! 15) **Settle Bid**: Anyone can now settle a bid with the [`settle_bid`](Pallet::settle_bid) extrinsic.
-//! This will set a vesting schedule on the PLMC bonded, and pay out the funding assets to the issuer. It will also issue refunds in case the bid failed,
-//! or the price paid was higher than the weighted average price.
+//!     This will set a vesting schedule on the PLMC bonded, and pay out the funding assets to the issuer. It will also issue refunds in case the bid failed,
+//!     or the price paid was higher than the weighted average price.
 //! 16) **Settle Contribution**: Anyone can now settle a contribution with the [`settle_contribution`](Pallet::settle_contribution) extrinsic.
-//! This will set a vesting schedule on the PLMC bonded, and pay out the funding assets to the issuer.
+//!     This will set a vesting schedule on the PLMC bonded, and pay out the funding assets to the issuer.
 //! 17) **Settlement End**: Anyone can now mark the project settlement as finished by calling the [`mark_project_as_settled`](Pallet::mark_project_as_settled) extrinsic.
 //! 18) **Migration Start**: Once the issuer has tokens to distribute on mainnet, he can start the migration process with the [`start_offchain`](Pallet::start_offchain_migration) extrinsic.
 //! 19) **Confirm Migration**: The issuer has to mark each participant's CTs as migrated with the [`confirm_offchain_migration`](Pallet::confirm_offchain_migration) extrinsic.

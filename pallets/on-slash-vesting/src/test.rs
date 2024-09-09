@@ -59,7 +59,6 @@ fn multiple_schedules() {
 		assert_ok!(<PalletBalances as MutateHold<u64>>::hold(&MockRuntimeHoldReason::Reason, &1u64, 100u128));
 		assert_eq!(PalletBalances::usable_balance(1), 0);
 
-
 		PalletSystem::set_block_number(3);
 
 		// Unlock 10*2 + 65*2 + 5*2 + 20*2 = 200
