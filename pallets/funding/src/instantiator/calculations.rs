@@ -2,8 +2,7 @@
 use super::*;
 use core::cmp::Ordering;
 use itertools::GroupBy;
-use polimec_common::USD_DECIMALS;
-
+use polimec_common::{ProvideAssetPrice, USD_DECIMALS};
 impl<
 		T: Config,
 		AllPalletsWithoutSystem: OnFinalize<BlockNumberFor<T>> + OnIdle<BlockNumberFor<T>> + OnInitialize<BlockNumberFor<T>>,

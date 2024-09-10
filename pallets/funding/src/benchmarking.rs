@@ -19,10 +19,7 @@
 //! Benchmarking setup for Funding pallet
 
 use super::*;
-use crate::{
-	instantiator::*,
-	traits::{ProvideAssetPrice, SetPrices},
-};
+use crate::{instantiator::*, traits::SetPrices};
 use frame_benchmarking::v2::*;
 use frame_support::{
 	assert_ok,
@@ -35,7 +32,7 @@ use frame_support::{
 };
 use itertools::Itertools;
 use parity_scale_codec::{Decode, Encode};
-use polimec_common::{credentials::InvestorType, ReleaseSchedule, USD_DECIMALS, USD_UNIT};
+use polimec_common::{credentials::InvestorType, ProvideAssetPrice, ReleaseSchedule, USD_DECIMALS, USD_UNIT};
 use polimec_common_test_utils::{generate_did_from_account, get_mock_jwt_with_cid};
 use sp_arithmetic::Percent;
 use sp_core::H256;

@@ -151,7 +151,7 @@ pub const PLMC_DECIMALS: u8 = 10;
 pub mod pallet {
 	#[allow(clippy::wildcard_imports)]
 	use super::*;
-	use crate::traits::{BondingRequirementCalculation, ProvideAssetPrice, VestingDurationCalculation};
+	use crate::traits::{BondingRequirementCalculation, VestingDurationCalculation};
 	use core::ops::RangeInclusive;
 	use frame_support::{
 		pallet_prelude::*,
@@ -160,6 +160,7 @@ pub mod pallet {
 	};
 	use frame_system::pallet_prelude::*;
 	use on_slash_vesting::OnSlash;
+	use polimec_common::ProvideAssetPrice;
 	use sp_arithmetic::Percent;
 	use sp_runtime::{
 		traits::{Convert, ConvertBack, Get},

@@ -4,10 +4,9 @@ use alloc::collections::BTreeMap;
 use frame_support::traits::fungibles::{metadata::Inspect as MetadataInspect, Inspect, InspectEnumerable};
 use itertools::Itertools;
 use parity_scale_codec::{Decode, Encode};
-use polimec_common::USD_DECIMALS;
+use polimec_common::{ProvideAssetPrice, USD_DECIMALS};
 use scale_info::TypeInfo;
 use sp_runtime::traits::Zero;
-
 #[derive(Debug, Clone, PartialEq, Eq, Encode, Decode, TypeInfo)]
 pub struct ProjectParticipationIds<T: Config> {
 	account: AccountIdOf<T>,

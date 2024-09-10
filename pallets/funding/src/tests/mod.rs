@@ -1,9 +1,6 @@
 use super::*;
 use crate::{
-	instantiator::*,
-	mock::*,
-	traits::{ProvideAssetPrice, VestingDurationCalculation},
-	CurrencyMetadata, Error, ProjectMetadata, TicketSize,
+	instantiator::*, mock::*, traits::VestingDurationCalculation, CurrencyMetadata, Error, ProjectMetadata, TicketSize,
 };
 use defaults::*;
 use frame_support::{
@@ -15,7 +12,7 @@ use frame_support::{
 };
 use itertools::Itertools;
 use parachains_common::DAYS;
-use polimec_common::{ReleaseSchedule, USD_DECIMALS, USD_UNIT};
+use polimec_common::{ProvideAssetPrice, ReleaseSchedule, USD_DECIMALS, USD_UNIT};
 use polimec_common_test_utils::{generate_did_from_account, get_mock_jwt_with_cid};
 use sp_arithmetic::{traits::Zero, Percent, Perquintill};
 use sp_runtime::TokenError;

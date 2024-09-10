@@ -20,9 +20,8 @@
 
 use super::*;
 use crate as pallet_funding;
-use crate::{
-	runtime_api::{ExtrinsicHelpers, Leaderboards, ProjectInformation, ProjectParticipationIds, UserInformation},
-	traits::ProvideAssetPrice,
+use crate::runtime_api::{
+	ExtrinsicHelpers, Leaderboards, ProjectInformation, ProjectParticipationIds, UserInformation,
 };
 use core::ops::RangeInclusive;
 use frame_support::{
@@ -34,7 +33,7 @@ use frame_support::{
 };
 use frame_system as system;
 use frame_system::{EnsureRoot, RawOrigin as SystemRawOrigin};
-use polimec_common::{credentials::EnsureInvestor, DummyXcmSender, USD_UNIT};
+use polimec_common::{credentials::EnsureInvestor, DummyXcmSender, ProvideAssetPrice, USD_UNIT};
 use polkadot_parachain_primitives::primitives::Sibling;
 use sp_arithmetic::Percent;
 use sp_core::H256;
