@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use crate::*;
+use crate::{constants::PricesBuilder, *};
 use frame_support::traits::{fungible::Mutate, fungibles::Inspect};
 use itertools::Itertools;
 use pallet_funding::{assert_close_enough, types::*, ProjectId, WeightInfo};
@@ -190,7 +190,7 @@ fn create_settled_project() -> (ProjectId, Vec<AccountId>) {
 
 #[test]
 fn full_pallet_migration_test() {
-	polimec::set_prices(None, None, None, None);
+	polimec::set_prices(PricesBuilder::default());
 	let (project_id, participants) = create_settled_project();
 	let _project_status =
 		PolimecNet::execute_with(|| pallet_funding::ProjectsDetails::<PolimecRuntime>::get(project_id).unwrap().status);
@@ -296,7 +296,7 @@ fn create_project_with_unsettled_participation(participation_type: Participation
 
 #[test]
 fn cannot_start_pallet_migration_with_unsettled_participations() {
-	polimec::set_prices(None, None, None, None);
+	polimec::set_prices(PricesBuilder::default());
 
 	let tup_1 = create_project_with_unsettled_participation(ParticipationType::Evaluation);
 	let tup_2 = create_project_with_unsettled_participation(ParticipationType::Bid);

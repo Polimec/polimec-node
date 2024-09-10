@@ -1,28 +1,22 @@
-use crate::{tests::defaults::*, *};
-use frame_support::{
-	traits::{
-		fungible::Mutate,
-	},
-};
+use crate::{constants::PricesBuilder, tests::defaults::*, *};
+use frame_support::traits::fungible::Mutate;
 use frame_system::{pallet_prelude::BlockNumberFor, Account};
 use macros::generate_accounts;
 use pallet_balances::AccountData;
 use pallet_funding::*;
 use pallet_vesting::VestingInfo;
-use polimec_common::{USD_UNIT};
+use polimec_common::USD_UNIT;
 use polimec_runtime::PLMC;
 use sp_arithmetic::Perquintill;
-use sp_runtime::{
-	FixedU128,
-	MultiAddress::Id,
-};
+use sp_runtime::{FixedU128, MultiAddress::Id};
 
 generate_accounts!(STASH, ALICE, BOB, CHARLIE, DAVE, ISSUER);
 
 #[test]
 fn evaluator_slash_reduces_vesting_schedules() {
-	// set plmc price to 1 usd
-	polimec::set_prices(None, None, None, Some(FixedU128::from_float(1.0)));
+	// Set PLMC price to 1 USD
+	let prices = PricesBuilder::new().plmc(FixedU128::from_float(1.0)).build();
+	polimec::set_prices(prices);
 
 	let mut inst = IntegrationInstantiator::new(None);
 	let alice: PolimecAccountId = ALICE.into();
