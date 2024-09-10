@@ -140,5 +140,42 @@ std = [
 	"xcm/std",
 ]
 development-settings = [ "polimec-runtime/development-settings" ]
-runtime-benchmarks = []
+runtime-benchmarks = [
+	"asset-hub-polkadot-runtime/runtime-benchmarks",
+	"polkadot-runtime/runtime-benchmarks",
+	"penpal-runtime/runtime-benchmarks",
+	"pallet-democracy/runtime-benchmarks",
+	"pallet-dispenser/runtime-benchmarks",
+	"pallet-elections-phragmen/runtime-benchmarks",
+	"pallet-funding/runtime-benchmarks",
+	"pallet-linear-release/runtime-benchmarks",
+	"pallet-parachain-staking/runtime-benchmarks",
+	"polimec-receiver/runtime-benchmarks",
+	"polimec-common/runtime-benchmarks",
+	"polimec-common-test-utils/runtime-benchmarks",
+	"polimec-runtime/runtime-benchmarks",
+	"cumulus-primitives-core/runtime-benchmarks",
+	"frame-support/runtime-benchmarks",
+	"frame-system/runtime-benchmarks",
+	"orml-oracle/runtime-benchmarks",
+	"pallet-assets/runtime-benchmarks",
+	"pallet-balances/runtime-benchmarks",
+	"pallet-collective/runtime-benchmarks",
+	"pallet-im-online/runtime-benchmarks",
+	"pallet-membership/runtime-benchmarks",
+	"pallet-message-queue/runtime-benchmarks",
+	"pallet-scheduler/runtime-benchmarks",
+	"pallet-staking/runtime-benchmarks",
+	"pallet-treasury/runtime-benchmarks",
+	"pallet-vesting/runtime-benchmarks",
+	"pallet-xcm/runtime-benchmarks",
+	"parachains-common/runtime-benchmarks",
+	"polkadot-parachain-primitives/runtime-benchmarks",
+	"polkadot-primitives/runtime-benchmarks",
+	"polkadot-runtime-parachains/runtime-benchmarks",
+	"polkadot-service/runtime-benchmarks",
+	"sp-runtime/runtime-benchmarks",
+	"xcm-builder/runtime-benchmarks",
+	"xcm-executor/runtime-benchmarks"
+]
 

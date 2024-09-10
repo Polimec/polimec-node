@@ -6,14 +6,12 @@ mod mock;
 #[cfg(test)]
 mod test;
 
-extern crate alloc;
-use alloc::vec::Vec;
 use frame_support::{
 	sp_runtime::{traits::Convert, FixedPointNumber, FixedU128},
 	traits::{Currency, OriginTrait},
 };
 use pallet_vesting::Vesting;
-use sp_runtime::traits::BlockNumberProvider;
+use sp_runtime::{traits::BlockNumberProvider, BoundedVec};
 
 pub trait OnSlash<AccountId, Balance: Clone> {
 	fn on_slash(account: &AccountId, amount: Balance);
@@ -33,27 +31,25 @@ where
 	T::Currency: Currency<AccountIdOf<T>, Balance = u128>,
 {
 	fn on_slash(account: &AccountIdOf<T>, slashed_amount: u128) {
-		let Some(vesting_schedules) = <Vesting<T>>::get(account) else { return };
-		let vesting_schedules = vesting_schedules.to_vec();
-		let mut new_vesting_schedules = Vec::new();
-		let now = T::BlockNumberProvider::current_block_number();
-		for schedule in vesting_schedules {
-			let total_locked = schedule.locked_at::<T::BlockNumberToBalance>(now).saturating_sub(slashed_amount);
-			let start_block: u128 = T::BlockNumberToBalance::convert(now);
-			let end_block: u128 = schedule.ending_block_as_balance::<T::BlockNumberToBalance>();
-			let duration = end_block.saturating_sub(start_block);
-			let per_block = FixedU128::from_rational(total_locked, duration).saturating_mul_int(1u128);
-			let new_schedule = pallet_vesting::VestingInfo::new(total_locked, per_block, now);
-			if new_schedule.is_valid() {
-				new_vesting_schedules.push(new_schedule);
+		if let Some(vesting_schedules) = <Vesting<T>>::get(account) {
+			let mut new_vesting_schedules = BoundedVec::with_bounded_capacity(vesting_schedules.len());
+			let now = T::BlockNumberProvider::current_block_number();
+			for schedule in vesting_schedules {
+				let total_locked = schedule.locked_at::<T::BlockNumberToBalance>(now).saturating_sub(slashed_amount);
+				let start_block = T::BlockNumberToBalance::convert(now);
+				let end_block = schedule.ending_block_as_balance::<T::BlockNumberToBalance>();
+				let duration = end_block.saturating_sub(start_block);
+				let per_block = FixedU128::from_rational(total_locked, duration).saturating_mul_int(1u128);
+				let new_schedule = pallet_vesting::VestingInfo::new(total_locked, per_block, now);
+				if new_schedule.is_valid() {
+					// The push should always succeed because we are iterating over a bounded vector.
+					let push_result = new_vesting_schedules.try_push(new_schedule);
+					debug_assert!(push_result.is_ok());
+				}
 			}
+			<Vesting<T>>::set(account, Some(new_vesting_schedules));
+			let vest_result = <pallet_vesting::Pallet<T>>::vest(T::RuntimeOrigin::signed(account.clone()));
+			debug_assert!(vest_result.is_ok());
 		}
-		let Ok(new_vesting_schedules) = new_vesting_schedules.try_into() else {
-			log::error!("Failed to convert new vesting schedules into BoundedVec");
-			return
-		};
-		<Vesting<T>>::set(account, Some(new_vesting_schedules));
-		let vest_result = <pallet_vesting::Pallet<T>>::vest(T::RuntimeOrigin::signed(account.clone()));
-		debug_assert!(vest_result.is_ok());
 	}
 }

@@ -446,6 +446,7 @@ dependencies = [
  "frame-system-benchmarking",
  "frame-system-rpc-runtime-api",
  "frame-try-runtime",
+ "hex-literal",
  "kusama-runtime-constants",
  "log",
  "pallet-asset-conversion",

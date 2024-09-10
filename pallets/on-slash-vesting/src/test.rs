@@ -23,7 +23,6 @@ fn one_schedule() {
 		// Unlock 20
 		assert_ok!(PalletVesting::vest(RuntimeOrigin::signed(1)));
 		assert_eq!(PalletBalances::usable_balance(1), 20);
-		dbg!(<pallet_vesting::Vesting<TestRuntime>>::get(1));
 
 		// Slash 30
 		<PalletBalances as BalancedHold<u64>>::slash(&MockRuntimeHoldReason::Reason, &1u64, 30u128);
@@ -59,8 +58,7 @@ fn multiple_schedules() {
 
 		assert_ok!(<PalletBalances as MutateHold<u64>>::hold(&MockRuntimeHoldReason::Reason, &1u64, 100u128));
 		assert_eq!(PalletBalances::usable_balance(1), 0);
-		// see account data
-		dbg!(PalletSystem::account(1).data);
+
 
 		PalletSystem::set_block_number(3);
 

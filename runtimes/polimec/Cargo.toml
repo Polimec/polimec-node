@@ -130,6 +130,7 @@ std = [
 	"frame-system/std",
 	"frame-try-runtime?/std",
 	"log/std",
+	"on-slash-vesting/std",
 	"orml-oracle/std",
 	"pallet-assets/std",
 	"pallet-aura/std",
@@ -227,6 +228,7 @@ runtime-benchmarks = [
 	"sp-runtime/runtime-benchmarks",
 	"xcm-builder/runtime-benchmarks",
 	"xcm-executor/runtime-benchmarks",
+	"on-slash-vesting/runtime-benchmarks"
 ]
 
 try-runtime = [
@@ -276,6 +278,9 @@ try-runtime = [
 # A feature that should be enabled when the runtime should be built for on-chain
 # deployment. This will disable stuff that shouldn't be part of the on-chain wasm
 # to make it smaller, like logging for example.
-on-chain-release-build = [ "sp-api/disable-logging", "pallet-funding/on-chain-release-build" ]
+on-chain-release-build = [
+	"pallet-funding/on-chain-release-build",
+	"sp-api/disable-logging",
+]
 
 development-settings = [ "shared-configuration/development-settings" ]

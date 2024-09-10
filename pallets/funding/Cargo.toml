@@ -71,6 +71,7 @@ std = [
 	"frame-system/std",
 	"itertools/use_std",
 	"log/std",
+	"on-slash-vesting/std",
 	"pallet-assets/std",
 	"pallet-balances/std",
 	"pallet-insecure-randomness-collective-flip/std",
@@ -113,6 +114,7 @@ runtime-benchmarks = [
 	"sp-runtime/runtime-benchmarks",
 	"xcm-builder/runtime-benchmarks",
 	"xcm-executor/runtime-benchmarks",
+	"on-slash-vesting/runtime-benchmarks"
 ]
 try-runtime = [
 	"frame-support/try-runtime",

@@ -29,14 +29,22 @@ workspace = true
 default = [ "std" ]
 
 std = [
-    "pallet-vesting/std",
-    "frame-support/std",
-    "frame-system/std",
-    "pallet-balances/std",
-    "log/std",
-    "parity-scale-codec/std",
-    "scale-info/std",
-    "sp-runtime/std",
-    "sp-io/std",
-    "serde/std",
+	"frame-support/std",
+	"frame-system/std",
+	"log/std",
+	"pallet-balances/std",
+	"pallet-vesting/std",
+	"parity-scale-codec/std",
+	"scale-info/std",
+	"serde/std",
+	"sp-io/std",
+	"sp-runtime/std",
+]
+
+runtime-benchmarks = [
+	"frame-support/runtime-benchmarks",
+	"frame-system/runtime-benchmarks",
+	"pallet-balances/runtime-benchmarks",
+	"pallet-vesting/runtime-benchmarks",
+	"sp-runtime/runtime-benchmarks"
 ]
