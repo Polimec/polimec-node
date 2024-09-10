@@ -10564,6 +10564,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "proxy-bonding"
+version = "0.8.0"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "pallet-assets",
+ "pallet-balances",
+ "pallet-linear-release",
+ "parity-scale-codec",
+ "polimec-common",
+ "scale-info",
+ "serde",
+ "sp-io",
+ "sp-runtime",
+]
+
+[[package]]
 name = "psm"
 version = "0.1.21"
 source = "registry+https://github.com/rust-lang/crates.io-index"

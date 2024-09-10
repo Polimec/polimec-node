@@ -1,0 +1,63 @@
+[package]
+name = "proxy-bonding"
+authors.workspace = true
+documentation.workspace = true
+edition.workspace = true
+homepage.workspace = true
+license-file.workspace = true
+readme.workspace = true
+repository.workspace = true
+version.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+frame-system.workspace = true
+frame-support.workspace = true
+frame-benchmarking = { workspace = true, optional = true }
+sp-runtime.workspace = true
+polimec-common.workspace = true
+parity-scale-codec.workspace = true
+scale-info.workspace = true
+serde = { version = "1.0.204", features = ["derive"] }
+
+[dev-dependencies]
+sp-io.workspace = true
+pallet-linear-release.workspace = true
+pallet-balances.workspace = true
+pallet-assets.workspace = true
+
+
+[features]
+default = ["std"]
+
+std = [
+	"frame-system/std",
+	"frame-support/std",
+	"sp-runtime/std",
+	"polimec-common/std",
+	"parity-scale-codec/std",
+	"scale-info/std",
+	"frame-benchmarking?/std",
+
+	"sp-io/std",
+	"pallet-linear-release/std",
+	"pallet-balances/std",
+	"pallet-assets/std"
+]
+
+try-runtime = [
+	"frame-support/try-runtime",
+	"frame-system/try-runtime",
+	"sp-runtime/try-runtime",
+	"polimec-common/try-runtime"
+]
+
+runtime-benchmarks = [
+	"frame-benchmarking/runtime-benchmarks",
+	"frame-support/runtime-benchmarks",
+	"frame-system/runtime-benchmarks",
+	"sp-runtime/runtime-benchmarks",
+	"polimec-common/runtime-benchmarks"
+]
