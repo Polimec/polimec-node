@@ -79,6 +79,7 @@ fn dispenser_signed_extensions_pass_for_new_account() {
 			pallet_dispenser::extensions::CheckNonce::<PolimecRuntime>::from(0u32),
 			frame_system::CheckWeight::<PolimecRuntime>::new(),
 			pallet_transaction_payment::ChargeTransactionPayment::<PolimecRuntime>::from(0u64.into()).into(),
+			frame_metadata_hash_extension::CheckMetadataHash::<PolimecRuntime>::new(true),
 		);
 		assert_err!(
 			extra.validate(&who, &paid_call, &paid_call.get_dispatch_info(), 0),

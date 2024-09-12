@@ -65,8 +65,6 @@ impl pallet_balances::Config for TestRuntime {
 }
 
 impl pallet_vesting::Config for TestRuntime {
-	#[cfg(feature = "runtime-benchmarks")]
-	type BenchmarkReason = BenchmarkReason;
 	type BlockNumberProvider = System;
 	type BlockNumberToBalance = ConvertInto;
 	type Currency = Balances;

@@ -149,6 +149,7 @@ pub type SignedExtra = (
 		Runtime,
 		pallet_transaction_payment::ChargeTransactionPayment<Runtime>,
 	>,
+	frame_metadata_hash_extension::CheckMetadataHash<Runtime>,
 );
 
 /// Unchecked extrinsic type as expected by this runtime.
@@ -901,6 +902,7 @@ where
 			pallet_dispenser::extensions::SkipCheckIfFeeless::from(
 				pallet_transaction_payment::ChargeTransactionPayment::<Runtime>::from(tip),
 			),
+			frame_metadata_hash_extension::CheckMetadataHash::<Runtime>::new(true),
 		);
 		let raw_payload = generic::SignedPayload::new(call, extra)
 			.map_err(|e| {
