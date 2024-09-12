@@ -82,7 +82,7 @@ mod end_funding_extrinsic {
 			const EARLY_EVALUATOR_TOTAL_USD_BONDED: u128 = 1_000_000 * USD_UNIT;
 			const NORMAL_EVALUATOR_TOTAL_USD_BONDED: u128 = 1_070_000 * USD_UNIT;
 
-			let expected_reward_info = RewardInfoOf::<TestRuntime> {
+			let expected_reward_info = RewardInfo {
 				early_evaluator_reward_pot: early_evaluator_reward,
 				normal_evaluator_reward_pot: normal_evaluator_reward,
 				early_evaluator_total_bonded_usd: EARLY_EVALUATOR_TOTAL_USD_BONDED,

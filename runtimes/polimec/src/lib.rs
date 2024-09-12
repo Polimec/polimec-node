@@ -1034,7 +1034,6 @@ impl pallet_funding::Config for Runtime {
 	type AllPalletsWithoutSystem =
 		(Balances, ContributionTokens, ForeignAssets, Oracle, Funding, LinearRelease, Random);
 	type AuctionRoundDuration = AuctionRoundDuration;
-	type Balance = Balance;
 	type BlockNumber = BlockNumber;
 	type BlockchainOperationTreasury = BlockchainOperationTreasury;
 	type CommunityRoundDuration = CommunityRoundDuration;

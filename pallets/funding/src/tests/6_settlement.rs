@@ -276,7 +276,7 @@ mod settle_evaluation_extrinsic {
 
 			assert_eq!(
 				inst.get_project_details(project_id).evaluation_round_info.evaluators_outcome,
-				Some(EvaluatorsOutcomeOf::<TestRuntime>::Slashed)
+				Some(EvaluatorsOutcome::Slashed)
 			);
 
 			assert_ok!(inst.execute(|| PolimecFunding::settle_evaluation(

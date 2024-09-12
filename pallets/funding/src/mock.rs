@@ -56,7 +56,6 @@ pub const EXISTENTIAL_DEPOSIT: Balance = 10 * MILLI_PLMC;
 
 pub type Block = frame_system::mocking::MockBlock<TestRuntime>;
 pub type AccountId = u32;
-pub type Balance = u128;
 pub type BlockNumber = u64;
 pub type Identifier = u32;
 pub type Price = FixedU128;
@@ -396,7 +395,6 @@ impl Config for TestRuntime {
 	type AllPalletsWithoutSystem =
 		(Balances, ContributionTokens, ForeignAssets, PolimecFunding, LinearRelease, RandomnessCollectiveFlip);
 	type AuctionRoundDuration = AuctionRoundDuration;
-	type Balance = Balance;
 	type BlockNumber = BlockNumber;
 	type BlockchainOperationTreasury = BlockchainOperationTreasuryAccount;
 	type CommunityRoundDuration = CommunityRoundDuration;
@@ -531,7 +529,7 @@ sp_api::mock_impl_runtime_apis! {
 	}
 
 	impl UserInformation<Block, TestRuntime> for TestRuntime {
-		fn contribution_tokens(account: AccountId) -> Vec<(ProjectId, BalanceOf<TestRuntime>)> {
+		fn contribution_tokens(account: AccountId) -> Vec<(ProjectId, Balance)> {
 			PolimecFunding::contribution_tokens(account)
 		}
 
@@ -551,7 +549,7 @@ sp_api::mock_impl_runtime_apis! {
 	}
 
 	impl ExtrinsicHelpers<Block, TestRuntime> for TestRuntime {
-		fn funding_asset_to_ct_amount(project_id: ProjectId, asset: AcceptedFundingAsset, asset_amount: BalanceOf<TestRuntime>) -> BalanceOf<TestRuntime> {
+		fn funding_asset_to_ct_amount(project_id: ProjectId, asset: AcceptedFundingAsset, asset_amount: Balance) -> Balance {
 			PolimecFunding::funding_asset_to_ct_amount(project_id, asset, asset_amount)
 		}
 	}

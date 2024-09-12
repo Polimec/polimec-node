@@ -5,16 +5,16 @@ use itertools::GroupBy;
 use polimec_common::USD_DECIMALS;
 
 impl<
-		T: Config + pallet_balances::Config<Balance = BalanceOf<T>>,
+		T: Config,
 		AllPalletsWithoutSystem: OnFinalize<BlockNumberFor<T>> + OnIdle<BlockNumberFor<T>> + OnInitialize<BlockNumberFor<T>>,
 		RuntimeEvent: From<Event<T>> + TryInto<Event<T>> + Parameter + Member + IsType<<T as frame_system::Config>::RuntimeEvent>,
 	> Instantiator<T, AllPalletsWithoutSystem, RuntimeEvent>
 {
-	pub fn get_ed(&self) -> BalanceOf<T> {
+	pub fn get_ed(&self) -> Balance {
 		T::ExistentialDeposit::get()
 	}
 
-	pub fn get_ct_account_deposit(&self) -> BalanceOf<T> {
+	pub fn get_ct_account_deposit(&self) -> Balance {
 		<T as crate::Config>::ContributionTokenCurrency::deposit_required(One::one())
 	}
 
@@ -320,7 +320,7 @@ impl<
 	}
 
 	/// Filters the bids that would be rejected after the auction ends.
-	pub fn filter_bids_after_auction(&self, bids: Vec<BidParams<T>>, total_cts: BalanceOf<T>) -> Vec<BidParams<T>> {
+	pub fn filter_bids_after_auction(&self, bids: Vec<BidParams<T>>, total_cts: Balance) -> Vec<BidParams<T>> {
 		let mut filtered_bids: Vec<BidParams<T>> = Vec::new();
 		let sorted_bids = bids;
 		let mut total_cts_left = total_cts;
@@ -484,14 +484,14 @@ impl<
 		output.merge_accounts(ops)
 	}
 
-	pub fn sum_balance_mappings(&self, mut mappings: Vec<Vec<UserToPLMCBalance<T>>>) -> BalanceOf<T> {
+	pub fn sum_balance_mappings(&self, mut mappings: Vec<Vec<UserToPLMCBalance<T>>>) -> Balance {
 		let mut output = mappings
 			.swap_remove(0)
 			.into_iter()
 			.map(|user_to_plmc| user_to_plmc.plmc_amount)
 			.fold(Zero::zero(), |a, b| a + b);
 		for map in mappings {
-			output += map.into_iter().map(|user_to_plmc| user_to_plmc.plmc_amount).fold(Zero::zero(), |a, b| a + b);
+			output += map.into_iter().map(|user_to_plmc| user_to_plmc.plmc_amount).fold(Balance::zero(), |a, b| a + b);
 		}
 		output
 	}
@@ -499,7 +499,7 @@ impl<
 	pub fn sum_funding_asset_mappings(
 		&self,
 		mappings: Vec<Vec<UserToFundingAsset<T>>>,
-	) -> Vec<(AssetIdOf<T>, BalanceOf<T>)> {
+	) -> Vec<(AssetIdOf<T>, Balance)> {
 		let flattened_list = mappings.into_iter().flatten().collect_vec();
 
 		let ordered_list = flattened_list.into_iter().sorted_by(|a, b| a.asset_id.cmp(&b.asset_id)).collect_vec();
@@ -525,7 +525,7 @@ impl<
 	) -> Vec<UserToUSDBalance<T>> {
 		let funding_target = project_metadata.minimum_price.saturating_mul_int(project_metadata.total_allocation_size);
 		let evaluation_success_threshold = <T as Config>::EvaluationSuccessThreshold::get(); // if we use just the threshold, then for big usd targets we lose the evaluation due to PLMC conversion errors in `evaluation_end`
-		let usd_threshold = evaluation_success_threshold * funding_target * 2u32.into();
+		let usd_threshold = evaluation_success_threshold * funding_target * 2u128;
 
 		zip(evaluators, weights)
 			.map(|(evaluator, weight)| {
@@ -537,7 +537,7 @@ impl<
 
 	pub fn generate_bids_from_total_usd(
 		&self,
-		usd_amount: BalanceOf<T>,
+		usd_amount: Balance,
 		min_price: PriceOf<T>,
 		weights: Vec<u8>,
 		bidders: Vec<AccountIdOf<T>>,
@@ -578,7 +578,7 @@ impl<
 
 	pub fn generate_contributions_from_total_usd(
 		&self,
-		usd_amount: BalanceOf<T>,
+		usd_amount: Balance,
 		final_price: PriceOf<T>,
 		weights: Vec<u8>,
 		contributors: Vec<AccountIdOf<T>>,
@@ -626,8 +626,8 @@ impl<
 	pub fn calculate_total_reward_for_evaluation(
 		&self,
 		evaluation: EvaluationInfoOf<T>,
-		reward_info: RewardInfoOf<T>,
-	) -> BalanceOf<T> {
+		reward_info: RewardInfo,
+	) -> Balance {
 		let early_reward_weight =
 			Perquintill::from_rational(evaluation.early_usd_amount, reward_info.early_evaluator_total_bonded_usd);
 		let normal_reward_weight = Perquintill::from_rational(
@@ -650,7 +650,7 @@ impl<
 		}
 
 		// Fill first bucket
-		bucket.update(bucket.delta_amount * 10u32.into());
+		bucket.update(bucket.delta_amount * 10u128);
 
 		// Fill remaining buckets till we pass by the wap
 		loop {
@@ -671,19 +671,19 @@ impl<
 		bucket.current_price = bucket.current_price - bucket.delta_price;
 
 		// Do a binary search on the amount to reach the desired wap
-		let mut lower_bound: BalanceOf<T> = Zero::zero();
-		let mut upper_bound: BalanceOf<T> = bucket.delta_amount;
+		let mut lower_bound: Balance = Zero::zero();
+		let mut upper_bound: Balance = bucket.delta_amount;
 
 		while lower_bound <= upper_bound {
-			let mid_point = (lower_bound + upper_bound) / 2u32.into();
+			let mid_point = (lower_bound + upper_bound) / 2u128;
 			bucket.amount_left = mid_point;
 			let new_wap = bucket.calculate_wap(auction_allocation);
 
 			// refactor as match
 			match new_wap.cmp(&target_wap) {
 				Ordering::Equal => return bucket,
-				Ordering::Less => upper_bound = mid_point - 1u32.into(),
-				Ordering::Greater => lower_bound = mid_point + 1u32.into(),
+				Ordering::Less => upper_bound = mid_point - 1u128,
+				Ordering::Greater => lower_bound = mid_point + 1u128,
 			}
 		}
 

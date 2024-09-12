@@ -192,7 +192,7 @@ fn create_settled_project() -> (ProjectId, Vec<AccountId>) {
 fn full_pallet_migration_test() {
 	polimec::set_prices();
 	let (project_id, participants) = create_settled_project();
-	let project_status =
+	let _project_status =
 		PolimecNet::execute_with(|| pallet_funding::ProjectsDetails::<PolimecRuntime>::get(project_id).unwrap().status);
 
 	mock_hrmp_establishment(project_id);
@@ -304,7 +304,7 @@ fn cannot_start_pallet_migration_with_unsettled_participations() {
 
 	let tups = vec![tup_1, tup_2, tup_3];
 
-	for (project_id, participants) in tups.into_iter() {
+	for (project_id, _participants) in tups.into_iter() {
 		PolimecNet::execute_with(|| {
 			assert_noop!(
 				PolimecFunding::do_start_pallet_migration(&ISSUER.into(), project_id, ParaId::from(6969u32)),

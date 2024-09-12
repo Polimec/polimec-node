@@ -407,8 +407,8 @@ pub fn create_project_with_funding_percentage(
 
 pub fn create_finished_project_with_usd_raised(
 	mut inst: MockInstantiator,
-	usd_raised: BalanceOf<TestRuntime>,
-	usd_target: BalanceOf<TestRuntime>,
+	usd_raised: Balance,
+	usd_target: Balance,
 ) -> (MockInstantiator, ProjectId) {
 	let issuer = inst.get_new_nonce() as u32;
 	let mut project_metadata = default_project_metadata(issuer);
