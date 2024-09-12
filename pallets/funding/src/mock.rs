@@ -552,5 +552,10 @@ sp_api::mock_impl_runtime_apis! {
 		fn funding_asset_to_ct_amount(project_id: ProjectId, asset: AcceptedFundingAsset, asset_amount: Balance) -> Balance {
 			PolimecFunding::funding_asset_to_ct_amount(project_id, asset, asset_amount)
 		}
+		fn get_next_vesting_schedule_merge_candidates(account: AccountId, hold_reason: RuntimeHoldReason, end_max_delta: Balance) -> Option<(u32, u32)> {
+			PolimecFunding::get_next_vesting_schedule_merge_candidates(account, hold_reason, end_max_delta)
+		}
+
+
 	}
 }

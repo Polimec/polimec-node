@@ -156,17 +156,21 @@ impl<T: Config> Pallet<T> {
 		if funding_success && bid.status != BidStatus::Rejected {
 			let funding_end_block = project_details.funding_end_block.ok_or(Error::<T>::ImpossibleState)?;
 
-			let plmc_vesting_info =
+			let vesting_info =
 				Self::calculate_vesting_info(&bid.bidder, bid.multiplier, bid.plmc_bond.saturating_sub(refunded_plmc))
 					.map_err(|_| Error::<T>::BadMath)?;
 
-			VestingOf::<T>::add_release_schedule(
-				&bid.bidder,
-				plmc_vesting_info.total_amount,
-				plmc_vesting_info.amount_per_block,
-				funding_end_block,
-				HoldReason::Participation.into(),
-			)?;
+			if vesting_info.duration == 1u32.into() {
+				Self::release_participation_bond(&bid.bidder, vesting_info.total_amount)?;
+			} else {
+				VestingOf::<T>::add_release_schedule(
+					&bid.bidder,
+					vesting_info.total_amount,
+					vesting_info.amount_per_block,
+					funding_end_block,
+					HoldReason::Participation.into(),
+				)?;
+			}
 
 			Self::mint_contribution_tokens(project_id, &bid.bidder, final_ct_amount)?;
 
@@ -176,7 +180,7 @@ impl<T: Config> Pallet<T> {
 				bid.id,
 				ParticipationType::Bid,
 				final_ct_amount,
-				plmc_vesting_info.duration,
+				vesting_info.duration,
 			)?;
 
 			Self::release_funding_asset(
@@ -250,20 +254,25 @@ impl<T: Config> Pallet<T> {
 			)?;
 		} else {
 			// Calculate the vesting info and add the release schedule
-			let vest_info = Self::calculate_vesting_info(
+			let vesting_info = Self::calculate_vesting_info(
 				&contribution.contributor,
 				contribution.multiplier,
 				contribution.plmc_bond,
 			)
 			.map_err(|_| Error::<T>::BadMath)?;
 
-			VestingOf::<T>::add_release_schedule(
-				&contribution.contributor,
-				vest_info.total_amount,
-				vest_info.amount_per_block,
-				funding_end_block,
-				HoldReason::Participation.into(),
-			)?;
+			if vesting_info.duration == 1u32.into() {
+				Self::release_participation_bond(&contribution.contributor, vesting_info.total_amount)?;
+			} else {
+				VestingOf::<T>::add_release_schedule(
+					&contribution.contributor,
+					vesting_info.total_amount,
+					vesting_info.amount_per_block,
+					funding_end_block,
+					HoldReason::Participation.into(),
+				)?;
+			}
+
 			// Mint the contribution tokens
 			Self::mint_contribution_tokens(project_id, &contribution.contributor, contribution.ct_amount)?;
 
@@ -282,7 +291,7 @@ impl<T: Config> Pallet<T> {
 				contribution.id,
 				ParticipationType::Contribution,
 				contribution.ct_amount,
-				vest_info.duration,
+				vesting_info.duration,
 			)?;
 
 			final_ct_amount = contribution.ct_amount;

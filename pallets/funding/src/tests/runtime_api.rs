@@ -470,6 +470,81 @@ fn funding_asset_to_ct_amount() {
 }
 
 #[test]
+fn get_next_vesting_schedule_merge_candidates() {
+	let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+	let evaluations = vec![
+		UserToUSDBalance::new(EVALUATOR_1, 500_000 * USD_UNIT),
+		UserToUSDBalance::new(EVALUATOR_2, 250_000 * USD_UNIT),
+		UserToUSDBalance::new(BIDDER_1, 320_000 * USD_UNIT),
+	];
+	let bids = vec![
+		BidParams::new(BIDDER_1, 50_000 * CT_UNIT, 10u8, AcceptedFundingAsset::USDT),
+		BidParams::new(BIDDER_1, 400_000 * CT_UNIT, 5u8, AcceptedFundingAsset::USDT),
+		BidParams::new(BIDDER_2, 50_000 * CT_UNIT, 1u8, AcceptedFundingAsset::USDT),
+	];
+	let remaining_contributions = vec![
+		ContributionParams::new(BIDDER_1, 1_000 * CT_UNIT, 5u8, AcceptedFundingAsset::USDT),
+		ContributionParams::new(BIDDER_1, 15_000 * CT_UNIT, 10u8, AcceptedFundingAsset::USDT),
+		ContributionParams::new(BIDDER_1, 100 * CT_UNIT, 1u8, AcceptedFundingAsset::USDT),
+	];
+
+	let project_id = inst.create_finished_project(
+		default_project_metadata(ISSUER_1),
+		ISSUER_1,
+		None,
+		evaluations.clone(),
+		bids.clone(),
+		default_community_contributions(),
+		remaining_contributions.clone(),
+	);
+	assert_eq!(ProjectStatus::SettlementStarted(FundingOutcome::Success), inst.go_to_next_state(project_id));
+	inst.execute(|| {
+		PolimecFunding::settle_evaluation(RuntimeOrigin::signed(BIDDER_1), project_id, BIDDER_1, 2).unwrap();
+		PolimecFunding::settle_bid(RuntimeOrigin::signed(BIDDER_1), project_id, BIDDER_1, 0).unwrap();
+		PolimecFunding::settle_bid(RuntimeOrigin::signed(BIDDER_1), project_id, BIDDER_1, 1).unwrap();
+		PolimecFunding::settle_contribution(RuntimeOrigin::signed(BIDDER_1), project_id, BIDDER_1, 5).unwrap();
+		PolimecFunding::settle_contribution(RuntimeOrigin::signed(BIDDER_1), project_id, BIDDER_1, 6).unwrap();
+		PolimecFunding::settle_contribution(RuntimeOrigin::signed(BIDDER_1), project_id, BIDDER_1, 7).unwrap();
+	});
+
+	let hold_reason: mock::RuntimeHoldReason = HoldReason::Participation.into();
+	let bidder_1_schedules =
+		inst.execute(|| pallet_linear_release::Vesting::<TestRuntime>::get(BIDDER_1, hold_reason).unwrap().to_vec());
+	// Evaluations didn't get a vesting schedule
+	assert_eq!(bidder_1_schedules.len(), 4);
+
+	inst.execute(|| {
+		let block_hash = System::block_hash(System::block_number());
+		let (idx_1, idx_2) = TestRuntime::get_next_vesting_schedule_merge_candidates(
+			&TestRuntime,
+			block_hash,
+			BIDDER_1,
+			HoldReason::Participation.into(),
+			// within 100 blocks
+			100u128,
+		)
+		.unwrap()
+		.unwrap();
+		assert_eq!((idx_1, idx_2), (1, 2));
+
+		// Merging the two schedules deletes them and creates a new one at the end of the vec.
+		LinearRelease::merge_schedules(RuntimeOrigin::signed(BIDDER_1), idx_1, idx_2, hold_reason).unwrap();
+
+		let (idx_1, idx_2) = TestRuntime::get_next_vesting_schedule_merge_candidates(
+			&TestRuntime,
+			block_hash,
+			BIDDER_1,
+			HoldReason::Participation.into(),
+			// within 100 blocks
+			100u128,
+		)
+		.unwrap()
+		.unwrap();
+		assert_eq!((idx_1, idx_2), (0, 1));
+	});
+}
+
+#[test]
 fn all_project_participations_by_did() {
 	let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 

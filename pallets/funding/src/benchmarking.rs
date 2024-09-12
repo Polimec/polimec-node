@@ -248,7 +248,7 @@ pub fn default_bidder_multipliers() -> Vec<u8> {
 	vec![10u8, 3u8, 1u8, 7u8, 4u8]
 }
 pub fn default_community_contributor_multipliers() -> Vec<u8> {
-	vec![1u8, 1u8, 1u8, 1u8, 1u8]
+	vec![2u8, 1u8, 3u8, 1u8, 1u8]
 }
 pub fn default_remainder_contributor_multipliers() -> Vec<u8> {
 	vec![1u8, 11u8, 1u8, 1u8, 1u8]

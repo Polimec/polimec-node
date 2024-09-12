@@ -53,11 +53,15 @@ sp_api::decl_runtime_apis! {
 		fn projects_by_did(did: Did) -> Vec<ProjectId>;
 	}
 
-	#[api_version(1)]
+	#[api_version(2)]
 	pub trait ExtrinsicHelpers<T: Config> {
 		/// Get the current price of a contribution token (either current bucket in the auction, or WAP in contribution phase),
 		/// and calculate the amount of tokens that can be bought with the given amount USDT/USDC/DOT.
 		fn funding_asset_to_ct_amount(project_id: ProjectId, asset: AcceptedFundingAsset, asset_amount: Balance) -> Balance;
+
+		/// Get the indexes of vesting schedules that are good candidates to be merged.
+		/// Schedules that have not yet started are de-facto bad candidates.
+		fn get_next_vesting_schedule_merge_candidates(account_id: AccountIdOf<T>, hold_reason: <T as Config>::RuntimeHoldReason, end_max_delta: Balance) -> Option<(u32, u32)>;
 	}
 }
 
@@ -167,6 +171,41 @@ impl<T: Config> Pallet<T> {
 		}
 
 		ct_amount
+	}
+
+	pub fn get_next_vesting_schedule_merge_candidates(
+		account_id: AccountIdOf<T>,
+		hold_reason: <T as Config>::RuntimeHoldReason,
+		end_max_delta: Balance,
+	) -> Option<(u32, u32)> {
+		let schedules = pallet_linear_release::Vesting::<T>::get(account_id, hold_reason)?
+			.into_iter()
+			.enumerate()
+			// Filter out schedules with future starting blocks before collecting them into a vector.
+			.filter_map(|(i, schedule)| {
+				if schedule.starting_block > <frame_system::Pallet<T>>::block_number() {
+					None
+				} else {
+					Some((i, schedule.ending_block_as_balance::<BlockNumberToBalanceOf<T>>()))
+				}
+			})
+			.collect::<Vec<_>>();
+
+		let mut inspected_schedules = BTreeMap::new();
+
+		for (i, schedule_end) in schedules {
+			let range_start = schedule_end.saturating_sub(end_max_delta);
+			let range_end = schedule_end.saturating_add(end_max_delta);
+
+			//  All entries where the ending_block is between range_start and range_end.
+			if let Some((_, &j)) = inspected_schedules.range(range_start..=range_end).next() {
+				return Some((j as u32, i as u32));
+			}
+
+			inspected_schedules.insert(schedule_end, i);
+		}
+
+		None
 	}
 
 	pub fn all_project_participations_by_did(project_id: ProjectId, did: Did) -> Vec<ProjectParticipationIds<T>> {

@@ -121,7 +121,6 @@ impl<
 		output.merge_accounts(MergeOperation::Add)
 	}
 
-	// WARNING: Only put bids that you are sure will be done before the random end of the closing auction
 	pub fn calculate_auction_plmc_returned_from_all_bids_made(
 		&mut self,
 		// bids in the order they were made
