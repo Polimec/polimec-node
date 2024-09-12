@@ -1037,7 +1037,6 @@ impl pallet_funding::Config for Runtime {
 	type AuctionRoundDuration = AuctionRoundDuration;
 	type Balance = Balance;
 	type BlockNumber = BlockNumber;
-	type BlockNumberToBalance = ConvertInto;
 	type BlockchainOperationTreasury = BlockchainOperationTreasury;
 	type CommunityRoundDuration = CommunityRoundDuration;
 	type ContributionTokenCurrency = ContributionTokens;
@@ -1075,7 +1074,6 @@ impl pallet_funding::Config for Runtime {
 	type SetPrices = benchmark_helpers::SetOraclePrices;
 	type StringLimit = ConstU32<64>;
 	type VerifierPublicKey = VerifierPublicKey;
-	type Vesting = LinearRelease;
 	type WeightInfo = weights::pallet_funding::WeightInfo<Runtime>;
 }
 

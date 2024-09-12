@@ -145,6 +145,7 @@ pub type ContributionInfoOf<T> =
 
 pub type BucketOf<T> = Bucket<BalanceOf<T>, PriceOf<T>>;
 pub type WeightInfoOf<T> = <T as Config>::WeightInfo;
+pub type VestingOf<T> = pallet_linear_release::Pallet<T>;
 
 pub const PLMC_FOREIGN_ID: u32 = 3344;
 pub const PLMC_DECIMALS: u8 = 10;
@@ -179,7 +180,13 @@ pub mod pallet {
 
 	#[pallet::config]
 	pub trait Config:
-		frame_system::Config + pallet_balances::Config<Balance = BalanceOf<Self>> + pallet_xcm::Config
+		frame_system::Config
+		+ pallet_balances::Config<Balance = BalanceOf<Self>>
+		+ pallet_xcm::Config
+		+ pallet_linear_release::Config<
+			Balance = BalanceOf<Self>,
+			RuntimeHoldReason = <Self as Config>::RuntimeHoldReason,
+		>
 	{
 		/// A way to convert from and to the account type used in CT migrations
 		type AccountId32Conversion: ConvertBack<Self::AccountId, [u8; 32]>;
@@ -196,9 +203,6 @@ pub mod pallet {
 		// TODO: our local BlockNumber should be removed once we move onto using Moment for time tracking
 		/// BlockNumber used for PLMC vesting durations on this chain, and CT vesting durations on funded chains.
 		type BlockNumber: IsType<BlockNumberFor<Self>> + Into<u64>;
-
-		/// The length (expressed in number of blocks) of the Auction Round, Closing period.
-		type BlockNumberToBalance: Convert<BlockNumberFor<Self>, BalanceOf<Self>>;
 
 		/// The length (expressed in number of blocks) of the Community Round.
 		#[pallet::constant]
@@ -369,14 +373,6 @@ pub mod pallet {
 		/// The Ed25519 Verifier Public Key of credential JWTs
 		#[pallet::constant]
 		type VerifierPublicKey: Get<[u8; 32]>;
-
-		/// The type used for vesting
-		type Vesting: polimec_common::ReleaseSchedule<
-			AccountIdOf<Self>,
-			<Self as Config>::RuntimeHoldReason,
-			Currency = Self::NativeCurrency,
-			Moment = BlockNumberFor<Self>,
-		>;
 
 		/// Struct holding information about extrinsic weights
 		type WeightInfo: weights::WeightInfo;
