@@ -64,6 +64,69 @@ fn get_from_seed<TPublic: Public>(seed: &str) -> <TPublic::Pair as Pair>::Public
 	TPublic::Pair::from_string(&format!("//{}", seed), None).expect("static values are valid; qed").public()
 }
 
+pub struct Prices {
+	pub dot: FixedU128,
+	pub usdc: FixedU128,
+	pub usdt: FixedU128,
+	pub plmc: FixedU128,
+}
+
+// PricesBuilder for optional fields before building Prices
+#[derive(Clone, Copy)]
+pub struct PricesBuilder {
+	dot: Option<FixedU128>,
+	usdc: Option<FixedU128>,
+	usdt: Option<FixedU128>,
+	plmc: Option<FixedU128>,
+}
+
+impl PricesBuilder {
+	// Initialize a new builder with None for each field
+	pub fn new() -> Self {
+		Self { dot: None, usdc: None, usdt: None, plmc: None }
+	}
+
+	pub fn default() -> Prices {
+		Prices {
+			dot: FixedU128::from_rational(69, 1),
+			usdc: FixedU128::from_rational(1, 1),
+			usdt: FixedU128::from_rational(1, 1),
+			plmc: FixedU128::from_rational(840, 100),
+		}
+	}
+
+	// Setters that take FixedU128 and return &mut self for chaining
+	pub fn dot(&mut self, price: FixedU128) -> &mut Self {
+		self.dot = Some(price);
+		self
+	}
+
+	pub fn usdc(&mut self, price: FixedU128) -> &mut Self {
+		self.usdc = Some(price);
+		self
+	}
+
+	pub fn usdt(&mut self, price: FixedU128) -> &mut Self {
+		self.usdt = Some(price);
+		self
+	}
+
+	pub fn plmc(&mut self, price: FixedU128) -> &mut Self {
+		self.plmc = Some(price);
+		self
+	}
+
+	// Build Prices using provided values or default values
+	pub fn build(self) -> Prices {
+		Prices {
+			dot: self.dot.unwrap_or(FixedU128::from_rational(69, 1)), // Default DOT price
+			usdc: self.usdc.unwrap_or(FixedU128::from_rational(1, 1)), // Default USDC price
+			usdt: self.usdt.unwrap_or(FixedU128::from_rational(1, 1)), // Default USDT price
+			plmc: self.plmc.unwrap_or(FixedU128::from_rational(840, 100)), // Default PLMC price
+		}
+	}
+}
+
 pub mod accounts {
 	use super::*;
 	pub const ALICE: &str = "Alice";
@@ -377,13 +440,12 @@ pub mod polimec {
 	const GENESIS_PARACHAIN_BOND_RESERVE_PERCENT: Percent = Percent::from_percent(0);
 	const GENESIS_NUM_SELECTED_CANDIDATES: u32 = 5;
 
-	#[allow(unused)]
-	pub fn set_prices() {
+	pub fn set_prices(prices: Prices) {
 		PolimecNet::execute_with(|| {
-			let dot = (AcceptedFundingAsset::DOT.id(), FixedU128::from_rational(69, 1));
-			let usdc = (AcceptedFundingAsset::USDC.id(), FixedU128::from_rational(1, 1));
-			let usdt = (AcceptedFundingAsset::USDT.id(), FixedU128::from_rational(1, 1));
-			let plmc = (pallet_funding::PLMC_FOREIGN_ID, FixedU128::from_rational(840, 100));
+			let dot = (AcceptedFundingAsset::DOT.id(), prices.dot);
+			let usdc = (AcceptedFundingAsset::USDC.id(), prices.usdc);
+			let usdt = (AcceptedFundingAsset::USDT.id(), prices.usdt);
+			let plmc = (pallet_funding::PLMC_FOREIGN_ID, prices.plmc);
 
 			let values: BoundedVec<(u32, FixedU128), <PolimecRuntime as orml_oracle::Config>::MaxFeedValues> =
 				vec![dot, usdc, usdt, plmc].try_into().expect("benchmarks can panic");

@@ -11,6 +11,7 @@ use frame_support::{
 		Get,
 	},
 };
+use on_slash_vesting::OnSlash;
 use polimec_common::{
 	migration_types::{MigrationInfo, MigrationOrigin, MigrationStatus, ParticipationType},
 	ReleaseSchedule,
@@ -392,6 +393,8 @@ impl<T: Config> Pallet<T> {
 			Restriction::Free,
 			Fortitude::Force,
 		)?;
+
+		T::OnSlash::on_slash(&evaluation.evaluator, slashed_amount);
 
 		Ok(evaluation.current_plmc_bond.saturating_sub(slashed_amount))
 	}

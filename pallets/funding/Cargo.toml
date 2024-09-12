@@ -28,6 +28,7 @@ log.workspace = true
 variant_count = "1.1.0"
 
 pallet-linear-release.workspace = true
+on-slash-vesting.workspace = true
 
 # Substrate dependencies
 frame-support.workspace = true
@@ -70,6 +71,7 @@ std = [
 	"frame-system/std",
 	"itertools/use_std",
 	"log/std",
+	"on-slash-vesting/std",
 	"pallet-assets/std",
 	"pallet-balances/std",
 	"pallet-insecure-randomness-collective-flip/std",
@@ -112,6 +114,7 @@ runtime-benchmarks = [
 	"sp-runtime/runtime-benchmarks",
 	"xcm-builder/runtime-benchmarks",
 	"xcm-executor/runtime-benchmarks",
+	"on-slash-vesting/runtime-benchmarks"
 ]
 try-runtime = [
 	"frame-support/try-runtime",

@@ -446,6 +446,7 @@ dependencies = [
  "frame-system-benchmarking",
  "frame-system-rpc-runtime-api",
  "frame-try-runtime",
+ "hex-literal",
  "kusama-runtime-constants",
  "log",
  "pallet-asset-conversion",
@@ -6529,6 +6530,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "on-slash-vesting"
+version = "0.8.0"
+dependencies = [
+ "frame-support",
+ "frame-system",
+ "impl-trait-for-tuples",
+ "log",
+ "pallet-balances",
+ "pallet-vesting",
+ "parity-scale-codec",
+ "scale-info",
+ "serde",
+ "sp-io",
+ "sp-runtime",
+]
+
+[[package]]
 name = "once_cell"
 version = "1.19.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -7258,6 +7276,7 @@ dependencies = [
  "itertools 0.11.0",
  "log",
  "macros",
+ "on-slash-vesting",
  "pallet-assets",
  "pallet-balances",
  "pallet-insecure-randomness-collective-flip",
@@ -8772,6 +8791,7 @@ dependencies = [
  "frame-try-runtime",
  "hex-literal",
  "log",
+ "on-slash-vesting",
  "orml-oracle",
  "pallet-assets",
  "pallet-aura",
