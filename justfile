@@ -121,5 +121,5 @@ create-chainspec-base:
     ./scripts/create_base_chain_spec.sh ./runtimes/base/target/srtool/release/wbuild/polimec-runtime/polimec_runtime.compact.compressed.wasm 2105
 
 # Use zombienet to spawn rococo + polimec testnet
-zombienet path_to_file="scripts/zombienet/native/base-rococo-local.toml":
+dev path_to_file="scripts/zombienet/polimec-paseo-local.toml":
     zombienet spawn {{ path_to_file }}
