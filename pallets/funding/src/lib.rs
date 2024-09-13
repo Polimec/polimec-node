@@ -88,7 +88,7 @@ pub use pallet::*;
 use pallet_xcm::ensure_response;
 use polimec_common::{
 	credentials::{Cid, Did, EnsureOriginWithCredentials, InvestorType, UntrustedToken},
-	migration_types::{Migration, MigrationStatus, ParticipationType},
+	migration_types::{Migration, MigrationStatusd},
 };
 use polkadot_parachain_primitives::primitives::Id as ParaId;
 use sp_arithmetic::traits::{One, Saturating};
@@ -111,6 +111,9 @@ pub mod tests;
 
 #[cfg(not(feature = "on-chain-release-build"))]
 pub mod instantiator;
+
+#[cfg(not(feature = "on-chain-release-build"))]
+use polimec_common::migration_types::ParticipationType;
 
 #[cfg(feature = "runtime-benchmarks")]
 pub mod benchmarking;
