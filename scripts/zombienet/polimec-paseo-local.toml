@@ -4,7 +4,7 @@ provider = "native"
 
 [relaychain]
 default_command = "polkadot"
-chain_spec_path = "./scripts/zombienet/relay-chain-specs/paseo-local.plain.json"
+chain = "rococo-local"
 
 	[[relaychain.nodes]]
 	name = "eve"
