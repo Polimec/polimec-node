@@ -140,7 +140,7 @@ impl<T: Config> Pallet<T> {
 		let funding_asset_id = asset.id();
 		let funding_asset_decimals = T::FundingCurrency::decimals(funding_asset_id);
 		let funding_asset_usd_price =
-			T::PriceProvider::get_decimals_aware_price(funding_asset_id, USD_DECIMALS, funding_asset_decimals)
+			<PriceProviderOf<T>>::get_decimals_aware_price(funding_asset_id, USD_DECIMALS, funding_asset_decimals)
 				.expect("Price not found");
 		let usd_ticket_size = funding_asset_usd_price.saturating_mul_int(asset_amount);
 

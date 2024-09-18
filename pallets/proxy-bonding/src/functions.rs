@@ -1,4 +1,4 @@
-use crate::{AccountIdOf, AssetId, BalanceOf, Config, Error, Pallet, ReleaseType, Releases};
+use crate::{AccountIdOf, AssetId, BalanceOf, Config, Error, Pallet, PriceProviderOf, ReleaseType, Releases};
 use frame_support::{
 	ensure,
 	traits::{
@@ -21,7 +21,7 @@ impl<T: Config> Pallet<T> {
 	/// e.g. if the fee is 1%, native token PLMC, fee_asset USDT, bond_amount 1000 PLMC, PLMC price 0.5USD, USDT price 1USD,
 	/// Then the calculated fee would be 1% * 1000 * 0.5 = 5USD, which is 5 USDT at a price of 1USD.
 	pub fn calculate_fee(bond_amount: BalanceOf<T>, fee_asset: AssetId) -> Result<BalanceOf<T>, DispatchError> {
-		let bonding_token_price = T::PriceProvider::get_decimals_aware_price(
+		let bonding_token_price = <PriceProviderOf<T>>::get_decimals_aware_price(
 			T::BondingTokenId::get(),
 			T::UsdDecimals::get(),
 			T::BondingTokenDecimals::get(),
@@ -30,7 +30,7 @@ impl<T: Config> Pallet<T> {
 
 		let fee_asset_decimals = <T::FeeToken as fungibles::metadata::Inspect<AccountIdOf<T>>>::decimals(fee_asset);
 		let fee_token_price =
-			T::PriceProvider::get_decimals_aware_price(fee_asset, T::UsdDecimals::get(), fee_asset_decimals)
+			<PriceProviderOf<T>>::get_decimals_aware_price(fee_asset, T::UsdDecimals::get(), fee_asset_decimals)
 				.ok_or(Error::<T>::PriceNotAvailable)?;
 
 		let bonded_in_usd = bonding_token_price.saturating_mul_int(bond_amount);

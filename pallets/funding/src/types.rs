@@ -48,12 +48,12 @@ pub mod config {
 		Decode,
 		Eq,
 		PartialEq,
-		RuntimeDebug,
 		TypeInfo,
 		MaxEncodedLen,
 		Copy,
 		Ord,
 		PartialOrd,
+		RuntimeDebug,
 		Serialize,
 		Deserialize,
 	)]
@@ -345,7 +345,7 @@ pub mod storage {
 	}
 
 	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
-	pub struct BidInfo<ProjectId, Did, Price: FixedPointNumber, AccountId, BlockNumber, Multiplier> {
+	pub struct BidInfo<ProjectId, Did, Price: FixedPointNumber, AccountId, BlockNumber> {
 		pub id: u32,
 		pub project_id: ProjectId,
 		pub bidder: AccountId,
@@ -356,12 +356,12 @@ pub mod storage {
 		pub original_ct_usd_price: Price,
 		pub funding_asset: AcceptedFundingAsset,
 		pub funding_asset_amount_locked: Balance,
-		pub multiplier: Multiplier,
+		pub mode: ParticipationMode,
 		pub plmc_bond: Balance,
 		pub when: BlockNumber,
 	}
-	impl<ProjectId, Did, Price: FixedPointNumber, AccountId, BlockNumber, Multiplier>
-		BidInfo<ProjectId, Did, Price, AccountId, BlockNumber, Multiplier>
+	impl<ProjectId, Did, Price: FixedPointNumber, AccountId, BlockNumber>
+		BidInfo<ProjectId, Did, Price, AccountId, BlockNumber>
 	{
 		pub fn final_ct_amount(&self) -> Balance {
 			match self.status {
@@ -372,8 +372,8 @@ pub mod storage {
 		}
 	}
 
-	impl<ProjectId: Eq, Did: Eq, Price: FixedPointNumber, AccountId: Eq, BlockNumber: Eq + Ord, Multiplier: Eq> Ord
-		for BidInfo<ProjectId, Did, Price, AccountId, BlockNumber, Multiplier>
+	impl<ProjectId: Eq, Did: Eq, Price: FixedPointNumber, AccountId: Eq, BlockNumber: Eq + Ord> Ord
+		for BidInfo<ProjectId, Did, Price, AccountId, BlockNumber>
 	{
 		fn cmp(&self, other: &Self) -> sp_std::cmp::Ordering {
 			match self.original_ct_usd_price.cmp(&other.original_ct_usd_price) {
@@ -383,8 +383,8 @@ pub mod storage {
 		}
 	}
 
-	impl<ProjectId: Eq, Did: Eq, Price: FixedPointNumber, AccountId: Eq, BlockNumber: Eq + Ord, Multiplier: Eq>
-		PartialOrd for BidInfo<ProjectId, Did, Price, AccountId, BlockNumber, Multiplier>
+	impl<ProjectId: Eq, Did: Eq, Price: FixedPointNumber, AccountId: Eq, BlockNumber: Eq + Ord> PartialOrd
+		for BidInfo<ProjectId, Did, Price, AccountId, BlockNumber>
 	{
 		fn partial_cmp(&self, other: &Self) -> Option<sp_std::cmp::Ordering> {
 			Some(self.cmp(other))
@@ -392,14 +392,14 @@ pub mod storage {
 	}
 
 	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
-	pub struct ContributionInfo<Id, Did, ProjectId, AccountId, BlockNumber, Multiplier> {
+	pub struct ContributionInfo<Id, Did, ProjectId, AccountId, BlockNumber> {
 		pub id: Id,
 		pub did: Did,
 		pub project_id: ProjectId,
 		pub contributor: AccountId,
 		pub ct_amount: Balance,
 		pub usd_contribution_amount: Balance,
-		pub multiplier: Multiplier,
+		pub mode: ParticipationMode,
 		pub funding_asset: AcceptedFundingAsset,
 		pub funding_asset_amount: Balance,
 		pub plmc_bond: Balance,
@@ -800,12 +800,31 @@ pub mod inner {
 		pub project_id: ProjectId,
 		pub migration_origins: MigrationOrigins,
 	}
+
+	#[derive(
+		Clone, Copy, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen, Serialize, Deserialize,
+	)]
+	pub enum ParticipationMode {
+		/// One Token Model. User only needs funding assets, and pays a fee to bond treasury PLMC.
+		OTM,
+		/// Normal model. User needs to bond PLMC based on a multiplier, and pays no fee.
+		Classic(u8),
+	}
+	impl ParticipationMode {
+		pub fn multiplier(&self) -> u8 {
+			match self {
+				// OTM multiplier is fixed at 5
+				ParticipationMode::OTM => 5u8,
+				ParticipationMode::Classic(multiplier) => *multiplier,
+			}
+		}
+	}
 }
 
 pub mod extrinsic {
 	use crate::{
-		AcceptedFundingAsset, AccountIdOf, Balance, Config, MultiplierOf, PriceOf, ProjectDetailsOf, ProjectId,
-		TicketSize,
+		AcceptedFundingAsset, AccountIdOf, Balance, Config, MultiplierOf, ParticipationMode, PriceOf, ProjectDetailsOf,
+		ProjectId, TicketSize,
 	};
 	use frame_system::pallet_prelude::BlockNumberFor;
 	use polimec_common::credentials::{Cid, Did, InvestorType};
@@ -814,7 +833,7 @@ pub mod extrinsic {
 		pub bidder: AccountIdOf<T>,
 		pub project_id: ProjectId,
 		pub ct_amount: Balance,
-		pub multiplier: MultiplierOf<T>,
+		pub mode: ParticipationMode,
 		pub funding_asset: AcceptedFundingAsset,
 		pub did: Did,
 		pub investor_type: InvestorType,
@@ -826,7 +845,7 @@ pub mod extrinsic {
 		pub project_id: ProjectId,
 		pub ct_amount: Balance,
 		pub ct_usd_price: PriceOf<T>,
-		pub multiplier: MultiplierOf<T>,
+		pub mode: ParticipationMode,
 		pub funding_asset: AcceptedFundingAsset,
 		pub bid_id: u32,
 		pub now: BlockNumberFor<T>,
@@ -840,7 +859,7 @@ pub mod extrinsic {
 		pub contributor: AccountIdOf<T>,
 		pub project_id: ProjectId,
 		pub ct_amount: Balance,
-		pub multiplier: MultiplierOf<T>,
+		pub mode: ParticipationMode,
 		pub funding_asset: AcceptedFundingAsset,
 		pub did: Did,
 		pub investor_type: InvestorType,
@@ -852,7 +871,7 @@ pub mod extrinsic {
 		pub project_id: ProjectId,
 		pub project_details: &'a mut ProjectDetailsOf<T>,
 		pub buyable_tokens: Balance,
-		pub multiplier: MultiplierOf<T>,
+		pub mode: ParticipationMode,
 		pub funding_asset: AcceptedFundingAsset,
 		pub investor_type: InvestorType,
 		pub did: Did,

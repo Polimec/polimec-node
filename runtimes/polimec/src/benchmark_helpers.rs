@@ -1,6 +1,7 @@
 use crate::{Oracle, Runtime, RuntimeOrigin};
 use alloc::vec;
 use pallet_funding::{traits::SetPrices, AcceptedFundingAsset};
+use polimec_common::PLMC_FOREIGN_ID;
 use sp_runtime::{BoundedVec, FixedU128};
 
 pub struct SetOraclePrices;
@@ -9,7 +10,7 @@ impl SetPrices for SetOraclePrices {
 		let dot = (AcceptedFundingAsset::DOT.id(), FixedU128::from_rational(69, 1));
 		let usdc = (AcceptedFundingAsset::USDC.id(), FixedU128::from_rational(1, 1));
 		let usdt = (AcceptedFundingAsset::USDT.id(), FixedU128::from_rational(1, 1));
-		let plmc = (pallet_funding::PLMC_FOREIGN_ID, FixedU128::from_rational(840, 100));
+		let plmc = (PLMC_FOREIGN_ID, FixedU128::from_rational(840, 100));
 
 		let values: BoundedVec<(u32, FixedU128), <Runtime as orml_oracle::Config>::MaxFeedValues> =
 			vec![dot, usdc, usdt, plmc].try_into().expect("benchmarks can panic");

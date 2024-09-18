@@ -82,7 +82,12 @@ mod round_flow {
 			let remaining_ct = inst.get_project_details(project_id).remaining_contribution_tokens;
 			let ct_price = inst.get_project_details(project_id).weighted_average_price.expect("CT Price should exist");
 
-			let contributions = vec![ContributionParams::new(BOB, remaining_ct, 1u8, AcceptedFundingAsset::USDT)];
+			let contributions = vec![ContributionParams::new(
+				BOB,
+				remaining_ct,
+				ParticipationMode::Classic(1u8),
+				AcceptedFundingAsset::USDT,
+			)];
 			let plmc_fundings = inst.calculate_contributed_plmc_spent(contributions.clone(), ct_price, false);
 			let plmc_existential_deposits = plmc_fundings.accounts().existential_deposits();
 			let foreign_asset_fundings =
@@ -290,7 +295,7 @@ mod round_flow {
 					),
 					project_id,
 					total_funding_ct,
-					1u8.try_into().unwrap(),
+					ParticipationMode::Classic(1),
 					funding_asset,
 				)));
 
@@ -380,7 +385,7 @@ mod contribute_extrinsic {
 						),
 						project_id,
 						usable_ct + slashable_ct,
-						1u8.try_into().unwrap(),
+						ParticipationMode::Classic(1),
 						AcceptedFundingAsset::USDT,
 					),
 					Error::<TestRuntime>::ParticipantNotEnoughFunds
@@ -402,7 +407,7 @@ mod contribute_extrinsic {
 					),
 					project_id,
 					usable_ct / 2,
-					1u8.try_into().unwrap(),
+					ParticipationMode::Classic(1),
 					AcceptedFundingAsset::USDT,
 				));
 			});
@@ -422,7 +427,7 @@ mod contribute_extrinsic {
 					),
 					project_id,
 					usable_ct,
-					1u8.try_into().unwrap(),
+					ParticipationMode::Classic(1),
 					AcceptedFundingAsset::USDT,
 				));
 			});
@@ -515,7 +520,7 @@ mod contribute_extrinsic {
 					),
 					project_id,
 					usable_bob_ct,
-					1u8.try_into().unwrap(),
+					ParticipationMode::Classic(1),
 					AcceptedFundingAsset::USDT,
 				));
 			});
@@ -544,9 +549,24 @@ mod contribute_extrinsic {
 				default_evaluations(),
 				default_bids(),
 			);
-			let usdt_contribution = ContributionParams::new(BUYER_1, 10_000 * CT_UNIT, 1u8, AcceptedFundingAsset::USDT);
-			let usdc_contribution = ContributionParams::new(BUYER_2, 10_000 * CT_UNIT, 1u8, AcceptedFundingAsset::USDC);
-			let dot_contribution = ContributionParams::new(BUYER_3, 10_000 * CT_UNIT, 1u8, AcceptedFundingAsset::DOT);
+			let usdt_contribution = ContributionParams::new(
+				BUYER_1,
+				10_000 * CT_UNIT,
+				ParticipationMode::Classic(1u8),
+				AcceptedFundingAsset::USDT,
+			);
+			let usdc_contribution = ContributionParams::new(
+				BUYER_2,
+				10_000 * CT_UNIT,
+				ParticipationMode::Classic(1u8),
+				AcceptedFundingAsset::USDC,
+			);
+			let dot_contribution = ContributionParams::new(
+				BUYER_3,
+				10_000 * CT_UNIT,
+				ParticipationMode::Classic(1u8),
+				AcceptedFundingAsset::DOT,
+			);
 
 			let wap = inst.get_project_details(project_id).weighted_average_price.unwrap();
 
@@ -588,14 +608,13 @@ mod contribute_extrinsic {
 				project_policy,
 			);
 			let amount = 1000 * CT_UNIT;
-			let multiplier = Multiplier::force_new(u8_multiplier);
 			let wap = inst.get_project_details(project_id).weighted_average_price.unwrap();
 
 			if u8_multiplier > 0 {
 				let contribution = ContributionParams::<TestRuntime> {
 					contributor: contributor.clone(),
 					amount,
-					multiplier,
+					mode: ParticipationMode::Classic(u8_multiplier),
 					asset: AcceptedFundingAsset::USDT,
 				};
 
@@ -613,7 +632,7 @@ mod contribute_extrinsic {
 					jwt,
 					project_id,
 					amount,
-					multiplier,
+					ParticipationMode::Classic(u8_multiplier),
 					AcceptedFundingAsset::USDT,
 				)
 			})
@@ -787,7 +806,7 @@ mod contribute_extrinsic {
 						),
 						project_id,
 						10 * CT_UNIT,
-						1u8.try_into().unwrap(),
+						ParticipationMode::Classic(1),
 						AcceptedFundingAsset::USDT,
 					));
 				});
@@ -817,7 +836,12 @@ mod contribute_extrinsic {
 			);
 			let wap = inst.get_project_details(project_id).weighted_average_price.unwrap();
 
-			let contribution = ContributionParams::new(BUYER_4, 500 * CT_UNIT, 1u8, AcceptedFundingAsset::USDT);
+			let contribution = ContributionParams::new(
+				BUYER_4,
+				500 * CT_UNIT,
+				ParticipationMode::Classic(1u8),
+				AcceptedFundingAsset::USDT,
+			);
 			let plmc_required = inst.calculate_contributed_plmc_spent(vec![contribution.clone()], wap, false);
 			let frozen_amount = plmc_required[0].plmc_amount;
 			let plmc_existential_deposits = plmc_required.accounts().existential_deposits();
@@ -850,7 +874,7 @@ mod contribute_extrinsic {
 					),
 					project_id,
 					contribution.amount,
-					contribution.multiplier,
+					contribution.mode,
 					contribution.asset
 				));
 			});
@@ -894,7 +918,12 @@ mod contribute_extrinsic {
 			);
 			let wap = inst.get_project_details(project_id).weighted_average_price.unwrap();
 
-			let contribution = ContributionParams::new(BUYER_4, 500 * CT_UNIT, 5u8, AcceptedFundingAsset::USDT);
+			let contribution = ContributionParams::new(
+				BUYER_4,
+				500 * CT_UNIT,
+				ParticipationMode::Classic(5u8),
+				AcceptedFundingAsset::USDT,
+			);
 			let plmc_required = inst.calculate_contributed_plmc_spent(vec![contribution.clone()], wap, false);
 			let frozen_amount = plmc_required[0].plmc_amount;
 			let plmc_existential_deposits = plmc_required.accounts().existential_deposits();
@@ -927,7 +956,7 @@ mod contribute_extrinsic {
 					),
 					project_id,
 					contribution.amount,
-					contribution.multiplier,
+					contribution.mode,
 					contribution.asset
 				));
 			});
@@ -987,7 +1016,7 @@ mod contribute_extrinsic {
 			remainder_contributions.push(ContributionParams::new(
 				participant,
 				10 * CT_UNIT,
-				1u8,
+				ParticipationMode::Classic(1),
 				AcceptedFundingAsset::USDT,
 			));
 
@@ -1032,7 +1061,14 @@ mod contribute_extrinsic {
 			let token_amount: Balance = CT_UNIT;
 			let range = 0..<TestRuntime as Config>::MaxContributionsPerUser::get();
 			let contributions: Vec<ContributionParams<_>> = range
-				.map(|_| ContributionParams::new(CONTRIBUTOR, token_amount, 1u8, AcceptedFundingAsset::USDT))
+				.map(|_| {
+					ContributionParams::new(
+						CONTRIBUTOR,
+						token_amount,
+						ParticipationMode::Classic(1u8),
+						AcceptedFundingAsset::USDT,
+					)
+				})
 				.collect();
 
 			let plmc_funding = inst.calculate_contributed_plmc_spent(contributions.clone(), token_price, false);
@@ -1049,8 +1085,12 @@ mod contribute_extrinsic {
 			assert!(inst.contribute_for_users(project_id, contributions).is_ok());
 
 			// Try to contribute again, but it should fail because the limit of contributions for a user-project was reached.
-			let over_limit_contribution =
-				ContributionParams::new(CONTRIBUTOR, token_amount, 1u8, AcceptedFundingAsset::USDT);
+			let over_limit_contribution = ContributionParams::new(
+				CONTRIBUTOR,
+				token_amount,
+				ParticipationMode::Classic(1u8),
+				AcceptedFundingAsset::USDT,
+			);
 			assert!(inst.contribute_for_users(project_id, vec![over_limit_contribution]).is_err());
 
 			// Check that the right amount of PLMC is bonded, and funding currency is transferred
@@ -1098,7 +1138,7 @@ mod contribute_extrinsic {
 					contributor: ISSUER_1,
 					project_id,
 					ct_amount: 500 * CT_UNIT,
-					multiplier: 1u8.try_into().unwrap(),
+					mode: ParticipationMode::Classic(1),
 					funding_asset: AcceptedFundingAsset::USDT,
 					did: generate_did_from_account(ISSUER_1),
 					investor_type: InvestorType::Institutional,
@@ -1142,7 +1182,7 @@ mod contribute_extrinsic {
 							),
 							project_id,
 							10 * CT_UNIT,
-							1u8.try_into().unwrap(),
+							ParticipationMode::Classic(1),
 							AcceptedFundingAsset::USDT,
 						),
 						Error::<TestRuntime>::UserHasWinningBid
@@ -1221,7 +1261,7 @@ mod contribute_extrinsic {
 						jwt,
 						project_id,
 						CT_UNIT / 2,
-						1u8.try_into().unwrap(),
+						ParticipationMode::Classic(1),
 						AcceptedFundingAsset::USDT,
 					),
 					Error::<TestRuntime>::TooLow
@@ -1241,7 +1281,7 @@ mod contribute_extrinsic {
 						jwt,
 						project_id,
 						9_999,
-						1u8.try_into().unwrap(),
+						ParticipationMode::Classic(1),
 						AcceptedFundingAsset::USDT,
 					),
 					Error::<TestRuntime>::TooLow
@@ -1262,7 +1302,7 @@ mod contribute_extrinsic {
 						jwt,
 						project_id,
 						19_999,
-						1u8.try_into().unwrap(),
+						ParticipationMode::Classic(1),
 						AcceptedFundingAsset::USDT,
 					),
 					Error::<TestRuntime>::TooLow
@@ -1326,7 +1366,7 @@ mod contribute_extrinsic {
 					buyer_1_jwt,
 					project_id,
 					9000 * CT_UNIT,
-					1u8.try_into().unwrap(),
+					ParticipationMode::Classic(1),
 					AcceptedFundingAsset::USDT,
 				));
 			});
@@ -1337,7 +1377,7 @@ mod contribute_extrinsic {
 						buyer_2_jwt_same_did.clone(),
 						project_id,
 						1001 * CT_UNIT,
-						1u8.try_into().unwrap(),
+						ParticipationMode::Classic(1),
 						AcceptedFundingAsset::USDT,
 					),
 					Error::<TestRuntime>::TooHigh
@@ -1350,7 +1390,7 @@ mod contribute_extrinsic {
 					buyer_2_jwt_same_did,
 					project_id,
 					1000 * CT_UNIT,
-					1u8.try_into().unwrap(),
+					ParticipationMode::Classic(1),
 					AcceptedFundingAsset::USDT,
 				));
 			});
@@ -1374,7 +1414,7 @@ mod contribute_extrinsic {
 					buyer_3_jwt,
 					project_id,
 					1800 * CT_UNIT,
-					1u8.try_into().unwrap(),
+					ParticipationMode::Classic(1),
 					AcceptedFundingAsset::USDT,
 				));
 			});
@@ -1385,7 +1425,7 @@ mod contribute_extrinsic {
 						buyer_4_jwt_same_did.clone(),
 						project_id,
 						201 * CT_UNIT,
-						1u8.try_into().unwrap(),
+						ParticipationMode::Classic(1),
 						AcceptedFundingAsset::USDT,
 					),
 					Error::<TestRuntime>::TooHigh
@@ -1398,7 +1438,7 @@ mod contribute_extrinsic {
 					buyer_4_jwt_same_did,
 					project_id,
 					200 * CT_UNIT,
-					1u8.try_into().unwrap(),
+					ParticipationMode::Classic(1),
 					AcceptedFundingAsset::USDT,
 				));
 			});
@@ -1422,7 +1462,7 @@ mod contribute_extrinsic {
 					buyer_5_jwt,
 					project_id,
 					4690 * CT_UNIT,
-					1u8.try_into().unwrap(),
+					ParticipationMode::Classic(1),
 					AcceptedFundingAsset::USDT,
 				));
 			});
@@ -1433,7 +1473,7 @@ mod contribute_extrinsic {
 						buyer_6_jwt_same_did.clone(),
 						project_id,
 						311 * CT_UNIT,
-						1u8.try_into().unwrap(),
+						ParticipationMode::Classic(1),
 						AcceptedFundingAsset::USDT,
 					),
 					Error::<TestRuntime>::TooHigh
@@ -1446,7 +1486,7 @@ mod contribute_extrinsic {
 					buyer_6_jwt_same_did,
 					project_id,
 					310 * CT_UNIT,
-					1u8.try_into().unwrap(),
+					ParticipationMode::Classic(1),
 					AcceptedFundingAsset::USDT,
 				));
 			});
@@ -1470,7 +1510,12 @@ mod contribute_extrinsic {
 				generate_did_from_account(BUYER_1),
 				project_metadata.clone().policy_ipfs_cid.unwrap(),
 			);
-			let contribution = ContributionParams::new(BUYER_1, 1_000 * CT_UNIT, 1u8, AcceptedFundingAsset::USDT);
+			let contribution = ContributionParams::new(
+				BUYER_1,
+				1_000 * CT_UNIT,
+				ParticipationMode::Classic(1u8),
+				AcceptedFundingAsset::USDT,
+			);
 			let wap = inst.get_project_details(project_id).weighted_average_price.unwrap();
 
 			// 1 unit less native asset than needed
@@ -1492,7 +1537,7 @@ mod contribute_extrinsic {
 						jwt.clone(),
 						project_id,
 						1_000 * CT_UNIT,
-						1u8.try_into().unwrap(),
+						ParticipationMode::Classic(1),
 						AcceptedFundingAsset::USDT,
 					),
 					Error::<TestRuntime>::ParticipantNotEnoughFunds
@@ -1528,7 +1573,7 @@ mod contribute_extrinsic {
 						jwt,
 						project_id,
 						1_000 * CT_UNIT,
-						1u8.try_into().unwrap(),
+						ParticipationMode::Classic(1),
 						AcceptedFundingAsset::USDT,
 					),
 					Error::<TestRuntime>::ParticipantNotEnoughFunds
@@ -1572,7 +1617,7 @@ mod contribute_extrinsic {
 							),
 							project,
 							1000 * CT_UNIT,
-							1u8.try_into().unwrap(),
+							ParticipationMode::Classic(1),
 							AcceptedFundingAsset::USDT
 						),
 						Error::<TestRuntime>::IncorrectRound
@@ -1609,9 +1654,24 @@ mod contribute_extrinsic {
 				})
 				.collect::<Vec<_>>();
 
-			let usdt_contribution = ContributionParams::new(BUYER_1, 10_000 * CT_UNIT, 1u8, AcceptedFundingAsset::USDT);
-			let usdc_contribution = ContributionParams::new(BUYER_2, 10_000 * CT_UNIT, 1u8, AcceptedFundingAsset::USDC);
-			let dot_contribution = ContributionParams::new(BUYER_3, 10_000 * CT_UNIT, 1u8, AcceptedFundingAsset::DOT);
+			let usdt_contribution = ContributionParams::new(
+				BUYER_1,
+				10_000 * CT_UNIT,
+				ParticipationMode::Classic(1u8),
+				AcceptedFundingAsset::USDT,
+			);
+			let usdc_contribution = ContributionParams::new(
+				BUYER_2,
+				10_000 * CT_UNIT,
+				ParticipationMode::Classic(1u8),
+				AcceptedFundingAsset::USDC,
+			);
+			let dot_contribution = ContributionParams::new(
+				BUYER_3,
+				10_000 * CT_UNIT,
+				ParticipationMode::Classic(1u8),
+				AcceptedFundingAsset::DOT,
+			);
 
 			let project_id_usdc = inst.create_community_contributing_project(
 				project_metadata_usdc,
@@ -1653,8 +1713,12 @@ mod contribute_extrinsic {
 
 			let evaluator_contributor = 69;
 			let evaluation_amount = 420 * USD_UNIT;
-			let evaluator_contribution =
-				ContributionParams::new(evaluator_contributor, 600 * CT_UNIT, 1u8, AcceptedFundingAsset::USDT);
+			let evaluator_contribution = ContributionParams::new(
+				evaluator_contributor,
+				600 * CT_UNIT,
+				ParticipationMode::Classic(1u8),
+				AcceptedFundingAsset::USDT,
+			);
 			evaluations_1.push((evaluator_contributor, evaluation_amount).into());
 
 			let _project_id_1 = inst.create_community_contributing_project(
@@ -1702,7 +1766,7 @@ mod contribute_extrinsic {
 						),
 						project_id_2,
 						evaluator_contribution.amount,
-						evaluator_contribution.multiplier,
+						evaluator_contribution.mode,
 						evaluator_contribution.asset
 					),
 					Error::<TestRuntime>::ParticipantNotEnoughFunds
@@ -1734,7 +1798,7 @@ mod contribute_extrinsic {
 						),
 						project_id,
 						5000 * CT_UNIT,
-						1u8.try_into().unwrap(),
+						ParticipationMode::Classic(1),
 						AcceptedFundingAsset::USDT
 					),
 					Error::<TestRuntime>::PolicyMismatch
@@ -1755,7 +1819,12 @@ mod contribute_extrinsic {
 			);
 			let project_details = inst.get_project_details(project_id);
 			let remaining_cts = project_details.remaining_contribution_tokens;
-			let glutton_contribution = ContributionParams::new(BUYER_1, remaining_cts, 4u8, AcceptedFundingAsset::USDT);
+			let glutton_contribution = ContributionParams::new(
+				BUYER_1,
+				remaining_cts,
+				ParticipationMode::Classic(4u8),
+				AcceptedFundingAsset::USDT,
+			);
 			let wap = project_details.weighted_average_price.unwrap();
 			let plmc_mint = inst.calculate_contributed_plmc_spent(vec![glutton_contribution.clone()], wap, true);
 			let funding_asset_mint =
@@ -1764,8 +1833,12 @@ mod contribute_extrinsic {
 			inst.mint_funding_asset_to(funding_asset_mint);
 			inst.contribute_for_users(project_id, vec![glutton_contribution.clone()]).unwrap();
 
-			let failing_contribution =
-				ContributionParams::<TestRuntime>::new(BUYER_2, 1000 * CT_UNIT, 1u8, AcceptedFundingAsset::USDT);
+			let failing_contribution = ContributionParams::<TestRuntime>::new(
+				BUYER_2,
+				1000 * CT_UNIT,
+				ParticipationMode::Classic(1),
+				AcceptedFundingAsset::USDT,
+			);
 			let plmc_mint = inst.calculate_contributed_plmc_spent(vec![glutton_contribution.clone()], wap, true);
 			let funding_asset_mint =
 				inst.calculate_contributed_funding_asset_spent(vec![glutton_contribution.clone()], wap);
@@ -1783,7 +1856,7 @@ mod contribute_extrinsic {
 						),
 						project_id,
 						failing_contribution.amount,
-						failing_contribution.multiplier,
+						failing_contribution.mode,
 						failing_contribution.asset
 					),
 					Error::<TestRuntime>::ProjectSoldOut

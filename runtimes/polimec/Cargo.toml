@@ -38,6 +38,7 @@ shared-configuration.workspace = true
 polimec-common.workspace = true
 pallet-parachain-staking.workspace = true
 on-slash-vesting.workspace = true
+pallet-proxy-bonding.workspace = true
 
 # Substrate
 frame-benchmarking = { workspace = true, optional = true }
@@ -187,6 +188,7 @@ std = [
 	"xcm-builder/std",
 	"xcm-executor/std",
 	"xcm/std",
+	"pallet-proxy-bonding/std"
 ]
 
 runtime-benchmarks = [
@@ -232,6 +234,7 @@ runtime-benchmarks = [
 	"sp-runtime/runtime-benchmarks",
 	"xcm-builder/runtime-benchmarks",
 	"xcm-executor/runtime-benchmarks",
+	"pallet-proxy-bonding/runtime-benchmarks"
 ]
 
 try-runtime = [
@@ -276,6 +279,7 @@ try-runtime = [
 	"polkadot-runtime-common/try-runtime",
 	"shared-configuration/try-runtime",
 	"sp-runtime/try-runtime",
+	"pallet-proxy-bonding/try-runtime"
 ]
 
 # A feature that should be enabled when the runtime should be built for on-chain

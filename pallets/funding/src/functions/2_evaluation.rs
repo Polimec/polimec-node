@@ -124,8 +124,9 @@ impl<T: Config> Pallet<T> {
 		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 		let now = <frame_system::Pallet<T>>::block_number();
 		let evaluation_id = NextEvaluationId::<T>::get();
-		let plmc_usd_price = T::PriceProvider::get_decimals_aware_price(PLMC_FOREIGN_ID, USD_DECIMALS, PLMC_DECIMALS)
-			.ok_or(Error::<T>::PriceNotFound)?;
+		let plmc_usd_price =
+			<PriceProviderOf<T>>::get_decimals_aware_price(PLMC_FOREIGN_ID, USD_DECIMALS, PLMC_DECIMALS)
+				.ok_or(Error::<T>::PriceNotFound)?;
 		let early_evaluation_reward_threshold_usd =
 			T::EvaluationSuccessThreshold::get() * project_details.fundraising_target_usd;
 		let evaluation_round_info = &mut project_details.evaluation_round_info;

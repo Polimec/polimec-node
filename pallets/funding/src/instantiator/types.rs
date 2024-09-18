@@ -1,5 +1,6 @@
 #[allow(clippy::wildcard_imports)]
 use super::*;
+use crate::ParticipationMode;
 use frame_support::{Deserialize, Serialize};
 
 pub type RuntimeOriginOf<T> = <T as frame_system::Config>::RuntimeOrigin;
@@ -241,7 +242,7 @@ impl<T: Config> AccountMerge for Vec<UserToFundingAsset<T>> {
 pub struct BidParams<T: Config> {
 	pub bidder: AccountIdOf<T>,
 	pub amount: Balance,
-	pub multiplier: MultiplierOf<T>,
+	pub mode: ParticipationMode,
 	pub asset: AcceptedFundingAsset,
 }
 impl<T: Config> BidParams<T> {
@@ -316,43 +317,38 @@ impl<T: Config> Accounts for Vec<BidParams<T>> {
 pub struct ContributionParams<T: Config> {
 	pub contributor: AccountIdOf<T>,
 	pub amount: Balance,
-	pub multiplier: MultiplierOf<T>,
+	pub mode: ParticipationMode,
 	pub asset: AcceptedFundingAsset,
 }
 impl<T: Config> ContributionParams<T> {
-	pub fn new(contributor: AccountIdOf<T>, amount: Balance, multiplier: u8, asset: AcceptedFundingAsset) -> Self {
-		Self { contributor, amount, multiplier: multiplier.try_into().map_err(|_| ()).unwrap(), asset }
+	pub fn new(
+		contributor: AccountIdOf<T>,
+		amount: Balance,
+		mode: ParticipationMode,
+		asset: AcceptedFundingAsset,
+	) -> Self {
+		Self { contributor, amount, mode, asset }
 	}
 
 	pub fn new_with_defaults(contributor: AccountIdOf<T>, amount: Balance) -> Self {
-		Self {
-			contributor,
-			amount,
-			multiplier: 1u8.try_into().unwrap_or_else(|_| panic!("multiplier could not be created from 1u8")),
-			asset: AcceptedFundingAsset::USDT,
-		}
+		Self { contributor, amount, mode: ParticipationMode::Classic(1u8), asset: AcceptedFundingAsset::USDT }
 	}
 }
 impl<T: Config> From<(AccountIdOf<T>, Balance)> for ContributionParams<T> {
 	fn from((contributor, amount): (AccountIdOf<T>, Balance)) -> Self {
-		Self {
-			contributor,
-			amount,
-			multiplier: 1u8.try_into().unwrap_or_else(|_| panic!("multiplier could not be created from 1u8")),
-			asset: AcceptedFundingAsset::USDT,
-		}
+		Self { contributor, amount, mode: ParticipationMode::Classic(1u8), asset: AcceptedFundingAsset::USDT }
 	}
 }
-impl<T: Config> From<(AccountIdOf<T>, Balance, MultiplierOf<T>)> for ContributionParams<T> {
-	fn from((contributor, amount, multiplier): (AccountIdOf<T>, Balance, MultiplierOf<T>)) -> Self {
-		Self { contributor, amount, multiplier, asset: AcceptedFundingAsset::USDT }
+impl<T: Config> From<(AccountIdOf<T>, Balance, ParticipationMode)> for ContributionParams<T> {
+	fn from((contributor, amount, mode): (AccountIdOf<T>, Balance, ParticipationMode)) -> Self {
+		Self { contributor, amount, mode, asset: AcceptedFundingAsset::USDT }
 	}
 }
-impl<T: Config> From<(AccountIdOf<T>, Balance, MultiplierOf<T>, AcceptedFundingAsset)> for ContributionParams<T> {
+impl<T: Config> From<(AccountIdOf<T>, Balance, ParticipationMode, AcceptedFundingAsset)> for ContributionParams<T> {
 	fn from(
-		(contributor, amount, multiplier, asset): (AccountIdOf<T>, Balance, MultiplierOf<T>, AcceptedFundingAsset),
+		(contributor, amount, mode, asset): (AccountIdOf<T>, Balance, ParticipationMode, AcceptedFundingAsset),
 	) -> Self {
-		Self { contributor, amount, multiplier, asset }
+		Self { contributor, amount, mode, asset }
 	}
 }
 impl<T: Config> Accounts for Vec<ContributionParams<T>> {
@@ -377,7 +373,7 @@ pub struct BidInfoFilter<T: Config> {
 	pub original_ct_usd_price: Option<PriceOf<T>>,
 	pub funding_asset: Option<AcceptedFundingAsset>,
 	pub funding_asset_amount_locked: Option<Balance>,
-	pub multiplier: Option<MultiplierOf<T>>,
+	pub mode: Option<ParticipationMode>,
 	pub plmc_bond: Option<Balance>,
 	pub when: Option<BlockNumberFor<T>>,
 }
@@ -409,7 +405,7 @@ impl<T: Config> BidInfoFilter<T> {
 		{
 			return false;
 		}
-		if self.multiplier.is_some() && self.multiplier.unwrap() != bid.multiplier {
+		if self.mode.is_some() && self.mode.unwrap() != bid.mode {
 			return false;
 		}
 		if self.plmc_bond.is_some() && self.plmc_bond.unwrap() != bid.plmc_bond {
@@ -433,7 +429,7 @@ impl<T: Config> Default for BidInfoFilter<T> {
 			original_ct_usd_price: None,
 			funding_asset: None,
 			funding_asset_amount_locked: None,
-			multiplier: None,
+			mode: None,
 			plmc_bond: None,
 			when: None,
 		}

@@ -283,11 +283,36 @@ mod helper_functions {
 		);
 
 		let contributions = vec![
-			ContributionParams::new(CONTRIBUTOR_1, TOKEN_AMOUNT_1, MULTIPLIER_1, AcceptedFundingAsset::USDT),
-			ContributionParams::new(CONTRIBUTOR_2, TOKEN_AMOUNT_2, MULTIPLIER_2, AcceptedFundingAsset::USDT),
-			ContributionParams::new(CONTRIBUTOR_3, TOKEN_AMOUNT_3, MULTIPLIER_3, AcceptedFundingAsset::USDT),
-			ContributionParams::new(CONTRIBUTOR_4, TOKEN_AMOUNT_4, MULTIPLIER_4, AcceptedFundingAsset::USDT),
-			ContributionParams::new(CONTRIBUTOR_5, TOKEN_AMOUNT_5, MULTIPLIER_5, AcceptedFundingAsset::USDT),
+			ContributionParams::new(
+				CONTRIBUTOR_1,
+				TOKEN_AMOUNT_1,
+				ParticipationMode::Classic(MULTIPLIER_1),
+				AcceptedFundingAsset::USDT,
+			),
+			ContributionParams::new(
+				CONTRIBUTOR_2,
+				TOKEN_AMOUNT_2,
+				ParticipationMode::Classic(MULTIPLIER_2),
+				AcceptedFundingAsset::USDT,
+			),
+			ContributionParams::new(
+				CONTRIBUTOR_3,
+				TOKEN_AMOUNT_3,
+				ParticipationMode::Classic(MULTIPLIER_3),
+				AcceptedFundingAsset::USDT,
+			),
+			ContributionParams::new(
+				CONTRIBUTOR_4,
+				TOKEN_AMOUNT_4,
+				ParticipationMode::Classic(MULTIPLIER_4),
+				AcceptedFundingAsset::USDT,
+			),
+			ContributionParams::new(
+				CONTRIBUTOR_5,
+				TOKEN_AMOUNT_5,
+				ParticipationMode::Classic(MULTIPLIER_5),
+				AcceptedFundingAsset::USDT,
+			),
 		];
 
 		let expected_plmc_spent = vec![

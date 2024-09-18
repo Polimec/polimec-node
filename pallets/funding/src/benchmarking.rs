@@ -1040,11 +1040,15 @@ mod benchmarks {
 
 		let price = inst.get_project_details(project_id).weighted_average_price.unwrap();
 
-		let contributions =
-			vec![
-				ContributionParams::new(contributor.clone(), (50 * CT_UNIT).into(), 1u8, AcceptedFundingAsset::USDT);
-				x as usize + 1
-			];
+		let contributions = vec![
+			ContributionParams::new(
+				contributor.clone(),
+				(50 * CT_UNIT).into(),
+				ParticipationMode::Classic(1u8),
+				AcceptedFundingAsset::USDT
+			);
+			x as usize + 1
+		];
 
 		let plmc = inst.calculate_contributed_plmc_spent(contributions.clone(), price, false);
 		let usdt = inst.calculate_contributed_funding_asset_spent(contributions.clone(), price);
@@ -1078,7 +1082,7 @@ mod benchmarks {
 			jwt,
 			project_id,
 			contributions[0].amount,
-			contributions[0].multiplier,
+			contributions[0].mode,
 			contributions[0].asset,
 		);
 
@@ -1112,7 +1116,7 @@ mod benchmarks {
 				funding_asset: AcceptedFundingAsset::USDT,
 				funding_amount: usdt[0].asset_amount,
 				plmc_bond: plmc[0].plmc_amount,
-				multiplier: contributions[0].multiplier,
+				mode: contributions[0].mode,
 			}
 			.into(),
 		);
@@ -1504,7 +1508,7 @@ mod benchmarks {
 				ContributionParams::<T>::new(
 					participant.clone(),
 					(10 * CT_UNIT).into(),
-					1u8,
+					ParticipationMode::Classic(1),
 					AcceptedFundingAsset::USDT,
 				)
 			})
@@ -1846,7 +1850,7 @@ mod benchmarks {
 				ContributionParams::<T>::new(
 					participant.clone(),
 					(10 * CT_UNIT).into(),
-					1u8,
+					ParticipationMode::Classic(1),
 					AcceptedFundingAsset::USDT,
 				)
 			})
@@ -1937,7 +1941,7 @@ mod benchmarks {
 				ContributionParams::<T>::new(
 					participant.clone(),
 					(10 * CT_UNIT).into(),
-					1u8,
+					ParticipationMode::Classic(1),
 					AcceptedFundingAsset::USDT,
 				)
 			})

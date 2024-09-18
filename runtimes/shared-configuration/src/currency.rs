@@ -19,6 +19,7 @@ use frame_support::parameter_types;
 use pallet_funding::AcceptedFundingAsset;
 use pallet_oracle_ocw::types::AssetName;
 use parachains_common::AssetIdForTrustBackedAssets as AssetId;
+use polimec_common::PLMC_FOREIGN_ID;
 use sp_runtime::{traits::Convert, FixedU128};
 
 /// One PLMC
@@ -88,7 +89,7 @@ impl Convert<(AssetName, FixedU128), (AssetId, Price)> for AssetPriceConverter {
 			AssetName::DOT => (AcceptedFundingAsset::DOT.id(), price),
 			AssetName::USDC => (AcceptedFundingAsset::USDC.id(), price),
 			AssetName::USDT => (AcceptedFundingAsset::USDT.id(), price),
-			AssetName::PLMC => (pallet_funding::PLMC_FOREIGN_ID, price),
+			AssetName::PLMC => (PLMC_FOREIGN_ID, price),
 		}
 	}
 }
