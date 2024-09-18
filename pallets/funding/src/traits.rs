@@ -17,10 +17,6 @@
 use crate::{Balance, Config, ProjectId};
 use frame_support::weights::Weight;
 use frame_system::pallet_prelude::BlockNumberFor;
-use sp_arithmetic::{
-	traits::{CheckedDiv, CheckedMul},
-	FixedPointNumber,
-};
 use sp_runtime::DispatchError;
 
 pub trait BondingRequirementCalculation {

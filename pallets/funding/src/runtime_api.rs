@@ -1,5 +1,5 @@
 #[allow(clippy::wildcard_imports)]
-use crate::{traits::*, *};
+use crate::*;
 use alloc::collections::BTreeMap;
 use frame_support::traits::fungibles::{metadata::Inspect as MetadataInspect, Inspect, InspectEnumerable};
 use itertools::Itertools;

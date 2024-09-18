@@ -16,10 +16,13 @@ use sp_runtime::{
 };
 use std::{cell::RefCell, collections::BTreeMap};
 pub const NATIVE_DECIMALS: u8 = 10;
-pub const FEE_ASSET_DECIMALS: u8 = 6;
 pub const NATIVE_UNIT: u64 = 1 * 10u64.pow(NATIVE_DECIMALS as u32);
 pub const MILLI_NATIVE_UNIT: u64 = NATIVE_UNIT / 1_000;
-pub const FEE_ASSET_UNIT: u64 = 1 * 10u64.pow(FEE_ASSET_DECIMALS as u32);
+
+pub const MOCK_FEE_ASSET_ID: u32 = 1337;
+pub const MOCK_FEE_ASSET_DECIMALS: u8 = 6;
+pub const MOCK_FEE_ASSET_UNIT: u64 = 1 * 10u64.pow(MOCK_FEE_ASSET_DECIMALS as u32);
+
 // Configure a mock runtime to test the pallet.
 #[frame_support::runtime]
 mod test_runtime {
@@ -165,10 +168,27 @@ impl crate::Config for TestRuntime {
 	type RuntimeEvent = RuntimeEvent;
 	type RuntimeHoldReason = MockRuntimeHoldReason;
 	type Treasury = Treasury;
-	type UsdDecimals = ConstU8<FEE_ASSET_DECIMALS>;
+	type UsdDecimals = ConstU8<MOCK_FEE_ASSET_DECIMALS>;
 }
 
 // Build genesis storage according to the mock runtime.
 pub fn new_test_ext() -> sp_io::TestExternalities {
-	GenesisConfig::<TestRuntime>::default().build_storage().unwrap().into()
+	let mut storage = GenesisConfig::<TestRuntime>::default().build_storage().unwrap();
+	RuntimeGenesisConfig {
+		assets: AssetsConfig {
+			assets: vec![(MOCK_FEE_ASSET_ID, 1, true, 100)],
+			metadata: vec![(
+				MOCK_FEE_ASSET_ID,
+				"Tether USD".to_string().into_bytes(),
+				"USDT".to_string().into_bytes(),
+				MOCK_FEE_ASSET_DECIMALS,
+			)],
+			accounts: vec![],
+		},
+		..Default::default()
+	}
+	.assimilate_storage(&mut storage)
+	.unwrap();
+
+	sp_io::TestExternalities::new(storage)
 }

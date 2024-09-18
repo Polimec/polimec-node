@@ -1,40 +1,42 @@
-use frame_support::ensure;
-use crate::{AccountIdOf, AssetId, BalanceOf, Config, Pallet, ReleaseType, Releases};
-use frame_support::traits::{
-	fungible,
-	fungible::{Inspect, Mutate, MutateHold},
-	fungibles,
-	fungibles::Mutate as FungiblesMutate,
-	tokens::{Fortitude, Precision, Preservation},
+use crate::{AccountIdOf, AssetId, BalanceOf, Config, Error, Pallet, ReleaseType, Releases};
+use frame_support::{
+	ensure,
+	traits::{
+		fungible,
+		fungible::{Inspect, Mutate, MutateHold},
+		fungibles,
+		fungibles::Mutate as FungiblesMutate,
+		tokens::{Fortitude, Precision, Preservation},
+	},
 };
 use frame_system::pallet_prelude::BlockNumberFor;
 use polimec_common::ProvideAssetPrice;
 use sp_runtime::{
 	traits::{AccountIdConversion, Get},
-	FixedPointNumber,
+	DispatchError, FixedPointNumber,
 };
 
 impl<T: Config> Pallet<T> {
 	/// Calculate the USD fee in `fee_asset` for bonding `bond_amount` of the native token.
 	/// e.g. if the fee is 1%, native token PLMC, fee_asset USDT, bond_amount 1000 PLMC, PLMC price 0.5USD, USDT price 1USD,
 	/// Then the calculated fee would be 1% * 1000 * 0.5 = 5USD, which is 5 USDT at a price of 1USD.
-	pub fn calculate_fee(bond_amount: BalanceOf<T>, fee_asset: AssetId) -> Result<BalanceOf<T>, &'static str> {
+	pub fn calculate_fee(bond_amount: BalanceOf<T>, fee_asset: AssetId) -> Result<BalanceOf<T>, DispatchError> {
 		let bonding_token_price = T::PriceProvider::get_decimals_aware_price(
 			T::BondingTokenId::get(),
 			T::UsdDecimals::get(),
 			T::BondingTokenDecimals::get(),
 		)
-		.ok_or("Price not available")?;
+		.ok_or(Error::<T>::PriceNotAvailable)?;
 
 		let fee_asset_decimals = <T::FeeToken as fungibles::metadata::Inspect<AccountIdOf<T>>>::decimals(fee_asset);
 		let fee_token_price =
 			T::PriceProvider::get_decimals_aware_price(fee_asset, T::UsdDecimals::get(), fee_asset_decimals)
-				.ok_or("Price not available")?;
+				.ok_or(Error::<T>::PriceNotAvailable)?;
 
 		let bonded_in_usd = bonding_token_price.saturating_mul_int(bond_amount);
 		let fee_in_usd = T::FeePercentage::get() * bonded_in_usd;
 		let fee_in_fee_asset =
-			fee_token_price.reciprocal().ok_or("Price not available")?.saturating_mul_int(fee_in_usd);
+			fee_token_price.reciprocal().ok_or(Error::<T>::PriceNotAvailable)?.saturating_mul_int(fee_in_usd);
 
 		Ok(fee_in_fee_asset)
 	}
@@ -47,7 +49,7 @@ impl<T: Config> Pallet<T> {
 		bond_amount: BalanceOf<T>,
 		fee_asset: AssetId,
 		hold_reason: T::RuntimeHoldReason,
-	) -> Result<(), &'static str> {
+	) -> Result<(), DispatchError> {
 		let treasury = T::Treasury::get();
 		let bonding_account: AccountIdOf<T> = T::RootId::get().into_sub_account_truncating(derivation_path);
 		let existential_deposit = <T::BondingToken as fungible::Inspect<T::AccountId>>::minimum_balance();
@@ -99,9 +101,9 @@ impl<T: Config> Pallet<T> {
 	) -> Result<(), DispatchError> {
 		let bonding_account: AccountIdOf<T> = T::RootId::get().into_sub_account_truncating(derivation_path);
 		let fee_in_fee_asset = Self::calculate_fee(bond_amount, fee_asset)?;
-		let release_type = Releases::<T>::get(derivation_path, hold_reason).ok_or("Release type not found")?;
+		let release_type = Releases::<T>::get(derivation_path, hold_reason).ok_or(Error::<T>::ReleaseTypeNotSet)?;
 
-		ensure!(release_type == ReleaseType::Refunded, "Need to set this derivation path / hold reason as `Refunded`");
+		ensure!(release_type == ReleaseType::Refunded, Error::<T>::FeeRefundDisallowed);
 
 		// We know this fee token account is existing thanks to the provider reference of the ED of the native asset, so we can fully move all the funds.
 		// FYI same cannot be said of the `account`. We assume they only hold the fee token so their fee asset balance must not go below the min_balance.

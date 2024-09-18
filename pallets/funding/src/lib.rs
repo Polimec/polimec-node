@@ -88,7 +88,7 @@ pub use pallet::*;
 use pallet_xcm::ensure_response;
 use polimec_common::{
 	credentials::{Cid, Did, EnsureOriginWithCredentials, InvestorType, UntrustedToken},
-	migration_types::{Migration, MigrationStatusd},
+	migration_types::{Migration, MigrationStatus},
 };
 use polkadot_parachain_primitives::primitives::Id as ParaId;
 use sp_arithmetic::traits::{One, Saturating};
