@@ -52,7 +52,6 @@ pub const PLMC: Balance = 10u128.pow(PLMC_DECIMALS as u32);
 pub const MILLI_PLMC: Balance = PLMC / 10u128.pow(3);
 pub const MICRO_PLMC: Balance = PLMC / 10u128.pow(6);
 pub const EXISTENTIAL_DEPOSIT: Balance = 10 * MILLI_PLMC;
-
 pub type Block = frame_system::mocking::MockBlock<TestRuntime>;
 pub type AccountId = u32;
 pub type BlockNumber = u64;

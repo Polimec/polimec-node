@@ -242,6 +242,9 @@ impl SendXcm for DummyXcmSender {
 pub trait ProvideAssetPrice {
 	type AssetId;
 	type Price: FixedPointNumber;
+	/// Gets the price of an asset.
+	///
+	/// Returns `None` if the price is not available.
 	fn get_price(asset_id: Self::AssetId) -> Option<Self::Price>;
 
 	/// Prices define the relationship between USD/Asset. When to and from that asset, we need to be aware that they might

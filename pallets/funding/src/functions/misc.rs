@@ -1,7 +1,6 @@
 #[allow(clippy::wildcard_imports)]
 use super::*;
 use polimec_common::ProvideAssetPrice;
-use sp_runtime::traits::CheckedAdd;
 
 // Helper functions
 // ATTENTION: if this is called directly, it will not be transactional
