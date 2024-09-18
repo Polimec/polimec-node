@@ -29,8 +29,9 @@ impl<T: Config> Pallet<T> {
 	}
 
 	pub fn calculate_plmc_bond(ticket_size: Balance, multiplier: MultiplierOf<T>) -> Result<Balance, DispatchError> {
-		let plmc_usd_price = T::PriceProvider::get_decimals_aware_price(PLMC_FOREIGN_ID, USD_DECIMALS, PLMC_DECIMALS)
-			.ok_or(Error::<T>::PriceNotFound)?;
+		let plmc_usd_price =
+			<PriceProviderOf<T>>::get_decimals_aware_price(PLMC_FOREIGN_ID, USD_DECIMALS, PLMC_DECIMALS)
+				.ok_or(Error::<T>::PriceNotFound)?;
 		let usd_bond = multiplier.calculate_bonding_requirement::<T>(ticket_size).ok_or(Error::<T>::BadMath)?;
 		plmc_usd_price
 			.reciprocal()
@@ -45,7 +46,7 @@ impl<T: Config> Pallet<T> {
 	) -> Result<Balance, DispatchError> {
 		let asset_id = asset_id.id();
 		let asset_decimals = T::FundingCurrency::decimals(asset_id);
-		let asset_usd_price = T::PriceProvider::get_decimals_aware_price(asset_id, USD_DECIMALS, asset_decimals)
+		let asset_usd_price = <PriceProviderOf<T>>::get_decimals_aware_price(asset_id, USD_DECIMALS, asset_decimals)
 			.ok_or(Error::<T>::PriceNotFound)?;
 		asset_usd_price
 			.reciprocal()
@@ -128,6 +129,25 @@ impl<T: Config> Pallet<T> {
 		})?;
 
 		Ok((accepted_bid_len, rejected_bids.len() as u32))
+	}
+
+	pub fn bond_plmc_with_mode(
+		who: &T::AccountId,
+		project_id: ProjectId,
+		amount: Balance,
+		mode: ParticipationMode,
+		asset: AcceptedFundingAsset,
+	) -> DispatchResult {
+		match mode {
+			ParticipationMode::Classic(_) => Self::try_plmc_participation_lock(who, project_id, amount),
+			ParticipationMode::OTM => pallet_proxy_bonding::Pallet::<T>::bond_on_behalf_of(
+				project_id,
+				who.clone(),
+				amount,
+				asset.id(),
+				HoldReason::Participation.into(),
+			),
+		}
 	}
 
 	pub fn try_plmc_participation_lock(who: &T::AccountId, project_id: ProjectId, amount: Balance) -> DispatchResult {

@@ -35,8 +35,8 @@ use frame_system as system;
 use frame_system::{EnsureRoot, RawOrigin as SystemRawOrigin};
 use polimec_common::{credentials::EnsureInvestor, DummyXcmSender, ProvideAssetPrice, USD_UNIT};
 use polkadot_parachain_primitives::primitives::Sibling;
-use sp_arithmetic::Percent;
-use sp_core::H256;
+use sp_arithmetic::{Perbill, Percent};
+use sp_core::{ConstU8, H256};
 use sp_runtime::{
 	traits::{BlakeTwo256, ConvertBack, ConvertInto, Get, IdentityLookup, TryConvert},
 	BuildStorage, Perquintill,
@@ -53,7 +53,7 @@ pub const MILLI_PLMC: Balance = PLMC / 10u128.pow(3);
 pub const MICRO_PLMC: Balance = PLMC / 10u128.pow(6);
 pub const EXISTENTIAL_DEPOSIT: Balance = 10 * MILLI_PLMC;
 pub type Block = frame_system::mocking::MockBlock<TestRuntime>;
-pub type AccountId = u32;
+pub type AccountId = u64;
 pub type BlockNumber = u64;
 pub type Identifier = u32;
 pub type Price = FixedU128;
@@ -71,7 +71,7 @@ pub const fn free_deposit() -> Balance {
 
 pub struct SignedToAccountIndex<RuntimeOrigin, AccountId, Network>(PhantomData<(RuntimeOrigin, AccountId, Network)>);
 
-impl<RuntimeOrigin: OriginTrait + Clone, AccountId: Into<u32>, Network: Get<Option<NetworkId>>>
+impl<RuntimeOrigin: OriginTrait + Clone, AccountId: Into<u64>, Network: Get<Option<NetworkId>>>
 	TryConvert<RuntimeOrigin, Location> for SignedToAccountIndex<RuntimeOrigin, AccountId, Network>
 where
 	RuntimeOrigin::PalletsOrigin:
@@ -80,7 +80,7 @@ where
 	fn try_convert(o: RuntimeOrigin) -> Result<Location, RuntimeOrigin> {
 		o.try_with_caller(|caller| match caller.try_into() {
 			Ok(SystemRawOrigin::Signed(who)) =>
-				Ok(Junction::AccountIndex64 { network: Network::get(), index: Into::<u32>::into(who).into() }.into()),
+				Ok(Junction::AccountIndex64 { network: Network::get(), index: Into::<u64>::into(who).into() }.into()),
 			Ok(other) => Err(other.into()),
 			Err(other) => Err(other),
 		})
@@ -296,7 +296,7 @@ parameter_types! {
 	pub const CommunityRoundDuration: BlockNumber = 18u64;
 	pub const RemainderRoundDuration: BlockNumber = 6u64;
 
-	pub const FundingPalletId: PalletId = PalletId(*b"py/cfund");
+	pub const FundingPalletId: PalletId = PalletId(*b"plmc-fun");
 	pub FeeBrackets: Vec<(Percent, Balance)> = vec![
 		(Percent::from_percent(10), 1_000_000 * USD_UNIT),
 		(Percent::from_percent(8), 4_000_000 * USD_UNIT),
@@ -305,6 +305,7 @@ parameter_types! {
 	pub EarlyEvaluationThreshold: Percent = Percent::from_percent(10);
 	pub EvaluatorSlash: Percent = Percent::from_percent(20);
 	pub BlockchainOperationTreasuryAccount: AccountId = AccountId::from(696969u32);
+	pub ProxyBondingTreasuryAccount: AccountId = AccountId::from(555u32);
 	pub ContributionTreasury: AccountId = AccountId::from(4204204206u32);
 	pub FundingSuccessThreshold: Perquintill = Perquintill::from_percent(33);
 }
@@ -353,14 +354,14 @@ pub struct DummyConverter;
 impl sp_runtime::traits::Convert<AccountId, [u8; 32]> for DummyConverter {
 	fn convert(a: AccountId) -> [u8; 32] {
 		let mut account: [u8; 32] = [0u8; 32];
-		account[0..4].copy_from_slice(a.to_le_bytes().as_slice());
+		account[0..8].copy_from_slice(a.to_le_bytes().as_slice());
 		account
 	}
 }
 impl ConvertBack<AccountId, [u8; 32]> for DummyConverter {
 	fn convert_back(bytes: [u8; 32]) -> AccountId {
-		let account: [u8; 4] = bytes[0..3].try_into().unwrap();
-		u32::from_le_bytes(account)
+		let account: [u8; 8] = bytes[0..7].try_into().unwrap();
+		u64::from_le_bytes(account)
 	}
 }
 thread_local! {
@@ -435,6 +436,27 @@ impl Config for TestRuntime {
 	type WeightInfo = weights::SubstrateWeight<TestRuntime>;
 }
 
+parameter_types! {
+	pub const FeePercentage: Perbill = Perbill::from_percent(5);
+	pub const FeeRecipient: AccountId = 80085;
+	pub const RootId: PalletId = PalletId(*b"treasury");
+}
+impl pallet_proxy_bonding::Config for TestRuntime {
+	type BondingToken = Balances;
+	type BondingTokenDecimals = ConstU8<PLMC_DECIMALS>;
+	type BondingTokenId = ConstU32<PLMC_FOREIGN_ID>;
+	type FeePercentage = FeePercentage;
+	type FeeRecipient = FeeRecipient;
+	type FeeToken = ForeignAssets;
+	type Id = PalletId;
+	type PriceProvider = ConstPriceProvider;
+	type RootId = RootId;
+	type RuntimeEvent = RuntimeEvent;
+	type RuntimeHoldReason = RuntimeHoldReason;
+	type Treasury = ProxyBondingTreasuryAccount;
+	type UsdDecimals = ConstU8<USD_DECIMALS>;
+}
+
 // Configure a mock runtime to test the pallet.
 construct_runtime!(
 	pub enum TestRuntime
@@ -448,6 +470,7 @@ construct_runtime!(
 		ForeignAssets: pallet_assets::<Instance2>::{Pallet, Call, Storage, Event<T>, Config<T>},
 		PolkadotXcm: pallet_xcm,
 		PolimecFunding: pallet_funding::{Pallet, Call, Storage, Event<T>, HoldReason}  = 52,
+		ProxyBonding: pallet_proxy_bonding,
 	}
 );
 
@@ -461,6 +484,9 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
 				(<TestRuntime as Config>::PalletId::get().into_account_truncating(), ed),
 				(<TestRuntime as Config>::ContributionTreasury::get(), ed),
 				(<TestRuntime as Config>::BlockchainOperationTreasury::get(), ed),
+				/// Treasury account needs PLMC for the One Token Model participations
+				(ProxyBondingTreasuryAccount::get(), 1_000_000 * PLMC),
+				(FeeRecipient::get(), ed),
 			],
 		},
 		foreign_assets: ForeignAssetsConfig {
@@ -468,19 +494,20 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
 				(
 					AcceptedFundingAsset::USDT.id(),
 					<TestRuntime as Config>::PalletId::get().into_account_truncating(),
-					false,
+					// asset is sufficient, i.e. participants can hold only this asset to participate with OTM
+					true,
 					10,
 				),
 				(
 					AcceptedFundingAsset::USDC.id(),
 					<TestRuntime as Config>::PalletId::get().into_account_truncating(),
-					false,
+					true,
 					10,
 				),
 				(
 					AcceptedFundingAsset::DOT.id(),
 					<TestRuntime as Config>::PalletId::get().into_account_truncating(),
-					false,
+					true,
 					10,
 				),
 			],

@@ -12,6 +12,7 @@ use frame_support::{
 	},
 };
 use on_slash_vesting::OnSlash;
+use pallet_proxy_bonding::ReleaseType;
 use polimec_common::{
 	migration_types::{MigrationInfo, MigrationOrigin, MigrationStatus, ParticipationType},
 	ReleaseSchedule,
@@ -33,6 +34,19 @@ impl<T: Config> Pallet<T> {
 
 		let escrow_account = Self::fund_account_id(project_id);
 		if project_details.status == ProjectStatus::FundingSuccessful {
+			let otm_release_type = {
+				let multiplier: MultiplierOf<T> =
+					ParticipationMode::OTM.multiplier().try_into().map_err(|_| Error::<T>::ImpossibleState)?;
+				let duration = multiplier.calculate_vesting_duration::<T>();
+				let now = <frame_system::Pallet<T>>::block_number();
+				ReleaseType::Locked(duration.saturating_add(now))
+			};
+			<pallet_proxy_bonding::Pallet<T>>::set_release_type(
+				project_id,
+				HoldReason::Participation.into(),
+				otm_release_type,
+			);
+
 			T::ContributionTokenCurrency::create(project_id, escrow_account.clone(), false, 1_u32.into())?;
 			T::ContributionTokenCurrency::set(
 				project_id,
@@ -72,6 +86,13 @@ impl<T: Config> Pallet<T> {
 				false,
 			)?;
 		} else {
+			let otm_release_type = ReleaseType::Refunded;
+			<pallet_proxy_bonding::Pallet<T>>::set_release_type(
+				project_id,
+				HoldReason::Participation.into(),
+				otm_release_type,
+			);
+
 			Self::transition_project(
 				project_id,
 				project_details,
@@ -146,32 +167,31 @@ impl<T: Config> Pallet<T> {
 			Error::<T>::SettlementNotStarted
 		);
 
-		// Return either the full amount to refund if bid is rejected/project failed,
-		// or a partial amount when the wap > paid price/bid is partially accepted
+		// Return the full bid amount to refund if bid is rejected or project failed,
+		// Return a partial amount if the project succeeded, and the wap > paid price or bid is partially accepted
 		let BidRefund { final_ct_usd_price, final_ct_amount, refunded_plmc, refunded_funding_asset_amount } =
 			Self::calculate_refund(&bid, funding_success, wap)?;
 
-		Self::release_participation_bond(&bid.bidder, refunded_plmc)?;
+		if bid.mode == ParticipationMode::OTM {
+			<pallet_proxy_bonding::Pallet<T>>::refund_fee(
+				project_id,
+				HoldReason::Participation.into(),
+				&bid.bidder,
+				refunded_plmc,
+				bid.funding_asset.id(),
+			)?;
+		} else {
+			Self::release_participation_bond_for(&bid.bidder, refunded_plmc)?;
+		}
 		Self::release_funding_asset(project_id, &bid.bidder, refunded_funding_asset_amount, bid.funding_asset)?;
 
 		if funding_success && bid.status != BidStatus::Rejected {
-			let funding_end_block = project_details.funding_end_block.ok_or(Error::<T>::ImpossibleState)?;
-
-			let vesting_info =
-				Self::calculate_vesting_info(&bid.bidder, bid.multiplier, bid.plmc_bond.saturating_sub(refunded_plmc))
-					.map_err(|_| Error::<T>::BadMath)?;
-
-			if vesting_info.duration == 1u32.into() {
-				Self::release_participation_bond(&bid.bidder, vesting_info.total_amount)?;
-			} else {
-				VestingOf::<T>::add_release_schedule(
-					&bid.bidder,
-					vesting_info.total_amount,
-					vesting_info.amount_per_block,
-					funding_end_block,
-					HoldReason::Participation.into(),
-				)?;
-			}
+			let ct_vesting_duration = Self::set_plmc_bond_release_with_mode(
+				bid.bidder.clone(),
+				bid.plmc_bond,
+				bid.mode,
+				project_details.funding_end_block.ok_or(Error::<T>::ImpossibleState)?,
+			)?;
 
 			Self::mint_contribution_tokens(project_id, &bid.bidder, final_ct_amount)?;
 
@@ -181,7 +201,7 @@ impl<T: Config> Pallet<T> {
 				bid.id,
 				ParticipationType::Bid,
 				final_ct_amount,
-				vesting_info.duration,
+				ct_vesting_duration,
 			)?;
 
 			Self::release_funding_asset(
@@ -213,7 +233,7 @@ impl<T: Config> Pallet<T> {
 		wap: PriceOf<T>,
 	) -> Result<BidRefund<T>, DispatchError> {
 		let final_ct_usd_price = if bid.original_ct_usd_price > wap { wap } else { bid.original_ct_usd_price };
-
+		let multiplier: MultiplierOf<T> = bid.mode.multiplier().try_into().map_err(|_| Error::<T>::BadMath)?;
 		if bid.status == BidStatus::Rejected || !funding_success {
 			return Ok(BidRefund::<T> {
 				final_ct_usd_price,
@@ -225,7 +245,7 @@ impl<T: Config> Pallet<T> {
 		let final_ct_amount = bid.final_ct_amount();
 
 		let new_ticket_size = final_ct_usd_price.checked_mul_int(final_ct_amount).ok_or(Error::<T>::BadMath)?;
-		let new_plmc_bond = Self::calculate_plmc_bond(new_ticket_size, bid.multiplier)?;
+		let new_plmc_bond = Self::calculate_plmc_bond(new_ticket_size, multiplier)?;
 		let new_funding_asset_amount = Self::calculate_funding_asset_amount(new_ticket_size, bid.funding_asset)?;
 		let refunded_plmc = bid.plmc_bond.saturating_sub(new_plmc_bond);
 		let refunded_funding_asset_amount = bid.funding_asset_amount_locked.saturating_sub(new_funding_asset_amount);
@@ -244,8 +264,17 @@ impl<T: Config> Pallet<T> {
 		let funding_end_block = project_details.funding_end_block.ok_or(Error::<T>::ImpossibleState)?;
 
 		if outcome == FundingOutcome::Failure {
-			// Release the held PLMC bond
-			Self::release_participation_bond(&contribution.contributor, contribution.plmc_bond)?;
+			if contribution.mode == ParticipationMode::OTM {
+				<pallet_proxy_bonding::Pallet<T>>::refund_fee(
+					project_id,
+					HoldReason::Participation.into(),
+					&contribution.contributor,
+					contribution.plmc_bond,
+					contribution.funding_asset.id(),
+				)?;
+			} else {
+				Self::release_participation_bond_for(&contribution.contributor, contribution.plmc_bond)?;
+			}
 
 			Self::release_funding_asset(
 				project_id,
@@ -254,25 +283,12 @@ impl<T: Config> Pallet<T> {
 				contribution.funding_asset,
 			)?;
 		} else {
-			// Calculate the vesting info and add the release schedule
-			let vesting_info = Self::calculate_vesting_info(
-				&contribution.contributor,
-				contribution.multiplier,
+			let ct_vesting_duration = Self::set_plmc_bond_release_with_mode(
+				contribution.contributor.clone(),
 				contribution.plmc_bond,
-			)
-			.map_err(|_| Error::<T>::BadMath)?;
-
-			if vesting_info.duration == 1u32.into() {
-				Self::release_participation_bond(&contribution.contributor, vesting_info.total_amount)?;
-			} else {
-				VestingOf::<T>::add_release_schedule(
-					&contribution.contributor,
-					vesting_info.total_amount,
-					vesting_info.amount_per_block,
-					funding_end_block,
-					HoldReason::Participation.into(),
-				)?;
-			}
+				contribution.mode,
+				funding_end_block,
+			)?;
 
 			// Mint the contribution tokens
 			Self::mint_contribution_tokens(project_id, &contribution.contributor, contribution.ct_amount)?;
@@ -292,7 +308,7 @@ impl<T: Config> Pallet<T> {
 				contribution.id,
 				ParticipationType::Contribution,
 				contribution.ct_amount,
-				vesting_info.duration,
+				ct_vesting_duration,
 			)?;
 
 			final_ct_amount = contribution.ct_amount;
@@ -367,13 +383,51 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
-	fn release_participation_bond(participant: &AccountIdOf<T>, amount: Balance) -> DispatchResult {
+	fn release_participation_bond_for(participant: &AccountIdOf<T>, amount: Balance) -> DispatchResult {
 		if amount.is_zero() {
 			return Ok(());
 		}
 		// Release the held PLMC bond
 		T::NativeCurrency::release(&HoldReason::Participation.into(), participant, amount, Precision::Exact)?;
 		Ok(())
+	}
+
+	fn set_plmc_bond_release_with_mode(
+		participant: AccountIdOf<T>,
+		plmc_amount: Balance,
+		mode: ParticipationMode,
+		funding_end_block: BlockNumberFor<T>,
+	) -> Result<BlockNumberFor<T>, DispatchError> {
+		let multiplier: MultiplierOf<T> = mode.multiplier().try_into().map_err(|_| Error::<T>::ImpossibleState)?;
+		match mode {
+			ParticipationMode::OTM => Ok(multiplier.calculate_vesting_duration::<T>()),
+			ParticipationMode::Classic(_) =>
+				Self::set_release_schedule_for(&participant, plmc_amount, multiplier, funding_end_block),
+		}
+	}
+
+	fn set_release_schedule_for(
+		participant: &AccountIdOf<T>,
+		plmc_amount: Balance,
+		multiplier: MultiplierOf<T>,
+		funding_end_block: BlockNumberFor<T>,
+	) -> Result<BlockNumberFor<T>, DispatchError> {
+		// Calculate the vesting info and add the release schedule
+		let vesting_info = Self::calculate_vesting_info(participant, multiplier, plmc_amount)?;
+
+		if vesting_info.duration == 1u32.into() {
+			Self::release_participation_bond_for(participant, vesting_info.total_amount)?;
+		} else {
+			VestingOf::<T>::add_release_schedule(
+				participant,
+				vesting_info.total_amount,
+				vesting_info.amount_per_block,
+				funding_end_block,
+				HoldReason::Participation.into(),
+			)?;
+		}
+
+		Ok(vesting_info.duration)
 	}
 
 	fn slash_evaluator(evaluation: &EvaluationInfoOf<T>) -> Result<Balance, DispatchError> {

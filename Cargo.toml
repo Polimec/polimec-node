@@ -67,6 +67,7 @@ pallet-parachain-staking = { path = "pallets/parachain-staking", default-feature
 pallet-linear-release = { path = "pallets/linear-release", default-features = false }
 polimec-receiver = { path = "pallets/polimec-receiver", default-features = false }
 on-slash-vesting = { path = "pallets/on-slash-vesting", default-features = false }
+pallet-proxy-bonding = { path = "pallets/proxy-bonding", default-features = false }
 
 # Internal macros
 macros = { path = "macros" }

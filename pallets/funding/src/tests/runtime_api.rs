@@ -483,9 +483,14 @@ fn get_next_vesting_schedule_merge_candidates() {
 		BidParams::new(BIDDER_2, 50_000 * CT_UNIT, 1u8, AcceptedFundingAsset::USDT),
 	];
 	let remaining_contributions = vec![
-		ContributionParams::new(BIDDER_1, 1_000 * CT_UNIT, 5u8, AcceptedFundingAsset::USDT),
-		ContributionParams::new(BIDDER_1, 15_000 * CT_UNIT, 10u8, AcceptedFundingAsset::USDT),
-		ContributionParams::new(BIDDER_1, 100 * CT_UNIT, 1u8, AcceptedFundingAsset::USDT),
+		ContributionParams::new(BIDDER_1, 1_000 * CT_UNIT, ParticipationMode::Classic(5u8), AcceptedFundingAsset::USDT),
+		ContributionParams::new(
+			BIDDER_1,
+			15_000 * CT_UNIT,
+			ParticipationMode::Classic(10u8),
+			AcceptedFundingAsset::USDT,
+		),
+		ContributionParams::new(BIDDER_1, 100 * CT_UNIT, ParticipationMode::Classic(1u8), AcceptedFundingAsset::USDT),
 	];
 
 	let project_id = inst.create_finished_project(
@@ -563,16 +568,36 @@ fn all_project_participations_by_did() {
 		BidParams::new(BIDDER_2, 50_000 * CT_UNIT, 1u8, AcceptedFundingAsset::USDT),
 	];
 	let community_contributions = vec![
-		ContributionParams::new(BUYER_1, 50_000 * CT_UNIT, 1u8, AcceptedFundingAsset::USDT),
-		ContributionParams::new(BUYER_2, 130_000 * CT_UNIT, 1u8, AcceptedFundingAsset::USDT),
-		ContributionParams::new(BUYER_3, 30_000 * CT_UNIT, 1u8, AcceptedFundingAsset::USDT),
-		ContributionParams::new(BUYER_4, 210_000 * CT_UNIT, 1u8, AcceptedFundingAsset::USDT),
-		ContributionParams::new(BUYER_5, 10_000 * CT_UNIT, 1u8, AcceptedFundingAsset::USDT),
+		ContributionParams::new(BUYER_1, 50_000 * CT_UNIT, ParticipationMode::Classic(1u8), AcceptedFundingAsset::USDT),
+		ContributionParams::new(
+			BUYER_2,
+			130_000 * CT_UNIT,
+			ParticipationMode::Classic(1u8),
+			AcceptedFundingAsset::USDT,
+		),
+		ContributionParams::new(BUYER_3, 30_000 * CT_UNIT, ParticipationMode::Classic(1u8), AcceptedFundingAsset::USDT),
+		ContributionParams::new(
+			BUYER_4,
+			210_000 * CT_UNIT,
+			ParticipationMode::Classic(1u8),
+			AcceptedFundingAsset::USDT,
+		),
+		ContributionParams::new(BUYER_5, 10_000 * CT_UNIT, ParticipationMode::Classic(1u8), AcceptedFundingAsset::USDT),
 	];
 	let remainder_contributions = vec![
-		ContributionParams::new(EVALUATOR_2, 20_000 * CT_UNIT, 1u8, AcceptedFundingAsset::USDT),
-		ContributionParams::new(BUYER_2, 5_000 * CT_UNIT, 1u8, AcceptedFundingAsset::USDT),
-		ContributionParams::new(BIDDER_1, 30_000 * CT_UNIT, 1u8, AcceptedFundingAsset::USDT),
+		ContributionParams::new(
+			EVALUATOR_2,
+			20_000 * CT_UNIT,
+			ParticipationMode::Classic(1u8),
+			AcceptedFundingAsset::USDT,
+		),
+		ContributionParams::new(BUYER_2, 5_000 * CT_UNIT, ParticipationMode::Classic(1u8), AcceptedFundingAsset::USDT),
+		ContributionParams::new(
+			BIDDER_1,
+			30_000 * CT_UNIT,
+			ParticipationMode::Classic(1u8),
+			AcceptedFundingAsset::USDT,
+		),
 	];
 
 	let evaluations_plmc = inst.calculate_evaluation_plmc_spent(evaluations.clone(), true);
@@ -660,7 +685,7 @@ fn all_project_participations_by_did() {
 				jwt,
 				project_id,
 				contribution.amount,
-				contribution.multiplier,
+				contribution.mode,
 				contribution.asset,
 			)
 			.unwrap();

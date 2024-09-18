@@ -7296,6 +7296,7 @@ dependencies = [
  "pallet-balances",
  "pallet-insecure-randomness-collective-flip",
  "pallet-linear-release",
+ "pallet-proxy-bonding",
  "pallet-timestamp",
  "pallet-xcm",
  "parachains-common",
@@ -7755,6 +7756,24 @@ dependencies = [
  "sp-io",
  "sp-runtime",
  "sp-std",
+]
+
+[[package]]
+name = "pallet-proxy-bonding"
+version = "0.8.0"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "pallet-assets",
+ "pallet-balances",
+ "pallet-linear-release",
+ "parity-scale-codec",
+ "polimec-common",
+ "scale-info",
+ "serde",
+ "sp-io",
+ "sp-runtime",
 ]
 
 [[package]]
@@ -8828,6 +8847,7 @@ dependencies = [
  "pallet-parachain-staking",
  "pallet-preimage",
  "pallet-proxy",
+ "pallet-proxy-bonding",
  "pallet-scheduler",
  "pallet-session",
  "pallet-timestamp",
@@ -10561,24 +10581,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9091c90b0a32608e984ff2fa4091273cbdd755d54935c51d520887f4a1dbd5b0"
 dependencies = [
  "prost 0.12.6",
-]
-
-[[package]]
-name = "proxy-bonding"
-version = "0.8.0"
-dependencies = [
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "pallet-assets",
- "pallet-balances",
- "pallet-linear-release",
- "parity-scale-codec",
- "polimec-common",
- "scale-info",
- "serde",
- "sp-io",
- "sp-runtime",
 ]
 
 [[package]]

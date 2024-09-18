@@ -34,6 +34,7 @@ use frame_support::{
 		TransformOrigin,
 	},
 	weights::{ConstantMultiplier, Weight},
+	PalletId,
 };
 use frame_system::{EnsureRoot, EnsureRootWithSuccess, EnsureSigned, EnsureSignedBy};
 use pallet_aura::Authorities;
@@ -51,7 +52,7 @@ use polimec_common::credentials::{Did, EnsureInvestor};
 use polkadot_runtime_common::{BlockHashCount, CurrencyToVote, SlowAdjustingFeeUpdate};
 use shared_configuration::proxy;
 use sp_api::impl_runtime_apis;
-use sp_core::{crypto::KeyTypeId, ConstU64, OpaqueMetadata};
+use sp_core::{crypto::KeyTypeId, ConstU64, ConstU8, OpaqueMetadata};
 use sp_runtime::{
 	create_runtime_str, generic, impl_opaque_keys,
 	traits::{
@@ -1078,6 +1079,31 @@ impl pallet_funding::Config for Runtime {
 	type WeightInfo = weights::pallet_funding::WeightInfo<Runtime>;
 }
 
+use polimec_common::{PLMC_DECIMALS, PLMC_FOREIGN_ID, USD_DECIMALS};
+parameter_types! {
+	// Fee is defined as 1.5% of the usd_amount. Since fee is applied to the plmc amount, and that is always 5 times
+	// less than the usd_amount (multiplier of 5), we multiply the 1.5 by 5 to get 7.5%
+	pub const FeePercentage: Perbill = Perbill::from_percent(5);
+	// TODO: add a real account here
+	pub FeeRecipient: AccountId = [0u8; 32].into();
+	pub const RootId: PalletId = PalletId(*b"treasury");
+}
+impl pallet_proxy_bonding::Config for Runtime {
+	type BondingToken = Balances;
+	type BondingTokenDecimals = ConstU8<PLMC_DECIMALS>;
+	type BondingTokenId = ConstU32<PLMC_FOREIGN_ID>;
+	type FeePercentage = FeePercentage;
+	type FeeRecipient = FeeRecipient;
+	type FeeToken = ForeignAssets;
+	type Id = PalletId;
+	type PriceProvider = OraclePriceProvider<AssetId, Price, Oracle>;
+	type RootId = TreasuryId;
+	type RuntimeEvent = RuntimeEvent;
+	type RuntimeHoldReason = RuntimeHoldReason;
+	type Treasury = TreasuryAccount;
+	type UsdDecimals = ConstU8<USD_DECIMALS>;
+}
+
 #[cfg(feature = "runtime-benchmarks")]
 parameter_types! {
 	pub BenchmarkReason: RuntimeHoldReason = RuntimeHoldReason::Funding(pallet_funding::HoldReason::Participation);
@@ -1183,6 +1209,7 @@ construct_runtime!(
 
 		Funding: pallet_funding = 80,
 		LinearRelease: pallet_linear_release = 81,
+		ProxyBonding: pallet_proxy_bonding = 82,
 	}
 );
 

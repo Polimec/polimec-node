@@ -46,6 +46,7 @@ pub mod pallet {
 	pub type BalanceOf<T> = <<T as Config>::BondingToken as fungible::Inspect<AccountIdOf<T>>>::Balance;
 	pub type AccountIdOf<T> = <T as frame_system::Config>::AccountId;
 	pub type HoldReasonOf<T> = <<T as Config>::BondingToken as fungible::InspectHold<AccountIdOf<T>>>::Reason;
+	pub type PriceProviderOf<T> = <T as Config>::PriceProvider;
 
 	/// Configure the pallet by specifying the parameters and types on which it depends.
 	#[pallet::config]
