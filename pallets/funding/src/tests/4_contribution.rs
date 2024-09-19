@@ -608,22 +608,13 @@ mod contribute_extrinsic {
 				project_policy,
 			);
 			let amount = 1000 * CT_UNIT;
-			let wap = inst.get_project_details(project_id).weighted_average_price.unwrap();
 
 			if u8_multiplier > 0 {
-				let contribution = ContributionParams::<TestRuntime> {
-					contributor: contributor.clone(),
-					amount,
-					mode: ParticipationMode::Classic(u8_multiplier),
-					asset: AcceptedFundingAsset::USDT,
-				};
-
-				let necessary_plmc = inst.calculate_contributed_plmc_spent(vec![contribution.clone()], wap, false);
-				let plmc_existential_amounts = necessary_plmc.accounts().existential_deposits();
-				let necessary_usdt = inst.calculate_contributed_funding_asset_spent(vec![contribution.clone()], wap);
+				// We can't calculate exactly the amounts needed because the multipliers can be invalid
+				let necessary_plmc = vec![(contributor, 1_000_000 * PLMC).into()];
+				let necessary_usdt = vec![(contributor, 1_000_000 * USDT_UNIT).into()];
 
 				inst.mint_plmc_to(necessary_plmc.clone());
-				inst.mint_plmc_to(plmc_existential_amounts.clone());
 				inst.mint_funding_asset_to(necessary_usdt.clone());
 			}
 			inst.execute(|| {
@@ -662,7 +653,7 @@ mod contribute_extrinsic {
 				50,
 				default_weights(),
 				default_bidders(),
-				default_multipliers(),
+				default_modes(),
 			);
 			let project_id =
 				inst.create_community_contributing_project(project_metadata.clone(), ISSUER_1, None, evaluations, bids);
@@ -739,8 +730,18 @@ mod contribute_extrinsic {
 			evaluations.push((BIDDER_4, 1337 * USD_UNIT).into());
 
 			let successful_bids = vec![
-				BidParams::new(BIDDER_1, 400_000 * CT_UNIT, 1u8, AcceptedFundingAsset::USDT),
-				BidParams::new(BIDDER_2, 100_000 * CT_UNIT, 1u8, AcceptedFundingAsset::USDT),
+				BidParams::new(
+					BIDDER_1,
+					400_000 * CT_UNIT,
+					ParticipationMode::Classic(1u8),
+					AcceptedFundingAsset::USDT,
+				),
+				BidParams::new(
+					BIDDER_2,
+					100_000 * CT_UNIT,
+					ParticipationMode::Classic(1u8),
+					AcceptedFundingAsset::USDT,
+				),
 			];
 
 			// This bids should fill the first bucket.
@@ -1005,12 +1006,17 @@ mod contribute_extrinsic {
 		fn participant_was_evaluator_and_bidder() {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 			let issuer = ISSUER_1;
-			let participant = 42069u32;
+			let participant = 42069;
 			let project_metadata = default_project_metadata(issuer);
 			let mut evaluations = default_evaluations();
 			evaluations.push((participant, 100 * USD_UNIT).into());
 			let mut bids = default_bids();
-			bids.push(BidParams::new(participant, 1000 * CT_UNIT, 1u8, AcceptedFundingAsset::USDT));
+			bids.push(BidParams::new(
+				participant,
+				1000 * CT_UNIT,
+				ParticipationMode::Classic(1u8),
+				AcceptedFundingAsset::USDT,
+			));
 			let community_contributions = default_community_contributions();
 			let mut remainder_contributions = default_remainder_contributions();
 			remainder_contributions.push(ContributionParams::new(
@@ -1029,6 +1035,307 @@ mod contribute_extrinsic {
 				community_contributions,
 				remainder_contributions,
 			);
+		}
+
+		#[test]
+		fn one_token_mode_contribution_funding_success() {
+			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+			let issuer = ISSUER_1;
+
+			let mut project_metadata = default_project_metadata(issuer);
+			project_metadata.mainnet_token_max_supply = 50_000 * CT_UNIT;
+			project_metadata.total_allocation_size = 5_000 * CT_UNIT;
+			project_metadata.minimum_price = <TestRuntime as Config>::PriceProvider::calculate_decimals_aware_price(
+				PriceOf::<TestRuntime>::from_float(1.0),
+				USD_DECIMALS,
+				CT_DECIMALS,
+			)
+			.unwrap();
+
+			let evaluations =
+				inst.generate_successful_evaluations(project_metadata.clone(), default_evaluators(), default_weights());
+
+			let project_id =
+				inst.create_community_contributing_project(project_metadata.clone(), issuer, None, evaluations, vec![]);
+			let otm_multiplier: MultiplierOf<TestRuntime> =
+				ParticipationMode::OTM.multiplier().try_into().ok().unwrap();
+			let otm_duration = otm_multiplier.calculate_vesting_duration::<TestRuntime>();
+
+			const USDT_ID: u32 = AcceptedFundingAsset::USDT.id();
+			const USDT_PARTICIPATION: u128 = 3000 * USDT_UNIT;
+
+			let otm_usdt_fee: u128 = (FeePercentage::get() / ParticipationMode::OTM.multiplier()) * USDT_PARTICIPATION;
+			let usdt_ed = inst.get_funding_asset_ed(AcceptedFundingAsset::USDT.id());
+			let required_usdt = UserToFundingAsset::new(BUYER_1, USDT_PARTICIPATION + otm_usdt_fee + usdt_ed, USDT_ID);
+			inst.mint_funding_asset_to(vec![required_usdt.clone()]);
+
+			let ct_participation = inst.execute(|| {
+				<Pallet<TestRuntime>>::funding_asset_to_ct_amount(
+					project_id,
+					AcceptedFundingAsset::USDT,
+					USDT_PARTICIPATION,
+				)
+			});
+			// USDT has the same decimals and price as our baseline USD
+			let expected_plmc_bond =
+				<Pallet<TestRuntime>>::calculate_plmc_bond(USDT_PARTICIPATION, otm_multiplier).unwrap();
+
+			let otm_escrow_account =
+				<TestRuntime as pallet_proxy_bonding::Config>::RootId::get().into_sub_account_truncating(project_id);
+			let otm_treasury_account = <TestRuntime as pallet_proxy_bonding::Config>::Treasury::get();
+			let otm_fee_recipient_account = <TestRuntime as pallet_proxy_bonding::Config>::FeeRecipient::get();
+			let funding_project_escrow = PolimecFunding::fund_account_id(project_id);
+
+			assert!(funding_project_escrow != otm_escrow_account);
+
+			let pre_participation_treasury_free_plmc = inst.get_free_plmc_balance_for(otm_treasury_account);
+			let pre_participation_otm_escrow_held_plmc =
+				inst.get_reserved_plmc_balance_for(otm_escrow_account, HoldReason::Participation.into());
+			let pre_participation_otm_escrow_usdt =
+				inst.get_free_funding_asset_balance_for(USDT_ID, otm_escrow_account);
+			let pre_participation_otm_fee_recipient_usdt =
+				inst.get_free_funding_asset_balance_for(USDT_ID, otm_fee_recipient_account);
+			let pre_participation_buyer_usdt = inst.get_free_funding_asset_balance_for(USDT_ID, BUYER_1);
+
+			inst.execute(|| {
+				assert_ok!(PolimecFunding::contribute(
+					RuntimeOrigin::signed(BUYER_1),
+					get_mock_jwt_with_cid(
+						BUYER_1,
+						InvestorType::Retail,
+						generate_did_from_account(BUYER_1),
+						project_metadata.clone().policy_ipfs_cid.unwrap()
+					),
+					project_id,
+					ct_participation,
+					ParticipationMode::OTM,
+					AcceptedFundingAsset::USDT
+				));
+			});
+
+			let post_participation_treasury_free_plmc = inst.get_free_plmc_balance_for(otm_treasury_account);
+			let post_participation_otm_escrow_held_plmc =
+				inst.get_reserved_plmc_balance_for(otm_escrow_account, HoldReason::Participation.into());
+			let post_participation_otm_escrow_usdt =
+				inst.get_free_funding_asset_balance_for(USDT_ID, otm_escrow_account);
+			let post_participation_otm_fee_recipient_usdt =
+				inst.get_free_funding_asset_balance_for(USDT_ID, otm_fee_recipient_account);
+			let post_participation_buyer_usdt = inst.get_free_funding_asset_balance_for(USDT_ID, BUYER_1);
+
+			assert_eq!(
+				post_participation_treasury_free_plmc,
+				pre_participation_treasury_free_plmc - expected_plmc_bond - inst.get_ed()
+			);
+			assert_eq!(
+				post_participation_otm_escrow_held_plmc,
+				pre_participation_otm_escrow_held_plmc + expected_plmc_bond
+			);
+			assert_close_enough!(
+				post_participation_otm_escrow_usdt,
+				pre_participation_otm_escrow_usdt + otm_usdt_fee,
+				Perquintill::from_float(0.999)
+			);
+			assert_close_enough!(
+				post_participation_otm_fee_recipient_usdt,
+				pre_participation_otm_fee_recipient_usdt,
+				Perquintill::from_float(0.999)
+			);
+			assert_close_enough!(
+				post_participation_buyer_usdt,
+				pre_participation_buyer_usdt - USDT_PARTICIPATION - otm_usdt_fee,
+				Perquintill::from_float(0.999)
+			);
+
+			assert_eq!(inst.go_to_next_state(project_id), ProjectStatus::FundingSuccessful);
+			assert_eq!(inst.go_to_next_state(project_id), ProjectStatus::SettlementStarted(FundingOutcome::Success));
+			inst.settle_project(project_id, true);
+
+			inst.execute(|| {
+				assert_ok!(<pallet_proxy_bonding::Pallet<TestRuntime>>::transfer_fees_to_recipient(
+					RuntimeOrigin::signed(BUYER_1),
+					project_id,
+					HoldReason::Participation.into(),
+					USDT_ID
+				));
+				assert_noop!(
+					<pallet_proxy_bonding::Pallet<TestRuntime>>::transfer_bonds_back_to_treasury(
+						RuntimeOrigin::signed(BUYER_1),
+						project_id,
+						HoldReason::Participation.into()
+					),
+					pallet_proxy_bonding::Error::<TestRuntime>::TooEarlyToUnlock
+				);
+			});
+			let now = inst.current_block();
+			inst.jump_to_block(otm_duration + now);
+			inst.execute(|| {
+				assert_ok!(<pallet_proxy_bonding::Pallet<TestRuntime>>::transfer_bonds_back_to_treasury(
+					RuntimeOrigin::signed(BUYER_1),
+					project_id,
+					HoldReason::Participation.into()
+				));
+			});
+
+			let post_settlement_treasury_free_plmc = inst.get_free_plmc_balance_for(otm_treasury_account);
+			let post_settlement_otm_escrow_held_plmc = inst.get_free_plmc_balance_for(otm_escrow_account);
+			let post_settlement_otm_escrow_usdt = inst.get_free_funding_asset_balance_for(USDT_ID, otm_escrow_account);
+			let post_settlement_otm_fee_recipient_usdt =
+				inst.get_free_funding_asset_balance_for(USDT_ID, otm_fee_recipient_account);
+			let post_settlement_buyer_usdt = inst.get_free_funding_asset_balance_for(USDT_ID, BUYER_1);
+			let issuer_funding_account = inst.get_free_funding_asset_balance_for(USDT_ID, issuer);
+
+			assert_eq!(post_settlement_treasury_free_plmc, post_participation_treasury_free_plmc + expected_plmc_bond);
+			assert_eq!(post_settlement_otm_escrow_held_plmc, inst.get_ed());
+			assert_eq!(post_settlement_otm_escrow_usdt, Zero::zero());
+			assert_close_enough!(post_settlement_otm_fee_recipient_usdt, otm_usdt_fee, Perquintill::from_float(0.999));
+			assert_close_enough!(post_settlement_buyer_usdt, usdt_ed, Perquintill::from_float(0.999));
+			assert_eq!(issuer_funding_account, USDT_PARTICIPATION);
+		}
+
+		#[test]
+		fn one_token_mode_contribution_funding_failed() {
+			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+			let issuer = ISSUER_1;
+
+			let mut project_metadata = default_project_metadata(issuer);
+			project_metadata.mainnet_token_max_supply = 50_000 * CT_UNIT;
+			project_metadata.total_allocation_size = 20_000 * CT_UNIT;
+			project_metadata.minimum_price = <TestRuntime as Config>::PriceProvider::calculate_decimals_aware_price(
+				PriceOf::<TestRuntime>::from_float(1.0),
+				USD_DECIMALS,
+				CT_DECIMALS,
+			)
+			.unwrap();
+
+			let evaluations =
+				inst.generate_successful_evaluations(project_metadata.clone(), default_evaluators(), default_weights());
+
+			let project_id =
+				inst.create_community_contributing_project(project_metadata.clone(), issuer, None, evaluations, vec![]);
+			let otm_multiplier: MultiplierOf<TestRuntime> =
+				ParticipationMode::OTM.multiplier().try_into().ok().unwrap();
+
+			const USDT_ID: u32 = AcceptedFundingAsset::USDT.id();
+			const USDT_PARTICIPATION: u128 = 3000 * USDT_UNIT;
+
+			let otm_usdt_fee: u128 = (FeePercentage::get() / ParticipationMode::OTM.multiplier()) * USDT_PARTICIPATION;
+			let usdt_ed = inst.get_funding_asset_ed(AcceptedFundingAsset::USDT.id());
+			let required_usdt = UserToFundingAsset::new(BUYER_1, USDT_PARTICIPATION + otm_usdt_fee + usdt_ed, USDT_ID);
+			inst.mint_funding_asset_to(vec![required_usdt.clone()]);
+
+			let ct_participation = inst.execute(|| {
+				<Pallet<TestRuntime>>::funding_asset_to_ct_amount(
+					project_id,
+					AcceptedFundingAsset::USDT,
+					USDT_PARTICIPATION,
+				)
+			});
+			// USDT has the same decimals and price as our baseline USD
+			let expected_plmc_bond =
+				<Pallet<TestRuntime>>::calculate_plmc_bond(USDT_PARTICIPATION, otm_multiplier).unwrap();
+
+			let otm_escrow_account =
+				<TestRuntime as pallet_proxy_bonding::Config>::RootId::get().into_sub_account_truncating(project_id);
+			let otm_treasury_account = <TestRuntime as pallet_proxy_bonding::Config>::Treasury::get();
+			let otm_fee_recipient_account = <TestRuntime as pallet_proxy_bonding::Config>::FeeRecipient::get();
+			let funding_project_escrow = PolimecFunding::fund_account_id(project_id);
+
+			assert!(funding_project_escrow != otm_escrow_account);
+
+			let pre_participation_treasury_free_plmc = inst.get_free_plmc_balance_for(otm_treasury_account);
+			let pre_participation_otm_escrow_held_plmc =
+				inst.get_reserved_plmc_balance_for(otm_escrow_account, HoldReason::Participation.into());
+			let pre_participation_otm_escrow_usdt =
+				inst.get_free_funding_asset_balance_for(USDT_ID, otm_escrow_account);
+			let pre_participation_otm_fee_recipient_usdt =
+				inst.get_free_funding_asset_balance_for(USDT_ID, otm_fee_recipient_account);
+			let pre_participation_buyer_usdt = inst.get_free_funding_asset_balance_for(USDT_ID, BUYER_1);
+
+			inst.execute(|| {
+				assert_ok!(PolimecFunding::contribute(
+					RuntimeOrigin::signed(BUYER_1),
+					get_mock_jwt_with_cid(
+						BUYER_1,
+						InvestorType::Retail,
+						generate_did_from_account(BUYER_1),
+						project_metadata.clone().policy_ipfs_cid.unwrap()
+					),
+					project_id,
+					ct_participation,
+					ParticipationMode::OTM,
+					AcceptedFundingAsset::USDT
+				));
+			});
+
+			let post_participation_treasury_free_plmc = inst.get_free_plmc_balance_for(otm_treasury_account);
+			let post_participation_otm_escrow_held_plmc =
+				inst.get_reserved_plmc_balance_for(otm_escrow_account, HoldReason::Participation.into());
+			let post_participation_otm_escrow_usdt =
+				inst.get_free_funding_asset_balance_for(USDT_ID, otm_escrow_account);
+			let post_participation_otm_fee_recipient_usdt =
+				inst.get_free_funding_asset_balance_for(USDT_ID, otm_fee_recipient_account);
+			let post_participation_buyer_usdt = inst.get_free_funding_asset_balance_for(USDT_ID, BUYER_1);
+
+			assert_eq!(
+				post_participation_treasury_free_plmc,
+				pre_participation_treasury_free_plmc - expected_plmc_bond - inst.get_ed()
+			);
+			assert_eq!(
+				post_participation_otm_escrow_held_plmc,
+				pre_participation_otm_escrow_held_plmc + expected_plmc_bond
+			);
+			assert_close_enough!(
+				post_participation_otm_escrow_usdt,
+				pre_participation_otm_escrow_usdt + otm_usdt_fee,
+				Perquintill::from_float(0.999)
+			);
+			assert_close_enough!(
+				post_participation_otm_fee_recipient_usdt,
+				pre_participation_otm_fee_recipient_usdt,
+				Perquintill::from_float(0.999)
+			);
+			assert_close_enough!(
+				post_participation_buyer_usdt,
+				pre_participation_buyer_usdt - USDT_PARTICIPATION - otm_usdt_fee,
+				Perquintill::from_float(0.999)
+			);
+
+			assert_eq!(inst.go_to_next_state(project_id), ProjectStatus::FundingFailed);
+			assert_eq!(inst.go_to_next_state(project_id), ProjectStatus::SettlementStarted(FundingOutcome::Failure));
+			inst.settle_project(project_id, true);
+
+			inst.execute(|| {
+				assert_noop!(
+					<pallet_proxy_bonding::Pallet<TestRuntime>>::transfer_fees_to_recipient(
+						RuntimeOrigin::signed(BUYER_1),
+						project_id,
+						HoldReason::Participation.into(),
+						USDT_ID
+					),
+					pallet_proxy_bonding::Error::<TestRuntime>::FeeToRecipientDisallowed
+				);
+
+				assert_ok!(<pallet_proxy_bonding::Pallet<TestRuntime>>::transfer_bonds_back_to_treasury(
+					RuntimeOrigin::signed(BUYER_1),
+					project_id,
+					HoldReason::Participation.into()
+				));
+			});
+
+			let post_settlement_treasury_free_plmc = inst.get_free_plmc_balance_for(otm_treasury_account);
+			let post_settlement_otm_escrow_held_plmc = inst.get_free_plmc_balance_for(otm_escrow_account);
+			let post_settlement_otm_escrow_usdt = inst.get_free_funding_asset_balance_for(USDT_ID, otm_escrow_account);
+			let post_settlement_otm_fee_recipient_usdt =
+				inst.get_free_funding_asset_balance_for(USDT_ID, otm_fee_recipient_account);
+			let post_settlement_buyer_usdt = inst.get_free_funding_asset_balance_for(USDT_ID, BUYER_1);
+			let issuer_funding_account = inst.get_free_funding_asset_balance_for(USDT_ID, issuer);
+
+			assert_eq!(post_settlement_treasury_free_plmc, post_participation_treasury_free_plmc + expected_plmc_bond);
+			assert_eq!(post_settlement_otm_escrow_held_plmc, inst.get_ed());
+			assert_eq!(post_settlement_otm_escrow_usdt, Zero::zero());
+			assert_eq!(post_settlement_otm_fee_recipient_usdt, Zero::zero());
+			assert_eq!(post_settlement_buyer_usdt, usdt_ed + USDT_PARTICIPATION + otm_usdt_fee);
+			assert_eq!(issuer_funding_account, Zero::zero());
 		}
 	}
 
@@ -1155,10 +1462,20 @@ mod contribute_extrinsic {
 			let mut evaluations = default_evaluations();
 			evaluations.push((BIDDER_2, 1337 * USD_UNIT).into());
 			let bids = vec![
-				BidParams::new(BIDDER_1, 400_000 * CT_UNIT, 1u8, AcceptedFundingAsset::USDT),
-				BidParams::new(BIDDER_2, 50_000 * CT_UNIT, 1u8, AcceptedFundingAsset::USDT),
+				BidParams::new(
+					BIDDER_1,
+					400_000 * CT_UNIT,
+					ParticipationMode::Classic(1u8),
+					AcceptedFundingAsset::USDT,
+				),
+				BidParams::new(BIDDER_2, 50_000 * CT_UNIT, ParticipationMode::Classic(1u8), AcceptedFundingAsset::USDT),
 				// Partially accepted bid. Only the 50k of the second bid will be accepted.
-				BidParams::new(BIDDER_3, 100_000 * CT_UNIT, 1u8, AcceptedFundingAsset::USDT),
+				BidParams::new(
+					BIDDER_3,
+					100_000 * CT_UNIT,
+					ParticipationMode::Classic(1u8),
+					AcceptedFundingAsset::USDT,
+				),
 			];
 
 			let project_id = inst.create_community_contributing_project(

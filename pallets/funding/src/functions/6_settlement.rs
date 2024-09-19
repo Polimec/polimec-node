@@ -5,7 +5,7 @@ use frame_support::{
 	dispatch::DispatchResult,
 	ensure,
 	traits::{
-		fungible::MutateHold as FungibleMutateHold,
+		fungible::{Inspect, MutateHold as FungibleMutateHold},
 		fungibles::Mutate as FungiblesMutate,
 		tokens::{Fortitude, Precision, Preservation, Restriction},
 		Get,
@@ -175,22 +175,22 @@ impl<T: Config> Pallet<T> {
 		Self::release_funding_asset(project_id, &bid.bidder, refunded_funding_asset_amount, bid.funding_asset)?;
 
 		if bid.mode == ParticipationMode::OTM {
-			<pallet_proxy_bonding::Pallet<T>>::refund_fee(
-				project_id,
-				HoldReason::Participation.into(),
-				&bid.bidder,
-				refunded_plmc,
-				bid.funding_asset.id(),
-			)?;
+			if refunded_plmc > T::NativeCurrency::minimum_balance() {
+				<pallet_proxy_bonding::Pallet<T>>::refund_fee(
+					project_id,
+					&bid.bidder,
+					refunded_plmc,
+					bid.funding_asset.id(),
+				)?;
+			}
 		} else {
 			Self::release_participation_bond_for(&bid.bidder, refunded_plmc)?;
 		}
 
-
 		if funding_success && bid.status != BidStatus::Rejected {
 			let ct_vesting_duration = Self::set_plmc_bond_release_with_mode(
 				bid.bidder.clone(),
-				bid.plmc_bond,
+				bid.plmc_bond.saturating_sub(refunded_plmc),
 				bid.mode,
 				project_details.funding_end_block.ok_or(Error::<T>::ImpossibleState)?,
 			)?;
@@ -276,7 +276,6 @@ impl<T: Config> Pallet<T> {
 			if contribution.mode == ParticipationMode::OTM {
 				<pallet_proxy_bonding::Pallet<T>>::refund_fee(
 					project_id,
-					HoldReason::Participation.into(),
 					&contribution.contributor,
 					contribution.plmc_bond,
 					contribution.funding_asset.id(),
@@ -284,7 +283,6 @@ impl<T: Config> Pallet<T> {
 			} else {
 				Self::release_participation_bond_for(&contribution.contributor, contribution.plmc_bond)?;
 			}
-
 		} else {
 			let ct_vesting_duration = Self::set_plmc_bond_release_with_mode(
 				contribution.contributor.clone(),

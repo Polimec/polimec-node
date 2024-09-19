@@ -32,7 +32,7 @@ impl<T: Config> Pallet<T> {
 		let plmc_usd_price =
 			<PriceProviderOf<T>>::get_decimals_aware_price(PLMC_FOREIGN_ID, USD_DECIMALS, PLMC_DECIMALS)
 				.ok_or(Error::<T>::PriceNotFound)?;
-		let usd_bond = multiplier.calculate_bonding_requirement::<T>(ticket_size).ok_or(Error::<T>::BadMath)?;
+		let usd_bond = multiplier.calculate_usd_bonding_requirement::<T>(ticket_size).ok_or(Error::<T>::BadMath)?;
 		plmc_usd_price
 			.reciprocal()
 			.ok_or(Error::<T>::BadMath)?

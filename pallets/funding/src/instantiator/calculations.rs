@@ -1,6 +1,6 @@
 #[allow(clippy::wildcard_imports)]
 use super::*;
-use crate::{Multiplier, MultiplierOf, ParticipationMode};
+use crate::{MultiplierOf, ParticipationMode};
 use core::cmp::Ordering;
 use itertools::GroupBy;
 use polimec_common::{ProvideAssetPrice, USD_DECIMALS};
@@ -13,6 +13,17 @@ impl<
 {
 	pub fn get_ed(&self) -> Balance {
 		T::ExistentialDeposit::get()
+	}
+
+	pub fn get_funding_asset_ed(&mut self, asset_id: AssetIdOf<T>) -> Balance {
+		self.execute(|| T::FundingCurrency::minimum_balance(asset_id))
+	}
+
+	pub fn get_funding_asset_unit(&mut self, asset_id: AssetIdOf<T>) -> Balance {
+		self.execute(|| {
+			let decimals = T::FundingCurrency::decimals(asset_id);
+			10u128.pow(decimals as u32)
+		})
 	}
 
 	pub fn get_ct_account_deposit(&self) -> Balance {
@@ -58,12 +69,7 @@ impl<
 			while !amount_to_bid.is_zero() {
 				let bid_amount = if amount_to_bid <= bucket.amount_left { amount_to_bid } else { bucket.amount_left };
 				output.push((
-					BidParams {
-						bidder: bid.bidder.clone(),
-						amount: bid_amount,
-						multiplier: bid.multiplier,
-						asset: bid.asset,
-					},
+					BidParams { bidder: bid.bidder.clone(), amount: bid_amount, mode: bid.mode, asset: bid.asset },
 					bucket.current_price,
 				));
 				bucket.update(bid_amount);
@@ -79,19 +85,17 @@ impl<
 		ct_price: PriceOf<T>,
 		with_ed: bool,
 	) -> Vec<UserToPLMCBalance<T>> {
-		let plmc_usd_price = self.execute(|| {
-			<PriceProviderOf<T>>::get_decimals_aware_price(PLMC_FOREIGN_ID, USD_DECIMALS, PLMC_DECIMALS).unwrap()
-		});
-
 		let mut output = Vec::new();
 		for bid in bids {
 			let usd_ticket_size = ct_price.saturating_mul_int(bid.amount);
-			let usd_bond = bid.multiplier.calculate_bonding_requirement::<T>(usd_ticket_size).unwrap();
-			let mut plmc_bond = plmc_usd_price.reciprocal().unwrap().saturating_mul_int(usd_bond);
-			if with_ed {
-				plmc_bond = plmc_bond.saturating_add(self.get_ed());
+			let mut plmc_required = Balance::zero();
+			if let ParticipationMode::Classic(multiplier) = bid.mode {
+				self.add_required_plmc_to(&mut plmc_required, usd_ticket_size, multiplier)
 			}
-			output.push(UserToPLMCBalance::new(bid.bidder.clone(), plmc_bond));
+			if with_ed {
+				plmc_required = plmc_required.saturating_add(self.get_ed());
+			}
+			output.push(UserToPLMCBalance::new(bid.bidder.clone(), plmc_required));
 		}
 		output
 	}
@@ -105,18 +109,17 @@ impl<
 		with_ed: bool,
 	) -> Vec<UserToPLMCBalance<T>> {
 		let mut output = Vec::new();
-		let plmc_usd_price = self.execute(|| {
-			<PriceProviderOf<T>>::get_decimals_aware_price(PLMC_FOREIGN_ID, USD_DECIMALS, PLMC_DECIMALS).unwrap()
-		});
 
 		for (bid, price) in self.get_actual_price_charged_for_bucketed_bids(bids, project_metadata, maybe_bucket) {
 			let usd_ticket_size = price.saturating_mul_int(bid.amount);
-			let usd_bond = bid.multiplier.calculate_bonding_requirement::<T>(usd_ticket_size).unwrap();
-			let mut plmc_bond = plmc_usd_price.reciprocal().unwrap().saturating_mul_int(usd_bond);
-			if with_ed {
-				plmc_bond = plmc_bond.saturating_add(self.get_ed());
+			let mut plmc_required = Balance::zero();
+			if let ParticipationMode::Classic(multiplier) = bid.mode {
+				self.add_required_plmc_to(&mut plmc_required, usd_ticket_size, multiplier)
 			}
-			output.push(UserToPLMCBalance::<T>::new(bid.bidder.clone(), plmc_bond));
+			if with_ed {
+				plmc_required = plmc_required.saturating_add(self.get_ed());
+			}
+			output.push(UserToPLMCBalance::<T>::new(bid.bidder.clone(), plmc_required));
 		}
 
 		output.merge_accounts(MergeOperation::Add)
@@ -138,18 +141,16 @@ impl<
 			.collect();
 		grouped_by_price_bids.reverse();
 
-		let plmc_usd_price = self.execute(|| {
-			<PriceProviderOf<T>>::get_decimals_aware_price(PLMC_FOREIGN_ID, USD_DECIMALS, PLMC_DECIMALS).unwrap()
-		});
 		let mut remaining_cts =
 			project_metadata.auction_round_allocation_percentage * project_metadata.total_allocation_size;
 
 		for (price_charged, bids) in grouped_by_price_bids {
 			for bid in bids {
 				let charged_usd_ticket_size = price_charged.saturating_mul_int(bid.amount);
-				let charged_usd_bond =
-					bid.multiplier.calculate_bonding_requirement::<T>(charged_usd_ticket_size).unwrap();
-				let charged_plmc_bond = plmc_usd_price.reciprocal().unwrap().saturating_mul_int(charged_usd_bond);
+				let mut charged_plmc_bond = Balance::zero();
+				if let ParticipationMode::Classic(multiplier) = bid.mode {
+					self.add_required_plmc_to(&mut charged_plmc_bond, charged_usd_ticket_size, multiplier);
+				}
 
 				if remaining_cts <= Zero::zero() {
 					output.push(UserToPLMCBalance::new(bid.bidder, charged_plmc_bond));
@@ -163,9 +164,10 @@ impl<
 					if weighted_average_price > price_charged { price_charged } else { weighted_average_price };
 
 				let actual_usd_ticket_size = final_price.saturating_mul_int(bought_cts);
-				let actual_usd_bond =
-					bid.multiplier.calculate_bonding_requirement::<T>(actual_usd_ticket_size).unwrap();
-				let actual_plmc_bond = plmc_usd_price.reciprocal().unwrap().saturating_mul_int(actual_usd_bond);
+				let mut actual_plmc_bond = Balance::zero();
+				if let ParticipationMode::Classic(multiplier) = bid.mode {
+					self.add_required_plmc_to(&mut actual_plmc_bond, actual_usd_ticket_size, multiplier);
+				}
 
 				let returned_plmc_bond = charged_plmc_bond - actual_plmc_bond;
 
@@ -204,14 +206,12 @@ impl<
 	) -> Vec<UserToFundingAsset<T>> {
 		let mut output = Vec::new();
 		for bid in bids {
-			let funding_asset_id = bid.asset.id();
-			let funding_asset_decimals = self.execute(|| T::FundingCurrency::decimals(funding_asset_id));
-			let funding_asset_usd_price = self.execute(|| {
-				<PriceProviderOf<T>>::get_decimals_aware_price(funding_asset_id, USD_DECIMALS, funding_asset_decimals)
-					.unwrap()
-			});
 			let usd_ticket_size = ct_price.saturating_mul_int(bid.amount);
-			let funding_asset_spent = funding_asset_usd_price.reciprocal().unwrap().saturating_mul_int(usd_ticket_size);
+			let mut funding_asset_spent = Balance::zero();
+			self.add_required_funding_asset_to(&mut funding_asset_spent, usd_ticket_size, bid.asset);
+			if bid.mode == ParticipationMode::OTM {
+				self.add_otm_fee_to(&mut funding_asset_spent, usd_ticket_size, bid.asset);
+			}
 			output.push(UserToFundingAsset::new(bid.bidder.clone(), funding_asset_spent, bid.asset.id()));
 		}
 		output
@@ -227,15 +227,13 @@ impl<
 		let mut output = Vec::new();
 
 		for (bid, price) in self.get_actual_price_charged_for_bucketed_bids(bids, project_metadata, maybe_bucket) {
-			let funding_asset_id = bid.asset.id();
-			let funding_asset_decimals = self.execute(|| T::FundingCurrency::decimals(funding_asset_id));
-			let funding_asset_usd_price = self.execute(|| {
-				<PriceProviderOf<T>>::get_decimals_aware_price(funding_asset_id, USD_DECIMALS, funding_asset_decimals)
-					.ok_or(Error::<T>::PriceNotFound)
-					.unwrap()
-			});
 			let usd_ticket_size = price.saturating_mul_int(bid.amount);
-			let funding_asset_spent = funding_asset_usd_price.reciprocal().unwrap().saturating_mul_int(usd_ticket_size);
+			let mut funding_asset_spent = Balance::zero();
+			self.add_required_funding_asset_to(&mut funding_asset_spent, usd_ticket_size, bid.asset);
+			if bid.mode == ParticipationMode::OTM {
+				self.add_otm_fee_to(&mut funding_asset_spent, usd_ticket_size, bid.asset);
+			}
+
 			output.push(UserToFundingAsset::<T>::new(bid.bidder.clone(), funding_asset_spent, bid.asset.id()));
 		}
 
@@ -263,21 +261,12 @@ impl<
 
 		for (price_charged, bids) in grouped_by_price_bids {
 			for bid in bids {
-				let funding_asset_id = bid.asset.id();
-				let funding_asset_decimals = self.execute(|| T::FundingCurrency::decimals(funding_asset_id));
-				let funding_asset_usd_price = self.execute(|| {
-					<PriceProviderOf<T>>::get_decimals_aware_price(
-						funding_asset_id,
-						USD_DECIMALS,
-						funding_asset_decimals,
-					)
-					.ok_or(Error::<T>::PriceNotFound)
-					.unwrap()
-				});
-				let charged_usd_ticket_size = price_charged.saturating_mul_int(bid.amount);
-
-				let charged_funding_asset =
-					funding_asset_usd_price.reciprocal().unwrap().saturating_mul_int(charged_usd_ticket_size);
+				let mut charged_usd_ticket_size = price_charged.saturating_mul_int(bid.amount);
+				let mut charged_funding_asset = Balance::zero();
+				self.add_required_funding_asset_to(&mut charged_funding_asset, charged_usd_ticket_size, bid.asset);
+				if bid.mode == ParticipationMode::OTM {
+					self.add_otm_fee_to(&mut charged_usd_ticket_size, bid.amount, bid.asset);
+				}
 
 				if remaining_cts <= Zero::zero() {
 					output.push(UserToFundingAsset::new(bid.bidder, charged_funding_asset, bid.asset.id()));
@@ -291,8 +280,11 @@ impl<
 					if weighted_average_price > price_charged { price_charged } else { weighted_average_price };
 
 				let actual_usd_ticket_size = final_price.saturating_mul_int(bought_cts);
-				let actual_funding_asset_spent =
-					funding_asset_usd_price.reciprocal().unwrap().saturating_mul_int(actual_usd_ticket_size);
+				let mut actual_funding_asset_spent = Balance::zero();
+				self.add_required_funding_asset_to(&mut actual_funding_asset_spent, actual_usd_ticket_size, bid.asset);
+				if bid.mode == ParticipationMode::OTM {
+					self.add_otm_fee_to(&mut actual_funding_asset_spent, actual_usd_ticket_size, bid.asset);
+				}
 
 				let returned_foreign_asset = charged_funding_asset - actual_funding_asset_spent;
 
@@ -336,7 +328,7 @@ impl<
 				filtered_bids.push(BidParams {
 					bidder: bid.bidder.clone(),
 					amount: total_cts_left,
-					multiplier: bid.multiplier,
+					mode: bid.mode,
 					asset: bid.asset,
 				});
 				total_cts_left = Zero::zero();
@@ -351,17 +343,14 @@ impl<
 		token_usd_price: PriceOf<T>,
 		with_ed: bool,
 	) -> Vec<UserToPLMCBalance<T>> {
-		let plmc_usd_price = self.execute(|| {
-			<PriceProviderOf<T>>::get_decimals_aware_price(PLMC_FOREIGN_ID, USD_DECIMALS, PLMC_DECIMALS).unwrap()
-		});
-
 		let mut output = Vec::new();
 		for cont in contributions {
-			let usd_ticket_size = token_usd_price.saturating_mul_int(cont.amount);
-			// Needs to be forced to allow for failure tests
-			let multiplier = Multiplier::force_new(cont.mode.multiplier());
-			let usd_bond = multiplier.calculate_bonding_requirement::<T>(usd_ticket_size).unwrap();
-			let mut plmc_bond = plmc_usd_price.reciprocal().unwrap().saturating_mul_int(usd_bond);
+			let mut plmc_bond = 0u128;
+			if let ParticipationMode::Classic(multiplier) = cont.mode {
+				let usd_ticket_size = token_usd_price.saturating_mul_int(cont.amount);
+				self.add_required_plmc_to(&mut plmc_bond, usd_ticket_size, multiplier);
+			}
+
 			if with_ed {
 				plmc_bond = plmc_bond.saturating_add(self.get_ed());
 			}
@@ -425,18 +414,58 @@ impl<
 	) -> Vec<UserToFundingAsset<T>> {
 		let mut output = Vec::new();
 		for cont in contributions {
-			let funding_asset_id = cont.asset.id();
-			let funding_asset_decimals = self.execute(|| T::FundingCurrency::decimals(funding_asset_id));
-			let funding_asset_usd_price = self.execute(|| {
-				<PriceProviderOf<T>>::get_decimals_aware_price(funding_asset_id, USD_DECIMALS, funding_asset_decimals)
-					.ok_or(Error::<T>::PriceNotFound)
-					.unwrap()
-			});
 			let usd_ticket_size = token_usd_price.saturating_mul_int(cont.amount);
-			let funding_asset_spent = funding_asset_usd_price.reciprocal().unwrap().saturating_mul_int(usd_ticket_size);
+			let mut funding_asset_spent = Balance::zero();
+			self.add_required_funding_asset_to(&mut funding_asset_spent, usd_ticket_size, cont.asset);
+			if cont.mode == ParticipationMode::OTM {
+				self.add_otm_fee_to(&mut funding_asset_spent, usd_ticket_size, cont.asset);
+			}
 			output.push(UserToFundingAsset::new(cont.contributor, funding_asset_spent, cont.asset.id()));
 		}
 		output
+	}
+
+	pub fn add_otm_fee_to(
+		&mut self,
+		balance: &mut Balance,
+		usd_ticket_size: Balance,
+		funding_asset: AcceptedFundingAsset,
+	) {
+		let multiplier: MultiplierOf<T> = ParticipationMode::OTM.multiplier().try_into().ok().unwrap();
+		let plmc_usd_price = self.execute(|| {
+			<PriceProviderOf<T>>::get_decimals_aware_price(PLMC_FOREIGN_ID, USD_DECIMALS, PLMC_DECIMALS).unwrap()
+		});
+		let usd_bond = multiplier.calculate_usd_bonding_requirement::<T>(usd_ticket_size).unwrap();
+		let plmc_bond = plmc_usd_price.reciprocal().unwrap().saturating_mul_int(usd_bond);
+		let otm_fee =
+			self.execute(|| <pallet_proxy_bonding::Pallet<T>>::calculate_fee(plmc_bond, funding_asset.id())).unwrap();
+		*balance += otm_fee;
+	}
+
+	pub fn add_required_plmc_to(&mut self, balance: &mut Balance, usd_ticket_size: Balance, multiplier: u8) {
+		let multiplier: MultiplierOf<T> = multiplier.try_into().ok().unwrap();
+		let usd_bond = multiplier.calculate_usd_bonding_requirement::<T>(usd_ticket_size).unwrap();
+		let plmc_usd_price = self.execute(|| {
+			<PriceProviderOf<T>>::get_decimals_aware_price(PLMC_FOREIGN_ID, USD_DECIMALS, PLMC_DECIMALS).unwrap()
+		});
+		let plmc_bond = plmc_usd_price.reciprocal().unwrap().saturating_mul_int(usd_bond);
+		*balance += plmc_bond;
+	}
+
+	pub fn add_required_funding_asset_to(
+		&mut self,
+		balance: &mut Balance,
+		usd_ticket_size: Balance,
+		funding_asset: AcceptedFundingAsset,
+	) {
+		let funding_asset_id = funding_asset.id();
+		let funding_asset_decimals = self.execute(|| T::FundingCurrency::decimals(funding_asset_id));
+		let funding_asset_usd_price = self.execute(|| {
+			<PriceProviderOf<T>>::get_decimals_aware_price(funding_asset_id, USD_DECIMALS, funding_asset_decimals)
+				.unwrap()
+		});
+		let funding_asset_bond = funding_asset_usd_price.reciprocal().unwrap().saturating_mul_int(usd_ticket_size);
+		*balance += funding_asset_bond;
 	}
 
 	pub fn generic_map_merge_reduce<M: Clone, K: Ord + Clone, S: Clone>(
@@ -547,16 +576,16 @@ impl<
 		min_price: PriceOf<T>,
 		weights: Vec<u8>,
 		bidders: Vec<AccountIdOf<T>>,
-		multipliers: Vec<u8>,
+		modes: Vec<ParticipationMode>,
 	) -> Vec<BidParams<T>> {
 		assert_eq!(weights.len(), bidders.len(), "Should have enough weights for all the bidders");
 
-		zip(zip(weights, bidders), multipliers)
-			.map(|((weight, bidder), multiplier)| {
+		zip(zip(weights, bidders), modes)
+			.map(|((weight, bidder), mode)| {
 				let ticket_size = Percent::from_percent(weight) * usd_amount;
 				let token_amount = min_price.reciprocal().unwrap().saturating_mul_int(ticket_size);
 
-				BidParams::new(bidder, token_amount, multiplier, AcceptedFundingAsset::USDT)
+				BidParams::new(bidder, token_amount, mode, AcceptedFundingAsset::USDT)
 			})
 			.collect()
 	}
@@ -567,17 +596,17 @@ impl<
 		percent_funding: u8,
 		weights: Vec<u8>,
 		bidders: Vec<AccountIdOf<T>>,
-		multipliers: Vec<u8>,
+		modes: Vec<ParticipationMode>,
 	) -> Vec<BidParams<T>> {
 		let total_allocation_size = project_metadata.total_allocation_size;
 		let total_ct_bid = Percent::from_percent(percent_funding) * total_allocation_size;
 
 		assert_eq!(weights.len(), bidders.len(), "Should have enough weights for all the bidders");
 
-		zip(zip(weights, bidders), multipliers)
-			.map(|((weight, bidder), multiplier)| {
+		zip(zip(weights, bidders), modes)
+			.map(|((weight, bidder), mode)| {
 				let token_amount = Percent::from_percent(weight) * total_ct_bid;
-				BidParams::new(bidder, token_amount, multiplier, AcceptedFundingAsset::USDT)
+				BidParams::new(bidder, token_amount, mode, AcceptedFundingAsset::USDT)
 			})
 			.collect()
 	}
@@ -588,19 +617,14 @@ impl<
 		final_price: PriceOf<T>,
 		weights: Vec<u8>,
 		contributors: Vec<AccountIdOf<T>>,
-		multipliers: Vec<u8>,
+		modes: Vec<ParticipationMode>,
 	) -> Vec<ContributionParams<T>> {
-		zip(zip(weights, contributors), multipliers)
-			.map(|((weight, bidder), multiplier)| {
+		zip(zip(weights, contributors), modes)
+			.map(|((weight, bidder), mode)| {
 				let ticket_size = Percent::from_percent(weight) * usd_amount;
 				let token_amount = final_price.reciprocal().unwrap().saturating_mul_int(ticket_size);
 
-				ContributionParams::new(
-					bidder,
-					token_amount,
-					ParticipationMode::Classic(multiplier),
-					AcceptedFundingAsset::USDT,
-				)
+				ContributionParams::new(bidder, token_amount, mode, AcceptedFundingAsset::USDT)
 			})
 			.collect()
 	}
@@ -611,22 +635,17 @@ impl<
 		percent_funding: u8,
 		weights: Vec<u8>,
 		contributors: Vec<AccountIdOf<T>>,
-		multipliers: Vec<u8>,
+		modes: Vec<ParticipationMode>,
 	) -> Vec<ContributionParams<T>> {
 		let total_allocation_size = project_metadata.total_allocation_size;
 		let total_ct_bought = Percent::from_percent(percent_funding) * total_allocation_size;
 
 		assert_eq!(weights.len(), contributors.len(), "Should have enough weights for all the bidders");
 
-		zip(zip(weights, contributors), multipliers)
-			.map(|((weight, contributor), multiplier)| {
+		zip(zip(weights, contributors), modes)
+			.map(|((weight, contributor), mode)| {
 				let token_amount = Percent::from_percent(weight) * total_ct_bought;
-				ContributionParams::new(
-					contributor,
-					token_amount,
-					ParticipationMode::Classic(multiplier),
-					AcceptedFundingAsset::USDT,
-				)
+				ContributionParams::new(contributor, token_amount, mode, AcceptedFundingAsset::USDT)
 			})
 			.collect()
 	}

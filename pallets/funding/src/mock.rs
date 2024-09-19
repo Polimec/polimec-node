@@ -437,7 +437,8 @@ impl Config for TestRuntime {
 }
 
 parameter_types! {
-	pub const FeePercentage: Perbill = Perbill::from_percent(5);
+	// Means a USD Ticket fee of 1.5%, since the FeePercentage is applied on the PLMC bond with multiplier 5.
+	pub FeePercentage: Perbill = Perbill::from_rational(75u32, 100u32);
 	pub const FeeRecipient: AccountId = 80085;
 	pub const RootId: PalletId = PalletId(*b"treasury");
 }
@@ -484,7 +485,7 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
 				(<TestRuntime as Config>::PalletId::get().into_account_truncating(), ed),
 				(<TestRuntime as Config>::ContributionTreasury::get(), ed),
 				(<TestRuntime as Config>::BlockchainOperationTreasury::get(), ed),
-				/// Treasury account needs PLMC for the One Token Model participations
+				// Treasury account needs PLMC for the One Token Model participations
 				(ProxyBondingTreasuryAccount::get(), 1_000_000 * PLMC),
 				(FeeRecipient::get(), ed),
 			],
@@ -496,19 +497,19 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
 					<TestRuntime as Config>::PalletId::get().into_account_truncating(),
 					// asset is sufficient, i.e. participants can hold only this asset to participate with OTM
 					true,
-					10,
+					70_000,
 				),
 				(
 					AcceptedFundingAsset::USDC.id(),
 					<TestRuntime as Config>::PalletId::get().into_account_truncating(),
 					true,
-					10,
+					70_000,
 				),
 				(
 					AcceptedFundingAsset::DOT.id(),
 					<TestRuntime as Config>::PalletId::get().into_account_truncating(),
 					true,
-					10,
+					100_000_000,
 				),
 			],
 			metadata: vec![

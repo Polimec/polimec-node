@@ -11,10 +11,12 @@ use polimec_runtime::{
 		inflation::{perbill_annual_to_perbill_round, BLOCKS_PER_YEAR},
 		InflationInfo, Range,
 	},
-	AccountId, AuraId as AuthorityId, Balance, OracleProvidersMembershipConfig, Runtime, PLMC,
+	AccountId, AuraId as AuthorityId, Balance, BlockchainOperationTreasury, ContributionTreasuryAccount,
+	ExistentialDeposit, FeeRecipient, OracleProvidersMembershipConfig, Runtime, TreasuryAccount, PLMC,
 };
 use sp_core::{crypto::UncheckedInto, sr25519};
 use sp_runtime::{traits::AccountIdConversion, Perbill, Percent};
+
 pub type ChainSpec = sc_service::GenericChainSpec<Extensions>;
 
 /// The default XCM version to set in genesis config.
@@ -86,13 +88,14 @@ pub fn genesis_config(genesis_config_params: GenesisConfigParams) -> serde_json:
 		id,
 	} = genesis_config_params;
 
+	let ed = ExistentialDeposit::get();
 	let system_accounts = vec![
-		(
-			<Runtime as pallet_funding::Config>::ContributionTreasury::get(),
-			<Runtime as pallet_funding::Config>::NativeCurrency::minimum_balance(),
-		),
+		(ContributionTreasuryAccount::get(), ed),
+		(FeeRecipient::get(), ed),
 		// Need this to have enough for staking rewards
-		(<Runtime as pallet_parachain_staking::Config>::PayMaster::get(), 10_000_000 * PLMC),
+		(BlockchainOperationTreasury::get(), 10_000_000 * PLMC),
+		// Need this to have enough for proxy bonding
+		(TreasuryAccount::get(), 10_000_000 * PLMC),
 	];
 	endowed_accounts.append(&mut system_accounts.clone());
 

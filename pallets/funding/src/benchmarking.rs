@@ -20,6 +20,8 @@
 
 use super::*;
 use crate::{instantiator::*, traits::SetPrices};
+use ParticipationMode::{Classic, OTM};
+
 use frame_benchmarking::v2::*;
 use frame_support::{
 	assert_ok,
@@ -126,7 +128,7 @@ where
 		default_project_metadata.minimum_price,
 		default_weights(),
 		default_bidders::<T>(),
-		default_bidder_multipliers(),
+		default_bidder_modes(),
 	)
 }
 
@@ -145,7 +147,7 @@ where
 		default_project.minimum_price,
 		default_weights(),
 		default_bidders::<T>(),
-		default_bidder_multipliers(),
+		default_bidder_modes(),
 	)
 }
 
@@ -170,7 +172,7 @@ where
 		default_project_metadata.minimum_price,
 		default_weights(),
 		default_community_contributors::<T>(),
-		default_community_contributor_multipliers(),
+		default_community_contributor_modes(),
 	)
 }
 
@@ -195,7 +197,7 @@ where
 		10u128.into(),
 		default_weights(),
 		default_remainder_contributors::<T>(),
-		default_remainder_contributor_multipliers(),
+		default_remainder_contributor_modes(),
 	)
 }
 
@@ -241,14 +243,14 @@ pub fn default_remainder_contributors<T: Config>() -> Vec<AccountIdOf<T>> {
 	]
 }
 
-pub fn default_bidder_multipliers() -> Vec<u8> {
-	vec![10u8, 3u8, 1u8, 7u8, 4u8]
+pub fn default_bidder_modes() -> Vec<ParticipationMode> {
+	vec![Classic(10u8), Classic(3u8), OTM, OTM, Classic(4u8)]
 }
-pub fn default_community_contributor_multipliers() -> Vec<u8> {
-	vec![2u8, 1u8, 3u8, 1u8, 1u8]
+pub fn default_community_contributor_modes() -> Vec<ParticipationMode> {
+	vec![Classic(2u8), Classic(1u8), Classic(3u8), OTM, OTM]
 }
-pub fn default_remainder_contributor_multipliers() -> Vec<u8> {
-	vec![1u8, 11u8, 1u8, 1u8, 1u8]
+pub fn default_remainder_contributor_modes() -> Vec<ParticipationMode> {
+	vec![Classic(1u8), OTM, Classic(1u8), OTM, Classic(1u8)]
 }
 
 /// Grab an account, seeded by a name and index.
@@ -665,7 +667,12 @@ mod benchmarks {
 
 		let project_id = inst.create_auctioning_project(project_metadata.clone(), issuer, None, evaluations);
 
-		let existing_bid = BidParams::new(bidder.clone(), (50 * CT_UNIT).into(), 5u8, AcceptedFundingAsset::USDT);
+		let existing_bid = BidParams::new(
+			bidder.clone(),
+			(50 * CT_UNIT).into(),
+			ParticipationMode::Classic(5u8),
+			AcceptedFundingAsset::USDT,
+		);
 
 		let existing_bids = vec![existing_bid; x as usize];
 		let existing_bids_post_bucketing =
@@ -708,7 +715,12 @@ mod benchmarks {
 			let current_bucket = Buckets::<T>::get(project_id).unwrap();
 			// first lets bring the bucket to almost its limit with another bidder:
 			assert!(new_bidder.clone() != bidder.clone());
-			let bid_params = BidParams::new(new_bidder, current_bucket.amount_left, 1u8, AcceptedFundingAsset::USDT);
+			let bid_params = BidParams::new(
+				new_bidder,
+				current_bucket.amount_left,
+				ParticipationMode::Classic(1u8),
+				AcceptedFundingAsset::USDT,
+			);
 			maybe_filler_bid = Some(bid_params.clone());
 			let plmc_for_new_bidder = inst.calculate_auction_plmc_charged_with_given_price(
 				&vec![bid_params.clone()],
@@ -733,7 +745,8 @@ mod benchmarks {
 			ct_amount = bucket_size * (y as u128);
 			usdt_for_filler_bidder = usdt_for_new_bidder;
 		}
-		let extrinsic_bid = BidParams::new(bidder.clone(), ct_amount, 1u8, AcceptedFundingAsset::USDT);
+		let extrinsic_bid =
+			BidParams::new(bidder.clone(), ct_amount, ParticipationMode::Classic(1u8), AcceptedFundingAsset::USDT);
 		let original_extrinsic_bid = extrinsic_bid.clone();
 		let current_bucket = Buckets::<T>::get(project_id).unwrap();
 		// we need to call this after bidding `x` amount of times, to get the latest bucket from storage
@@ -786,7 +799,7 @@ mod benchmarks {
 			jwt,
 			project_id,
 			original_extrinsic_bid.amount,
-			original_extrinsic_bid.multiplier,
+			original_extrinsic_bid.mode,
 			original_extrinsic_bid.asset,
 		);
 
@@ -803,7 +816,7 @@ mod benchmarks {
 				original_ct_usd_price: Some(price),
 				funding_asset: Some(AcceptedFundingAsset::USDT),
 				funding_asset_amount_locked: None,
-				multiplier: Some(bid_params.multiplier),
+				mode: Some(bid_params.mode),
 				plmc_bond: None,
 				when: None,
 			};
@@ -862,11 +875,11 @@ mod benchmarks {
 				Event::<T>::Bid {
 					project_id,
 					ct_amount,
-					multiplier, ..
+					mode, ..
 				},
 				project_id == project_id,
 				ct_amount == bid_params.amount,
-				multiplier == bid_params.multiplier
+				mode == bid_params.mode
 			};
 			assert!(maybe_event.is_some(), "Event not found");
 		}
@@ -917,7 +930,7 @@ mod benchmarks {
 				BidParams::<T>::new(
 					account::<AccountIdOf<T>>("bidder", 0, i),
 					(min_bid_amount * CT_UNIT).into(),
-					1u8,
+					ParticipationMode::Classic(1u8),
 					AcceptedFundingAsset::USDT,
 				)
 			})
@@ -929,7 +942,7 @@ mod benchmarks {
 			let last_rejected_bid = BidParams::<T>::new(
 				account::<AccountIdOf<T>>("bidder", 0, 420),
 				auction_allocation - (min_bid_amount * CT_UNIT * (y as u128 - 1u128)),
-				1u8,
+				ParticipationMode::Classic(1u8),
 				AcceptedFundingAsset::USDT,
 			);
 			all_bids.push(last_rejected_bid.clone());
@@ -939,7 +952,7 @@ mod benchmarks {
 			let allocation_bid = BidParams::<T>::new(
 				account::<AccountIdOf<T>>("bidder", 0, y),
 				auction_allocation,
-				1u8,
+				ParticipationMode::Classic(1u8),
 				AcceptedFundingAsset::USDT,
 			);
 			all_bids.push(allocation_bid);
@@ -954,7 +967,7 @@ mod benchmarks {
 				BidParams::<T>::new(
 					account::<AccountIdOf<T>>("bidder", 0, i),
 					(min_bid_amount * CT_UNIT).into(),
-					1u8,
+					ParticipationMode::Classic(1u8),
 					AcceptedFundingAsset::USDT,
 				)
 			})
@@ -1501,7 +1514,14 @@ mod benchmarks {
 			.map(|_| UserToUSDBalance::new(participant.clone(), (100 * USD_UNIT).into()))
 			.collect_vec();
 		let participant_bids = (0..max_bids)
-			.map(|_| BidParams::new(participant.clone(), (500 * CT_UNIT).into(), 1u8, AcceptedFundingAsset::USDT))
+			.map(|_| {
+				BidParams::new(
+					participant.clone(),
+					(500 * CT_UNIT).into(),
+					ParticipationMode::Classic(1u8),
+					AcceptedFundingAsset::USDT,
+				)
+			})
 			.collect_vec();
 		let participant_contributions = (0..max_contributions)
 			.map(|_| {
@@ -1843,7 +1863,14 @@ mod benchmarks {
 			.map(|_| UserToUSDBalance::new(participant.clone(), (100 * USD_UNIT).into()))
 			.collect_vec();
 		let participant_bids = (0..max_bids)
-			.map(|_| BidParams::new(participant.clone(), (500 * CT_UNIT).into(), 1u8, AcceptedFundingAsset::USDT))
+			.map(|_| {
+				BidParams::new(
+					participant.clone(),
+					(500 * CT_UNIT).into(),
+					ParticipationMode::Classic(1u8),
+					AcceptedFundingAsset::USDT,
+				)
+			})
 			.collect_vec();
 		let participant_contributions = (0..max_contributions)
 			.map(|_| {
@@ -1934,7 +1961,14 @@ mod benchmarks {
 			.map(|_| UserToUSDBalance::new(participant.clone(), (100 * USD_UNIT).into()))
 			.collect_vec();
 		let participant_bids = (0..max_bids)
-			.map(|_| BidParams::new(participant.clone(), (500 * CT_UNIT).into(), 1u8, AcceptedFundingAsset::USDT))
+			.map(|_| {
+				BidParams::new(
+					participant.clone(),
+					(500 * CT_UNIT).into(),
+					ParticipationMode::Classic(1u8),
+					AcceptedFundingAsset::USDT,
+				)
+			})
 			.collect_vec();
 		let participant_contributions = (0..max_contributions)
 			.map(|_| {

@@ -1086,7 +1086,7 @@ parameter_types! {
 	pub FeePercentage: Perbill = Perbill::from_rational(75u32, 1000u32);
 	// TODO: add a real account here
 	pub FeeRecipient: AccountId = [0u8; 32].into();
-	pub const RootId: PalletId = PalletId(*b"treasury");
+	pub RootId: PalletId = PalletId(*b"treasury");
 }
 impl pallet_proxy_bonding::Config for Runtime {
 	type BondingToken = Balances;

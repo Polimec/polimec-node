@@ -66,23 +66,23 @@ mod helper_functions {
 	#[test]
 	fn calculate_evaluation_plmc_spent() {
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
-		const EVALUATOR_1: AccountIdOf<TestRuntime> = 1u32;
+		const EVALUATOR_1: AccountIdOf<TestRuntime> = 1;
 		const USD_AMOUNT_1: Balance = 150_000 * USD_UNIT;
 		const EXPECTED_PLMC_AMOUNT_1: f64 = 17_857.1428571428f64;
 
-		const EVALUATOR_2: AccountIdOf<TestRuntime> = 2u32;
+		const EVALUATOR_2: AccountIdOf<TestRuntime> = 2;
 		const USD_AMOUNT_2: Balance = 50_000 * USD_UNIT;
 		const EXPECTED_PLMC_AMOUNT_2: f64 = 5_952.3809523809f64;
 
-		const EVALUATOR_3: AccountIdOf<TestRuntime> = 3u32;
+		const EVALUATOR_3: AccountIdOf<TestRuntime> = 3;
 		const USD_AMOUNT_3: Balance = 75_000 * USD_UNIT;
 		const EXPECTED_PLMC_AMOUNT_3: f64 = 8_928.5714285714f64;
 
-		const EVALUATOR_4: AccountIdOf<TestRuntime> = 4u32;
+		const EVALUATOR_4: AccountIdOf<TestRuntime> = 4;
 		const USD_AMOUNT_4: Balance = 100 * USD_UNIT;
 		const EXPECTED_PLMC_AMOUNT_4: f64 = 11.9047619047f64;
 
-		const EVALUATOR_5: AccountIdOf<TestRuntime> = 5u32;
+		const EVALUATOR_5: AccountIdOf<TestRuntime> = 5;
 
 		// 123.7 USD
 		const USD_AMOUNT_5: Balance = 1237 * USD_UNIT / 10;
@@ -139,11 +139,11 @@ mod helper_functions {
 		const CT_AMOUNT_4: u128 = 6000 * CT_UNIT;
 		const CT_AMOUNT_5: u128 = 2000 * CT_UNIT;
 
-		let bid_1 = BidParams::new(BIDDER_1, CT_AMOUNT_1, 1u8, AcceptedFundingAsset::USDT);
-		let bid_2 = BidParams::new(BIDDER_2, CT_AMOUNT_2, 1u8, AcceptedFundingAsset::USDT);
-		let bid_3 = BidParams::new(BIDDER_1, CT_AMOUNT_3, 1u8, AcceptedFundingAsset::USDT);
-		let bid_4 = BidParams::new(BIDDER_3, CT_AMOUNT_4, 1u8, AcceptedFundingAsset::USDT);
-		let bid_5 = BidParams::new(BIDDER_4, CT_AMOUNT_5, 1u8, AcceptedFundingAsset::USDT);
+		let bid_1 = BidParams::new(BIDDER_1, CT_AMOUNT_1, ParticipationMode::Classic(1u8), AcceptedFundingAsset::USDT);
+		let bid_2 = BidParams::new(BIDDER_2, CT_AMOUNT_2, ParticipationMode::Classic(1u8), AcceptedFundingAsset::USDT);
+		let bid_3 = BidParams::new(BIDDER_1, CT_AMOUNT_3, ParticipationMode::Classic(1u8), AcceptedFundingAsset::USDT);
+		let bid_4 = BidParams::new(BIDDER_3, CT_AMOUNT_4, ParticipationMode::Classic(1u8), AcceptedFundingAsset::USDT);
+		let bid_5 = BidParams::new(BIDDER_4, CT_AMOUNT_5, ParticipationMode::Classic(1u8), AcceptedFundingAsset::USDT);
 
 		// post bucketing, the bids look like this:
 		// (BIDDER_1, 5k) - (BIDDER_2, 40k) - (BIDDER_1, 5k) - (BIDDER_1, 5k) - (BIDDER_3 - 5k) - (BIDDER_3 - 1k) - (BIDDER_4 - 2k)
@@ -246,31 +246,31 @@ mod helper_functions {
 		const PLMC_PRICE: f64 = 8.4f64;
 		const CT_PRICE: f64 = 16.32f64;
 
-		const CONTRIBUTOR_1: AccountIdOf<TestRuntime> = 1u32;
+		const CONTRIBUTOR_1: AccountIdOf<TestRuntime> = 1;
 		const TOKEN_AMOUNT_1: u128 = 120 * CT_UNIT;
 		const MULTIPLIER_1: u8 = 1u8;
 		const _TICKET_SIZE_USD_1: u128 = 1_958_4_000_000_000_u128;
 		const EXPECTED_PLMC_AMOUNT_1: f64 = 233.1_428_571_428f64;
 
-		const CONTRIBUTOR_2: AccountIdOf<TestRuntime> = 2u32;
+		const CONTRIBUTOR_2: AccountIdOf<TestRuntime> = 2;
 		const TOKEN_AMOUNT_2: u128 = 5023 * CT_UNIT;
 		const MULTIPLIER_2: u8 = 2u8;
 		const _TICKET_SIZE_USD_2: u128 = 81_975_3_600_000_000_u128;
 		const EXPECTED_PLMC_AMOUNT_2: f64 = 4_879.4_857_142_857f64;
 
-		const CONTRIBUTOR_3: AccountIdOf<TestRuntime> = 3u32;
+		const CONTRIBUTOR_3: AccountIdOf<TestRuntime> = 3;
 		const TOKEN_AMOUNT_3: u128 = 20_000 * CT_UNIT;
 		const MULTIPLIER_3: u8 = 17u8;
 		const _TICKET_SIZE_USD_3: u128 = 326_400_0_000_000_000_u128;
 		const EXPECTED_PLMC_AMOUNT_3: f64 = 2_285.7_142_857_142f64;
 
-		const CONTRIBUTOR_4: AccountIdOf<TestRuntime> = 4u32;
+		const CONTRIBUTOR_4: AccountIdOf<TestRuntime> = 4;
 		const TOKEN_AMOUNT_4: u128 = 1_000_000 * CT_UNIT;
 		const MULTIPLIER_4: u8 = 25u8;
 		const _TICKET_SIZE_4: u128 = 16_320_000_0_000_000_000_u128;
 		const EXPECTED_PLMC_AMOUNT_4: f64 = 77_714.2_857_142_857f64;
 
-		const CONTRIBUTOR_5: AccountIdOf<TestRuntime> = 5u32;
+		const CONTRIBUTOR_5: AccountIdOf<TestRuntime> = 5;
 		// 0.1233 CTs
 		const TOKEN_AMOUNT_5: u128 = 1_233 * CT_UNIT / 10_000;
 		const MULTIPLIER_5: u8 = 10u8;

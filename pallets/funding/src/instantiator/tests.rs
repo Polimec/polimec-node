@@ -16,12 +16,12 @@ use sp_arithmetic::Percent;
 fn dry_run_wap() {
 	let mut inst = tests::MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 
-	const ADAM: u32 = 60;
-	const TOM: u32 = 61;
-	const SOFIA: u32 = 62;
-	const FRED: u32 = 63;
-	const ANNA: u32 = 64;
-	const DAMIAN: u32 = 65;
+	const ADAM: AccountIdOf<TestRuntime> = 60;
+	const TOM: AccountIdOf<TestRuntime> = 61;
+	const SOFIA: AccountIdOf<TestRuntime> = 62;
+	const FRED: AccountIdOf<TestRuntime> = 63;
+	const ANNA: AccountIdOf<TestRuntime> = 64;
+	const DAMIAN: AccountIdOf<TestRuntime> = 65;
 
 	let accounts = vec![ADAM, TOM, SOFIA, FRED, ANNA, DAMIAN];
 
@@ -50,7 +50,7 @@ fn dry_run_wap() {
 			phantom: Default::default(),
 		},
 		participation_currencies: vec![AcceptedFundingAsset::USDT].try_into().unwrap(),
-		funding_destination_account: 0u32,
+		funding_destination_account: 0,
 		policy_ipfs_cid: Some(metadata_hash),
 	};
 
@@ -98,12 +98,12 @@ fn dry_run_wap() {
 fn find_bucket_for_wap() {
 	let mut inst = tests::MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 
-	const ADAM: u32 = 60;
-	const TOM: u32 = 61;
-	const SOFIA: u32 = 62;
-	const FRED: u32 = 63;
-	const ANNA: u32 = 64;
-	const DAMIAN: u32 = 65;
+	const ADAM: AccountIdOf<TestRuntime> = 60;
+	const TOM: AccountIdOf<TestRuntime> = 61;
+	const SOFIA: AccountIdOf<TestRuntime> = 62;
+	const FRED: AccountIdOf<TestRuntime> = 63;
+	const ANNA: AccountIdOf<TestRuntime> = 64;
+	const DAMIAN: AccountIdOf<TestRuntime> = 65;
 
 	let accounts = vec![ADAM, TOM, SOFIA, FRED, ANNA, DAMIAN];
 
@@ -132,7 +132,7 @@ fn find_bucket_for_wap() {
 			phantom: Default::default(),
 		},
 		participation_currencies: vec![AcceptedFundingAsset::USDT].try_into().unwrap(),
-		funding_destination_account: 0u32,
+		funding_destination_account: 0,
 		policy_ipfs_cid: Some(metadata_hash),
 	};
 
