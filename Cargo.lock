@@ -7772,6 +7772,7 @@ dependencies = [
  "polimec-common",
  "scale-info",
  "serde",
+ "sp-core",
  "sp-io",
  "sp-runtime",
 ]

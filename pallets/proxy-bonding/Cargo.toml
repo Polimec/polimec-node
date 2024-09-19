@@ -21,6 +21,7 @@ polimec-common.workspace = true
 parity-scale-codec.workspace = true
 scale-info.workspace = true
 serde = { workspace = true, features = ["derive"] }
+sp-core.workspace = true
 
 [dev-dependencies]
 sp-io.workspace = true

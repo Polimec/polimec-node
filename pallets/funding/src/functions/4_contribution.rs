@@ -126,7 +126,7 @@ impl<T: Config> Pallet<T> {
 			contributor: contributor.clone(),
 			ct_amount: buyable_tokens,
 			usd_contribution_amount: ticket_size,
-			mode: mode.clone(),
+			mode,
 			funding_asset,
 			funding_asset_amount,
 			plmc_bond,

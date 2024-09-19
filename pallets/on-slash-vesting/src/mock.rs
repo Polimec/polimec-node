@@ -7,7 +7,7 @@ use frame_support::{
 use parity_scale_codec::{Decode, Encode, MaxEncodedLen};
 use scale_info::TypeInfo;
 use serde::{Deserialize, Serialize};
-use sp_runtime::traits::{ConvertInto, Identity};
+use sp_runtime::traits::ConvertInto;
 
 frame_support::construct_runtime!(
 	pub enum TestRuntime {
@@ -82,11 +82,6 @@ pub struct ExtBuilder {
 }
 
 impl ExtBuilder {
-	pub fn existential_deposit(mut self, existential_deposit: u128) -> Self {
-		self.existential_deposit = existential_deposit;
-		self
-	}
-
 	pub fn build(self) -> sp_io::TestExternalities {
 		EXISTENTIAL_DEPOSIT.with(|v| *v.borrow_mut() = self.existential_deposit);
 		let mut t = frame_system::GenesisConfig::<TestRuntime>::default().build_storage().unwrap();

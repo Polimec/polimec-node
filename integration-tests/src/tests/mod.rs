@@ -21,6 +21,7 @@ mod e2e;
 mod evaluator_slash_sideffects;
 mod governance;
 mod oracle;
+mod otm_edge_cases;
 mod reserve_backed_transfers;
 mod vest;
 mod xcm_config;

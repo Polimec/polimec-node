@@ -20,7 +20,7 @@ use frame_system::pallet_prelude::BlockNumberFor;
 use sp_runtime::DispatchError;
 
 pub trait BondingRequirementCalculation {
-	fn calculate_bonding_requirement<T: Config>(&self, ticket_size: Balance) -> Option<Balance>;
+	fn calculate_usd_bonding_requirement<T: Config>(&self, ticket_size: Balance) -> Option<Balance>;
 }
 
 pub trait VestingDurationCalculation {

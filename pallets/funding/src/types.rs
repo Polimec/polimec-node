@@ -66,9 +66,9 @@ pub mod config {
 	}
 
 	impl BondingRequirementCalculation for Multiplier {
-		fn calculate_bonding_requirement<T: Config>(&self, ticket_size: Balance) -> Option<Balance> {
+		fn calculate_usd_bonding_requirement<T: Config>(&self, usd_ticket_size: Balance) -> Option<Balance> {
 			let balance_multiplier = Balance::from(self.0);
-			ticket_size.checked_div(balance_multiplier)
+			usd_ticket_size.checked_div(balance_multiplier)
 		}
 	}
 
@@ -823,8 +823,8 @@ pub mod inner {
 
 pub mod extrinsic {
 	use crate::{
-		AcceptedFundingAsset, AccountIdOf, Balance, Config, MultiplierOf, ParticipationMode, PriceOf, ProjectDetailsOf,
-		ProjectId, TicketSize,
+		AcceptedFundingAsset, AccountIdOf, Balance, Config, ParticipationMode, PriceOf, ProjectDetailsOf, ProjectId,
+		TicketSize,
 	};
 	use frame_system::pallet_prelude::BlockNumberFor;
 	use polimec_common::credentials::{Cid, Did, InvestorType};

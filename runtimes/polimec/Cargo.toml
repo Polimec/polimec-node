@@ -25,8 +25,8 @@ scale-info = { workspace= true, default-features = false, features = [
 	"derive",
 ] }
 
-# Uncomment this to see variables instead of <wasm:stripped> in the console output
-# sp-debug-derive = { workspace = true, features = ["force-debug"]}
+# Uncomment this and the std feature below to see variables instead of <wasm:stripped> in the console output
+#sp-debug-derive = { workspace = true, features = ["force-debug"]}
 
 
 # Polimec specific
@@ -175,7 +175,7 @@ std = [
 	"sp-block-builder/std",
 	"sp-consensus-aura/std",
 	"sp-core/std",
-	# "sp-debug-derive/std",
+#	"sp-debug-derive/std",
 	"sp-genesis-builder/std",
 	"sp-inherents/std",
 	"sp-offchain/std",

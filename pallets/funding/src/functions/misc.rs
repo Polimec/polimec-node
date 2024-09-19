@@ -32,7 +32,7 @@ impl<T: Config> Pallet<T> {
 		let plmc_usd_price =
 			<PriceProviderOf<T>>::get_decimals_aware_price(PLMC_FOREIGN_ID, USD_DECIMALS, PLMC_DECIMALS)
 				.ok_or(Error::<T>::PriceNotFound)?;
-		let usd_bond = multiplier.calculate_bonding_requirement::<T>(ticket_size).ok_or(Error::<T>::BadMath)?;
+		let usd_bond = multiplier.calculate_usd_bonding_requirement::<T>(ticket_size).ok_or(Error::<T>::BadMath)?;
 		plmc_usd_price
 			.reciprocal()
 			.ok_or(Error::<T>::BadMath)?
@@ -185,11 +185,8 @@ impl<T: Config> Pallet<T> {
 		asset_id: AssetIdOf<T>,
 	) -> DispatchResult {
 		let fund_account = Self::fund_account_id(project_id);
-		// Why `Preservation::Expendable`?
-		// the min_balance of funding assets (e.g USDT) are low enough so we don't expect users to care about their balance being dusted.
-		// We do think the UX would be bad if they cannot use all of their available tokens.
-		// Specially since a new funding asset account can be easily created by increasing the provider reference
-		T::FundingCurrency::transfer(asset_id, who, &fund_account, amount, Preservation::Expendable)
+
+		T::FundingCurrency::transfer(asset_id, who, &fund_account, amount, Preservation::Preserve)
 			.map_err(|_| Error::<T>::ParticipantNotEnoughFunds)?;
 
 		Ok(())
