@@ -31,41 +31,41 @@ pallet-assets.workspace = true
 
 
 [features]
-default = ["std"]
+default = [ "std" ]
 
 std = [
-	"frame-system/std",
-	"frame-support/std",
-	"sp-runtime/std",
-	"polimec-common/std",
-	"parity-scale-codec/std",
-	"scale-info/std",
 	"frame-benchmarking?/std",
-
-	"sp-io/std",
-	"pallet-linear-release/std",
-	"pallet-balances/std",
+	"frame-support/std",
+	"frame-system/std",
 	"pallet-assets/std",
-	"serde/std"
+	"pallet-balances/std",
+	"pallet-linear-release/std",
+	"parity-scale-codec/std",
+	"polimec-common/std",
+	"scale-info/std",
+	"serde/std",
+	"sp-core/std",
+	"sp-io/std",
+	"sp-runtime/std",
 ]
 
 try-runtime = [
 	"frame-support/try-runtime",
 	"frame-system/try-runtime",
-	"sp-runtime/try-runtime",
-	"polimec-common/try-runtime",
-	"pallet-linear-release/try-runtime",
 	"pallet-assets/try-runtime",
-	"pallet-balances/try-runtime"
+	"pallet-balances/try-runtime",
+	"pallet-linear-release/try-runtime",
+	"polimec-common/try-runtime",
+	"sp-runtime/try-runtime",
 ]
 
 runtime-benchmarks = [
 	"frame-benchmarking/runtime-benchmarks",
 	"frame-support/runtime-benchmarks",
 	"frame-system/runtime-benchmarks",
-	"sp-runtime/runtime-benchmarks",
-	"polimec-common/runtime-benchmarks",
-	"pallet-linear-release/runtime-benchmarks",
 	"pallet-assets/runtime-benchmarks",
-	"pallet-balances/runtime-benchmarks"
+	"pallet-balances/runtime-benchmarks",
+	"pallet-linear-release/runtime-benchmarks",
+	"polimec-common/runtime-benchmarks",
+	"sp-runtime/runtime-benchmarks",
 ]

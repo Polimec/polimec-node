@@ -158,7 +158,6 @@ pallet-assets = { version = "36.0.0", default-features = false }
 pallet-authorship = { version = "35.0.0", default-features = false }
 pallet-session = { version = "35.0.0", default-features = false }
 pallet-timestamp = { version = "34.0.0", default-features = false }
-pallet-asset-tx-payment = { version = "35.0.0", default-features = false }
 pallet-collective = { version = "35.0.0", default-features = false }
 pallet-scheduler = { version = "36.0.0", default-features = false }
 pallet-sudo = { version = "35.0.0", default-features = false }
@@ -175,6 +174,7 @@ pallet-vesting = { version = "35.0.0", default-features = false }
 pallet-staking = { version = "35.0.0", default-features = false }
 pallet-proxy = { version = "35.0.0", default-features = false }
 pallet-identity = { version = "35.0.0", default-features = false }
+pallet-asset-tx-payment = { version = "35.0.0", default-features = false }
 
 # Polkadot (with default disabled)
 pallet-xcm = { version = "14.0.0", default-features = false }
