@@ -13,15 +13,20 @@
 
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
-
+extern crate alloc;
 use crate::{currency::MILLI_PLMC, Balance, StakingPalletId};
 use frame_support::{
 	ord_parameter_types,
-	pallet_prelude::Weight,
+	pallet_prelude::{MaybeSerializeDeserialize, Weight},
 	parameter_types,
 	sp_runtime::traits::AccountIdConversion,
 	traits::{
 		fungible::{Balanced, Credit},
+		fungibles,
+		fungibles::Inspect,
+		tokens::{
+			ConversionToAssetBalance, Fortitude::Polite, Precision::Exact, Preservation::Protect, WithdrawConsequence,
+		},
 		Imbalance, OnUnbalanced,
 	},
 	weights::{
@@ -29,10 +34,18 @@ use frame_support::{
 		WeightToFeePolynomial,
 	},
 };
-use parachains_common::{AccountId, SLOT_DURATION};
-use scale_info::prelude::vec;
+use pallet_asset_tx_payment::{HandleCredit, OnChargeAssetTransaction};
+use pallet_transaction_payment::OnChargeTransaction;
+use parachains_common::{impls::AccountIdOf, AccountId, SLOT_DURATION};
+use parity_scale_codec::FullCodec;
+use scale_info::{prelude::vec, TypeInfo};
 use smallvec::smallvec;
 use sp_arithmetic::Perbill;
+use sp_runtime::{
+	traits::{DispatchInfoOf, Get, One, PostDispatchInfoOf, Zero},
+	transaction_validity::{InvalidTransaction, TransactionValidityError},
+};
+use core::{fmt::Debug, marker::PhantomData};
 
 #[allow(clippy::module_name_repetitions)]
 pub struct WeightToFee;
@@ -100,7 +113,7 @@ ord_parameter_types! {
 }
 
 /// Logic for the author to get a portion of fees.
-pub struct ToAuthor<R>(sp_std::marker::PhantomData<R>);
+pub struct ToAuthor<R>(PhantomData<R>);
 impl<R> OnUnbalanced<Credit<R::AccountId, pallet_balances::Pallet<R>>> for ToAuthor<R>
 where
 	R: pallet_balances::Config + pallet_authorship::Config,
@@ -115,7 +128,7 @@ where
 }
 
 /// Implementation of `OnUnbalanced` that deposits the fees into  the "Blockchain Operation Treasury" for later payout.
-pub struct ToStakingPot<R>(sp_std::marker::PhantomData<R>);
+pub struct ToStakingPot<R>(PhantomData<R>);
 impl<R> OnUnbalanced<Credit<R::AccountId, pallet_balances::Pallet<R>>> for ToStakingPot<R>
 where
 	R: pallet_balances::Config + pallet_parachain_staking::Config,
@@ -128,7 +141,7 @@ where
 	}
 }
 
-pub struct DealWithFees<R>(sp_std::marker::PhantomData<R>);
+pub struct DealWithFees<R>(PhantomData<R>);
 impl<R> OnUnbalanced<Credit<R::AccountId, pallet_balances::Pallet<R>>> for DealWithFees<R>
 where
 	R: pallet_balances::Config + pallet_authorship::Config + pallet_parachain_staking::Config,
@@ -146,5 +159,106 @@ where
 			<ToStakingPot<R> as OnUnbalanced<_>>::on_unbalanced(split.0);
 			<ToAuthor<R> as OnUnbalanced<_>>::on_unbalanced(split.1);
 		}
+	}
+}
+
+type BalanceOf<T> = <<T as pallet_transaction_payment::Config>::OnChargeTransaction as OnChargeTransaction<T>>::Balance;
+type AssetIdOf<T> = <<T as pallet_asset_tx_payment::Config>::Fungibles as Inspect<AccountIdOf<T>>>::AssetId;
+type AssetBalanceOf<T> =
+	<<T as pallet_asset_tx_payment::Config>::Fungibles as Inspect<<T as frame_system::Config>::AccountId>>::Balance;
+
+/// Implements the asset transaction for a balance to asset converter (implementing
+/// [`ConversionToAssetBalance`]) and 2 credit handlers (implementing [`HandleCredit`]).
+///
+/// First handler does the fee, second the tip.
+pub struct TxFeeFungiblesAdapter<Converter, FeeCreditor, TipCreditor>(
+	PhantomData<(Converter, FeeCreditor, TipCreditor)>,
+);
+
+/// Default implementation for a runtime instantiating this pallet, a balance to asset converter and
+/// a credit handler.
+impl<Runtime, Converter, FeeCreditor, TipCreditor> OnChargeAssetTransaction<Runtime>
+	for TxFeeFungiblesAdapter<Converter, FeeCreditor, TipCreditor>
+where
+	Runtime: pallet_asset_tx_payment::Config,
+	Converter: ConversionToAssetBalance<BalanceOf<Runtime>, AssetIdOf<Runtime>, AssetBalanceOf<Runtime>>,
+	FeeCreditor: HandleCredit<Runtime::AccountId, Runtime::Fungibles>,
+	TipCreditor: HandleCredit<Runtime::AccountId, Runtime::Fungibles>,
+	AssetIdOf<Runtime>: FullCodec + Copy + MaybeSerializeDeserialize + Debug + Default + Eq + TypeInfo,
+{
+	type AssetId = AssetIdOf<Runtime>;
+	type Balance = BalanceOf<Runtime>;
+	type LiquidityInfo = fungibles::Credit<Runtime::AccountId, Runtime::Fungibles>;
+
+	/// Note: The `fee` already includes the `tip`.
+	fn withdraw_fee(
+		who: &Runtime::AccountId,
+		_call: &Runtime::RuntimeCall,
+		_info: &DispatchInfoOf<Runtime::RuntimeCall>,
+		asset_id: Self::AssetId,
+		fee: Self::Balance,
+		_tip: Self::Balance,
+	) -> Result<Self::LiquidityInfo, TransactionValidityError> {
+		// We don't know the precision of the underlying asset. Because the converted fee could be
+		// less than one (e.g. 0.5) but gets rounded down by integer division we introduce a minimum
+		// fee.
+		let min_converted_fee = if fee.is_zero() { Zero::zero() } else { One::one() };
+		let converted_fee = Converter::to_asset_balance(fee, asset_id)
+			.map_err(|_| TransactionValidityError::from(InvalidTransaction::Payment))?
+			.max(min_converted_fee);
+		let can_withdraw =
+			<Runtime::Fungibles as Inspect<Runtime::AccountId>>::can_withdraw(asset_id, who, converted_fee);
+		if can_withdraw != WithdrawConsequence::Success {
+			return Err(InvalidTransaction::Payment.into())
+		}
+		<Runtime::Fungibles as fungibles::Balanced<Runtime::AccountId>>::withdraw(
+			asset_id,
+			who,
+			converted_fee,
+			Exact,
+			Protect,
+			Polite,
+		)
+		.map_err(|_| TransactionValidityError::from(InvalidTransaction::Payment))
+	}
+
+	/// Note: The `corrected_fee` already includes the `tip`.
+	fn correct_and_deposit_fee(
+		who: &Runtime::AccountId,
+		_dispatch_info: &DispatchInfoOf<Runtime::RuntimeCall>,
+		_post_info: &PostDispatchInfoOf<Runtime::RuntimeCall>,
+		corrected_fee: Self::Balance,
+		tip: Self::Balance,
+		paid: Self::LiquidityInfo,
+	) -> Result<(AssetBalanceOf<Runtime>, AssetBalanceOf<Runtime>), TransactionValidityError> {
+		let min_converted_fee = if corrected_fee.is_zero() { Zero::zero() } else { One::one() };
+		// Convert the corrected fee and tip into the asset used for payment.
+		let converted_fee = Converter::to_asset_balance(corrected_fee, paid.asset())
+			.map_err(|_| -> TransactionValidityError { InvalidTransaction::Payment.into() })?
+			.max(min_converted_fee);
+		let converted_tip = Converter::to_asset_balance(tip, paid.asset())
+			.map_err(|_| -> TransactionValidityError { InvalidTransaction::Payment.into() })?;
+
+		// Calculate how much refund we should return.
+		let (final_fee, refund) = paid.split(converted_fee);
+		// Split the tip from the fee
+		let (final_fee_minus_tip, final_tip) = final_fee.split(converted_tip);
+
+		let _ = <Runtime::Fungibles as fungibles::Balanced<Runtime::AccountId>>::resolve(who, refund);
+
+		FeeCreditor::handle_credit(final_fee_minus_tip);
+		TipCreditor::handle_credit(final_tip);
+
+		Ok((converted_fee, converted_tip))
+	}
+}
+
+pub struct CreditFungiblesToAccount<AccountId, Assets, Account>(PhantomData<(AccountId, Assets, Account)>);
+impl<AccountId, Assets: frame_support::traits::fungibles::Balanced<AccountId>, Account: Get<AccountId>>
+	HandleCredit<AccountId, Assets> for CreditFungiblesToAccount<AccountId, Assets, Account>
+{
+	fn handle_credit(credit: fungibles::Credit<AccountId, Assets>) {
+		let payee: AccountId = Account::get();
+		let _ = <Assets as fungibles::Balanced<AccountId>>::resolve(&payee, credit);
 	}
 }
