@@ -14,36 +14,53 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+//! Test the full flow using a complicated example from a Google sheets doc.
 use crate::{constants::PricesBuilder, tests::defaults::*, *};
 use frame_support::{
 	traits::{
-		fungible::Mutate,
+		fungible::InspectHold,
 		fungibles::{metadata::Inspect, Inspect as OtherInspect},
 	},
 	BoundedVec,
 };
 use itertools::Itertools;
 use macros::generate_accounts;
-use pallet_funding::*;
-use polimec_common::{ProvideAssetPrice, USD_DECIMALS, USD_UNIT};
-use sp_arithmetic::{traits::Zero, Percent, Perquintill};
-use sp_runtime::{FixedPointNumber, FixedU128};
-use xcm_emulator::log;
-type UserToCTBalance = Vec<(AccountId, FixedU128, ProjectId)>;
+use pallet_funding::{traits::VestingDurationCalculation, *};
+use polimec_common::{
+	credentials::InvestorType,
+	migration_types::{MigrationStatus, ParticipationType},
+	ProvideAssetPrice, USD_DECIMALS, USD_UNIT,
+};
+use polimec_common_test_utils::{generate_did_from_account, get_mock_jwt, get_mock_jwt_with_cid};
+use polimec_runtime::PLMC;
+use sp_arithmetic::{FixedPointNumber, Percent, Perquintill};
+use sp_runtime::FixedU128;
+use AcceptedFundingAsset::{DOT, USDC, USDT};
+use InvestorType::{Institutional, Professional, Retail};
+use ParticipationMode::{Classic, OTM};
 
+#[rustfmt::skip]
 generate_accounts!(
-	LINA, MIA, ALEXEY, PAUL, MARIA, GEORGE, CLARA, RAMONA, PASCAL, EMMA, BIBI, AHMED, HERBERT, LENI, XI, TOM, ADAMS,
-	POLK, MARKUS, ELLA, SKR, ARTHUR, MILA, LINCOLN, MONROE, ARBRESHA, ELDIN, HARDING, SOFIA, DOMINIK, NOLAND, HANNAH,
-	HOOVER, GIGI, JEFFERSON, LINDI, KEVIN, ANIS, RETO, HAALAND, XENIA, EVA, SKARA, ROOSEVELT, DRACULA, DURIM, HARRISON,
-	PARI, TUTI, BENITO, VANESSA, ENES, RUDOLF, CERTO, TIESTO, DAVID, ATAKAN, YANN, ENIS, ALFREDO, QENDRIM, LEONARDO,
-	KEN, LUCA, FLAVIO, FREDI, ALI, DILARA, DAMIAN, KAYA, IAZI, CHRIGI, VALENTINA, ALMA, ALENA, PATRICK, ONTARIO, RAKIA,
-	HUBERT, UTUS, TOME, ZUBER, ADAM, STANI, BETI, HALIT, DRAGAN, LEA, LUIS, TATI, WEST, MIRIJAM, LIONEL, GIOVANNI,
-	JOEL, POLKA, MALIK, ALEXANDER, SOLOMUN, JOHNNY, GRINGO, JONAS, BUNDI, FELIX,
+	// Users that only evaluated
+	ALMA, ALEX, ADAM, ALAN, ABEL, AMOS, ANNA, ABBY, ARIA,
+	// Users that only bid
+	BROCK, BEN, BILL, BRAD, BLAIR, BOB, BRETT, BLAKE, BRIAN, BELLA, BRUCE, BRENT,
+	// Users that only contributed
+	CLINT, CARL, CODY, COLE, CORY, CHAD, CRUZ, CASEY, CECIL, CINDY, CLARA, CARLY, CADEN, CRAIG, CAIN, CALEB, CAMI, CARA,
+	CARY, CATHY, CESAR, CHEN, CHIP, CHLOE, CHONG, CONOR, CYRUS, CEDRIC, CHAIM, CHICO,
+	// Users that evaluated and bid
+	DOUG, DAVE,
+	// Users that evaluated and contributed
+	MASON, MIKE,
+	// Users that bid and contributed
+	GERALT, GEORGE, GINO,
+	// Users that evaluated, bid and contributed
+	STEVE, SAM,
 );
 
-pub fn excel_project() -> ProjectMetadataOf<PolimecRuntime> {
-	let bounded_name = BoundedVec::try_from("Polimec".as_bytes().to_vec()).unwrap();
-	let bounded_symbol = BoundedVec::try_from("PLMC".as_bytes().to_vec()).unwrap();
+pub fn project_metadata() -> ProjectMetadataOf<PolimecRuntime> {
+	let bounded_name = BoundedVec::try_from("You Only Live Once".as_bytes().to_vec()).unwrap();
+	let bounded_symbol = BoundedVec::try_from("YOLO".as_bytes().to_vec()).unwrap();
 	let metadata_hash = ipfs_hash();
 	ProjectMetadata {
 		token_information: CurrencyMetadata { name: bounded_name, symbol: bounded_symbol, decimals: CT_DECIMALS },
@@ -70,479 +87,725 @@ pub fn excel_project() -> ProjectMetadataOf<PolimecRuntime> {
 			institutional: TicketSize::new(USD_UNIT, None),
 			phantom: Default::default(),
 		},
-		participation_currencies: vec![AcceptedFundingAsset::USDT].try_into().unwrap(),
+		participation_currencies: vec![
+			AcceptedFundingAsset::USDT,
+			AcceptedFundingAsset::USDC,
+			AcceptedFundingAsset::DOT,
+		]
+		.try_into()
+		.unwrap(),
 		funding_destination_account: ISSUER.into(),
 		policy_ipfs_cid: Some(metadata_hash),
 	}
 }
 
-fn excel_evaluators() -> Vec<UserToUSDBalance<PolimecRuntime>> {
+fn plmc_price() -> FixedU128 {
+	FixedU128::from_float(0.1822)
+}
+fn dot_price() -> FixedU128 {
+	FixedU128::from_float(4.65)
+}
+fn usdc_price() -> FixedU128 {
+	FixedU128::from_float(1.0005)
+}
+fn usdt_price() -> FixedU128 {
+	FixedU128::from_float(1f64)
+}
+
+fn evaluations() -> Vec<([u8; 32], InvestorType, u64, f64)> {
+	// (User, Investor type, USD specified in extrinsic, PLMC bonded as a consequence)
 	vec![
-		(LINA.into(), 93754 * USD_UNIT).into(),
-		(MIA.into(), 162 * USD_UNIT).into(),
-		(ALEXEY.into(), 7454 * USD_UNIT).into(),
-		(PAUL.into(), 8192 * USD_UNIT).into(),
-		(MARIA.into(), 11131 * USD_UNIT).into(),
-		(GEORGE.into(), 4765 * USD_UNIT).into(),
-		(CLARA.into(), 4363 * USD_UNIT).into(),
-		(RAMONA.into(), 4120 * USD_UNIT).into(),
-		(PASCAL.into(), 1626 * USD_UNIT).into(),
-		(EMMA.into(), 3996 * USD_UNIT).into(),
-		(BIBI.into(), 3441 * USD_UNIT).into(),
-		(AHMED.into(), 8048 * USD_UNIT).into(),
-		(HERBERT.into(), 2538 * USD_UNIT).into(),
-		(LENI.into(), 5803 * USD_UNIT).into(),
-		(XI.into(), 1669 * USD_UNIT).into(),
-		(TOM.into(), 6526 * USD_UNIT).into(),
+		(ALMA, Institutional, 93_754, 514_566.41),
+		(ALEX, Professional, 162, 889.13),
+		(ADAM, Retail, 7_454, 40_911.09),
+		(ALAN, Retail, 8_192, 44_961.58),
+		(ABEL, Professional, 11_131, 61_092.21),
+		(AMOS, Professional, 4_765, 26_152.58),
+		(ALMA, Institutional, 4_363, 23_946.21),
+		(ANNA, Institutional, 4_120, 22_612.51),
+		(ABBY, Retail, 1_626, 8_924.26),
+		(ARIA, Retail, 3_996, 21_931.94),
+		(MASON, Retail, 3_441, 18_885.84),
+		(MIKE, Retail, 8_048, 44_171.24),
+		(DOUG, Institutional, 2_538, 13_929.75),
+		(DAVE, Professional, 5_803, 31_849.62),
+		(STEVE, Professional, 1_669, 9_160.26),
+		(SAM, Professional, 6_526, 35_817.78),
 	]
 }
 
-fn excel_bidders() -> Vec<BidParams<PolimecRuntime>> {
+fn pre_wap_bids() -> Vec<(u32, [u8; 32], ParticipationMode, InvestorType, u64, f64, AcceptedFundingAsset, f64, f64)> {
+	// (bid_id, User, Participation mode, Investor type, CTs specified in extrinsic, CT Price, Participation Currency, Final participation currency ticket, PLMC bonded as a consequence)
 	vec![
-		(ADAMS.into(), 700 * CT_UNIT).into(),
-		(POLK.into(), 4000 * CT_UNIT).into(),
-		(MARKUS.into(), 3000 * CT_UNIT).into(),
-		(ELLA.into(), 700 * CT_UNIT).into(),
-		(SKR.into(), 3400 * CT_UNIT).into(),
-		(ARTHUR.into(), 1000 * CT_UNIT).into(),
-		(MILA.into(), 8400 * CT_UNIT).into(),
-		(LINCOLN.into(), 800 * CT_UNIT).into(),
-		(MONROE.into(), 1300 * CT_UNIT).into(),
-		(ARBRESHA.into(), 5000 * CT_UNIT).into(),
-		(ELDIN.into(), 600 * CT_UNIT).into(),
-		(HARDING.into(), 800 * CT_UNIT).into(),
-		(SOFIA.into(), 3000 * CT_UNIT).into(),
-		(DOMINIK.into(), 8000 * CT_UNIT).into(),
-		(NOLAND.into(), 900 * CT_UNIT).into(),
-		(LINA.into(), 8400 * CT_UNIT).into(),
-		(LINA.into(), 1000 * CT_UNIT).into(),
-		(HANNAH.into(), 500 * CT_UNIT).into(),
-		(HOOVER.into(), 1900 * CT_UNIT).into(),
-		(GIGI.into(), 600 * CT_UNIT).into(),
-		(JEFFERSON.into(), 1000 * CT_UNIT).into(),
-		(JEFFERSON.into(), 2000 * CT_UNIT).into(),
+		(0, BROCK, OTM, Professional, 700, 10.0, USDC, 7_101.4493, 7_683.8639),
+		(1, BEN, OTM, Professional, 4_000, 10.0, USDT, 40_600.0, 43_907.7936),
+		(2, BILL, Classic(3), Professional, 3_000, 10.0, USDC, 29_985.0075, 54_884.7420),
+		(3, BRAD, Classic(6), Professional, 700, 10.0, USDT, 7_000.0, 6_403.2199),
+		(4, BROCK, Classic(9), Professional, 3_400, 10.0, USDT, 34_000.0, 20_734.2359),
+		(5, BLAIR, Classic(8), Professional, 1_000, 10.0, USDT, 10_000.0, 6_860.5928),
+		(6, BROCK, Classic(7), Professional, 8_400, 10.0, USDT, 84_000.0, 65_861.6905),
+		(7, BOB, Classic(10), Professional, 800, 10.0, USDT, 8_000.0, 4_390.7794),
+		(8, BRETT, Classic(2), Professional, 1_300, 10.0, DOT, 2_795.6989, 35_675.0823),
+		(9, BLAKE, Classic(1), Professional, 5_000, 10.0, USDT, 50_000.0, 274_423.7101),
+		(10, BRIAN, Classic(1), Institutional, 600, 10.0, USDT, 6_000.0, 32_930.8452),
+		(11, BELLA, Classic(1), Professional, 800, 10.0, USDT, 8_000.0, 43_907.7936),
+		(12, BRUCE, Classic(4), Institutional, 3_000, 10.0, USDT, 30_000.0, 41_163.5565),
+		(13, BRENT, Classic(1), Institutional, 8_000, 10.0, USDT, 80_000.0, 439_077.9363),
+		(14, DOUG, OTM, Institutional, 900, 10.0, USDT, 9_135.0, 9_879.2536),
+		(15, DAVE, OTM, Professional, 8_400, 10.0, USDT, 85_260.0, 92_206.3666),
+		(16, DAVE, OTM, Professional, 1_000, 11.0, USDT, 11_165.0, 12_074.6432),
+		(17, GERALT, Classic(15), Institutional, 500, 11.0, USDT, 5_500.0, 2_012.4405),
+		(18, GEORGE, Classic(20), Institutional, 1_900, 11.0, USDT, 20_900.0, 5_735.4555),
+		(19, GINO, Classic(25), Institutional, 600, 11.0, USDT, 6_600.0, 1_448.9572),
+		(20, STEVE, OTM, Professional, 1_000, 11.0, USDT, 11_165.0, 12_074.6432),
+		(21, SAM, OTM, Professional, 2_000, 12.0, USDT, 24_360.0, 26_344.6762),
+		(22, SAM, OTM, Professional, 2_200, 12.0, DOT, 5_762.5806, 28_979.1438),
 	]
 }
 
-fn excel_contributions() -> Vec<ContributionParams<PolimecRuntime>> {
+fn wap() -> f64 {
+	10.30346708
+}
+
+#[allow(unused)]
+fn post_wap_bids() -> Vec<(u32, [u8; 32], ParticipationMode, InvestorType, u64, f64, AcceptedFundingAsset, f64, f64)> {
+	// (bid_id, User, Participation mode, Investor type, CTs specified in extrinsic, CT Price, Participation Currency, Final participation currency ticket, PLMC bonded as a consequence)
 	vec![
-		(XI.into(), 692 * CT_UNIT).into(),
-		(PARI.into(), 236 * CT_UNIT).into(),
-		(TUTI.into(), 24 * CT_UNIT).into(),
-		(BENITO.into(), 688 * CT_UNIT).into(),
-		(VANESSA.into(), 33 * CT_UNIT).into(),
-		(ENES.into(), 1148 * CT_UNIT).into(),
-		(RUDOLF.into(), 35 * CT_UNIT).into(),
-		(CERTO.into(), 840 * CT_UNIT).into(),
-		(TIESTO.into(), 132 * CT_UNIT).into(),
-		(DAVID.into(), 21 * CT_UNIT).into(),
-		(ATAKAN.into(), 59 * CT_UNIT).into(),
-		(YANN.into(), 89 * CT_UNIT).into(),
-		(ENIS.into(), 332 * CT_UNIT).into(),
-		(ALFREDO.into(), 8110 * CT_UNIT).into(),
-		(QENDRIM.into(), 394 * CT_UNIT).into(),
-		(LEONARDO.into(), 840 * CT_UNIT).into(),
-		(KEN.into(), 352 * CT_UNIT).into(),
-		(LUCA.into(), 640 * CT_UNIT).into(),
-		(FLAVIO.into(), 792 * CT_UNIT).into(),
-		(FREDI.into(), 993 * CT_UNIT).into(),
-		(ALI.into(), 794 * CT_UNIT).into(),
-		(DILARA.into(), 256 * CT_UNIT).into(),
-		(DAMIAN.into(), 431 * CT_UNIT).into(),
-		(KAYA.into(), 935 * CT_UNIT).into(),
-		(IAZI.into(), 174 * CT_UNIT).into(),
-		(CHRIGI.into(), 877 * CT_UNIT).into(),
-		(VALENTINA.into(), 961 * CT_UNIT).into(),
-		(ALMA.into(), 394 * CT_UNIT).into(),
-		(ALENA.into(), 442 * CT_UNIT).into(),
-		(PATRICK.into(), 486 * CT_UNIT).into(),
-		(ONTARIO.into(), 17 * CT_UNIT).into(),
-		(RAKIA.into(), 9424 * CT_UNIT).into(),
-		(HUBERT.into(), 14 * CT_UNIT).into(),
-		(UTUS.into(), 4906 * CT_UNIT).into(),
-		(TOME.into(), 68 * CT_UNIT).into(),
-		(ZUBER.into(), 9037 * CT_UNIT).into(),
-		(ADAM.into(), 442 * CT_UNIT).into(),
-		(STANI.into(), 40 * CT_UNIT).into(),
-		(BETI.into(), 68 * CT_UNIT).into(),
-		(HALIT.into(), 68 * CT_UNIT).into(),
-		(DRAGAN.into(), 98 * CT_UNIT).into(),
-		(LEA.into(), 17 * CT_UNIT).into(),
-		(LUIS.into(), 422 * CT_UNIT).into(),
+		(21, SAM, OTM, Professional, 2_000, 10.303467, USDT, 20_916.0382, 22_620.1253),
+		(22, SAM, OTM, Professional, 2_200, 10.303467, DOT, 4_947.8800, 24_882.1378),
+		(16, DAVE, OTM, Professional, 1_000, 10.303467, USDT, 10_458.0191, 11_310.0627),
+		(17, GERALT, Classic(15), Institutional, 500, 10.303467, USDT, 5_151.7335, 1_885.0104),
+		(18, GEORGE, Classic(20), Institutional, 1_900, 10.303467, USDT, 19_576.5875, 5_372.2798),
+		(19, GINO, Classic(25), Institutional, 600, 10.303467, USDT, 6_182.0802, 1_357.2075),
+		(20, STEVE, OTM, Professional, 1_000, 10.303467, USDT, 10_458.0191, 11_310.0627),
+		(0, BROCK, OTM, Professional, 700, 10.000000, USDC, 7_101.4493, 7_683.8639),
+		(1, BEN, OTM, Professional, 4_000, 10.000000, USDT, 40_600.0000, 43_907.7936),
+		(2, BILL, Classic(3), Professional, 3_000, 10.000000, USDC, 29_985.0075, 54_884.7420),
+		(3, BRAD, Classic(6), Professional, 700, 10.000000, USDT, 7_000.0000, 6_403.2199),
+		(4, BROCK, Classic(9), Professional, 3_400, 10.000000, USDT, 34_000.0000, 20_734.2359),
+		(5, BLAIR, Classic(8), Professional, 1_000, 10.000000, USDT, 10_000.0000, 6_860.5928),
+		(6, BROCK, Classic(7), Professional, 8_400, 10.000000, USDT, 84_000.0000, 65_861.6905),
+		(7, BOB, Classic(10), Professional, 800, 10.000000, USDT, 8_000.0000, 4_390.7794),
+		(8, BRETT, Classic(2), Professional, 1_300, 10.000000, DOT, 2_795.6989, 35_675.0823),
+		(9, BLAKE, Classic(1), Professional, 5_000, 10.000000, USDT, 50_000.0000, 274_423.7102),
+		(10, BRIAN, Classic(1), Institutional, 600, 10.000000, USDT, 6_000.0000, 32_930.8452),
+		(11, BELLA, Classic(1), Professional, 800, 10.000000, USDT, 8_000.0000, 43_907.7936),
+		(12, BRUCE, Classic(4), Institutional, 3_000, 10.000000, USDT, 30_000.0000, 41_163.5565),
+		(13, BRENT, Classic(1), Institutional, 8_000, 10.000000, USDT, 80_000.0000, 439_077.9363),
+		(14, DOUG, OTM, Institutional, 100, 10.000000, USDT, 1_015.0000, 5_488.4742),
+		(15, DAVE, OTM, Professional, 0, 10.000000, USDT, 0.00, 0.00),
 	]
 }
-fn excel_remainders() -> Vec<ContributionParams<PolimecRuntime>> {
+
+fn community_contributions(
+) -> Vec<(u32, [u8; 32], ParticipationMode, InvestorType, u64, AcceptedFundingAsset, f64, f64)> {
+	// (contribution_id, User, Participation mode, Investor type, CTs specified in extrinsic, PLMC bonded as a consequence, Participation Currency, Final participation currency ticket)
 	vec![
-		(JOEL.into(), 692 * CT_UNIT).into(),
-		(POLK.into(), 236 * CT_UNIT).into(),
-		(MALIK.into(), 24 * CT_UNIT).into(),
-		(LEA.into(), 688 * CT_UNIT).into(),
-		(RAMONA.into(), 35 * CT_UNIT).into(),
-		(SOLOMUN.into(), 840 * CT_UNIT).into(),
-		(JONAS.into(), 59 * CT_UNIT).into(),
+		(0, CLINT, OTM, Professional, 692, USDT, 7_236.949209, 7_826.5634),
+		(1, CARL, Classic(1), Retail, 236, USDT, 2_431.618231, 13_345.8739),
+		(2, CODY, Classic(2), Retail, 24, USDT, 247.28321, 678.6038),
+		(3, COLE, OTM, Retail, 688, USDT, 7_195.117133, 7_781.3231),
+		(4, CORY, OTM, Retail, 33, DOT, 74.21819998, 373.2321),
+		(5, CHAD, Classic(1), Retail, 1_148, DOT, 2_543.73768, 64_919.7597),
+		(6, CLINT, Classic(1), Retail, 35, DOT, 77.55297804, 1_979.2610),
+		(7, CRUZ, Classic(4), Retail, 840, USDC, 8_650.587056, 11_875.5658),
+		(8, CASEY, Classic(1), Retail, 132, USDC, 1_359.377966, 7_464.6414),
+		(9, CECIL, OTM, Retail, 21, USDT, 219.6184009, 237.5113),
+		(10, CINDY, Classic(1), Retail, 59, USDT, 607.9045578, 3_336.4685),
+		(11, CHAD, Classic(3), Retail, 89, USDT, 917.0085703, 1_677.6593),
+		(12, CLARA, Classic(1), Retail, 332, DOT, 735.6453917, 18_774.7040),
+		(13, CARLY, OTM, Retail, 8_110, USDC, 84_772.14873, 91_724.6082),
+		(14, CADEN, Classic(1), Retail, 394, USDC, 4_057.537262, 22_280.8234),
+		(15, CRAIG, Classic(1), Professional, 840, USDC, 8_650.587056, 47_502.2632),
+		(16, CAIN, Classic(1), Professional, 352, USDC, 3_625.007909, 19_905.7103),
+		(17, CALEB, Classic(1), Retail, 640, DOT, 1_418.111598, 36_192.2005),
+		(18, CAMI, Classic(1), Professional, 792, DOT, 1_754.913103, 44_787.8481),
+		(19, CARA, OTM, Retail, 993, DOT, 2_233.293109, 11_230.0),
+		(20, CARY, Classic(2), Retail, 794, USDT, 8_180.952863, 22_450.4744),
+		(21, CATHY, Classic(1), Retail, 256, USDC, 2_636.369388, 14_476.8802),
+		(22, CESAR, Classic(1), Retail, 431, USDC, 4_438.575025, 24_373.1850),
+		(23, CHAD, Classic(1), Retail, 935, USDC, 9_628.927258, 52_874.5429),
+		(24, CHEN, OTM, Retail, 174, USDC, 1_818.785928, 1_967.9509),
+		(25, CHIP, OTM, Retail, 877, DOT, 1_972.40489, 9_918.9250),
+		(26, CHLOE, OTM, Retail, 961, USDT, 10_050.15634, 10_868.9702),
+		(27, CHONG, Classic(1), Retail, 394, DOT, 873.0249528, 22_280.8234),
 	]
 }
-fn excel_ct_amounts() -> UserToCTBalance {
+
+fn remainder_contributions(
+) -> Vec<(u32, [u8; 32], ParticipationMode, InvestorType, u64, AcceptedFundingAsset, f64, f64)> {
+	// (contribution_id User, Participation mode, Investor type, CTs specified in extrinsic, Participation Currency, Final participation currency ticket, PLMC bonded as a consequence, )
 	vec![
-		(LINA.into(), FixedU128::from_float(4292.3_120_710_000f64), 0),
-		(MIA.into(), FixedU128::from_float(3.2_697_757_490f64), 0),
-		(ALEXEY.into(), FixedU128::from_float(142.2_854_836_000f64), 0),
-		(PAUL.into(), FixedU128::from_float(116.5_251_535_000f64), 0),
-		(MARIA.into(), FixedU128::from_float(158.3_302_593_000f64), 0),
-		(GEORGE.into(), FixedU128::from_float(67.7_786_079_900f64), 0),
-		(CLARA.into(), FixedU128::from_float(62.0_604_547_000f64), 0),
-		(RAMONA.into(), FixedU128::from_float(93.6_039_590_600f64), 0),
-		(PASCAL.into(), FixedU128::from_float(23.1_286_498_600f64), 0),
-		(EMMA.into(), FixedU128::from_float(56.8_401_505_800f64), 0),
-		(BIBI.into(), FixedU128::from_float(48.9_456_852_200f64), 0),
-		(AHMED.into(), FixedU128::from_float(114.4_768_598_000f64), 0),
-		(HERBERT.into(), FixedU128::from_float(36.1_011_767_200f64), 0),
-		(LENI.into(), FixedU128::from_float(82.5_433_918_500f64), 0),
-		(XI.into(), FixedU128::from_float(715.7_402_931_000f64), 0),
-		(TOM.into(), FixedU128::from_float(92.8_275_332_100f64), 0),
-		(ADAMS.into(), FixedU128::from_float(700f64), 0),
-		(POLK.into(), FixedU128::from_float(4236f64), 0),
-		(MARKUS.into(), FixedU128::from_float(3000f64), 0),
-		(ELLA.into(), FixedU128::from_float(700f64), 0),
-		(SKR.into(), FixedU128::from_float(3400f64), 0),
-		(ARTHUR.into(), FixedU128::from_float(1000f64), 0),
-		(MILA.into(), FixedU128::from_float(8400f64), 0),
-		(LINCOLN.into(), FixedU128::from_float(800f64), 0),
-		(MONROE.into(), FixedU128::from_float(1300f64), 0),
-		(ARBRESHA.into(), FixedU128::from_float(5000f64), 0),
-		(ELDIN.into(), FixedU128::from_float(600f64), 0),
-		(HARDING.into(), FixedU128::from_float(800f64), 0),
-		(SOFIA.into(), FixedU128::from_float(3000f64), 0),
-		(DOMINIK.into(), FixedU128::from_float(8000f64), 0),
-		(NOLAND.into(), FixedU128::from_float(900f64), 0),
-		(HANNAH.into(), FixedU128::from_float(500f64), 0),
-		(HOOVER.into(), FixedU128::from_float(1900f64), 0),
-		(GIGI.into(), FixedU128::from_float(600f64), 0),
-		(JEFFERSON.into(), FixedU128::from_float(3000f64), 0),
-		(PARI.into(), FixedU128::from_float(236f64), 0),
-		(TUTI.into(), FixedU128::from_float(24f64), 0),
-		(BENITO.into(), FixedU128::from_float(688f64), 0),
-		(VANESSA.into(), FixedU128::from_float(33f64), 0),
-		(ENES.into(), FixedU128::from_float(1148f64), 0),
-		(RUDOLF.into(), FixedU128::from_float(35f64), 0),
-		(CERTO.into(), FixedU128::from_float(840f64), 0),
-		(TIESTO.into(), FixedU128::from_float(132f64), 0),
-		(DAVID.into(), FixedU128::from_float(21f64), 0),
-		(ATAKAN.into(), FixedU128::from_float(59f64), 0),
-		(YANN.into(), FixedU128::from_float(89f64), 0),
-		(ENIS.into(), FixedU128::from_float(332f64), 0),
-		(ALFREDO.into(), FixedU128::from_float(8110f64), 0),
-		(QENDRIM.into(), FixedU128::from_float(394f64), 0),
-		(LEONARDO.into(), FixedU128::from_float(840f64), 0),
-		(KEN.into(), FixedU128::from_float(352f64), 0),
-		(LUCA.into(), FixedU128::from_float(640f64), 0),
-		(FLAVIO.into(), FixedU128::from_float(792f64), 0),
-		(FREDI.into(), FixedU128::from_float(993f64), 0),
-		(ALI.into(), FixedU128::from_float(794f64), 0),
-		(DILARA.into(), FixedU128::from_float(256f64), 0),
-		(DAMIAN.into(), FixedU128::from_float(431f64), 0),
-		(KAYA.into(), FixedU128::from_float(935f64), 0),
-		(IAZI.into(), FixedU128::from_float(174f64), 0),
-		(CHRIGI.into(), FixedU128::from_float(877f64), 0),
-		(VALENTINA.into(), FixedU128::from_float(961f64), 0),
-		(ALMA.into(), FixedU128::from_float(394f64), 0),
-		(ALENA.into(), FixedU128::from_float(442f64), 0),
-		(PATRICK.into(), FixedU128::from_float(486f64), 0),
-		(ONTARIO.into(), FixedU128::from_float(17f64), 0),
-		(RAKIA.into(), FixedU128::from_float(9424f64), 0),
-		(HUBERT.into(), FixedU128::from_float(14f64), 0),
-		(UTUS.into(), FixedU128::from_float(4906f64), 0),
-		(TOME.into(), FixedU128::from_float(68f64), 0),
-		(ZUBER.into(), FixedU128::from_float(9037f64), 0),
-		(ADAM.into(), FixedU128::from_float(442f64), 0),
-		(STANI.into(), FixedU128::from_float(40f64), 0),
-		(BETI.into(), FixedU128::from_float(68f64), 0),
-		(HALIT.into(), FixedU128::from_float(68f64), 0),
-		(DRAGAN.into(), FixedU128::from_float(98f64), 0),
-		(LEA.into(), FixedU128::from_float(705f64), 0),
-		(LUIS.into(), FixedU128::from_float(422f64), 0),
-		(JOEL.into(), FixedU128::from_float(692f64), 0),
-		(MALIK.into(), FixedU128::from_float(24f64), 0),
-		(SOLOMUN.into(), FixedU128::from_float(840f64), 0),
-		(JONAS.into(), FixedU128::from_float(59f64), 0),
+		(28, CODY, Classic(1), Retail, 442, DOT, 979.3833227, 24_995.2385),
+		(29, CRUZ, Classic(1), Retail, 486, DOT, 1_076.878495, 27_483.4523),
+		(30, CONOR, Classic(1), Retail, 17, DOT, 37.66858933, 961.3553),
+		(31, CYRUS, Classic(25), Institutional, 9_424, DOT, 20_881.69329, 21_317.2061),
+		(32, CEDRIC, Classic(2), Retail, 1_400, USDT, 14_424.85392, 39_585.2193),
+		(33, CHAIM, OTM, Retail, 4_906, USDT, 51_307.04165, 55_487.1674),
+		(34, CHICO, Classic(17), Institutional, 68, USDT, 700.6357616, 226.2013),
+		(35, CRUZ, OTM, Institutional, 9_037, USDT, 94_509.1185, 102_209.0362),
+		(36, MASON, OTM, Retail, 442, USDT, 4_622.444437, 4_999.0477),
+		(37, MIKE, OTM, Retail, 400, USDT, 4_183.207635, 4_524.0251),
+		(38, GERALT, OTM, Professional, 68, USDT, 711.145298, 769.0843),
+		(39, GEORGE, Classic(1), Professional, 68, USDT, 700.6357616, 3_845.4213),
+		(40, GINO, OTM, Institutional, 98, USDT, 1_024.885871, 1_108.3861),
+		// These two use their evaluation bond
+		(41, STEVE, Classic(5), Professional, 500, USDT, 5_151.733541, 0.0),
+		(42, SAM, Classic(1), Professional, 422, USDT, 4_348.063109, 0.0),
 	]
+}
+
+// Includes evaluation rewards, participation purchases, and protocol fees.
+fn cts_minted() -> f64 {
+	108_938.93
+}
+
+fn usd_raised() -> f64 {
+	1_008_177.9575
+}
+
+#[allow(unused)]
+fn ct_fees() -> (f64, f64, f64) {
+	// (LP, Evaluator Rewards, Long term holder bonus)
+	(4944.466414, 2966.679848, 1977.786566)
+}
+
+fn issuer_payouts() -> (f64, f64, f64) {
+	// (USDT, USDC, DOT)
+	(646_218.88, 165_339.74, 42_265.73)
+}
+
+fn evaluator_reward_pots() -> (f64, f64, f64, f64) {
+	// (CTs All, CTs Early, USD All, USD Early)
+	(2373.343879, 593.3359697, 167_588.0, 100_000.0)
+}
+
+fn final_payouts() -> Vec<([u8; 32], f64, f64)> {
+	// User, CT rewarded, PLMC Self Bonded (Classic mode) with mult > 1
+	vec![
+		(ALMA, 1945.787276, 0.00),
+		(ALEX, 3.25541214, 0.00),
+		(ADAM, 141.6604459, 0.00),
+		(ALAN, 116.0132769, 0.00),
+		(ABEL, 157.6347394, 0.00),
+		(AMOS, 67.48086726, 0.00),
+		(ANNA, 58.34652111, 0.00),
+		(ABBY, 23.02704935, 0.00),
+		(ARIA, 56.59046077, 0.00),
+		(BROCK, 12_500.0, 86_595.93),
+		(BEN, 4_000.0, 0.00),
+		(BILL, 3_000.0, 54_884.74),
+		(BRAD, 700.0, 6_403.22),
+		(BLAIR, 1_000.0, 6_860.59),
+		(BOB, 800.0, 4_390.78),
+		(BRETT, 1_300.0, 35_675.08),
+		(BLAKE, 5_000.0, 0.00),
+		(BRIAN, 600.0, 0.00),
+		(BELLA, 800.0, 0.00),
+		(BRUCE, 3_000.0, 41_163.56),
+		(BRENT, 8_000.0, 0.00),
+		(CLINT, 727.0, 0.00),
+		(CARL, 236.0, 0.00),
+		(CODY, 466.0, 678.60),
+		(COLE, 688.0, 0.00),
+		(CORY, 33.0, 0.00),
+		(CRUZ, 10_363.0, 11_875.57),
+		(CASEY, 132.0, 0.00),
+		(CECIL, 21.0, 0.00),
+		(CINDY, 59.0, 0.00),
+		(CHAD, 2_172.0, 1_677.66),
+		(CLARA, 332.0, 0.00),
+		(CARLY, 8_110.0, 0.00),
+		(CADEN, 394.0, 0.00),
+		(CRAIG, 840.0, 0.00),
+		(CAIN, 352.0, 0.00),
+		(CALEB, 640.0, 0.00),
+		(CAMI, 792.0, 0.00),
+		(CARA, 993.0, 0.00),
+		(CARY, 794.0, 22_450.47),
+		(CATHY, 256.0, 0.00),
+		(CESAR, 431.0, 0.00),
+		(CHEN, 174.0, 0.00),
+		(CHIP, 877.0, 0.00),
+		(CHLOE, 961.0, 0.00),
+		(CHONG, 394.0, 0.00),
+		(CONOR, 17.0, 0.00),
+		(CYRUS, 9_424.0, 21_317.21),
+		(CEDRIC, 1_400.0, 39_585.22),
+		(CHAIM, 4_906.0, 0.0),
+		(CHICO, 68.0, 226.20),
+		(DOUG, 135.9425899, 0.00),
+		(DAVE, 1_082.180792, 0.00),
+		(MASON, 490.7306745, 0.00),
+		(MIKE, 513.973981, 0.00),
+		(GERALT, 568.0, 1_885.01),
+		(GEORGE, 1_968.0, 5_372.28),
+		(GINO, 698.0, 1_357.21),
+		(STEVE, 1_523.636006, 5_655.03),
+		(SAM, 4_714.419756, 0.0),
+	]
+}
+
+fn otm_fee_recipient_balances() -> (f64, f64, f64) {
+	// USDT, USDC, DOT
+	(3908.966909, 1384.616511, 136.3713724)
+}
+
+fn otm_treasury_sub_account_plmc_held() -> f64 {
+	544_177.11
+}
+
+fn participate_with_checks(
+	mut inst: IntegrationInstantiator,
+	project_id: ProjectId,
+	participation_type: ParticipationType,
+	participation_id: u32,
+	user: [u8; 32],
+	mode: ParticipationMode,
+	investor_type: InvestorType,
+	ct_amount: u64,
+	funding_asset: AcceptedFundingAsset,
+	expected_funding_asset_ticket: f64,
+	expected_plmc_bonded: f64,
+) -> IntegrationInstantiator {
+	assert_ne!(participation_type, ParticipationType::Evaluation, "Only Bids and Contributions work here");
+	let user: PolimecAccountId = user.into();
+	let ct_amount = FixedU128::from_rational(ct_amount.into(), 1).saturating_mul_int(CT_UNIT);
+
+	let plmc_ed = inst.get_ed();
+
+	let funding_asset_unit = 10u128.pow(PolimecForeignAssets::decimals(funding_asset.id()) as u32);
+	let funding_asset_ticket =
+		FixedU128::from_float(expected_funding_asset_ticket).saturating_mul_int(funding_asset_unit);
+	let plmc_bonded = FixedU128::from_float(expected_plmc_bonded).saturating_mul_int(PLMC);
+
+	let user_jwt =
+		get_mock_jwt_with_cid(user.clone(), investor_type, generate_did_from_account(user.clone()), ipfs_hash());
+	// Add one more to account for rounding errors in the spreadsheet
+	inst.mint_funding_asset_to(vec![
+		(user.clone(), funding_asset_ticket + funding_asset_unit, funding_asset.id()).into()
+	]);
+
+	if let ParticipationMode::Classic(..) = mode {
+		inst.mint_plmc_to(vec![(user.clone(), plmc_bonded + PLMC + plmc_ed).into()]);
+	} else {
+		let funding_asset_ed = inst.get_funding_asset_ed(funding_asset.id());
+		inst.mint_funding_asset_to(vec![(user.clone(), funding_asset_ed, funding_asset.id()).into()]);
+	}
+
+	let prev_participation_free_plmc = PolimecBalances::free_balance(user.clone());
+	let prev_participation_reserved_plmc = PolimecBalances::reserved_balance(user.clone());
+	let prev_participation_funding_asset_balance = PolimecForeignAssets::balance(funding_asset.id(), user.clone());
+
+	let sub_account = polimec_runtime::ProxyBonding::get_bonding_account(project_id);
+	let prev_participation_treasury_held_plmc =
+		PolimecBalances::balance_on_hold(&HoldReason::Participation.into(), &sub_account);
+
+	if participation_type == ParticipationType::Bid {
+		PolimecFunding::bid(PolimecOrigin::signed(user.clone()), user_jwt, project_id, ct_amount, mode, funding_asset)
+			.unwrap();
+		assert!(Bids::<PolimecRuntime>::get((project_id, user.clone(), participation_id)).is_some());
+	} else {
+		PolimecFunding::contribute(
+			PolimecOrigin::signed(user.clone()),
+			user_jwt,
+			project_id,
+			ct_amount,
+			mode,
+			funding_asset,
+		)
+		.unwrap();
+		assert!(Contributions::<PolimecRuntime>::get((project_id, user.clone(), participation_id)).is_some());
+	}
+
+	let post_participation_free_plmc = PolimecBalances::free_balance(user.clone());
+	let post_participation_reserved_plmc = PolimecBalances::reserved_balance(user.clone());
+	let post_participation_funding_asset_balance = PolimecForeignAssets::balance(funding_asset.id(), user.clone());
+	let post_participation_treasury_held_plmc =
+		PolimecBalances::balance_on_hold(&HoldReason::Participation.into(), &sub_account);
+
+	let free_plmc_delta = prev_participation_free_plmc - post_participation_free_plmc;
+	let reserved_plmc_delta = post_participation_reserved_plmc - prev_participation_reserved_plmc;
+	let funding_asset_delta = prev_participation_funding_asset_balance - post_participation_funding_asset_balance;
+	let treasury_held_plmc_delta = post_participation_treasury_held_plmc - prev_participation_treasury_held_plmc;
+
+	let expected_self_plmc_delta = if let ParticipationMode::Classic(..) = mode { plmc_bonded } else { 0u128 };
+	let expected_treasury_plmc_delta = if let ParticipationMode::Classic(..) = mode { 0u128 } else { plmc_bonded };
+
+	assert_close_enough!(free_plmc_delta, expected_self_plmc_delta, Perquintill::from_float(0.9999));
+	assert_close_enough!(reserved_plmc_delta, expected_self_plmc_delta, Perquintill::from_float(0.9999));
+	assert_close_enough!(funding_asset_delta, funding_asset_ticket, Perquintill::from_float(0.9999));
+	assert_close_enough!(treasury_held_plmc_delta, expected_treasury_plmc_delta, Perquintill::from_float(0.9999));
+
+	inst
 }
 
 #[test]
-fn evaluation_round_completed() {
-	polimec::set_prices(PricesBuilder::default());
-
+fn e2e_test() {
 	let mut inst = IntegrationInstantiator::new(None);
+	let issuer: PolimecAccountId = ISSUER.into();
+	let plmc_ed = inst.get_ed();
 
-	let issuer = ISSUER.into();
-	let project = excel_project();
-	let evaluations = excel_evaluators();
+	polimec::set_prices(
+		PricesBuilder::new()
+			.usdt(usdt_price().into())
+			.usdc(usdc_price().into())
+			.dot(dot_price().into())
+			.plmc(plmc_price().into())
+			.build(),
+	);
 
 	PolimecNet::execute_with(|| {
-		inst.create_auctioning_project(project, issuer, None, evaluations);
-	});
-}
+		let project_id = inst.create_new_project(project_metadata(), issuer.clone(), None);
+		let issuer_jwt = get_mock_jwt(issuer.clone(), Institutional, generate_did_from_account(issuer.clone()));
 
-#[test]
-fn auction_round_completed() {
-	polimec::set_prices(PricesBuilder::default());
+		PolimecFunding::start_evaluation(PolimecOrigin::signed(issuer.clone()), issuer_jwt.clone(), project_id)
+			.unwrap();
 
-	let mut inst = IntegrationInstantiator::new(None);
+		for (user, investor_type, usd_bond, plmc_bonded) in evaluations() {
+			let user: PolimecAccountId = user.into();
+			let usd_bond: u128 = usd_bond as u128 * USD_UNIT;
+			let plmc_bonded: u128 = FixedU128::from_float(plmc_bonded).saturating_mul_int(PLMC);
 
-	let issuer = ISSUER.into();
-	let project = excel_project();
-	let evaluations = excel_evaluators();
-	let bids = excel_bidders();
+			let user_jwt = get_mock_jwt_with_cid(
+				user.clone(),
+				investor_type,
+				generate_did_from_account(user.clone()),
+				ipfs_hash(),
+			);
 
-	PolimecNet::execute_with(|| {
-		let project_id = inst.create_community_contributing_project(project, issuer, None, evaluations, bids);
-		let excel_wap_fixed = FixedU128::from_float(10.202357561f64);
-		let excel_wap_usd = excel_wap_fixed.saturating_mul_int(USD_UNIT);
+			// We add 1 PLMC to the mint to avoid rounding errors, and add ED to keep the account alive.
+			inst.mint_plmc_to(vec![(user.clone(), plmc_bonded + PLMC + plmc_ed).into()]);
 
-		let stored_wap_fixed = inst.get_project_details(project_id).weighted_average_price.unwrap();
-		let stored_wap_fixed_decimal_unaware = PriceProviderOf::<PolimecRuntime>::convert_back_to_normal_price(
-			stored_wap_fixed,
+			let pre_evaluation_free_plmc = PolimecBalances::free_balance(user.clone());
+			let pre_evaluation_reserved_plmc = PolimecBalances::reserved_balance(user.clone());
+
+			PolimecFunding::evaluate(PolimecOrigin::signed(user.clone()), user_jwt, project_id, usd_bond).unwrap();
+
+			let post_evaluation_free_plmc = PolimecBalances::free_balance(user.clone());
+			let post_evaluation_reserved_plmc = PolimecBalances::reserved_balance(user.clone());
+
+			let free_plmc_delta = pre_evaluation_free_plmc - post_evaluation_free_plmc;
+			let reserved_plmc_delta = post_evaluation_reserved_plmc - pre_evaluation_reserved_plmc;
+
+			assert_close_enough!(free_plmc_delta, plmc_bonded, Perquintill::from_float(0.9999));
+			assert_close_enough!(reserved_plmc_delta, plmc_bonded, Perquintill::from_float(0.9999));
+		}
+
+		assert_eq!(inst.go_to_next_state(project_id), ProjectStatus::AuctionRound);
+
+		for (bid_id, user, mode, investor_type, ct_amount, _price, funding_asset, funding_asset_ticket, plmc_bonded) in
+			pre_wap_bids()
+		{
+			inst = participate_with_checks(
+				inst,
+				project_id,
+				ParticipationType::Bid,
+				bid_id,
+				user,
+				mode,
+				investor_type,
+				ct_amount,
+				funding_asset,
+				funding_asset_ticket,
+				plmc_bonded,
+			);
+		}
+
+		assert!(matches!(inst.go_to_next_state(project_id), ProjectStatus::CommunityRound(..)));
+
+		// Only Dave got a rejected bid, so they can settle it early to get refunded:
+		let rejected_bidder = PolimecAccountId::from(DAVE);
+		let rejected_bid_id = 15u32;
+
+		let otm_project_sub_account: PolimecAccountId = polimec_runtime::ProxyBonding::get_bonding_account(project_id);
+		let funding_escrow_account = PolimecFunding::fund_account_id(project_id);
+
+		let prev_bid_free_plmc = PolimecBalances::free_balance(rejected_bidder.clone());
+		let prev_bid_reserved_plmc = PolimecBalances::reserved_balance(rejected_bidder.clone());
+		let prev_bid_usdt_balance = PolimecForeignAssets::balance(USDT.id(), rejected_bidder.clone());
+		let prev_treasury_usdt_balance = PolimecForeignAssets::balance(USDT.id(), otm_project_sub_account.clone());
+		let prev_escrow_usdt_balance = PolimecForeignAssets::balance(USDT.id(), funding_escrow_account.clone());
+
+		PolimecFunding::settle_bid(
+			PolimecOrigin::signed(rejected_bidder.clone()),
+			project_id,
+			rejected_bidder.clone(),
+			rejected_bid_id,
+		)
+		.unwrap();
+
+		let post_bid_free_plmc = PolimecBalances::free_balance(rejected_bidder.clone());
+		let post_bid_reserved_plmc = PolimecBalances::reserved_balance(rejected_bidder.clone());
+		let post_bid_funding_asset_balance = PolimecForeignAssets::balance(USDT.id(), rejected_bidder.clone());
+		let post_treasury_usdt_balance = PolimecForeignAssets::balance(USDT.id(), otm_project_sub_account.clone());
+		let post_escrow_usdt_balance = PolimecForeignAssets::balance(USDT.id(), funding_escrow_account.clone());
+
+		let free_plmc_delta = post_bid_free_plmc - prev_bid_free_plmc;
+		let reserved_plmc_delta = post_bid_reserved_plmc - prev_bid_reserved_plmc;
+		let bidder_usdt_delta = post_bid_funding_asset_balance - prev_bid_usdt_balance;
+		let treasury_usdt_delta = prev_treasury_usdt_balance - post_treasury_usdt_balance;
+		let funding_escrow_usdt_delta = prev_escrow_usdt_balance - post_escrow_usdt_balance;
+
+		// Bid was OTM, so that user's PLMC should be unchanged
+		assert_close_enough!(free_plmc_delta, 0, Perquintill::from_float(0.9999));
+		assert_close_enough!(reserved_plmc_delta, 0, Perquintill::from_float(0.9999));
+
+		// They should have gotten their USDT back
+		let usdt_unit = 10u128.pow(PolimecForeignAssets::decimals(USDT.id()) as u32);
+		let expected_usdt = FixedU128::from_float(85_260.0).saturating_mul_int(usdt_unit);
+		let expected_otm_fee = FixedU128::from_float(1260.0).saturating_mul_int(usdt_unit);
+
+		assert_close_enough!(bidder_usdt_delta, expected_usdt, Perquintill::from_float(0.9999));
+		assert_close_enough!(
+			funding_escrow_usdt_delta,
+			expected_usdt - expected_otm_fee,
+			Perquintill::from_float(0.9999)
+		);
+		assert_close_enough!(treasury_usdt_delta, expected_otm_fee, Perquintill::from_float(0.9999));
+
+		for (contribution_id, user, mode, investor_type, ct_amount, funding_asset, funding_asset_ticket, plmc_bonded) in
+			community_contributions()
+		{
+			inst = participate_with_checks(
+				inst,
+				project_id,
+				ParticipationType::Contribution,
+				contribution_id,
+				user,
+				mode,
+				investor_type,
+				ct_amount,
+				funding_asset,
+				funding_asset_ticket,
+				plmc_bonded,
+			);
+		}
+
+		let remainder_block =
+			if let ProjectStatus::CommunityRound(remainder_block) = inst.get_project_details(project_id).status {
+				remainder_block
+			} else {
+				panic!("Expected CommunityRound");
+			};
+
+		inst.jump_to_block(remainder_block);
+
+		for (contribution_id, user, mode, investor_type, ct_amount, funding_asset, funding_asset_ticket, plmc_bonded) in
+			remainder_contributions()
+		{
+			inst = participate_with_checks(
+				inst,
+				project_id,
+				ParticipationType::Contribution,
+				contribution_id,
+				user,
+				mode,
+				investor_type,
+				ct_amount,
+				funding_asset,
+				funding_asset_ticket,
+				plmc_bonded,
+			);
+		}
+
+		assert_eq!(inst.go_to_next_state(project_id), ProjectStatus::FundingSuccessful);
+		assert_eq!(inst.go_to_next_state(project_id), ProjectStatus::SettlementStarted(FundingOutcome::Success));
+
+		// Used for checking CT migrations at the end
+		let stored_evaluations = inst.get_evaluations(project_id);
+		let stored_bids = inst.get_bids(project_id);
+		let stored_contributions = inst.get_contributions(project_id);
+
+		inst.settle_project(project_id, true);
+
+		let project_details = inst.get_project_details(project_id);
+		let project_metadata = inst.get_project_metadata(project_id);
+		let stored_wap = project_details.weighted_average_price.unwrap();
+		let expected_wap = PriceProviderOf::<PolimecRuntime>::calculate_decimals_aware_price(
+			PriceOf::<PolimecRuntime>::from_float(wap()),
 			USD_DECIMALS,
 			CT_DECIMALS,
 		)
 		.unwrap();
-		let stored_wap_usd = stored_wap_fixed_decimal_unaware.saturating_mul_int(USD_UNIT);
-
-		// We are more precise than Excel. From the 11th decimal onwards, the difference should be less than 0.00001.
-		assert_close_enough!(stored_wap_usd, excel_wap_usd, Perquintill::from_float(0.999));
-		let names = names();
-		inst.execute(|| {
-			let bids =
-				Bids::<PolimecRuntime>::iter_prefix_values((0,)).sorted_by_key(|bid| bid.bidder.clone()).collect_vec();
-
-			for bid in bids.clone() {
-				let key: [u8; 32] = bid.bidder.clone().into();
-				println!("{}: {}", names[&key], bid.funding_asset_amount_locked);
-			}
-		})
-	});
-}
-
-#[test]
-fn community_round_completed() {
-	polimec::set_prices(PricesBuilder::default());
-
-	let mut inst = IntegrationInstantiator::new(None);
-
-	PolimecNet::execute_with(|| {
-		let _ = inst.create_remainder_contributing_project(
-			excel_project(),
-			ISSUER.into(),
-			None,
-			excel_evaluators(),
-			excel_bidders(),
-			excel_contributions(),
-		);
-
-		inst.execute(|| {
-			let contributions = Contributions::<PolimecRuntime>::iter_prefix_values((0,))
-				.sorted_by_key(|bid| bid.contributor.clone())
-				.collect_vec();
-			let _total_contribution =
-				contributions.clone().into_iter().fold(0, |acc, bid| acc + bid.funding_asset_amount);
-			// TODO: add test for exact amount contributed
-		})
-	});
-}
-
-#[test]
-fn remainder_round_completed() {
-	polimec::set_prices(PricesBuilder::default());
-
-	let mut inst = IntegrationInstantiator::new(None);
-
-	PolimecNet::execute_with(|| {
-		inst.create_finished_project(
-			excel_project(),
-			ISSUER.into(),
-			None,
-			excel_evaluators(),
-			excel_bidders(),
-			excel_contributions(),
-			excel_remainders(),
-		);
-
-		let contributions = Contributions::<PolimecRuntime>::iter_prefix_values((0,))
-			.sorted_by_key(|contribution| contribution.contributor.clone())
-			.collect_vec();
-		let total_stored =
-			contributions.into_iter().fold(0, |acc, contribution| acc + contribution.funding_asset_amount);
-
-		let usdt_decimals =
-			<PolimecRuntime as pallet_funding::Config>::FundingCurrency::decimals(AcceptedFundingAsset::USDT.id());
-		let usdt_total_from_excel_f64 = 503_945.4_517_000_000f64;
-		let usdt_total_from_excel_fixed = FixedU128::from_float(usdt_total_from_excel_f64);
-		let usdt_total_from_excel = usdt_total_from_excel_fixed.saturating_mul_int(10u128.pow(usdt_decimals as u32));
-
-		assert_close_enough!(total_stored, usdt_total_from_excel, Perquintill::from_float(0.999));
-	});
-}
-
-#[test]
-fn funds_raised() {
-	polimec::set_prices(PricesBuilder::default());
-
-	let mut inst = IntegrationInstantiator::new(None);
-
-	PolimecNet::execute_with(|| {
-		let _project_id = inst.create_settled_project(
-			excel_project(),
-			ISSUER.into(),
-			None,
-			excel_evaluators(),
-			excel_bidders(),
-			excel_contributions(),
-			excel_remainders(),
-			true,
-		);
-
-		inst.execute(|| {
-			let funding_destination_account: AccountId = excel_project().funding_destination_account;
-			let stored_usdt_funded =
-				PolimecForeignAssets::balance(AcceptedFundingAsset::USDT.id(), funding_destination_account);
-			let excel_usdt_funded_f64 = 1_004_256.0_140_000_000f64;
-			let excet_usdt_funding_fixed = FixedU128::from_float(excel_usdt_funded_f64);
-			let usdt_decimals =
-				<PolimecRuntime as pallet_funding::Config>::FundingCurrency::decimals(AcceptedFundingAsset::USDT.id());
-			let excel_usdt_funded = excet_usdt_funding_fixed.saturating_mul_int(10u128.pow(usdt_decimals as u32));
-			assert_close_enough!(stored_usdt_funded, excel_usdt_funded, Perquintill::from_float(0.99));
-		})
-	});
-}
-
-#[test]
-fn ct_minted() {
-	polimec::set_prices(PricesBuilder::default());
-
-	let mut inst = IntegrationInstantiator::new(None);
-
-	PolimecNet::execute_with(|| {
-		let _project_id = inst.create_settled_project(
-			excel_project(),
-			ISSUER.into(),
-			None,
-			excel_evaluators(),
-			excel_bidders(),
-			excel_contributions(),
-			excel_remainders(),
-			true,
-		);
-
-		for (contributor, expected_amount_fixed, project_id) in excel_ct_amounts() {
-			let minted = inst
-				.execute(|| <PolimecRuntime as Config>::ContributionTokenCurrency::balance(project_id, &contributor));
-			let expected_amount = expected_amount_fixed.saturating_mul_int(CT_UNIT);
-			assert_close_enough!(minted, expected_amount, Perquintill::from_float(0.99));
-		}
-	});
-}
-
-#[test]
-fn ct_migrated() {
-	polimec::set_prices(PricesBuilder::default());
-
-	let mut inst = IntegrationInstantiator::new(None);
-
-	let project_id = PolimecNet::execute_with(|| {
-		let project_id = inst.create_settled_project(
-			excel_project(),
-			ISSUER.into(),
-			None,
-			excel_evaluators(),
-			excel_bidders(),
-			excel_contributions(),
-			excel_remainders(),
-			true,
-		);
-
-		for (contributor, expected_amount_fixed, project_id) in excel_ct_amounts() {
-			let minted = inst
-				.execute(|| <PolimecRuntime as Config>::ContributionTokenCurrency::balance(project_id, &contributor));
-			let expected_amount = expected_amount_fixed.saturating_mul_int(CT_UNIT);
-			assert_close_enough!(minted, expected_amount, Perquintill::from_float(0.999));
-		}
-
-		project_id
-	});
-
-	let project_details = PolimecNet::execute_with(|| inst.get_project_details(project_id));
-	assert!(matches!(project_details.evaluation_round_info.evaluators_outcome, Some(EvaluatorsOutcome::Rewarded(_))));
-	let ct_issued =
-		PolimecNet::execute_with(|| <PolimecRuntime as Config>::ContributionTokenCurrency::total_issuance(project_id));
-
-	PenNet::execute_with(|| {
-		let polimec_sovereign_account =
-			<Penpal<PolkadotNet>>::sovereign_account_id_of((Parent, xcm::prelude::Parachain(polimec::PARA_ID)).into());
-		PenpalBalances::set_balance(&polimec_sovereign_account, ct_issued + inst.get_ed());
-	});
-
-	// Mock HRMP establishment
-	PolimecNet::execute_with(|| {
-		let _account_id: PolimecAccountId = ISSUER.into();
-		const SENDER: u32 = 6969;
-		assert_ok!(PolimecFunding::do_start_pallet_migration(&ISSUER.into(), project_id, ParaId::from(SENDER)));
-		assert_ok!(PolimecFunding::do_handle_channel_open_request(SENDER, 50_000, 8));
-		assert_ok!(PolimecFunding::do_handle_channel_accepted(SENDER));
-	});
-
-	PenNet::execute_with(|| {
-		println!("penpal events:");
-	});
-
-	// Migration is ready
-	PolimecNet::execute_with(|| {
-		let project_details = pallet_funding::ProjectsDetails::<PolimecRuntime>::get(project_id).unwrap();
-		let Some(MigrationType::Pallet(migration_info)) = project_details.migration_type else {
-			panic!("Migration type should be ParachainReceiverPallet");
-		};
-		assert!(migration_info.migration_readiness_check.unwrap().is_ready())
-	});
-
-	excel_ct_amounts().iter().map(|tup| tup.0.clone()).unique().for_each(|account| {
-		let data = PenNet::account_data_of(account.clone());
-		assert_eq!(data.free, 0u128, "Participant balances should be 0 before ct migration");
-	});
-
-	// Migrate CTs
-	let accounts = excel_ct_amounts().iter().map(|item| item.0.clone()).unique().collect::<Vec<_>>();
-	let names = names();
-
-	for account in accounts {
-		PolimecNet::execute_with(|| {
-			assert_ok!(PolimecFunding::send_pallet_migration_for(
-				PolimecOrigin::signed(account.clone()),
-				project_id,
-				account.clone()
-			));
-			let key: [u8; 32] = account.clone().into();
-			println!("Migrated CTs for {}", names[&key]);
-			inst.advance_time(1u32);
-		});
-	}
-
-	PenNet::execute_with(|| {
-		dbg!(PenNet::events());
-	});
-
-	let total_ct_amounts = excel_ct_amounts().iter().fold(FixedU128::zero(), |acc, item| acc + item.1);
-	log::info!("excel ct amounts total: {}", total_ct_amounts);
-	// Check balances after migration, before vesting
-	excel_ct_amounts().iter().for_each(|item| {
-		let data = PenNet::account_data_of(item.0.clone());
-		let key: [u8; 32] = item.0.clone().into();
-		println!("Participant {} has {} CTs. Expected {}", names[&key], data.free.clone(), item.1);
-
-		let amount_as_balance = item.1.saturating_mul_int(CT_UNIT);
 		assert_close_enough!(
-			data.free,
-			amount_as_balance,
-			Perquintill::from_float(0.99),
-			"Participant balances should be transfered to each account after ct migration"
+			stored_wap.saturating_mul_int(PLMC),
+			expected_wap.saturating_mul_int(PLMC),
+			Perquintill::from_float(0.9999)
 		);
+
+		let actual_cts_minted = polimec_runtime::ContributionTokens::total_issuance(project_id);
+		let expected_cts_minted = FixedU128::from_float(cts_minted()).saturating_mul_int(CT_UNIT);
+		assert_close_enough!(actual_cts_minted, expected_cts_minted, Perquintill::from_float(0.9999));
+
+		assert_close_enough!(
+			project_details.funding_amount_reached_usd,
+			FixedU128::from_float(usd_raised()).saturating_mul_int(USD_UNIT),
+			Perquintill::from_float(0.9999)
+		);
+
+		let issuer_usdt =
+			PolimecForeignAssets::balance(USDT.id(), project_metadata.funding_destination_account.clone());
+		let issuer_usdc =
+			PolimecForeignAssets::balance(USDC.id(), project_metadata.funding_destination_account.clone());
+		let issuer_dot = PolimecForeignAssets::balance(DOT.id(), project_metadata.funding_destination_account.clone());
+
+		let usdt_unit = 10u128.pow(PolimecForeignAssets::decimals(USDT.id()) as u32);
+		let usdc_unit = 10u128.pow(PolimecForeignAssets::decimals(USDC.id()) as u32);
+		let dot_unit = 10u128.pow(PolimecForeignAssets::decimals(DOT.id()) as u32);
+
+		assert_close_enough!(
+			issuer_usdt,
+			FixedU128::from_float(issuer_payouts().0).saturating_mul_int(usdt_unit),
+			Perquintill::from_float(0.9999)
+		);
+		assert_close_enough!(
+			issuer_usdc,
+			FixedU128::from_float(issuer_payouts().1).saturating_mul_int(usdc_unit),
+			Perquintill::from_float(0.9999)
+		);
+		assert_close_enough!(
+			issuer_dot,
+			FixedU128::from_float(issuer_payouts().2).saturating_mul_int(dot_unit),
+			Perquintill::from_float(0.9999)
+		);
+
+		let EvaluationRoundInfo { evaluators_outcome, .. } = project_details.evaluation_round_info;
+		let Some(EvaluatorsOutcome::Rewarded(RewardInfo {
+			early_evaluator_reward_pot,
+			normal_evaluator_reward_pot,
+			early_evaluator_total_bonded_usd,
+			normal_evaluator_total_bonded_usd,
+		})) = evaluators_outcome
+		else {
+			panic!("Unexpected evaluators outcome")
+		};
+
+		assert_close_enough!(
+			normal_evaluator_reward_pot,
+			FixedU128::from_float(evaluator_reward_pots().0).saturating_mul_int(CT_UNIT),
+			Perquintill::from_float(0.9999)
+		);
+		assert_close_enough!(
+			early_evaluator_reward_pot,
+			FixedU128::from_float(evaluator_reward_pots().1).saturating_mul_int(CT_UNIT),
+			Perquintill::from_float(0.9999)
+		);
+		assert_close_enough!(
+			normal_evaluator_total_bonded_usd,
+			FixedU128::from_float(evaluator_reward_pots().2).saturating_mul_int(USD_UNIT),
+			Perquintill::from_float(0.9999)
+		);
+		assert_close_enough!(
+			early_evaluator_total_bonded_usd,
+			FixedU128::from_float(evaluator_reward_pots().3).saturating_mul_int(USD_UNIT),
+			Perquintill::from_float(0.9999)
+		);
+
+		for (user, ct_rewarded, plmc_bonded) in final_payouts() {
+			let user: PolimecAccountId = user.into();
+			let ct_rewarded = FixedU128::from_float(ct_rewarded).saturating_mul_int(CT_UNIT);
+			let plmc_bonded = FixedU128::from_float(plmc_bonded).saturating_mul_int(PLMC);
+
+			let reserved_plmc = PolimecBalances::reserved_balance(user.clone());
+			let ct_balance = polimec_runtime::ContributionTokens::balance(project_id, user.clone());
+
+			assert_close_enough!(ct_balance, ct_rewarded, Perquintill::from_float(0.9999));
+			assert_close_enough!(reserved_plmc, plmc_bonded, Perquintill::from_float(0.9999));
+		}
+
+		let plmc_balance = otm_treasury_sub_account_plmc_held();
+		let plmc_balance = FixedU128::from_float(plmc_balance).saturating_mul_int(PLMC);
+
+		let (usdt_balance, usdc_balance, dot_balance) = otm_fee_recipient_balances();
+		let usdt_balance = FixedU128::from_float(usdt_balance).saturating_mul_int(usdt_unit);
+		let usdc_balance = FixedU128::from_float(usdc_balance).saturating_mul_int(usdc_unit);
+		let dot_balance = FixedU128::from_float(dot_balance).saturating_mul_int(dot_unit);
+
+		polimec_runtime::ProxyBonding::transfer_fees_to_recipient(
+			PolimecOrigin::signed(BOB.into()),
+			project_id,
+			HoldReason::Participation.into(),
+			USDT.id(),
+		)
+		.unwrap();
+		polimec_runtime::ProxyBonding::transfer_fees_to_recipient(
+			PolimecOrigin::signed(BOB.into()),
+			project_id,
+			HoldReason::Participation.into(),
+			USDC.id(),
+		)
+		.unwrap();
+		polimec_runtime::ProxyBonding::transfer_fees_to_recipient(
+			PolimecOrigin::signed(BOB.into()),
+			project_id,
+			HoldReason::Participation.into(),
+			DOT.id(),
+		)
+		.unwrap();
+
+		let fee_recipient = <PolimecRuntime as pallet_proxy_bonding::Config>::FeeRecipient::get();
+		let fee_recipient_usdt_balance = PolimecForeignAssets::balance(USDT.id(), fee_recipient.clone());
+		let fee_recipient_usdc_balance = PolimecForeignAssets::balance(USDC.id(), fee_recipient.clone());
+		let fee_recipient_dot_balance = PolimecForeignAssets::balance(DOT.id(), fee_recipient.clone());
+
+		assert_close_enough!(fee_recipient_usdt_balance, usdt_balance, Perquintill::from_float(0.999));
+		assert_close_enough!(fee_recipient_usdc_balance, usdc_balance, Perquintill::from_float(0.999));
+		assert_close_enough!(fee_recipient_dot_balance, dot_balance, Perquintill::from_float(0.999));
+
+		let sub_account_held_plmc =
+			PolimecBalances::balance_on_hold(&HoldReason::Participation.into(), &otm_project_sub_account.clone());
+		assert_close_enough!(sub_account_held_plmc, plmc_balance, Perquintill::from_float(0.999));
+
+		let otm_duration = Multiplier::force_new(5).calculate_vesting_duration::<PolimecRuntime>();
+		let now = PolimecSystem::block_number();
+		inst.jump_to_block(now + otm_duration);
+
+		let treasury_account = <PolimecRuntime as pallet_proxy_bonding::Config>::Treasury::get();
+		let pre_treasury_free_balance = PolimecBalances::free_balance(treasury_account.clone());
+
+		polimec_runtime::ProxyBonding::transfer_bonds_back_to_treasury(
+			PolimecOrigin::signed(BOB.into()),
+			project_id,
+			HoldReason::Participation.into(),
+		)
+		.unwrap();
+
+		let post_treasury_free_balance = PolimecBalances::free_balance(treasury_account.clone());
+		let sub_account_held_plmc =
+			PolimecBalances::balance_on_hold(&HoldReason::Participation.into(), &otm_project_sub_account.clone());
+
+		assert_eq!(sub_account_held_plmc, 0);
+		assert_close_enough!(
+			post_treasury_free_balance,
+			pre_treasury_free_balance + plmc_balance,
+			Perquintill::from_float(0.999)
+		);
+
+		inst.assert_evaluations_migrations_created(project_id, stored_evaluations, true);
+		inst.assert_bids_migrations_created(project_id, stored_bids, true);
+		inst.assert_contributions_migrations_created(project_id, stored_contributions, true);
+
+		PolimecFunding::start_offchain_migration(PolimecOrigin::signed(issuer.clone()), issuer_jwt, project_id)
+			.unwrap();
+
+		assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::CTMigrationStarted);
+
+		for user in UserMigrations::<PolimecRuntime>::iter_key_prefix((project_id,)).collect_vec() {
+			PolimecFunding::confirm_offchain_migration(PolimecOrigin::signed(issuer.clone()), project_id, user);
+		}
+		PolimecFunding::mark_project_ct_migration_as_finished(PolimecOrigin::signed(issuer.clone()), project_id)
+			.unwrap();
+
+		assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::CTMigrationFinished);
+
+		for (user, expected_total_cts, _) in final_payouts() {
+			let user: PolimecAccountId = user.into();
+			let expected_total_cts = FixedU128::from_float(expected_total_cts).saturating_mul_int(CT_UNIT);
+			let (status, ct_migrations) = UserMigrations::<PolimecRuntime>::get((project_id, user)).unwrap();
+			assert_eq!(status, MigrationStatus::Confirmed);
+			let stored_total_cts = ct_migrations.iter().map(|m| m.info.contribution_token_amount).sum::<u128>();
+			assert_close_enough!(stored_total_cts, expected_total_cts, Perquintill::from_float(0.9999));
+		}
 	});
 }

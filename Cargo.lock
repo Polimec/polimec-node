@@ -4627,6 +4627,7 @@ dependencies = [
  "pallet-membership",
  "pallet-message-queue",
  "pallet-parachain-staking",
+ "pallet-proxy-bonding",
  "pallet-scheduler",
  "pallet-session",
  "pallet-staking",

@@ -15,6 +15,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 extern crate alloc;
 use crate::{currency::MILLI_PLMC, Balance, StakingPalletId};
+use core::{fmt::Debug, marker::PhantomData};
 use frame_support::{
 	ord_parameter_types,
 	pallet_prelude::{MaybeSerializeDeserialize, Weight},
@@ -45,7 +46,6 @@ use sp_runtime::{
 	traits::{DispatchInfoOf, Get, One, PostDispatchInfoOf, Zero},
 	transaction_validity::{InvalidTransaction, TransactionValidityError},
 };
-use core::{fmt::Debug, marker::PhantomData};
 
 #[allow(clippy::module_name_repetitions)]
 pub struct WeightToFee;
