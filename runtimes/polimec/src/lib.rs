@@ -90,11 +90,9 @@ use sp_version::NativeVersion;
 
 use crate::xcm_config::PriceForSiblingParachainDelivery;
 use polimec_common::{ProvideAssetPrice, USD_UNIT};
+use sp_runtime::transaction_validity::InvalidTransaction;
 #[cfg(any(feature = "std", test))]
 pub use sp_runtime::BuildStorage;
-use sp_runtime::{
-	transaction_validity::{InvalidTransaction},
-};
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmark_helpers;
 mod custom_migrations;

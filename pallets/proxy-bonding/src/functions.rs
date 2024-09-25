@@ -38,6 +38,11 @@ impl<T: Config> Pallet<T> {
 		Ok(fee_in_fee_asset)
 	}
 
+	pub fn get_bonding_account(derivation_path: u32) -> AccountIdOf<T> {
+		// We need to add 1 since 0u32 means no derivation from root.
+		T::RootId::get().into_sub_account_truncating(derivation_path.saturating_add(1u32))
+	}
+
 	/// Put some tokens on hold from the treasury into a sub-account, on behalf of a user.
 	/// User pays a fee for this functionality, which can be later refunded.
 	pub fn bond_on_behalf_of(
@@ -48,7 +53,7 @@ impl<T: Config> Pallet<T> {
 		hold_reason: T::RuntimeHoldReason,
 	) -> Result<(), DispatchError> {
 		let treasury = T::Treasury::get();
-		let bonding_account: AccountIdOf<T> = T::RootId::get().into_sub_account_truncating(derivation_path);
+		let bonding_account: AccountIdOf<T> = Self::get_bonding_account(derivation_path);
 		let existential_deposit = <T::BondingToken as fungible::Inspect<T::AccountId>>::minimum_balance();
 
 		let fee_in_fee_asset = Self::calculate_fee(bond_amount, fee_asset)?;
@@ -96,7 +101,7 @@ impl<T: Config> Pallet<T> {
 		bond_amount: BalanceOf<T>,
 		fee_asset: AssetId,
 	) -> Result<(), DispatchError> {
-		let bonding_account: AccountIdOf<T> = T::RootId::get().into_sub_account_truncating(derivation_path);
+		let bonding_account = Self::get_bonding_account(derivation_path);
 		let fee_in_fee_asset = Self::calculate_fee(bond_amount, fee_asset)?;
 
 		// We know this fee token account is existing thanks to the provider reference of the ED of the native asset, so we can fully move all the funds.

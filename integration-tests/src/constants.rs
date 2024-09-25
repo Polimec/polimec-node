@@ -503,7 +503,7 @@ pub mod polimec {
 		funded_accounts.extend(collators::initial_authorities().iter().cloned().map(|(acc, _)| (acc, 20_005 * PLMC)));
 		funded_accounts.push((TreasuryAccount::get(), 20_000_000 * PLMC));
 		funded_accounts.push((BlockchainOperationTreasury::get(), 20_005 * PLMC));
-		/// Treasury account needs PLMC for the One Token Model participations
+		// Treasury account needs PLMC for the One Token Model participations
 		funded_accounts.push((polimec_runtime::FeeRecipient::get(), INITIAL_DEPOSIT));
 
 		let genesis_config = polimec_runtime::RuntimeGenesisConfig {

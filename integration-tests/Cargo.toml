@@ -76,14 +76,17 @@ pallet-scheduler.workspace = true
 pallet-treasury.workspace = true
 frame-metadata-hash-extension.workspace = true
 pallet-asset-tx-payment.workspace = true
+sp-consensus-aura.workspace = true
+pallet-aura.workspace = true
+pallet-session.workspace = true
+pallet-proxy-bonding.workspace = true
+
 # Runtimes
 polkadot-runtime.workspace = true
 asset-hub-polkadot-runtime.workspace = true
 polimec-runtime.workspace = true
 penpal-runtime = { path = "penpal", default-features = false }
-sp-consensus-aura.workspace = true
-pallet-aura.workspace = true
-pallet-session.workspace = true
+
 
 [features]
 default = [ "development-settings", "instant-mode", "std" ]
