@@ -79,20 +79,16 @@ fn dispenser_signed_extensions_pass_for_new_account() {
 			frame_system::CheckEra::<PolimecRuntime>::from(Era::mortal(0u64, 0u64)),
 			pallet_dispenser::extensions::CheckNonce::<PolimecRuntime>::from(0u32),
 			frame_system::CheckWeight::<PolimecRuntime>::new(),
-			pallet_transaction_payment::ChargeTransactionPayment::<PolimecRuntime>::from(0u64.into()).into(),
+			pallet_asset_tx_payment::ChargeAssetTxPayment::<PolimecRuntime>::from(0u64.into(), None).into(),
 			frame_metadata_hash_extension::CheckMetadataHash::<PolimecRuntime>::new(true),
 		);
-		assert_err!(
-			extra.validate(&who, &paid_call, &paid_call.get_dispatch_info(), 0),
-			TransactionValidityError::Invalid(Payment)
-		);
-		assert_err!(
-			extra.clone().pre_dispatch(&who, &paid_call, &paid_call.get_dispatch_info(), 0),
-			TransactionValidityError::Invalid(Payment)
-		);
 
-		assert_ok!(extra.validate(&who, &free_call, &free_call.get_dispatch_info(), 0));
-		assert_ok!(extra.pre_dispatch(&who, &free_call, &free_call.get_dispatch_info(), 0));
+		// `InitialPayment` struct from pallet_asset_tx_payment doesn't implement Debug and PartialEq to compare to a specific Error or use assert_ok!
+		assert!(extra.validate(&who, &paid_call, &paid_call.get_dispatch_info(), 0).is_err());
+		assert!(extra.clone().pre_dispatch(&who, &paid_call, &paid_call.get_dispatch_info(), 0).is_err());
+
+		assert!(extra.validate(&who, &free_call, &free_call.get_dispatch_info(), 0).is_ok());
+		assert!(extra.pre_dispatch(&who, &free_call, &free_call.get_dispatch_info(), 0).is_ok());
 	});
 }
 
