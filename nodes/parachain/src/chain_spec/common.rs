@@ -1,12 +1,10 @@
 use crate::chain_spec::{get_account_id_from_seed, Extensions};
 use cumulus_primitives_core::ParaId;
-use frame_support::traits::fungible::Inspect;
 #[cfg(not(feature = "runtime-benchmarks"))]
 use itertools::Itertools;
 #[cfg(not(feature = "runtime-benchmarks"))]
 use polimec_runtime::MinCandidateStk;
 use polimec_runtime::{
-	pallet_parachain_staking,
 	pallet_parachain_staking::{
 		inflation::{perbill_annual_to_perbill_round, BLOCKS_PER_YEAR},
 		InflationInfo, Range,
