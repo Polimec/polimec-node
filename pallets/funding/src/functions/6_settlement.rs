@@ -172,6 +172,8 @@ impl<T: Config> Pallet<T> {
 		let BidRefund { final_ct_usd_price, final_ct_amount, refunded_plmc, refunded_funding_asset_amount } =
 			Self::calculate_refund(&bid, funding_success, wap)?;
 
+		Self::release_funding_asset(project_id, &bid.bidder, refunded_funding_asset_amount, bid.funding_asset)?;
+
 		if bid.mode == ParticipationMode::OTM {
 			<pallet_proxy_bonding::Pallet<T>>::refund_fee(
 				project_id,
@@ -183,7 +185,7 @@ impl<T: Config> Pallet<T> {
 		} else {
 			Self::release_participation_bond_for(&bid.bidder, refunded_plmc)?;
 		}
-		Self::release_funding_asset(project_id, &bid.bidder, refunded_funding_asset_amount, bid.funding_asset)?;
+
 
 		if funding_success && bid.status != BidStatus::Rejected {
 			let ct_vesting_duration = Self::set_plmc_bond_release_with_mode(
@@ -264,6 +266,13 @@ impl<T: Config> Pallet<T> {
 		let funding_end_block = project_details.funding_end_block.ok_or(Error::<T>::ImpossibleState)?;
 
 		if outcome == FundingOutcome::Failure {
+			Self::release_funding_asset(
+				project_id,
+				&contribution.contributor,
+				contribution.funding_asset_amount,
+				contribution.funding_asset,
+			)?;
+
 			if contribution.mode == ParticipationMode::OTM {
 				<pallet_proxy_bonding::Pallet<T>>::refund_fee(
 					project_id,
@@ -276,12 +285,6 @@ impl<T: Config> Pallet<T> {
 				Self::release_participation_bond_for(&contribution.contributor, contribution.plmc_bond)?;
 			}
 
-			Self::release_funding_asset(
-				project_id,
-				&contribution.contributor,
-				contribution.funding_asset_amount,
-				contribution.funding_asset,
-			)?;
 		} else {
 			let ct_vesting_duration = Self::set_plmc_bond_release_with_mode(
 				contribution.contributor.clone(),

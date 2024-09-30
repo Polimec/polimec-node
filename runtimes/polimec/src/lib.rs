@@ -1083,7 +1083,7 @@ use polimec_common::{PLMC_DECIMALS, PLMC_FOREIGN_ID, USD_DECIMALS};
 parameter_types! {
 	// Fee is defined as 1.5% of the usd_amount. Since fee is applied to the plmc amount, and that is always 5 times
 	// less than the usd_amount (multiplier of 5), we multiply the 1.5 by 5 to get 7.5%
-	pub const FeePercentage: Perbill = Perbill::from_percent(5);
+	pub FeePercentage: Perbill = Perbill::from_rational(75u32, 1000u32);
 	// TODO: add a real account here
 	pub FeeRecipient: AccountId = [0u8; 32].into();
 	pub const RootId: PalletId = PalletId(*b"treasury");

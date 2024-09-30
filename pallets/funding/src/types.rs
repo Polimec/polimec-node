@@ -807,7 +807,7 @@ pub mod inner {
 	pub enum ParticipationMode {
 		/// One Token Model. User only needs funding assets, and pays a fee to bond treasury PLMC.
 		OTM,
-		/// Normal model. User needs to bond PLMC based on a multiplier, and pays no fee.
+		/// Classic model. User needs to bond PLMC based on a multiplier, and pays no extra fee.
 		Classic(u8),
 	}
 	impl ParticipationMode {
