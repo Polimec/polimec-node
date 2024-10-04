@@ -21,7 +21,7 @@ use sp_runtime::{
 use xcm_emulator::TestExt;
 generate_accounts!(ALICE, AUTHOR);
 use frame_support::traits::fungible::Inspect;
-
+use xcm::v3::{Junction::*, Junctions::*, MultiLocation};
 // Setup code inspired by pallet-authorship tests
 fn seal_header(mut header: Header, aura_index: u64) -> Header {
 	{
@@ -60,6 +60,8 @@ fn fee_paid_with_foreign_assets() {
 		assert_eq!(polimec_runtime::Authorship::author(), Some(block_author.clone()));
 
 		let usdt_id = AcceptedFundingAsset::USDT.id();
+		let usdt_multilocation =
+			MultiLocation { parents: 1, interior: X3(Parachain(1000), PalletInstance(50), GeneralIndex(1984)) };
 		let usdt_decimals = <PolimecForeignAssets as fungibles::metadata::Inspect<PolimecAccountId>>::decimals(usdt_id);
 		let usdt_unit = 10u128.pow(usdt_decimals as u32);
 		let plmc_decimals = PLMC_DECIMALS;
@@ -79,10 +81,12 @@ fn fee_paid_with_foreign_assets() {
 		let paid_call_len = paid_call.encode().len();
 		type TxPaymentExtension = pallet_asset_tx_payment::ChargeAssetTxPayment<PolimecRuntime>;
 
-		// Tips are always defined in the native asset, and then converted to the fee asset if the second field is `Some`.
-		// Here a user wants to tip 10 PLMC in USDT.
-		let signed_extension =
-			pallet_asset_tx_payment::ChargeAssetTxPayment::<PolimecRuntime>::from(10 * plmc_unit, Some(usdt_id));
+        // Tips are always defined in the native asset, and then converted to the fee asset if the second field is `Some`.
+        // Here a user wants to tip 10 PLMC in USDT.
+		let signed_extension = pallet_asset_tx_payment::ChargeAssetTxPayment::<PolimecRuntime>::from(
+			10 * plmc_unit,
+			Some(usdt_multilocation),
+		);
 
 		let dispatch_info = paid_call.get_dispatch_info();
 		let FeeDetails { inclusion_fee, tip } =
@@ -126,7 +130,7 @@ fn fee_paid_with_foreign_assets() {
 		let post_block_author_plmc_balance = PolimecBalances::balance(&block_author.clone());
 
 		assert_eq!(prev_alice_usdt_balance - post_alice_usdt_balance, expected_usd_fee + expected_usd_tip);
-		assert_eq!(post_alice_plmc_balance, prev_alice_plmc_balance,);
+		assert_eq!(post_alice_plmc_balance, prev_alice_plmc_balance);
 		assert_eq!(
 			post_blockchain_operation_treasury_usdt_balance - prev_blockchain_operation_treasury_usdt_balance,
 			expected_usd_fee

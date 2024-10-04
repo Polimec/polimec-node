@@ -15,10 +15,11 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 #![cfg_attr(not(feature = "std"), no_std)]
-// `construct_runtime!` does a lot of recursion and requires us to increase the limit to 256.
 #![recursion_limit = "256"]
 
-extern crate alloc;
+// Make the WASM binary available.
+#[cfg(feature = "std")]
+include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
 use core::ops::RangeInclusive;
 use cumulus_pallet_parachain_system::RelayNumberMonotonicallyIncreases;
@@ -50,7 +51,10 @@ use parachains_common::{
 	AssetIdForTrustBackedAssets as AssetId,
 };
 use parity_scale_codec::Encode;
-use polimec_common::credentials::{Did, EnsureInvestor};
+use polimec_common::{
+	credentials::{Did, EnsureInvestor},
+	ProvideAssetPrice, USD_UNIT,
+};
 use polkadot_runtime_common::{BlockHashCount, CurrencyToVote, SlowAdjustingFeeUpdate};
 use shared_configuration::proxy;
 use sp_api::impl_runtime_apis;
@@ -61,38 +65,37 @@ use sp_runtime::{
 		AccountIdConversion, AccountIdLookup, BlakeTwo256, Block as BlockT, Convert, ConvertBack, ConvertInto,
 		IdentifyAccount, IdentityLookup, OpaqueKeys, Verify,
 	},
-	transaction_validity::{TransactionSource, TransactionValidity},
+	transaction_validity::{InvalidTransaction, TransactionSource, TransactionValidity},
 	ApplyExtrinsicResult, FixedPointNumber, FixedU128, MultiSignature, SaturatedConversion,
 };
 use sp_std::{cmp::Ordering, prelude::*};
 use sp_version::RuntimeVersion;
 
 // XCM Imports
-use xcm_config::XcmOriginToTransactDispatchOrigin;
+use xcm::v3::{
+	Junction::{GeneralIndex, PalletInstance, Parachain},
+	Junctions::{Here, X3},
+	MultiLocation,
+};
+use xcm_config::{PriceForSiblingParachainDelivery, XcmOriginToTransactDispatchOrigin};
 
 #[cfg(not(feature = "runtime-benchmarks"))]
 use xcm_config::XcmConfig;
 
-pub use pallet_parachain_staking;
 // Polimec Shared Imports
+pub use pallet_parachain_staking;
 pub use shared_configuration::{
 	assets::*, currency::*, fee::*, funding::*, governance::*, identity::*, proxy::*, staking::*, time::*, weights::*,
 };
 pub use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 pub use sp_runtime::{MultiAddress, Perbill, Permill};
 
-// Make the WASM binary available.
-#[cfg(feature = "std")]
-include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
-
 #[cfg(feature = "std")]
 use sp_version::NativeVersion;
 
-use crate::xcm_config::PriceForSiblingParachainDelivery;
-use polimec_common::{ProvideAssetPrice, USD_UNIT};
-use sp_runtime::transaction_validity::InvalidTransaction;
 #[cfg(any(feature = "std", test))]
 pub use sp_runtime::BuildStorage;
+
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmark_helpers;
 mod custom_migrations;
@@ -1153,6 +1156,17 @@ impl pallet_dispenser::Config for Runtime {
 	type WhitelistedPolicy = DispenserWhitelistedPolicy;
 }
 
+pub struct ConvertMultilocationToAssetId;
+impl Convert<MultiLocation, AssetId> for ConvertMultilocationToAssetId {
+	fn convert(location: MultiLocation) -> AssetId {
+		match location {
+			MultiLocation { parents: 1, interior: Here } => 10,
+			MultiLocation { parents: 1, interior: X3(Parachain(1000), PalletInstance(50), GeneralIndex(1337)) } => 1337,
+			MultiLocation { parents: 1, interior: X3(Parachain(1000), PalletInstance(50), GeneralIndex(1984)) } => 1984,
+			_ => 0,
+		}
+	}
+}
 pub struct PLMCToFundingAssetBalance;
 impl ConversionToAssetBalance<Balance, AssetId, Balance> for PLMCToFundingAssetBalance {
 	type Error = InvalidTransaction;
@@ -1175,6 +1189,7 @@ impl pallet_asset_tx_payment::Config for Runtime {
 	type Fungibles = ForeignAssets;
 	type OnChargeAssetTransaction = TxFeeFungiblesAdapter<
 		PLMCToFundingAssetBalance,
+		ConvertMultilocationToAssetId,
 		CreditFungiblesToAccount<AccountId, ForeignAssets, BlockchainOperationTreasury>,
 		AssetsToBlockAuthor<Runtime, ForeignAssetsInstance>,
 	>;

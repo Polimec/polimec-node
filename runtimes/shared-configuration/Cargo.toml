@@ -41,7 +41,7 @@ pallet-parachain-staking.workspace = true
 pallet-oracle-ocw.workspace = true
 pallet-treasury = {workspace = true, optional = true}
 pallet-asset-tx-payment.workspace = true
-
+xcm.workspace = true
 [features]
 default = [ "std" ]
 fast-mode = []
@@ -50,6 +50,7 @@ std = [
 	"frame-support/std",
 	"frame-system/std",
 	"orml-traits/std",
+	"pallet-asset-tx-payment/std",
 	"pallet-authorship/std",
 	"pallet-balances/std",
 	"pallet-funding/std",
@@ -64,11 +65,12 @@ std = [
 	"sp-arithmetic/std",
 	"sp-runtime/std",
 	"sp-std/std",
-	"pallet-asset-tx-payment/std"
+	"xcm/std",
 ]
 runtime-benchmarks = [
 	"frame-support/runtime-benchmarks",
 	"frame-system/runtime-benchmarks",
+	"pallet-asset-tx-payment/runtime-benchmarks",
 	"pallet-balances/runtime-benchmarks",
 	"pallet-funding/runtime-benchmarks",
 	"pallet-oracle-ocw/runtime-benchmarks",
@@ -77,11 +79,11 @@ runtime-benchmarks = [
 	"parachains-common/runtime-benchmarks",
 	"polimec-common/runtime-benchmarks",
 	"sp-runtime/runtime-benchmarks",
-	"pallet-asset-tx-payment/runtime-benchmarks"
 ]
 try-runtime = [
 	"frame-support/try-runtime",
 	"frame-system/try-runtime",
+	"pallet-asset-tx-payment/try-runtime",
 	"pallet-authorship/try-runtime",
 	"pallet-balances/try-runtime",
 	"pallet-funding/try-runtime",
@@ -91,6 +93,5 @@ try-runtime = [
 	"pallet-treasury?/try-runtime",
 	"polimec-common/try-runtime",
 	"sp-runtime/try-runtime",
-	"pallet-asset-tx-payment/try-runtime"
 ]
 development-settings = []
