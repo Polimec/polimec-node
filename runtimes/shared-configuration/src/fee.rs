@@ -185,7 +185,7 @@ impl<Runtime, MultiLocationToAssetId, Converter, FeeCreditor, TipCreditor> OnCha
 	for TxFeeFungiblesAdapter<Converter, MultiLocationToAssetId, FeeCreditor, TipCreditor>
 where
 	Runtime: pallet_asset_tx_payment::Config,
-	MultiLocationToAssetId: Convert<xcm::v3::MultiLocation, AssetIdOf<Runtime>>,
+	MultiLocationToAssetId: Convert< xcm::v3::MultiLocation, AssetIdOf<Runtime>>,
 	Converter: ConversionToAssetBalance<BalanceOf<Runtime>, AssetIdOf<Runtime>, AssetBalanceOf<Runtime>>,
 	FeeCreditor: HandleCredit<Runtime::AccountId, Runtime::Fungibles>,
 	TipCreditor: HandleCredit<Runtime::AccountId, Runtime::Fungibles>,

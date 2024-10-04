@@ -200,7 +200,7 @@ pub mod storage {
 				InvestorTypeUSDBounds::Institutional((min_bidder_bound_usd, None).into()),
 			])?;
 
-			let min_contributor_bound_usd: Balance = usd_unit.checked_mul(1u128).ok_or(MetadataError::BadTokenomics)?;
+			let min_contributor_bound_usd: Balance = usd_unit.checked_mul(10u128).ok_or(MetadataError::BadTokenomics)?;
 			self.contributing_ticket_sizes.is_valid(vec![
 				InvestorTypeUSDBounds::Institutional((min_contributor_bound_usd, None).into()),
 				InvestorTypeUSDBounds::Professional((min_contributor_bound_usd, None).into()),

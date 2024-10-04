@@ -70,7 +70,7 @@ fn cannot_have_otm_fee_below_min_amount() {
 
 		let plmc_ed = inst.get_ed();
 
-		let min_usd_contribution = USD_UNIT;
+		let min_usd_contribution = 10 * USD_UNIT;
 		let otm_multiplier: MultiplierOf<PolimecRuntime> = ParticipationMode::OTM.multiplier().try_into().unwrap();
 		let min_usd_bond =
 			otm_multiplier.calculate_usd_bonding_requirement::<PolimecRuntime>(min_usd_contribution).unwrap();

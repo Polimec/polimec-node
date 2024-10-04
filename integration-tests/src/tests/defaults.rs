@@ -80,9 +80,9 @@ pub fn default_project_metadata(issuer: AccountId) -> ProjectMetadataOf<polimec_
 			phantom: Default::default(),
 		},
 		contributing_ticket_sizes: ContributingTicketSizes {
-			retail: TicketSize::new(USD_UNIT, None),
-			professional: TicketSize::new(USD_UNIT, None),
-			institutional: TicketSize::new(USD_UNIT, None),
+			retail: TicketSize::new(10 * USD_UNIT, None),
+			professional: TicketSize::new(10 * USD_UNIT, None),
+			institutional: TicketSize::new(10 * USD_UNIT, None),
 			phantom: Default::default(),
 		},
 		participation_currencies: vec![AcceptedFundingAsset::USDT].try_into().unwrap(),
