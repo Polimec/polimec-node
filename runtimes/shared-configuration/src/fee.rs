@@ -43,7 +43,7 @@ use scale_info::{prelude::vec, TypeInfo};
 use smallvec::smallvec;
 use sp_arithmetic::Perbill;
 use sp_runtime::{
-	traits::{DispatchInfoOf, Get, One, PostDispatchInfoOf, Zero},
+	traits::{Convert, DispatchInfoOf, Get, One, PostDispatchInfoOf, Zero},
 	transaction_validity::{InvalidTransaction, TransactionValidityError},
 };
 
@@ -163,30 +163,35 @@ where
 }
 
 type BalanceOf<T> = <<T as pallet_transaction_payment::Config>::OnChargeTransaction as OnChargeTransaction<T>>::Balance;
+// type NativeBalance = u128;
 type AssetIdOf<T> = <<T as pallet_asset_tx_payment::Config>::Fungibles as Inspect<AccountIdOf<T>>>::AssetId;
+// type FungibleAssetId = u32;
+// type CompatibilityAssetId = xcm::v3::MultiLocation;
 type AssetBalanceOf<T> =
 	<<T as pallet_asset_tx_payment::Config>::Fungibles as Inspect<<T as frame_system::Config>::AccountId>>::Balance;
+// type AssetBalance = u128;
 
 /// Implements the asset transaction for a balance to asset converter (implementing
 /// [`ConversionToAssetBalance`]) and 2 credit handlers (implementing [`HandleCredit`]).
 ///
 /// First handler does the fee, second the tip.
-pub struct TxFeeFungiblesAdapter<Converter, FeeCreditor, TipCreditor>(
-	PhantomData<(Converter, FeeCreditor, TipCreditor)>,
+pub struct TxFeeFungiblesAdapter<Converter, MultiLocationToAssetId, FeeCreditor, TipCreditor>(
+	PhantomData<(Converter, MultiLocationToAssetId, FeeCreditor, TipCreditor)>,
 );
 
 /// Default implementation for a runtime instantiating this pallet, a balance to asset converter and
 /// a credit handler.
-impl<Runtime, Converter, FeeCreditor, TipCreditor> OnChargeAssetTransaction<Runtime>
-	for TxFeeFungiblesAdapter<Converter, FeeCreditor, TipCreditor>
+impl<Runtime, MultiLocationToAssetId, Converter, FeeCreditor, TipCreditor> OnChargeAssetTransaction<Runtime>
+	for TxFeeFungiblesAdapter<Converter, MultiLocationToAssetId, FeeCreditor, TipCreditor>
 where
 	Runtime: pallet_asset_tx_payment::Config,
+	MultiLocationToAssetId: Convert<xcm::v3::MultiLocation, AssetIdOf<Runtime>>,
 	Converter: ConversionToAssetBalance<BalanceOf<Runtime>, AssetIdOf<Runtime>, AssetBalanceOf<Runtime>>,
 	FeeCreditor: HandleCredit<Runtime::AccountId, Runtime::Fungibles>,
 	TipCreditor: HandleCredit<Runtime::AccountId, Runtime::Fungibles>,
 	AssetIdOf<Runtime>: FullCodec + Copy + MaybeSerializeDeserialize + Debug + Default + Eq + TypeInfo,
 {
-	type AssetId = AssetIdOf<Runtime>;
+	type AssetId = xcm::v3::MultiLocation;
 	type Balance = BalanceOf<Runtime>;
 	type LiquidityInfo = fungibles::Credit<Runtime::AccountId, Runtime::Fungibles>;
 
@@ -202,6 +207,7 @@ where
 		// We don't know the precision of the underlying asset. Because the converted fee could be
 		// less than one (e.g. 0.5) but gets rounded down by integer division we introduce a minimum
 		// fee.
+		let asset_id = MultiLocationToAssetId::convert(asset_id);
 		let min_converted_fee = if fee.is_zero() { Zero::zero() } else { One::one() };
 		let converted_fee = Converter::to_asset_balance(fee, asset_id)
 			.map_err(|_| TransactionValidityError::from(InvalidTransaction::Payment))?

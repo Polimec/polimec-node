@@ -41,7 +41,7 @@ pallet-parachain-staking.workspace = true
 pallet-oracle-ocw.workspace = true
 pallet-treasury = {workspace = true, optional = true}
 pallet-asset-tx-payment.workspace = true
-
+xcm.workspace = true
 [features]
 default = [ "std" ]
 fast-mode = []

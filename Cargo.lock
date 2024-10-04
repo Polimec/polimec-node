@@ -13216,6 +13216,7 @@ dependencies = [
  "sp-arithmetic",
  "sp-runtime",
  "sp-std",
+ "staging-xcm",
 ]
 
 [[package]]

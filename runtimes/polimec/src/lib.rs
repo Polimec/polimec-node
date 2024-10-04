@@ -93,6 +93,7 @@ use polimec_common::{ProvideAssetPrice, USD_UNIT};
 use sp_runtime::transaction_validity::InvalidTransaction;
 #[cfg(any(feature = "std", test))]
 pub use sp_runtime::BuildStorage;
+
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmark_helpers;
 mod custom_migrations;
@@ -1153,6 +1154,19 @@ impl pallet_dispenser::Config for Runtime {
 	type WhitelistedPolicy = DispenserWhitelistedPolicy;
 }
 
+use xcm::v3::{Junction::*, Junctions::*, MultiLocation};
+
+pub struct ConvertMultilocationToAssetId;
+impl Convert<MultiLocation, AssetId> for ConvertMultilocationToAssetId {
+	fn convert(location: MultiLocation) -> AssetId {
+		match location {
+			MultiLocation { parents: 1, interior: Here } => 10,
+			MultiLocation { parents: 1, interior: X3(Parachain(1000), PalletInstance(50), GeneralIndex(1337)) } => 1337,
+			MultiLocation { parents: 1, interior: X3(Parachain(1000), PalletInstance(50), GeneralIndex(1984)) } => 1984,
+			_ => 0,
+		}
+	}
+}
 pub struct PLMCToFundingAssetBalance;
 impl ConversionToAssetBalance<Balance, AssetId, Balance> for PLMCToFundingAssetBalance {
 	type Error = InvalidTransaction;
@@ -1175,6 +1189,7 @@ impl pallet_asset_tx_payment::Config for Runtime {
 	type Fungibles = ForeignAssets;
 	type OnChargeAssetTransaction = TxFeeFungiblesAdapter<
 		PLMCToFundingAssetBalance,
+		ConvertMultilocationToAssetId,
 		CreditFungiblesToAccount<AccountId, ForeignAssets, BlockchainOperationTreasury>,
 		AssetsToBlockAuthor<Runtime, ForeignAssetsInstance>,
 	>;
