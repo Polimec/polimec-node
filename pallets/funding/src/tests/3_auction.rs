@@ -206,6 +206,8 @@ mod round_flow {
 				assert_eq!(auction_allocation_usd, 5_000_000 * USD_UNIT);
 
 				// A minimum bid goes through. This is a fixed USD value, but the extrinsic amount depends on CT decimals.
+				inst.mint_plmc_ed_if_required(vec![BIDDER_1]);
+				inst.mint_funding_asset_ed_if_required(vec![(BIDDER_1, funding_asset.id())]);
 				inst.mint_plmc_to(vec![UserToPLMCBalance::new(BIDDER_1, min_professional_bid_plmc + ed)]);
 				inst.mint_funding_asset_to(vec![UserToFundingAsset::new(
 					BIDDER_1,
@@ -352,6 +354,7 @@ mod bid_extrinsic {
 	#[cfg(test)]
 	mod success {
 		use super::*;
+		use crate::AcceptedFundingAsset::USDT;
 		use frame_support::pallet_prelude::DispatchResultWithPostInfo;
 
 		#[test]
@@ -360,7 +363,7 @@ mod bid_extrinsic {
 			let issuer = ISSUER_1;
 			let project_metadata = default_project_metadata(issuer);
 			let mut evaluations = default_evaluations();
-			let evaluator_bidder = 69;
+			let evaluator_bidder = 69u64;
 			let evaluation_amount = 420 * USD_UNIT;
 			let evaluator_bid = BidParams::new(
 				evaluator_bidder,
@@ -372,9 +375,8 @@ mod bid_extrinsic {
 
 			let project_id = inst.create_auctioning_project(project_metadata.clone(), issuer, None, evaluations);
 
-			let already_bonded_plmc = inst
-				.calculate_evaluation_plmc_spent(vec![(evaluator_bidder, evaluation_amount).into()], false)[0]
-				.plmc_amount;
+			let already_bonded_plmc =
+				inst.calculate_evaluation_plmc_spent(vec![(evaluator_bidder, evaluation_amount).into()])[0].plmc_amount;
 
 			let usable_evaluation_plmc =
 				already_bonded_plmc - <TestRuntime as Config>::EvaluatorSlash::get() * already_bonded_plmc;
@@ -382,7 +384,6 @@ mod bid_extrinsic {
 			let necessary_plmc_for_bid = inst.calculate_auction_plmc_charged_with_given_price(
 				&vec![evaluator_bid.clone()],
 				project_metadata.minimum_price,
-				false,
 			)[0]
 			.plmc_amount;
 
@@ -391,6 +392,8 @@ mod bid_extrinsic {
 				project_metadata.minimum_price,
 			);
 
+			inst.mint_plmc_ed_if_required(vec![evaluator_bidder]);
+			inst.mint_funding_asset_ed_if_required(vec![(evaluator_bidder, USDT.id())]);
 			inst.mint_plmc_to(vec![UserToPLMCBalance::new(
 				evaluator_bidder,
 				necessary_plmc_for_bid - usable_evaluation_plmc,
@@ -451,7 +454,6 @@ mod bid_extrinsic {
 			let plmc_fundings = inst.calculate_auction_plmc_charged_with_given_price(
 				&vec![usdt_bid.clone(), usdc_bid.clone(), dot_bid.clone()],
 				project_metadata_all.minimum_price,
-				true,
 			);
 
 			inst.mint_plmc_to(plmc_fundings.clone());
@@ -625,11 +627,13 @@ mod bid_extrinsic {
 
 			let all_bids = vec![bid_40_percent[0].clone(), bid_23_percent[0].clone()];
 
+			inst.mint_plmc_ed_if_required(all_bids.accounts());
+			inst.mint_funding_asset_ed_if_required(all_bids.to_account_asset_map());
+
 			let necessary_plmc = inst.calculate_auction_plmc_charged_from_all_bids_made_or_with_bucket(
 				&all_bids,
 				project_metadata.clone(),
 				None,
-				true,
 			);
 			let necessary_usdt = inst.calculate_auction_funding_asset_charged_from_all_bids_made_or_with_bucket(
 				&all_bids,
@@ -702,12 +706,10 @@ mod bid_extrinsic {
 				&vec![bid.clone()],
 				project_metadata.clone(),
 				None,
-				false,
 			);
 			let frozen_amount = plmc_required[0].plmc_amount;
-			let plmc_existential_deposits = plmc_required.accounts().existential_deposits();
 
-			inst.mint_plmc_to(plmc_existential_deposits);
+			inst.mint_plmc_ed_if_required(plmc_required.accounts());
 			inst.mint_plmc_to(plmc_required.clone());
 
 			inst.execute(|| {
@@ -719,6 +721,7 @@ mod bid_extrinsic {
 				project_metadata.clone(),
 				None,
 			);
+			inst.mint_funding_asset_ed_if_required(vec![bid.clone()].to_account_asset_map());
 			inst.mint_funding_asset_to(usdt_required);
 
 			inst.execute(|| {
@@ -784,12 +787,10 @@ mod bid_extrinsic {
 				&vec![bid.clone()],
 				project_metadata.clone(),
 				None,
-				false,
 			);
 			let frozen_amount = plmc_required[0].plmc_amount;
-			let plmc_existential_deposits = plmc_required.accounts().existential_deposits();
 
-			inst.mint_plmc_to(plmc_existential_deposits);
+			inst.mint_plmc_ed_if_required(plmc_required.accounts());
 			inst.mint_plmc_to(plmc_required.clone());
 
 			inst.execute(|| {
@@ -801,6 +802,7 @@ mod bid_extrinsic {
 				project_metadata.clone(),
 				None,
 			);
+			inst.mint_funding_asset_ed_if_required(vec![bid.clone()].to_account_asset_map());
 			inst.mint_funding_asset_to(usdt_required);
 
 			inst.execute(|| {
@@ -836,12 +838,13 @@ mod bid_extrinsic {
 				default_community_contributors(),
 				default_modes(),
 			);
-			let plmc_required = inst.calculate_contributed_plmc_spent(contributions.clone(), wap, true);
+			let plmc_required = inst.calculate_contributed_plmc_spent(contributions.clone(), wap);
+			inst.mint_plmc_ed_if_required(contributions.accounts());
 			inst.mint_plmc_to(plmc_required.clone());
 
 			let usdt_required = inst.calculate_contributed_funding_asset_spent(contributions.clone(), wap);
+			inst.mint_funding_asset_ed_if_required(contributions.to_account_asset_map());
 			inst.mint_funding_asset_to(usdt_required.clone());
-
 			inst.contribute_for_users(project_id, contributions).unwrap();
 
 			assert_eq!(inst.go_to_next_state(project_id), ProjectStatus::FundingSuccessful);
@@ -1250,15 +1253,13 @@ mod bid_extrinsic {
 				inst.create_auctioning_project(project_metadata_2.clone(), ISSUER_2, None, evaluations_2);
 
 			// Necessary Mints
-			let already_bonded_plmc = inst
-				.calculate_evaluation_plmc_spent(vec![(evaluator_bidder, evaluation_amount).into()], false)[0]
-				.plmc_amount;
+			let already_bonded_plmc =
+				inst.calculate_evaluation_plmc_spent(vec![(evaluator_bidder, evaluation_amount).into()])[0].plmc_amount;
 			let usable_evaluation_plmc =
 				already_bonded_plmc - <TestRuntime as Config>::EvaluatorSlash::get() * already_bonded_plmc;
 			let necessary_plmc_for_bid = inst.calculate_auction_plmc_charged_with_given_price(
 				&vec![evaluator_bid.clone()],
 				project_metadata_2.minimum_price,
-				false,
 			)[0]
 			.plmc_amount;
 			let necessary_usdt_for_bid = inst.calculate_auction_funding_asset_charged_with_given_price(
@@ -1330,18 +1331,19 @@ mod bid_extrinsic {
 
 			let project_id = inst.create_auctioning_project(project_metadata.clone(), ISSUER_1, None, evaluations);
 
-			let plmc_for_bidding = inst.calculate_auction_plmc_charged_with_given_price(
-				&bids.clone(),
-				project_metadata.minimum_price,
-				true,
-			);
+			let plmc_for_bidding =
+				inst.calculate_auction_plmc_charged_with_given_price(&bids.clone(), project_metadata.minimum_price);
 			let usdt_for_bidding = inst.calculate_auction_funding_asset_charged_with_given_price(
 				&bids.clone(),
 				project_metadata.minimum_price,
 			);
 
+			inst.mint_plmc_ed_if_required(bids.accounts());
 			inst.mint_plmc_to(plmc_for_bidding.clone());
+
+			inst.mint_funding_asset_ed_if_required(bids.to_account_asset_map());
 			inst.mint_funding_asset_to(usdt_for_bidding.clone());
+
 			inst.bid_for_users(project_id, bids.clone()).unwrap();
 
 			let current_bucket = inst.execute(|| Buckets::<TestRuntime>::get(project_id)).unwrap();
@@ -1358,7 +1360,6 @@ mod bid_extrinsic {
 				&vec![failing_bid.clone()],
 				project_metadata.clone(),
 				Some(current_bucket),
-				true,
 			);
 
 			let usdt_for_bidding = inst.calculate_auction_funding_asset_charged_from_all_bids_made_or_with_bucket(
@@ -1439,18 +1440,19 @@ mod bid_extrinsic {
 
 			let project_id = inst.create_auctioning_project(project_metadata.clone(), ISSUER_1, None, evaluations);
 
-			let plmc_for_bidding = inst.calculate_auction_plmc_charged_with_given_price(
-				&bids.clone(),
-				project_metadata.minimum_price,
-				true,
-			);
+			let plmc_for_bidding =
+				inst.calculate_auction_plmc_charged_with_given_price(&bids.clone(), project_metadata.minimum_price);
 			let usdt_for_bidding = inst.calculate_auction_funding_asset_charged_with_given_price(
 				&bids.clone(),
 				project_metadata.minimum_price,
 			);
 
+			inst.mint_plmc_ed_if_required(bids.accounts());
 			inst.mint_plmc_to(plmc_for_bidding.clone());
+
+			inst.mint_funding_asset_ed_if_required(bids.to_account_asset_map());
 			inst.mint_funding_asset_to(usdt_for_bidding.clone());
+
 			inst.bid_for_users(project_id, bids.clone()).unwrap();
 
 			let current_bucket = inst.execute(|| Buckets::<TestRuntime>::get(project_id)).unwrap();
@@ -1467,7 +1469,6 @@ mod bid_extrinsic {
 				&vec![failing_bid.clone()],
 				project_metadata.clone(),
 				Some(current_bucket),
-				true,
 			);
 			let usdt_for_bidding = inst.calculate_auction_funding_asset_charged_from_all_bids_made_or_with_bucket(
 				&vec![failing_bid.clone()],
@@ -2036,7 +2037,6 @@ mod end_auction_extrinsic {
 				&bids,
 				project_metadata.clone(),
 				None,
-				false,
 			);
 			let funding_asset_amounts = inst.calculate_auction_funding_asset_charged_from_all_bids_made_or_with_bucket(
 				&bids,
@@ -2044,10 +2044,13 @@ mod end_auction_extrinsic {
 				None,
 			);
 
-			let plmc_existential_amounts = plmc_amounts.accounts().existential_deposits();
+			inst.mint_plmc_ed_if_required(bids.accounts());
+			inst.mint_funding_asset_ed_if_required(bids.to_account_asset_map());
+
+			let prev_plmc_balances = inst.get_free_plmc_balances_for(bids.accounts());
+			let prev_funding_asset_balances = inst.get_free_funding_asset_balances_for(bids.to_account_asset_map());
 
 			inst.mint_plmc_to(plmc_amounts.clone());
-			inst.mint_plmc_to(plmc_existential_amounts.clone());
 			inst.mint_funding_asset_to(funding_asset_amounts.clone());
 
 			inst.bid_for_users(project_id, bids.clone()).unwrap();
@@ -2066,12 +2069,12 @@ mod end_auction_extrinsic {
 			let returned_funding_assets =
 				inst.calculate_auction_funding_asset_returned_from_all_bids_made(&bids, project_metadata, wap);
 
-			let expected_free_plmc = inst.generic_map_operation(
-				vec![returned_auction_plmc.clone(), plmc_existential_amounts],
+			let expected_free_plmc = inst
+				.generic_map_operation(vec![returned_auction_plmc.clone(), prev_plmc_balances], MergeOperation::Add);
+			let expected_free_funding_assets = inst.generic_map_operation(
+				vec![returned_funding_assets.clone(), prev_funding_asset_balances],
 				MergeOperation::Add,
 			);
-			let expected_free_funding_assets =
-				inst.generic_map_operation(vec![returned_funding_assets.clone()], MergeOperation::Add);
 			let expected_reserved_plmc =
 				inst.generic_map_operation(vec![plmc_amounts.clone(), returned_auction_plmc], MergeOperation::Subtract);
 			let expected_final_funding_spent = inst.generic_map_operation(

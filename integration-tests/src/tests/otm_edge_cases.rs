@@ -181,12 +181,7 @@ fn after_otm_fee_user_goes_under_ed_reverts() {
 			pallet_funding::Error::<PolimecRuntime>::ParticipantNotEnoughFunds
 		);
 
-		inst.mint_funding_asset_to(vec![(
-			bobert.clone(),
-			usdt_ed,
-			AcceptedFundingAsset::USDT.id(),
-		)
-			.into()]);
+		inst.mint_funding_asset_to(vec![(bobert.clone(), usdt_ed, AcceptedFundingAsset::USDT.id()).into()]);
 
 		assert_ok!(PolimecFunding::contribute(
 			PolimecOrigin::signed(bobert.clone()),

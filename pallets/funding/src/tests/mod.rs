@@ -508,9 +508,11 @@ pub fn create_finished_project_with_usd_raised(
 		default_community_contributors(),
 		default_modes(),
 	);
-	let plmc_required = inst.calculate_contributed_plmc_spent(community_contributions.clone(), required_price, true);
+	let plmc_required = inst.calculate_contributed_plmc_spent(community_contributions.clone(), required_price);
 	let usdt_required = inst.calculate_contributed_funding_asset_spent(community_contributions.clone(), required_price);
+	inst.mint_plmc_ed_if_required(plmc_required.accounts());
 	inst.mint_plmc_to(plmc_required);
+	inst.mint_funding_asset_ed_if_required(usdt_required.to_account_asset_map());
 	inst.mint_funding_asset_to(usdt_required);
 	inst.contribute_for_users(project_id, community_contributions).unwrap();
 

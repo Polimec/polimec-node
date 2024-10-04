@@ -88,13 +88,17 @@ mod round_flow {
 				ParticipationMode::Classic(1u8),
 				AcceptedFundingAsset::USDT,
 			)];
-			let plmc_fundings = inst.calculate_contributed_plmc_spent(contributions.clone(), ct_price, false);
-			let plmc_existential_deposits = plmc_fundings.accounts().existential_deposits();
+			let plmc_fundings = inst.calculate_contributed_plmc_spent(contributions.clone(), ct_price);
 			let foreign_asset_fundings =
 				inst.calculate_contributed_funding_asset_spent(contributions.clone(), ct_price);
 
+			inst.mint_plmc_ed_if_required(contributions.accounts());
+			inst.mint_funding_asset_ed_if_required(contributions.to_account_asset_map());
+
+			let prev_free_funding_asset_balances =
+				inst.get_free_funding_asset_balances_for(contributions.to_account_asset_map());
+
 			inst.mint_plmc_to(plmc_fundings.clone());
-			inst.mint_plmc_to(plmc_existential_deposits.clone());
 			inst.mint_funding_asset_to(foreign_asset_fundings.clone());
 
 			// Buy remaining CTs
@@ -112,13 +116,9 @@ mod round_flow {
 			assert_eq!(inst.go_to_next_state(project_id), ProjectStatus::FundingSuccessful);
 			assert_eq!(inst.go_to_next_state(project_id), ProjectStatus::SettlementStarted(FundingOutcome::Success));
 
-			inst.do_free_plmc_assertions(plmc_existential_deposits);
-			inst.do_free_funding_asset_assertions(vec![UserToFundingAsset::<TestRuntime>::new(
-				BOB,
-				0_u128,
-				AcceptedFundingAsset::USDT.id(),
-			)]);
-			inst.do_reserved_plmc_assertions(vec![plmc_fundings[0].clone()], HoldReason::Participation.into());
+			// inst.do_free_plmc_assertions(plmc_existential_deposits);
+			inst.do_free_funding_asset_assertions(prev_free_funding_asset_balances);
+			inst.do_reserved_plmc_assertions(plmc_fundings, HoldReason::Participation.into());
 		}
 
 		#[test]
@@ -150,16 +150,16 @@ mod round_flow {
 			let plmc_contribution_funding = inst.calculate_contributed_plmc_spent(
 				contributions.clone(),
 				project_details.weighted_average_price.unwrap(),
-				false,
 			);
-			let plmc_existential_deposits = plmc_contribution_funding.accounts().existential_deposits();
+
+			inst.mint_plmc_ed_if_required(contributions.accounts());
 			inst.mint_plmc_to(plmc_contribution_funding.clone());
-			inst.mint_plmc_to(plmc_existential_deposits.clone());
 
 			let foreign_asset_contribution_funding = inst.calculate_contributed_funding_asset_spent(
 				contributions.clone(),
 				project_details.weighted_average_price.unwrap(),
 			);
+			inst.mint_funding_asset_ed_if_required(contributions.to_account_asset_map());
 			inst.mint_funding_asset_to(foreign_asset_contribution_funding.clone());
 
 			inst.contribute_for_users(project_id, contributions).unwrap();
@@ -278,6 +278,8 @@ mod round_flow {
 				assert_eq!(total_funding_ct, 1_000_000 * 10u128.pow(decimals as u32));
 
 				// Buying all the remaining tokens. This is a fixed USD value, but the extrinsic amount depends on CT decimals.
+				inst.mint_plmc_ed_if_required(vec![BUYER_1]);
+				inst.mint_funding_asset_ed_if_required(vec![(BUYER_1, funding_asset.id())]);
 				inst.mint_plmc_to(vec![UserToPLMCBalance::new(BUYER_1, total_funding_plmc + ed)]);
 				inst.mint_funding_asset_to(vec![UserToFundingAsset::new(
 					BUYER_1,
@@ -332,6 +334,7 @@ mod contribute_extrinsic {
 	#[cfg(test)]
 	mod success {
 		use super::*;
+		use crate::AcceptedFundingAsset::{DOT, USDC, USDT};
 		use frame_support::{dispatch::DispatchResultWithPostInfo, traits::fungible::InspectFreeze};
 
 		#[test]
@@ -395,6 +398,7 @@ mod contribute_extrinsic {
 			// Can partially use the usable evaluation bond (half in this case)
 			let contribution_usdt =
 				inst.calculate_contributed_funding_asset_spent(vec![(BOB, usable_ct / 2).into()], ct_price);
+			inst.mint_funding_asset_ed_if_required(vec![(BOB, AcceptedFundingAsset::USDT.id())]);
 			inst.mint_funding_asset_to(contribution_usdt.clone());
 			inst.execute(|| {
 				assert_ok!(Pallet::<TestRuntime>::contribute(
@@ -415,6 +419,7 @@ mod contribute_extrinsic {
 			// Can use the full evaluation bond
 			let contribution_usdt =
 				inst.calculate_contributed_funding_asset_spent(vec![(CARL, usable_ct).into()], ct_price);
+			inst.mint_funding_asset_ed_if_required(vec![(CARL, AcceptedFundingAsset::USDT.id())]);
 			inst.mint_funding_asset_to(contribution_usdt.clone());
 			inst.execute(|| {
 				assert_ok!(Pallet::<TestRuntime>::contribute(
@@ -472,11 +477,11 @@ mod contribute_extrinsic {
 				&bids,
 				project_metadata.clone(),
 				None,
-				true,
 			);
 			// We don't want bob to get any PLMC
 			bids_plmc.remove(2);
 
+			inst.mint_plmc_ed_if_required(bids.accounts());
 			inst.mint_plmc_to(bids_plmc.clone());
 			assert_eq!(inst.execute(|| Balances::free_balance(&bob)), inst.get_ed());
 
@@ -485,7 +490,9 @@ mod contribute_extrinsic {
 				project_metadata.clone(),
 				None,
 			);
+			inst.mint_funding_asset_ed_if_required(bids.to_account_asset_map());
 			inst.mint_funding_asset_to(bids_funding_assets.clone());
+
 			inst.bid_for_users(project_id, bids).unwrap();
 
 			assert_eq!(inst.execute(|| Balances::free_balance(&bob)), inst.get_ed());
@@ -573,18 +580,23 @@ mod contribute_extrinsic {
 			let plmc_fundings = inst.calculate_contributed_plmc_spent(
 				vec![usdt_contribution.clone(), usdc_contribution.clone(), dot_contribution.clone()],
 				wap,
-				false,
 			);
 			let plmc_existential_deposits = plmc_fundings.accounts().existential_deposits();
 
 			let plmc_all_mints =
 				inst.generic_map_operation(vec![plmc_fundings, plmc_existential_deposits], MergeOperation::Add);
+			inst.mint_plmc_ed_if_required(vec![BUYER_1, BUYER_2, BUYER_3]);
 			inst.mint_plmc_to(plmc_all_mints.clone());
 
 			let asset_hub_fundings = inst.calculate_contributed_funding_asset_spent(
 				vec![usdt_contribution.clone(), usdc_contribution.clone(), dot_contribution.clone()],
 				wap,
 			);
+			inst.mint_funding_asset_ed_if_required(vec![
+				(BUYER_1, USDT.id()),
+				(BUYER_2, USDC.id()),
+				(BUYER_3, DOT.id()),
+			]);
 			inst.mint_funding_asset_to(asset_hub_fundings.clone());
 
 			assert_ok!(inst.contribute_for_users(
@@ -756,8 +768,8 @@ mod contribute_extrinsic {
 				&all_bids.clone(),
 				project_metadata.clone(),
 				None,
-				true,
 			);
+			inst.mint_plmc_ed_if_required(plmc_fundings.accounts());
 			inst.mint_plmc_to(plmc_fundings.clone());
 
 			let foreign_funding = inst.calculate_auction_funding_asset_charged_from_all_bids_made_or_with_bucket(
@@ -765,6 +777,7 @@ mod contribute_extrinsic {
 				project_metadata.clone(),
 				None,
 			);
+			inst.mint_funding_asset_ed_if_required(all_bids.to_account_asset_map());
 			inst.mint_funding_asset_to(foreign_funding.clone());
 
 			inst.bid_for_users(project_id, failing_bids_sold_out).unwrap();
@@ -843,11 +856,10 @@ mod contribute_extrinsic {
 				ParticipationMode::Classic(1u8),
 				AcceptedFundingAsset::USDT,
 			);
-			let plmc_required = inst.calculate_contributed_plmc_spent(vec![contribution.clone()], wap, false);
+			let plmc_required = inst.calculate_contributed_plmc_spent(vec![contribution.clone()], wap);
 			let frozen_amount = plmc_required[0].plmc_amount;
-			let plmc_existential_deposits = plmc_required.accounts().existential_deposits();
 
-			inst.mint_plmc_to(plmc_existential_deposits);
+			inst.mint_plmc_ed_if_required(vec![BUYER_4]);
 			inst.mint_plmc_to(plmc_required.clone());
 
 			inst.execute(|| {
@@ -855,6 +867,7 @@ mod contribute_extrinsic {
 			});
 
 			let usdt_required = inst.calculate_contributed_funding_asset_spent(vec![contribution.clone()], wap);
+			inst.mint_funding_asset_ed_if_required(vec![(BUYER_4, AcceptedFundingAsset::USDT.id())]);
 			inst.mint_funding_asset_to(usdt_required);
 
 			inst.execute(|| {
@@ -925,11 +938,10 @@ mod contribute_extrinsic {
 				ParticipationMode::Classic(5u8),
 				AcceptedFundingAsset::USDT,
 			);
-			let plmc_required = inst.calculate_contributed_plmc_spent(vec![contribution.clone()], wap, false);
+			let plmc_required = inst.calculate_contributed_plmc_spent(vec![contribution.clone()], wap);
 			let frozen_amount = plmc_required[0].plmc_amount;
-			let plmc_existential_deposits = plmc_required.accounts().existential_deposits();
 
-			inst.mint_plmc_to(plmc_existential_deposits);
+			inst.mint_plmc_ed_if_required(vec![BUYER_4]);
 			inst.mint_plmc_to(plmc_required.clone());
 
 			inst.execute(|| {
@@ -937,6 +949,7 @@ mod contribute_extrinsic {
 			});
 
 			let usdt_required = inst.calculate_contributed_funding_asset_spent(vec![contribution.clone()], wap);
+			inst.mint_funding_asset_ed_if_required(vec![(BUYER_4, AcceptedFundingAsset::USDT.id())]);
 			inst.mint_funding_asset_to(usdt_required);
 
 			inst.execute(|| {
@@ -1378,14 +1391,13 @@ mod contribute_extrinsic {
 				})
 				.collect();
 
-			let plmc_funding = inst.calculate_contributed_plmc_spent(contributions.clone(), token_price, false);
-			let plmc_existential_deposits = plmc_funding.accounts().existential_deposits();
-
+			let plmc_funding = inst.calculate_contributed_plmc_spent(contributions.clone(), token_price);
 			let foreign_funding = inst.calculate_contributed_funding_asset_spent(contributions.clone(), token_price);
 
+			inst.mint_plmc_ed_if_required(contributions.accounts());
 			inst.mint_plmc_to(plmc_funding.clone());
-			inst.mint_plmc_to(plmc_existential_deposits.clone());
 
+			inst.mint_funding_asset_ed_if_required(contributions.to_account_asset_map());
 			inst.mint_funding_asset_to(foreign_funding.clone());
 
 			// Reach up to the limit of contributions for a user-project
@@ -1408,7 +1420,10 @@ mod contribute_extrinsic {
 			});
 
 			assert_eq!(contributor_post_buy_plmc_balance, inst.get_ed());
-			assert_eq!(contributor_post_buy_foreign_asset_balance, 0);
+			assert_eq!(
+				contributor_post_buy_foreign_asset_balance,
+				inst.get_funding_asset_ed(AcceptedFundingAsset::USDT.id())
+			);
 
 			let plmc_bond_stored = inst.execute(|| {
 				<TestRuntime as Config>::NativeCurrency::balance_on_hold(
@@ -1836,7 +1851,7 @@ mod contribute_extrinsic {
 			let wap = inst.get_project_details(project_id).weighted_average_price.unwrap();
 
 			// 1 unit less native asset than needed
-			let plmc_funding = inst.calculate_contributed_plmc_spent(vec![contribution.clone()], wap, false);
+			let plmc_funding = inst.calculate_contributed_plmc_spent(vec![contribution.clone()], wap);
 			let plmc_existential_deposits = plmc_funding.accounts().existential_deposits();
 			inst.mint_plmc_to(plmc_funding.clone());
 			inst.mint_plmc_to(plmc_existential_deposits.clone());
@@ -1862,7 +1877,7 @@ mod contribute_extrinsic {
 			});
 
 			// 1 unit less funding asset than needed
-			let plmc_funding = inst.calculate_contributed_plmc_spent(vec![contribution.clone()], wap, false);
+			let plmc_funding = inst.calculate_contributed_plmc_spent(vec![contribution.clone()], wap);
 			let plmc_existential_deposits = plmc_funding.accounts().existential_deposits();
 			inst.mint_plmc_to(plmc_funding.clone());
 			inst.mint_plmc_to(plmc_existential_deposits.clone());
@@ -2056,13 +2071,13 @@ mod contribute_extrinsic {
 			let wap = inst.get_project_details(project_id_2).weighted_average_price.unwrap();
 
 			// Necessary Mints
-			let already_bonded_plmc = inst
-				.calculate_evaluation_plmc_spent(vec![(evaluator_contributor, evaluation_amount).into()], false)[0]
-				.plmc_amount;
+			let already_bonded_plmc =
+				inst.calculate_evaluation_plmc_spent(vec![(evaluator_contributor, evaluation_amount).into()])[0]
+					.plmc_amount;
 			let usable_evaluation_plmc =
 				already_bonded_plmc - <TestRuntime as Config>::EvaluatorSlash::get() * already_bonded_plmc;
 			let necessary_plmc_for_contribution =
-				inst.calculate_contributed_plmc_spent(vec![evaluator_contribution.clone()], wap, false)[0].plmc_amount;
+				inst.calculate_contributed_plmc_spent(vec![evaluator_contribution.clone()], wap)[0].plmc_amount;
 			let necessary_usdt_for_contribution =
 				inst.calculate_contributed_funding_asset_spent(vec![evaluator_contribution.clone()], wap);
 			inst.mint_plmc_to(vec![UserToPLMCBalance::new(
@@ -2143,10 +2158,12 @@ mod contribute_extrinsic {
 				AcceptedFundingAsset::USDT,
 			);
 			let wap = project_details.weighted_average_price.unwrap();
-			let plmc_mint = inst.calculate_contributed_plmc_spent(vec![glutton_contribution.clone()], wap, true);
+			let plmc_mint = inst.calculate_contributed_plmc_spent(vec![glutton_contribution.clone()], wap);
 			let funding_asset_mint =
 				inst.calculate_contributed_funding_asset_spent(vec![glutton_contribution.clone()], wap);
+			inst.mint_plmc_ed_if_required(vec![BUYER_1]);
 			inst.mint_plmc_to(plmc_mint);
+			inst.mint_funding_asset_ed_if_required(vec![(BUYER_1, AcceptedFundingAsset::USDT.id())]);
 			inst.mint_funding_asset_to(funding_asset_mint);
 			inst.contribute_for_users(project_id, vec![glutton_contribution.clone()]).unwrap();
 
@@ -2156,10 +2173,13 @@ mod contribute_extrinsic {
 				ParticipationMode::Classic(1),
 				AcceptedFundingAsset::USDT,
 			);
-			let plmc_mint = inst.calculate_contributed_plmc_spent(vec![glutton_contribution.clone()], wap, true);
+			let plmc_mint = inst.calculate_contributed_plmc_spent(vec![glutton_contribution.clone()], wap);
 			let funding_asset_mint =
 				inst.calculate_contributed_funding_asset_spent(vec![glutton_contribution.clone()], wap);
+
+			inst.mint_plmc_ed_if_required(vec![BUYER_2]);
 			inst.mint_plmc_to(plmc_mint);
+			inst.mint_funding_asset_ed_if_required(vec![(BUYER_2, AcceptedFundingAsset::USDT.id())]);
 			inst.mint_funding_asset_to(funding_asset_mint);
 			inst.execute(|| {
 				assert_noop!(

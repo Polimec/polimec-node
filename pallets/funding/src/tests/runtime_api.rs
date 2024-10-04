@@ -407,12 +407,8 @@ fn funding_asset_to_ct_amount() {
 		|acc| acc + 1,
 		AcceptedFundingAsset::USDT,
 	);
-	let necessary_plmc = inst.calculate_auction_plmc_charged_from_all_bids_made_or_with_bucket(
-		&bids,
-		project_metadata_3.clone(),
-		None,
-		true,
-	);
+	let necessary_plmc =
+		inst.calculate_auction_plmc_charged_from_all_bids_made_or_with_bucket(&bids, project_metadata_3.clone(), None);
 	let necessary_usdt = inst.calculate_auction_funding_asset_charged_from_all_bids_made_or_with_bucket(
 		&bids,
 		project_metadata_3.clone(),
@@ -600,27 +596,18 @@ fn all_project_participations_by_did() {
 		),
 	];
 
-	let evaluations_plmc = inst.calculate_evaluation_plmc_spent(evaluations.clone(), true);
-	let bids_plmc = inst.calculate_auction_plmc_charged_from_all_bids_made_or_with_bucket(
-		&bids,
-		project_metadata.clone(),
-		None,
-		true,
-	);
-	let community_contributions_plmc = inst.calculate_contributed_plmc_spent(
-		community_contributions.clone(),
-		project_metadata.minimum_price.clone(),
-		true,
-	);
-	let remainder_contributions_plmc = inst.calculate_contributed_plmc_spent(
-		remainder_contributions.clone(),
-		project_metadata.minimum_price.clone(),
-		true,
-	);
+	let evaluations_plmc = inst.calculate_evaluation_plmc_spent(evaluations.clone());
+	let bids_plmc =
+		inst.calculate_auction_plmc_charged_from_all_bids_made_or_with_bucket(&bids, project_metadata.clone(), None);
+	let community_contributions_plmc =
+		inst.calculate_contributed_plmc_spent(community_contributions.clone(), project_metadata.minimum_price.clone());
+	let remainder_contributions_plmc =
+		inst.calculate_contributed_plmc_spent(remainder_contributions.clone(), project_metadata.minimum_price.clone());
 	let all_plmc = inst.generic_map_operation(
 		vec![evaluations_plmc, bids_plmc, community_contributions_plmc, remainder_contributions_plmc],
 		MergeOperation::Add,
 	);
+	inst.mint_plmc_ed_if_required(all_plmc.accounts());
 	inst.mint_plmc_to(all_plmc);
 
 	let bids_usdt = inst.calculate_auction_funding_asset_charged_from_all_bids_made_or_with_bucket(
@@ -640,6 +627,7 @@ fn all_project_participations_by_did() {
 		vec![bids_usdt, community_contributions_usdt, remainder_contributions_usdt],
 		MergeOperation::Add,
 	);
+	inst.mint_funding_asset_ed_if_required(all_usdt.to_account_asset_map());
 	inst.mint_funding_asset_to(all_usdt);
 
 	inst.evaluate_for_users(project_id, evaluations[..1].to_vec()).unwrap();

@@ -503,9 +503,8 @@ mod benchmarks {
 		let extrinsic_evaluation = UserToUSDBalance::new(test_evaluator.clone(), (1_000 * USD_UNIT).into());
 		let existing_evaluations = vec![existing_evaluation; x as usize];
 
-		let plmc_for_existing_evaluations = inst.calculate_evaluation_plmc_spent(existing_evaluations.clone(), false);
-		let plmc_for_extrinsic_evaluation =
-			inst.calculate_evaluation_plmc_spent(vec![extrinsic_evaluation.clone()], false);
+		let plmc_for_existing_evaluations = inst.calculate_evaluation_plmc_spent(existing_evaluations.clone());
+		let plmc_for_extrinsic_evaluation = inst.calculate_evaluation_plmc_spent(vec![extrinsic_evaluation.clone()]);
 		let existential_plmc: Vec<UserToPLMCBalance<T>> =
 			plmc_for_extrinsic_evaluation.accounts().existential_deposits();
 
@@ -609,8 +608,9 @@ mod benchmarks {
 				(Percent::from_percent(25) * evaluation_usd_target).into(),
 			),
 		];
-		let plmc_for_evaluating = inst.calculate_evaluation_plmc_spent(evaluations.clone(), true);
+		let plmc_for_evaluating = inst.calculate_evaluation_plmc_spent(evaluations.clone());
 
+		inst.mint_plmc_ed_if_required(plmc_for_evaluating.accounts());
 		inst.mint_plmc_to(plmc_for_evaluating);
 
 		inst.advance_time(One::one());
@@ -681,10 +681,7 @@ mod benchmarks {
 			&existing_bids,
 			project_metadata.clone(),
 			None,
-			false,
 		);
-
-		let existential_deposits: Vec<UserToPLMCBalance<T>> = vec![bidder.clone()].existential_deposits();
 
 		let usdt_for_existing_bids: Vec<UserToFundingAsset<T>> = inst
 			.calculate_auction_funding_asset_charged_from_all_bids_made_or_with_bucket(
@@ -694,10 +691,11 @@ mod benchmarks {
 			);
 		let escrow_account = Pallet::<T>::fund_account_id(project_id);
 		let prev_total_escrow_usdt_locked =
-			inst.get_free_funding_asset_balances_for(usdt_id(), vec![escrow_account.clone()]);
+			inst.get_free_funding_asset_balances_for(vec![(escrow_account.clone(), usdt_id())]);
 
+		inst.mint_plmc_ed_if_required(plmc_for_existing_bids.accounts());
 		inst.mint_plmc_to(plmc_for_existing_bids.clone());
-		inst.mint_plmc_to(existential_deposits.clone());
+		inst.mint_funding_asset_ed_if_required(usdt_for_existing_bids.to_account_asset_map());
 		inst.mint_funding_asset_to(usdt_for_existing_bids.clone());
 
 		// do "x" contributions for this user
@@ -716,7 +714,7 @@ mod benchmarks {
 			// first lets bring the bucket to almost its limit with another bidder:
 			assert!(new_bidder.clone() != bidder.clone());
 			let bid_params = BidParams::new(
-				new_bidder,
+				new_bidder.clone(),
 				current_bucket.amount_left,
 				ParticipationMode::Classic(1u8),
 				AcceptedFundingAsset::USDT,
@@ -725,16 +723,16 @@ mod benchmarks {
 			let plmc_for_new_bidder = inst.calculate_auction_plmc_charged_with_given_price(
 				&vec![bid_params.clone()],
 				current_bucket.current_price,
-				false,
 			);
-			let plmc_ed = plmc_for_new_bidder.accounts().existential_deposits();
 			let usdt_for_new_bidder = inst.calculate_auction_funding_asset_charged_with_given_price(
 				&vec![bid_params.clone()],
 				current_bucket.current_price,
 			);
 
+			inst.mint_plmc_ed_if_required(vec![(new_bidder.clone())]);
 			inst.mint_plmc_to(plmc_for_new_bidder);
-			inst.mint_plmc_to(plmc_ed);
+
+			inst.mint_funding_asset_ed_if_required(vec![(new_bidder, AcceptedFundingAsset::USDT.id())]);
 			inst.mint_funding_asset_to(usdt_for_new_bidder.clone());
 
 			inst.bid_for_users(project_id, vec![bid_params]).unwrap();
@@ -763,7 +761,6 @@ mod benchmarks {
 				&vec![extrinsic_bid.clone()],
 				project_metadata.clone(),
 				Some(current_bucket),
-				false,
 			);
 		let usdt_for_extrinsic_bids: Vec<UserToFundingAsset<T>> = inst
 			.calculate_auction_funding_asset_charged_from_all_bids_made_or_with_bucket(
@@ -771,13 +768,15 @@ mod benchmarks {
 				project_metadata.clone(),
 				Some(current_bucket),
 			);
+		inst.mint_plmc_ed_if_required(plmc_for_extrinsic_bids.accounts());
 		inst.mint_plmc_to(plmc_for_extrinsic_bids.clone());
+		inst.mint_funding_asset_ed_if_required(usdt_for_extrinsic_bids.to_account_asset_map());
 		inst.mint_funding_asset_to(usdt_for_extrinsic_bids.clone());
 
-		let total_free_plmc = existential_deposits[0].plmc_amount;
+		let total_free_plmc = inst.get_ed();
 		let total_plmc_participation_bonded =
 			inst.sum_balance_mappings(vec![plmc_for_extrinsic_bids.clone(), plmc_for_existing_bids.clone()]);
-		let total_free_usdt = Zero::zero();
+		let total_free_usdt = inst.get_funding_asset_ed(AcceptedFundingAsset::USDT.id());
 		let total_escrow_usdt_locked = inst.sum_funding_asset_mappings(vec![
 			prev_total_escrow_usdt_locked.clone(),
 			usdt_for_extrinsic_bids.clone(),
@@ -861,11 +860,10 @@ mod benchmarks {
 		assert_eq!(free_plmc, total_free_plmc);
 
 		let escrow_account = Pallet::<T>::fund_account_id(project_id);
-		let locked_usdt =
-			inst.get_free_funding_asset_balances_for(usdt_id(), vec![escrow_account.clone()])[0].asset_amount;
+		let locked_usdt = inst.get_free_funding_asset_balance_for(usdt_id(), escrow_account.clone());
 		assert_eq!(locked_usdt, total_escrow_usdt_locked);
 
-		let free_usdt = inst.get_free_funding_asset_balances_for(usdt_id(), vec![bidder])[0].asset_amount;
+		let free_usdt = inst.get_free_funding_asset_balance_for(usdt_id(), bidder);
 		assert_eq!(free_usdt, total_free_usdt);
 
 		// Events
@@ -978,7 +976,6 @@ mod benchmarks {
 			&all_bids,
 			project_metadata.clone(),
 			None,
-			true,
 		);
 		let funding_asset_needed_for_bids = inst
 			.calculate_auction_funding_asset_charged_from_all_bids_made_or_with_bucket(
@@ -986,8 +983,9 @@ mod benchmarks {
 				project_metadata.clone(),
 				None,
 			);
-
+		inst.mint_plmc_ed_if_required(plmc_needed_for_bids.accounts());
 		inst.mint_plmc_to(plmc_needed_for_bids);
+		inst.mint_funding_asset_ed_if_required(funding_asset_needed_for_bids.to_account_asset_map());
 		inst.mint_funding_asset_to(funding_asset_needed_for_bids);
 
 		inst.bid_for_users(project_id, all_bids).unwrap();
@@ -1063,14 +1061,16 @@ mod benchmarks {
 			x as usize + 1
 		];
 
-		let plmc = inst.calculate_contributed_plmc_spent(contributions.clone(), price, false);
+		let plmc = inst.calculate_contributed_plmc_spent(contributions.clone(), price);
 		let usdt = inst.calculate_contributed_funding_asset_spent(contributions.clone(), price);
 
 		let escrow_account = Pallet::<T>::fund_account_id(project_id);
-		let prev_total_usdt_locked = inst.get_free_funding_asset_balances_for(usdt_id(), vec![escrow_account.clone()]);
+		let prev_total_usdt_locked =
+			inst.get_free_funding_asset_balances_for(vec![(escrow_account.clone(), usdt_id())]);
 
+		inst.mint_plmc_ed_if_required(plmc.accounts());
 		inst.mint_plmc_to(plmc.clone());
-		inst.mint_plmc_to(plmc.accounts().existential_deposits());
+		inst.mint_funding_asset_ed_if_required(usdt.to_account_asset_map());
 		inst.mint_funding_asset_to(usdt.clone());
 
 		// do "x" contributions for this user
@@ -1080,7 +1080,7 @@ mod benchmarks {
 		let total_usdt_locked = inst.sum_funding_asset_mappings(vec![prev_total_usdt_locked, usdt.clone()])[0].1;
 
 		let total_free_plmc = inst.get_ed();
-		let total_free_usdt = Zero::zero();
+		let total_free_usdt = inst.get_funding_asset_ed(AcceptedFundingAsset::USDT.id());
 
 		let jwt = get_mock_jwt_with_cid(
 			contributor.clone(),
