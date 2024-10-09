@@ -10,7 +10,9 @@
     "/dns/polimec.bootnode.amforc.com/tcp/29999/wss/p2p/12D3KooWSNA6RHfNC9XPCoftFDsuXM2JkVHJEejHWSe3X8Jf9v9Y",
     "/dns/polimec.bootnode.amforc.com/tcp/30016/p2p/12D3KooWSNA6RHfNC9XPCoftFDsuXM2JkVHJEejHWSe3X8Jf9v9Y",
     "/dns/polimec.boot.stake.plus/tcp/30332/wss/p2p/12D3KooWFq12Wd69TRzwLy3gFx33JDEoJqMxpZ7ApYAPSLHGfXM8",
-    "/dns/polimec.boot.stake.plus/tcp/31332/wss/p2p/12D3KooWDb6fapSji27VZKN2MseDjV4EfmSNQiNVLBTBqb5ueDZk"
+    "/dns/polimec.boot.stake.plus/tcp/31332/wss/p2p/12D3KooWDb6fapSji27VZKN2MseDjV4EfmSNQiNVLBTBqb5ueDZk",
+    "/dns/polimec-boot-ng.dwellir.com/tcp/443/wss/p2p/12D3KooWDWbXpHidJLEqpUwyttAfkFubUxDN4APsFi9gUutxSoqm",
+    "/dns/polimec-boot-ng.dwellir.com/tcp/30370/p2p/12D3KooWDWbXpHidJLEqpUwyttAfkFubUxDN4APsFi9gUutxSoqm"
   ],
   "telemetryEndpoints": null,
   "protocolId": "polimec",
