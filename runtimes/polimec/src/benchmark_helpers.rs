@@ -1,3 +1,5 @@
+extern crate alloc;
+
 use crate::{Oracle, Runtime, RuntimeOrigin};
 use alloc::vec;
 use pallet_funding::{traits::SetPrices, AcceptedFundingAsset};

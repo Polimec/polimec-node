@@ -31,8 +31,6 @@ pub use frame_support::traits::{
 pub use polimec_common::credentials::{Cid, Did, EnsureOriginWithCredentials, InvestorType, UntrustedToken};
 pub use sp_runtime::traits::Convert;
 
-pub mod extensions;
-
 #[cfg(test)]
 mod mock;
 
@@ -42,7 +40,8 @@ mod tests;
 pub mod weights;
 
 #[cfg(feature = "runtime-benchmarks")]
-mod benchmarking;
+pub mod benchmarking;
+pub mod extensions;
 
 pub type BalanceOf<T> = <CurrencyOf<T> as Currency<AccountIdOf<T>>>::Balance;
 pub type AccountIdOf<T> = <T as frame_system::Config>::AccountId;

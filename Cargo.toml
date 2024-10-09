@@ -175,6 +175,7 @@ pallet-staking = { version = "35.0.0", default-features = false }
 pallet-proxy = { version = "35.0.0", default-features = false }
 pallet-identity = { version = "35.0.0", default-features = false }
 pallet-asset-tx-payment = { version = "35.0.0", default-features = false }
+pallet-skip-feeless-payment = { version = "10.0.0", default-features = false }
 
 # Polkadot (with default disabled)
 pallet-xcm = { version = "14.0.0", default-features = false }
