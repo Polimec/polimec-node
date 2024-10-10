@@ -1,6 +1,6 @@
 #[allow(clippy::wildcard_imports)]
 use super::*;
-
+use polimec_common::ProvideAssetPrice;
 impl<T: Config> Pallet<T> {
 	/// Called by user extrinsic
 	/// Starts the evaluation round of a project. It needs to be called by the project issuer.

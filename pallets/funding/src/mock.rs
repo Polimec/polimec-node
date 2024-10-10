@@ -20,9 +20,8 @@
 
 use super::*;
 use crate as pallet_funding;
-use crate::{
-	runtime_api::{ExtrinsicHelpers, Leaderboards, ProjectInformation, ProjectParticipationIds, UserInformation},
-	traits::ProvideAssetPrice,
+use crate::runtime_api::{
+	ExtrinsicHelpers, Leaderboards, ProjectInformation, ProjectParticipationIds, UserInformation,
 };
 use core::ops::RangeInclusive;
 use frame_support::{
@@ -34,7 +33,7 @@ use frame_support::{
 };
 use frame_system as system;
 use frame_system::{EnsureRoot, RawOrigin as SystemRawOrigin};
-use polimec_common::{credentials::EnsureInvestor, DummyXcmSender, USD_UNIT};
+use polimec_common::{credentials::EnsureInvestor, DummyXcmSender, ProvideAssetPrice, USD_UNIT};
 use polkadot_parachain_primitives::primitives::Sibling;
 use sp_arithmetic::Percent;
 use sp_core::H256;
@@ -53,7 +52,6 @@ pub const PLMC: Balance = 10u128.pow(PLMC_DECIMALS as u32);
 pub const MILLI_PLMC: Balance = PLMC / 10u128.pow(3);
 pub const MICRO_PLMC: Balance = PLMC / 10u128.pow(6);
 pub const EXISTENTIAL_DEPOSIT: Balance = 10 * MILLI_PLMC;
-
 pub type Block = frame_system::mocking::MockBlock<TestRuntime>;
 pub type AccountId = u32;
 pub type BlockNumber = u64;

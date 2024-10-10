@@ -5,12 +5,11 @@ use crate::{
 		defaults::{bounded_name, bounded_symbol, default_evaluations, default_project_metadata, ipfs_hash},
 		CT_DECIMALS, CT_UNIT,
 	},
-	traits::ProvideAssetPrice,
 	*,
 };
 use core::cell::RefCell;
 use itertools::Itertools;
-use polimec_common::{USD_DECIMALS, USD_UNIT};
+use polimec_common::{ProvideAssetPrice, USD_DECIMALS, USD_UNIT};
 use sp_arithmetic::Percent;
 
 #[test]

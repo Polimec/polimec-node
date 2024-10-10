@@ -24,12 +24,11 @@ use frame_support::{
 };
 use itertools::Itertools;
 use macros::generate_accounts;
-use pallet_funding::{traits::ProvideAssetPrice, *};
-use polimec_common::{USD_DECIMALS, USD_UNIT};
+use pallet_funding::*;
+use polimec_common::{ProvideAssetPrice, USD_DECIMALS, USD_UNIT};
 use sp_arithmetic::{traits::Zero, Percent, Perquintill};
 use sp_runtime::{FixedPointNumber, FixedU128};
 use xcm_emulator::log;
-
 type UserToCTBalance = Vec<(AccountId, FixedU128, ProjectId)>;
 
 generate_accounts!(
