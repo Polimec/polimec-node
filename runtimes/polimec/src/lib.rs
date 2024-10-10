@@ -20,7 +20,6 @@
 // Make the WASM binary available.
 #[cfg(feature = "std")]
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
-
 use core::ops::RangeInclusive;
 use cumulus_pallet_parachain_system::RelayNumberMonotonicallyIncreases;
 use cumulus_primitives_core::{AggregateMessageOrigin, ParaId};
@@ -70,6 +69,7 @@ use sp_runtime::{
 };
 use sp_std::{cmp::Ordering, prelude::*};
 use sp_version::RuntimeVersion;
+use xcm::{IntoVersion, VersionedAssets, VersionedLocation, VersionedXcm};
 
 // XCM Imports
 use xcm::v3::{
@@ -77,10 +77,14 @@ use xcm::v3::{
 	Junctions::{Here, X3},
 	MultiLocation,
 };
-use xcm_config::{PriceForSiblingParachainDelivery, XcmOriginToTransactDispatchOrigin};
-
 #[cfg(not(feature = "runtime-benchmarks"))]
 use xcm_config::XcmConfig;
+
+use xcm_config::{PriceForSiblingParachainDelivery, XcmOriginToTransactDispatchOrigin};
+use xcm_fee_payment_runtime_api::{
+	dry_run::{CallDryRunEffects, Error as XcmDryRunApiError, XcmDryRunEffects},
+	fees::Error as XcmPaymentApiError,
+};
 
 // Polimec Shared Imports
 pub use pallet_parachain_staking;
@@ -95,6 +99,7 @@ use sp_version::NativeVersion;
 
 #[cfg(any(feature = "std", test))]
 pub use sp_runtime::BuildStorage;
+use xcm::VersionedAssetId;
 
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmark_helpers;
@@ -1083,6 +1088,7 @@ impl pallet_funding::Config for Runtime {
 }
 
 use polimec_common::{PLMC_DECIMALS, PLMC_FOREIGN_ID, USD_DECIMALS};
+
 parameter_types! {
 	// Fee is defined as 1.5% of the usd_amount. Since fee is applied to the plmc amount, and that is always 5 times
 	// less than the usd_amount (multiplier of 5), we multiply the 1.5 by 5 to get 7.5%
@@ -1131,14 +1137,6 @@ ord_parameter_types! {
 	pub const DispenserAdminAccount: AccountId = AccountId::from(hex_literal::hex!("d85a4f58eb7dba17bc436b16f394b242271237021f7880e1ccaf36cd9a616c99"));
 }
 
-// #[test]
-// fn ensure_admin_account_is_correct() {
-// 	use frame_support::traits::SortedMembers;
-// 	use sp_core::crypto::Ss58Codec;
-// 	let acc = AccountId::from_ss58check("5BAimacvMnhBEoc2g7PaiuEhJwmMZejq6j1ZMCpDZMHGAogz").unwrap();
-// 	assert_eq!(acc, DispenserAdminAccount::sorted_members()[0]);
-// }
-
 impl pallet_dispenser::Config for Runtime {
 	type AdminOrigin = EnsureSignedBy<DispenserAdminAccount, AccountId>;
 	type BlockNumberToBalance = ConvertInto;
@@ -1162,6 +1160,7 @@ impl Convert<MultiLocation, AssetId> for ConvertMultilocationToAssetId {
 			MultiLocation { parents: 1, interior: Here } => 10,
 			MultiLocation { parents: 1, interior: X3(Parachain(1000), PalletInstance(50), GeneralIndex(1337)) } => 1337,
 			MultiLocation { parents: 1, interior: X3(Parachain(1000), PalletInstance(50), GeneralIndex(1984)) } => 1984,
+			// asset 0 should be invalid.
 			_ => 0,
 		}
 	}
@@ -1650,6 +1649,54 @@ impl_runtime_apis! {
 
 		fn preset_names() -> Vec<sp_genesis_builder::PresetId> {
 			Default::default()
+		}
+	}
+
+	impl xcm_fee_payment_runtime_api::fees::XcmPaymentApi<Block> for Runtime {
+		fn query_acceptable_payment_assets(xcm_version: xcm::Version) -> Result<Vec<VersionedAssetId>, XcmPaymentApiError> {
+			let acceptable_assets = vec![
+				xcm_config::HereLocation::get().into(),
+				xcm_config::DotLocation::get().into(),
+				xcm_config::UsdtLocation::get().into(),
+				xcm_config::UsdcLocation::get().into()
+			];
+
+			PolkadotXcm::query_acceptable_payment_assets(xcm_version, acceptable_assets)
+		}
+
+		fn query_weight_to_asset_fee(weight: Weight, asset: VersionedAssetId) -> Result<u128, XcmPaymentApiError> {
+			match xcm::v3::AssetId::try_from(asset) {
+				Ok(xcm::v3::AssetId::Concrete(multilocation)) if multilocation == MultiLocation::here() => {
+					// for native token
+					Ok(TransactionPayment::weight_to_fee(weight))
+				},
+				Ok(xcm::v3::AssetId::Concrete(multilocation)) => {
+					let native_fee = TransactionPayment::weight_to_fee(weight);
+					let converted_asset_id = ConvertMultilocationToAssetId::convert(multilocation);
+					PLMCToFundingAssetBalance::to_asset_balance(native_fee, converted_asset_id).map_err(|_| XcmPaymentApiError::AssetNotFound)
+				},
+				_ => {
+					Err(XcmPaymentApiError::VersionedConversionFailed)
+				}
+			}
+		}
+
+		fn query_xcm_weight(message: VersionedXcm<()>) -> Result<Weight, XcmPaymentApiError> {
+			PolkadotXcm::query_xcm_weight(message)
+		}
+
+		fn query_delivery_fees(destination: VersionedLocation, message: VersionedXcm<()>) -> Result<VersionedAssets, XcmPaymentApiError> {
+			PolkadotXcm::query_delivery_fees(destination, message)
+		}
+	}
+
+	impl xcm_fee_payment_runtime_api::dry_run::DryRunApi<Block, RuntimeCall, RuntimeEvent, OriginCaller> for Runtime {
+		fn dry_run_call(origin: OriginCaller, call: RuntimeCall) -> Result<CallDryRunEffects<RuntimeEvent>, XcmDryRunApiError> {
+			PolkadotXcm::dry_run_call::<Runtime, xcm_config::XcmRouter, OriginCaller, RuntimeCall>(origin, call)
+		}
+
+		fn dry_run_xcm(origin_location: VersionedLocation, xcm: VersionedXcm<RuntimeCall>) -> Result<XcmDryRunEffects<RuntimeEvent>, XcmDryRunApiError> {
+			PolkadotXcm::dry_run_xcm::<Runtime, xcm_config::XcmRouter, RuntimeCall, xcm_config::XcmConfig>(origin_location, xcm)
 		}
 	}
 }

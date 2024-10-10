@@ -81,6 +81,7 @@ pallet-aura.workspace = true
 pallet-session.workspace = true
 pallet-proxy-bonding.workspace = true
 pallet-skip-feeless-payment.workspace = true
+xcm-fee-payment-runtime-api.workspace = true
 
 # Runtimes
 polkadot-runtime.workspace = true
