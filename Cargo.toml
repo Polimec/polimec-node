@@ -153,7 +153,6 @@ sp-weights = { version = "31.0.0", default-features = false }
 # FRAME
 pallet-aura = { version = "34.0.0", default-features = false }
 pallet-balances = { version = "36.0.0", default-features = false }
-pallet-insecure-randomness-collective-flip = { version = "23.0.0", default-features = false }
 pallet-assets = { version = "36.0.0", default-features = false }
 pallet-authorship = { version = "35.0.0", default-features = false }
 pallet-session = { version = "35.0.0", default-features = false }

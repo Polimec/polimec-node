@@ -164,14 +164,16 @@ pub type Migrations = migrations::Unreleased;
 /// The runtime migrations per release.
 #[allow(missing_docs)]
 pub mod migrations {
-	use crate::Runtime;
+	use crate::{parameter_types, Runtime};
+
+	parameter_types! {
+		pub const RandomPalletName: &'static str = "Random";
+	}
 
 	/// Unreleased migrations. Add new ones here:
 	#[allow(unused_parens)]
-	pub type Unreleased = (
-		cumulus_pallet_xcmp_queue::migration::v5::MigrateV4ToV5<Runtime>,
-		crate::custom_migrations::funding_holds::FromFundingV4Migration,
-	);
+	pub type Unreleased =
+		(frame_support::migrations::RemovePallet<RandomPalletName, <Runtime as frame_system::Config>::DbWeight>,);
 }
 
 /// Executive: handles dispatch to the various modules.
@@ -1037,8 +1039,7 @@ impl ConvertBack<AccountId, [u8; 32]> for ConvertSelf {
 impl pallet_funding::Config for Runtime {
 	type AccountId32Conversion = ConvertSelf;
 	#[cfg(any(test, feature = "runtime-benchmarks", feature = "std"))]
-	type AllPalletsWithoutSystem =
-		(Balances, ContributionTokens, ForeignAssets, Oracle, Funding, LinearRelease, Random);
+	type AllPalletsWithoutSystem = (Balances, ContributionTokens, ForeignAssets, Oracle, Funding, LinearRelease);
 	type AuctionRoundDuration = AuctionRoundDuration;
 	type BlockNumber = BlockNumber;
 	type BlockchainOperationTreasury = BlockchainOperationTreasury;
@@ -1067,7 +1068,6 @@ impl pallet_funding::Config for Runtime {
 	type PalletId = FundingPalletId;
 	type Price = Price;
 	type PriceProvider = OraclePriceProvider<AssetId, Price, Oracle>;
-	type Randomness = Random;
 	type RemainderRoundDuration = RemainderRoundDuration;
 	type RequiredMaxCapacity = RequiredMaxCapacity;
 	type RequiredMaxMessageSize = RequiredMaxMessageSize;
@@ -1126,8 +1126,6 @@ impl pallet_linear_release::Config for Runtime {
 
 	const MAX_VESTING_SCHEDULES: u32 = 100;
 }
-
-impl pallet_insecure_randomness_collective_flip::Config for Runtime {}
 
 ord_parameter_types! {
 	pub const DispenserAdminAccount: AccountId = AccountId::from(hex_literal::hex!("d85a4f58eb7dba17bc436b16f394b242271237021f7880e1ccaf36cd9a616c99"));
@@ -1237,7 +1235,7 @@ construct_runtime!(
 		XcmpQueue: cumulus_pallet_xcmp_queue = 30,
 		PolkadotXcm: pallet_xcm = 31,
 		CumulusXcm: cumulus_pallet_xcm = 32,
-		// idx 31 was used for DmpQueue: cumulus_pallet_dmp_queue, now replaced by MessageQueue
+		// Index 31 was used for DmpQueue: cumulus_pallet_dmp_queue, now replaced by MessageQueue
 		MessageQueue: pallet_message_queue = 34,
 
 		// Governance
@@ -1249,7 +1247,7 @@ construct_runtime!(
 		Preimage: pallet_preimage::{Pallet, Call, Storage, Event<T>, HoldReason} = 45,
 		Scheduler: pallet_scheduler::{Pallet, Call, Storage, Event<T>} = 46,
 
-		Random: pallet_insecure_randomness_collective_flip = 50,
+		// Index 50 was used for Random: pallet_insecure_randomness_collective_flip, now not needed anymore.
 
 		// Oracle
 		Oracle: orml_oracle::{Pallet, Call, Storage, Event<T>} = 70,

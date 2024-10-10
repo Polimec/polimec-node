@@ -56,7 +56,6 @@ pallet-collective.workspace = true
 pallet-democracy.workspace = true
 pallet-elections-phragmen.workspace = true
 pallet-identity.workspace = true
-pallet-insecure-randomness-collective-flip.workspace = true
 pallet-membership.workspace = true
 pallet-message-queue.workspace = true
 pallet-multisig.workspace = true
@@ -148,7 +147,6 @@ std = [
 	"pallet-elections-phragmen/std",
 	"pallet-funding/std",
 	"pallet-identity/std",
-	"pallet-insecure-randomness-collective-flip/std",
 	"pallet-linear-release/std",
 	"pallet-membership/std",
 	"pallet-message-queue/std",
@@ -264,7 +262,6 @@ try-runtime = [
 	"pallet-elections-phragmen/try-runtime",
 	"pallet-funding/try-runtime",
 	"pallet-identity/try-runtime",
-	"pallet-insecure-randomness-collective-flip/try-runtime",
 	"pallet-linear-release/try-runtime",
 	"pallet-membership/try-runtime",
 	"pallet-message-queue/try-runtime",

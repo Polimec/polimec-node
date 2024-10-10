@@ -79,7 +79,7 @@ pub use crate::weights::WeightInfo;
 use frame_support::{
 	traits::{
 		tokens::{fungible, fungibles},
-		AccountTouch, ContainsPair, Randomness,
+		AccountTouch, ContainsPair,
 	},
 	BoundedVec, PalletId,
 };
@@ -317,9 +317,6 @@ pub mod pallet {
 
 		/// Method to get the price of an asset like USDT or PLMC. Likely to come from an oracle
 		type PriceProvider: ProvideAssetPrice<AssetId = u32, Price = Self::Price>;
-
-		/// Something that provides randomness in the runtime.
-		type Randomness: Randomness<Self::Hash, BlockNumberFor<Self>>;
 
 		/// The length (expressed in number of blocks) of the Remainder Round.
 		#[pallet::constant]
