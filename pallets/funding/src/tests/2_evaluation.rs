@@ -45,7 +45,9 @@ mod round_flow {
 			let target_evaluation_usd = Percent::from_percent(10) * target_funding;
 
 			let evaluations = vec![(EVALUATOR_1, target_evaluation_usd).into()];
-			let evaluation_plmc = inst.calculate_evaluation_plmc_spent(evaluations.clone(), true);
+			let evaluation_plmc = inst.calculate_evaluation_plmc_spent(evaluations.clone());
+
+			inst.mint_plmc_ed_if_required(evaluations.accounts());
 			inst.mint_plmc_to(evaluation_plmc);
 
 			let project_id = inst.create_evaluating_project(project_metadata.clone(), ISSUER_1, None);
@@ -58,7 +60,7 @@ mod round_flow {
 
 			// Increasing the price before the end doesn't make a project under the threshold succeed.
 			let evaluations = vec![(EVALUATOR_1, target_evaluation_usd / 2).into()];
-			let evaluation_plmc = inst.calculate_evaluation_plmc_spent(evaluations.clone(), true);
+			let evaluation_plmc = inst.calculate_evaluation_plmc_spent(evaluations.clone());
 			inst.mint_plmc_to(evaluation_plmc);
 
 			let project_id = inst.create_evaluating_project(project_metadata.clone(), ISSUER_2, None);
@@ -208,8 +210,7 @@ mod round_flow {
 			let issuer = ISSUER_1;
 			let project_metadata = default_project_metadata(issuer);
 			let evaluations = default_failing_evaluations();
-			let plmc_eval_deposits: Vec<UserToPLMCBalance<_>> =
-				inst.calculate_evaluation_plmc_spent(evaluations, false);
+			let plmc_eval_deposits: Vec<UserToPLMCBalance<_>> = inst.calculate_evaluation_plmc_spent(evaluations);
 			let plmc_existential_deposits = plmc_eval_deposits.accounts().existential_deposits();
 
 			let expected_evaluator_balances = inst.generic_map_operation(
@@ -469,8 +470,9 @@ mod evaluate_extrinsic {
 				(EVALUATOR_2, 1000 * USD_UNIT).into(),
 				(EVALUATOR_3, 20_000 * USD_UNIT).into(),
 			];
-			let necessary_plmc = inst.calculate_evaluation_plmc_spent(evaluations.clone(), true);
+			let necessary_plmc = inst.calculate_evaluation_plmc_spent(evaluations.clone());
 
+			inst.mint_plmc_ed_if_required(evaluations.accounts());
 			inst.mint_plmc_to(necessary_plmc);
 
 			assert_ok!(inst.execute(|| PolimecFunding::evaluate(
@@ -518,8 +520,9 @@ mod evaluate_extrinsic {
 			let project_id = inst.create_evaluating_project(project_metadata.clone(), issuer, None);
 
 			let evaluation = UserToUSDBalance::new(EVALUATOR_1, 500 * USD_UNIT);
-			let necessary_plmc = inst.calculate_evaluation_plmc_spent(vec![evaluation.clone()], true);
+			let necessary_plmc = inst.calculate_evaluation_plmc_spent(vec![evaluation.clone()]);
 
+			inst.mint_plmc_ed_if_required(necessary_plmc.accounts());
 			inst.mint_plmc_to(necessary_plmc.clone());
 
 			inst.execute(|| {
@@ -545,7 +548,7 @@ mod evaluate_extrinsic {
 			let project_metadata = default_project_metadata(ISSUER_1);
 			let project_id = inst.create_evaluating_project(project_metadata.clone(), ISSUER_1, None);
 			let evaluation = UserToUSDBalance::new(EVALUATOR_1, 500 * USD_UNIT);
-			let necessary_plmc = inst.calculate_evaluation_plmc_spent(vec![evaluation.clone()], false);
+			let necessary_plmc = inst.calculate_evaluation_plmc_spent(vec![evaluation.clone()]);
 			let plmc_existential_deposits = necessary_plmc.accounts().existential_deposits();
 
 			inst.mint_plmc_to(necessary_plmc.clone());
@@ -595,12 +598,11 @@ mod evaluate_extrinsic {
 			let project_metadata = default_project_metadata(issuer);
 
 			let evaluation = UserToUSDBalance::new(EVALUATOR_4, 1_000_000 * USD_UNIT);
-			let plmc_required = inst.calculate_evaluation_plmc_spent(vec![evaluation.clone()], false);
-			let plmc_existential_deposits = plmc_required.accounts().existential_deposits();
+			let plmc_required = inst.calculate_evaluation_plmc_spent(vec![evaluation.clone()]);
 			let frozen_amount = plmc_required[0].plmc_amount;
 
+			inst.mint_plmc_ed_if_required(vec![EVALUATOR_4]);
 			inst.mint_plmc_to(plmc_required.clone());
-			inst.mint_plmc_to(plmc_existential_deposits.clone());
 
 			inst.execute(|| {
 				mock::Balances::set_freeze(&(), &EVALUATOR_4, plmc_required[0].plmc_amount).unwrap();
@@ -629,7 +631,8 @@ mod evaluate_extrinsic {
 			});
 
 			let new_evaluations = default_evaluations();
-			let new_plmc_required = inst.calculate_evaluation_plmc_spent(new_evaluations.clone(), true);
+			let new_plmc_required = inst.calculate_evaluation_plmc_spent(new_evaluations.clone());
+			inst.mint_plmc_ed_if_required(new_plmc_required.accounts());
 			inst.mint_plmc_to(new_plmc_required.clone());
 			inst.evaluate_for_users(project_id, new_evaluations).unwrap();
 
@@ -722,7 +725,7 @@ mod evaluate_extrinsic {
 			let project_metadata = default_project_metadata(issuer);
 			let evaluations = default_evaluations();
 			let insufficient_eval_deposits = inst
-				.calculate_evaluation_plmc_spent(evaluations.clone(), false)
+				.calculate_evaluation_plmc_spent(evaluations.clone())
 				.iter()
 				.map(|UserToPLMCBalance { account, plmc_amount }| UserToPLMCBalance::new(*account, plmc_amount / 2))
 				.collect::<Vec<UserToPLMCBalance<_>>>();
@@ -744,7 +747,7 @@ mod evaluate_extrinsic {
 			let issuer = ISSUER_1;
 			let project_metadata = default_project_metadata(issuer);
 			let evaluations = vec![UserToUSDBalance::new(EVALUATOR_1, 1000 * USD_UNIT)];
-			let evaluating_plmc = inst.calculate_evaluation_plmc_spent(evaluations.clone(), false);
+			let evaluating_plmc = inst.calculate_evaluation_plmc_spent(evaluations.clone());
 			let mut plmc_insufficient_existential_deposit = evaluating_plmc.accounts().existential_deposits();
 
 			plmc_insufficient_existential_deposit[0].plmc_amount =
@@ -770,14 +773,14 @@ mod evaluate_extrinsic {
 
 			let project_id = inst.create_evaluating_project(project_metadata.clone(), ISSUER_1, None);
 
-			let plmc_for_evaluating = inst.calculate_evaluation_plmc_spent(evaluations.clone(), true);
+			let plmc_for_evaluating = inst.calculate_evaluation_plmc_spent(evaluations.clone());
 
+			inst.mint_plmc_ed_if_required(plmc_for_evaluating.accounts());
 			inst.mint_plmc_to(plmc_for_evaluating.clone());
 
 			inst.evaluate_for_users(project_id, evaluations.clone()).unwrap();
 
-			let plmc_for_failing_evaluating =
-				inst.calculate_evaluation_plmc_spent(vec![failing_evaluation.clone()], true);
+			let plmc_for_failing_evaluating = inst.calculate_evaluation_plmc_spent(vec![failing_evaluation.clone()]);
 
 			inst.mint_plmc_to(plmc_for_failing_evaluating.clone());
 
@@ -798,7 +801,7 @@ mod evaluate_extrinsic {
 
 			let project_id = inst.create_evaluating_project(project_metadata.clone(), ISSUER_1, None);
 
-			let plmc_for_evaluating = inst.calculate_evaluation_plmc_spent(evaluations.clone(), false);
+			let plmc_for_evaluating = inst.calculate_evaluation_plmc_spent(evaluations.clone());
 			let plmc_existential_deposits = evaluations.accounts().existential_deposits();
 
 			inst.mint_plmc_to(plmc_for_evaluating.clone());
@@ -806,8 +809,7 @@ mod evaluate_extrinsic {
 
 			inst.evaluate_for_users(project_id, evaluations.clone()).unwrap();
 
-			let plmc_for_failing_evaluating =
-				inst.calculate_evaluation_plmc_spent(vec![failing_evaluation.clone()], true);
+			let plmc_for_failing_evaluating = inst.calculate_evaluation_plmc_spent(vec![failing_evaluation.clone()]);
 
 			inst.mint_plmc_to(plmc_for_failing_evaluating.clone());
 
@@ -825,7 +827,7 @@ mod evaluate_extrinsic {
 			let project_id = inst.create_evaluating_project(project_metadata.clone(), issuer, None);
 
 			let evaluation = UserToUSDBalance::new(EVALUATOR_1, 500 * USD_UNIT);
-			let necessary_plmc = inst.calculate_evaluation_plmc_spent(vec![evaluation.clone()], false);
+			let necessary_plmc = inst.calculate_evaluation_plmc_spent(vec![evaluation.clone()]);
 			let ed = necessary_plmc.accounts().existential_deposits();
 
 			inst.mint_plmc_to(necessary_plmc.clone());
@@ -883,8 +885,9 @@ mod evaluate_extrinsic {
 			let project_id = inst.create_evaluating_project(project_metadata.clone(), issuer, None);
 
 			let evaluation = UserToUSDBalance::new(EVALUATOR_1, 500 * USD_UNIT);
-			let necessary_plmc = inst.calculate_evaluation_plmc_spent(vec![evaluation.clone()], true);
+			let necessary_plmc = inst.calculate_evaluation_plmc_spent(vec![evaluation.clone()]);
 
+			inst.mint_plmc_ed_if_required(necessary_plmc.accounts());
 			inst.mint_plmc_to(necessary_plmc.clone());
 
 			inst.execute(|| {

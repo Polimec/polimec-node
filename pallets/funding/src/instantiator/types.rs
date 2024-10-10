@@ -107,6 +107,12 @@ impl<T: Config> AccountMerge for Vec<UserToPLMCBalance<T>> {
 	}
 }
 
+impl<T: Config> Total for Vec<UserToPLMCBalance<T>> {
+	fn total(&self) -> Balance {
+		self.iter().map(|x| x.plmc_amount).sum()
+	}
+}
+
 #[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields, bound(serialize = ""), bound(deserialize = ""))]
 pub struct UserToUSDBalance<T: Config> {
@@ -165,6 +171,11 @@ impl<T: Config> AccountMerge for Vec<UserToUSDBalance<T>> {
 		let mut output = self.clone();
 		output.append(&mut other_list);
 		output.merge_accounts(MergeOperation::Add)
+	}
+}
+impl<T: Config> Total for Vec<UserToUSDBalance<T>> {
+	fn total(&self) -> Balance {
+		self.iter().map(|x| x.usd_amount).sum()
 	}
 }
 
@@ -236,6 +247,32 @@ impl<T: Config> AccountMerge for Vec<UserToFundingAsset<T>> {
 		output.merge_accounts(MergeOperation::Add)
 	}
 }
+impl<T: Config> Totals for Vec<UserToFundingAsset<T>> {
+	type AssetId = AssetIdOf<T>;
+
+	fn totals(&self) -> Vec<(Self::AssetId, Balance)> {
+		let mut btree = BTreeMap::new();
+		for UserToFundingAsset { account: _, asset_amount, asset_id } in self.iter() {
+			btree
+				.entry(*asset_id)
+				.and_modify(|e: &mut Balance| *e = e.saturating_add(*asset_amount))
+				.or_insert(*asset_amount);
+		}
+		btree.into_iter().collect_vec()
+	}
+}
+impl<T: Config> Conversions for Vec<UserToFundingAsset<T>> {
+	type AccountId = AccountIdOf<T>;
+	type AssetId = AssetIdOf<T>;
+
+	fn to_account_asset_map(&self) -> Vec<(Self::AccountId, Self::AssetId)> {
+		let mut btree = BTreeSet::new();
+		for UserToFundingAsset { account, asset_id, .. } in self.iter() {
+			btree.insert((account.clone(), *asset_id));
+		}
+		btree.into_iter().collect_vec()
+	}
+}
 
 #[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields, bound(serialize = ""), bound(deserialize = ""))]
@@ -274,6 +311,11 @@ impl<T: Config> From<(AccountIdOf<T>, Balance, AcceptedFundingAsset)> for BidPar
 		Self { bidder, amount, mode: ParticipationMode::Classic(1u8), asset }
 	}
 }
+impl<T: Config> From<BidParams<T>> for (AccountIdOf<T>, AssetIdOf<T>) {
+	fn from(bid: BidParams<T>) -> (AccountIdOf<T>, AssetIdOf<T>) {
+		(bid.bidder, bid.asset.id())
+	}
+}
 
 impl<T: Config> Accounts for Vec<BidParams<T>> {
 	type Account = AccountIdOf<T>;
@@ -282,6 +324,18 @@ impl<T: Config> Accounts for Vec<BidParams<T>> {
 		let mut btree = BTreeSet::new();
 		for BidParams { bidder, .. } in self {
 			btree.insert(bidder.clone());
+		}
+		btree.into_iter().collect_vec()
+	}
+}
+impl<T: Config> Conversions for Vec<BidParams<T>> {
+	type AccountId = AccountIdOf<T>;
+	type AssetId = AssetIdOf<T>;
+
+	fn to_account_asset_map(&self) -> Vec<(Self::AccountId, Self::AssetId)> {
+		let mut btree = BTreeSet::new();
+		for BidParams { bidder, asset, .. } in self.iter() {
+			btree.insert((bidder.clone(), asset.id()));
 		}
 		btree.into_iter().collect_vec()
 	}
@@ -333,6 +387,18 @@ impl<T: Config> Accounts for Vec<ContributionParams<T>> {
 		let mut btree = BTreeSet::new();
 		for ContributionParams { contributor, .. } in self.iter() {
 			btree.insert(contributor.clone());
+		}
+		btree.into_iter().collect_vec()
+	}
+}
+impl<T: Config> Conversions for Vec<ContributionParams<T>> {
+	type AccountId = AccountIdOf<T>;
+	type AssetId = AssetIdOf<T>;
+
+	fn to_account_asset_map(&self) -> Vec<(Self::AccountId, Self::AssetId)> {
+		let mut btree = BTreeSet::new();
+		for ContributionParams { contributor, asset, .. } in self.iter() {
+			btree.insert((contributor.clone(), asset.id()));
 		}
 		btree.into_iter().collect_vec()
 	}

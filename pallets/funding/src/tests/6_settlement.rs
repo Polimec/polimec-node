@@ -302,7 +302,8 @@ mod settle_evaluation_extrinsic {
 			let evaluation = UserToUSDBalance::new(EVALUATOR_1, 1_000 * USD_UNIT);
 			let project_id = inst.create_evaluating_project(project_metadata.clone(), ISSUER_1, None);
 
-			let evaluation_plmc = inst.calculate_evaluation_plmc_spent(vec![evaluation.clone()], true);
+			let evaluation_plmc = inst.calculate_evaluation_plmc_spent(vec![evaluation.clone()]);
+			inst.mint_plmc_ed_if_required(vec![EVALUATOR_1]);
 			inst.mint_plmc_to(evaluation_plmc.clone());
 			inst.evaluate_for_users(project_id, vec![evaluation]).unwrap();
 
@@ -390,6 +391,8 @@ mod settle_bid_extrinsic {
 		fn accepted_bid_with_refund_on_project_success() {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 			let ed = inst.get_ed();
+			let usdt_ed = inst.get_funding_asset_ed(AcceptedFundingAsset::USDT.id());
+			let dot_ed = inst.get_funding_asset_ed(AcceptedFundingAsset::DOT.id());
 			let mut project_metadata = default_project_metadata(ISSUER_1);
 			project_metadata.participation_currencies =
 				bounded_vec![AcceptedFundingAsset::USDT, AcceptedFundingAsset::DOT];
@@ -425,7 +428,6 @@ mod settle_bid_extrinsic {
 			let expected_final_plmc_bonded = inst.calculate_auction_plmc_charged_with_given_price(
 				&vec![final_partial_amount_bid_params.clone()],
 				project_metadata.minimum_price,
-				false,
 			)[0]
 			.plmc_amount;
 			let expected_final_usdt_paid = inst.calculate_auction_funding_asset_charged_with_given_price(
@@ -451,7 +453,11 @@ mod settle_bid_extrinsic {
 				project_metadata.funding_destination_account,
 			);
 
-			inst.assert_funding_asset_free_balance(BIDDER_1, AcceptedFundingAsset::USDT.id(), expected_usdt_refund);
+			inst.assert_funding_asset_free_balance(
+				BIDDER_1,
+				AcceptedFundingAsset::USDT.id(),
+				expected_usdt_refund + usdt_ed,
+			);
 			assert_eq!(post_issuer_usdt_balance, pre_issuer_usdt_balance + expected_final_usdt_paid);
 
 			inst.assert_plmc_free_balance(BIDDER_1, expected_plmc_refund + ed);
@@ -476,9 +482,8 @@ mod settle_bid_extrinsic {
 
 			// Price > wap bid assertions
 			let lower_price_bid_stored = inst.execute(|| Bids::<TestRuntime>::get((project_id, BIDDER_2, 1)).unwrap());
-			let expected_final_plmc_bonded =
-				inst.calculate_auction_plmc_charged_with_given_price(&vec![lower_price_bid_params.clone()], wap, false)
-					[0]
+			let expected_final_plmc_bonded = inst
+				.calculate_auction_plmc_charged_with_given_price(&vec![lower_price_bid_params.clone()], wap)[0]
 				.plmc_amount;
 			let expected_final_dot_paid = inst
 				.calculate_auction_funding_asset_charged_with_given_price(&vec![lower_price_bid_params.clone()], wap)[0]
@@ -500,7 +505,11 @@ mod settle_bid_extrinsic {
 				project_metadata.funding_destination_account,
 			);
 
-			inst.assert_funding_asset_free_balance(BIDDER_2, AcceptedFundingAsset::DOT.id(), expected_dot_refund);
+			inst.assert_funding_asset_free_balance(
+				BIDDER_2,
+				AcceptedFundingAsset::DOT.id(),
+				expected_dot_refund + dot_ed,
+			);
 			assert_eq!(post_issuer_dot_balance, pre_issuer_dot_balance + expected_final_dot_paid);
 
 			inst.assert_plmc_free_balance(BIDDER_2, expected_plmc_refund + ed);
@@ -532,6 +541,8 @@ mod settle_bid_extrinsic {
 		fn accepted_bid_without_refund_on_project_success() {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 			let ed = inst.get_ed();
+			let usdt_ed = inst.get_funding_asset_ed(AcceptedFundingAsset::USDT.id());
+
 			let mut project_metadata = default_project_metadata(ISSUER_1);
 			project_metadata.participation_currencies =
 				bounded_vec![AcceptedFundingAsset::USDT, AcceptedFundingAsset::DOT];
@@ -571,7 +582,7 @@ mod settle_bid_extrinsic {
 				project_metadata.funding_destination_account,
 			);
 
-			inst.assert_funding_asset_free_balance(BIDDER_1, AcceptedFundingAsset::USDT.id(), Zero::zero());
+			inst.assert_funding_asset_free_balance(BIDDER_1, AcceptedFundingAsset::USDT.id(), usdt_ed);
 			assert_eq!(
 				post_issuer_usdc_balance,
 				pre_issuer_usdc_balance + no_refund_bid_stored.funding_asset_amount_locked
@@ -602,6 +613,9 @@ mod settle_bid_extrinsic {
 		fn accepted_bid_with_refund_on_project_failure() {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 			let ed = inst.get_ed();
+			let usdt_ed = inst.get_funding_asset_ed(AcceptedFundingAsset::USDT.id());
+			let dot_ed = inst.get_funding_asset_ed(AcceptedFundingAsset::DOT.id());
+
 			let mut project_metadata = default_project_metadata(ISSUER_1);
 			project_metadata.participation_currencies =
 				bounded_vec![AcceptedFundingAsset::USDC, AcceptedFundingAsset::DOT];
@@ -651,7 +665,7 @@ mod settle_bid_extrinsic {
 			inst.assert_funding_asset_free_balance(
 				BIDDER_1,
 				AcceptedFundingAsset::USDC.id(),
-				partial_amount_bid_stored.funding_asset_amount_locked,
+				partial_amount_bid_stored.funding_asset_amount_locked + usdt_ed,
 			);
 			assert_eq!(post_issuer_usdc_balance, pre_issuer_usdc_balance);
 
@@ -687,7 +701,7 @@ mod settle_bid_extrinsic {
 			inst.assert_funding_asset_free_balance(
 				BIDDER_2,
 				AcceptedFundingAsset::DOT.id(),
-				lower_price_bid_stored.funding_asset_amount_locked,
+				lower_price_bid_stored.funding_asset_amount_locked + dot_ed,
 			);
 			assert_eq!(post_issuer_dot_balance, pre_issuer_dot_balance);
 
@@ -708,6 +722,7 @@ mod settle_bid_extrinsic {
 		fn accepted_bid_without_refund_on_project_failure() {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 			let ed = inst.get_ed();
+			let usdt_ed = inst.get_funding_asset_ed(AcceptedFundingAsset::USDT.id());
 			let mut project_metadata = default_project_metadata(ISSUER_1);
 			project_metadata.participation_currencies =
 				bounded_vec![AcceptedFundingAsset::USDT, AcceptedFundingAsset::DOT];
@@ -745,7 +760,7 @@ mod settle_bid_extrinsic {
 			inst.assert_funding_asset_free_balance(
 				BIDDER_1,
 				AcceptedFundingAsset::USDT.id(),
-				no_refund_bid_stored.funding_asset_amount_locked,
+				no_refund_bid_stored.funding_asset_amount_locked + usdt_ed,
 			);
 			assert_eq!(post_issuer_usdc_balance, pre_issuer_usdc_balance);
 
@@ -765,6 +780,7 @@ mod settle_bid_extrinsic {
 		fn rejected_bid_on_community_round() {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 			let ed = inst.get_ed();
+			let usdt_ed = inst.get_funding_asset_ed(AcceptedFundingAsset::USDT.id());
 			let mut project_metadata = default_project_metadata(ISSUER_1);
 			project_metadata.participation_currencies =
 				bounded_vec![AcceptedFundingAsset::USDT, AcceptedFundingAsset::DOT];
@@ -812,7 +828,7 @@ mod settle_bid_extrinsic {
 			inst.assert_funding_asset_free_balance(
 				BIDDER_1,
 				AcceptedFundingAsset::USDT.id(),
-				rejected_bid_stored.funding_asset_amount_locked,
+				rejected_bid_stored.funding_asset_amount_locked + usdt_ed,
 			);
 			assert_eq!(post_issuer_usdt_balance, pre_issuer_usdt_balance);
 
@@ -832,6 +848,7 @@ mod settle_bid_extrinsic {
 		fn rejected_bid_on_project_success() {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 			let ed = inst.get_ed();
+			let usdt_ed = inst.get_funding_asset_ed(AcceptedFundingAsset::USDT.id());
 			let mut project_metadata = default_project_metadata(ISSUER_1);
 			project_metadata.participation_currencies =
 				bounded_vec![AcceptedFundingAsset::USDT, AcceptedFundingAsset::DOT];
@@ -882,7 +899,7 @@ mod settle_bid_extrinsic {
 			inst.assert_funding_asset_free_balance(
 				BIDDER_1,
 				AcceptedFundingAsset::USDT.id(),
-				rejected_bid_stored.funding_asset_amount_locked,
+				rejected_bid_stored.funding_asset_amount_locked + usdt_ed,
 			);
 			assert_eq!(post_issuer_usdt_balance, pre_issuer_usdt_balance);
 
@@ -902,6 +919,7 @@ mod settle_bid_extrinsic {
 		fn rejected_bid_on_project_failure() {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 			let ed = inst.get_ed();
+			let usdt_ed = inst.get_funding_asset_ed(AcceptedFundingAsset::USDT.id());
 			let mut project_metadata = default_project_metadata(ISSUER_1);
 			project_metadata.participation_currencies =
 				bounded_vec![AcceptedFundingAsset::USDT, AcceptedFundingAsset::DOT];
@@ -953,7 +971,7 @@ mod settle_bid_extrinsic {
 			inst.assert_funding_asset_free_balance(
 				BIDDER_1,
 				AcceptedFundingAsset::USDT.id(),
-				rejected_bid_stored.funding_asset_amount_locked,
+				rejected_bid_stored.funding_asset_amount_locked + usdt_ed,
 			);
 			assert_eq!(post_issuer_usdt_balance, pre_issuer_usdt_balance);
 
@@ -1034,6 +1052,7 @@ mod settle_contribution_extrinsic {
 		fn contribution_on_successful_project() {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 			let ed = inst.get_ed();
+			let usdt_ed = inst.get_funding_asset_ed(AcceptedFundingAsset::USDT.id());
 			let project_metadata = default_project_metadata(ISSUER_1);
 
 			let contribution = ContributionParams::<TestRuntime>::new(
@@ -1063,7 +1082,7 @@ mod settle_contribution_extrinsic {
 			inst.assert_plmc_free_balance(BUYER_1, ed);
 			inst.assert_plmc_held_balance(BUYER_1, stored_contribution.plmc_bond, hold_reason);
 			inst.assert_ct_balance(project_id, BUYER_1, Zero::zero());
-			inst.assert_funding_asset_free_balance(BUYER_1, AcceptedFundingAsset::USDT.id(), Zero::zero());
+			inst.assert_funding_asset_free_balance(BUYER_1, AcceptedFundingAsset::USDT.id(), usdt_ed);
 			inst.assert_funding_asset_free_balance(
 				project_metadata.funding_destination_account,
 				AcceptedFundingAsset::USDT.id(),
@@ -1077,7 +1096,7 @@ mod settle_contribution_extrinsic {
 			inst.assert_plmc_free_balance(BUYER_1, ed);
 			inst.assert_plmc_held_balance(BUYER_1, stored_contribution.plmc_bond, hold_reason);
 			inst.assert_ct_balance(project_id, BUYER_1, stored_contribution.ct_amount);
-			inst.assert_funding_asset_free_balance(BUYER_1, AcceptedFundingAsset::USDT.id(), Zero::zero());
+			inst.assert_funding_asset_free_balance(BUYER_1, AcceptedFundingAsset::USDT.id(), usdt_ed);
 			inst.assert_funding_asset_free_balance(
 				project_metadata.funding_destination_account,
 				AcceptedFundingAsset::USDT.id(),
@@ -1148,11 +1167,10 @@ mod settle_contribution_extrinsic {
 			);
 			let wap = inst.get_project_details(project_id).weighted_average_price.unwrap();
 
-			let plmc_required = inst.calculate_contributed_plmc_spent(vec![contribution_mul_2.clone()], wap, false);
-			let plmc_ed = plmc_required.accounts().existential_deposits();
+			let plmc_required = inst.calculate_contributed_plmc_spent(vec![contribution_mul_2.clone()], wap);
+			inst.mint_plmc_ed_if_required(plmc_required.accounts());
 			inst.mint_plmc_to(plmc_required.clone());
-			inst.mint_plmc_to(plmc_ed);
-
+			inst.mint_funding_asset_ed_if_required(vec![(BUYER_7, AcceptedFundingAsset::USDT.id())]);
 			let usdt_required = inst.calculate_contributed_funding_asset_spent(vec![contribution_mul_2.clone()], wap);
 			inst.mint_funding_asset_to(usdt_required.clone());
 

@@ -33,7 +33,6 @@ impl<
 	pub fn calculate_evaluation_plmc_spent(
 		&mut self,
 		evaluations: Vec<UserToUSDBalance<T>>,
-		with_ed: bool,
 	) -> Vec<UserToPLMCBalance<T>> {
 		let plmc_usd_price = self.execute(|| {
 			<PriceProviderOf<T>>::get_decimals_aware_price(PLMC_FOREIGN_ID, USD_DECIMALS, PLMC_DECIMALS).unwrap()
@@ -42,10 +41,8 @@ impl<
 		let mut output = Vec::new();
 		for eval in evaluations {
 			let usd_bond = eval.usd_amount;
-			let mut plmc_bond = plmc_usd_price.reciprocal().unwrap().saturating_mul_int(usd_bond);
-			if with_ed {
-				plmc_bond = plmc_bond.saturating_add(self.get_ed());
-			}
+			let plmc_bond = plmc_usd_price.reciprocal().unwrap().saturating_mul_int(usd_bond);
+
 			output.push(UserToPLMCBalance::new(eval.account, plmc_bond));
 		}
 		output
@@ -83,7 +80,6 @@ impl<
 		&mut self,
 		bids: &Vec<BidParams<T>>,
 		ct_price: PriceOf<T>,
-		with_ed: bool,
 	) -> Vec<UserToPLMCBalance<T>> {
 		let mut output = Vec::new();
 		for bid in bids {
@@ -92,9 +88,7 @@ impl<
 			if let ParticipationMode::Classic(multiplier) = bid.mode {
 				self.add_required_plmc_to(&mut plmc_required, usd_ticket_size, multiplier)
 			}
-			if with_ed {
-				plmc_required = plmc_required.saturating_add(self.get_ed());
-			}
+
 			output.push(UserToPLMCBalance::new(bid.bidder.clone(), plmc_required));
 		}
 		output
@@ -106,7 +100,6 @@ impl<
 		bids: &Vec<BidParams<T>>,
 		project_metadata: ProjectMetadataOf<T>,
 		maybe_bucket: Option<BucketOf<T>>,
-		with_ed: bool,
 	) -> Vec<UserToPLMCBalance<T>> {
 		let mut output = Vec::new();
 
@@ -116,9 +109,7 @@ impl<
 			if let ParticipationMode::Classic(multiplier) = bid.mode {
 				self.add_required_plmc_to(&mut plmc_required, usd_ticket_size, multiplier)
 			}
-			if with_ed {
-				plmc_required = plmc_required.saturating_add(self.get_ed());
-			}
+
 			output.push(UserToPLMCBalance::<T>::new(bid.bidder.clone(), plmc_required));
 		}
 
@@ -184,12 +175,8 @@ impl<
 		project_metadata: ProjectMetadataOf<T>,
 		weighted_average_price: PriceOf<T>,
 	) -> Vec<UserToPLMCBalance<T>> {
-		let plmc_charged = self.calculate_auction_plmc_charged_from_all_bids_made_or_with_bucket(
-			bids,
-			project_metadata.clone(),
-			None,
-			false,
-		);
+		let plmc_charged =
+			self.calculate_auction_plmc_charged_from_all_bids_made_or_with_bucket(bids, project_metadata.clone(), None);
 		let plmc_returned = self.calculate_auction_plmc_returned_from_all_bids_made(
 			bids,
 			project_metadata.clone(),
@@ -341,7 +328,6 @@ impl<
 		&mut self,
 		contributions: Vec<ContributionParams<T>>,
 		token_usd_price: PriceOf<T>,
-		with_ed: bool,
 	) -> Vec<UserToPLMCBalance<T>> {
 		let mut output = Vec::new();
 		for cont in contributions {
@@ -351,9 +337,6 @@ impl<
 				self.add_required_plmc_to(&mut plmc_bond, usd_ticket_size, multiplier);
 			}
 
-			if with_ed {
-				plmc_bond = plmc_bond.saturating_add(self.get_ed());
-			}
 			output.push(UserToPLMCBalance::new(cont.contributor, plmc_bond));
 		}
 		output
@@ -367,10 +350,9 @@ impl<
 		slashed: bool,
 		with_ed: bool,
 	) -> Vec<UserToPLMCBalance<T>> {
-		let evaluation_locked_plmc_amounts = self.calculate_evaluation_plmc_spent(evaluations, false);
+		let evaluation_locked_plmc_amounts = self.calculate_evaluation_plmc_spent(evaluations);
 		// how much new plmc would be locked without considering evaluation bonds
-		let theoretical_contribution_locked_plmc_amounts =
-			self.calculate_contributed_plmc_spent(contributions, price, false);
+		let theoretical_contribution_locked_plmc_amounts = self.calculate_contributed_plmc_spent(contributions, price);
 
 		let slash_percentage = <T as Config>::EvaluatorSlash::get();
 		let slashable_min_deposits = evaluation_locked_plmc_amounts
@@ -420,6 +402,7 @@ impl<
 			if cont.mode == ParticipationMode::OTM {
 				self.add_otm_fee_to(&mut funding_asset_spent, usd_ticket_size, cont.asset);
 			}
+
 			output.push(UserToFundingAsset::new(cont.contributor, funding_asset_spent, cont.asset.id()));
 		}
 		output

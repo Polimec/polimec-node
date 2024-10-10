@@ -78,8 +78,7 @@ fn evaluator_slash_reduces_vesting_schedules() {
 		));
 
 		let alice_evaluation = UserToUSDBalance::<PolimecRuntime>::new(alice.clone(), 35_000 * USD_UNIT);
-		let alice_plmc_evaluated =
-			inst.calculate_evaluation_plmc_spent(vec![alice_evaluation.clone()], false)[0].plmc_amount;
+		let alice_plmc_evaluated = inst.calculate_evaluation_plmc_spent(vec![alice_evaluation.clone()])[0].plmc_amount;
 		let alice_slashed = slash_percent * alice_plmc_evaluated;
 
 		const BOB_EVALUATION: u128 = 60_000;
@@ -94,8 +93,7 @@ fn evaluator_slash_reduces_vesting_schedules() {
 			vesting_info_5
 		));
 		let bob_evaluation = UserToUSDBalance::<PolimecRuntime>::new(bob.clone(), BOB_EVALUATION * USD_UNIT);
-		let bob_plmc_evaluated =
-			inst.calculate_evaluation_plmc_spent(vec![bob_evaluation.clone()], false)[0].plmc_amount;
+		let bob_plmc_evaluated = inst.calculate_evaluation_plmc_spent(vec![bob_evaluation.clone()])[0].plmc_amount;
 		let bob_slashed = slash_percent * bob_plmc_evaluated;
 
 		// Set metadata so 50k USD succeeds the evaluation round
