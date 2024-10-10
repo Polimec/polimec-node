@@ -277,8 +277,6 @@ impl pallet_balances::Config for TestRuntime {
 	type WeightInfo = ();
 }
 
-impl pallet_insecure_randomness_collective_flip::Config for TestRuntime {}
-
 impl pallet_timestamp::Config for TestRuntime {
 	type MinimumPeriod = ConstU64<5>;
 	type Moment = u64;
@@ -391,8 +389,7 @@ impl ConstPriceProvider {
 }
 impl Config for TestRuntime {
 	type AccountId32Conversion = DummyConverter;
-	type AllPalletsWithoutSystem =
-		(Balances, ContributionTokens, ForeignAssets, PolimecFunding, LinearRelease, RandomnessCollectiveFlip);
+	type AllPalletsWithoutSystem = (Balances, ContributionTokens, ForeignAssets, PolimecFunding, LinearRelease);
 	type AuctionRoundDuration = AuctionRoundDuration;
 	type BlockNumber = BlockNumber;
 	type BlockchainOperationTreasury = BlockchainOperationTreasuryAccount;
@@ -421,7 +418,6 @@ impl Config for TestRuntime {
 	type PalletId = FundingPalletId;
 	type Price = FixedU128;
 	type PriceProvider = ConstPriceProvider;
-	type Randomness = RandomnessCollectiveFlip;
 	type RemainderRoundDuration = RemainderRoundDuration;
 	type RequiredMaxCapacity = RequiredMaxCapacity;
 	type RequiredMaxMessageSize = RequiredMaxMessageSize;
@@ -464,7 +460,6 @@ construct_runtime!(
 	{
 		System: frame_system,
 		Timestamp: pallet_timestamp,
-		RandomnessCollectiveFlip: pallet_insecure_randomness_collective_flip,
 		Balances: pallet_balances,
 		LinearRelease: pallet_linear_release,
 		ContributionTokens: pallet_assets::<Instance1>::{Pallet, Call, Storage, Event<T>},

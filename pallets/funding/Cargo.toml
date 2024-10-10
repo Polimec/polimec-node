@@ -54,7 +54,6 @@ itertools.workspace = true
 sp-io.workspace = true
 
 [dev-dependencies]
-pallet-insecure-randomness-collective-flip.workspace = true
 pallet-timestamp.workspace = true
 pallet-assets.workspace = true
 pallet-linear-release.workspace = true
@@ -75,7 +74,6 @@ std = [
 	"on-slash-vesting/std",
 	"pallet-assets/std",
 	"pallet-balances/std",
-	"pallet-insecure-randomness-collective-flip/std",
 	"pallet-linear-release/std",
 	"pallet-proxy-bonding/std",
 	"pallet-timestamp/std",
@@ -124,7 +122,6 @@ try-runtime = [
 	"frame-system/try-runtime",
 	"pallet-assets/try-runtime",
 	"pallet-balances/try-runtime",
-	"pallet-insecure-randomness-collective-flip/try-runtime",
 	"pallet-linear-release/try-runtime",
 	"pallet-proxy-bonding/try-runtime",
 	"pallet-timestamp/try-runtime",
