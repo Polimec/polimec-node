@@ -206,6 +206,7 @@ runtime-benchmarks = [
 	"frame-system/runtime-benchmarks",
 	"on-slash-vesting/runtime-benchmarks",
 	"orml-oracle/runtime-benchmarks",
+	"pallet-asset-tx-payment/runtime-benchmarks",
 	"pallet-assets/runtime-benchmarks",
 	"pallet-balances/runtime-benchmarks",
 	"pallet-collective/runtime-benchmarks",
@@ -237,7 +238,6 @@ runtime-benchmarks = [
 	"sp-runtime/runtime-benchmarks",
 	"xcm-builder/runtime-benchmarks",
 	"xcm-executor/runtime-benchmarks",
-	"pallet-asset-tx-payment/runtime-benchmarks"
 ]
 
 try-runtime = [

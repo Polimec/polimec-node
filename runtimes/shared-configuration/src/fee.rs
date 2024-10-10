@@ -43,9 +43,10 @@ use scale_info::{prelude::vec, TypeInfo};
 use smallvec::smallvec;
 use sp_arithmetic::Perbill;
 use sp_runtime::{
-	traits::{DispatchInfoOf, Get, One, PostDispatchInfoOf, Zero},
+	traits::{Convert, DispatchInfoOf, Get, One, PostDispatchInfoOf, Zero},
 	transaction_validity::{InvalidTransaction, TransactionValidityError},
 };
+use xcm::v3::MultiLocation;
 
 #[allow(clippy::module_name_repetitions)]
 pub struct WeightToFee;
@@ -171,22 +172,24 @@ type AssetBalanceOf<T> =
 /// [`ConversionToAssetBalance`]) and 2 credit handlers (implementing [`HandleCredit`]).
 ///
 /// First handler does the fee, second the tip.
-pub struct TxFeeFungiblesAdapter<Converter, FeeCreditor, TipCreditor>(
-	PhantomData<(Converter, FeeCreditor, TipCreditor)>,
+pub struct TxFeeFungiblesAdapter<Converter, MultiLocationToAssetId, FeeCreditor, TipCreditor>(
+	PhantomData<(Converter, MultiLocationToAssetId, FeeCreditor, TipCreditor)>,
 );
 
 /// Default implementation for a runtime instantiating this pallet, a balance to asset converter and
 /// a credit handler.
-impl<Runtime, Converter, FeeCreditor, TipCreditor> OnChargeAssetTransaction<Runtime>
-	for TxFeeFungiblesAdapter<Converter, FeeCreditor, TipCreditor>
+impl<Runtime, MultiLocationToAssetId, Converter, FeeCreditor, TipCreditor> OnChargeAssetTransaction<Runtime>
+	for TxFeeFungiblesAdapter<Converter, MultiLocationToAssetId, FeeCreditor, TipCreditor>
 where
 	Runtime: pallet_asset_tx_payment::Config,
+	MultiLocationToAssetId: Convert<MultiLocation, AssetIdOf<Runtime>>,
 	Converter: ConversionToAssetBalance<BalanceOf<Runtime>, AssetIdOf<Runtime>, AssetBalanceOf<Runtime>>,
 	FeeCreditor: HandleCredit<Runtime::AccountId, Runtime::Fungibles>,
 	TipCreditor: HandleCredit<Runtime::AccountId, Runtime::Fungibles>,
 	AssetIdOf<Runtime>: FullCodec + Copy + MaybeSerializeDeserialize + Debug + Default + Eq + TypeInfo,
 {
-	type AssetId = AssetIdOf<Runtime>;
+	// Note: We stick to `v3::MultiLocation`` because `v4::Location`` doesn't implement `Copy`.
+	type AssetId = MultiLocation;
 	type Balance = BalanceOf<Runtime>;
 	type LiquidityInfo = fungibles::Credit<Runtime::AccountId, Runtime::Fungibles>;
 
@@ -202,6 +205,7 @@ where
 		// We don't know the precision of the underlying asset. Because the converted fee could be
 		// less than one (e.g. 0.5) but gets rounded down by integer division we introduce a minimum
 		// fee.
+		let asset_id = MultiLocationToAssetId::convert(asset_id);
 		let min_converted_fee = if fee.is_zero() { Zero::zero() } else { One::one() };
 		let converted_fee = Converter::to_asset_balance(fee, asset_id)
 			.map_err(|_| TransactionValidityError::from(InvalidTransaction::Payment))?

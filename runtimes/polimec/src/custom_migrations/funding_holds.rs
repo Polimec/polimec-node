@@ -1,5 +1,4 @@
 use crate::{Balance, Funding, Runtime, RuntimeHoldReason};
-use alloc::vec::Vec;
 use frame_support::traits::{GetStorageVersion, OnRuntimeUpgrade, VariantCount, VariantCountOf};
 use pallet_balances::IdAmount;
 use pallet_funding::ProjectId;
@@ -7,6 +6,7 @@ use parity_scale_codec::{Decode, Encode};
 use scale_info::TypeInfo;
 use sp_core::{MaxEncodedLen, RuntimeDebug};
 use sp_runtime::BoundedVec;
+use sp_std::vec::Vec;
 
 #[derive(Clone, Copy, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
 pub enum OldFundingHoldReason {
