@@ -55,12 +55,12 @@ const DOT_PER_MB_PROOF: u128 = 0_2_000_000_000; // 0.0000001 DOT per Megabyte of
 // USDT from Polkadot Asset Hub
 const USDT_PER_SECOND_EXECUTION: u128 = 1_000_000; // 1 USDT per second of execution time
 const USDT_PER_MB_PROOF: u128 = 1_000_000; // 1 USDT per Megabyte of proof size
-const USDT_JUNCTION: &[Junction] = &[Parachain(1000), PalletInstance(50), GeneralIndex(1984)];
+pub const USDT_JUNCTION: &[Junction] = &[Parachain(1000), PalletInstance(50), GeneralIndex(1984)];
 
 // USDC from Polkadot Asset Hub
 const USDC_PER_SECOND_EXECUTION: u128 = 1_000_000; // 1 USDC per second of execution time
 const USDC_PER_MB_PROOF: u128 = 1_000_000; // 1 USDC per Megabyte of proof size
-const USDC_JUNCTION: &[Junction] = &[Parachain(1000), PalletInstance(50), GeneralIndex(1337)];
+pub const USDC_JUNCTION: &[Junction] = &[Parachain(1000), PalletInstance(50), GeneralIndex(1337)];
 
 parameter_types! {
 	pub const RelayLocation: Location = Location::parent();

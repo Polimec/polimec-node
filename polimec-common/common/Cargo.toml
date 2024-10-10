@@ -27,6 +27,7 @@ sp-std.workspace = true
 sp-runtime.workspace = true
 itertools.workspace = true
 xcm.workspace = true
+xcm-builder.workspace = true
 
 
 [features]

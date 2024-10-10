@@ -23,6 +23,7 @@ mod governance;
 mod oracle;
 mod otm_edge_cases;
 mod reserve_backed_transfers;
+mod runtime_apis;
 mod transaction_payment;
 mod vest;
 mod xcm_config;

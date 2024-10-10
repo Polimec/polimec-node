@@ -4669,6 +4669,7 @@ dependencies = [
  "substrate-wasm-builder",
  "system-parachains-constants",
  "xcm-emulator",
+ "xcm-fee-payment-runtime-api",
 ]
 
 [[package]]
@@ -8713,6 +8714,7 @@ dependencies = [
  "sp-runtime",
  "sp-std",
  "staging-xcm",
+ "staging-xcm-builder",
 ]
 
 [[package]]
@@ -8888,6 +8890,7 @@ dependencies = [
  "staging-xcm-builder",
  "staging-xcm-executor",
  "substrate-wasm-builder",
+ "xcm-fee-payment-runtime-api",
 ]
 
 [[package]]

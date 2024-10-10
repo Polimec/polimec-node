@@ -187,6 +187,7 @@ xcm-builder = { version = "14.0.0", package = 'staging-xcm-builder', default-fea
 xcm-executor = { version = "14.0.0", package = 'staging-xcm-executor', default-features = false }
 polkadot-runtime-common = { version = "14.0.0", default-features = false }
 polkadot-primitives = { version = "14.0.0", default-features = false }
+xcm-fee-payment-runtime-api = { version = "0.4.0", default-features = false }
 
 # Cumulus (with default disabled)
 cumulus-pallet-aura-ext = { version = "0.14.0", default-features = false }
