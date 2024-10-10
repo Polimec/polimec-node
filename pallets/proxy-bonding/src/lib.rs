@@ -40,7 +40,7 @@ pub mod pallet {
 	};
 	use frame_system::pallet_prelude::*;
 	use polimec_common::ProvideAssetPrice;
-	use sp_runtime::{traits::AccountIdConversion, Perbill, TypeId};
+	use sp_runtime::{Perbill, TypeId};
 
 	pub type AssetId = u32;
 	pub type BalanceOf<T> = <<T as Config>::BondingToken as fungible::Inspect<AccountIdOf<T>>>::Balance;
@@ -160,7 +160,7 @@ pub mod pallet {
 			let _caller = ensure_signed(origin)?;
 
 			let treasury = T::Treasury::get();
-			let bonding_account: AccountIdOf<T> = T::RootId::get().into_sub_account_truncating(derivation_path);
+			let bonding_account = Self::get_bonding_account(derivation_path);
 			let now = frame_system::Pallet::<T>::block_number();
 
 			let release_block =
@@ -196,7 +196,7 @@ pub mod pallet {
 		) -> DispatchResult {
 			let _caller = ensure_signed(origin)?;
 			let fee_recipient = T::FeeRecipient::get();
-			let bonding_account: AccountIdOf<T> = T::RootId::get().into_sub_account_truncating(derivation_path);
+			let bonding_account = Self::get_bonding_account(derivation_path);
 			let release_type = Releases::<T>::get(derivation_path, hold_reason).ok_or(Error::<T>::ReleaseTypeNotSet)?;
 			ensure!(release_type != ReleaseType::Refunded, Error::<T>::FeeToRecipientDisallowed);
 
