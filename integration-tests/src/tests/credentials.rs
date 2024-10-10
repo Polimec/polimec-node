@@ -72,9 +72,12 @@ fn dispenser_signed_extensions_pass_for_new_account() {
 			frame_system::CheckTxVersion::<PolimecRuntime>::new(),
 			frame_system::CheckGenesis::<PolimecRuntime>::new(),
 			frame_system::CheckEra::<PolimecRuntime>::from(Era::mortal(0u64, 0u64)),
-			pallet_dispenser::extensions::CheckNonce::<PolimecRuntime>::from(0u32),
+			pallet_dispenser::extensions::CheckNonce::<PolimecRuntime>::from(0),
 			frame_system::CheckWeight::<PolimecRuntime>::new(),
-			pallet_asset_tx_payment::ChargeAssetTxPayment::<PolimecRuntime>::from(0u64.into(), None).into(),
+			pallet_skip_feeless_payment::SkipCheckIfFeeless::<
+				PolimecRuntime,
+				pallet_asset_tx_payment::ChargeAssetTxPayment<PolimecRuntime>,
+			>::from(pallet_asset_tx_payment::ChargeAssetTxPayment::<PolimecRuntime>::from(0u64.into(), None)),
 			frame_metadata_hash_extension::CheckMetadataHash::<PolimecRuntime>::new(true),
 		);
 

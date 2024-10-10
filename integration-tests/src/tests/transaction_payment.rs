@@ -81,16 +81,19 @@ fn fee_paid_with_foreign_assets() {
 		let paid_call_len = paid_call.encode().len();
 		type TxPaymentExtension = pallet_asset_tx_payment::ChargeAssetTxPayment<PolimecRuntime>;
 
-        // Tips are always defined in the native asset, and then converted to the fee asset if the second field is `Some`.
-        // Here a user wants to tip 10 PLMC in USDT.
+		// Tips are always defined in the native asset, and then converted to the fee asset if the second field is `Some`.
+		// Here a user wants to tip 10 PLMC in USDT.
 		let signed_extension = pallet_asset_tx_payment::ChargeAssetTxPayment::<PolimecRuntime>::from(
 			10 * plmc_unit,
 			Some(usdt_multilocation),
 		);
 
 		let dispatch_info = paid_call.get_dispatch_info();
-		let FeeDetails { inclusion_fee, tip } =
-			polimec_runtime::TransactionPayment::compute_fee_details(paid_call_len as u32, &dispatch_info, 10u128 * plmc_unit);
+		let FeeDetails { inclusion_fee, tip } = polimec_runtime::TransactionPayment::compute_fee_details(
+			paid_call_len as u32,
+			&dispatch_info,
+			10u128 * plmc_unit,
+		);
 		let expected_plmc_fee = inclusion_fee.expect("call should charge a fee").inclusion_fee();
 		let expected_plmc_tip = tip;
 
@@ -135,9 +138,7 @@ fn fee_paid_with_foreign_assets() {
 			post_blockchain_operation_treasury_usdt_balance - prev_blockchain_operation_treasury_usdt_balance,
 			expected_usd_fee
 		);
-		assert_eq!(
-			post_blockchain_operation_treasury_plmc_balance, prev_blockchain_operation_treasury_plmc_balance
-		);
+		assert_eq!(post_blockchain_operation_treasury_plmc_balance, prev_blockchain_operation_treasury_plmc_balance);
 		assert_eq!(post_block_author_usdt_balance - prev_block_author_usdt_balance, expected_usd_tip);
 		assert_eq!(post_block_author_plmc_balance, prev_block_author_plmc_balance);
 
@@ -177,9 +178,7 @@ fn fee_paid_with_foreign_assets() {
 
 		assert_eq!(post_alice_usdt_balance, prev_alice_usdt_balance);
 		assert_eq!(prev_alice_plmc_balance - post_alice_plmc_balance, expected_plmc_fee + expected_plmc_tip);
-		assert_eq!(
-			post_blockchain_operation_treasury_usdt_balance, prev_blockchain_operation_treasury_usdt_balance
-		);
+		assert_eq!(post_blockchain_operation_treasury_usdt_balance, prev_blockchain_operation_treasury_usdt_balance);
 		assert_eq!(
 			post_blockchain_operation_treasury_plmc_balance - prev_blockchain_operation_treasury_plmc_balance,
 			expected_plmc_fee

@@ -80,6 +80,7 @@ sp-consensus-aura.workspace = true
 pallet-aura.workspace = true
 pallet-session.workspace = true
 pallet-proxy-bonding.workspace = true
+pallet-skip-feeless-payment.workspace = true
 
 # Runtimes
 polkadot-runtime.workspace = true
@@ -100,7 +101,9 @@ std = [
 	"frame-system/std",
 	"itertools/use_std",
 	"orml-oracle/std",
+	"pallet-asset-tx-payment/std",
 	"pallet-assets/std",
+	"pallet-aura/std",
 	"pallet-balances/std",
 	"pallet-collective/std",
 	"pallet-democracy/std",
@@ -112,7 +115,10 @@ std = [
 	"pallet-membership/std",
 	"pallet-message-queue/std",
 	"pallet-parachain-staking/std",
+	"pallet-proxy-bonding/std",
 	"pallet-scheduler/std",
+	"pallet-session/std",
+	"pallet-skip-feeless-payment/std",
 	"pallet-staking/std",
 	"pallet-transaction-payment/std",
 	"pallet-treasury/std",
@@ -136,6 +142,7 @@ std = [
 	"serde/std",
 	"sp-arithmetic/std",
 	"sp-authority-discovery/std",
+	"sp-consensus-aura/std",
 	"sp-consensus-babe/std",
 	"sp-consensus-beefy/std",
 	"sp-core/std",
@@ -146,10 +153,6 @@ std = [
 	"xcm-builder/std",
 	"xcm-executor/std",
 	"xcm/std",
-	"pallet-asset-tx-payment/std",
-	"pallet-aura/std",
-	"pallet-session/std",
-	"sp-consensus-aura/std"
 ]
 development-settings = [ "polimec-runtime/development-settings" ]
 runtime-benchmarks = [
@@ -158,6 +161,7 @@ runtime-benchmarks = [
 	"frame-support/runtime-benchmarks",
 	"frame-system/runtime-benchmarks",
 	"orml-oracle/runtime-benchmarks",
+	"pallet-asset-tx-payment/runtime-benchmarks",
 	"pallet-assets/runtime-benchmarks",
 	"pallet-balances/runtime-benchmarks",
 	"pallet-collective/runtime-benchmarks",
@@ -170,7 +174,9 @@ runtime-benchmarks = [
 	"pallet-membership/runtime-benchmarks",
 	"pallet-message-queue/runtime-benchmarks",
 	"pallet-parachain-staking/runtime-benchmarks",
+	"pallet-proxy-bonding/runtime-benchmarks",
 	"pallet-scheduler/runtime-benchmarks",
+	"pallet-skip-feeless-payment/runtime-benchmarks",
 	"pallet-staking/runtime-benchmarks",
 	"pallet-treasury/runtime-benchmarks",
 	"pallet-vesting/runtime-benchmarks",
@@ -189,6 +195,5 @@ runtime-benchmarks = [
 	"sp-runtime/runtime-benchmarks",
 	"xcm-builder/runtime-benchmarks",
 	"xcm-executor/runtime-benchmarks",
-	"pallet-asset-tx-payment/runtime-benchmarks"
 ]
 

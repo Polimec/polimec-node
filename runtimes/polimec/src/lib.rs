@@ -149,9 +149,7 @@ pub type SignedExtra = (
 	// https://github.com/paritytech/polkadot-sdk/issues/3991 is resolved.
 	pallet_dispenser::extensions::CheckNonce<Runtime>,
 	frame_system::CheckWeight<Runtime>,
-	// TODO: Use parity's implementation once
-	// https://github.com/paritytech/polkadot-sdk/pull/3993 is available.
-	pallet_dispenser::extensions::SkipCheckIfFeeless<Runtime, pallet_asset_tx_payment::ChargeAssetTxPayment<Runtime>>,
+	pallet_skip_feeless_payment::SkipCheckIfFeeless<Runtime, pallet_asset_tx_payment::ChargeAssetTxPayment<Runtime>>,
 	frame_metadata_hash_extension::CheckMetadataHash<Runtime>,
 );
 
@@ -900,11 +898,10 @@ where
 			// https://github.com/paritytech/polkadot-sdk/issues/3991 is resolved.
 			pallet_dispenser::extensions::CheckNonce::<Runtime>::from(nonce),
 			frame_system::CheckWeight::<Runtime>::new(),
-			// TODO: Use parity's implementation once
-			// https://github.com/paritytech/polkadot-sdk/pull/3993 is available.
-			pallet_dispenser::extensions::SkipCheckIfFeeless::from(pallet_asset_tx_payment::ChargeAssetTxPayment::<
+			pallet_skip_feeless_payment::SkipCheckIfFeeless::<
 				Runtime,
-			>::from(tip, None)),
+				pallet_asset_tx_payment::ChargeAssetTxPayment<Runtime>,
+			>::from(pallet_asset_tx_payment::ChargeAssetTxPayment::<Runtime>::from(tip, None)),
 			frame_metadata_hash_extension::CheckMetadataHash::<Runtime>::new(true),
 		);
 		let raw_payload = generic::SignedPayload::new(call, extra)
@@ -1196,6 +1193,10 @@ impl pallet_asset_tx_payment::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 }
 
+impl pallet_skip_feeless_payment::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+}
+
 // Create the runtime by composing the FRAME pallets that were previously configured.
 construct_runtime!(
 	pub enum Runtime
@@ -1210,6 +1211,7 @@ construct_runtime!(
 		Multisig: pallet_multisig::{Pallet, Call, Storage, Event<T>} = 6,
 		Proxy: pallet_proxy::{Pallet, Call, Storage, Event<T>} = 7,
 		Identity: pallet_identity::{Pallet, Call, Storage, Event<T>} = 8,
+		SkipFeelessPayment: pallet_skip_feeless_payment = 9,
 
 		// Monetary stuff.
 		Balances: pallet_balances = 10,
