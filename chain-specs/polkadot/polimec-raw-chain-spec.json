@@ -12,7 +12,9 @@
     "/dns/polimec.boot.stake.plus/tcp/30332/wss/p2p/12D3KooWFq12Wd69TRzwLy3gFx33JDEoJqMxpZ7ApYAPSLHGfXM8",
     "/dns/polimec.boot.stake.plus/tcp/31332/wss/p2p/12D3KooWDb6fapSji27VZKN2MseDjV4EfmSNQiNVLBTBqb5ueDZk",
     "/dns/polimec-boot-ng.dwellir.com/tcp/443/wss/p2p/12D3KooWDWbXpHidJLEqpUwyttAfkFubUxDN4APsFi9gUutxSoqm",
-    "/dns/polimec-boot-ng.dwellir.com/tcp/30370/p2p/12D3KooWDWbXpHidJLEqpUwyttAfkFubUxDN4APsFi9gUutxSoqm"
+    "/dns/polimec-boot-ng.dwellir.com/tcp/30370/p2p/12D3KooWDWbXpHidJLEqpUwyttAfkFubUxDN4APsFi9gUutxSoqm",
+    "/dns/polimec-bootnode.radiumblock.com/tcp/30333/p2p/12D3KooWEKBtb1JcCewtTtCJKQq5EXTs3qe4mNLMHGG71kGAaK63",
+    "/dns/polimec-bootnode.radiumblock.com/tcp/30336/wss/p2p/12D3KooWEKBtb1JcCewtTtCJKQq5EXTs3qe4mNLMHGG71kGAaK63"
   ],
   "telemetryEndpoints": null,
   "protocolId": "polimec",
