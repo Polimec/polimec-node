@@ -149,7 +149,7 @@ fn refunded_outcome() {
 			Error::<TestRuntime>::FeeToRecipientDisallowed
 		);
 
-		assert_ok!(ProxyBonding::refund_fee(derivation_path, hold_reason.clone(), user, bond_amount, fee_asset));
+		assert_ok!(ProxyBonding::refund_fee(derivation_path, &user, bond_amount, fee_asset));
 		assert_eq!(<Assets as FungiblesInspect<u64>>::balance(fee_asset, &user), 100 + expected_fee);
 	});
 }

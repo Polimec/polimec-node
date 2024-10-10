@@ -445,7 +445,7 @@ pub mod polimec {
 			let dot = (AcceptedFundingAsset::DOT.id(), prices.dot);
 			let usdc = (AcceptedFundingAsset::USDC.id(), prices.usdc);
 			let usdt = (AcceptedFundingAsset::USDT.id(), prices.usdt);
-			let plmc = (pallet_funding::PLMC_FOREIGN_ID, prices.plmc);
+			let plmc = (polimec_common::PLMC_FOREIGN_ID, prices.plmc);
 
 			let values: BoundedVec<(u32, FixedU128), <PolimecRuntime as orml_oracle::Config>::MaxFeedValues> =
 				vec![dot, usdc, usdt, plmc].try_into().expect("benchmarks can panic");
@@ -501,8 +501,10 @@ pub mod polimec {
 
 		funded_accounts.extend(accounts::init_balances().iter().cloned().map(|k| (k, INITIAL_DEPOSIT)));
 		funded_accounts.extend(collators::initial_authorities().iter().cloned().map(|(acc, _)| (acc, 20_005 * PLMC)));
-		funded_accounts.push((TreasuryAccount::get(), 20_005 * PLMC));
+		funded_accounts.push((TreasuryAccount::get(), 20_000_000 * PLMC));
 		funded_accounts.push((BlockchainOperationTreasury::get(), 20_005 * PLMC));
+		/// Treasury account needs PLMC for the One Token Model participations
+		funded_accounts.push((polimec_runtime::FeeRecipient::get(), INITIAL_DEPOSIT));
 
 		let genesis_config = polimec_runtime::RuntimeGenesisConfig {
 			system: Default::default(),
@@ -510,20 +512,16 @@ pub mod polimec {
 			contribution_tokens: Default::default(),
 			foreign_assets: polimec_runtime::ForeignAssetsConfig {
 				assets: vec![
-					(dot_asset_id, alice_account.clone(), true, 0_0_010_000_000u128),
-					(usdt_asset_id, alice_account.clone(), true, 0_0_010_000_000u128),
-					(usdc_asset_id, alice_account.clone(), true, 0_0_010_000_000u128),
+					(dot_asset_id, alice_account.clone(), true, 100_000_000),
+					(usdt_asset_id, alice_account.clone(), true, 70_000),
+					(usdc_asset_id, alice_account.clone(), true, 70_000),
 				],
 				metadata: vec![
 					(dot_asset_id, "Local DOT".as_bytes().to_vec(), "DOT".as_bytes().to_vec(), 10),
 					(usdt_asset_id, "Local USDT".as_bytes().to_vec(), "USDT".as_bytes().to_vec(), 6),
 					(usdc_asset_id, "Local USDC".as_bytes().to_vec(), "USDC".as_bytes().to_vec(), 6),
 				],
-				accounts: vec![
-					(dot_asset_id, TreasuryAccount::get(), 0_0_010_000_000u128),
-					(usdt_asset_id, TreasuryAccount::get(), 0_0_010_000_000u128),
-					(usdc_asset_id, TreasuryAccount::get(), 0_0_010_000_000u128),
-				],
+				accounts: vec![],
 			},
 			parachain_info: polimec_runtime::ParachainInfoConfig { parachain_id: PARA_ID.into(), ..Default::default() },
 			session: polimec_runtime::SessionConfig {

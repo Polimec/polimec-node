@@ -246,57 +246,32 @@ pub struct BidParams<T: Config> {
 	pub asset: AcceptedFundingAsset,
 }
 impl<T: Config> BidParams<T> {
-	pub fn new(bidder: AccountIdOf<T>, amount: Balance, multiplier: u8, asset: AcceptedFundingAsset) -> Self {
-		Self { bidder, amount, multiplier: multiplier.try_into().map_err(|_| ()).unwrap(), asset }
+	pub fn new(bidder: AccountIdOf<T>, amount: Balance, mode: ParticipationMode, asset: AcceptedFundingAsset) -> Self {
+		Self { bidder, amount, mode, asset }
 	}
 
 	pub fn new_with_defaults(bidder: AccountIdOf<T>, amount: Balance) -> Self {
-		Self {
-			bidder,
-			amount,
-			multiplier: 1u8.try_into().unwrap_or_else(|_| panic!("multiplier could not be created from 1u8")),
-			asset: AcceptedFundingAsset::USDT,
-		}
+		Self { bidder, amount, mode: ParticipationMode::Classic(1u8), asset: AcceptedFundingAsset::USDT }
 	}
 }
 impl<T: Config> From<(AccountIdOf<T>, Balance)> for BidParams<T> {
 	fn from((bidder, amount): (AccountIdOf<T>, Balance)) -> Self {
-		Self {
-			bidder,
-			amount,
-			multiplier: 1u8.try_into().unwrap_or_else(|_| panic!("multiplier could not be created from 1u8")),
-			asset: AcceptedFundingAsset::USDT,
-		}
+		Self { bidder, amount, mode: ParticipationMode::Classic(1u8), asset: AcceptedFundingAsset::USDT }
 	}
 }
-impl<T: Config> From<(AccountIdOf<T>, Balance, u8)> for BidParams<T> {
-	fn from((bidder, amount, multiplier): (AccountIdOf<T>, Balance, u8)) -> Self {
-		Self {
-			bidder,
-			amount,
-			multiplier: multiplier.try_into().unwrap_or_else(|_| panic!("Failed to create multiplier")),
-			asset: AcceptedFundingAsset::USDT,
-		}
+impl<T: Config> From<(AccountIdOf<T>, Balance, ParticipationMode)> for BidParams<T> {
+	fn from((bidder, amount, mode): (AccountIdOf<T>, Balance, ParticipationMode)) -> Self {
+		Self { bidder, amount, mode, asset: AcceptedFundingAsset::USDT }
 	}
 }
-impl<T: Config> From<(AccountIdOf<T>, Balance, u8, AcceptedFundingAsset)> for BidParams<T> {
-	fn from((bidder, amount, multiplier, asset): (AccountIdOf<T>, Balance, u8, AcceptedFundingAsset)) -> Self {
-		Self {
-			bidder,
-			amount,
-			multiplier: multiplier.try_into().unwrap_or_else(|_| panic!("Failed to create multiplier")),
-			asset,
-		}
+impl<T: Config> From<(AccountIdOf<T>, Balance, ParticipationMode, AcceptedFundingAsset)> for BidParams<T> {
+	fn from((bidder, amount, mode, asset): (AccountIdOf<T>, Balance, ParticipationMode, AcceptedFundingAsset)) -> Self {
+		Self { bidder, amount, mode, asset }
 	}
 }
 impl<T: Config> From<(AccountIdOf<T>, Balance, AcceptedFundingAsset)> for BidParams<T> {
 	fn from((bidder, amount, asset): (AccountIdOf<T>, Balance, AcceptedFundingAsset)) -> Self {
-		Self {
-			bidder,
-			amount,
-			multiplier: 1u8.try_into().unwrap_or_else(|_| panic!("multiplier could not be created from 1u8")),
-			asset,
-		}
+		Self { bidder, amount, mode: ParticipationMode::Classic(1u8), asset }
 	}
 }
 

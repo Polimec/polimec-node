@@ -2,7 +2,7 @@ extern crate alloc;
 use super::{mock::*, *};
 use frame_support::{
 	assert_ok,
-	traits::tokens::fungible::{BalancedHold, Inspect, Mutate, MutateHold},
+	traits::tokens::fungible::{BalancedHold, Mutate, MutateHold},
 };
 use mock::{Balances as PalletBalances, System as PalletSystem, Vesting as PalletVesting};
 use pallet_balances::AccountData;
@@ -25,7 +25,7 @@ fn one_schedule() {
 		assert_eq!(PalletBalances::usable_balance(1), 20);
 
 		// Slash 30
-		<PalletBalances as BalancedHold<u64>>::slash(&MockRuntimeHoldReason::Reason, &1u64, 30u128);
+		let _ = <PalletBalances as BalancedHold<u64>>::slash(&MockRuntimeHoldReason::Reason, &1u64, 30u128);
 		<PalletVesting as OnSlash<u64, u128>>::on_slash(&1, 30);
 
 		// After calling on_slash, the previously unlocked 20 should be available again
@@ -65,7 +65,7 @@ fn multiple_schedules() {
 		assert_ok!(PalletVesting::vest(RuntimeOrigin::signed(1)));
 		assert_eq!(PalletBalances::usable_balance(1), 200);
 
-		<PalletBalances as BalancedHold<u64>>::slash(&MockRuntimeHoldReason::Reason, &1u64, 65u128);
+		let _ = <PalletBalances as BalancedHold<u64>>::slash(&MockRuntimeHoldReason::Reason, &1u64, 65u128);
 		<PalletVesting as OnSlash<u64, u128>>::on_slash(&1, 65);
 
 		let schedules = <pallet_vesting::Vesting<TestRuntime>>::get(1).unwrap().to_vec();

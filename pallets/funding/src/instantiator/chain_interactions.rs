@@ -145,7 +145,9 @@ impl<
 	pub fn mint_plmc_to(&mut self, mapping: Vec<UserToPLMCBalance<T>>) {
 		self.execute(|| {
 			for UserToPLMCBalance { account, plmc_amount } in mapping {
-				<T as Config>::NativeCurrency::mint_into(&account, plmc_amount).expect("Minting should work");
+				if plmc_amount > Zero::zero() {
+					<T as Config>::NativeCurrency::mint_into(&account, plmc_amount).expect("Minting should work");
+				}
 			}
 		});
 	}

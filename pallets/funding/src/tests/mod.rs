@@ -18,6 +18,7 @@ use sp_arithmetic::{traits::Zero, Percent, Perquintill};
 use sp_runtime::TokenError;
 use sp_std::cell::RefCell;
 use std::iter::zip;
+use ParticipationMode::{Classic, OTM};
 
 #[path = "1_application.rs"]
 mod application;
@@ -198,20 +199,20 @@ pub mod defaults {
 
 	pub fn default_bids() -> Vec<BidParams<TestRuntime>> {
 		vec![
-			BidParams::new(BIDDER_1, 400_000 * CT_UNIT, 1u8, AcceptedFundingAsset::USDT),
-			BidParams::new(BIDDER_2, 50_000 * CT_UNIT, 1u8, AcceptedFundingAsset::USDT),
+			BidParams::new(BIDDER_1, 400_000 * CT_UNIT, ParticipationMode::Classic(1u8), AcceptedFundingAsset::USDT),
+			BidParams::new(BIDDER_2, 50_000 * CT_UNIT, ParticipationMode::OTM, AcceptedFundingAsset::USDT),
 		]
 	}
 
 	pub fn knowledge_hub_bids() -> Vec<BidParams<TestRuntime>> {
 		// This should reflect the bidding currency, which currently is USDT
 		vec![
-			BidParams::new(BIDDER_1, 10_000 * CT_UNIT, 1u8, AcceptedFundingAsset::USDT),
-			BidParams::new(BIDDER_2, 20_000 * CT_UNIT, 1u8, AcceptedFundingAsset::USDT),
-			BidParams::new(BIDDER_3, 20_000 * CT_UNIT, 1u8, AcceptedFundingAsset::USDT),
-			BidParams::new(BIDDER_4, 10_000 * CT_UNIT, 1u8, AcceptedFundingAsset::USDT),
-			BidParams::new(BIDDER_5, 5_000 * CT_UNIT, 1u8, AcceptedFundingAsset::USDT),
-			BidParams::new(BIDDER_6, 5_000 * CT_UNIT, 1u8, AcceptedFundingAsset::USDT),
+			BidParams::new(BIDDER_1, 10_000 * CT_UNIT, ParticipationMode::Classic(1u8), AcceptedFundingAsset::USDT),
+			BidParams::new(BIDDER_2, 20_000 * CT_UNIT, ParticipationMode::Classic(1u8), AcceptedFundingAsset::USDT),
+			BidParams::new(BIDDER_3, 20_000 * CT_UNIT, ParticipationMode::Classic(1u8), AcceptedFundingAsset::USDT),
+			BidParams::new(BIDDER_4, 10_000 * CT_UNIT, ParticipationMode::Classic(1u8), AcceptedFundingAsset::USDT),
+			BidParams::new(BIDDER_5, 5_000 * CT_UNIT, ParticipationMode::Classic(1u8), AcceptedFundingAsset::USDT),
+			BidParams::new(BIDDER_6, 5_000 * CT_UNIT, ParticipationMode::Classic(1u8), AcceptedFundingAsset::USDT),
 		]
 	}
 
@@ -226,27 +227,17 @@ pub mod defaults {
 			ContributionParams::new(
 				BUYER_2,
 				130_000 * CT_UNIT,
-				ParticipationMode::Classic(1u8),
+				ParticipationMode::Classic(5u8),
 				AcceptedFundingAsset::USDT,
 			),
-			ContributionParams::new(
-				BUYER_3,
-				30_000 * CT_UNIT,
-				ParticipationMode::Classic(1u8),
-				AcceptedFundingAsset::USDT,
-			),
+			ContributionParams::new(BUYER_3, 30_000 * CT_UNIT, ParticipationMode::OTM, AcceptedFundingAsset::USDT),
 			ContributionParams::new(
 				BUYER_4,
 				210_000 * CT_UNIT,
-				ParticipationMode::Classic(1u8),
+				ParticipationMode::Classic(3u8),
 				AcceptedFundingAsset::USDT,
 			),
-			ContributionParams::new(
-				BUYER_5,
-				10_000 * CT_UNIT,
-				ParticipationMode::Classic(1u8),
-				AcceptedFundingAsset::USDT,
-			),
+			ContributionParams::new(BUYER_5, 10_000 * CT_UNIT, ParticipationMode::OTM, AcceptedFundingAsset::USDT),
 		]
 	}
 
@@ -264,12 +255,7 @@ pub mod defaults {
 				ParticipationMode::Classic(1u8),
 				AcceptedFundingAsset::USDT,
 			),
-			ContributionParams::new(
-				BIDDER_1,
-				30_000 * CT_UNIT,
-				ParticipationMode::Classic(1u8),
-				AcceptedFundingAsset::USDT,
-			),
+			ContributionParams::new(BIDDER_1, 30_000 * CT_UNIT, ParticipationMode::OTM, AcceptedFundingAsset::USDT),
 		]
 	}
 
@@ -340,17 +326,17 @@ pub mod defaults {
 	pub fn default_bidders() -> Vec<AccountId> {
 		vec![BIDDER_1, BIDDER_2, BIDDER_3, BIDDER_4, BIDDER_5]
 	}
-	pub fn default_multipliers() -> Vec<u8> {
-		vec![1u8, 1u8, 1u8, 1u8, 1u8]
+	pub fn default_modes() -> Vec<ParticipationMode> {
+		vec![Classic(1u8), Classic(1u8), Classic(1u8), OTM, OTM]
 	}
-	pub fn default_bidder_multipliers() -> Vec<u8> {
-		vec![10u8, 3u8, 8u8, 1u8, 4u8]
+	pub fn default_bidder_modes() -> Vec<ParticipationMode> {
+		vec![Classic(10u8), OTM, Classic(8u8), OTM, Classic(4u8)]
 	}
-	pub fn default_community_contributor_multipliers() -> Vec<u8> {
-		vec![1u8, 1u8, 1u8, 1u8, 1u8]
+	pub fn default_community_contributor_modes() -> Vec<ParticipationMode> {
+		vec![Classic(1u8), Classic(1u8), OTM, Classic(1u8), OTM]
 	}
-	pub fn default_remainder_contributor_multipliers() -> Vec<u8> {
-		vec![1u8, 1u8, 1u8, 1u8, 1u8]
+	pub fn default_remainder_contributor_modes() -> Vec<ParticipationMode> {
+		vec![Classic(1u8), Classic(1u8), Classic(1u8), OTM, Classic(1u8)]
 	}
 
 	pub fn default_community_contributors() -> Vec<AccountId> {
@@ -385,14 +371,14 @@ pub mod defaults {
 			min_price,
 			default_weights(),
 			default_bidders(),
-			default_multipliers(),
+			default_modes(),
 		);
 		let contributions = instantiator.generate_contributions_from_total_usd(
 			Percent::from_percent(50u8) * usd_to_reach,
 			min_price,
 			default_weights(),
 			default_community_contributors(),
-			default_multipliers(),
+			default_modes(),
 		);
 		instantiator.create_finished_project(project_metadata, ISSUER_1, None, evaluations, bids, contributions, vec![])
 	}
@@ -406,7 +392,7 @@ pub mod defaults {
 			percent,
 			default_weights(),
 			default_bidders(),
-			default_bidder_multipliers(),
+			default_bidder_modes(),
 		)
 	}
 
@@ -419,7 +405,7 @@ pub mod defaults {
 			percent,
 			default_weights(),
 			default_community_contributors(),
-			default_community_contributor_multipliers(),
+			default_community_contributor_modes(),
 		)
 	}
 
@@ -432,7 +418,7 @@ pub mod defaults {
 			percent,
 			default_weights(),
 			default_remainder_contributors(),
-			default_remainder_contributor_multipliers(),
+			default_remainder_contributor_modes(),
 		)
 	}
 }
@@ -452,14 +438,14 @@ pub fn create_project_with_funding_percentage(
 		min_price,
 		default_weights(),
 		default_bidders(),
-		default_multipliers(),
+		default_modes(),
 	);
 	let contributions = inst.generate_contributions_from_total_usd(
 		Percent::from_percent(50u8) * percentage_funded_usd,
 		min_price,
 		default_weights(),
 		default_community_contributors(),
-		default_multipliers(),
+		default_modes(),
 	);
 	let project_id =
 		inst.create_finished_project(project_metadata, ISSUER_1, None, evaluations, bids, contributions, vec![]);
@@ -482,7 +468,7 @@ pub fn create_finished_project_with_usd_raised(
 	usd_raised: Balance,
 	usd_target: Balance,
 ) -> (MockInstantiator, ProjectId) {
-	let issuer = inst.get_new_nonce() as u32;
+	let issuer = inst.get_new_nonce();
 	let mut project_metadata = default_project_metadata(issuer);
 	project_metadata.total_allocation_size =
 		project_metadata.minimum_price.reciprocal().unwrap().saturating_mul_int(usd_target);
@@ -505,7 +491,7 @@ pub fn create_finished_project_with_usd_raised(
 
 	let evaluations = default_evaluations();
 
-	let bids = inst.generate_bids_that_take_price_to(project_metadata.clone(), required_price, 420, |acc| acc + 1u32);
+	let bids = inst.generate_bids_that_take_price_to(project_metadata.clone(), required_price, 420, |acc| acc + 1);
 
 	let project_id = inst.create_community_contributing_project(project_metadata, issuer, None, evaluations, bids);
 
@@ -520,7 +506,7 @@ pub fn create_finished_project_with_usd_raised(
 		wap,
 		default_weights(),
 		default_community_contributors(),
-		default_multipliers(),
+		default_modes(),
 	);
 	let plmc_required = inst.calculate_contributed_plmc_spent(community_contributions.clone(), required_price, true);
 	let usdt_required = inst.calculate_contributed_funding_asset_spent(community_contributions.clone(), required_price);

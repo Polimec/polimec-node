@@ -1,13 +1,10 @@
 use crate::{AccountIdOf, AssetId, BalanceOf, Config, Error, Pallet, PriceProviderOf, ReleaseType, Releases};
-use frame_support::{
-	ensure,
-	traits::{
-		fungible,
-		fungible::{Inspect, Mutate, MutateHold},
-		fungibles,
-		fungibles::Mutate as FungiblesMutate,
-		tokens::{Fortitude, Precision, Preservation},
-	},
+use frame_support::traits::{
+	fungible,
+	fungible::{Inspect, Mutate, MutateHold},
+	fungibles,
+	fungibles::Mutate as FungiblesMutate,
+	tokens::{Fortitude, Precision, Preservation},
 };
 use frame_system::pallet_prelude::BlockNumberFor;
 use polimec_common::ProvideAssetPrice;
@@ -91,19 +88,16 @@ impl<T: Config> Pallet<T> {
 		Releases::<T>::insert(derivation_path, hold_reason, release_type);
 	}
 
-	/// Refund the fee paid by a user to lock up some treasury tokens. It is this function's caller responsibility to ensure that the fee is not refunded twice.
+	/// Refund the fee paid by a user to lock up some treasury tokens. It is this function's caller responsibility to
+	/// ensure that the fee should be refunded, and is not refunded twice
 	pub fn refund_fee(
 		derivation_path: u32,
-		hold_reason: T::RuntimeHoldReason,
 		account: &T::AccountId,
 		bond_amount: BalanceOf<T>,
 		fee_asset: AssetId,
 	) -> Result<(), DispatchError> {
 		let bonding_account: AccountIdOf<T> = T::RootId::get().into_sub_account_truncating(derivation_path);
 		let fee_in_fee_asset = Self::calculate_fee(bond_amount, fee_asset)?;
-		let release_type = Releases::<T>::get(derivation_path, hold_reason).ok_or(Error::<T>::ReleaseTypeNotSet)?;
-
-		ensure!(release_type == ReleaseType::Refunded, Error::<T>::FeeRefundDisallowed);
 
 		// We know this fee token account is existing thanks to the provider reference of the ED of the native asset, so we can fully move all the funds.
 		// FYI same cannot be said of the `account`. We assume they only hold the fee token so their fee asset balance must not go below the min_balance.

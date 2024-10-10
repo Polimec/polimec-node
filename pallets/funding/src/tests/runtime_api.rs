@@ -363,7 +363,7 @@ fn funding_asset_to_ct_amount() {
 		PriceProviderOf::<TestRuntime>::calculate_decimals_aware_price(new_price, USD_DECIMALS, CT_DECIMALS).unwrap();
 
 	let bids =
-		inst.generate_bids_that_take_price_to(project_metadata_2.clone(), decimal_aware_price, 420u32, |acc| acc + 1);
+		inst.generate_bids_that_take_price_to(project_metadata_2.clone(), decimal_aware_price, 420, |acc| acc + 1);
 	let project_id_2 = inst.create_community_contributing_project(
 		project_metadata_2.clone(),
 		ISSUER_2,
@@ -403,7 +403,7 @@ fn funding_asset_to_ct_amount() {
 	let bids = inst.generate_bids_from_bucket(
 		project_metadata_3.clone(),
 		bucket,
-		420u32,
+		420,
 		|acc| acc + 1,
 		AcceptedFundingAsset::USDT,
 	);
@@ -478,9 +478,9 @@ fn get_next_vesting_schedule_merge_candidates() {
 		UserToUSDBalance::new(BIDDER_1, 320_000 * USD_UNIT),
 	];
 	let bids = vec![
-		BidParams::new(BIDDER_1, 50_000 * CT_UNIT, 10u8, AcceptedFundingAsset::USDT),
-		BidParams::new(BIDDER_1, 400_000 * CT_UNIT, 5u8, AcceptedFundingAsset::USDT),
-		BidParams::new(BIDDER_2, 50_000 * CT_UNIT, 1u8, AcceptedFundingAsset::USDT),
+		BidParams::new(BIDDER_1, 50_000 * CT_UNIT, ParticipationMode::Classic(10u8), AcceptedFundingAsset::USDT),
+		BidParams::new(BIDDER_1, 400_000 * CT_UNIT, ParticipationMode::Classic(5u8), AcceptedFundingAsset::USDT),
+		BidParams::new(BIDDER_2, 50_000 * CT_UNIT, ParticipationMode::Classic(1u8), AcceptedFundingAsset::USDT),
 	];
 	let remaining_contributions = vec![
 		ContributionParams::new(BIDDER_1, 1_000 * CT_UNIT, ParticipationMode::Classic(5u8), AcceptedFundingAsset::USDT),
@@ -564,8 +564,8 @@ fn all_project_participations_by_did() {
 		UserToUSDBalance::new(EVALUATOR_3, 320_000 * USD_UNIT),
 	];
 	let bids = vec![
-		BidParams::new(BIDDER_1, 400_000 * CT_UNIT, 1u8, AcceptedFundingAsset::USDT),
-		BidParams::new(BIDDER_2, 50_000 * CT_UNIT, 1u8, AcceptedFundingAsset::USDT),
+		BidParams::new(BIDDER_1, 400_000 * CT_UNIT, ParticipationMode::Classic(1u8), AcceptedFundingAsset::USDT),
+		BidParams::new(BIDDER_2, 50_000 * CT_UNIT, ParticipationMode::Classic(1u8), AcceptedFundingAsset::USDT),
 	];
 	let community_contributions = vec![
 		ContributionParams::new(BUYER_1, 50_000 * CT_UNIT, ParticipationMode::Classic(1u8), AcceptedFundingAsset::USDT),
@@ -657,15 +657,8 @@ fn all_project_participations_by_did() {
 	for bid in bids[1..].to_vec() {
 		let jwt = get_mock_jwt_with_cid(bid.bidder, InvestorType::Institutional, did_user.clone(), cid.clone());
 		inst.execute(|| {
-			PolimecFunding::bid(
-				RuntimeOrigin::signed(bid.bidder),
-				jwt,
-				project_id,
-				bid.amount,
-				bid.multiplier,
-				bid.asset,
-			)
-			.unwrap();
+			PolimecFunding::bid(RuntimeOrigin::signed(bid.bidder), jwt, project_id, bid.amount, bid.mode, bid.asset)
+				.unwrap();
 		});
 	}
 
