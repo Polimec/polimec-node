@@ -242,7 +242,7 @@ where
 		// Calculate how much refund we should return.
 		let (final_fee, refund) = paid.split(converted_fee);
 		// Split the tip from the fee
-		let (final_fee_minus_tip, final_tip) = final_fee.split(converted_tip);
+		let (final_tip, final_fee_minus_tip) = final_fee.split(converted_tip);
 
 		let _ = <Runtime::Fungibles as fungibles::Balanced<Runtime::AccountId>>::resolve(who, refund);
 

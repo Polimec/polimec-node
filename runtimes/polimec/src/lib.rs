@@ -26,7 +26,6 @@ use cumulus_primitives_core::{AggregateMessageOrigin, ParaId};
 use frame_support::{
 	construct_runtime,
 	genesis_builder_helper::{build_state, get_preset},
-	instances::Instance1,
 	ord_parameter_types, parameter_types,
 	traits::{
 		fungible::{Credit, HoldConsideration, Inspect},
@@ -94,8 +93,7 @@ use polimec_common::{ProvideAssetPrice, USD_UNIT};
 #[cfg(any(feature = "std", test))]
 pub use sp_runtime::BuildStorage;
 use sp_runtime::{
-	traits::{DispatchInfoOf, PostDispatchInfoOf},
-	transaction_validity::{InvalidTransaction, TransactionValidityError},
+	transaction_validity::{InvalidTransaction},
 };
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmark_helpers;
@@ -152,10 +150,7 @@ pub type SignedExtra = (
 	frame_system::CheckWeight<Runtime>,
 	// TODO: Use parity's implementation once
 	// https://github.com/paritytech/polkadot-sdk/pull/3993 is available.
-	pallet_dispenser::extensions::SkipCheckIfFeeless<
-		Runtime,
-		pallet_transaction_payment::ChargeTransactionPayment<Runtime>,
-	>,
+	pallet_dispenser::extensions::SkipCheckIfFeeless<Runtime, pallet_asset_tx_payment::ChargeAssetTxPayment<Runtime>>,
 	frame_metadata_hash_extension::CheckMetadataHash<Runtime>,
 );
 
@@ -906,9 +901,9 @@ where
 			frame_system::CheckWeight::<Runtime>::new(),
 			// TODO: Use parity's implementation once
 			// https://github.com/paritytech/polkadot-sdk/pull/3993 is available.
-			pallet_dispenser::extensions::SkipCheckIfFeeless::from(
-				pallet_transaction_payment::ChargeTransactionPayment::<Runtime>::from(tip),
-			),
+			pallet_dispenser::extensions::SkipCheckIfFeeless::from(pallet_asset_tx_payment::ChargeAssetTxPayment::<
+				Runtime,
+			>::from(tip, None)),
 			frame_metadata_hash_extension::CheckMetadataHash::<Runtime>::new(true),
 		);
 		let raw_payload = generic::SignedPayload::new(call, extra)
