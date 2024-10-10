@@ -60,16 +60,8 @@ impl<T: Config> Pallet<T> {
 	#[transactional]
 	pub fn do_bid(params: DoBidParams<T>) -> DispatchResultWithPostInfo {
 		// * Get variables *
-		let DoBidParams {
-			bidder,
-			project_id,
-			ct_amount,
-			multiplier,
-			funding_asset,
-			investor_type,
-			did,
-			whitelisted_policy,
-		} = params;
+		let DoBidParams { bidder, project_id, ct_amount, mode, funding_asset, investor_type, did, whitelisted_policy } =
+			params;
 		let project_metadata = ProjectsMetadata::<T>::get(project_id).ok_or(Error::<T>::ProjectMetadataNotFound)?;
 		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 
@@ -120,7 +112,7 @@ impl<T: Config> Pallet<T> {
 			metadata_ticket_size_bounds.usd_ticket_above_minimum_per_participation(min_total_ticket_size),
 			Error::<T>::TooLow
 		);
-		ensure!(multiplier.into() <= max_multiplier && multiplier.into() > 0u8, Error::<T>::ForbiddenMultiplier);
+		ensure!(mode.multiplier() <= max_multiplier && mode.multiplier() > 0u8, Error::<T>::ForbiddenMultiplier);
 
 		// Note: We limit the CT Amount to the auction allocation size, to avoid long-running loops.
 		ensure!(
@@ -145,7 +137,7 @@ impl<T: Config> Pallet<T> {
 				project_id,
 				ct_amount,
 				ct_usd_price: current_bucket.current_price,
-				multiplier,
+				mode,
 				funding_asset,
 				bid_id,
 				now,
@@ -179,7 +171,7 @@ impl<T: Config> Pallet<T> {
 			project_id,
 			ct_amount,
 			ct_usd_price,
-			multiplier,
+			mode,
 			funding_asset,
 			bid_id,
 			now,
@@ -191,6 +183,7 @@ impl<T: Config> Pallet<T> {
 
 		let ticket_size = ct_usd_price.checked_mul_int(ct_amount).ok_or(Error::<T>::BadMath)?;
 		let total_usd_bid_by_did = AuctionBoughtUSD::<T>::get((project_id, did.clone()));
+		let multiplier: MultiplierOf<T> = mode.multiplier().try_into().map_err(|_| Error::<T>::BadMath)?;
 
 		ensure!(
 			metadata_ticket_size_bounds
@@ -214,12 +207,12 @@ impl<T: Config> Pallet<T> {
 			original_ct_usd_price: ct_usd_price,
 			funding_asset,
 			funding_asset_amount_locked,
-			multiplier,
+			mode,
 			plmc_bond,
 			when: now,
 		};
 
-		Self::try_plmc_participation_lock(&bidder, project_id, plmc_bond)?;
+		Self::bond_plmc_with_mode(&bidder, project_id, plmc_bond, mode, funding_asset)?;
 		Self::try_funding_asset_hold(&bidder, project_id, funding_asset_amount_locked, funding_asset.id())?;
 
 		Bids::<T>::insert((project_id, bidder.clone(), bid_id), &new_bid);
@@ -236,7 +229,7 @@ impl<T: Config> Pallet<T> {
 			funding_asset,
 			funding_amount: funding_asset_amount_locked,
 			plmc_bond,
-			multiplier,
+			mode,
 		});
 
 		Ok(new_bid)

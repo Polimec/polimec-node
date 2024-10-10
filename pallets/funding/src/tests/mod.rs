@@ -217,31 +217,106 @@ pub mod defaults {
 
 	pub fn default_community_contributions() -> Vec<ContributionParams<TestRuntime>> {
 		vec![
-			ContributionParams::new(BUYER_1, 50_000 * CT_UNIT, 1u8, AcceptedFundingAsset::USDT),
-			ContributionParams::new(BUYER_2, 130_000 * CT_UNIT, 1u8, AcceptedFundingAsset::USDT),
-			ContributionParams::new(BUYER_3, 30_000 * CT_UNIT, 1u8, AcceptedFundingAsset::USDT),
-			ContributionParams::new(BUYER_4, 210_000 * CT_UNIT, 1u8, AcceptedFundingAsset::USDT),
-			ContributionParams::new(BUYER_5, 10_000 * CT_UNIT, 1u8, AcceptedFundingAsset::USDT),
+			ContributionParams::new(
+				BUYER_1,
+				50_000 * CT_UNIT,
+				ParticipationMode::Classic(1u8),
+				AcceptedFundingAsset::USDT,
+			),
+			ContributionParams::new(
+				BUYER_2,
+				130_000 * CT_UNIT,
+				ParticipationMode::Classic(1u8),
+				AcceptedFundingAsset::USDT,
+			),
+			ContributionParams::new(
+				BUYER_3,
+				30_000 * CT_UNIT,
+				ParticipationMode::Classic(1u8),
+				AcceptedFundingAsset::USDT,
+			),
+			ContributionParams::new(
+				BUYER_4,
+				210_000 * CT_UNIT,
+				ParticipationMode::Classic(1u8),
+				AcceptedFundingAsset::USDT,
+			),
+			ContributionParams::new(
+				BUYER_5,
+				10_000 * CT_UNIT,
+				ParticipationMode::Classic(1u8),
+				AcceptedFundingAsset::USDT,
+			),
 		]
 	}
 
 	pub fn default_remainder_contributions() -> Vec<ContributionParams<TestRuntime>> {
 		vec![
-			ContributionParams::new(EVALUATOR_2, 20_000 * CT_UNIT, 1u8, AcceptedFundingAsset::USDT),
-			ContributionParams::new(BUYER_2, 5_000 * CT_UNIT, 1u8, AcceptedFundingAsset::USDT),
-			ContributionParams::new(BIDDER_1, 30_000 * CT_UNIT, 1u8, AcceptedFundingAsset::USDT),
+			ContributionParams::new(
+				EVALUATOR_2,
+				20_000 * CT_UNIT,
+				ParticipationMode::Classic(1u8),
+				AcceptedFundingAsset::USDT,
+			),
+			ContributionParams::new(
+				BUYER_2,
+				5_000 * CT_UNIT,
+				ParticipationMode::Classic(1u8),
+				AcceptedFundingAsset::USDT,
+			),
+			ContributionParams::new(
+				BIDDER_1,
+				30_000 * CT_UNIT,
+				ParticipationMode::Classic(1u8),
+				AcceptedFundingAsset::USDT,
+			),
 		]
 	}
 
 	pub fn knowledge_hub_buys() -> Vec<ContributionParams<TestRuntime>> {
 		vec![
-			ContributionParams::new(BUYER_1, 4_000 * CT_UNIT, 1u8, AcceptedFundingAsset::USDT),
-			ContributionParams::new(BUYER_2, 2_000 * CT_UNIT, 1u8, AcceptedFundingAsset::USDT),
-			ContributionParams::new(BUYER_3, 2_000 * CT_UNIT, 1u8, AcceptedFundingAsset::USDT),
-			ContributionParams::new(BUYER_4, 5_000 * CT_UNIT, 1u8, AcceptedFundingAsset::USDT),
-			ContributionParams::new(BUYER_5, 30_000 * CT_UNIT, 1u8, AcceptedFundingAsset::USDT),
-			ContributionParams::new(BUYER_6, 5_000 * CT_UNIT, 1u8, AcceptedFundingAsset::USDT),
-			ContributionParams::new(BUYER_7, 2_000 * CT_UNIT, 1u8, AcceptedFundingAsset::USDT),
+			ContributionParams::new(
+				BUYER_1,
+				4_000 * CT_UNIT,
+				ParticipationMode::Classic(1u8),
+				AcceptedFundingAsset::USDT,
+			),
+			ContributionParams::new(
+				BUYER_2,
+				2_000 * CT_UNIT,
+				ParticipationMode::Classic(1u8),
+				AcceptedFundingAsset::USDT,
+			),
+			ContributionParams::new(
+				BUYER_3,
+				2_000 * CT_UNIT,
+				ParticipationMode::Classic(1u8),
+				AcceptedFundingAsset::USDT,
+			),
+			ContributionParams::new(
+				BUYER_4,
+				5_000 * CT_UNIT,
+				ParticipationMode::Classic(1u8),
+				AcceptedFundingAsset::USDT,
+			),
+			ContributionParams::new(
+				BUYER_5,
+				30_000 * CT_UNIT,
+				ParticipationMode::Classic(1u8),
+				AcceptedFundingAsset::USDT,
+			),
+			ContributionParams::new(
+				BUYER_6,
+				5_000 * CT_UNIT,
+				ParticipationMode::Classic(1u8),
+				AcceptedFundingAsset::USDT,
+			),
+			ContributionParams::new(
+				BUYER_7,
+				2_000 * CT_UNIT,
+				ParticipationMode::Classic(1u8),
+				AcceptedFundingAsset::USDT,
+			),
 		]
 	}
 

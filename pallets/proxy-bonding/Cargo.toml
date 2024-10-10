@@ -1,5 +1,5 @@
 [package]
-name = "proxy-bonding"
+name = "pallet-proxy-bonding"
 authors.workspace = true
 documentation.workspace = true
 edition.workspace = true
@@ -20,7 +20,7 @@ sp-runtime.workspace = true
 polimec-common.workspace = true
 parity-scale-codec.workspace = true
 scale-info.workspace = true
-serde = { version = "1.0.204", features = ["derive"] }
+serde = { workspace = true, features = ["derive"] }
 
 [dev-dependencies]
 sp-io.workspace = true
@@ -44,14 +44,18 @@ std = [
 	"sp-io/std",
 	"pallet-linear-release/std",
 	"pallet-balances/std",
-	"pallet-assets/std"
+	"pallet-assets/std",
+	"serde/std"
 ]
 
 try-runtime = [
 	"frame-support/try-runtime",
 	"frame-system/try-runtime",
 	"sp-runtime/try-runtime",
-	"polimec-common/try-runtime"
+	"polimec-common/try-runtime",
+	"pallet-linear-release/try-runtime",
+	"pallet-assets/try-runtime",
+	"pallet-balances/try-runtime"
 ]
 
 runtime-benchmarks = [
@@ -59,5 +63,8 @@ runtime-benchmarks = [
 	"frame-support/runtime-benchmarks",
 	"frame-system/runtime-benchmarks",
 	"sp-runtime/runtime-benchmarks",
-	"polimec-common/runtime-benchmarks"
+	"polimec-common/runtime-benchmarks",
+	"pallet-linear-release/runtime-benchmarks",
+	"pallet-assets/runtime-benchmarks",
+	"pallet-balances/runtime-benchmarks"
 ]

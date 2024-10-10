@@ -17,7 +17,7 @@ impl<T: Config> Pallet<T> {
 			contributor,
 			project_id,
 			ct_amount: token_amount,
-			multiplier,
+			mode,
 			funding_asset,
 			investor_type,
 			did,
@@ -48,7 +48,7 @@ impl<T: Config> Pallet<T> {
 			project_id,
 			project_details: &mut project_details,
 			buyable_tokens,
-			multiplier,
+			mode,
 			funding_asset,
 			investor_type,
 			did,
@@ -65,7 +65,7 @@ impl<T: Config> Pallet<T> {
 			project_id,
 			project_details,
 			buyable_tokens,
-			multiplier,
+			mode,
 			funding_asset,
 			investor_type,
 			did,
@@ -91,6 +91,7 @@ impl<T: Config> Pallet<T> {
 			InvestorType::Professional => PROFESSIONAL_MAX_MULTIPLIER,
 			InvestorType::Institutional => INSTITUTIONAL_MAX_MULTIPLIER,
 		};
+		let multiplier: MultiplierOf<T> = mode.multiplier().try_into().map_err(|_| Error::<T>::ForbiddenMultiplier)?;
 
 		// * Validity checks *
 		ensure!(project_policy == whitelisted_policy, Error::<T>::PolicyMismatch);
@@ -125,7 +126,7 @@ impl<T: Config> Pallet<T> {
 			contributor: contributor.clone(),
 			ct_amount: buyable_tokens,
 			usd_contribution_amount: ticket_size,
-			multiplier,
+			mode: mode.clone(),
 			funding_asset,
 			funding_asset_amount,
 			plmc_bond,
@@ -133,7 +134,7 @@ impl<T: Config> Pallet<T> {
 		};
 
 		// Try adding the new contribution to the system
-		Self::try_plmc_participation_lock(&contributor, project_id, plmc_bond)?;
+		Self::bond_plmc_with_mode(&contributor, project_id, plmc_bond, mode, funding_asset)?;
 		Self::try_funding_asset_hold(&contributor, project_id, funding_asset_amount, funding_asset.id())?;
 
 		Contributions::<T>::insert((project_id, contributor.clone(), contribution_id), &new_contribution);
@@ -152,7 +153,7 @@ impl<T: Config> Pallet<T> {
 			funding_asset,
 			funding_amount: funding_asset_amount,
 			plmc_bond,
-			multiplier,
+			mode,
 		});
 
 		// return correct weight function

@@ -29,6 +29,7 @@ variant_count = "1.1.0"
 
 pallet-linear-release.workspace = true
 on-slash-vesting.workspace = true
+pallet-proxy-bonding.workspace = true
 
 # Substrate dependencies
 frame-support.workspace = true
@@ -95,6 +96,7 @@ std = [
 	"xcm-builder/std",
 	"xcm-executor/std",
 	"xcm/std",
+	"pallet-proxy-bonding/std"
 ]
 runtime-benchmarks = [
 	"frame-benchmarking/runtime-benchmarks",
@@ -115,6 +117,7 @@ runtime-benchmarks = [
 	"sp-runtime/runtime-benchmarks",
 	"xcm-builder/runtime-benchmarks",
 	"xcm-executor/runtime-benchmarks",
+	"pallet-proxy-bonding/runtime-benchmarks"
 ]
 try-runtime = [
 	"frame-support/try-runtime",
@@ -128,5 +131,6 @@ try-runtime = [
 	"polimec-common-test-utils?/try-runtime",
 	"polimec-common/try-runtime",
 	"sp-runtime/try-runtime",
+	"pallet-proxy-bonding/try-runtime"
 ]
 on-chain-release-build = []

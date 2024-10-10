@@ -989,8 +989,12 @@ mod settle_contribution_extrinsic {
 			let ed = inst.get_ed();
 			let project_metadata = default_project_metadata(ISSUER_1);
 
-			let contribution =
-				ContributionParams::<TestRuntime>::new(BUYER_1, 1000 * CT_UNIT, 2, AcceptedFundingAsset::USDT);
+			let contribution = ContributionParams::<TestRuntime>::new(
+				BUYER_1,
+				1000 * CT_UNIT,
+				ParticipationMode::Classic(2),
+				AcceptedFundingAsset::USDT,
+			);
 
 			let project_id = inst.create_finished_project(
 				project_metadata.clone(),
@@ -1041,7 +1045,8 @@ mod settle_contribution_extrinsic {
 				true,
 			);
 
-			let vesting_time = contribution.multiplier.calculate_vesting_duration::<TestRuntime>();
+			let multiplier: MultiplierOf<TestRuntime> = contribution.mode.multiplier().try_into().ok().unwrap();
+			let vesting_time = multiplier.calculate_vesting_duration::<TestRuntime>();
 			let current_block = inst.current_block();
 			inst.jump_to_block(current_block + vesting_time + 1);
 			inst.execute(|| LinearRelease::vest(RuntimeOrigin::signed(BUYER_1), hold_reason).expect("Vesting failed"));
@@ -1071,10 +1076,18 @@ mod settle_contribution_extrinsic {
 				default_community_contributor_multipliers(),
 			);
 
-			let contribution_mul_1 =
-				ContributionParams::<TestRuntime>::new(BUYER_6, 1000 * CT_UNIT, 1, AcceptedFundingAsset::USDT);
-			let contribution_mul_2 =
-				ContributionParams::<TestRuntime>::new(BUYER_7, 1000 * CT_UNIT, 2, AcceptedFundingAsset::USDT);
+			let contribution_mul_1 = ContributionParams::<TestRuntime>::new(
+				BUYER_6,
+				1000 * CT_UNIT,
+				ParticipationMode::Classic(1),
+				AcceptedFundingAsset::USDT,
+			);
+			let contribution_mul_2 = ContributionParams::<TestRuntime>::new(
+				BUYER_7,
+				1000 * CT_UNIT,
+				ParticipationMode::Classic(2),
+				AcceptedFundingAsset::USDT,
+			);
 
 			community_contributions.push(contribution_mul_1);
 
@@ -1107,7 +1120,7 @@ mod settle_contribution_extrinsic {
 					),
 					project_id,
 					contribution_mul_2.amount,
-					contribution_mul_2.multiplier,
+					contribution_mul_2.mode,
 					contribution_mul_2.asset
 				));
 			});

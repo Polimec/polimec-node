@@ -89,6 +89,7 @@ use pallet_xcm::ensure_response;
 use polimec_common::{
 	credentials::{Cid, Did, EnsureOriginWithCredentials, InvestorType, UntrustedToken},
 	migration_types::{Migration, MigrationStatus},
+	PLMC_DECIMALS, PLMC_FOREIGN_ID, USD_DECIMALS,
 };
 use polkadot_parachain_primitives::primitives::Id as ParaId;
 use sp_arithmetic::traits::{One, Saturating};
@@ -96,7 +97,6 @@ use sp_runtime::{traits::AccountIdConversion, FixedPointNumber, FixedU128};
 use sp_std::{marker::PhantomData, prelude::*};
 pub use types::*;
 use xcm::v4::{prelude::*, SendXcm};
-
 mod functions;
 pub mod storage_migrations;
 pub mod traits;
@@ -125,7 +125,6 @@ pub type Balance = u128;
 pub type MultiplierOf<T> = <T as Config>::Multiplier;
 
 pub type PriceOf<T> = <T as Config>::Price;
-pub type PriceProviderOf<T> = <T as Config>::PriceProvider;
 pub type StringLimitOf<T> = <T as Config>::StringLimit;
 pub type AssetIdOf<T> =
 	<<T as Config>::FundingCurrency as fungibles::Inspect<<T as frame_system::Config>::AccountId>>::AssetId;
@@ -134,18 +133,16 @@ pub type VestingInfoOf<T> = VestingInfo<BlockNumberFor<T>>;
 pub type ProjectMetadataOf<T> = ProjectMetadata<BoundedVec<u8, StringLimitOf<T>>, PriceOf<T>, AccountIdOf<T>, Cid>;
 pub type ProjectDetailsOf<T> = ProjectDetails<AccountIdOf<T>, Did, BlockNumberFor<T>, PriceOf<T>, EvaluationRoundInfo>;
 pub type EvaluationInfoOf<T> = EvaluationInfo<u32, Did, ProjectId, AccountIdOf<T>, BlockNumberFor<T>>;
-pub type BidInfoOf<T> = BidInfo<ProjectId, Did, PriceOf<T>, AccountIdOf<T>, BlockNumberFor<T>, MultiplierOf<T>>;
+pub type BidInfoOf<T> = BidInfo<ProjectId, Did, PriceOf<T>, AccountIdOf<T>, BlockNumberFor<T>>;
 
-pub type ContributionInfoOf<T> =
-	ContributionInfo<u32, Did, ProjectId, AccountIdOf<T>, BlockNumberFor<T>, MultiplierOf<T>>;
+pub type ContributionInfoOf<T> = ContributionInfo<u32, Did, ProjectId, AccountIdOf<T>, BlockNumberFor<T>>;
 
 pub type BucketOf<T> = Bucket<PriceOf<T>>;
 pub type WeightInfoOf<T> = <T as Config>::WeightInfo;
 pub type VestingOf<T> = pallet_linear_release::Pallet<T>;
 pub type BlockNumberToBalanceOf<T> = <T as pallet_linear_release::Config>::BlockNumberToBalance;
-
-pub const PLMC_FOREIGN_ID: u32 = 3344;
-pub const PLMC_DECIMALS: u8 = 10;
+pub type RuntimeHoldReasonOf<T> = <T as Config>::RuntimeHoldReason;
+pub type PriceProviderOf<T> = <T as Config>::PriceProvider;
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -163,7 +160,7 @@ pub mod pallet {
 	use polimec_common::ProvideAssetPrice;
 	use sp_arithmetic::Percent;
 	use sp_runtime::{
-		traits::{Convert, ConvertBack, Get},
+		traits::{ConstU8, Convert, ConvertBack, Get},
 		Perquintill,
 	};
 
@@ -182,7 +179,16 @@ pub mod pallet {
 		frame_system::Config
 		+ pallet_balances::Config<Balance = Balance>
 		+ pallet_xcm::Config
-		+ pallet_linear_release::Config<Balance = Balance, RuntimeHoldReason = <Self as Config>::RuntimeHoldReason>
+		+ pallet_linear_release::Config<Balance = Balance, RuntimeHoldReason = RuntimeHoldReasonOf<Self>>
+		+ pallet_proxy_bonding::Config<
+			RuntimeHoldReason = RuntimeHoldReasonOf<Self>,
+			BondingToken = Self::NativeCurrency,
+			BondingTokenDecimals = ConstU8<PLMC_DECIMALS>,
+			BondingTokenId = ConstU32<PLMC_FOREIGN_ID>,
+			UsdDecimals = ConstU8<USD_DECIMALS>,
+			FeeToken = Self::FundingCurrency,
+			PriceProvider = PriceProviderOf<Self>,
+		>
 	{
 		/// A way to convert from and to the account type used in CT migrations
 		type AccountId32Conversion: ConvertBack<Self::AccountId, [u8; 32]>;
@@ -297,7 +303,7 @@ pub mod pallet {
 
 		/// The chains native currency
 		type NativeCurrency: fungible::InspectHold<AccountIdOf<Self>, Balance = Balance>
-			+ fungible::MutateHold<AccountIdOf<Self>, Balance = Balance, Reason = <Self as Config>::RuntimeHoldReason>
+			+ fungible::MutateHold<AccountIdOf<Self>, Balance = Balance, Reason = RuntimeHoldReasonOf<Self>>
 			+ fungible::BalancedHold<AccountIdOf<Self>, Balance = Balance>
 			+ fungible::Mutate<AccountIdOf<Self>, Balance = Balance>
 			+ fungible::Inspect<AccountIdOf<Self>, Balance = Balance>;
@@ -518,7 +524,7 @@ pub mod pallet {
 			funding_asset: AcceptedFundingAsset,
 			funding_amount: Balance,
 			plmc_bond: Balance,
-			multiplier: MultiplierOf<T>,
+			mode: ParticipationMode,
 		},
 		/// A contribution was made for a project. i.e token purchase
 		Contribution {
@@ -529,7 +535,7 @@ pub mod pallet {
 			funding_asset: AcceptedFundingAsset,
 			funding_amount: Balance,
 			plmc_bond: Balance,
-			multiplier: MultiplierOf<T>,
+			mode: ParticipationMode,
 		},
 		BidRefunded {
 			project_id: ProjectId,
@@ -819,7 +825,7 @@ pub mod pallet {
 			jwt: UntrustedToken,
 			project_id: ProjectId,
 			#[pallet::compact] ct_amount: Balance,
-			multiplier: T::Multiplier,
+			mode: ParticipationMode,
 			funding_asset: AcceptedFundingAsset,
 		) -> DispatchResultWithPostInfo {
 			let (bidder, did, investor_type, whitelisted_policy) =
@@ -828,7 +834,7 @@ pub mod pallet {
 				bidder,
 				project_id,
 				ct_amount,
-				multiplier,
+				mode,
 				funding_asset,
 				did,
 				investor_type,
@@ -865,7 +871,7 @@ pub mod pallet {
 			jwt: UntrustedToken,
 			project_id: ProjectId,
 			#[pallet::compact] ct_amount: Balance,
-			multiplier: MultiplierOf<T>,
+			mode: ParticipationMode,
 			funding_asset: AcceptedFundingAsset,
 		) -> DispatchResultWithPostInfo {
 			let (contributor, did, investor_type, whitelisted_policy) =
@@ -874,7 +880,7 @@ pub mod pallet {
 				contributor,
 				project_id,
 				ct_amount,
-				multiplier,
+				mode,
 				funding_asset,
 				did,
 				investor_type,
