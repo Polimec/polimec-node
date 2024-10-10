@@ -23,6 +23,7 @@ use sp_runtime::{
 };
 use sp_std::prelude::*;
 pub use xcm::v4::{opaque::Xcm, Assets, Location, QueryId, SendError, SendResult, SendXcm, XcmHash};
+use xcm::{VersionedLocation, VersionedXcm};
 
 pub mod credentials;
 
@@ -237,6 +238,11 @@ impl SendXcm for DummyXcmSender {
 	/// Actually carry out the delivery operation for a previously validated message sending.
 	fn deliver(_ticket: Self::Ticket) -> Result<XcmHash, SendError> {
 		Ok([0u8; 32])
+	}
+}
+impl xcm_builder::InspectMessageQueues for DummyXcmSender {
+	fn get_messages() -> Vec<(VersionedLocation, Vec<VersionedXcm<()>>)> {
+		vec![]
 	}
 }
 
