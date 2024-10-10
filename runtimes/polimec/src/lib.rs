@@ -26,10 +26,12 @@ use cumulus_primitives_core::{AggregateMessageOrigin, ParaId};
 use frame_support::{
 	construct_runtime,
 	genesis_builder_helper::{build_state, get_preset},
+	instances::Instance1,
 	ord_parameter_types, parameter_types,
 	traits::{
 		fungible::{Credit, HoldConsideration, Inspect},
-		tokens::{self, PayFromAccount, UnityAssetBalanceConversion},
+		fungibles,
+		tokens::{self, ConversionToAssetBalance, PayFromAccount, UnityAssetBalanceConversion},
 		AsEnsureOriginWithArg, ConstU32, Contains, EitherOfDiverse, InstanceFilter, LinearStoragePrice, PrivilegeCmp,
 		TransformOrigin,
 	},
@@ -41,9 +43,10 @@ use pallet_aura::Authorities;
 use pallet_democracy::GetElectorate;
 use pallet_funding::{
 	runtime_api::ProjectParticipationIds, types::AcceptedFundingAsset, BidInfoOf, ContributionInfoOf, DaysToBlocks,
-	EvaluationInfoOf, ProjectDetailsOf, ProjectId, ProjectMetadataOf,
+	EvaluationInfoOf, PriceProviderOf, ProjectDetailsOf, ProjectId, ProjectMetadataOf,
 };
 use parachains_common::{
+	impls::AssetsToBlockAuthor,
 	message_queue::{NarrowOriginToSibling, ParaIdToSibling},
 	AssetIdForTrustBackedAssets as AssetId,
 };
@@ -60,7 +63,7 @@ use sp_runtime::{
 		IdentifyAccount, IdentityLookup, OpaqueKeys, Verify,
 	},
 	transaction_validity::{TransactionSource, TransactionValidity},
-	ApplyExtrinsicResult, FixedU128, MultiSignature, SaturatedConversion,
+	ApplyExtrinsicResult, FixedPointNumber, FixedU128, MultiSignature, SaturatedConversion,
 };
 use sp_std::{cmp::Ordering, prelude::*};
 use sp_version::RuntimeVersion;
@@ -87,10 +90,13 @@ include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 use sp_version::NativeVersion;
 
 use crate::xcm_config::PriceForSiblingParachainDelivery;
-use polimec_common::USD_UNIT;
+use polimec_common::{ProvideAssetPrice, USD_UNIT};
 #[cfg(any(feature = "std", test))]
 pub use sp_runtime::BuildStorage;
-
+use sp_runtime::{
+	traits::{DispatchInfoOf, PostDispatchInfoOf},
+	transaction_validity::{InvalidTransaction, TransactionValidityError},
+};
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmark_helpers;
 mod custom_migrations;
@@ -1154,6 +1160,34 @@ impl pallet_dispenser::Config for Runtime {
 	type WhitelistedPolicy = DispenserWhitelistedPolicy;
 }
 
+pub struct PLMCToFundingAssetBalance;
+impl ConversionToAssetBalance<Balance, AssetId, Balance> for PLMCToFundingAssetBalance {
+	type Error = InvalidTransaction;
+
+	fn to_asset_balance(plmc_balance: Balance, asset_id: AssetId) -> Result<Balance, Self::Error> {
+		let plmc_price =
+			<PriceProviderOf<Runtime>>::get_decimals_aware_price(PLMC_FOREIGN_ID, USD_DECIMALS, PLMC_DECIMALS)
+				.ok_or(InvalidTransaction::Payment)?;
+		let funding_asset_decimals = <ForeignAssets as fungibles::metadata::Inspect<AccountId>>::decimals(asset_id);
+		let funding_asset_price =
+			<PriceProviderOf<Runtime>>::get_decimals_aware_price(asset_id, USD_DECIMALS, funding_asset_decimals)
+				.ok_or(InvalidTransaction::Payment)?;
+		let usd_balance = plmc_price.saturating_mul_int(plmc_balance);
+		let funding_asset_balance =
+			funding_asset_price.reciprocal().ok_or(InvalidTransaction::Payment)?.saturating_mul_int(usd_balance);
+		Ok(funding_asset_balance)
+	}
+}
+impl pallet_asset_tx_payment::Config for Runtime {
+	type Fungibles = ForeignAssets;
+	type OnChargeAssetTransaction = TxFeeFungiblesAdapter<
+		PLMCToFundingAssetBalance,
+		CreditFungiblesToAccount<AccountId, ForeignAssets, BlockchainOperationTreasury>,
+		AssetsToBlockAuthor<Runtime, ForeignAssetsInstance>,
+	>;
+	type RuntimeEvent = RuntimeEvent;
+}
+
 // Create the runtime by composing the FRAME pallets that were previously configured.
 construct_runtime!(
 	pub enum Runtime
@@ -1176,6 +1210,7 @@ construct_runtime!(
 		ContributionTokens: pallet_assets::<Instance1> = 13,
 		ForeignAssets: pallet_assets::<Instance2> = 14,
 		Dispenser: pallet_dispenser = 15,
+		AssetTransactionPayment: pallet_asset_tx_payment = 16,
 
 		// Collator support. the order of these 5 are important and shall not change.
 		Authorship: pallet_authorship::{Pallet, Storage} = 20,

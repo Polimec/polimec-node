@@ -83,6 +83,7 @@ sp-transaction-pool.workspace = true
 sp-version.workspace = true
 sp-genesis-builder.workspace = true
 frame-metadata-hash-extension.workspace = true
+pallet-asset-tx-payment.workspace = true
 
 # Polkadot
 pallet-xcm.workspace = true
@@ -135,6 +136,7 @@ std = [
 	"log/std",
 	"on-slash-vesting/std",
 	"orml-oracle/std",
+	"pallet-asset-tx-payment/std",
 	"pallet-assets/std",
 	"pallet-aura/std",
 	"pallet-authorship/std",
@@ -153,6 +155,7 @@ std = [
 	"pallet-oracle-ocw/std",
 	"pallet-parachain-staking/std",
 	"pallet-preimage/std",
+	"pallet-proxy-bonding/std",
 	"pallet-proxy/std",
 	"pallet-scheduler/std",
 	"pallet-session/std",
@@ -175,7 +178,7 @@ std = [
 	"sp-block-builder/std",
 	"sp-consensus-aura/std",
 	"sp-core/std",
-#	"sp-debug-derive/std",
+	#	"sp-debug-derive/std",
 	"sp-genesis-builder/std",
 	"sp-inherents/std",
 	"sp-offchain/std",
@@ -188,7 +191,6 @@ std = [
 	"xcm-builder/std",
 	"xcm-executor/std",
 	"xcm/std",
-	"pallet-proxy-bonding/std"
 ]
 
 runtime-benchmarks = [
@@ -219,6 +221,7 @@ runtime-benchmarks = [
 	"pallet-oracle-ocw/runtime-benchmarks",
 	"pallet-parachain-staking/runtime-benchmarks",
 	"pallet-preimage/runtime-benchmarks",
+	"pallet-proxy-bonding/runtime-benchmarks",
 	"pallet-proxy/runtime-benchmarks",
 	"pallet-scheduler/runtime-benchmarks",
 	"pallet-timestamp/runtime-benchmarks",
@@ -234,7 +237,6 @@ runtime-benchmarks = [
 	"sp-runtime/runtime-benchmarks",
 	"xcm-builder/runtime-benchmarks",
 	"xcm-executor/runtime-benchmarks",
-	"pallet-proxy-bonding/runtime-benchmarks"
 ]
 
 try-runtime = [
@@ -247,6 +249,7 @@ try-runtime = [
 	"frame-system/try-runtime",
 	"frame-try-runtime/try-runtime",
 	"orml-oracle/try-runtime",
+	"pallet-asset-tx-payment/try-runtime",
 	"pallet-assets/try-runtime",
 	"pallet-aura/try-runtime",
 	"pallet-authorship/try-runtime",
@@ -265,6 +268,7 @@ try-runtime = [
 	"pallet-oracle-ocw/try-runtime",
 	"pallet-parachain-staking/try-runtime",
 	"pallet-preimage/try-runtime",
+	"pallet-proxy-bonding/try-runtime",
 	"pallet-proxy/try-runtime",
 	"pallet-scheduler/try-runtime",
 	"pallet-session/try-runtime",
@@ -279,7 +283,6 @@ try-runtime = [
 	"polkadot-runtime-common/try-runtime",
 	"shared-configuration/try-runtime",
 	"sp-runtime/try-runtime",
-	"pallet-proxy-bonding/try-runtime"
 ]
 
 # A feature that should be enabled when the runtime should be built for on-chain
