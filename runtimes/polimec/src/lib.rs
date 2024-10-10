@@ -258,7 +258,11 @@ impl Contains<RuntimeCall> for BaseCallFilter {
 							pallet_funding::Call::start_settlement { .. } |
 							pallet_funding::Call::settle_evaluation { .. } |
 							pallet_funding::Call::settle_bid { .. } |
-							pallet_funding::Call::settle_contribution { .. }
+							pallet_funding::Call::settle_contribution { .. } |
+							pallet_funding::Call::mark_project_as_settled { .. } |
+							pallet_funding::Call::start_offchain_migration { .. } |
+							pallet_funding::Call::confirm_offchain_migration { .. } |
+							pallet_funding::Call::mark_project_ct_migration_as_finished { .. }
 					)
 				},
 			_ => true,
