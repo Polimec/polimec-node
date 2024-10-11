@@ -15,14 +15,16 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use super::{
-	AccountId, AllPalletsWithSystem, AssetId as AssetIdPalletAssets, Balance, Balances, EnsureRoot, ForeignAssets,
-	Funding, ParachainInfo, ParachainSystem, PolkadotXcm, Runtime, RuntimeCall, RuntimeEvent, RuntimeOrigin,
-	ToTreasury, TreasuryAccount, Vec, WeightToFee,
+	AccountId, AllPalletsWithSystem, AssetId as AssetIdPalletAssets, Balance, Balances, ContributionTokens, EnsureRoot,
+	ForeignAssets, Funding, ParachainInfo, ParachainSystem, PolkadotXcm, Runtime, RuntimeCall, RuntimeEvent,
+	RuntimeOrigin, ToTreasury, TreasuryAccount, Vec, WeightToFee,
 };
 use core::marker::PhantomData;
 use cumulus_primitives_core::ParaId;
 use frame_support::{
-	ensure, parameter_types,
+	ensure,
+	pallet_prelude::*,
+	parameter_types,
 	traits::{ConstU32, Contains, ContainsPair, Everything, Nothing, ProcessMessageError},
 	weights::Weight,
 };
@@ -74,6 +76,11 @@ parameter_types! {
 	/// The check account that is allowed to mint assets locally. Used for PLMC teleport
 	/// checking once enabled.
 	pub LocalCheckAccount: (AccountId, MintLocation) = (CheckAccount::get(), MintLocation::Local);
+	pub ForeignAssetsPalletIndex: u8 = <ForeignAssets as PalletInfoAccess>::index() as u8;
+	pub ForeignAssetsPalletLocation: Location = PalletInstance(ForeignAssetsPalletIndex::get()).into();
+
+	pub ContributionTokensPalletIndex: u8 = <ContributionTokens as PalletInfoAccess>::index() as u8;
+	pub ContributionTokensPalletLocation: Location = PalletInstance(ContributionTokensPalletIndex::get()).into();
 
 	pub DotLocation: Location = RelayLocation::get();
 	pub UsdtLocation: Location = Location::new(1, [Parachain(1000), PalletInstance(50), GeneralIndex(1984)]);
@@ -108,6 +115,14 @@ pub type FungibleTransactor = FungibleAdapter<
 	// Check teleport accounting once we enable PLMC teleports
 	LocalCheckAccount,
 >;
+
+/// `AssetId`/`Balance` converter for `ForeignAssets`.
+pub type ForeignAssetsConvertedConcreteId =
+	assets_common::TrustBackedAssetsConvertedConcreteId<ForeignAssetsPalletLocation, Balance>;
+
+/// `AssetId`/`Balance` converter for `ContributionTokens`.
+pub type ContributionTokensConvertedConcreteId =
+	assets_common::TrustBackedAssetsConvertedConcreteId<ContributionTokensPalletLocation, Balance>;
 
 // The `AssetIdPalletAssets` ids that are supported by this chain.
 // Currently, we only support DOT (10), USDT (1984) and USDC (1337).

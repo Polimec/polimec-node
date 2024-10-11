@@ -14,7 +14,5 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// the generated files do not pass clippy
+// The generated files do not pass clippy.
 #![allow(clippy::all)]
-
-pub mod funding_holds;

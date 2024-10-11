@@ -41,6 +41,7 @@ on-slash-vesting.workspace = true
 pallet-proxy-bonding.workspace = true
 
 # Substrate
+assets-common.workspace = true
 frame-benchmarking = { workspace = true, optional = true }
 frame-executive.workspace = true
 frame-support.workspace = true
@@ -117,6 +118,7 @@ default = [ "std" ]
 fast-mode = [ "shared-configuration/fast-mode" ]
 instant-mode = [ "shared-configuration/instant-mode" ]
 std = [
+	"assets-common/std",
 	"cumulus-pallet-aura-ext/std",
 	"cumulus-pallet-parachain-system/std",
 	"cumulus-pallet-session-benchmarking/std",
@@ -194,6 +196,7 @@ std = [
 ]
 
 runtime-benchmarks = [
+	"assets-common/runtime-benchmarks",
 	"cumulus-pallet-parachain-system/runtime-benchmarks",
 	"cumulus-pallet-session-benchmarking/runtime-benchmarks",
 	"cumulus-pallet-xcmp-queue/runtime-benchmarks",
