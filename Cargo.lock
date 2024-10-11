@@ -8813,6 +8813,7 @@ name = "polimec-runtime"
 version = "0.8.0"
 dependencies = [
  "array-bytes",
+ "assets-common",
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-parachain-system",
  "cumulus-pallet-session-benchmarking",

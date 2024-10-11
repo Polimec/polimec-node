@@ -21,6 +21,7 @@
 #[cfg(feature = "std")]
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
+use assets_common::fungible_conversion::{convert, convert_balance};
 use core::ops::RangeInclusive;
 use cumulus_pallet_parachain_system::RelayNumberMonotonicallyIncreases;
 use cumulus_primitives_core::{AggregateMessageOrigin, ParaId};
@@ -1131,14 +1132,6 @@ ord_parameter_types! {
 	pub const DispenserAdminAccount: AccountId = AccountId::from(hex_literal::hex!("d85a4f58eb7dba17bc436b16f394b242271237021f7880e1ccaf36cd9a616c99"));
 }
 
-// #[test]
-// fn ensure_admin_account_is_correct() {
-// 	use frame_support::traits::SortedMembers;
-// 	use sp_core::crypto::Ss58Codec;
-// 	let acc = AccountId::from_ss58check("5BAimacvMnhBEoc2g7PaiuEhJwmMZejq6j1ZMCpDZMHGAogz").unwrap();
-// 	assert_eq!(acc, DispenserAdminAccount::sorted_members()[0]);
-// }
-
 impl pallet_dispenser::Config for Runtime {
 	type AdminOrigin = EnsureSignedBy<DispenserAdminAccount, AccountId>;
 	type BlockNumberToBalance = ConvertInto;
@@ -1308,6 +1301,34 @@ mod benches {
 }
 
 impl_runtime_apis! {
+	impl assets_common::runtime_api::FungiblesApi<Block,AccountId,> for Runtime{
+		fn query_account_balances(account: AccountId) -> Result<xcm::VersionedAssets, assets_common::runtime_api::FungiblesAccessError> {
+			Ok([
+				// collect pallet_balance
+				{
+					let balance = Balances::balance(&account);
+					if balance > 0 {
+						vec![convert_balance::<xcm_config::HereLocation, Balance>(balance)?]
+					} else {
+						vec![]
+					}
+				},
+				// collect pallet_assets (ContributionTokens)
+				convert::<_, _, _, _, xcm_config::ContributionTokensConvertedConcreteId>(
+					ContributionTokens::account_balances(account.clone())
+						.iter()
+						.filter(|(_, balance)| balance > &0)
+				)?,
+				// collect pallet_assets (ForeignAssets)
+				convert::<_, _, _, _, xcm_config::ForeignAssetsConvertedConcreteId>(
+					ForeignAssets::account_balances(account)
+						.iter()
+						.filter(|(_, balance)| balance > &0)
+				)?,
+			].concat().into())
+		}
+	}
+
 	impl sp_consensus_aura::AuraApi<Block, AuraId> for Runtime {
 		fn slot_duration() -> sp_consensus_aura::SlotDuration {
 			sp_consensus_aura::SlotDuration::from_millis(parachains_common::SLOT_DURATION)
