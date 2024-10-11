@@ -53,7 +53,7 @@ use parachains_common::{
 };
 use parity_scale_codec::Encode;
 use polimec_common::{
-	credentials::{Did, EnsureInvestor},
+	credentials::{Did, EnsureInvestor, InvestorType},
 	ProvideAssetPrice, USD_UNIT,
 };
 use polkadot_runtime_common::{BlockHashCount, CurrencyToVote, SlowAdjustingFeeUpdate};
@@ -1164,7 +1164,7 @@ impl Convert<MultiLocation, AssetId> for ConvertMultilocationToAssetId {
 			MultiLocation { parents: 1, interior: Here } => 10,
 			MultiLocation { parents: 1, interior: X3(Parachain(1000), PalletInstance(50), GeneralIndex(1337)) } => 1337,
 			MultiLocation { parents: 1, interior: X3(Parachain(1000), PalletInstance(50), GeneralIndex(1984)) } => 1984,
-			// asset 0 should be invalid.
+			// Since the asset with `AssetId` 0 does not exist and has no price, it is invalid.
 			_ => 0,
 		}
 	}
@@ -1539,6 +1539,12 @@ impl_runtime_apis! {
 		}
 		fn get_next_vesting_schedule_merge_candidates(account: AccountId, hold_reason: RuntimeHoldReason, end_max_delta: Balance) -> Option<(u32, u32)> {
 			Funding::get_next_vesting_schedule_merge_candidates(account, hold_reason, end_max_delta)
+		}
+		fn calculate_otm_fee(funding_asset: AcceptedFundingAsset, funding_asset_amount: Balance) -> Option<Balance> {
+			Funding::calculate_otm_fee(funding_asset, funding_asset_amount)
+		}
+		fn get_funding_asset_min_max_amounts(project_id: ProjectId, did: Did, funding_asset: AcceptedFundingAsset, investor_type: InvestorType) -> Option<(Balance, Balance)> {
+			Funding::get_funding_asset_min_max_amounts(project_id, did, funding_asset, investor_type)
 		}
 	}
 

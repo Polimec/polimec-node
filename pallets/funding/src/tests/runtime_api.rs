@@ -1,5 +1,10 @@
 use super::*;
-use crate::runtime_api::{ExtrinsicHelpers, Leaderboards, ProjectInformation, UserInformation};
+use crate::{
+	runtime_api::{ExtrinsicHelpers, Leaderboards, ProjectInformation, UserInformation},
+	BidStatus::Accepted,
+};
+use frame_support::traits::fungibles::{metadata::Inspect, Mutate};
+use sp_runtime::bounded_vec;
 
 #[test]
 fn top_evaluations() {
@@ -543,6 +548,245 @@ fn get_next_vesting_schedule_merge_candidates() {
 		.unwrap();
 		assert_eq!((idx_1, idx_2), (0, 1));
 	});
+}
+
+#[test]
+fn calculate_otm_fee() {
+	let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+	let mut project_metadata = default_project_metadata(ISSUER_1);
+	project_metadata.participation_currencies = bounded_vec![AcceptedFundingAsset::DOT];
+
+	let dot_id = AcceptedFundingAsset::DOT.id();
+	let dot_decimals = inst.execute(|| ForeignAssets::decimals(dot_id));
+	let dot_unit = 10u128.pow(dot_decimals as u32);
+	let dot_ticket = 10_000 * dot_unit;
+	let dot_ed = inst.get_funding_asset_ed(dot_id);
+
+	let block_hash = inst.execute(|| System::block_hash(System::block_number()));
+	let calculated_fee = inst.execute(|| {
+		TestRuntime::calculate_otm_fee(&TestRuntime, block_hash, AcceptedFundingAsset::DOT, dot_ticket)
+			.unwrap()
+			.unwrap()
+	});
+
+	let project_id = inst.create_auctioning_project(project_metadata, ISSUER_1, None, default_evaluations());
+
+	let ct_amount = inst
+		.execute(|| {
+			TestRuntime::funding_asset_to_ct_amount(
+				&TestRuntime,
+				block_hash,
+				project_id,
+				AcceptedFundingAsset::DOT,
+				dot_ticket,
+			)
+		})
+		.unwrap();
+
+	inst.execute(|| ForeignAssets::set_balance(dot_id, &BIDDER_1, dot_ticket + calculated_fee + dot_ed));
+
+	let jwt = get_mock_jwt_with_cid(
+		BIDDER_1,
+		InvestorType::Professional,
+		generate_did_from_account(BIDDER_1),
+		default_project_metadata(ISSUER_1).policy_ipfs_cid.unwrap(),
+	);
+
+	inst.execute(|| {
+		PolimecFunding::bid(
+			RuntimeOrigin::signed(BIDDER_1),
+			jwt,
+			project_id,
+			ct_amount,
+			ParticipationMode::OTM,
+			AcceptedFundingAsset::DOT,
+		)
+		.unwrap()
+	});
+
+	let balance = inst.get_free_funding_asset_balance_for(dot_id, BIDDER_1);
+	inst.execute(|| {
+		assert_close_enough!(balance, dot_ed, Perquintill::from_float(0.9999));
+	});
+}
+
+#[test]
+fn get_funding_asset_min_max_amounts() {
+	let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+	ConstPriceProvider::set_price(AcceptedFundingAsset::USDT.id(), PriceOf::<TestRuntime>::from_float(1.0f64));
+	ConstPriceProvider::set_price(AcceptedFundingAsset::USDC.id(), PriceOf::<TestRuntime>::from_float(1.0f64));
+	ConstPriceProvider::set_price(AcceptedFundingAsset::DOT.id(), PriceOf::<TestRuntime>::from_float(10.0f64));
+	ConstPriceProvider::set_price(PLMC_FOREIGN_ID, PriceOf::<TestRuntime>::from_float(0.5f64));
+	const DOT_UNIT: u128 = 10u128.pow(10u32);
+
+	// We test the following cases:
+	// Bidder Professional where max is the ct max because it's lower than the ticket max. DOT
+	// Bidder Institutional where max is the ticket max (first bid). USDT
+	// Contributor Retail where the max is the ticket max (first contribution). DOT
+	// Contributor Institutional where max is the ct max because there is no ticket max. USDT
+	// Contributor Professional where max is the ticket max (4500 USD already contributed). USDC
+
+	let mut project_metadata = default_project_metadata(ISSUER_1);
+	let min_price = PriceProviderOf::<TestRuntime>::calculate_decimals_aware_price(
+		PriceOf::<TestRuntime>::from_float(1.0f64),
+		USD_DECIMALS,
+		CT_DECIMALS,
+	)
+	.unwrap();
+	project_metadata.minimum_price = min_price;
+	project_metadata.total_allocation_size = 5_000_000 * CT_UNIT;
+	project_metadata.bidding_ticket_sizes = BiddingTicketSizes {
+		professional: TicketSize {
+			usd_minimum_per_participation: 5_000 * USD_UNIT,
+			usd_maximum_per_did: Some(10_000_000 * USD_UNIT),
+		},
+		institutional: TicketSize {
+			usd_minimum_per_participation: 10_000 * USD_UNIT,
+			usd_maximum_per_did: Some(1_000_000 * USD_UNIT),
+		},
+		phantom: Default::default(),
+	};
+	project_metadata.contributing_ticket_sizes = ContributingTicketSizes {
+		retail: TicketSize {
+			usd_minimum_per_participation: 50 * USD_UNIT,
+			usd_maximum_per_did: Some(10_000 * USD_UNIT),
+		},
+		professional: TicketSize {
+			usd_minimum_per_participation: 100 * USD_UNIT,
+			usd_maximum_per_did: Some(100_000 * USD_UNIT),
+		},
+		institutional: TicketSize { usd_minimum_per_participation: 5000 * USD_UNIT, usd_maximum_per_did: None },
+		phantom: Default::default(),
+	};
+	project_metadata.participation_currencies =
+		bounded_vec![AcceptedFundingAsset::DOT, AcceptedFundingAsset::USDT, AcceptedFundingAsset::USDC];
+
+	const BIDDING_USD_MAX: u128 = 2_500_000;
+	const CONTRIBUTING_USD_MAX: u128 = 5_000_000;
+
+	const BIDDER_PROFESSIONAL_DOT_MIN: u128 = 500 * DOT_UNIT;
+	const BIDDER_PROFESSIONAL_DOT_MAX: u128 = (BIDDING_USD_MAX / 10) * DOT_UNIT;
+
+	const BIDDER_INSTITUTIONAL_USDT_MIN: u128 = 10_000 * USD_UNIT;
+	const BIDDER_INSTITUTIONAL_USDT_MAX: u128 = 1_000_000 * USD_UNIT;
+
+	const CONTRIBUTOR_RETAIL_DOT_MIN: u128 = 5 * DOT_UNIT;
+	const CONTRIBUTOR_RETAIL_DOT_MAX: u128 = 1_000 * DOT_UNIT;
+
+	const CONTRIBUTOR_INSTITUTIONAL_USDT_MIN: u128 = 5000 * USD_UNIT;
+	const CONTRIBUTOR_INSTITUTIONAL_USDT_MAX: u128 = CONTRIBUTING_USD_MAX * USD_UNIT;
+
+	const CONTRIBUTOR_PROFESSIONAL_USDC_MIN: u128 = 100 * USD_UNIT;
+	const CONTRIBUTOR_PROFESSIONAL_USDC_MAX: u128 = (100_000 - 6000) * USD_UNIT;
+
+	let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+
+	let evaluations =
+		inst.generate_successful_evaluations(project_metadata.clone(), default_evaluators(), default_weights());
+	let project_id = inst.create_auctioning_project(project_metadata, ISSUER_1, None, evaluations);
+
+	let block_hash = inst.execute(|| System::block_hash(System::block_number()));
+
+	let (min, max) = inst
+		.execute(|| {
+			TestRuntime::get_funding_asset_min_max_amounts(
+				&TestRuntime,
+				block_hash,
+				project_id,
+				generate_did_from_account(BIDDER_1),
+				AcceptedFundingAsset::DOT,
+				InvestorType::Professional,
+			)
+		})
+		.unwrap()
+		.unwrap();
+	assert_eq!(min, BIDDER_PROFESSIONAL_DOT_MIN);
+	assert_eq!(max, BIDDER_PROFESSIONAL_DOT_MAX);
+
+	let (min, max) = inst
+		.execute(|| {
+			TestRuntime::get_funding_asset_min_max_amounts(
+				&TestRuntime,
+				block_hash,
+				project_id,
+				generate_did_from_account(BIDDER_1),
+				AcceptedFundingAsset::USDT,
+				InvestorType::Institutional,
+			)
+		})
+		.unwrap()
+		.unwrap();
+	assert_eq!(min, BIDDER_INSTITUTIONAL_USDT_MIN);
+	assert_eq!(max, BIDDER_INSTITUTIONAL_USDT_MAX);
+
+	assert!(matches!(inst.go_to_next_state(project_id), ProjectStatus::CommunityRound(..)));
+
+	let (min, max) = inst
+		.execute(|| {
+			TestRuntime::get_funding_asset_min_max_amounts(
+				&TestRuntime,
+				block_hash,
+				project_id,
+				generate_did_from_account(BUYER_1),
+				AcceptedFundingAsset::DOT,
+				InvestorType::Retail,
+			)
+		})
+		.unwrap()
+		.unwrap();
+	assert_eq!(min, CONTRIBUTOR_RETAIL_DOT_MIN);
+	assert_eq!(max, CONTRIBUTOR_RETAIL_DOT_MAX);
+
+	let (min, max) = inst
+		.execute(|| {
+			TestRuntime::get_funding_asset_min_max_amounts(
+				&TestRuntime,
+				block_hash,
+				project_id,
+				generate_did_from_account(BUYER_1),
+				AcceptedFundingAsset::USDT,
+				InvestorType::Institutional,
+			)
+		})
+		.unwrap()
+		.unwrap();
+	assert_eq!(min, CONTRIBUTOR_INSTITUTIONAL_USDT_MIN);
+	assert_eq!(max, CONTRIBUTOR_INSTITUTIONAL_USDT_MAX);
+
+	// This test requires the buyer to have contributed 4500 USD before calling the API
+	let required_ct = inst
+		.execute(|| {
+			TestRuntime::funding_asset_to_ct_amount(
+				&TestRuntime,
+				block_hash,
+				project_id,
+				AcceptedFundingAsset::USDC,
+				6000 * USD_UNIT,
+			)
+		})
+		.unwrap();
+	let contribution =
+		ContributionParams::new(BUYER_1, required_ct, ParticipationMode::OTM, AcceptedFundingAsset::USDC);
+	let usdc_to_mint = inst.calculate_contributed_funding_asset_spent(vec![contribution.clone()], min_price);
+	inst.mint_funding_asset_ed_if_required(usdc_to_mint.to_account_asset_map());
+	inst.mint_funding_asset_to(usdc_to_mint);
+	inst.contribute_for_users(project_id, vec![contribution]).unwrap();
+
+	let (min, max) = inst
+		.execute(|| {
+			TestRuntime::get_funding_asset_min_max_amounts(
+				&TestRuntime,
+				block_hash,
+				project_id,
+				generate_did_from_account(BUYER_1),
+				AcceptedFundingAsset::USDC,
+				InvestorType::Professional,
+			)
+		})
+		.unwrap()
+		.unwrap();
+	assert_eq!(min, CONTRIBUTOR_PROFESSIONAL_USDC_MIN);
+	assert_eq!(max, CONTRIBUTOR_PROFESSIONAL_USDC_MAX);
 }
 
 #[test]

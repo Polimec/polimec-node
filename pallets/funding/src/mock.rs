@@ -578,6 +578,13 @@ sp_api::mock_impl_runtime_apis! {
 			PolimecFunding::get_next_vesting_schedule_merge_candidates(account, hold_reason, end_max_delta)
 		}
 
+		fn calculate_otm_fee(funding_asset: AcceptedFundingAsset, funding_asset_amount: Balance) -> Option<Balance> {
+			PolimecFunding::calculate_otm_fee(funding_asset, funding_asset_amount)
+		}
+		fn get_funding_asset_min_max_amounts(project_id: ProjectId, did: Did, funding_asset: AcceptedFundingAsset, investor_type: InvestorType) -> Option<(Balance, Balance)> {
+			PolimecFunding::get_funding_asset_min_max_amounts(project_id, did, funding_asset, investor_type)
+		}
+
 
 	}
 }

@@ -26,7 +26,7 @@ pallet-timestamp.workspace = true
 sp-std.workspace = true
 sp-runtime.workspace = true
 xcm.workspace = true
-xcm-builder.workspace = true
+xcm-builder = { workspace = true, optional = true }
 
 
 [features]
@@ -42,6 +42,7 @@ std = [
 	"serde/std",
 	"sp-runtime/std",
 	"sp-std/std",
+	"xcm-builder?/std",
 	"xcm/std",
 ]
 runtime-benchmarks = [
@@ -50,6 +51,8 @@ runtime-benchmarks = [
 	"frame-system/runtime-benchmarks",
 	"pallet-timestamp/runtime-benchmarks",
 	"sp-runtime/runtime-benchmarks",
+	"xcm-builder",
+	"xcm-builder?/runtime-benchmarks",
 ]
 try-runtime = [
 	"frame-support/try-runtime",
