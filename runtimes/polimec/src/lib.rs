@@ -71,22 +71,24 @@ use sp_runtime::{
 };
 use sp_std::{cmp::Ordering, prelude::*};
 use sp_version::RuntimeVersion;
-use xcm::{IntoVersion, VersionedAssets, VersionedLocation, VersionedXcm};
 
 // XCM Imports
-use xcm::v3::{
-	Junction::{GeneralIndex, PalletInstance, Parachain},
-	Junctions::{Here, X3},
-	MultiLocation,
+use xcm::{
+	v3::{
+		Junction::{GeneralIndex, PalletInstance, Parachain},
+		Junctions::{Here, X3},
+		MultiLocation,
+	},
+	VersionedAssets, VersionedLocation, VersionedXcm,
 };
-#[cfg(not(feature = "runtime-benchmarks"))]
-use xcm_config::XcmConfig;
-
 use xcm_config::{PriceForSiblingParachainDelivery, XcmOriginToTransactDispatchOrigin};
 use xcm_fee_payment_runtime_api::{
 	dry_run::{CallDryRunEffects, Error as XcmDryRunApiError, XcmDryRunEffects},
 	fees::Error as XcmPaymentApiError,
 };
+
+#[cfg(not(feature = "runtime-benchmarks"))]
+use xcm_config::XcmConfig;
 
 // Polimec Shared Imports
 pub use pallet_parachain_staking;

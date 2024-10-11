@@ -52,7 +52,7 @@ fn locked_outcome() {
 		<Assets as Mutate<u64>>::mint_into(fee_asset, &user, expected_fee + 100).unwrap();
 
 		// The user requests the proxy bond
-		ProxyBonding::bond_on_behalf_of(derivation_path, user, bond_amount, fee_asset, hold_reason.clone()).unwrap();
+		ProxyBonding::bond_on_behalf_of(derivation_path, user, bond_amount, fee_asset, hold_reason).unwrap();
 
 		// The user has locked 100 native tokens on sub-account 0
 		let sub_account_0: AccountIdOf<TestRuntime> = RootId::get().into_sub_account_truncating(0);
@@ -62,20 +62,16 @@ fn locked_outcome() {
 		assert_eq!(<Assets as FungiblesInspect<u64>>::balance(fee_asset, &user), 100);
 
 		// Mark the release type as Locked, which sends the fee to the fee_recipient, and the bond to the treasury after the inner block number is passed
-		ProxyBonding::set_release_type(derivation_path, hold_reason.clone(), ReleaseType::Locked(10));
+		ProxyBonding::set_release_type(derivation_path, hold_reason, ReleaseType::Locked(10));
 
 		assert_noop!(
-			ProxyBonding::transfer_bonds_back_to_treasury(
-				RuntimeOrigin::signed(1),
-				derivation_path,
-				hold_reason.clone()
-			),
+			ProxyBonding::transfer_bonds_back_to_treasury(RuntimeOrigin::signed(1), derivation_path, hold_reason),
 			Error::<TestRuntime>::TooEarlyToUnlock
 		);
 		assert_ok!(ProxyBonding::transfer_fees_to_recipient(
 			RuntimeOrigin::signed(1),
 			derivation_path,
-			hold_reason.clone(),
+			hold_reason,
 			fee_asset
 		));
 		assert_eq!(<Assets as FungiblesInspect<u64>>::balance(fee_asset, &fee_recipient), expected_fee);
@@ -85,7 +81,7 @@ fn locked_outcome() {
 		assert_ok!(ProxyBonding::transfer_bonds_back_to_treasury(
 			RuntimeOrigin::signed(1),
 			derivation_path,
-			hold_reason.clone()
+			hold_reason
 		));
 		assert_eq!(<Balances as Inspect<u64>>::balance(&treasury), ed + bond_amount);
 	});
@@ -121,7 +117,7 @@ fn refunded_outcome() {
 		<Assets as Mutate<u64>>::mint_into(fee_asset, &user, expected_fee + 100).unwrap();
 
 		// The user requests the proxy bond
-		ProxyBonding::bond_on_behalf_of(derivation_path, user, bond_amount, fee_asset, hold_reason.clone()).unwrap();
+		ProxyBonding::bond_on_behalf_of(derivation_path, user, bond_amount, fee_asset, hold_reason).unwrap();
 
 		// The user has locked 100 native tokens on sub-account 0
 		let sub_account_0: AccountIdOf<TestRuntime> = RootId::get().into_sub_account_truncating(0);
@@ -131,21 +127,16 @@ fn refunded_outcome() {
 		assert_eq!(<Assets as FungiblesInspect<u64>>::balance(fee_asset, &user), 100);
 
 		// Mark the release type as Refunded, which leaves the fee to subsequent `refund_fee` calls, and allows to send the bond immediately the treasury.
-		ProxyBonding::set_release_type(derivation_path, hold_reason.clone(), ReleaseType::Refunded);
+		ProxyBonding::set_release_type(derivation_path, hold_reason, ReleaseType::Refunded);
 
 		assert_ok!(ProxyBonding::transfer_bonds_back_to_treasury(
 			RuntimeOrigin::signed(1),
 			derivation_path,
-			hold_reason.clone()
+			hold_reason
 		),);
 		assert_eq!(<Balances as Inspect<u64>>::balance(&treasury), ed + bond_amount);
 		assert_noop!(
-			ProxyBonding::transfer_fees_to_recipient(
-				RuntimeOrigin::signed(1),
-				derivation_path,
-				hold_reason.clone(),
-				fee_asset
-			),
+			ProxyBonding::transfer_fees_to_recipient(RuntimeOrigin::signed(1), derivation_path, hold_reason, fee_asset),
 			Error::<TestRuntime>::FeeToRecipientDisallowed
 		);
 

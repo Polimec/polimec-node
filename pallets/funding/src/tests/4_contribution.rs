@@ -483,7 +483,7 @@ mod contribute_extrinsic {
 
 			inst.mint_plmc_ed_if_required(bids.accounts());
 			inst.mint_plmc_to(bids_plmc.clone());
-			assert_eq!(inst.execute(|| Balances::free_balance(&bob)), inst.get_ed());
+			assert_eq!(inst.execute(|| Balances::free_balance(bob)), inst.get_ed());
 
 			let bids_funding_assets = inst.calculate_auction_funding_asset_charged_from_all_bids_made_or_with_bucket(
 				&bids,
@@ -495,7 +495,7 @@ mod contribute_extrinsic {
 
 			inst.bid_for_users(project_id, bids).unwrap();
 
-			assert_eq!(inst.execute(|| Balances::free_balance(&bob)), inst.get_ed());
+			assert_eq!(inst.execute(|| Balances::free_balance(bob)), inst.get_ed());
 
 			assert!(matches!(inst.go_to_next_state(project_id), ProjectStatus::CommunityRound(..)));
 
@@ -503,7 +503,7 @@ mod contribute_extrinsic {
 			inst.execute(|| {
 				PolimecFunding::settle_bid(RuntimeOrigin::signed(bob), project_id, bob, 1).unwrap();
 			});
-			let bob_plmc = inst.execute(|| Balances::free_balance(&bob));
+			let bob_plmc = inst.execute(|| Balances::free_balance(bob));
 			assert_close_enough!(bob_plmc, inst.get_ed() + usable_bond, Perquintill::from_float(0.9999));
 
 			// Calculate how much CTs can bob buy with his evaluation PLMC bond
@@ -534,7 +534,7 @@ mod contribute_extrinsic {
 
 			// Check he had no free PLMC
 			assert_close_enough!(
-				inst.execute(|| Balances::free_balance(&bob)),
+				inst.execute(|| Balances::free_balance(bob)),
 				inst.get_ed(),
 				Perquintill::from_float(0.999)
 			);
@@ -614,7 +614,7 @@ mod contribute_extrinsic {
 		) -> DispatchResultWithPostInfo {
 			let project_policy = inst.get_project_metadata(project_id).policy_ipfs_cid.unwrap();
 			let jwt = get_mock_jwt_with_cid(
-				contributor.clone(),
+				contributor,
 				investor_type,
 				generate_did_from_account(contributor),
 				project_policy,

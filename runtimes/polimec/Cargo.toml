@@ -28,7 +28,6 @@ scale-info = { workspace= true, default-features = false, features = [
 # Uncomment this and the std feature below to see variables instead of <wasm:stripped> in the console output
 #sp-debug-derive = { workspace = true, features = ["force-debug"]}
 
-
 # Polimec specific
 pallet-dispenser.workspace = true
 pallet-funding.workspace = true
@@ -37,8 +36,8 @@ pallet-linear-release.workspace = true
 shared-configuration.workspace = true
 polimec-common.workspace = true
 pallet-parachain-staking.workspace = true
-on-slash-vesting.workspace = true
 pallet-proxy-bonding.workspace = true
+hex-literal = { workspace = true }
 
 # Substrate
 assets-common.workspace = true
@@ -111,8 +110,7 @@ parachains-common.workspace = true
 orml-oracle.workspace = true
 
 # Migration utilities
-hex-literal = { workspace = true }
-array-bytes = { workspace = true, default-features = false }
+# array-bytes = { workspace = true, default-features = false }
 
 [features]
 default = [ "std" ]
@@ -137,7 +135,6 @@ std = [
 	"frame-system/std",
 	"frame-try-runtime?/std",
 	"log/std",
-	"on-slash-vesting/std",
 	"orml-oracle/std",
 	"pallet-asset-tx-payment/std",
 	"pallet-assets/std",
@@ -208,7 +205,6 @@ runtime-benchmarks = [
 	"frame-support/runtime-benchmarks",
 	"frame-system-benchmarking/runtime-benchmarks",
 	"frame-system/runtime-benchmarks",
-	"on-slash-vesting/runtime-benchmarks",
 	"orml-oracle/runtime-benchmarks",
 	"pallet-asset-tx-payment/runtime-benchmarks",
 	"pallet-assets/runtime-benchmarks",

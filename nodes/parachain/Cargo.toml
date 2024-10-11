@@ -32,7 +32,6 @@ pallet-funding.workspace = true
 # Substrate
 frame-benchmarking.workspace = true
 frame-benchmarking-cli.workspace = true
-frame-support.workspace = true
 pallet-transaction-payment-rpc.workspace = true
 sc-basic-authorship.workspace = true
 sc-chain-spec.workspace = true
@@ -51,7 +50,6 @@ sc-transaction-pool.workspace = true
 sc-transaction-pool-api.workspace = true
 sc-network-sync.workspace = true
 sp-api.workspace = true
-sp-io.workspace = true
 sp-block-builder.workspace = true
 sp-blockchain.workspace = true
 sp-consensus-aura.workspace = true
@@ -89,7 +87,6 @@ runtime-benchmarks = [
 	"cumulus-primitives-core/runtime-benchmarks",
 	"frame-benchmarking-cli/runtime-benchmarks",
 	"frame-benchmarking/runtime-benchmarks",
-	"frame-support/runtime-benchmarks",
 	"pallet-funding/runtime-benchmarks",
 	"polimec-runtime/runtime-benchmarks",
 	"polkadot-cli/runtime-benchmarks",
@@ -98,7 +95,6 @@ runtime-benchmarks = [
 	"sp-runtime/runtime-benchmarks",
 ]
 try-runtime = [
-	"frame-support/try-runtime",
 	"pallet-funding/try-runtime",
 	"polimec-runtime/try-runtime",
 	"polkadot-cli/try-runtime",

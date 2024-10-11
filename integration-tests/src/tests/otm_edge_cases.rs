@@ -5,15 +5,14 @@ use crate::{
 };
 use frame_support::traits::fungibles::Inspect;
 use macros::generate_accounts;
-use pallet_funding::{AcceptedFundingAsset, MultiplierOf, ParticipationMode, PriceProviderOf};
+use pallet_funding::{traits::BondingRequirementCalculation, AcceptedFundingAsset, MultiplierOf, ParticipationMode};
 use polimec_common::{credentials::InvestorType, ProvideAssetPrice, PLMC_DECIMALS, PLMC_FOREIGN_ID, USD_UNIT};
 use polimec_common_test_utils::{generate_did_from_account, get_mock_jwt_with_cid};
-use polimec_runtime::OraclePriceProvider;
-use sp_arithmetic::{FixedPointNumber, FixedU128, Perbill};
+use sp_arithmetic::{FixedPointNumber, FixedU128};
 use sp_core::bounded_vec;
 use sp_runtime::TokenError;
+
 generate_accounts!(ISSUER, BOBERT);
-use pallet_funding::traits::BondingRequirementCalculation;
 
 #[test]
 fn otm_fee_below_min_amount_reverts() {
@@ -119,7 +118,7 @@ fn after_otm_fee_user_goes_under_ed_reverts() {
 
 	polimec::set_prices(PricesBuilder::default());
 	PolimecNet::execute_with(|| {
-		let mut project_metadata = default_project_metadata(issuer.clone());
+		let project_metadata = default_project_metadata(issuer.clone());
 
 		let project_id = inst.create_community_contributing_project(
 			project_metadata.clone(),

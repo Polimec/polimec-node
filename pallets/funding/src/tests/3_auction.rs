@@ -517,12 +517,7 @@ mod bid_extrinsic {
 			u8_multiplier: u8,
 		) -> DispatchResultWithPostInfo {
 			let project_policy = inst.get_project_metadata(project_id).policy_ipfs_cid.unwrap();
-			let jwt = get_mock_jwt_with_cid(
-				bidder.clone(),
-				investor_type,
-				generate_did_from_account(BIDDER_1),
-				project_policy,
-			);
+			let jwt = get_mock_jwt_with_cid(bidder, investor_type, generate_did_from_account(BIDDER_1), project_policy);
 			let amount = 1000 * CT_UNIT;
 			let mode = ParticipationMode::Classic(u8_multiplier);
 
@@ -1832,7 +1827,7 @@ mod bid_extrinsic {
 			let project_metadata = default_project_metadata(ISSUER_1);
 			let project_id =
 				inst.create_auctioning_project(project_metadata.clone(), ISSUER_1, None, default_evaluations());
-			let bids = vec![BidParams::<TestRuntime>::new(
+			let bids = [BidParams::<TestRuntime>::new(
 				BIDDER_1,
 				10_000,
 				ParticipationMode::Classic(1u8),
@@ -1906,7 +1901,7 @@ mod end_auction_extrinsic {
 			const ANNA: AccountIdOf<TestRuntime> = 64;
 			const DAMIAN: AccountIdOf<TestRuntime> = 65;
 
-			let accounts = vec![ADAM, TOM, SOFIA, FRED, ANNA, DAMIAN];
+			let accounts = [ADAM, TOM, SOFIA, FRED, ANNA, DAMIAN];
 
 			let bounded_name = bounded_name();
 			let bounded_symbol = bounded_symbol();
@@ -1947,12 +1942,12 @@ mod end_auction_extrinsic {
 			// overfund with plmc
 			let plmc_fundings = accounts
 				.iter()
-				.map(|acc| UserToPLMCBalance { account: acc.clone(), plmc_amount: PLMC * 1_000_000 })
+				.map(|acc| UserToPLMCBalance { account: *acc, plmc_amount: PLMC * 1_000_000 })
 				.collect_vec();
 			let usdt_fundings = accounts
 				.iter()
 				.map(|acc| UserToFundingAsset {
-					account: acc.clone(),
+					account: *acc,
 					asset_amount: USD_UNIT * 1_000_000,
 					asset_id: AcceptedFundingAsset::USDT.id(),
 				})
@@ -2140,7 +2135,7 @@ mod end_auction_extrinsic {
 			const ANNA: AccountIdOf<TestRuntime> = 64;
 			const DAMIAN: AccountIdOf<TestRuntime> = 65;
 
-			let accounts = vec![ADAM, TOM, SOFIA, FRED, ANNA, DAMIAN];
+			let accounts = [ADAM, TOM, SOFIA, FRED, ANNA, DAMIAN];
 			let mut project_metadata = default_project_metadata(ISSUER_1);
 			project_metadata.total_allocation_size = 100_000 * CT_UNIT;
 			project_metadata.participation_currencies =
@@ -2149,7 +2144,7 @@ mod end_auction_extrinsic {
 			// overfund with plmc
 			let plmc_fundings = accounts
 				.iter()
-				.map(|acc| UserToPLMCBalance { account: acc.clone(), plmc_amount: PLMC * 1_000_000 })
+				.map(|acc| UserToPLMCBalance { account: *acc, plmc_amount: PLMC * 1_000_000 })
 				.collect_vec();
 
 			let fundings = [AcceptedFundingAsset::USDT, AcceptedFundingAsset::USDC, AcceptedFundingAsset::DOT];
@@ -2163,7 +2158,7 @@ mod end_auction_extrinsic {
 					let asset_id = accepted_asset.id();
 					let asset_decimals = inst.execute(|| <TestRuntime as Config>::FundingCurrency::decimals(asset_id));
 					let asset_unit = 10u128.checked_pow(asset_decimals.into()).unwrap();
-					UserToFundingAsset { account: acc.clone(), asset_amount: asset_unit * 1_000_000, asset_id }
+					UserToFundingAsset { account: *acc, asset_amount: asset_unit * 1_000_000, asset_id }
 				})
 				.collect_vec();
 			inst.mint_plmc_to(plmc_fundings);

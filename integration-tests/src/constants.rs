@@ -72,7 +72,7 @@ pub struct Prices {
 }
 
 // PricesBuilder for optional fields before building Prices
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Default)]
 pub struct PricesBuilder {
 	dot: Option<FixedU128>,
 	usdc: Option<FixedU128>,
@@ -463,17 +463,17 @@ pub mod polimec {
 			];
 
 			frame_support::assert_ok!(orml_oracle::Pallet::<PolimecRuntime>::feed_values(
-				PolimecOrigin::signed(alice.clone().into()),
+				PolimecOrigin::signed(alice.into()),
 				values.clone()
 			));
 
 			frame_support::assert_ok!(orml_oracle::Pallet::<PolimecRuntime>::feed_values(
-				PolimecOrigin::signed(bob.clone().into()),
+				PolimecOrigin::signed(bob.into()),
 				values.clone()
 			));
 
 			frame_support::assert_ok!(orml_oracle::Pallet::<PolimecRuntime>::feed_values(
-				PolimecOrigin::signed(charlie.clone().into()),
+				PolimecOrigin::signed(charlie.into()),
 				values.clone()
 			));
 		});

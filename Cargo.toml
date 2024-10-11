@@ -13,22 +13,19 @@ resolver = "2"
 
 [workspace.lints.clippy]
 all = { level = "warn", priority = -1}
-#all = { level = "allow", priority = -1}
-#pedantic = { level = "warn", priority = -1}
-#pedantic = { level = "allow", priority = -1}
-
 inconsistent_digit_grouping = "allow"
 zero_prefixed_literal = "allow"
 missing_errors_doc = "allow"
 must_use_candidate = "allow"
 identity_op = "allow"
+tabs_in_doc_comments= "allow"
 
 [workspace.lints.rust]
 unreachable_patterns = "deny"
 
 [workspace.package]
 authors = ['Polimec Foundation <info@polimec.org>']
-documentation = "https://wiki.polimec.org/"
+documentation = "https://hub.polimec.org/"
 edition = "2021"
 homepage = "https://www.polimec.org/"
 license-file = "LICENSE"
@@ -89,23 +86,23 @@ substrate-fixed = { git = "https://github.com/encointer/substrate-fixed", defaul
 # External (without extra features and with default disabled if necessary)
 parity-scale-codec = { version = "3.6.12", default-features = false }
 clap = { version = "4.5.3" }
-futures = { version = "0.3.28" }
-scale-info = { version = "2.11.1", default-features = false, features = [
+futures = { version = "0.3.31" }
+scale-info = { version = "2.11.3", default-features = false, features = [
     "derive",
 ] }
-jsonrpsee = { version = "0.22", features = ["server"] }
+jsonrpsee = { version = "0.22.5", features = ["server"] }
 hex-literal = "0.4.1"
-serde = { version = "1.0.197", default-features = false }
-serde_json = "1.0.114"
-smallvec = "1.11.0"
-log = { version = "0.4.17", default-features = false }
+serde = { version = "1.0.204", default-features = false }
+serde_json = "1.0.120"
+smallvec = "1.13.2"
+log = { version = "0.4.22", default-features = false }
 itertools = { version = "0.11", default-features = false, features = [
     "use_alloc",
 ] }
-array-bytes = { version = "6.2.2", default-features = false }
+array-bytes = { version = "6.2.3", default-features = false }
 serde-json-core = { version = '0.5.1', default-features = false }
-heapless = { version = "0.7", default-features = false }
-color-print = "0.3.5"
+heapless = { version = "0.8", default-features = false }
+color-print = "0.3.6"
 
 # Emulations
 xcm-emulator = { version = "0.12.0", default-features = false }
@@ -202,7 +199,6 @@ cumulus-primitives-utility = { version = "0.14.0", default-features = false }
 parachain-info = { version = "0.14.0", package = 'staging-parachain-info', default-features = false }
 parachains-common = { version = "14.0.0", default-features = false }
 cumulus-primitives-aura = { version = "0.14.0", default-features = false }
-
 
 # Client-only (with default enabled)
 cumulus-client-cli = { version = "0.14.0" }

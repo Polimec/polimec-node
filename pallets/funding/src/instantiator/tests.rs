@@ -23,7 +23,7 @@ fn dry_run_wap() {
 	const ANNA: AccountIdOf<TestRuntime> = 64;
 	const DAMIAN: AccountIdOf<TestRuntime> = 65;
 
-	let accounts = vec![ADAM, TOM, SOFIA, FRED, ANNA, DAMIAN];
+	let accounts = [ADAM, TOM, SOFIA, FRED, ANNA, DAMIAN];
 
 	let bounded_name = bounded_name();
 	let bounded_symbol = bounded_symbol();
@@ -55,14 +55,12 @@ fn dry_run_wap() {
 	};
 
 	// overfund with plmc
-	let plmc_fundings = accounts
-		.iter()
-		.map(|acc| UserToPLMCBalance { account: acc.clone(), plmc_amount: PLMC * 1_000_000 })
-		.collect_vec();
+	let plmc_fundings =
+		accounts.iter().map(|acc| UserToPLMCBalance { account: *acc, plmc_amount: PLMC * 1_000_000 }).collect_vec();
 	let usdt_fundings = accounts
 		.iter()
 		.map(|acc| UserToFundingAsset {
-			account: acc.clone(),
+			account: *acc,
 			asset_amount: USD_UNIT * 1_000_000,
 			asset_id: AcceptedFundingAsset::USDT.id(),
 		})
@@ -105,7 +103,7 @@ fn find_bucket_for_wap() {
 	const ANNA: AccountIdOf<TestRuntime> = 64;
 	const DAMIAN: AccountIdOf<TestRuntime> = 65;
 
-	let accounts = vec![ADAM, TOM, SOFIA, FRED, ANNA, DAMIAN];
+	let accounts = [ADAM, TOM, SOFIA, FRED, ANNA, DAMIAN];
 
 	let bounded_name = bounded_name();
 	let bounded_symbol = bounded_symbol();
@@ -137,14 +135,12 @@ fn find_bucket_for_wap() {
 	};
 
 	// overfund with plmc
-	let plmc_fundings = accounts
-		.iter()
-		.map(|acc| UserToPLMCBalance { account: acc.clone(), plmc_amount: PLMC * 1_000_000 })
-		.collect_vec();
+	let plmc_fundings =
+		accounts.iter().map(|acc| UserToPLMCBalance { account: *acc, plmc_amount: PLMC * 1_000_000 }).collect_vec();
 	let usdt_fundings = accounts
 		.iter()
 		.map(|acc| UserToFundingAsset {
-			account: acc.clone(),
+			account: *acc,
 			asset_amount: USD_UNIT * 1_000_000,
 			asset_id: AcceptedFundingAsset::USDT.id(),
 		})

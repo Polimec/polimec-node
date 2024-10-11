@@ -27,7 +27,7 @@ use polimec_runtime::{Balances, BlockchainOperationTreasury, ParachainStaking, R
 use sp_runtime::Perquintill;
 use xcm_emulator::helpers::get_account_id_from_seed;
 
-generate_accounts!(PEPE, CARLOS,);
+generate_accounts!(PEPE, CARLOS);
 
 #[test]
 fn base_vested_can_stake() {

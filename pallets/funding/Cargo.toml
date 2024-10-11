@@ -13,9 +13,6 @@ version.workspace = true
 [lints]
 workspace = true
 
-#[lints.clippy]
-#inconsistent_digit_grouping = "allow"
-
 [dependencies]
 serde = { workspace = true }
 parity-scale-codec = { workspace = true, features = [
@@ -45,9 +42,9 @@ xcm.workspace = true
 xcm-executor.workspace = true
 pallet-xcm.workspace = true
 polkadot-parachain-primitives.workspace = true
+sp-api.workspace = true
 polimec-common-test-utils = { workspace = true, optional = true }
 frame-benchmarking = { workspace = true, optional = true }
-sp-api.workspace = true
 
 # Used in the instantiator.
 itertools.workspace = true
@@ -58,10 +55,8 @@ pallet-timestamp.workspace = true
 pallet-assets.workspace = true
 pallet-linear-release.workspace = true
 polimec-common-test-utils.workspace = true
-macros.workspace = true
 xcm-builder.workspace = true
 xcm-executor.workspace = true
-env_logger = "0.10.2"
 
 [features]
 default = [ "std" ]

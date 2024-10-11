@@ -67,9 +67,7 @@ mod start_settlement_extrinsic {
 
 			assert_eq!(project_details.funding_end_block, None);
 			assert_eq!(project_details.status, ProjectStatus::FundingSuccessful);
-			inst.execute(|| {
-				assert_eq!(<TestRuntime as Config>::ContributionTokenCurrency::asset_exists(project_id), false)
-			});
+			inst.execute(|| assert!(!<TestRuntime as Config>::ContributionTokenCurrency::asset_exists(project_id)));
 
 			inst.execute(|| {
 				assert_ok!(PolimecFunding::start_settlement(RuntimeOrigin::signed(80085), project_id));
@@ -78,9 +76,7 @@ mod start_settlement_extrinsic {
 
 			assert_eq!(project_details.funding_end_block, Some(inst.current_block()));
 			assert_eq!(project_details.status, ProjectStatus::SettlementStarted(FundingOutcome::Success));
-			inst.execute(|| {
-				assert_eq!(<TestRuntime as Config>::ContributionTokenCurrency::asset_exists(project_id), true)
-			});
+			inst.execute(|| assert!(<TestRuntime as Config>::ContributionTokenCurrency::asset_exists(project_id)));
 
 			inst.assert_ct_balance(project_id, ct_treasury, treasury_allocation);
 		}
@@ -92,9 +88,7 @@ mod start_settlement_extrinsic {
 
 			assert_eq!(project_details.funding_end_block, None);
 			assert_eq!(project_details.status, ProjectStatus::FundingFailed);
-			inst.execute(|| {
-				assert_eq!(<TestRuntime as Config>::ContributionTokenCurrency::asset_exists(project_id), false)
-			});
+			inst.execute(|| assert!(!<TestRuntime as Config>::ContributionTokenCurrency::asset_exists(project_id)));
 
 			inst.execute(|| {
 				assert_ok!(PolimecFunding::start_settlement(RuntimeOrigin::signed(80085), project_id));
@@ -103,9 +97,7 @@ mod start_settlement_extrinsic {
 
 			assert_eq!(project_details.funding_end_block, Some(inst.current_block()));
 			assert_eq!(project_details.status, ProjectStatus::SettlementStarted(FundingOutcome::Failure));
-			inst.execute(|| {
-				assert_eq!(<TestRuntime as Config>::ContributionTokenCurrency::asset_exists(project_id), false)
-			});
+			inst.execute(|| assert!(!<TestRuntime as Config>::ContributionTokenCurrency::asset_exists(project_id)));
 		}
 	}
 
