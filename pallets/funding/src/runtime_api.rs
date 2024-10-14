@@ -1,10 +1,11 @@
+use crate::traits::BondingRequirementCalculation;
 #[allow(clippy::wildcard_imports)]
 use crate::*;
 use alloc::collections::BTreeMap;
 use frame_support::traits::fungibles::{metadata::Inspect as MetadataInspect, Inspect, InspectEnumerable};
 use itertools::Itertools;
 use parity_scale_codec::{Decode, Encode};
-use polimec_common::{ProvideAssetPrice, USD_DECIMALS};
+use polimec_common::{credentials::InvestorType, ProvideAssetPrice, USD_DECIMALS};
 use scale_info::TypeInfo;
 use sp_runtime::traits::Zero;
 #[derive(Debug, Clone, PartialEq, Eq, Encode, Decode, TypeInfo)]
@@ -52,7 +53,7 @@ sp_api::decl_runtime_apis! {
 		fn projects_by_did(did: Did) -> Vec<ProjectId>;
 	}
 
-	#[api_version(2)]
+	#[api_version(3)]
 	pub trait ExtrinsicHelpers<T: Config> {
 		/// Get the current price of a contribution token (either current bucket in the auction, or WAP in contribution phase),
 		/// and calculate the amount of tokens that can be bought with the given amount USDT/USDC/DOT.
@@ -61,6 +62,12 @@ sp_api::decl_runtime_apis! {
 		/// Get the indexes of vesting schedules that are good candidates to be merged.
 		/// Schedules that have not yet started are de-facto bad candidates.
 		fn get_next_vesting_schedule_merge_candidates(account_id: AccountIdOf<T>, hold_reason: <T as Config>::RuntimeHoldReason, end_max_delta: Balance) -> Option<(u32, u32)>;
+
+		/// Calculate the OTM fee for a project, using a given asset and amount.
+		fn calculate_otm_fee(funding_asset: AcceptedFundingAsset, funding_asset_amount: Balance) -> Option<Balance>;
+
+		/// Gets the minimum and maximum amount of FundingAsset a user can input in the UI.
+		fn get_funding_asset_min_max_amounts(project_id: ProjectId, did: Did, funding_asset: AcceptedFundingAsset, investor_type: InvestorType) -> Option<(Balance, Balance)>;
 	}
 }
 
@@ -205,6 +212,100 @@ impl<T: Config> Pallet<T> {
 		}
 
 		None
+	}
+
+	pub fn calculate_otm_fee(funding_asset: AcceptedFundingAsset, funding_asset_amount: Balance) -> Option<Balance> {
+		let plmc_price = <PriceProviderOf<T>>::get_decimals_aware_price(PLMC_FOREIGN_ID, USD_DECIMALS, PLMC_DECIMALS)
+			.expect("Price not found");
+		let funding_asset_id = funding_asset.id();
+		let funding_asset_decimals = T::FundingCurrency::decimals(funding_asset_id);
+		let funding_asset_usd_price =
+			<PriceProviderOf<T>>::get_decimals_aware_price(funding_asset_id, USD_DECIMALS, funding_asset_decimals)
+				.expect("Price not found");
+		let usd_amount = funding_asset_usd_price.saturating_mul_int(funding_asset_amount);
+		let otm_multiplier: MultiplierOf<T> = ParticipationMode::OTM.multiplier().try_into().ok()?;
+		let required_usd_bond = otm_multiplier.calculate_usd_bonding_requirement::<T>(usd_amount)?;
+		let plmc_bond = plmc_price.reciprocal()?.saturating_mul_int(required_usd_bond);
+		pallet_proxy_bonding::Pallet::<T>::calculate_fee(plmc_bond, funding_asset_id).ok()
+	}
+
+	pub fn get_funding_asset_min_max_amounts(
+		project_id: ProjectId,
+		did: Did,
+		funding_asset: AcceptedFundingAsset,
+		investor_type: InvestorType,
+	) -> Option<(Balance, Balance)> {
+		let project_details = ProjectsDetails::<T>::get(project_id)?;
+		let project_metadata = ProjectsMetadata::<T>::get(project_id)?;
+		let funding_asset_id = funding_asset.id();
+		let funding_asset_price = <PriceProviderOf<T>>::get_decimals_aware_price(
+			funding_asset_id,
+			USD_DECIMALS,
+			T::FundingCurrency::decimals(funding_asset_id),
+		)?;
+
+		let (min_usd_ticket, maybe_max_usd_ticket, already_spent_usd, total_cts_usd_amount) =
+			match project_details.status {
+				ProjectStatus::AuctionRound => {
+					let ticket_sizes = match investor_type {
+						InvestorType::Institutional => project_metadata.bidding_ticket_sizes.institutional,
+						InvestorType::Professional => project_metadata.bidding_ticket_sizes.professional,
+						_ => return None,
+					};
+					let already_spent_usd = AuctionBoughtUSD::<T>::get((project_id, did));
+					let mut max_contribution_tokens =
+						project_metadata.auction_round_allocation_percentage * project_metadata.total_allocation_size;
+
+					let mut total_cts_usd_amount = 0;
+
+					let mut current_bucket = Buckets::<T>::get(project_id)?;
+					while max_contribution_tokens > 0u128 {
+						let bucket_price = current_bucket.current_price;
+						let ct_to_buy = max_contribution_tokens.min(current_bucket.amount_left);
+						let usd_spent = bucket_price.saturating_mul_int(ct_to_buy);
+
+						max_contribution_tokens -= ct_to_buy;
+						total_cts_usd_amount += usd_spent;
+						current_bucket.update(ct_to_buy);
+					}
+
+					(
+						ticket_sizes.usd_minimum_per_participation,
+						ticket_sizes.usd_maximum_per_did,
+						already_spent_usd,
+						total_cts_usd_amount,
+					)
+				},
+				ProjectStatus::CommunityRound(..) => {
+					let ticket_sizes = match investor_type {
+						InvestorType::Institutional => project_metadata.contributing_ticket_sizes.institutional,
+						InvestorType::Professional => project_metadata.contributing_ticket_sizes.professional,
+						InvestorType::Retail => project_metadata.contributing_ticket_sizes.retail,
+					};
+					let already_spent_usd = ContributionBoughtUSD::<T>::get((project_id, did));
+					let max_contribution_tokens = project_details.remaining_contribution_tokens;
+					let price = project_details.weighted_average_price?;
+					let total_cts_usd_amount = price.saturating_mul_int(max_contribution_tokens);
+					(
+						ticket_sizes.usd_minimum_per_participation,
+						ticket_sizes.usd_maximum_per_did,
+						already_spent_usd,
+						total_cts_usd_amount,
+					)
+				},
+				_ => return None,
+			};
+
+		let max_usd_ticket = if let Some(issuer_set_max_usd_ticket) = maybe_max_usd_ticket {
+			total_cts_usd_amount.min(issuer_set_max_usd_ticket.saturating_sub(already_spent_usd))
+		} else {
+			total_cts_usd_amount
+		};
+
+		let funding_asset_min_ticket = funding_asset_price.reciprocal()?.saturating_mul_int(min_usd_ticket);
+		let funding_asset_max_ticket = funding_asset_price.reciprocal()?.saturating_mul_int(max_usd_ticket);
+
+		Some((funding_asset_min_ticket, funding_asset_max_ticket))
 	}
 
 	pub fn all_project_participations_by_did(project_id: ProjectId, did: Did) -> Vec<ProjectParticipationIds<T>> {

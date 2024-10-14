@@ -47,14 +47,12 @@ mod xcm_payment_api {
 				VersionedAssetId::V4(AssetId(Location { parents: 0, interior: Here })),
 			)
 			.unwrap();
-			dbg!(plmc_fee);
 
 			let dot_fee = PolimecRuntime::query_weight_to_asset_fee(
 				compute_weight,
 				VersionedAssetId::V4(AssetId(Location { parents: 1, interior: Here })),
 			)
 			.unwrap();
-			dbg!(dot_fee);
 
 			let usdt_fee = PolimecRuntime::query_weight_to_asset_fee(
 				compute_weight,
@@ -64,7 +62,6 @@ mod xcm_payment_api {
 				})),
 			)
 			.unwrap();
-			dbg!(usdt_fee);
 
 			// PLMC and dot have the same decimals, so a simple conversion is enough
 			assert_eq!(dot_fee, plmc_fee / 20);
