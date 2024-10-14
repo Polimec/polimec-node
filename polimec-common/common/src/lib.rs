@@ -23,7 +23,6 @@ use sp_runtime::{
 };
 use sp_std::prelude::*;
 pub use xcm::v4::{opaque::Xcm, Assets, Location, QueryId, SendError, SendResult, SendXcm, XcmHash};
-use xcm::{VersionedLocation, VersionedXcm};
 
 pub mod credentials;
 
@@ -227,31 +226,6 @@ pub const USD_DECIMALS: u8 = 6;
 pub const USD_UNIT: u128 = 10u128.pow(USD_DECIMALS as u32);
 pub const PLMC_DECIMALS: u8 = 10;
 pub const PLMC_FOREIGN_ID: u32 = 3344;
-
-#[cfg(feature = "runtime-benchmarks")]
-mod dummy_xcm_sender {
-	use super::*;
-	pub struct DummyXcmSender;
-	impl SendXcm for DummyXcmSender {
-		type Ticket = ();
-
-		fn validate(_: &mut Option<Location>, _: &mut Option<Xcm>) -> SendResult<Self::Ticket> {
-			Ok(((), Assets::new()))
-		}
-
-		/// Actually carry out the delivery operation for a previously validated message sending.
-		fn deliver(_ticket: Self::Ticket) -> Result<XcmHash, SendError> {
-			Ok([0u8; 32])
-		}
-	}
-	impl xcm_builder::InspectMessageQueues for DummyXcmSender {
-		fn get_messages() -> Vec<(VersionedLocation, Vec<VersionedXcm<()>>)> {
-			vec![]
-		}
-	}
-}
-#[cfg(feature = "runtime-benchmarks")]
-pub use dummy_xcm_sender::*;
 
 pub trait ProvideAssetPrice {
 	type AssetId;

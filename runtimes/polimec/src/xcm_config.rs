@@ -30,7 +30,7 @@ use frame_support::{
 };
 use pallet_xcm::XcmPassthrough;
 #[cfg(feature = "runtime-benchmarks")]
-use polimec_common::DummyXcmSender;
+use polimec_common_test_utils::DummyXcmSender;
 use polkadot_parachain_primitives::primitives::Sibling;
 use polkadot_runtime_common::xcm_sender::NoPriceForMessageDelivery;
 use sp_runtime::traits::MaybeEquivalence;

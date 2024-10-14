@@ -611,6 +611,53 @@ mod create_project_extrinsic {
 		}
 
 		#[test]
+		fn target_funding_more_than_1bn_usd() {
+			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+			let mut project_metadata = default_project_metadata(ISSUER_1);
+			project_metadata.minimum_price = <PriceProviderOf<TestRuntime>>::calculate_decimals_aware_price(
+				PriceOf::<TestRuntime>::from_float(1.0),
+				USD_DECIMALS,
+				CT_DECIMALS,
+			)
+			.unwrap();
+			project_metadata.total_allocation_size = 1_000_000_001 * CT_UNIT;
+			project_metadata.mainnet_token_max_supply = 1_000_000_001 * CT_UNIT;
+
+			inst.mint_plmc_to(default_plmc_balances());
+			let jwt = get_mock_jwt_with_cid(
+				ISSUER_1,
+				InvestorType::Institutional,
+				generate_did_from_account(ISSUER_1),
+				project_metadata.clone().policy_ipfs_cid.unwrap(),
+			);
+			inst.execute(|| {
+				assert_noop!(
+					Pallet::<TestRuntime>::create_project(
+						RuntimeOrigin::signed(ISSUER_1),
+						jwt.clone(),
+						project_metadata.clone()
+					),
+					Error::<TestRuntime>::FundingTargetTooHigh
+				);
+			});
+
+			project_metadata.minimum_price = <PriceProviderOf<TestRuntime>>::calculate_decimals_aware_price(
+				PriceOf::<TestRuntime>::from_float(0.0001),
+				USD_DECIMALS,
+				CT_DECIMALS,
+			)
+			.unwrap();
+			project_metadata.total_allocation_size = 10_000_000_000_001 * CT_UNIT;
+			project_metadata.mainnet_token_max_supply = 10_000_000_000_001 * CT_UNIT;
+			inst.execute(|| {
+				assert_noop!(
+					Pallet::<TestRuntime>::create_project(RuntimeOrigin::signed(ISSUER_1), jwt, project_metadata),
+					Error::<TestRuntime>::FundingTargetTooHigh
+				);
+			});
+		}
+
+		#[test]
 		fn unaccepted_decimal_ranges() {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 

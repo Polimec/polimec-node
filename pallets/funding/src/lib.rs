@@ -199,7 +199,6 @@ pub mod pallet {
 			+ OnIdle<BlockNumberFor<Self>>
 			+ OnInitialize<BlockNumberFor<Self>>;
 
-		// TODO: our local BlockNumber should be removed once we move onto using Moment for time tracking
 		/// BlockNumber used for PLMC vesting durations on this chain, and CT vesting durations on funded chains.
 		type BlockNumber: IsType<BlockNumberFor<Self>> + Into<u64>;
 
@@ -484,33 +483,15 @@ pub mod pallet {
 	#[pallet::generate_deposit(pub (super) fn deposit_event)]
 	pub enum Event<T: Config> {
 		/// A project was created.
-		ProjectCreated {
-			project_id: ProjectId,
-			issuer: T::AccountId,
-			metadata: ProjectMetadataOf<T>,
-		},
+		ProjectCreated { project_id: ProjectId, issuer: T::AccountId, metadata: ProjectMetadataOf<T> },
 		/// An issuer removed the project before the evaluation started
-		ProjectRemoved {
-			project_id: ProjectId,
-			issuer: T::AccountId,
-		},
+		ProjectRemoved { project_id: ProjectId, issuer: T::AccountId },
 		/// The metadata of a project was modified.
-		MetadataEdited {
-			project_id: ProjectId,
-			metadata: ProjectMetadataOf<T>,
-		},
+		MetadataEdited { project_id: ProjectId, metadata: ProjectMetadataOf<T> },
 		/// Project transitioned to a new phase.
-		ProjectPhaseTransition {
-			project_id: ProjectId,
-			phase: ProjectStatus<BlockNumberFor<T>>,
-		},
+		ProjectPhaseTransition { project_id: ProjectId, phase: ProjectStatus<BlockNumberFor<T>> },
 		/// A `bonder` bonded an `amount` of PLMC for `project_id`.
-		Evaluation {
-			project_id: ProjectId,
-			evaluator: AccountIdOf<T>,
-			id: u32,
-			plmc_amount: Balance,
-		},
+		Evaluation { project_id: ProjectId, evaluator: AccountIdOf<T>, id: u32, plmc_amount: Balance },
 		/// A bid was made for a project
 		Bid {
 			project_id: ProjectId,
@@ -534,14 +515,7 @@ pub mod pallet {
 			plmc_bond: Balance,
 			mode: ParticipationMode,
 		},
-		BidRefunded {
-			project_id: ProjectId,
-			account: AccountIdOf<T>,
-			bid_id: u32,
-			plmc_amount: Balance,
-			funding_asset: AcceptedFundingAsset,
-			funding_amount: Balance,
-		},
+		/// An evaluation was settled. PLMC has been unbonded with either a CT reward or a PLMC slash depending on the project outcome.
 		EvaluationSettled {
 			project_id: ProjectId,
 			account: AccountIdOf<T>,
@@ -549,6 +523,9 @@ pub mod pallet {
 			ct_rewarded: Balance,
 			plmc_released: Balance,
 		},
+		/// A bid was settled. On Funding Success the PLMC has been unbonded/locked with a vesting schedule and the funding assets have been transferred to the issuer.
+		/// Some funds and PLMC might have been returned to the bidder if they paid a higher price than the final CT price.
+		/// If Funding Failed, the PLMC has been unbonded and the funds have been returned to the bidder.
 		BidSettled {
 			project_id: ProjectId,
 			account: AccountIdOf<T>,
@@ -556,50 +533,25 @@ pub mod pallet {
 			final_ct_amount: Balance,
 			final_ct_usd_price: PriceOf<T>,
 		},
-		ContributionSettled {
-			project_id: ProjectId,
-			account: AccountIdOf<T>,
-			id: u32,
-			ct_amount: Balance,
-		},
-		PalletMigrationStarted {
-			project_id: ProjectId,
-			para_id: ParaId,
-		},
+		/// A contribution was settled. On Funding Success the PLMC has been unbonded/locked with a vesting schedule and the funding assets have been transferred to the issuer.
+		/// If Funding Failed, the PLMC has been unbonded and the funds have been returned to the contributor.
+		ContributionSettled { project_id: ProjectId, account: AccountIdOf<T>, id: u32, ct_amount: Balance },
+		/// Issuer started the CT migration to mainnet tokens using the pallet migration method
+		PalletMigrationStarted { project_id: ProjectId, para_id: ParaId },
 		/// A channel was accepted from a parachain to Polimec belonging to a project. A request has been sent to the relay for a Polimec->project channel
-		HrmpChannelAccepted {
-			project_id: ProjectId,
-			para_id: ParaId,
-		},
+		HrmpChannelAccepted { project_id: ProjectId, para_id: ParaId },
 		/// A channel was established from Polimec to a project. The relay has notified us of their acceptance of our request
-		HrmpChannelEstablished {
-			project_id: ProjectId,
-			para_id: ParaId,
-		},
+		HrmpChannelEstablished { project_id: ProjectId, para_id: ParaId },
 		/// Started a migration readiness check
-		MigrationReadinessCheckStarted {
-			project_id: ProjectId,
-			caller: T::AccountId,
-		},
-		MigrationCheckResponseAccepted {
-			project_id: ProjectId,
-			query_id: QueryId,
-			response: Response,
-		},
-		MigrationCheckResponseRejected {
-			project_id: ProjectId,
-			query_id: QueryId,
-			response: Response,
-		},
-		MigrationStatusUpdated {
-			project_id: ProjectId,
-			account: AccountIdOf<T>,
-			status: MigrationStatus,
-		},
-
-		CTMigrationFinished {
-			project_id: ProjectId,
-		},
+		MigrationReadinessCheckStarted { project_id: ProjectId, caller: T::AccountId },
+		/// Migration readiness check was accepted
+		MigrationCheckResponseAccepted { project_id: ProjectId, query_id: QueryId, response: Response },
+		/// Migration readiness check was rejected
+		MigrationCheckResponseRejected { project_id: ProjectId, query_id: QueryId, response: Response },
+		/// A user's CT migrations status was updated
+		MigrationStatusUpdated { project_id: ProjectId, account: AccountIdOf<T>, status: MigrationStatus },
+		/// The CT migration of a project has been completed. All CTs were converted to mainnet tokens.
+		CTMigrationFinished { project_id: ProjectId },
 	}
 
 	#[pallet::error]

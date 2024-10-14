@@ -2,22 +2,6 @@
 use super::*;
 use polimec_common::ProvideAssetPrice;
 impl<T: Config> Pallet<T> {
-	/// Called by user extrinsic
-	/// Starts the evaluation round of a project. It needs to be called by the project issuer.
-	///
-	/// # Arguments
-	/// * `project_id` - The id of the project to start the evaluation round for.
-	///
-	/// # Storage access
-	/// * [`ProjectsDetails`] - Checking and updating the round status, transition points and freezing the project.
-	///
-	/// # Success path
-	/// The project information is found, its round status was in Application round, and It's not yet frozen.
-	/// The pertinent project info is updated on the storage, and the project is scheduled for automatic transition by on_initialize.
-	///
-	/// # Next step
-	/// Users will pond PLMC for this project, and when the time comes, the project will be transitioned
-	/// to the next round by `on_initialize` using [`do_evaluation_end`](Self::do_end_evaluation(project_id))
 	#[transactional]
 	pub fn do_start_evaluation(caller: AccountIdOf<T>, project_id: ProjectId) -> DispatchResult {
 		// * Get variables *
@@ -43,34 +27,6 @@ impl<T: Config> Pallet<T> {
 		)
 	}
 
-	/// Called automatically by on_initialize.
-	/// Ends the evaluation round, and sets the current round to `AuctionInitializePeriod` if it
-	/// reached enough PLMC bonding, or to `FundingFailed` if it didn't.
-	///
-	/// # Arguments
-	/// * `project_id` - The id of the project to end the evaluation round for.
-	///
-	/// # Storage access
-	/// * [`ProjectsDetails`] - Checking the round status and transition points for validity, and updating
-	/// the round status and transition points in case of success or failure of the evaluation.
-	/// * [`Evaluations`] - Checking that the threshold for PLMC bonded was reached, to decide
-	/// whether the project failed or succeeded.
-	///
-	/// # Possible paths
-	/// * Project achieves its evaluation goal. >=10% of the target funding was reached through bonding,
-	/// so the project is transitioned to the [`AuctionInitializePeriod`](ProjectStatus::AuctionInitializePeriod) round. The project information
-	/// is updated with the new transition points and round status.
-	///
-	/// * Project doesn't reach the evaluation goal - <10% of the target funding was reached
-	/// through bonding, so the project is transitioned to the `FundingFailed` round. The project
-	/// information is updated with the new rounds status and it is scheduled for automatic unbonding.
-	///
-	/// # Next step
-	/// * Bonding achieved - The issuer calls an extrinsic within the set period to initialize the
-	/// auction round. `auction` is called
-	///
-	/// * Bonding failed - `on_idle` at some point checks for failed evaluation projects, and
-	/// unbonds the evaluators funds.
 	#[transactional]
 	pub fn do_end_evaluation(project_id: ProjectId) -> DispatchResult {
 		// * Get variables *
@@ -110,7 +66,6 @@ impl<T: Config> Pallet<T> {
 		}
 	}
 
-	// Note: usd_amount needs to have the same amount of decimals as PLMC, so when multiplied by the plmc-usd price, it gives us the PLMC amount with the decimals we wanted.
 	#[transactional]
 	pub fn do_evaluate(
 		evaluator: &AccountIdOf<T>,
@@ -175,10 +130,10 @@ impl<T: Config> Pallet<T> {
 		T::NativeCurrency::hold(&HoldReason::Evaluation.into(), evaluator, plmc_bond)?;
 		Evaluations::<T>::insert((project_id, evaluator, evaluation_id), new_evaluation);
 		NextEvaluationId::<T>::set(evaluation_id.saturating_add(One::one()));
-		evaluation_round_info.total_bonded_usd += usd_amount;
-		evaluation_round_info.total_bonded_plmc += plmc_bond;
+		evaluation_round_info.total_bonded_usd = evaluation_round_info.total_bonded_usd.saturating_add(usd_amount);
+		evaluation_round_info.total_bonded_plmc = evaluation_round_info.total_bonded_plmc.saturating_add(plmc_bond);
 		ProjectsDetails::<T>::insert(project_id, project_details);
-		EvaluationCounts::<T>::mutate(project_id, |c| *c += 1);
+		EvaluationCounts::<T>::mutate(project_id, |c| *c = c.saturating_add(1));
 
 		// * Emit events *
 		Self::deposit_event(Event::Evaluation {

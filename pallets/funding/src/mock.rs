@@ -33,7 +33,8 @@ use frame_support::{
 };
 use frame_system as system;
 use frame_system::{EnsureRoot, RawOrigin as SystemRawOrigin};
-use polimec_common::{credentials::EnsureInvestor, DummyXcmSender, ProvideAssetPrice, USD_UNIT};
+use polimec_common::{credentials::EnsureInvestor, ProvideAssetPrice, USD_UNIT};
+use polimec_common_test_utils::DummyXcmSender;
 use polkadot_parachain_primitives::primitives::Sibling;
 use sp_arithmetic::{Perbill, Percent};
 use sp_core::{ConstU8, H256};
@@ -160,7 +161,6 @@ impl pallet_xcm::Config for TestRuntime {
 	type UniversalLocation = UniversalLocation;
 	type Weigher = FixedWeightBounds<UnitWeightCost, RuntimeCall, MaxInstructions>;
 	type WeightInfo = pallet_xcm::TestWeightInfo;
-	// TODO: change back to `Nothing` once we add the xcm functionalities into a pallet
 	type XcmExecuteFilter = Everything;
 	// ^ Disable dispatchable execute on the XCM pallet.
 	// Needs to be `Everything` for local testing.

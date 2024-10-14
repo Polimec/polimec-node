@@ -1,8 +1,5 @@
 use super::*;
-use crate::{
-	runtime_api::{ExtrinsicHelpers, Leaderboards, ProjectInformation, UserInformation},
-	BidStatus::Accepted,
-};
+use crate::runtime_api::{ExtrinsicHelpers, Leaderboards, ProjectInformation, UserInformation};
 use frame_support::traits::fungibles::{metadata::Inspect, Mutate};
 use sp_runtime::bounded_vec;
 
@@ -612,7 +609,6 @@ fn calculate_otm_fee() {
 
 #[test]
 fn get_funding_asset_min_max_amounts() {
-	let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 	ConstPriceProvider::set_price(AcceptedFundingAsset::USDT.id(), PriceOf::<TestRuntime>::from_float(1.0f64));
 	ConstPriceProvider::set_price(AcceptedFundingAsset::USDC.id(), PriceOf::<TestRuntime>::from_float(1.0f64));
 	ConstPriceProvider::set_price(AcceptedFundingAsset::DOT.id(), PriceOf::<TestRuntime>::from_float(10.0f64));
