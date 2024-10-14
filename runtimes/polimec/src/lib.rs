@@ -20,7 +20,7 @@
 // Make the WASM binary available.
 #[cfg(feature = "std")]
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
-
+extern crate alloc;
 use assets_common::fungible_conversion::{convert, convert_balance};
 use core::ops::RangeInclusive;
 use cumulus_pallet_parachain_system::RelayNumberMonotonicallyIncreases;
@@ -101,10 +101,11 @@ pub use sp_runtime::{MultiAddress, Perbill, Permill};
 #[cfg(feature = "std")]
 use sp_version::NativeVersion;
 
+use alloc::string::String;
+use sp_core::crypto::Ss58Codec;
 #[cfg(any(feature = "std", test))]
 pub use sp_runtime::BuildStorage;
 use xcm::VersionedAssetId;
-
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmark_helpers;
 mod custom_migrations;
@@ -1044,6 +1045,12 @@ impl ConvertBack<AccountId, [u8; 32]> for ConvertSelf {
 		bytes.into()
 	}
 }
+pub struct SS58Converter;
+impl Convert<AccountId, String> for SS58Converter {
+	fn convert(account: AccountId) -> String {
+		account.to_ss58check_with_version(SS58Prefix::get().into())
+	}
+}
 
 impl pallet_funding::Config for Runtime {
 	type AccountId32Conversion = ConvertSelf;
@@ -1084,6 +1091,7 @@ impl pallet_funding::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type RuntimeHoldReason = RuntimeHoldReason;
 	type RuntimeOrigin = RuntimeOrigin;
+	type SS58Conversion = SS58Converter;
 	#[cfg(feature = "runtime-benchmarks")]
 	type SetPrices = benchmark_helpers::SetOraclePrices;
 	type StringLimit = ConstU32<64>;
@@ -1548,6 +1556,9 @@ impl_runtime_apis! {
 		}
 		fn get_funding_asset_min_max_amounts(project_id: ProjectId, did: Did, funding_asset: AcceptedFundingAsset, investor_type: InvestorType) -> Option<(Balance, Balance)> {
 			Funding::get_funding_asset_min_max_amounts(project_id, did, funding_asset, investor_type)
+		}
+		fn get_message_to_sign_by_receiving_account(project_id: ProjectId, polimec_account: AccountId) -> Option<String> {
+			Funding::get_message_to_sign_by_receiving_account(project_id, polimec_account)
 		}
 	}
 

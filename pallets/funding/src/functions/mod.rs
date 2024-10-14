@@ -39,6 +39,6 @@ mod ct_migration;
 mod evaluation;
 #[path = "5_funding_end.rs"]
 mod funding_end;
-mod misc;
+pub mod misc;
 #[path = "6_settlement.rs"]
 mod settlement;

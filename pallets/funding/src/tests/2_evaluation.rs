@@ -586,6 +586,10 @@ mod evaluate_extrinsic {
 					early_usd_amount: evaluation.usd_amount,
 					late_usd_amount: 0,
 					when: 1,
+					receiving_account: Junction::AccountId32 {
+						network: None,
+						id: <TestRuntime as Config>::AccountId32Conversion::convert(EVALUATOR_1),
+					},
 				};
 				assert_eq!(stored_evaluation, &expected_evaluation_item);
 			});
@@ -871,6 +875,10 @@ mod evaluate_extrinsic {
 					500 * USD_UNIT,
 					generate_did_from_account(ISSUER_1),
 					project_metadata.clone().policy_ipfs_cid.unwrap(),
+					Junction::AccountId32 {
+						network: None,
+						id: <TestRuntime as Config>::AccountId32Conversion::convert(ISSUER_1 + 1)
+					},
 				)),
 				Error::<TestRuntime>::ParticipationToOwnProject
 			);

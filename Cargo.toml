@@ -92,6 +92,7 @@ scale-info = { version = "2.11.3", default-features = false, features = [
 ] }
 jsonrpsee = { version = "0.22.5", features = ["server"] }
 hex-literal = "0.4.1"
+hex = { version = "0.4.3", default-features = false, features = ["alloc"] }
 serde = { version = "1.0.204", default-features = false }
 serde_json = "1.0.120"
 smallvec = "1.13.2"
@@ -103,6 +104,7 @@ array-bytes = { version = "6.2.3", default-features = false }
 serde-json-core = { version = '0.5.1', default-features = false }
 heapless = { version = "0.8", default-features = false }
 color-print = "0.3.6"
+k256 = { version = "0.13.4", default-features = false, features = ["ecdsa"] }
 
 # Emulations
 xcm-emulator = { version = "0.12.0", default-features = false }
@@ -125,7 +127,7 @@ sp-staking = { version = "33.0.0", default-features = false }
 # sp-runtime v38.0.1 takes out sp_std from runtime_string file and calls "alloc" directly which errors out
 sp-runtime = { version = "=38.0.0", default-features = false }
 sp-arithmetic = { version = "26.0.0", default-features = false }
-sp-core = { version = "34.0.0", default-features = false }
+sp-core = { version = "34.0.0", default-features = false, features = ["serde"] }
 sp-io = { version = "37.0.0", default-features = false }
 sp-blockchain = { version = "35.0.0", default-features = false }
 sp-consensus-aura = { version = "0.39.0", default-features = false }

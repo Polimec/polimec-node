@@ -70,6 +70,8 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 // Needed due to empty sections raising the warning
 #![allow(unreachable_patterns)]
+// Needed for now beause receiving account extrinsics have too many arguments
+#![allow(clippy::too_many_arguments)]
 // This recursion limit is needed because we have too many benchmarks and benchmarking will fail if
 // we add more without this limit.
 #![cfg_attr(feature = "runtime-benchmarks", recursion_limit = "512")]
@@ -102,6 +104,7 @@ pub mod storage_migrations;
 pub mod traits;
 pub mod types;
 pub mod weights;
+use alloc::string::String;
 
 #[cfg(test)]
 pub mod mock;
@@ -176,7 +179,7 @@ pub mod pallet {
 
 	#[pallet::config]
 	pub trait Config:
-		frame_system::Config
+		frame_system::Config<Nonce = u32>
 		+ pallet_balances::Config<Balance = Balance>
 		+ pallet_xcm::Config
 		+ pallet_linear_release::Config<Balance = Balance, RuntimeHoldReason = RuntimeHoldReasonOf<Self>>
@@ -192,6 +195,9 @@ pub mod pallet {
 	{
 		/// A way to convert from and to the account type used in CT migrations
 		type AccountId32Conversion: ConvertBack<Self::AccountId, [u8; 32]>;
+
+		/// A way to get the ss58 string representation of an account. Used for linking a polimec account to a receiving account.
+		type SS58Conversion: Convert<Self::AccountId, String>;
 
 		/// Type used for testing and benchmarks
 		#[cfg(any(test, feature = "runtime-benchmarks", feature = "std"))]
@@ -568,6 +574,10 @@ pub mod pallet {
 		ParticipationNotFound,
 		/// The user investor type is not eligible for the action.
 		WrongInvestorType,
+		/// Could not verify that the signature provided corresponds to the specified receiver account.
+		BadReceiverAccountSignature,
+		/// Used a Junction variant unsupported to represent a receving account.
+		UnsupportedReceiverAccountJunction,
 
 		// * Project Error. Project information not found, or project has an incorrect state. *
 		/// The project details were not found. Happens when the project with provided ID does
@@ -749,7 +759,28 @@ pub mod pallet {
 			let (account, did, _investor_type, whitelisted_policy) =
 				T::InvestorOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get())?;
 
-			Self::do_evaluate(&account, project_id, usd_amount, did, whitelisted_policy)
+			let receiving_account =
+				Junction::AccountId32 { network: None, id: T::AccountId32Conversion::convert(account.clone()) };
+
+			Self::do_evaluate(&account, project_id, usd_amount, did, whitelisted_policy, receiving_account)
+		}
+
+		#[pallet::call_index(40)]
+		#[pallet::weight(WeightInfoOf::<T>::evaluate(<T as Config>::MaxEvaluationsPerUser::get()))]
+		pub fn evaluate_with_receiving_account(
+			origin: OriginFor<T>,
+			jwt: UntrustedToken,
+			project_id: ProjectId,
+			#[pallet::compact] usd_amount: Balance,
+			receiving_account: Junction,
+			signature_bytes: [u8; 65],
+		) -> DispatchResultWithPostInfo {
+			let (account, did, _investor_type, whitelisted_policy) =
+				T::InvestorOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get())?;
+
+			Self::verify_receiving_account_signature(&account, project_id, &receiving_account, signature_bytes)?;
+
+			Self::do_evaluate(&account, project_id, usd_amount, did, whitelisted_policy, receiving_account)
 		}
 
 		#[pallet::call_index(5)]
@@ -779,6 +810,10 @@ pub mod pallet {
 		) -> DispatchResultWithPostInfo {
 			let (bidder, did, investor_type, whitelisted_policy) =
 				T::InvestorOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get())?;
+
+			let receiving_account =
+				Junction::AccountId32 { network: None, id: T::AccountId32Conversion::convert(bidder.clone()) };
+
 			let params = DoBidParams::<T> {
 				bidder,
 				project_id,
@@ -788,7 +823,48 @@ pub mod pallet {
 				did,
 				investor_type,
 				whitelisted_policy,
+				receiving_account,
 			};
+
+			Self::do_bid(params)
+		}
+
+		#[pallet::call_index(70)]
+		#[pallet::weight(
+			WeightInfoOf::<T>::bid(
+				<T as Config>::MaxBidsPerUser::get(),
+				// Assuming the current bucket is full, and has a price higher than the minimum.
+				// This user is buying 100% of the bid allocation.
+				// Since each bucket has 10% of the allocation, one bid can be split into a max of 10
+				10
+		))]
+		pub fn bid_with_receiving_account(
+			origin: OriginFor<T>,
+			jwt: UntrustedToken,
+			project_id: ProjectId,
+			#[pallet::compact] ct_amount: Balance,
+			mode: ParticipationMode,
+			funding_asset: AcceptedFundingAsset,
+			receiving_account: Junction,
+			signature_bytes: [u8; 65],
+		) -> DispatchResultWithPostInfo {
+			let (bidder, did, investor_type, whitelisted_policy) =
+				T::InvestorOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get())?;
+
+			Self::verify_receiving_account_signature(&bidder, project_id, &receiving_account, signature_bytes)?;
+
+			let params = DoBidParams::<T> {
+				bidder,
+				project_id,
+				ct_amount,
+				mode,
+				funding_asset,
+				did,
+				investor_type,
+				whitelisted_policy,
+				receiving_account,
+			};
+
 			Self::do_bid(params)
 		}
 
@@ -825,6 +901,8 @@ pub mod pallet {
 		) -> DispatchResultWithPostInfo {
 			let (contributor, did, investor_type, whitelisted_policy) =
 				T::InvestorOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get())?;
+			let receiving_account =
+				Junction::AccountId32 { network: None, id: T::AccountId32Conversion::convert(contributor.clone()) };
 			let params = DoContributeParams::<T> {
 				contributor,
 				project_id,
@@ -834,6 +912,40 @@ pub mod pallet {
 				did,
 				investor_type,
 				whitelisted_policy,
+				receiving_account,
+			};
+			Self::do_contribute(params)
+		}
+
+		#[pallet::call_index(90)]
+		#[pallet::weight(
+			WeightInfoOf::<T>::contribute(T::MaxContributionsPerUser::get())
+		)]
+		pub fn contribute_with_receiving_account(
+			origin: OriginFor<T>,
+			jwt: UntrustedToken,
+			project_id: ProjectId,
+			#[pallet::compact] ct_amount: Balance,
+			mode: ParticipationMode,
+			funding_asset: AcceptedFundingAsset,
+			receiving_account: Junction,
+			signature_bytes: [u8; 65],
+		) -> DispatchResultWithPostInfo {
+			let (contributor, did, investor_type, whitelisted_policy) =
+				T::InvestorOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get())?;
+
+			Self::verify_receiving_account_signature(&contributor, project_id, &receiving_account, signature_bytes)?;
+
+			let params = DoContributeParams::<T> {
+				contributor,
+				project_id,
+				ct_amount,
+				mode,
+				funding_asset,
+				did,
+				investor_type,
+				whitelisted_policy,
+				receiving_account,
 			};
 			Self::do_contribute(params)
 		}

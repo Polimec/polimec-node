@@ -1449,6 +1449,10 @@ mod contribute_extrinsic {
 					did: generate_did_from_account(ISSUER_1),
 					investor_type: InvestorType::Institutional,
 					whitelisted_policy: project_metadata.policy_ipfs_cid.unwrap(),
+					receiving_account: Junction::AccountId32 {
+						network: None,
+						id: <TestRuntime as Config>::AccountId32Conversion::convert(ISSUER_1)
+					},
 				})),
 				Error::<TestRuntime>::ParticipationToOwnProject
 			);
