@@ -2,8 +2,6 @@
 use super::*;
 
 impl<T: Config> Pallet<T> {
-	/// Decides which bids are accepted and which are rejected.
-	/// Deletes and refunds the rejected ones, and prepares the project for the WAP calculation the next block
 	#[transactional]
 	pub fn do_end_auction(project_id: ProjectId) -> DispatchResultWithPostInfo {
 		// * Get variables *
@@ -45,18 +43,6 @@ impl<T: Config> Pallet<T> {
 		}
 	}
 
-	/// Bid for a project in the bidding stage.
-	///
-	/// # Arguments
-	/// * `bidder` - The account that is bidding
-	/// * `project_id` - The project to bid for
-	/// * `amount` - The amount of tokens that the bidder wants to buy
-	/// * `multiplier` - Used for calculating how much PLMC needs to be bonded to spend this much money (in USD)
-	///
-	/// # Storage access
-	/// * [`ProjectsDetails`] - Check that the project is in the bidding stage
-	/// * [`BiddingBonds`] - Update the storage with the bidder's PLMC bond for that bid
-	/// * [`Bids`] - Check previous bids by that user, and update the storage with the new bid
 	#[transactional]
 	pub fn do_bid(params: DoBidParams<T>) -> DispatchResultWithPostInfo {
 		// * Get variables *
@@ -148,7 +134,7 @@ impl<T: Config> Pallet<T> {
 			};
 			Self::do_perform_bid(perform_params)?;
 
-			perform_bid_calls += 1;
+			perform_bid_calls = perform_bid_calls.saturating_add(1);
 
 			// Update the current bucket and reduce the amount to bid by the amount we just bid
 			current_bucket.update(ct_amount);
@@ -217,8 +203,8 @@ impl<T: Config> Pallet<T> {
 
 		Bids::<T>::insert((project_id, bidder.clone(), bid_id), &new_bid);
 		NextBidId::<T>::set(bid_id.saturating_add(One::one()));
-		BidCounts::<T>::mutate(project_id, |c| *c += 1);
-		AuctionBoughtUSD::<T>::mutate((project_id, did), |amount| *amount += ticket_size);
+		BidCounts::<T>::mutate(project_id, |c| *c = c.saturating_add(1));
+		AuctionBoughtUSD::<T>::mutate((project_id, did), |amount| *amount = amount.saturating_add(ticket_size));
 
 		Self::deposit_event(Event::Bid {
 			project_id,

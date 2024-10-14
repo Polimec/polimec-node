@@ -25,6 +25,8 @@ reqwest = { version = "0.11.4", features = [
 ], default-features = false, optional = true }
 frame-support.workspace = true
 chrono = { version = "0.4.19", default-features = false }
+xcm-builder.workspace = true
+xcm.workspace = true
 
 [features]
 default = [ "std" ]
@@ -35,9 +37,12 @@ std = [
 	"parity-scale-codec/std",
 	"polimec-common/std",
 	"reqwest",
+	"xcm-builder/std",
+	"xcm/std",
 ]
 try-runtime = [ "frame-support/try-runtime", "polimec-common/try-runtime" ]
 runtime-benchmarks = [
 	"frame-support/runtime-benchmarks",
 	"polimec-common/runtime-benchmarks",
+	"xcm-builder/runtime-benchmarks",
 ]

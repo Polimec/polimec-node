@@ -2,15 +2,6 @@
 use super::*;
 
 impl<T: Config> Pallet<T> {
-	/// Buy tokens in the Community Round at the price set in the Bidding Round
-	///
-	/// # Arguments
-	/// * contributor: The account that is buying the tokens
-	/// * project_id: The identifier of the project
-	/// * token_amount: The amount of contribution tokens the contributor tries to buy. Tokens
-	///   are limited by the total amount of tokens available in the Community Round.
-	/// * multiplier: Decides how much PLMC bonding is required for buying that amount of tokens
-	/// * asset: The asset used for the contribution
 	#[transactional]
 	pub fn do_contribute(params: DoContributeParams<T>) -> DispatchResultWithPostInfo {
 		let DoContributeParams {
@@ -139,7 +130,7 @@ impl<T: Config> Pallet<T> {
 
 		Contributions::<T>::insert((project_id, contributor.clone(), contribution_id), &new_contribution);
 		NextContributionId::<T>::set(contribution_id.saturating_add(One::one()));
-		ContributionBoughtUSD::<T>::mutate((project_id, did), |amount| *amount += ticket_size);
+		ContributionBoughtUSD::<T>::mutate((project_id, did), |amount| *amount = amount.saturating_add(ticket_size));
 
 		project_details.funding_amount_reached_usd.saturating_accrue(new_contribution.usd_contribution_amount);
 		ProjectsDetails::<T>::insert(project_id, project_details);

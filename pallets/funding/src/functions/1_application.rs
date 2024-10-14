@@ -5,10 +5,10 @@ use super::*;
 
 impl<T: Config> Pallet<T> {
 	fn project_validation(
-		project_metadata: ProjectMetadataOf<T>,
+		project_metadata: &ProjectMetadataOf<T>,
 		issuer: AccountIdOf<T>,
 		did: Did,
-	) -> Result<(ProjectMetadataOf<T>, ProjectDetailsOf<T>, BucketOf<T>), DispatchError> {
+	) -> Result<(ProjectDetailsOf<T>, BucketOf<T>), DispatchError> {
 		if let Err(error) = project_metadata.is_valid() {
 			let pallet_error = match error {
 				MetadataError::PriceTooLow => Error::<T>::PriceTooLow,
@@ -51,7 +51,7 @@ impl<T: Config> Pallet<T> {
 
 		let bucket: BucketOf<T> = Self::create_bucket_from_metadata(&project_metadata)?;
 
-		Ok((project_metadata, project_details, bucket))
+		Ok((project_details, bucket))
 	}
 
 	#[transactional]
@@ -67,8 +67,7 @@ impl<T: Config> Pallet<T> {
 		// * Validity checks *
 		ensure!(maybe_active_project.is_none(), Error::<T>::HasActiveProject);
 
-		let (project_metadata, project_details, bucket) =
-			Self::project_validation(project_metadata, issuer.clone(), did.clone())?;
+		let (project_details, bucket) = Self::project_validation(&project_metadata, issuer.clone(), did.clone())?;
 
 		// Each project needs an escrow system account to temporarily hold the USDT/USDC. We need to create it by depositing `ED` amount of PLMC into it.
 		// This should be paid by the issuer.
@@ -109,8 +108,8 @@ impl<T: Config> Pallet<T> {
 		ensure!(!project_details.is_frozen, Error::<T>::ProjectIsFrozen);
 
 		// * Calculate new variables *
-		let (new_project_metadata, project_details, bucket) =
-			Self::project_validation(new_project_metadata, issuer.clone(), project_details.issuer_did.clone())?;
+		let (project_details, bucket) =
+			Self::project_validation(&new_project_metadata, issuer.clone(), project_details.issuer_did.clone())?;
 
 		// * Update storage *
 		ProjectsMetadata::<T>::insert(project_id, new_project_metadata.clone());

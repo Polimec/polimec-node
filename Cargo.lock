@@ -8686,7 +8686,6 @@ dependencies = [
  "sp-runtime",
  "sp-std",
  "staging-xcm",
- "staging-xcm-builder",
 ]
 
 [[package]]
@@ -8699,6 +8698,8 @@ dependencies = [
  "parity-scale-codec",
  "polimec-common",
  "reqwest",
+ "staging-xcm",
+ "staging-xcm-builder",
 ]
 
 [[package]]
@@ -8837,6 +8838,7 @@ dependencies = [
  "parachains-common",
  "parity-scale-codec",
  "polimec-common",
+ "polimec-common-test-utils",
  "polkadot-parachain-primitives",
  "polkadot-runtime-common",
  "scale-info",

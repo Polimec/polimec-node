@@ -2,35 +2,6 @@
 use super::*;
 
 impl<T: Config> Pallet<T> {
-	/// Called automatically by on_initialize
-	/// Ends the project funding, and calculates if the project was successfully funded or not.
-	///
-	/// # Arguments
-	/// * `project_id` - The project identifier
-	///
-	/// # Storage access
-	/// * [`ProjectsDetails`] - Get the project information, and check if the project is in the correct
-	/// round, the current block is after the remainder funding end period.
-	/// Update the project information with the new round status.
-	///
-	/// # Success Path
-	/// The validity checks pass, and either of 2 paths happen:
-	///
-	/// * Project achieves its funding target - the project info is set to a successful funding state,
-	/// and the contribution token asset class is created with the same id as the project.
-	///
-	/// * Project doesn't achieve its funding target - the project info is set to an unsuccessful funding state.
-	///
-	/// # Next step
-	/// If **successful**, bidders can claim:
-	///	* Contribution tokens with [`vested_contribution_token_bid_mint_for`](Self::vested_contribution_token_bid_mint_for)
-	/// * Bonded plmc with [`vested_plmc_bid_unbond_for`](Self::vested_plmc_bid_unbond_for)
-	///
-	/// And contributors can claim:
-	/// * Contribution tokens with [`vested_contribution_token_purchase_mint_for`](Self::vested_contribution_token_purchase_mint_for)
-	/// * Bonded plmc with [`vested_plmc_purchase_unbond_for`](Self::vested_plmc_purchase_unbond_for)
-	///
-	/// If **unsuccessful**, users every user should have their PLMC vesting unbonded.
 	#[transactional]
 	pub fn do_end_funding(project_id: ProjectId) -> DispatchResult {
 		// * Get variables *
