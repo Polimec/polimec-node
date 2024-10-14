@@ -1,6 +1,14 @@
 #[allow(clippy::wildcard_imports)]
 use super::*;
+use alloc::string::{String, ToString};
 use polimec_common::ProvideAssetPrice;
+use sp_core::{
+	ecdsa::{Public as EcdsaPublic, Signature as EcdsaSignature},
+	keccak_256,
+	sr25519::{Public as SrPublic, Signature as SrSignature},
+	ByteArray,
+};
+use sp_runtime::traits::Verify;
 
 // Helper functions
 // ATTENTION: if this is called directly, it will not be transactional
@@ -410,6 +418,71 @@ impl<T: Config> Pallet<T> {
 		// * Emit events *
 		Self::deposit_event(Event::ProjectPhaseTransition { project_id, phase: next_round });
 
+		Ok(())
+	}
+
+	pub fn get_substrate_message_to_sign(polimec_account: AccountIdOf<T>, project_id: ProjectId) -> Option<String> {
+		let mut message = String::new();
+
+		let polimec_account_ss58_string = T::SS58Conversion::convert(polimec_account.clone());
+		let project_id_string = project_id.to_string();
+		let nonce_string = frame_system::Pallet::<T>::account_nonce(polimec_account).to_string();
+
+		use alloc::fmt::Write;
+		write!(
+			&mut message,
+			"Polimec account: {} - project id: {} - nonce: {}",
+			polimec_account_ss58_string, project_id_string, nonce_string
+		)
+		.ok()?;
+		Some(message)
+	}
+
+	pub fn verify_receiving_account_signature(
+		polimec_account: &AccountIdOf<T>,
+		project_id: ProjectId,
+		receiver_account: &Junction,
+		signature_bytes: [u8; 65],
+	) -> DispatchResult {
+		match receiver_account {
+			Junction::AccountId32 { network, id } =>
+				if network.is_none() {
+					let signature = SrSignature::from_slice(&signature_bytes[..64])
+						.map_err(|_| Error::<T>::BadReceiverAccountSignature)?;
+					let public = SrPublic::from_slice(id).map_err(|_| Error::<T>::BadReceiverAccountSignature)?;
+					ensure!(
+						signature.verify(message_bytes.as_slice(), &public),
+						Error::<T>::BadReceiverAccountSignature
+					);
+				},
+
+			Junction::AccountKey20 { network, key } if *network == Some(NetworkId::Ethereum { chain_id: 1 }) => {
+				let message_length = message_bytes.len().to_string().into_bytes();
+				let message_prefix = b"\x19Ethereum Signed Message:\n".to_vec();
+				let full_message = [&message_prefix[..], &message_length[..], &message_bytes[..]].concat();
+				let hashed_message = keccak_256(full_message.as_slice());
+
+				match signature_bytes[64] {
+					27 => signature_bytes[64] = 0x00,
+					28 => signature_bytes[64] = 0x01,
+					_v => return Err(Error::<T>::BadReceiverAccountSignature.into()),
+				}
+
+				// If a user specifies an AccountKey20, we assume they used the ECDSA crypto (secp256k1), so the signature is 65 bytes.
+				let signature = EcdsaSignature::from_slice(&signature_bytes)
+					.map_err(|_| Error::<T>::BadReceiverAccountSignature)?;
+				let public_compressed: EcdsaPublic =
+					signature.recover_prehashed(&hashed_message).ok_or(Error::<T>::BadReceiverAccountSignature)?;
+				let public_uncompressed = k256::ecdsa::VerifyingKey::from_sec1_bytes(&public_compressed)
+					.map_err(|_| Error::<T>::BadReceiverAccountSignature)?;
+				let public_uncompressed_point = public_uncompressed.to_encoded_point(false).to_bytes();
+				let derived_ethereum_account: [u8; 20] = keccak_256(&public_uncompressed_point[1..])[12..32]
+					.try_into()
+					.map_err(|_| Error::<T>::BadReceiverAccountSignature)?;
+				ensure!(*key == derived_ethereum_account, Error::<T>::BadReceiverAccountSignature);
+			},
+			_ => return Err(Error::<T>::UnsupportedReceiverAccountJunction.into()),
+		};
 		Ok(())
 	}
 

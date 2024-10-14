@@ -17,8 +17,8 @@ use crate::PolimecRuntime;
 use frame_support::BoundedVec;
 pub use pallet_funding::instantiator::{BidParams, ContributionParams, UserToUSDBalance};
 use pallet_funding::{
-	AcceptedFundingAsset, BiddingTicketSizes, ContributingTicketSizes, CurrencyMetadata, ParticipationMode,
-	PriceProviderOf, ProjectMetadata, ProjectMetadataOf, TicketSize,
+	AcceptedFundingAsset, BiddingTicketSizes, ContributingTicketSizes, CurrencyMetadata, ParticipantsAccountType,
+	ParticipationMode, PriceProviderOf, ProjectMetadata, ProjectMetadataOf, TicketSize,
 };
 use sp_arithmetic::{FixedPointNumber, Percent};
 
@@ -88,6 +88,7 @@ pub fn default_project_metadata(issuer: AccountId) -> ProjectMetadataOf<polimec_
 		participation_currencies: vec![AcceptedFundingAsset::USDT].try_into().unwrap(),
 		funding_destination_account: issuer,
 		policy_ipfs_cid: Some(ipfs_hash()),
+		participants_account_type: ParticipantsAccountType::Polkadot,
 	}
 }
 pub fn default_evaluations() -> Vec<UserToUSDBalance<PolimecRuntime>> {

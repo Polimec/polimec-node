@@ -2,7 +2,6 @@ use super::*;
 use crate::runtime_api::{ExtrinsicHelpers, Leaderboards, ProjectInformation, UserInformation};
 use frame_support::traits::fungibles::{metadata::Inspect, Mutate};
 use sp_runtime::bounded_vec;
-
 #[test]
 fn top_evaluations() {
 	let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
@@ -622,6 +621,25 @@ fn funding_asset_to_ct_amount_otm() {
 		assert_close_enough!(ct_amount, expected_ct_amount, Perquintill::from_float(0.9999));
 		assert_close_enough!(fee_amount, dot_fee_amount, Perquintill::from_float(0.9999));
 	});
+}
+
+#[test]
+fn get_message_to_sign_by_receiving_account() {
+	let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+	let _project_id_0 = inst.create_new_project(default_project_metadata(ISSUER_1), ISSUER_1, None);
+	let _project_id_1 = inst.create_new_project(default_project_metadata(ISSUER_2), ISSUER_2, None);
+	let project_id_2 = inst.create_new_project(default_project_metadata(ISSUER_3), ISSUER_3, None);
+	let block_hash = inst.execute(|| System::block_hash(System::block_number()));
+	let message = inst.execute(|| {
+		TestRuntime::get_message_to_sign_by_receiving_account(&TestRuntime, block_hash, project_id_2, BUYER_1)
+			.unwrap()
+			.unwrap()
+	});
+
+	const EXPECTED_MESSAGE: &str =
+		"Polimec account: 57CoZYedYQwJMnCivQ7FnjCr4dfF912XuvgjUaKUzWSvvEF5 - project id: 2 - nonce: 0";
+
+	assert_eq!(&message, EXPECTED_MESSAGE);
 }
 
 #[test]

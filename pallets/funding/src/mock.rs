@@ -23,6 +23,7 @@ use crate as pallet_funding;
 use crate::runtime_api::{
 	ExtrinsicHelpers, Leaderboards, ProjectInformation, ProjectParticipationIds, UserInformation,
 };
+use alloc::string::String;
 use core::ops::RangeInclusive;
 use frame_support::{
 	construct_runtime, derive_impl,
@@ -37,9 +38,12 @@ use polimec_common::{credentials::EnsureInvestor, ProvideAssetPrice, USD_UNIT};
 use polimec_common_test_utils::DummyXcmSender;
 use polkadot_parachain_primitives::primitives::Sibling;
 use sp_arithmetic::{Perbill, Percent};
-use sp_core::{ConstU8, H256};
+use sp_core::{
+	crypto::{Ss58AddressFormat, Ss58Codec},
+	ConstU8, H256,
+};
 use sp_runtime::{
-	traits::{BlakeTwo256, ConvertBack, ConvertInto, Get, IdentityLookup, TryConvert},
+	traits::{BlakeTwo256, Convert, ConvertBack, ConvertInto, Get, IdentityLookup, TryConvert},
 	BuildStorage, Perquintill,
 };
 use sp_std::collections::btree_map::BTreeMap;
@@ -245,17 +249,8 @@ impl system::Config for TestRuntime {
 	type Hashing = BlakeTwo256;
 	type Lookup = IdentityLookup<Self::AccountId>;
 	type MaxConsumers = frame_support::traits::ConstU32<16>;
-	type Nonce = u64;
-	type OnKilledAccount = ();
-	type OnNewAccount = ();
-	type OnSetCode = ();
 	type PalletInfo = PalletInfo;
-	type RuntimeCall = RuntimeCall;
-	type RuntimeEvent = RuntimeEvent;
-	type RuntimeOrigin = RuntimeOrigin;
-	type SS58Prefix = ConstU16<42>;
-	type SystemWeightInfo = ();
-	type Version = ();
+	type SS58Prefix = ConstU16<41>;
 }
 
 parameter_types! {
@@ -380,6 +375,15 @@ impl ProvideAssetPrice for ConstPriceProvider {
 	}
 }
 
+pub struct SS58Converter;
+impl Convert<AccountId, String> for SS58Converter {
+	fn convert(account: AccountId) -> String {
+		let account_bytes = DummyConverter::convert(account);
+		let account_id_32 = sp_runtime::AccountId32::new(account_bytes);
+		account_id_32.to_ss58check_with_version(Ss58AddressFormat::from(41u16))
+	}
+}
+
 impl ConstPriceProvider {
 	pub fn set_price(asset_id: AssetId, price: Price) {
 		PRICE_MAP.with(|price_map| {
@@ -425,6 +429,7 @@ impl Config for TestRuntime {
 	type RuntimeEvent = RuntimeEvent;
 	type RuntimeHoldReason = RuntimeHoldReason;
 	type RuntimeOrigin = RuntimeOrigin;
+	type SS58Conversion = SS58Converter;
 	#[cfg(feature = "runtime-benchmarks")]
 	type SetPrices = ();
 	type StringLimit = ConstU32<64>;
@@ -589,6 +594,10 @@ sp_api::mock_impl_runtime_apis! {
 
 		fn get_funding_asset_min_max_amounts(project_id: ProjectId, did: Did, funding_asset: AcceptedFundingAsset, investor_type: InvestorType) -> Option<(Balance, Balance)> {
 			PolimecFunding::get_funding_asset_min_max_amounts(project_id, did, funding_asset, investor_type)
+		}
+
+		fn get_message_to_sign_by_receiving_account(project_id: ProjectId, polimec_account: AccountId) -> Option<String> {
+			PolimecFunding::get_message_to_sign_by_receiving_account(project_id, polimec_account)
 		}
 
 

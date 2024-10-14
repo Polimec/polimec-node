@@ -73,6 +73,7 @@ impl<T: Config> Pallet<T> {
 		usd_amount: Balance,
 		did: Did,
 		whitelisted_policy: Cid,
+		receiving_account: Junction,
 	) -> DispatchResultWithPostInfo {
 		// * Get variables *
 		let project_metadata = ProjectsMetadata::<T>::get(project_id).ok_or(Error::<T>::ProjectMetadataNotFound)?;
@@ -88,6 +89,7 @@ impl<T: Config> Pallet<T> {
 		let total_evaluations_count = EvaluationCounts::<T>::get(project_id);
 		let user_evaluations_count = Evaluations::<T>::iter_prefix((project_id, evaluator)).count() as u32;
 		let project_policy = project_metadata.policy_ipfs_cid.ok_or(Error::<T>::ImpossibleState)?;
+		let project_metadata = ProjectsMetadata::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 
 		// * Validity Checks *
 		ensure!(project_policy == whitelisted_policy, Error::<T>::PolicyMismatch);
@@ -100,6 +102,10 @@ impl<T: Config> Pallet<T> {
 		);
 		ensure!(total_evaluations_count < T::MaxEvaluationsPerProject::get(), Error::<T>::TooManyProjectParticipations);
 		ensure!(user_evaluations_count < T::MaxEvaluationsPerUser::get(), Error::<T>::TooManyUserParticipations);
+		ensure!(
+			project_metadata.participants_account_type.junction_is_supported(&receiving_account),
+			Error::<T>::UnsupportedReceiverAccountJunction
+		);
 
 		let plmc_bond = plmc_usd_price
 			.reciprocal()
@@ -129,6 +135,7 @@ impl<T: Config> Pallet<T> {
 			early_usd_amount,
 			late_usd_amount,
 			when: now,
+			receiving_account,
 		};
 
 		T::NativeCurrency::hold(&HoldReason::Evaluation.into(), evaluator, plmc_bond)?;

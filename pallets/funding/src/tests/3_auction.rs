@@ -1,6 +1,7 @@
 use super::*;
 use frame_support::traits::{fungible::InspectFreeze, fungibles::metadata::Inspect};
 use sp_core::bounded_vec;
+use sp_runtime::traits::Convert;
 use std::collections::HashSet;
 
 #[cfg(test)]
@@ -324,6 +325,10 @@ mod round_flow {
 						did,
 						investor_type,
 						whitelisted_policy: project_metadata.clone().policy_ipfs_cid.unwrap(),
+						receiving_account: Junction::AccountId32 {
+							network: None,
+							id: <TestRuntime as Config>::AccountId32Conversion::convert(BIDDER_1)
+						},
 					}),
 					Error::<TestRuntime>::IncorrectRound
 				);
@@ -1291,6 +1296,10 @@ mod bid_extrinsic {
 						did,
 						investor_type,
 						whitelisted_policy: project_metadata.clone().policy_ipfs_cid.unwrap(),
+						receiving_account: Junction::AccountId32 {
+							network: None,
+							id: <TestRuntime as Config>::AccountId32Conversion::convert(BIDDER_2)
+						},
 					}),
 					Error::<TestRuntime>::IncorrectRound
 				);
@@ -1548,6 +1557,10 @@ mod bid_extrinsic {
 						did: generate_did_from_account(BIDDER_1),
 						investor_type: InvestorType::Professional,
 						whitelisted_policy: project_metadata.clone().policy_ipfs_cid.unwrap(),
+						receiving_account: Junction::AccountId32 {
+							network: None,
+							id: <TestRuntime as Config>::AccountId32Conversion::convert(BIDDER_1)
+						},
 					}),
 					Error::<TestRuntime>::TooLow
 				);
@@ -1564,6 +1577,10 @@ mod bid_extrinsic {
 						did: generate_did_from_account(BIDDER_1),
 						investor_type: InvestorType::Institutional,
 						whitelisted_policy: project_metadata.clone().policy_ipfs_cid.unwrap(),
+						receiving_account: Junction::AccountId32 {
+							network: None,
+							id: <TestRuntime as Config>::AccountId32Conversion::convert(BIDDER_2)
+						},
 					}),
 					Error::<TestRuntime>::TooLow
 				);
@@ -1631,6 +1648,10 @@ mod bid_extrinsic {
 					did: generate_did_from_account(BIDDER_1),
 					investor_type: InvestorType::Professional,
 					whitelisted_policy: project_metadata.clone().policy_ipfs_cid.unwrap(),
+					receiving_account: Junction::AccountId32 {
+						network: None,
+						id: <TestRuntime as Config>::AccountId32Conversion::convert(BIDDER_2)
+					},
 				}));
 			});
 			let smallest_ct_amount_at_20k_usd = bucket_increase_price
@@ -1650,6 +1671,10 @@ mod bid_extrinsic {
 					did: generate_did_from_account(BIDDER_1),
 					investor_type: InvestorType::Institutional,
 					whitelisted_policy: project_metadata.clone().policy_ipfs_cid.unwrap(),
+					receiving_account: Junction::AccountId32 {
+						network: None,
+						id: <TestRuntime as Config>::AccountId32Conversion::convert(BIDDER_3)
+					},
 				}));
 			});
 		}
@@ -1801,6 +1826,10 @@ mod bid_extrinsic {
 					did: generate_did_from_account(ISSUER_1),
 					investor_type: InvestorType::Professional,
 					whitelisted_policy: project_metadata.clone().policy_ipfs_cid.unwrap(),
+					receiving_account: Junction::AccountId32 {
+						network: None,
+						id: <TestRuntime as Config>::AccountId32Conversion::convert(ISSUER_1)
+					},
 				})),
 				Error::<TestRuntime>::ParticipationToOwnProject
 			);
@@ -1832,6 +1861,10 @@ mod bid_extrinsic {
 					did,
 					investor_type,
 					whitelisted_policy: project_metadata.clone().policy_ipfs_cid.unwrap(),
+					receiving_account: Junction::AccountId32 {
+						network: None,
+						id: <TestRuntime as Config>::AccountId32Conversion::convert(bids[0].bidder),
+					},
 				})
 			});
 			frame_support::assert_err!(outcome, Error::<TestRuntime>::FundingAssetNotAccepted);
@@ -1951,6 +1984,7 @@ mod end_auction_extrinsic {
 				participation_currencies: vec![AcceptedFundingAsset::USDT].try_into().unwrap(),
 				funding_destination_account: ISSUER_1,
 				policy_ipfs_cid: Some(metadata_hash),
+				participants_account_type: ParticipantsAccountType::Polkadot,
 			};
 
 			// overfund with plmc

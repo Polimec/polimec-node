@@ -96,6 +96,7 @@ pub fn project_metadata() -> ProjectMetadataOf<PolimecRuntime> {
 		.unwrap(),
 		funding_destination_account: ISSUER.into(),
 		policy_ipfs_cid: Some(metadata_hash),
+		participants_account_type: ParticipantsAccountType::Polkadot,
 	}
 }
 

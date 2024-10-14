@@ -45,6 +45,9 @@ polkadot-parachain-primitives.workspace = true
 sp-api.workspace = true
 polimec-common-test-utils = { workspace = true, optional = true }
 frame-benchmarking = { workspace = true, optional = true }
+hex-literal.workspace = true
+k256.workspace = true
+hex.workspace = true
 
 # Used in the instantiator.
 itertools.workspace = true
@@ -59,7 +62,7 @@ xcm-builder.workspace = true
 xcm-executor.workspace = true
 
 [features]
-default = [ "std" ]
+default = [ "std", "sp-core/serde" ]
 std = [
 	"frame-benchmarking?/std",
 	"frame-support/std",
@@ -90,6 +93,8 @@ std = [
 	"xcm-builder/std",
 	"xcm-executor/std",
 	"xcm/std",
+	"k256/std",
+	"hex/std",
 ]
 runtime-benchmarks = [
 	"frame-benchmarking/runtime-benchmarks",
