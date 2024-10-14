@@ -13,6 +13,7 @@ impl<T: Config> Pallet<T> {
 			investor_type,
 			did,
 			whitelisted_policy,
+			receiving_account,
 		} = params;
 		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 		let did_has_winning_bid = DidWithWinningBids::<T>::get(project_id, did.clone());
@@ -44,6 +45,7 @@ impl<T: Config> Pallet<T> {
 			investor_type,
 			did,
 			whitelisted_policy,
+			receiving_account,
 		};
 
 		Self::do_perform_contribution(perform_params)
@@ -61,6 +63,7 @@ impl<T: Config> Pallet<T> {
 			investor_type,
 			did,
 			whitelisted_policy,
+			receiving_account,
 		} = params;
 
 		let project_metadata = ProjectsMetadata::<T>::get(project_id).ok_or(Error::<T>::ProjectMetadataNotFound)?;
@@ -122,6 +125,7 @@ impl<T: Config> Pallet<T> {
 			funding_asset_amount,
 			plmc_bond,
 			when: now,
+			receiving_account,
 		};
 
 		// Try adding the new contribution to the system

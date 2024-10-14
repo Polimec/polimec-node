@@ -1,6 +1,14 @@
 #[allow(clippy::wildcard_imports)]
 use super::*;
 use polimec_common::ProvideAssetPrice;
+use sp_core::{
+	ecdsa::{Public as EcdsaPublic, Signature as EcdsaSignature},
+	keccak_256,
+	sr25519::{Public as SrPublic, Signature as SrSignature},
+	ByteArray,
+};
+use sp_runtime::traits::Verify;
+pub const RECEIVER_ACCOUNT_MESSAGE_TO_SIGN: &[u8] = b"Polimec: Receiver Account Verification";
 
 // Helper functions
 // ATTENTION: if this is called directly, it will not be transactional
@@ -410,6 +418,39 @@ impl<T: Config> Pallet<T> {
 		// * Emit events *
 		Self::deposit_event(Event::ProjectPhaseTransition { project_id, phase: next_round });
 
+		Ok(())
+	}
+
+	pub fn verify_receiving_account_signature(
+		receiver_account: &Junction,
+		signature_bytes: &[u8; 65],
+	) -> DispatchResult {
+		match receiver_account {
+			Junction::AccountId32 { network, id } =>
+				if *network == None {
+					// If a user specifies an AccountId32, we assume they used the SR25519 crypto, so the signature is 64 bytes.
+
+					let signature = SrSignature::from_slice(&signature_bytes[..64])
+						.map_err(|_| Error::<T>::BadReceiverAccountSignature)?;
+					let public = SrPublic::from_slice(id).map_err(|_| Error::<T>::BadReceiverAccountSignature)?;
+					ensure!(
+						signature.verify(RECEIVER_ACCOUNT_MESSAGE_TO_SIGN, &public),
+						Error::<T>::BadReceiverAccountSignature
+					);
+				},
+			Junction::AccountKey20 { network, key } if *network == Some(NetworkId::Ethereum { chain_id: 1 }) => {
+				// If a user specifies an AccountKey20, we assume they used the ECDSA crypto (secp256k1), so the signature is 65 bytes.
+				let signature =
+					EcdsaSignature::from_slice(signature_bytes).map_err(|_| Error::<T>::BadReceiverAccountSignature)?;
+				let public: EcdsaPublic = signature
+					.recover(RECEIVER_ACCOUNT_MESSAGE_TO_SIGN)
+					.ok_or(Error::<T>::BadReceiverAccountSignature)?;
+				let derived_ethereum_account: [u8; 20] =
+					keccak_256(&public[1..])[12..32].try_into().map_err(|_| Error::<T>::BadReceiverAccountSignature)?;
+				ensure!(*key == derived_ethereum_account, Error::<T>::BadReceiverAccountSignature);
+			},
+			_ => return Err(Error::<T>::UnsupportedReceiverAccountJunction.into()),
+		};
 		Ok(())
 	}
 

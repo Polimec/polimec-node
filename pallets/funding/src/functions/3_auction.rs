@@ -46,8 +46,17 @@ impl<T: Config> Pallet<T> {
 	#[transactional]
 	pub fn do_bid(params: DoBidParams<T>) -> DispatchResultWithPostInfo {
 		// * Get variables *
-		let DoBidParams { bidder, project_id, ct_amount, mode, funding_asset, investor_type, did, whitelisted_policy } =
-			params;
+		let DoBidParams {
+			bidder,
+			project_id,
+			ct_amount,
+			mode,
+			funding_asset,
+			investor_type,
+			did,
+			whitelisted_policy,
+			receiving_account,
+		} = params;
 		let project_metadata = ProjectsMetadata::<T>::get(project_id).ok_or(Error::<T>::ProjectMetadataNotFound)?;
 		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 
@@ -131,6 +140,7 @@ impl<T: Config> Pallet<T> {
 				metadata_ticket_size_bounds,
 				total_bids_by_bidder: existing_bids_amount.saturating_add(perform_bid_calls),
 				total_bids_for_project: total_bids_for_project.saturating_add(perform_bid_calls),
+				receiving_account,
 			};
 			Self::do_perform_bid(perform_params)?;
 
@@ -165,6 +175,7 @@ impl<T: Config> Pallet<T> {
 			metadata_ticket_size_bounds,
 			total_bids_by_bidder,
 			total_bids_for_project,
+			receiving_account,
 		} = do_perform_bid_params;
 
 		let ticket_size = ct_usd_price.checked_mul_int(ct_amount).ok_or(Error::<T>::BadMath)?;
@@ -196,6 +207,7 @@ impl<T: Config> Pallet<T> {
 			mode,
 			plmc_bond,
 			when: now,
+			receiving_account,
 		};
 
 		Self::bond_plmc_with_mode(&bidder, project_id, plmc_bond, mode, funding_asset)?;

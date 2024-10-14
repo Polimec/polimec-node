@@ -568,6 +568,10 @@ pub mod pallet {
 		ParticipationNotFound,
 		/// The user investor type is not eligible for the action.
 		WrongInvestorType,
+		/// Could not verify that the signature provided corresponds to the specified receiver account.
+		BadReceiverAccountSignature,
+		/// Used a Junction variant unsupported to represent a receving account.
+		UnsupportedReceiverAccountJunction,
 
 		// * Project Error. Project information not found, or project has an incorrect state. *
 		/// The project details were not found. Happens when the project with provided ID does
@@ -749,7 +753,28 @@ pub mod pallet {
 			let (account, did, _investor_type, whitelisted_policy) =
 				T::InvestorOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get())?;
 
-			Self::do_evaluate(&account, project_id, usd_amount, did, whitelisted_policy)
+			let receiving_account =
+				Junction::AccountId32 { network: None, id: T::AccountId32Conversion::convert(account.clone()) };
+
+			Self::do_evaluate(&account, project_id, usd_amount, did, whitelisted_policy, receiving_account)
+		}
+
+		#[pallet::call_index(40)]
+		#[pallet::weight(WeightInfoOf::<T>::evaluate(<T as Config>::MaxEvaluationsPerUser::get()))]
+		pub fn evaluate_with_receiving_account(
+			origin: OriginFor<T>,
+			jwt: UntrustedToken,
+			project_id: ProjectId,
+			#[pallet::compact] usd_amount: Balance,
+			receiving_account: Junction,
+			signature_bytes: [u8; 65],
+		) -> DispatchResultWithPostInfo {
+			let (account, did, _investor_type, whitelisted_policy) =
+				T::InvestorOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get())?;
+
+			Self::verify_receiving_account_signature(&receiving_account, &signature_bytes)?;
+
+			Self::do_evaluate(&account, project_id, usd_amount, did, whitelisted_policy, receiving_account)
 		}
 
 		#[pallet::call_index(5)]
@@ -779,6 +804,10 @@ pub mod pallet {
 		) -> DispatchResultWithPostInfo {
 			let (bidder, did, investor_type, whitelisted_policy) =
 				T::InvestorOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get())?;
+
+			let receiving_account =
+				Junction::AccountId32 { network: None, id: T::AccountId32Conversion::convert(bidder.clone()) };
+
 			let params = DoBidParams::<T> {
 				bidder,
 				project_id,
@@ -788,7 +817,9 @@ pub mod pallet {
 				did,
 				investor_type,
 				whitelisted_policy,
+				receiving_account,
 			};
+
 			Self::do_bid(params)
 		}
 
@@ -825,6 +856,8 @@ pub mod pallet {
 		) -> DispatchResultWithPostInfo {
 			let (contributor, did, investor_type, whitelisted_policy) =
 				T::InvestorOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get())?;
+			let receiving_account =
+				Junction::AccountId32 { network: None, id: T::AccountId32Conversion::convert(contributor.clone()) };
 			let params = DoContributeParams::<T> {
 				contributor,
 				project_id,
@@ -834,6 +867,7 @@ pub mod pallet {
 				did,
 				investor_type,
 				whitelisted_policy,
+				receiving_account,
 			};
 			Self::do_contribute(params)
 		}
