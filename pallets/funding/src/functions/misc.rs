@@ -412,4 +412,10 @@ impl<T: Config> Pallet<T> {
 
 		Ok(())
 	}
+
+	pub fn get_decimals_aware_funding_asset_price(funding_asset: &AcceptedFundingAsset) -> Option<PriceOf<T>> {
+		let funding_asset_id = funding_asset.id();
+		let funding_asset_decimals = T::FundingCurrency::decimals(funding_asset_id);
+		<PriceProviderOf<T>>::get_decimals_aware_price(funding_asset_id, USD_DECIMALS, funding_asset_decimals)
+	}
 }
