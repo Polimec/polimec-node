@@ -441,12 +441,8 @@ impl<
 		usd_ticket_size: Balance,
 		funding_asset: AcceptedFundingAsset,
 	) {
-		let funding_asset_id = funding_asset.id();
-		let funding_asset_decimals = self.execute(|| T::FundingCurrency::decimals(funding_asset_id));
-		let funding_asset_usd_price = self.execute(|| {
-			<PriceProviderOf<T>>::get_decimals_aware_price(funding_asset_id, USD_DECIMALS, funding_asset_decimals)
-				.unwrap()
-		});
+		let funding_asset_usd_price =
+			self.execute(|| Pallet::<T>::get_decimals_aware_funding_asset_price(&funding_asset).unwrap());
 		let funding_asset_bond = funding_asset_usd_price.reciprocal().unwrap().saturating_mul_int(usd_ticket_size);
 		*balance += funding_asset_bond;
 	}

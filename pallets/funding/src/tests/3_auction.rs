@@ -121,28 +121,13 @@ mod round_flow {
 				.unwrap()
 			});
 			let usdt_price = inst.execute(|| {
-				<TestRuntime as Config>::PriceProvider::get_decimals_aware_price(
-					AcceptedFundingAsset::USDT.id(),
-					USD_DECIMALS,
-					ForeignAssets::decimals(AcceptedFundingAsset::USDT.id()),
-				)
-				.unwrap()
+				PolimecFunding::get_decimals_aware_funding_asset_price(&AcceptedFundingAsset::USDT).unwrap()
 			});
 			let usdc_price = inst.execute(|| {
-				<TestRuntime as Config>::PriceProvider::get_decimals_aware_price(
-					AcceptedFundingAsset::USDC.id(),
-					USD_DECIMALS,
-					ForeignAssets::decimals(AcceptedFundingAsset::USDC.id()),
-				)
-				.unwrap()
+				PolimecFunding::get_decimals_aware_funding_asset_price(&AcceptedFundingAsset::USDC).unwrap()
 			});
 			let dot_price = inst.execute(|| {
-				<TestRuntime as Config>::PriceProvider::get_decimals_aware_price(
-					AcceptedFundingAsset::DOT.id(),
-					USD_DECIMALS,
-					ForeignAssets::decimals(AcceptedFundingAsset::DOT.id()),
-				)
-				.unwrap()
+				PolimecFunding::get_decimals_aware_funding_asset_price(&AcceptedFundingAsset::DOT).unwrap()
 			});
 
 			let mut funding_assets_cycle =

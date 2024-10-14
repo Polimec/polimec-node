@@ -2,7 +2,7 @@ use crate::traits::BondingRequirementCalculation;
 #[allow(clippy::wildcard_imports)]
 use crate::*;
 use alloc::collections::BTreeMap;
-use frame_support::traits::fungibles::{metadata::Inspect as MetadataInspect, Inspect, InspectEnumerable};
+use frame_support::traits::fungibles::{Inspect, InspectEnumerable};
 use itertools::Itertools;
 use parity_scale_codec::{Decode, Encode};
 use polimec_common::{credentials::InvestorType, ProvideAssetPrice, USD_DECIMALS};
@@ -144,11 +144,8 @@ impl<T: Config> Pallet<T> {
 		asset_amount: Balance,
 	) -> Balance {
 		let project_details = ProjectsDetails::<T>::get(project_id).expect("Project not found");
-		let funding_asset_id = asset.id();
-		let funding_asset_decimals = T::FundingCurrency::decimals(funding_asset_id);
 		let funding_asset_usd_price =
-			<PriceProviderOf<T>>::get_decimals_aware_price(funding_asset_id, USD_DECIMALS, funding_asset_decimals)
-				.expect("Price not found");
+			Pallet::<T>::get_decimals_aware_funding_asset_price(&asset).expect("Price not found");
 		let usd_ticket_size = funding_asset_usd_price.saturating_mul_int(asset_amount);
 
 		let mut ct_amount = Zero::zero();
@@ -217,16 +214,12 @@ impl<T: Config> Pallet<T> {
 	pub fn calculate_otm_fee(funding_asset: AcceptedFundingAsset, funding_asset_amount: Balance) -> Option<Balance> {
 		let plmc_price = <PriceProviderOf<T>>::get_decimals_aware_price(PLMC_FOREIGN_ID, USD_DECIMALS, PLMC_DECIMALS)
 			.expect("Price not found");
-		let funding_asset_id = funding_asset.id();
-		let funding_asset_decimals = T::FundingCurrency::decimals(funding_asset_id);
-		let funding_asset_usd_price =
-			<PriceProviderOf<T>>::get_decimals_aware_price(funding_asset_id, USD_DECIMALS, funding_asset_decimals)
-				.expect("Price not found");
+		let funding_asset_usd_price = Pallet::<T>::get_decimals_aware_funding_asset_price(&funding_asset).unwrap();
 		let usd_amount = funding_asset_usd_price.saturating_mul_int(funding_asset_amount);
 		let otm_multiplier: MultiplierOf<T> = ParticipationMode::OTM.multiplier().try_into().ok()?;
 		let required_usd_bond = otm_multiplier.calculate_usd_bonding_requirement::<T>(usd_amount)?;
 		let plmc_bond = plmc_price.reciprocal()?.saturating_mul_int(required_usd_bond);
-		pallet_proxy_bonding::Pallet::<T>::calculate_fee(plmc_bond, funding_asset_id).ok()
+		pallet_proxy_bonding::Pallet::<T>::calculate_fee(plmc_bond, funding_asset.id()).ok()
 	}
 
 	pub fn get_funding_asset_min_max_amounts(
@@ -237,12 +230,7 @@ impl<T: Config> Pallet<T> {
 	) -> Option<(Balance, Balance)> {
 		let project_details = ProjectsDetails::<T>::get(project_id)?;
 		let project_metadata = ProjectsMetadata::<T>::get(project_id)?;
-		let funding_asset_id = funding_asset.id();
-		let funding_asset_price = <PriceProviderOf<T>>::get_decimals_aware_price(
-			funding_asset_id,
-			USD_DECIMALS,
-			T::FundingCurrency::decimals(funding_asset_id),
-		)?;
+		let funding_asset_price = Pallet::<T>::get_decimals_aware_funding_asset_price(&funding_asset)?;
 
 		let (min_usd_ticket, maybe_max_usd_ticket, already_spent_usd, total_cts_usd_amount) =
 			match project_details.status {
