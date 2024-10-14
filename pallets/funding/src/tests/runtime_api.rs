@@ -310,7 +310,7 @@ fn contribution_tokens() {
 
 	inst.execute(|| {
 		let block_hash = System::block_hash(System::block_number());
-		let bob_items = TestRuntime::contribution_tokens(&TestRuntime, block_hash, bob.clone()).unwrap();
+		let bob_items = TestRuntime::contribution_tokens(&TestRuntime, block_hash, bob).unwrap();
 		assert_eq!(bob_items, expected_items);
 	});
 }
@@ -600,9 +600,9 @@ fn all_project_participations_by_did() {
 	let bids_plmc =
 		inst.calculate_auction_plmc_charged_from_all_bids_made_or_with_bucket(&bids, project_metadata.clone(), None);
 	let community_contributions_plmc =
-		inst.calculate_contributed_plmc_spent(community_contributions.clone(), project_metadata.minimum_price.clone());
+		inst.calculate_contributed_plmc_spent(community_contributions.clone(), project_metadata.minimum_price);
 	let remainder_contributions_plmc =
-		inst.calculate_contributed_plmc_spent(remainder_contributions.clone(), project_metadata.minimum_price.clone());
+		inst.calculate_contributed_plmc_spent(remainder_contributions.clone(), project_metadata.minimum_price);
 	let all_plmc = inst.generic_map_operation(
 		vec![evaluations_plmc, bids_plmc, community_contributions_plmc, remainder_contributions_plmc],
 		MergeOperation::Add,
@@ -615,14 +615,10 @@ fn all_project_participations_by_did() {
 		project_metadata.clone(),
 		None,
 	);
-	let community_contributions_usdt = inst.calculate_contributed_funding_asset_spent(
-		community_contributions.clone(),
-		project_metadata.minimum_price.clone(),
-	);
-	let remainder_contributions_usdt = inst.calculate_contributed_funding_asset_spent(
-		remainder_contributions.clone(),
-		project_metadata.minimum_price.clone(),
-	);
+	let community_contributions_usdt =
+		inst.calculate_contributed_funding_asset_spent(community_contributions.clone(), project_metadata.minimum_price);
+	let remainder_contributions_usdt =
+		inst.calculate_contributed_funding_asset_spent(remainder_contributions.clone(), project_metadata.minimum_price);
 	let all_usdt = inst.generic_map_operation(
 		vec![bids_usdt, community_contributions_usdt, remainder_contributions_usdt],
 		MergeOperation::Add,

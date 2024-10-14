@@ -80,7 +80,7 @@ where
 	fn try_convert(o: RuntimeOrigin) -> Result<Location, RuntimeOrigin> {
 		o.try_with_caller(|caller| match caller.try_into() {
 			Ok(SystemRawOrigin::Signed(who)) =>
-				Ok(Junction::AccountIndex64 { network: Network::get(), index: Into::<u64>::into(who).into() }.into()),
+				Ok(Junction::AccountIndex64 { network: Network::get(), index: Into::<u64>::into(who) }.into()),
 			Ok(other) => Err(other.into()),
 			Err(other) => Err(other),
 		})

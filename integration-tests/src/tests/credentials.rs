@@ -17,7 +17,6 @@
 use crate::*;
 use frame_support::{assert_ok, dispatch::GetDispatchInfo, traits::tokens::currency::VestingSchedule};
 use macros::generate_accounts;
-use pallet_funding::ParticipationMode::{Classic, OTM};
 use polimec_common::credentials::{Did, InvestorType};
 use polimec_common_test_utils::{get_fake_jwt, get_mock_jwt_with_cid, get_test_jwt};
 use polimec_runtime::PLMC;

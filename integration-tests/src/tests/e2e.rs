@@ -792,7 +792,11 @@ fn e2e_test() {
 		assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::CTMigrationStarted);
 
 		for user in UserMigrations::<PolimecRuntime>::iter_key_prefix((project_id,)).collect_vec() {
-			PolimecFunding::confirm_offchain_migration(PolimecOrigin::signed(issuer.clone()), project_id, user);
+			assert_ok!(PolimecFunding::confirm_offchain_migration(
+				PolimecOrigin::signed(issuer.clone()),
+				project_id,
+				user
+			));
 		}
 		PolimecFunding::mark_project_ct_migration_as_finished(PolimecOrigin::signed(issuer.clone()), project_id)
 			.unwrap();

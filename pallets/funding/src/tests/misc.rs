@@ -405,7 +405,7 @@ fn project_state_transition_event() {
 		true,
 	);
 
-	let events = inst.execute(|| System::events());
+	let events = inst.execute(System::events);
 	let transition_events = events
 		.into_iter()
 		.filter_map(|event| {

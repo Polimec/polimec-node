@@ -41,7 +41,7 @@ mod pallet_migration {
 			assert_ok!(crate::Pallet::<TestRuntime>::do_start_pallet_migration(
 				&ISSUER_1,
 				project_id,
-				ParaId::from(2006u32).into(),
+				ParaId::from(2006u32),
 			));
 		});
 
@@ -100,7 +100,7 @@ mod pallet_migration {
 		let inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		let (project_id, mut inst) = create_pallet_migration_project(inst);
 
-		inst.execute(|| fake_hrmp_establishment());
+		inst.execute(fake_hrmp_establishment);
 
 		let project_details = inst.get_project_details(project_id);
 		assert_eq!(
@@ -125,7 +125,7 @@ mod pallet_migration {
 	fn pallet_readiness_check() {
 		let inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		let (project_id, mut inst) = create_pallet_migration_project(inst);
-		inst.execute(|| fake_hrmp_establishment());
+		inst.execute(fake_hrmp_establishment);
 
 		// At this point, we sent the pallet check xcm to the project chain, and we are awaiting a query response message.
 		// query id 0 is the CT balance of the Polimec SA

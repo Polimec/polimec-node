@@ -22,7 +22,7 @@ use frame_support::{
 };
 use sp_runtime::{
 	traits::{Identity, IdentityLookup},
-	BuildStorage, Deserialize, Serialize,
+	BuildStorage,
 };
 
 type Block = frame_system::mocking::MockBlock<Test>;
@@ -79,21 +79,7 @@ impl Config for Test {
 	const MAX_VESTING_SCHEDULES: u32 = 3;
 }
 
-#[derive(
-	Encode,
-	Decode,
-	Copy,
-	Clone,
-	PartialEq,
-	Eq,
-	RuntimeDebug,
-	MaxEncodedLen,
-	TypeInfo,
-	Ord,
-	PartialOrd,
-	Serialize,
-	Deserialize,
-)]
+#[derive(Encode, Decode, Copy, Clone, PartialEq, Eq, RuntimeDebug, MaxEncodedLen, TypeInfo, Ord, PartialOrd)]
 pub enum MockRuntimeHoldReason {
 	Reason,
 	Reason2,

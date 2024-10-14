@@ -15,12 +15,12 @@ impl-trait-for-tuples.workspace = true
 frame-support.workspace = true
 frame-system.workspace = true
 pallet-balances.workspace = true
-log.workspace = true
 parity-scale-codec.workspace = true
 scale-info.workspace = true
 sp-runtime.workspace = true
 sp-io.workspace = true
 serde.workspace = true
+
 [lints]
 workspace = true
 
@@ -31,7 +31,6 @@ default = [ "std" ]
 std = [
 	"frame-support/std",
 	"frame-system/std",
-	"log/std",
 	"pallet-balances/std",
 	"pallet-vesting/std",
 	"parity-scale-codec/std",
