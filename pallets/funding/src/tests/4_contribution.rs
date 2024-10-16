@@ -1067,7 +1067,7 @@ mod contribute_extrinsic {
 			inst.mint_funding_asset_to(vec![required_usdt.clone()]);
 
 			let ct_participation = inst.execute(|| {
-				<Pallet<TestRuntime>>::funding_asset_to_ct_amount(
+				<Pallet<TestRuntime>>::funding_asset_to_ct_amount_classic(
 					project_id,
 					AcceptedFundingAsset::USDT,
 					USDT_PARTICIPATION,
@@ -1221,7 +1221,7 @@ mod contribute_extrinsic {
 			inst.mint_funding_asset_to(vec![required_usdt.clone()]);
 
 			let ct_participation = inst.execute(|| {
-				<Pallet<TestRuntime>>::funding_asset_to_ct_amount(
+				<Pallet<TestRuntime>>::funding_asset_to_ct_amount_classic(
 					project_id,
 					AcceptedFundingAsset::USDT,
 					USDT_PARTICIPATION,

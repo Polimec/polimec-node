@@ -571,9 +571,14 @@ sp_api::mock_impl_runtime_apis! {
 	}
 
 	impl ExtrinsicHelpers<Block, TestRuntime> for TestRuntime {
-		fn funding_asset_to_ct_amount(project_id: ProjectId, asset: AcceptedFundingAsset, asset_amount: Balance) -> Balance {
-			PolimecFunding::funding_asset_to_ct_amount(project_id, asset, asset_amount)
+		fn funding_asset_to_ct_amount_classic(project_id: ProjectId, funding_asset: AcceptedFundingAsset, funding_asset_amount: Balance) -> Balance {
+			PolimecFunding::funding_asset_to_ct_amount_classic(project_id, funding_asset, funding_asset_amount)
 		}
+
+		fn funding_asset_to_ct_amount_otm(project_id: ProjectId, funding_asset: AcceptedFundingAsset, funding_asset_amount: Balance) -> (Balance, Balance) {
+			PolimecFunding::funding_asset_to_ct_amount_otm(project_id, funding_asset, funding_asset_amount)
+		}
+
 		fn get_next_vesting_schedule_merge_candidates(account: AccountId, hold_reason: RuntimeHoldReason, end_max_delta: Balance) -> Option<(u32, u32)> {
 			PolimecFunding::get_next_vesting_schedule_merge_candidates(account, hold_reason, end_max_delta)
 		}
@@ -581,6 +586,7 @@ sp_api::mock_impl_runtime_apis! {
 		fn calculate_otm_fee(funding_asset: AcceptedFundingAsset, funding_asset_amount: Balance) -> Option<Balance> {
 			PolimecFunding::calculate_otm_fee(funding_asset, funding_asset_amount)
 		}
+
 		fn get_funding_asset_min_max_amounts(project_id: ProjectId, did: Did, funding_asset: AcceptedFundingAsset, investor_type: InvestorType) -> Option<(Balance, Balance)> {
 			PolimecFunding::get_funding_asset_min_max_amounts(project_id, did, funding_asset, investor_type)
 		}
