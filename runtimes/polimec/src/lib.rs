@@ -1534,8 +1534,11 @@ impl_runtime_apis! {
 	}
 
 	impl pallet_funding::runtime_api::ExtrinsicHelpers<Block, Runtime> for Runtime {
-		fn funding_asset_to_ct_amount(project_id: ProjectId, asset: AcceptedFundingAsset, asset_amount: Balance) -> Balance {
-			Funding::funding_asset_to_ct_amount(project_id, asset, asset_amount)
+		fn funding_asset_to_ct_amount_classic(project_id: ProjectId, asset: AcceptedFundingAsset, asset_amount: Balance) -> Balance {
+			Funding::funding_asset_to_ct_amount_classic(project_id, asset, asset_amount)
+		}
+		fn funding_asset_to_ct_amount_otm(project_id: ProjectId, asset: AcceptedFundingAsset, asset_amount: Balance) -> (Balance, Balance) {
+			Funding::funding_asset_to_ct_amount_otm(project_id, asset, asset_amount)
 		}
 		fn get_next_vesting_schedule_merge_candidates(account: AccountId, hold_reason: RuntimeHoldReason, end_max_delta: Balance) -> Option<(u32, u32)> {
 			Funding::get_next_vesting_schedule_merge_candidates(account, hold_reason, end_max_delta)

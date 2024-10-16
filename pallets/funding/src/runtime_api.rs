@@ -1,13 +1,16 @@
-use crate::traits::BondingRequirementCalculation;
 #[allow(clippy::wildcard_imports)]
 use crate::*;
+use crate::{traits::BondingRequirementCalculation, HoldReason::Participation};
 use alloc::collections::BTreeMap;
 use frame_support::traits::fungibles::{Inspect, InspectEnumerable};
 use itertools::Itertools;
 use parity_scale_codec::{Decode, Encode};
 use polimec_common::{credentials::InvestorType, ProvideAssetPrice, USD_DECIMALS};
 use scale_info::TypeInfo;
+use sp_arithmetic::Perquintill;
+use sp_core::Get;
 use sp_runtime::traits::Zero;
+
 #[derive(Debug, Clone, PartialEq, Eq, Encode, Decode, TypeInfo)]
 pub struct ProjectParticipationIds<T: Config> {
 	account: AccountIdOf<T>,
@@ -57,7 +60,10 @@ sp_api::decl_runtime_apis! {
 	pub trait ExtrinsicHelpers<T: Config> {
 		/// Get the current price of a contribution token (either current bucket in the auction, or WAP in contribution phase),
 		/// and calculate the amount of tokens that can be bought with the given amount USDT/USDC/DOT.
-		fn funding_asset_to_ct_amount(project_id: ProjectId, asset: AcceptedFundingAsset, asset_amount: Balance) -> Balance;
+		fn funding_asset_to_ct_amount_classic(project_id: ProjectId, funding_asset: AcceptedFundingAsset, funding_asset_amount: Balance) -> Balance;
+
+		/// Calculate how many CTs and what the OTM fee is for a given project and funding asset amount.
+		fn funding_asset_to_ct_amount_otm(project_id: ProjectId, funding_asset: AcceptedFundingAsset, funding_asset_amount: Balance) -> (Balance, Balance);
 
 		/// Get the indexes of vesting schedules that are good candidates to be merged.
 		/// Schedules that have not yet started are de-facto bad candidates.
@@ -68,6 +74,7 @@ sp_api::decl_runtime_apis! {
 
 		/// Gets the minimum and maximum amount of FundingAsset a user can input in the UI.
 		fn get_funding_asset_min_max_amounts(project_id: ProjectId, did: Did, funding_asset: AcceptedFundingAsset, investor_type: InvestorType) -> Option<(Balance, Balance)>;
+
 	}
 }
 
@@ -138,7 +145,7 @@ impl<T: Config> Pallet<T> {
 			.collect_vec()
 	}
 
-	pub fn funding_asset_to_ct_amount(
+	pub fn funding_asset_to_ct_amount_classic(
 		project_id: ProjectId,
 		asset: AcceptedFundingAsset,
 		asset_amount: Balance,
@@ -174,6 +181,53 @@ impl<T: Config> Pallet<T> {
 		}
 
 		ct_amount
+	}
+
+	pub fn funding_asset_to_ct_amount_otm(
+		project_id: ProjectId,
+		funding_asset: AcceptedFundingAsset,
+		total_funding_asset_amount: Balance,
+	) -> (Balance, Balance) {
+		let project_details = ProjectsDetails::<T>::get(project_id).expect("Project not found");
+		let funding_asset_usd_price =
+			Pallet::<T>::get_decimals_aware_funding_asset_price(&funding_asset).expect("Price not found");
+		let otm_multiplier = ParticipationMode::OTM.multiplier();
+		let otm_fee_percentage = <T as pallet_proxy_bonding::Config>::FeePercentage::get() / otm_multiplier;
+
+		let divisor = FixedU128::from_perbill(otm_fee_percentage) + FixedU128::one();
+		let participating_funding_asset_amount =
+			divisor.reciprocal().unwrap().saturating_mul_int(total_funding_asset_amount);
+		let fee_funding_asset_amount = total_funding_asset_amount.saturating_sub(participating_funding_asset_amount);
+
+		let participating_usd_ticket_size =
+			funding_asset_usd_price.saturating_mul_int(participating_funding_asset_amount);
+
+		let mut ct_amount = Zero::zero();
+
+		// Contribution phase
+		if let Some(wap) = project_details.weighted_average_price {
+			ct_amount = wap.reciprocal().expect("Bad math").saturating_mul_int(participating_usd_ticket_size);
+		}
+		// Auction phase, we need to consider multiple buckets
+		else {
+			let mut usd_to_spend = participating_usd_ticket_size;
+			let mut current_bucket = Buckets::<T>::get(project_id).expect("Bucket not found");
+			while usd_to_spend > Zero::zero() {
+				let bucket_price = current_bucket.current_price;
+
+				let ct_to_buy = bucket_price.reciprocal().expect("Bad math").saturating_mul_int(usd_to_spend);
+				let ct_to_buy = ct_to_buy.min(current_bucket.amount_left);
+
+				ct_amount = ct_amount.saturating_add(ct_to_buy);
+				// if usd spent is 0, we will have an infinite loop
+				let usd_spent = bucket_price.saturating_mul_int(ct_to_buy).max(One::one());
+				usd_to_spend = usd_to_spend.saturating_sub(usd_spent);
+
+				current_bucket.update(ct_to_buy)
+			}
+		}
+
+		(ct_amount, fee_funding_asset_amount)
 	}
 
 	pub fn get_next_vesting_schedule_merge_candidates(

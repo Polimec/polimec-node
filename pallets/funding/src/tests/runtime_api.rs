@@ -347,7 +347,7 @@ fn funding_asset_to_ct_amount() {
 	let expected_ct_amount_contribution = 9_315 * CT_UNIT;
 	inst.execute(|| {
 		let block_hash = System::block_hash(System::block_number());
-		let ct_amount = TestRuntime::funding_asset_to_ct_amount(
+		let ct_amount = TestRuntime::funding_asset_to_ct_amount_classic(
 			&TestRuntime,
 			block_hash,
 			project_id_1,
@@ -381,7 +381,7 @@ fn funding_asset_to_ct_amount() {
 	let expected_ct_amount_contribution = 5_714_720_000_000_000_000;
 	inst.execute(|| {
 		let block_hash = System::block_hash(System::block_number());
-		let ct_amount = TestRuntime::funding_asset_to_ct_amount(
+		let ct_amount = TestRuntime::funding_asset_to_ct_amount_classic(
 			&TestRuntime,
 			block_hash,
 			project_id_2,
@@ -433,7 +433,7 @@ fn funding_asset_to_ct_amount() {
 
 	inst.execute(|| {
 		let block_hash = System::block_hash(System::block_number());
-		let ct_amount = TestRuntime::funding_asset_to_ct_amount(
+		let ct_amount = TestRuntime::funding_asset_to_ct_amount_classic(
 			&TestRuntime,
 			block_hash,
 			project_id_3,
@@ -455,7 +455,7 @@ fn funding_asset_to_ct_amount() {
 
 	inst.execute(|| {
 		let block_hash = System::block_hash(System::block_number());
-		let ct_amount = TestRuntime::funding_asset_to_ct_amount(
+		let ct_amount = TestRuntime::funding_asset_to_ct_amount_classic(
 			&TestRuntime,
 			block_hash,
 			project_id_3,
@@ -570,7 +570,7 @@ fn calculate_otm_fee() {
 
 	let ct_amount = inst
 		.execute(|| {
-			TestRuntime::funding_asset_to_ct_amount(
+			TestRuntime::funding_asset_to_ct_amount_classic(
 				&TestRuntime,
 				block_hash,
 				project_id,
@@ -752,7 +752,7 @@ fn get_funding_asset_min_max_amounts() {
 	// This test requires the buyer to have contributed 4500 USD before calling the API
 	let required_ct = inst
 		.execute(|| {
-			TestRuntime::funding_asset_to_ct_amount(
+			TestRuntime::funding_asset_to_ct_amount_classic(
 				&TestRuntime,
 				block_hash,
 				project_id,
