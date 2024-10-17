@@ -34,7 +34,6 @@ substrate-fixed = {workspace = true}
 
 [dev-dependencies]
 pallet-balances = { workspace = true, features = ["std"] }
-sp-consensus-aura = { workspace = true, features = ["std"] }
 sp-keystore = { workspace = true, features = ["std"] }
 parking_lot = "0.12.1"
 polimec-common-test-utils.workspace = true
@@ -52,7 +51,6 @@ std = [
 	"scale-info/std",
 	"serde-json-core/std",
 	"serde/std",
-	"sp-consensus-aura/std",
 	"sp-core/std",
 	"sp-io/std",
 	"sp-keystore/std",

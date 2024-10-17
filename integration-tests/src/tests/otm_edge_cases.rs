@@ -77,8 +77,11 @@ fn otm_fee_below_min_amount_reverts() {
 
 		assert!(min_usdt_contribution_otm_fee < usdt_min_balance);
 
-		let ct_for_min_usdt_contribution =
-			PolimecFunding::funding_asset_to_ct_amount_classic(project_id, AcceptedFundingAsset::USDT, min_usdt_contribution);
+		let ct_for_min_usdt_contribution = PolimecFunding::funding_asset_to_ct_amount_classic(
+			project_id,
+			AcceptedFundingAsset::USDT,
+			min_usdt_contribution,
+		);
 
 		let jwt = get_mock_jwt_with_cid(
 			bobert.clone(),
@@ -152,8 +155,11 @@ fn after_otm_fee_user_goes_under_ed_reverts() {
 		let usdt_contribution = usdt_price.reciprocal().unwrap().saturating_mul_int(usd_contribution);
 		let usdt_otm_fee = usdt_price.reciprocal().unwrap().saturating_mul_int(usd_otm_fee);
 
-		let ct_for_contribution =
-			PolimecFunding::funding_asset_to_ct_amount_classic(project_id, AcceptedFundingAsset::USDT, usdt_contribution);
+		let ct_for_contribution = PolimecFunding::funding_asset_to_ct_amount_classic(
+			project_id,
+			AcceptedFundingAsset::USDT,
+			usdt_contribution,
+		);
 		let jwt = get_mock_jwt_with_cid(
 			bobert.clone(),
 			InvestorType::Retail,
