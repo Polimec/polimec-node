@@ -318,7 +318,7 @@ fn contribution_tokens() {
 }
 
 #[test]
-fn funding_asset_to_ct_amount() {
+fn funding_asset_to_ct_amount_classic() {
 	let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 
 	// We want to use a funding asset that is not equal to 1 USD
@@ -464,6 +464,163 @@ fn funding_asset_to_ct_amount() {
 		)
 		.unwrap();
 		assert_close_enough!(ct_amount, expected_ct_amount, Perquintill::from_float(0.9999));
+	});
+}
+
+#[test]
+fn funding_asset_to_ct_amount_otm() {
+	let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+
+	// We want to use a funding asset that is not equal to 1 USD
+	// Sanity check
+	assert_eq!(
+		PriceProviderOf::<TestRuntime>::get_price(AcceptedFundingAsset::DOT.id()).unwrap(),
+		PriceOf::<TestRuntime>::from_float(69.0f64)
+	);
+
+	let dot_participation_amount: u128 = 1350_0_000_000_000;
+	// USD Ticket = 93_150 USD
+	let dot_fee_amount = FixedU128::from_float(0.015f64).saturating_mul_int(dot_participation_amount);
+
+	// Easy case, wap is already calculated, we want to know how many tokens at wap we can buy with `x` USDT
+	let project_metadata_1 = default_project_metadata(ISSUER_1);
+	let project_id_1 = inst.create_community_contributing_project(
+		project_metadata_1.clone(),
+		ISSUER_1,
+		None,
+		default_evaluations(),
+		vec![],
+	);
+	let wap = project_metadata_1.minimum_price;
+	assert_eq!(inst.get_project_details(project_id_1).weighted_average_price.unwrap(), wap);
+
+	// Price of ct is min price = 10 USD/CT
+	let expected_ct_amount_contribution = 9_315 * CT_UNIT;
+	inst.execute(|| {
+		let block_hash = System::block_hash(System::block_number());
+		let (ct_amount, fee_amount) = TestRuntime::funding_asset_to_ct_amount_otm(
+			&TestRuntime,
+			block_hash,
+			project_id_1,
+			AcceptedFundingAsset::DOT,
+			dot_participation_amount + dot_fee_amount,
+		)
+			.unwrap();
+		assert_close_enough!(ct_amount, expected_ct_amount_contribution, Perquintill::from_float(0.9999));
+		assert_close_enough!(fee_amount, dot_fee_amount, Perquintill::from_float(0.9999));
+	});
+
+	// Medium case, contribution at a wap that is not the minimum price.
+	let project_metadata_2 = default_project_metadata(ISSUER_2);
+	let new_price = PriceOf::<TestRuntime>::from_float(16.3f64);
+	let decimal_aware_price =
+		PriceProviderOf::<TestRuntime>::calculate_decimals_aware_price(new_price, USD_DECIMALS, CT_DECIMALS).unwrap();
+
+	let bids =
+		inst.generate_bids_that_take_price_to(project_metadata_2.clone(), decimal_aware_price, 420, |acc| acc + 1);
+	let project_id_2 = inst.create_community_contributing_project(
+		project_metadata_2.clone(),
+		ISSUER_2,
+		None,
+		default_evaluations(),
+		bids,
+	);
+	// Sanity check
+	let project_details = inst.get_project_details(project_id_2);
+	assert_eq!(project_details.weighted_average_price.unwrap(), decimal_aware_price);
+
+	// 5'714.72... rounded down
+	let expected_ct_amount_contribution = 5_714_720_000_000_000_000;
+	inst.execute(|| {
+		let block_hash = System::block_hash(System::block_number());
+		let (ct_amount, fee_amount) = TestRuntime::funding_asset_to_ct_amount_otm(
+			&TestRuntime,
+			block_hash,
+			project_id_2,
+			AcceptedFundingAsset::DOT,
+			dot_participation_amount + dot_fee_amount,
+		)
+			.unwrap();
+		assert_close_enough!(ct_amount, expected_ct_amount_contribution, Perquintill::from_float(0.9999f64));
+		assert_close_enough!(fee_amount, dot_fee_amount, Perquintill::from_float(0.9999f64));
+	});
+
+	// Medium case, a bid goes over part of a bucket (bucket after the first one)
+	let project_metadata_3 = default_project_metadata(ISSUER_3);
+	let project_id_3 =
+		inst.create_auctioning_project(project_metadata_3.clone(), ISSUER_3, None, default_evaluations());
+	let mut bucket = inst.execute(|| Buckets::<TestRuntime>::get(project_id_3)).unwrap();
+
+	// We want a full bucket after filling 6 buckets. (first bucket has full allocation and initial price)
+	// Price should be at 16 USD/CT
+	bucket.current_price = bucket.initial_price + bucket.delta_price * FixedU128::from_float(6.0f64);
+	bucket.amount_left = bucket.delta_amount;
+	let bids = inst.generate_bids_from_bucket(
+		project_metadata_3.clone(),
+		bucket,
+		420,
+		|acc| acc + 1,
+		AcceptedFundingAsset::USDT,
+	);
+	let necessary_plmc =
+		inst.calculate_auction_plmc_charged_from_all_bids_made_or_with_bucket(&bids, project_metadata_3.clone(), None);
+	let necessary_usdt = inst.calculate_auction_funding_asset_charged_from_all_bids_made_or_with_bucket(
+		&bids,
+		project_metadata_3.clone(),
+		None,
+	);
+	inst.mint_plmc_to(necessary_plmc);
+	inst.mint_funding_asset_to(necessary_usdt);
+	inst.bid_for_users(project_id_3, bids).unwrap();
+
+	// Sanity check
+	let expected_price = PriceOf::<TestRuntime>::from_float(16.0f64);
+	let decimal_aware_expected_price =
+		PriceProviderOf::<TestRuntime>::calculate_decimals_aware_price(expected_price, USD_DECIMALS, CT_DECIMALS)
+			.unwrap();
+	let current_bucket = inst.execute(|| Buckets::<TestRuntime>::get(project_id_3).unwrap());
+	assert_eq!(current_bucket.current_price, decimal_aware_expected_price);
+
+	let dot_participation_amount: u128 = 217_0_000_000_000;
+	let dot_fee_amount = FixedU128::from_float(0.015f64).saturating_mul_int(dot_participation_amount);
+	let expected_ct_amount: u128 = 935_812_500_000_000_000;
+
+	inst.execute(|| {
+		let block_hash = System::block_hash(System::block_number());
+		let (ct_amount, fee_amount) = TestRuntime::funding_asset_to_ct_amount_otm(
+			&TestRuntime,
+			block_hash,
+			project_id_3,
+			AcceptedFundingAsset::DOT,
+			dot_participation_amount + dot_fee_amount,
+		)
+			.unwrap();
+		assert_close_enough!(ct_amount, expected_ct_amount, Perquintill::from_float(0.9999));
+		assert_close_enough!(fee_amount, dot_fee_amount, Perquintill::from_float(0.9999));
+	});
+
+	// Hard case, a bid goes over multiple buckets
+	// We take the same project from before, and we add a bid that goes over 3 buckets.
+	// Bucket size is 50k CTs, and current price is 16 USD/CT
+	// We need to buy 50k at 16 , 50k at 17, and 13.5k at 18 = 1893k USD
+
+	// Amount needed to spend 1893k USD through several buckets with DOT at 69 USD/DOT
+	let dot_participation_amount = 27_434_7_826_086_956u128;
+	let dot_fee_amount = FixedU128::from_float(0.015f64).saturating_mul_int(dot_participation_amount);
+	let expected_ct_amount = 113_500 * CT_UNIT;
+
+	inst.execute(|| {
+		let block_hash = System::block_hash(System::block_number());
+		let (ct_amount, fee_amount) = TestRuntime::funding_asset_to_ct_amount_otm(
+			&TestRuntime,
+			block_hash,
+			project_id_3,
+			AcceptedFundingAsset::DOT,
+			dot_participation_amount + dot_fee_amount,
+		)
+			.unwrap();
+		assert_close_enough!(ct_amount, expected_ct_amount, Perquintill::from_float(0.9999));
+		assert_close_enough!(fee_amount, dot_fee_amount, Perquintill::from_float(0.9999));
 	});
 }
 

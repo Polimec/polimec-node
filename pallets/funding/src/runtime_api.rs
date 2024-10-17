@@ -1,13 +1,12 @@
 #[allow(clippy::wildcard_imports)]
 use crate::*;
-use crate::{traits::BondingRequirementCalculation, HoldReason::Participation};
+use crate::{traits::BondingRequirementCalculation};
 use alloc::collections::BTreeMap;
 use frame_support::traits::fungibles::{Inspect, InspectEnumerable};
 use itertools::Itertools;
 use parity_scale_codec::{Decode, Encode};
 use polimec_common::{credentials::InvestorType, ProvideAssetPrice, USD_DECIMALS};
 use scale_info::TypeInfo;
-use sp_arithmetic::Perquintill;
 use sp_core::Get;
 use sp_runtime::traits::Zero;
 
@@ -192,9 +191,10 @@ impl<T: Config> Pallet<T> {
 		let funding_asset_usd_price =
 			Pallet::<T>::get_decimals_aware_funding_asset_price(&funding_asset).expect("Price not found");
 		let otm_multiplier = ParticipationMode::OTM.multiplier();
-		let otm_fee_percentage = <T as pallet_proxy_bonding::Config>::FeePercentage::get() / otm_multiplier;
+		let otm_fee_plmc_percentage = <T as pallet_proxy_bonding::Config>::FeePercentage::get();
+		let otm_fee_usd_percentage = otm_fee_plmc_percentage / otm_multiplier;
 
-		let divisor = FixedU128::from_perbill(otm_fee_percentage) + FixedU128::one();
+		let divisor = FixedU128::from_perbill(otm_fee_usd_percentage) + FixedU128::from_rational(1,1);
 		let participating_funding_asset_amount =
 			divisor.reciprocal().unwrap().saturating_mul_int(total_funding_asset_amount);
 		let fee_funding_asset_amount = total_funding_asset_amount.saturating_sub(participating_funding_asset_amount);
