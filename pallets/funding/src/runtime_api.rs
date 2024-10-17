@@ -1,13 +1,12 @@
 #[allow(clippy::wildcard_imports)]
 use crate::*;
-use crate::{traits::BondingRequirementCalculation, HoldReason::Participation};
+use crate::traits::BondingRequirementCalculation;
 use alloc::collections::BTreeMap;
 use frame_support::traits::fungibles::{Inspect, InspectEnumerable};
 use itertools::Itertools;
 use parity_scale_codec::{Decode, Encode};
 use polimec_common::{credentials::InvestorType, ProvideAssetPrice, USD_DECIMALS};
 use scale_info::TypeInfo;
-use sp_arithmetic::Perquintill;
 use sp_core::Get;
 use sp_runtime::traits::Zero;
 

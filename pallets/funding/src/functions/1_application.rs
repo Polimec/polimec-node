@@ -49,7 +49,7 @@ impl<T: Config> Pallet<T> {
 			migration_type: None,
 		};
 
-		let bucket: BucketOf<T> = Self::create_bucket_from_metadata(&project_metadata)?;
+		let bucket: BucketOf<T> = Self::create_bucket_from_metadata(project_metadata)?;
 
 		Ok((project_details, bucket))
 	}
