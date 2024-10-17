@@ -434,7 +434,7 @@ impl Config for TestRuntime {
 
 parameter_types! {
 	// Means a USD Ticket fee of 1.5%, since the FeePercentage is applied on the PLMC bond with multiplier 5.
-	pub FeePercentage: Perbill = Perbill::from_rational(75u32, 100u32);
+	pub FeePercentage: Perbill = Perbill::from_rational(75u32, 1000u32);
 	pub const FeeRecipient: AccountId = 80085;
 	pub const RootId: PalletId = PalletId(*b"treasury");
 }
