@@ -1,6 +1,6 @@
 #[allow(clippy::wildcard_imports)]
 use crate::*;
-use crate::{traits::BondingRequirementCalculation};
+use crate::traits::BondingRequirementCalculation;
 use alloc::collections::BTreeMap;
 use frame_support::traits::fungibles::{Inspect, InspectEnumerable};
 use itertools::Itertools;
