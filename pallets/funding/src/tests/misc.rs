@@ -4,6 +4,7 @@ use super::*;
 mod helper_functions {
 	use super::*;
 	use polimec_common::USD_DECIMALS;
+	use sp_core::{ecdsa, hexdisplay::AsBytesRef, keccak_256, sr25519, Pair};
 
 	#[test]
 	fn test_usd_price_decimal_aware() {
@@ -189,6 +190,7 @@ mod helper_functions {
 			participation_currencies: vec![AcceptedFundingAsset::USDT].try_into().unwrap(),
 			funding_destination_account: ISSUER_1,
 			policy_ipfs_cid: Some(ipfs_hash()),
+			participants_account_type: ParticipantsAccountType::Polkadot,
 		};
 
 		let project_id = inst.create_community_contributing_project(
@@ -348,6 +350,29 @@ mod helper_functions {
 		for (expected, calculated) in zip(expected_plmc_spent, calculated_plmc_spent) {
 			assert_close_enough!(expected, calculated, Perquintill::from_float(0.999));
 		}
+	}
+
+	#[test]
+	fn verify_receiving_account_signature() {
+		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+		let message_to_sign = functions::misc::RECEIVER_ACCOUNT_MESSAGE_TO_SIGN;
+
+		let sr_pair = sr25519::Pair::from_seed_slice(&[69u8; 32]).unwrap();
+		let signature = sr_pair.sign(&message_to_sign);
+		let mut signature_bytes = [0u8; 65];
+		signature_bytes[..64].copy_from_slice(signature.as_bytes_ref());
+		let junction = Junction::AccountId32 { network: None, id: sr_pair.public().to_raw() };
+		assert_ok!(inst.execute(|| PolimecFunding::verify_receiving_account_signature(&junction, &signature_bytes)));
+
+		let ecdsa_pair = ecdsa::Pair::from_seed_slice(&[69u8; 32]).unwrap();
+		let signature = ecdsa_pair.sign(&message_to_sign);
+		let mut signature_bytes = [0u8; 65];
+		signature_bytes[..65].copy_from_slice(signature.as_bytes_ref());
+		let derived_ethereum_account: [u8; 20] =
+			keccak_256(&ecdsa_pair.public().to_raw()[1..])[12..32].try_into().unwrap();
+		let junction =
+			Junction::AccountKey20 { network: Some(Ethereum { chain_id: 1 }), key: derived_ethereum_account };
+		assert_ok!(inst.execute(|| PolimecFunding::verify_receiving_account_signature(&junction, &signature_bytes)));
 	}
 }
 

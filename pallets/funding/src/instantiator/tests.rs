@@ -52,6 +52,7 @@ fn dry_run_wap() {
 		participation_currencies: vec![AcceptedFundingAsset::USDT].try_into().unwrap(),
 		funding_destination_account: 0,
 		policy_ipfs_cid: Some(metadata_hash),
+		participants_account_type: ParticipantsAccountType::Polkadot,
 	};
 
 	// overfund with plmc
@@ -132,6 +133,7 @@ fn find_bucket_for_wap() {
 		participation_currencies: vec![AcceptedFundingAsset::USDT].try_into().unwrap(),
 		funding_destination_account: 0,
 		policy_ipfs_cid: Some(metadata_hash),
+		participants_account_type: ParticipantsAccountType::Polkadot,
 	};
 
 	// overfund with plmc
