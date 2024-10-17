@@ -7635,7 +7635,6 @@ dependencies = [
  "scale-info",
  "serde",
  "serde-json-core",
- "sp-consensus-aura",
  "sp-core",
  "sp-io",
  "sp-keystore",
