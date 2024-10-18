@@ -94,6 +94,10 @@ impl<T: Config> Pallet<T> {
 		ensure!(usd_amount >= T::MinUsdPerEvaluation::get(), Error::<T>::TooLow);
 		ensure!(project_details.issuer_did != did, Error::<T>::ParticipationToOwnProject);
 		ensure!(project_details.status == ProjectStatus::EvaluationRound, Error::<T>::IncorrectRound);
+		ensure!(
+			project_details.round_duration.started(now) && !project_details.round_duration.ended(now),
+			Error::<T>::IncorrectRound
+		);
 		ensure!(total_evaluations_count < T::MaxEvaluationsPerProject::get(), Error::<T>::TooManyProjectParticipations);
 		ensure!(user_evaluations_count < T::MaxEvaluationsPerUser::get(), Error::<T>::TooManyUserParticipations);
 

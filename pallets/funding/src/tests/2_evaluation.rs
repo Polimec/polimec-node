@@ -982,5 +982,33 @@ mod evaluate_extrinsic {
 				);
 			});
 		}
+
+		#[test]
+		fn evaluated_after_end_block_before_transitioning_project() {
+			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+			let issuer = ISSUER_1;
+			let project_metadata = default_project_metadata(issuer);
+			let project_id = inst.create_evaluating_project(project_metadata.clone(), issuer, None);
+			let project_details = inst.get_project_details(project_id);
+			let end_block = project_details.round_duration.end().unwrap();
+			inst.jump_to_block(end_block + 1);
+			assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::EvaluationRound);
+			inst.execute(|| {
+				assert_noop!(
+					PolimecFunding::evaluate(
+						RuntimeOrigin::signed(EVALUATOR_1),
+						get_mock_jwt_with_cid(
+							EVALUATOR_1,
+							InvestorType::Retail,
+							generate_did_from_account(EVALUATOR_1),
+							project_metadata.clone().policy_ipfs_cid.unwrap()
+						),
+						project_id,
+						500 * USD_UNIT,
+					),
+					Error::<TestRuntime>::IncorrectRound
+				);
+			});
+		}
 	}
 }

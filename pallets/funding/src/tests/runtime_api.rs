@@ -505,7 +505,7 @@ fn funding_asset_to_ct_amount_otm() {
 			AcceptedFundingAsset::DOT,
 			dot_participation_amount + dot_fee_amount,
 		)
-			.unwrap();
+		.unwrap();
 		assert_close_enough!(ct_amount, expected_ct_amount_contribution, Perquintill::from_float(0.9999));
 		assert_close_enough!(fee_amount, dot_fee_amount, Perquintill::from_float(0.9999));
 	});
@@ -540,7 +540,7 @@ fn funding_asset_to_ct_amount_otm() {
 			AcceptedFundingAsset::DOT,
 			dot_participation_amount + dot_fee_amount,
 		)
-			.unwrap();
+		.unwrap();
 		assert_close_enough!(ct_amount, expected_ct_amount_contribution, Perquintill::from_float(0.9999f64));
 		assert_close_enough!(fee_amount, dot_fee_amount, Perquintill::from_float(0.9999f64));
 	});
@@ -594,7 +594,7 @@ fn funding_asset_to_ct_amount_otm() {
 			AcceptedFundingAsset::DOT,
 			dot_participation_amount + dot_fee_amount,
 		)
-			.unwrap();
+		.unwrap();
 		assert_close_enough!(ct_amount, expected_ct_amount, Perquintill::from_float(0.9999));
 		assert_close_enough!(fee_amount, dot_fee_amount, Perquintill::from_float(0.9999));
 	});
@@ -618,7 +618,7 @@ fn funding_asset_to_ct_amount_otm() {
 			AcceptedFundingAsset::DOT,
 			dot_participation_amount + dot_fee_amount,
 		)
-			.unwrap();
+		.unwrap();
 		assert_close_enough!(ct_amount, expected_ct_amount, Perquintill::from_float(0.9999));
 		assert_close_enough!(fee_amount, dot_fee_amount, Perquintill::from_float(0.9999));
 	});
