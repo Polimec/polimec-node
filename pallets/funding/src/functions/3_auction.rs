@@ -89,6 +89,7 @@ impl<T: Config> Pallet<T> {
 		ensure!(ct_amount > Zero::zero(), Error::<T>::TooLow);
 		ensure!(did != project_details.issuer_did, Error::<T>::ParticipationToOwnProject);
 		ensure!(matches!(project_details.status, ProjectStatus::AuctionRound), Error::<T>::IncorrectRound);
+		ensure!(project_details.round_duration.started(now) && !project_details.round_duration.ended(now),  Error::<T>::IncorrectRound);
 		ensure!(
 			project_metadata.participation_currencies.contains(&funding_asset),
 			Error::<T>::FundingAssetNotAccepted

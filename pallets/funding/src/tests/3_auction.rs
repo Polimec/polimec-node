@@ -1863,6 +1863,35 @@ mod bid_extrinsic {
 				);
 			});
 		}
+
+		#[test]
+		fn bid_after_end_block_before_transitioning_project() {
+			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+			let project_metadata = default_project_metadata(ISSUER_1);
+			let project_id =
+				inst.create_auctioning_project(project_metadata.clone(), ISSUER_1, None, default_evaluations());
+			let end_block = inst.get_project_details(project_id).round_duration.end.unwrap();
+			inst.jump_to_block(end_block + 1);
+			assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::AuctionRound);
+			inst.execute(|| {
+				assert_noop!(
+					PolimecFunding::bid(
+						RuntimeOrigin::signed(BIDDER_1),
+						get_mock_jwt_with_cid(
+							BIDDER_1,
+							InvestorType::Professional,
+							generate_did_from_account(BIDDER_1),
+							project_metadata.clone().policy_ipfs_cid.unwrap()
+						),
+						project_id,
+						5000 * CT_UNIT,
+						ParticipationMode::Classic(1u8),
+						AcceptedFundingAsset::USDT
+					),
+					Error::<TestRuntime>::IncorrectRound
+				);
+			});
+		}
 	}
 }
 
