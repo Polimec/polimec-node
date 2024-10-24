@@ -4,6 +4,7 @@ use crate::{MultiplierOf, ParticipationMode};
 use core::cmp::Ordering;
 use itertools::GroupBy;
 use polimec_common::{ProvideAssetPrice, USD_DECIMALS};
+use sp_core::{ecdsa, hexdisplay::AsBytesRef, keccak_256, sr25519, Pair};
 
 impl<
 		T: Config,
@@ -32,7 +33,7 @@ impl<
 
 	pub fn calculate_evaluation_plmc_spent(
 		&mut self,
-		evaluations: Vec<UserToUSDBalance<T>>,
+		evaluations: Vec<EvaluationParams<T>>,
 	) -> Vec<UserToPLMCBalance<T>> {
 		let plmc_usd_price = self.execute(|| {
 			<PriceProviderOf<T>>::get_decimals_aware_price(PLMC_FOREIGN_ID, USD_DECIMALS, PLMC_DECIMALS).unwrap()
@@ -66,7 +67,7 @@ impl<
 			while !amount_to_bid.is_zero() {
 				let bid_amount = if amount_to_bid <= bucket.amount_left { amount_to_bid } else { bucket.amount_left };
 				output.push((
-					BidParams { bidder: bid.bidder.clone(), amount: bid_amount, mode: bid.mode, asset: bid.asset },
+					BidParams::from((bid.bidder.clone(), bid_amount, bid.mode, bid.asset)),
 					bucket.current_price,
 				));
 				bucket.update(bid_amount);
@@ -312,12 +313,7 @@ impl<
 				total_cts_left.saturating_reduce(bid.amount);
 				filtered_bids.push(bid);
 			} else if !total_cts_left.is_zero() {
-				filtered_bids.push(BidParams {
-					bidder: bid.bidder.clone(),
-					amount: total_cts_left,
-					mode: bid.mode,
-					asset: bid.asset,
-				});
+				filtered_bids.push(BidParams::from((bid.bidder.clone(), total_cts_left, bid.mode, bid.asset)));
 				total_cts_left = Zero::zero();
 			}
 		}
@@ -344,7 +340,7 @@ impl<
 
 	pub fn calculate_total_plmc_locked_from_evaluations_and_remainder_contributions(
 		&mut self,
-		evaluations: Vec<UserToUSDBalance<T>>,
+		evaluations: Vec<EvaluationParams<T>>,
 		contributions: Vec<ContributionParams<T>>,
 		price: PriceOf<T>,
 		slashed: bool,
@@ -536,7 +532,7 @@ impl<
 		project_metadata: ProjectMetadataOf<T>,
 		evaluators: Vec<AccountIdOf<T>>,
 		weights: Vec<u8>,
-	) -> Vec<UserToUSDBalance<T>> {
+	) -> Vec<EvaluationParams<T>> {
 		let funding_target = project_metadata.minimum_price.saturating_mul_int(project_metadata.total_allocation_size);
 		let evaluation_success_threshold = <T as Config>::EvaluationSuccessThreshold::get(); // if we use just the threshold, then for big usd targets we lose the evaluation due to PLMC conversion errors in `evaluation_end`
 		let usd_threshold = evaluation_success_threshold * funding_target * 2u128;
@@ -564,7 +560,7 @@ impl<
 				let ticket_size = Percent::from_percent(weight) * usd_amount;
 				let token_amount = min_price.reciprocal().unwrap().saturating_mul_int(ticket_size);
 
-				BidParams::new(bidder, token_amount, mode, AcceptedFundingAsset::USDT)
+				BidParams::from((bidder, token_amount, mode, AcceptedFundingAsset::USDT))
 			})
 			.collect()
 	}
@@ -585,7 +581,7 @@ impl<
 		zip(zip(weights, bidders), modes)
 			.map(|((weight, bidder), mode)| {
 				let token_amount = Percent::from_percent(weight) * total_ct_bid;
-				BidParams::new(bidder, token_amount, mode, AcceptedFundingAsset::USDT)
+				BidParams::from((bidder, token_amount, mode, AcceptedFundingAsset::USDT))
 			})
 			.collect()
 	}
@@ -603,7 +599,7 @@ impl<
 				let ticket_size = Percent::from_percent(weight) * usd_amount;
 				let token_amount = final_price.reciprocal().unwrap().saturating_mul_int(ticket_size);
 
-				ContributionParams::new(bidder, token_amount, mode, AcceptedFundingAsset::USDT)
+				ContributionParams::from((bidder, token_amount, mode, AcceptedFundingAsset::USDT))
 			})
 			.collect()
 	}
@@ -624,7 +620,7 @@ impl<
 		zip(zip(weights, contributors), modes)
 			.map(|((weight, contributor), mode)| {
 				let token_amount = Percent::from_percent(weight) * total_ct_bought;
-				ContributionParams::new(contributor, token_amount, mode, AcceptedFundingAsset::USDT)
+				ContributionParams::from((contributor, token_amount, mode, AcceptedFundingAsset::USDT))
 			})
 			.collect()
 	}
@@ -794,5 +790,56 @@ impl<
 			T::AuctionRoundDuration::get() +
 			T::CommunityRoundDuration::get() +
 			One::one()
+	}
+
+	#[cfg(feature = "std")]
+	pub fn eth_key_and_sig_from(
+		&mut self,
+		seed_string: &str,
+		project_id: ProjectId,
+		polimec_account: AccountIdOf<T>,
+	) -> (Junction, [u8; 65]) {
+		let polimec_account_ss58_string = T::SS58Conversion::convert(polimec_account.clone());
+		let nonce = self.execute(|| frame_system::Pallet::<T>::account_nonce(polimec_account));
+		let message_to_sign =
+			crate::functions::misc::typed_data_v4::get_eip_712_message(&polimec_account_ss58_string, project_id, nonce);
+		let ecdsa_pair = ecdsa::Pair::from_string(seed_string, None).unwrap();
+		let signature = ecdsa_pair.sign_prehashed(&message_to_sign);
+		let mut signature_bytes = [0u8; 65];
+		signature_bytes[..65].copy_from_slice(signature.as_bytes_ref());
+
+		match signature_bytes[64] {
+			0x00 => signature_bytes[64] = 27,
+			0x01 => signature_bytes[64] = 28,
+			_v => unreachable!("Recovery bit should be always either 0 or 1"),
+		}
+
+		let compressed_public_key = ecdsa_pair.public().to_raw();
+		let public_uncompressed = k256::ecdsa::VerifyingKey::from_sec1_bytes(&compressed_public_key).unwrap();
+		let public_uncompressed_point = public_uncompressed.to_encoded_point(false).to_bytes();
+		let derived_ethereum_account: [u8; 20] =
+			keccak_256(&public_uncompressed_point[1..])[12..32].try_into().unwrap();
+		let junction = Junction::AccountKey20 { network: None, key: derived_ethereum_account };
+
+		(junction, signature_bytes)
+	}
+
+	#[cfg(feature = "std")]
+	pub fn dot_key_and_sig_from(
+		&mut self,
+		seed_string: &str,
+		project_id: ProjectId,
+		polimec_account: AccountIdOf<T>,
+	) -> (Junction, [u8; 65]) {
+		let message_to_sign =
+			self.execute(|| Pallet::<T>::get_substrate_message_to_sign(polimec_account, project_id)).unwrap();
+		let message_to_sign = message_to_sign.into_bytes();
+
+		let sr_pair = sr25519::Pair::from_string(seed_string, None).unwrap();
+		let signature = sr_pair.sign(&message_to_sign);
+		let mut signature_bytes = [0u8; 65];
+		signature_bytes[..64].copy_from_slice(signature.as_bytes_ref());
+		let junction = Junction::AccountId32 { network: Some(Polkadot), id: sr_pair.public().to_raw() };
+		(junction, signature_bytes)
 	}
 }

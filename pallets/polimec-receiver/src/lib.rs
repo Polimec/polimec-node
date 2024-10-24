@@ -34,7 +34,7 @@ pub mod pallet {
 	use polkadot_parachain_primitives::primitives::{Id as ParaId, Sibling};
 	use sp_runtime::traits::{AccountIdConversion, Convert};
 	use sp_std::prelude::*;
-	use xcm::v4::{Junction::AccountId32, Location};
+	use xcm::v4::Junction::AccountId32;
 
 	type MomentOf<T> = <<T as Config>::Vesting as VestingSchedule<<T as frame_system::Config>::AccountId>>::Moment;
 
@@ -64,7 +64,7 @@ pub mod pallet {
 	pub type ExecutedMigrations<T> = StorageNMap<
 		_,
 		(
-			NMapKey<Blake2_128Concat, Location>,
+			NMapKey<Blake2_128Concat, [u8; 32]>,
 			NMapKey<Blake2_128Concat, ParticipationType>,
 			NMapKey<Blake2_128Concat, u32>,
 		),
@@ -113,12 +113,12 @@ pub mod pallet {
 				..
 			} in migrations.inner().iter()
 			{
-				let user_32 = match user.unpack() {
-					(0, [AccountId32 { id, .. }]) => Ok(*id),
-					_ => Err(Error::<T>::NoneValue),
-				}?;
+				let user_32 = match user {
+					AccountId32 { id, .. } => *id,
+					_ => return Err(Error::<T>::NoneValue.into()),
+				};
 
-				if ExecutedMigrations::<T>::get((&user, &participation_type, &id)) {
+				if ExecutedMigrations::<T>::get((&user_32, &participation_type, &id)) {
 					Self::deposit_event(Event::DuplicatedMigrationSkipped { migration: migration.clone() });
 					continue;
 				}
@@ -135,7 +135,7 @@ pub mod pallet {
 					T::MigrationInfoToPerBlockBalance::convert(migration.info.clone()),
 					T::GenesisMoment::get(),
 				)?;
-				ExecutedMigrations::<T>::insert((&user, &participation_type, &id), true);
+				ExecutedMigrations::<T>::insert((&user_32, &participation_type, &id), true);
 				Self::deposit_event(Event::MigrationExecuted { migration: migration.clone() });
 			}
 

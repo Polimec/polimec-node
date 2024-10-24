@@ -759,8 +759,10 @@ pub mod pallet {
 			let (account, did, _investor_type, whitelisted_policy) =
 				T::InvestorOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get())?;
 
-			let receiving_account =
-				Junction::AccountId32 { network: None, id: T::AccountId32Conversion::convert(account.clone()) };
+			let receiving_account = Junction::AccountId32 {
+				network: Some(NetworkId::Polkadot),
+				id: T::AccountId32Conversion::convert(account.clone()),
+			};
 
 			Self::do_evaluate(&account, project_id, usd_amount, did, whitelisted_policy, receiving_account)
 		}
@@ -811,8 +813,10 @@ pub mod pallet {
 			let (bidder, did, investor_type, whitelisted_policy) =
 				T::InvestorOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get())?;
 
-			let receiving_account =
-				Junction::AccountId32 { network: None, id: T::AccountId32Conversion::convert(bidder.clone()) };
+			let receiving_account = Junction::AccountId32 {
+				network: Some(NetworkId::Polkadot),
+				id: T::AccountId32Conversion::convert(bidder.clone()),
+			};
 
 			let params = DoBidParams::<T> {
 				bidder,
@@ -901,8 +905,10 @@ pub mod pallet {
 		) -> DispatchResultWithPostInfo {
 			let (contributor, did, investor_type, whitelisted_policy) =
 				T::InvestorOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get())?;
-			let receiving_account =
-				Junction::AccountId32 { network: None, id: T::AccountId32Conversion::convert(contributor.clone()) };
+			let receiving_account = Junction::AccountId32 {
+				network: Some(NetworkId::Polkadot),
+				id: T::AccountId32Conversion::convert(contributor.clone()),
+			};
 			let params = DoContributeParams::<T> {
 				contributor,
 				project_id,

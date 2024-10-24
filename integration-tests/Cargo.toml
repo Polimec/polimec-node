@@ -102,6 +102,7 @@ std = [
 	"frame-metadata-hash-extension/std",
 	"frame-support/std",
 	"frame-system/std",
+	"hex/std",
 	"itertools/use_std",
 	"orml-oracle/std",
 	"pallet-asset-tx-payment/std",

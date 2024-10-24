@@ -325,10 +325,7 @@ mod round_flow {
 						did,
 						investor_type,
 						whitelisted_policy: project_metadata.clone().policy_ipfs_cid.unwrap(),
-						receiving_account: Junction::AccountId32 {
-							network: None,
-							id: <TestRuntime as Config>::AccountId32Conversion::convert(BIDDER_1)
-						},
+						receiving_account: polkadot_junction!(BIDDER_1)
 					}),
 					Error::<TestRuntime>::IncorrectRound
 				);
@@ -355,12 +352,12 @@ mod bid_extrinsic {
 			let mut evaluations = default_evaluations();
 			let evaluator_bidder = 69u64;
 			let evaluation_amount = 420 * USD_UNIT;
-			let evaluator_bid = BidParams::new(
+			let evaluator_bid = BidParams::from((
 				evaluator_bidder,
 				600 * CT_UNIT,
 				ParticipationMode::Classic(1u8),
 				AcceptedFundingAsset::USDT,
-			);
+			));
 			evaluations.push((evaluator_bidder, evaluation_amount).into());
 
 			let project_id = inst.create_auctioning_project(project_metadata.clone(), issuer, None, evaluations);
@@ -434,12 +431,24 @@ mod bid_extrinsic {
 
 			let evaluations = default_evaluations();
 
-			let usdt_bid =
-				BidParams::new(BIDDER_1, 10_000 * CT_UNIT, ParticipationMode::Classic(1u8), AcceptedFundingAsset::USDT);
-			let usdc_bid =
-				BidParams::new(BIDDER_1, 10_000 * CT_UNIT, ParticipationMode::Classic(1u8), AcceptedFundingAsset::USDC);
-			let dot_bid =
-				BidParams::new(BIDDER_1, 10_000 * CT_UNIT, ParticipationMode::Classic(1u8), AcceptedFundingAsset::DOT);
+			let usdt_bid = BidParams::from((
+				BIDDER_1,
+				10_000 * CT_UNIT,
+				ParticipationMode::Classic(1u8),
+				AcceptedFundingAsset::USDT,
+			));
+			let usdc_bid = BidParams::from((
+				BIDDER_1,
+				10_000 * CT_UNIT,
+				ParticipationMode::Classic(1u8),
+				AcceptedFundingAsset::USDC,
+			));
+			let dot_bid = BidParams::from((
+				BIDDER_1,
+				10_000 * CT_UNIT,
+				ParticipationMode::Classic(1u8),
+				AcceptedFundingAsset::DOT,
+			));
 
 			let plmc_fundings = inst.calculate_auction_plmc_charged_with_given_price(
 				&vec![usdt_bid.clone(), usdc_bid.clone(), dot_bid.clone()],
@@ -686,7 +695,7 @@ mod bid_extrinsic {
 				inst.create_auctioning_project(project_metadata.clone(), issuer, None, default_evaluations());
 
 			let bid =
-				BidParams::new(BIDDER_4, 500 * CT_UNIT, ParticipationMode::Classic(1u8), AcceptedFundingAsset::USDT);
+				BidParams::from((BIDDER_4, 500 * CT_UNIT, ParticipationMode::Classic(1u8), AcceptedFundingAsset::USDT));
 			let plmc_required = inst.calculate_auction_plmc_charged_from_all_bids_made_or_with_bucket(
 				&vec![bid.clone()],
 				project_metadata.clone(),
@@ -767,7 +776,7 @@ mod bid_extrinsic {
 				inst.create_auctioning_project(project_metadata.clone(), issuer, None, default_evaluations());
 
 			let bid =
-				BidParams::new(BIDDER_4, 500 * CT_UNIT, ParticipationMode::Classic(5u8), AcceptedFundingAsset::USDT);
+				BidParams::from((BIDDER_4, 500 * CT_UNIT, ParticipationMode::Classic(5u8), AcceptedFundingAsset::USDT));
 			let plmc_required = inst.calculate_auction_plmc_charged_from_all_bids_made_or_with_bucket(
 				&vec![bid.clone()],
 				project_metadata.clone(),
@@ -1176,6 +1185,85 @@ mod bid_extrinsic {
 			assert_eq!(post_settlement_buyer_usdt, usdt_ed + USDT_PARTICIPATION + otm_usdt_fee);
 			assert_eq!(issuer_funding_account, Zero::zero());
 		}
+
+		#[test]
+		fn bid_on_ethereum_project() {
+			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+
+			let mut project_metadata = default_project_metadata(ISSUER_1);
+			project_metadata.participants_account_type = ParticipantsAccountType::Ethereum;
+
+			let project_id =
+				inst.create_auctioning_project(project_metadata.clone(), ISSUER_1, None, default_eth_evaluations());
+			let jwt = get_mock_jwt_with_cid(
+				BIDDER_1,
+				InvestorType::Professional,
+				generate_did_from_account(BIDDER_1),
+				project_metadata.clone().policy_ipfs_cid.unwrap(),
+			);
+
+			let (eth_acc, eth_sig) = inst.eth_key_and_sig_from("//BIDDER1", project_id, BIDDER_1);
+			let bid = BidParams::from((BIDDER_1, 500 * CT_UNIT, ParticipationMode::OTM, AcceptedFundingAsset::USDT));
+			let mint_amount = inst.calculate_auction_funding_asset_charged_from_all_bids_made_or_with_bucket(
+				&vec![bid],
+				project_metadata.clone(),
+				None,
+			);
+			inst.mint_funding_asset_ed_if_required(mint_amount.to_account_asset_map());
+			inst.mint_funding_asset_to(mint_amount.clone());
+
+			assert_ok!(inst.execute(|| {
+				PolimecFunding::bid_with_receiving_account(
+					RuntimeOrigin::signed(BIDDER_1),
+					jwt,
+					project_id,
+					500 * CT_UNIT,
+					ParticipationMode::OTM,
+					AcceptedFundingAsset::USDT,
+					eth_acc,
+					eth_sig,
+				)
+			}));
+		}
+
+		#[test]
+		fn bid_with_different_receiver_polkadot_account() {
+			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+
+			let project_metadata = default_project_metadata(ISSUER_1);
+
+			let project_id =
+				inst.create_auctioning_project(project_metadata.clone(), ISSUER_1, None, default_evaluations());
+			let jwt = get_mock_jwt_with_cid(
+				BIDDER_1,
+				InvestorType::Professional,
+				generate_did_from_account(BIDDER_1),
+				project_metadata.clone().policy_ipfs_cid.unwrap(),
+			);
+
+			let (dot_acc, dot_sig) = inst.dot_key_and_sig_from("//BIDDER1", project_id, BIDDER_1);
+			let bid = BidParams::from((BIDDER_1, 500 * CT_UNIT, ParticipationMode::OTM, AcceptedFundingAsset::USDT));
+			let mint_amount = inst.calculate_auction_funding_asset_charged_from_all_bids_made_or_with_bucket(
+				&vec![bid],
+				project_metadata.clone(),
+				None,
+			);
+			inst.mint_funding_asset_ed_if_required(mint_amount.to_account_asset_map());
+			inst.mint_funding_asset_to(mint_amount.clone());
+
+			assert_ok!(inst.execute(|| {
+				PolimecFunding::bid_with_receiving_account(
+					RuntimeOrigin::signed(BIDDER_1),
+					jwt,
+					project_id,
+					500 * CT_UNIT,
+					ParticipationMode::OTM,
+					AcceptedFundingAsset::USDT,
+					dot_acc,
+					dot_sig,
+				)
+			}));
+		}
 	}
 
 	#[cfg(test)]
@@ -1190,12 +1278,12 @@ mod bid_extrinsic {
 			let mut evaluations = default_evaluations();
 			let evaluator_bidder = 69;
 			let evaluation_amount = 420 * USD_UNIT;
-			let evaluator_bid = BidParams::new(
+			let evaluator_bid = BidParams::from((
 				evaluator_bidder,
 				600 * CT_UNIT,
 				ParticipationMode::Classic(1u8),
 				AcceptedFundingAsset::USDT,
-			);
+			));
 			evaluations.push((evaluator_bidder, evaluation_amount).into());
 
 			let project_id = inst.create_auctioning_project(project_metadata.clone(), issuer, None, evaluations);
@@ -1224,12 +1312,12 @@ mod bid_extrinsic {
 
 			let evaluator_bidder = 69;
 			let evaluation_amount = 420 * USD_UNIT;
-			let evaluator_bid = BidParams::new(
+			let evaluator_bid = BidParams::from((
 				evaluator_bidder,
 				600 * CT_UNIT,
 				ParticipationMode::Classic(1u8),
 				AcceptedFundingAsset::USDT,
-			);
+			));
 			evaluations_1.push((evaluator_bidder, evaluation_amount).into());
 
 			let _project_id_1 =
@@ -1296,10 +1384,7 @@ mod bid_extrinsic {
 						did,
 						investor_type,
 						whitelisted_policy: project_metadata.clone().policy_ipfs_cid.unwrap(),
-						receiving_account: Junction::AccountId32 {
-							network: None,
-							id: <TestRuntime as Config>::AccountId32Conversion::convert(BIDDER_2)
-						},
+						receiving_account: polkadot_junction!(BIDDER_2)
 					}),
 					Error::<TestRuntime>::IncorrectRound
 				);
@@ -1339,12 +1424,12 @@ mod bid_extrinsic {
 			let remaining_ct = current_bucket.amount_left;
 
 			// This bid should be split in 2, but the second one should fail, making the whole extrinsic fail and roll back storage
-			let failing_bid = BidParams::<TestRuntime>::new(
+			let failing_bid = BidParams::<TestRuntime>::from((
 				BIDDER_1,
 				remaining_ct + 5000 * CT_UNIT,
 				ParticipationMode::Classic(1u8),
 				AcceptedFundingAsset::USDT,
-			);
+			));
 			let plmc_for_failing_bid = inst.calculate_auction_plmc_charged_from_all_bids_made_or_with_bucket(
 				&vec![failing_bid.clone()],
 				project_metadata.clone(),
@@ -1448,12 +1533,12 @@ mod bid_extrinsic {
 			let remaining_ct = current_bucket.amount_left;
 
 			// This bid should be split in 2, but the second one should fail, making the whole extrinsic fail and roll back storage
-			let failing_bid = BidParams::<TestRuntime>::new(
+			let failing_bid = BidParams::<TestRuntime>::from((
 				BIDDER_1,
 				remaining_ct + 5000 * CT_UNIT,
 				ParticipationMode::Classic(1u8),
 				AcceptedFundingAsset::USDT,
-			);
+			));
 			let plmc_for_failing_bid = inst.calculate_auction_plmc_charged_from_all_bids_made_or_with_bucket(
 				&vec![failing_bid.clone()],
 				project_metadata.clone(),
@@ -1557,10 +1642,7 @@ mod bid_extrinsic {
 						did: generate_did_from_account(BIDDER_1),
 						investor_type: InvestorType::Professional,
 						whitelisted_policy: project_metadata.clone().policy_ipfs_cid.unwrap(),
-						receiving_account: Junction::AccountId32 {
-							network: None,
-							id: <TestRuntime as Config>::AccountId32Conversion::convert(BIDDER_1)
-						},
+						receiving_account: polkadot_junction!(BIDDER_1)
 					}),
 					Error::<TestRuntime>::TooLow
 				);
@@ -1577,10 +1659,7 @@ mod bid_extrinsic {
 						did: generate_did_from_account(BIDDER_1),
 						investor_type: InvestorType::Institutional,
 						whitelisted_policy: project_metadata.clone().policy_ipfs_cid.unwrap(),
-						receiving_account: Junction::AccountId32 {
-							network: None,
-							id: <TestRuntime as Config>::AccountId32Conversion::convert(BIDDER_2)
-						},
+						receiving_account: polkadot_junction!(BIDDER_2)
 					}),
 					Error::<TestRuntime>::TooLow
 				);
@@ -1648,10 +1727,7 @@ mod bid_extrinsic {
 					did: generate_did_from_account(BIDDER_1),
 					investor_type: InvestorType::Professional,
 					whitelisted_policy: project_metadata.clone().policy_ipfs_cid.unwrap(),
-					receiving_account: Junction::AccountId32 {
-						network: None,
-						id: <TestRuntime as Config>::AccountId32Conversion::convert(BIDDER_2)
-					},
+					receiving_account: polkadot_junction!(BIDDER_2)
 				}));
 			});
 			let smallest_ct_amount_at_20k_usd = bucket_increase_price
@@ -1671,10 +1747,7 @@ mod bid_extrinsic {
 					did: generate_did_from_account(BIDDER_1),
 					investor_type: InvestorType::Institutional,
 					whitelisted_policy: project_metadata.clone().policy_ipfs_cid.unwrap(),
-					receiving_account: Junction::AccountId32 {
-						network: None,
-						id: <TestRuntime as Config>::AccountId32Conversion::convert(BIDDER_3)
-					},
+					receiving_account: polkadot_junction!(BIDDER_3)
 				}));
 			});
 		}
@@ -1826,10 +1899,7 @@ mod bid_extrinsic {
 					did: generate_did_from_account(ISSUER_1),
 					investor_type: InvestorType::Professional,
 					whitelisted_policy: project_metadata.clone().policy_ipfs_cid.unwrap(),
-					receiving_account: Junction::AccountId32 {
-						network: None,
-						id: <TestRuntime as Config>::AccountId32Conversion::convert(ISSUER_1)
-					},
+					receiving_account: polkadot_junction!(ISSUER_1)
 				})),
 				Error::<TestRuntime>::ParticipationToOwnProject
 			);
@@ -1841,12 +1911,12 @@ mod bid_extrinsic {
 			let project_metadata = default_project_metadata(ISSUER_1);
 			let project_id =
 				inst.create_auctioning_project(project_metadata.clone(), ISSUER_1, None, default_evaluations());
-			let bids = [BidParams::<TestRuntime>::new(
+			let bids = [BidParams::<TestRuntime>::from((
 				BIDDER_1,
 				10_000,
 				ParticipationMode::Classic(1u8),
 				AcceptedFundingAsset::USDC,
-			)];
+			))];
 
 			let did = generate_did_from_account(bids[0].bidder);
 			let investor_type = InvestorType::Institutional;
@@ -1861,10 +1931,7 @@ mod bid_extrinsic {
 					did,
 					investor_type,
 					whitelisted_policy: project_metadata.clone().policy_ipfs_cid.unwrap(),
-					receiving_account: Junction::AccountId32 {
-						network: None,
-						id: <TestRuntime as Config>::AccountId32Conversion::convert(bids[0].bidder),
-					},
+					receiving_account: polkadot_junction!(bids[0].bidder),
 				})
 			});
 			frame_support::assert_err!(outcome, Error::<TestRuntime>::FundingAssetNotAccepted);
@@ -2056,16 +2123,32 @@ mod end_auction_extrinsic {
 
 			// We use multiplier > 1 so after settlement, only the refunds defined above are done. The rest will be done
 			// through the linear release pallet
-			let bid_1 =
-				BidParams::new(BIDDER_1, 5000 * CT_UNIT, ParticipationMode::Classic(5u8), AcceptedFundingAsset::USDT);
-			let bid_2 =
-				BidParams::new(BIDDER_2, 40_000 * CT_UNIT, ParticipationMode::Classic(5u8), AcceptedFundingAsset::USDC);
-			let bid_3 =
-				BidParams::new(BIDDER_1, 10_000 * CT_UNIT, ParticipationMode::Classic(5u8), AcceptedFundingAsset::DOT);
-			let bid_4 =
-				BidParams::new(BIDDER_3, 6000 * CT_UNIT, ParticipationMode::Classic(5u8), AcceptedFundingAsset::USDT);
+			let bid_1 = BidParams::from((
+				BIDDER_1,
+				5000 * CT_UNIT,
+				ParticipationMode::Classic(5u8),
+				AcceptedFundingAsset::USDT,
+			));
+			let bid_2 = BidParams::from((
+				BIDDER_2,
+				40_000 * CT_UNIT,
+				ParticipationMode::Classic(5u8),
+				AcceptedFundingAsset::USDC,
+			));
+			let bid_3 = BidParams::from((
+				BIDDER_1,
+				10_000 * CT_UNIT,
+				ParticipationMode::Classic(5u8),
+				AcceptedFundingAsset::DOT,
+			));
+			let bid_4 = BidParams::from((
+				BIDDER_3,
+				6000 * CT_UNIT,
+				ParticipationMode::Classic(5u8),
+				AcceptedFundingAsset::USDT,
+			));
 			let bid_5 =
-				BidParams::new(BIDDER_4, 2000 * CT_UNIT, ParticipationMode::Classic(5u8), AcceptedFundingAsset::DOT);
+				BidParams::from((BIDDER_4, 2000 * CT_UNIT, ParticipationMode::Classic(5u8), AcceptedFundingAsset::DOT));
 			// post bucketing, the bids look like this:
 			// (BIDDER_1, 5k) - (BIDDER_2, 40k) - (BIDDER_1, 5k) - (BIDDER_1, 5k) - (BIDDER_3 - 5k) - (BIDDER_3 - 1k) - (BIDDER_4 - 2k)
 			// | -------------------- 10USD ----------------------|---- 11 USD ---|---- 12 USD ----|----------- 13 USD -------------|

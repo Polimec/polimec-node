@@ -107,10 +107,11 @@ pub trait ReleaseSchedule<AccountId, Reason> {
 pub mod migration_types {
 	#[allow(clippy::wildcard_imports)]
 	use super::*;
+	use xcm::v4::Junction;
 
 	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
 	pub struct MigrationOrigin {
-		pub user: Location,
+		pub user: Junction,
 		pub id: u32,
 		pub participation_type: ParticipationType,
 	}

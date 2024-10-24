@@ -48,6 +48,7 @@ frame-benchmarking = { workspace = true, optional = true }
 hex-literal.workspace = true
 k256.workspace = true
 hex.workspace = true
+#sp-application-crypto.workspace = true
 
 # Used in the instantiator.
 itertools.workspace = true
@@ -62,12 +63,14 @@ xcm-builder.workspace = true
 xcm-executor.workspace = true
 
 [features]
-default = [ "std", "sp-core/serde" ]
+default = [ "sp-core/serde", "std" ]
 std = [
 	"frame-benchmarking?/std",
 	"frame-support/std",
 	"frame-system/std",
+	"hex/std",
 	"itertools/use_std",
+	"k256/std",
 	"log/std",
 	"on-slash-vesting/std",
 	"pallet-assets/std",
@@ -86,6 +89,7 @@ std = [
 	"serde/std",
 	"sp-api/std",
 	"sp-arithmetic/std",
+	"sp-core/full_crypto",
 	"sp-core/std",
 	"sp-io/std",
 	"sp-runtime/std",
@@ -93,8 +97,6 @@ std = [
 	"xcm-builder/std",
 	"xcm-executor/std",
 	"xcm/std",
-	"k256/std",
-	"hex/std",
 ]
 runtime-benchmarks = [
 	"frame-benchmarking/runtime-benchmarks",

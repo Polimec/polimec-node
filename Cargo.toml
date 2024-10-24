@@ -148,6 +148,7 @@ sp-authority-discovery = { version = "33.0.0", default-features = false }
 sp-consensus-babe = { version = "0.39.0", default-features = false }
 pallet-message-queue = { version = "38.0.0", default-features = false }
 sp-weights = { version = "31.0.0", default-features = false }
+sp-application-crypto = {version = "37.0.0", default-features = false}
 
 # FRAME
 assets-common = { version = "0.14.0", default-features = false }

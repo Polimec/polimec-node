@@ -519,7 +519,7 @@ mod evaluate_extrinsic {
 			let project_metadata = default_project_metadata(issuer);
 			let project_id = inst.create_evaluating_project(project_metadata.clone(), issuer, None);
 
-			let evaluation = UserToUSDBalance::new(EVALUATOR_1, 500 * USD_UNIT);
+			let evaluation = EvaluationParams::from((EVALUATOR_1, 500 * USD_UNIT));
 			let necessary_plmc = inst.calculate_evaluation_plmc_spent(vec![evaluation.clone()]);
 
 			inst.mint_plmc_ed_if_required(necessary_plmc.accounts());
@@ -547,7 +547,7 @@ mod evaluate_extrinsic {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 			let project_metadata = default_project_metadata(ISSUER_1);
 			let project_id = inst.create_evaluating_project(project_metadata.clone(), ISSUER_1, None);
-			let evaluation = UserToUSDBalance::new(EVALUATOR_1, 500 * USD_UNIT);
+			let evaluation = EvaluationParams::from((EVALUATOR_1, 500 * USD_UNIT));
 			let necessary_plmc = inst.calculate_evaluation_plmc_spent(vec![evaluation.clone()]);
 			let plmc_existential_deposits = necessary_plmc.accounts().existential_deposits();
 
@@ -586,10 +586,7 @@ mod evaluate_extrinsic {
 					early_usd_amount: evaluation.usd_amount,
 					late_usd_amount: 0,
 					when: 1,
-					receiving_account: Junction::AccountId32 {
-						network: None,
-						id: <TestRuntime as Config>::AccountId32Conversion::convert(EVALUATOR_1),
-					},
+					receiving_account: polkadot_junction!(EVALUATOR_1),
 				};
 				assert_eq!(stored_evaluation, &expected_evaluation_item);
 			});
@@ -601,7 +598,7 @@ mod evaluate_extrinsic {
 			let issuer = ISSUER_1;
 			let project_metadata = default_project_metadata(issuer);
 
-			let evaluation = UserToUSDBalance::new(EVALUATOR_4, 1_000_000 * USD_UNIT);
+			let evaluation = EvaluationParams::from((EVALUATOR_4, 1_000_000 * USD_UNIT));
 			let plmc_required = inst.calculate_evaluation_plmc_spent(vec![evaluation.clone()]);
 			let frozen_amount = plmc_required[0].plmc_amount;
 
@@ -690,6 +687,72 @@ mod evaluate_extrinsic {
 				pre_slash_treasury_balance + <TestRuntime as Config>::EvaluatorSlash::get() * frozen_amount
 			);
 		}
+
+		#[test]
+		fn evaluate_on_ethereum_project() {
+			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+
+			let mut project_metadata = default_project_metadata(ISSUER_1);
+			project_metadata.participants_account_type = ParticipantsAccountType::Ethereum;
+
+			let project_id = inst.create_evaluating_project(project_metadata.clone(), ISSUER_1, None);
+			let jwt = get_mock_jwt_with_cid(
+				EVALUATOR_1,
+				InvestorType::Retail,
+				generate_did_from_account(EVALUATOR_1),
+				project_metadata.clone().policy_ipfs_cid.unwrap(),
+			);
+
+			let (eth_acc, eth_sig) = inst.eth_key_and_sig_from("//EVALUATOR1", project_id, EVALUATOR_1);
+
+			let plmc =
+				inst.calculate_evaluation_plmc_spent(vec![EvaluationParams::from((EVALUATOR_1, 500 * USD_UNIT))]);
+			inst.mint_plmc_ed_if_required(plmc.accounts());
+			inst.mint_plmc_to(plmc.clone());
+
+			assert_ok!(inst.execute(|| {
+				PolimecFunding::evaluate_with_receiving_account(
+					RuntimeOrigin::signed(EVALUATOR_1),
+					jwt,
+					project_id,
+					500 * USD_UNIT,
+					eth_acc,
+					eth_sig,
+				)
+			}));
+		}
+
+		#[test]
+		fn evaluate_with_different_receiver_polkadot_account() {
+			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+
+			let project_metadata = default_project_metadata(ISSUER_1);
+
+			let project_id = inst.create_evaluating_project(project_metadata.clone(), ISSUER_1, None);
+			let jwt = get_mock_jwt_with_cid(
+				EVALUATOR_1,
+				InvestorType::Retail,
+				generate_did_from_account(EVALUATOR_1),
+				project_metadata.clone().policy_ipfs_cid.unwrap(),
+			);
+
+			let (dot_acc, dot_sig) = inst.dot_key_and_sig_from("//EVALUATOR1", project_id, EVALUATOR_1);
+			let plmc =
+				inst.calculate_evaluation_plmc_spent(vec![EvaluationParams::from((EVALUATOR_1, 500 * USD_UNIT))]);
+			inst.mint_plmc_ed_if_required(plmc.accounts());
+			inst.mint_plmc_to(plmc.clone());
+
+			assert_ok!(inst.execute(|| {
+				PolimecFunding::evaluate_with_receiving_account(
+					RuntimeOrigin::signed(EVALUATOR_1),
+					jwt,
+					project_id,
+					500 * USD_UNIT,
+					dot_acc,
+					dot_sig,
+				)
+			}));
+		}
 	}
 
 	#[cfg(test)]
@@ -750,7 +813,7 @@ mod evaluate_extrinsic {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 			let issuer = ISSUER_1;
 			let project_metadata = default_project_metadata(issuer);
-			let evaluations = vec![UserToUSDBalance::new(EVALUATOR_1, 1000 * USD_UNIT)];
+			let evaluations = vec![EvaluationParams::from((EVALUATOR_1, 1000 * USD_UNIT))];
 			let evaluating_plmc = inst.calculate_evaluation_plmc_spent(evaluations.clone());
 			let mut plmc_insufficient_existential_deposit = evaluating_plmc.accounts().existential_deposits();
 
@@ -770,9 +833,9 @@ mod evaluate_extrinsic {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 			let project_metadata = default_project_metadata(ISSUER_1);
 			let evaluations = (0u32..<TestRuntime as Config>::MaxEvaluationsPerProject::get())
-				.map(|i| UserToUSDBalance::<TestRuntime>::new(i as u64 + 420, 100u128 * CT_UNIT))
+				.map(|i| EvaluationParams::<TestRuntime>::from((i as u64 + 420, 100u128 * CT_UNIT)))
 				.collect_vec();
-			let failing_evaluation = UserToUSDBalance::new(EVALUATOR_1, 1000 * CT_UNIT);
+			let failing_evaluation = EvaluationParams::from((EVALUATOR_1, 1000 * CT_UNIT));
 
 			let project_id = inst.create_evaluating_project(project_metadata.clone(), ISSUER_1, None);
 
@@ -798,9 +861,9 @@ mod evaluate_extrinsic {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 			let project_metadata = default_project_metadata(ISSUER_1);
 			let evaluations = (0u32..<TestRuntime as Config>::MaxEvaluationsPerUser::get())
-				.map(|_| UserToUSDBalance::<TestRuntime>::new(EVALUATOR_1, 100u128 * USD_UNIT))
+				.map(|_| EvaluationParams::<TestRuntime>::from((EVALUATOR_1, 100u128 * USD_UNIT)))
 				.collect_vec();
-			let failing_evaluation = UserToUSDBalance::new(EVALUATOR_1, 100 * USD_UNIT);
+			let failing_evaluation = EvaluationParams::from((EVALUATOR_1, 100 * USD_UNIT));
 
 			let project_id = inst.create_evaluating_project(project_metadata.clone(), ISSUER_1, None);
 
@@ -829,7 +892,7 @@ mod evaluate_extrinsic {
 			let project_metadata = default_project_metadata(issuer);
 			let project_id = inst.create_evaluating_project(project_metadata.clone(), issuer, None);
 
-			let evaluation = UserToUSDBalance::new(EVALUATOR_1, 500 * USD_UNIT);
+			let evaluation = EvaluationParams::from((EVALUATOR_1, 500 * USD_UNIT));
 			let necessary_plmc = inst.calculate_evaluation_plmc_spent(vec![evaluation.clone()]);
 			let ed = necessary_plmc.accounts().existential_deposits();
 
@@ -868,6 +931,7 @@ mod evaluate_extrinsic {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 			let project_metadata = default_project_metadata(ISSUER_1);
 			let project_id = inst.create_evaluating_project(project_metadata.clone(), ISSUER_1, None);
+
 			assert_err!(
 				inst.execute(|| crate::Pallet::<TestRuntime>::do_evaluate(
 					&(&ISSUER_1 + 1),
@@ -875,10 +939,7 @@ mod evaluate_extrinsic {
 					500 * USD_UNIT,
 					generate_did_from_account(ISSUER_1),
 					project_metadata.clone().policy_ipfs_cid.unwrap(),
-					Junction::AccountId32 {
-						network: None,
-						id: <TestRuntime as Config>::AccountId32Conversion::convert(ISSUER_1 + 1)
-					},
+					polkadot_junction!(ISSUER_1 + 1)
 				)),
 				Error::<TestRuntime>::ParticipationToOwnProject
 			);
@@ -891,7 +952,7 @@ mod evaluate_extrinsic {
 			let project_metadata = default_project_metadata(issuer);
 			let project_id = inst.create_evaluating_project(project_metadata.clone(), issuer, None);
 
-			let evaluation = UserToUSDBalance::new(EVALUATOR_1, 500 * USD_UNIT);
+			let evaluation = EvaluationParams::from((EVALUATOR_1, 500 * USD_UNIT));
 			let necessary_plmc = inst.calculate_evaluation_plmc_spent(vec![evaluation.clone()]);
 
 			inst.mint_plmc_ed_if_required(necessary_plmc.accounts());
