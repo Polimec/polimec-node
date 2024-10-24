@@ -448,16 +448,12 @@ impl<T: Config> Pallet<T> {
 			.ok_or(Error::<T>::BadReceiverAccountSignature)?;
 		let message_bytes = message_to_sign.into_bytes();
 		match receiver_account {
-			Junction::AccountId32 { network, id } =>
-				if network.is_none() {
-					let signature = SrSignature::from_slice(&signature_bytes[..64])
-						.map_err(|_| Error::<T>::BadReceiverAccountSignature)?;
-					let public = SrPublic::from_slice(id).map_err(|_| Error::<T>::BadReceiverAccountSignature)?;
-					ensure!(
-						signature.verify(message_bytes.as_slice(), &public),
-						Error::<T>::BadReceiverAccountSignature
-					);
-				},
+			Junction::AccountId32 { network, id } if *network == Some(NetworkId::Polkadot) => {
+				let signature = SrSignature::from_slice(&signature_bytes[..64])
+					.map_err(|_| Error::<T>::BadReceiverAccountSignature)?;
+				let public = SrPublic::from_slice(id).map_err(|_| Error::<T>::BadReceiverAccountSignature)?;
+				ensure!(signature.verify(message_bytes.as_slice(), &public), Error::<T>::BadReceiverAccountSignature);
+			},
 
 			Junction::AccountKey20 { network, key } if *network == Some(NetworkId::Ethereum { chain_id: 1 }) => {
 				let message_length = message_bytes.len().to_string().into_bytes();

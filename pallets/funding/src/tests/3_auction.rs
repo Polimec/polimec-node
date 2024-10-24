@@ -1176,6 +1176,78 @@ mod bid_extrinsic {
 			assert_eq!(post_settlement_buyer_usdt, usdt_ed + USDT_PARTICIPATION + otm_usdt_fee);
 			assert_eq!(issuer_funding_account, Zero::zero());
 		}
+
+		#[test]
+		fn bid_on_ethereum_project() {
+			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+
+			let mut project_metadata = default_project_metadata(ISSUER_1);
+			project_metadata.participants_account_type = ParticipantsAccountType::Ethereum;
+
+			let project_id =
+				inst.create_auctioning_project(project_metadata.clone(), ISSUER_1, None, default_evaluations());
+			let jwt = get_mock_jwt_with_cid(
+				EVALUATOR_1,
+				InvestorType::Retail,
+				generate_did_from_account(EVALUATOR_1),
+				project_metadata.clone().policy_ipfs_cid.unwrap(),
+			);
+
+			let (eth_acc, eth_sig) = inst.eth_key_and_sig_from("//BIDDER1", project_id, BIDDER_1);
+			let bid = BidParams::new(BIDDER_1, 500 * CT_UNIT, ParticipationMode::OTM, AcceptedFundingAsset::USDT);
+			let mint_amount = inst.calculate_auction_funding_asset_charged_from_all_bids_made_or_with_bucket(
+				&vec![bid],
+				project_metadata.clone(),
+				None,
+			);
+			inst.mint_funding_asset_ed_if_required(mint_amount.to_account_asset_map());
+			inst.mint_funding_asset_to(mint_amount.clone());
+
+			assert_ok!(inst.execute(|| {
+				PolimecFunding::bid_with_receiving_account(
+					RuntimeOrigin::signed(EVALUATOR_1),
+					jwt,
+					project_id,
+					500 * CT_UNIT,
+					ParticipationMode::OTM,
+					AcceptedFundingAsset::USDT,
+					eth_acc,
+					eth_sig,
+				)
+			}));
+		}
+
+		#[test]
+		fn evaluate_with_different_receiver_polkadot_account() {
+			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+
+			let project_metadata = default_project_metadata(ISSUER_1);
+
+			let project_id = inst.create_evaluating_project(project_metadata.clone(), ISSUER_1, None);
+			let jwt = get_mock_jwt_with_cid(
+				EVALUATOR_1,
+				InvestorType::Retail,
+				generate_did_from_account(EVALUATOR_1),
+				project_metadata.clone().policy_ipfs_cid.unwrap(),
+			);
+
+			let (dot_acc, dot_sig) = inst.dot_key_and_sig_from("//EVALUATOR1", project_id, EVALUATOR_1);
+			dbg!(dot_acc.clone());
+			let plmc = inst.calculate_evaluation_plmc_spent(vec![EvaluationParams::new(EVALUATOR_1, 500 * USD_UNIT)]);
+			inst.mint_plmc_ed_if_required(plmc.accounts());
+			inst.mint_plmc_to(plmc.clone());
+
+			assert_ok!(inst.execute(|| {
+				PolimecFunding::evaluate_with_receiving_account(
+					RuntimeOrigin::signed(EVALUATOR_1),
+					jwt,
+					project_id,
+					500 * USD_UNIT,
+					dot_acc,
+					dot_sig,
+				)
+			}));
+		}
 	}
 
 	#[cfg(test)]

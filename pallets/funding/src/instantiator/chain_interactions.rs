@@ -432,10 +432,10 @@ impl<
 	pub fn evaluate_for_users(
 		&mut self,
 		project_id: ProjectId,
-		bonds: Vec<UserToUSDBalance<T>>,
+		bonds: Vec<EvaluationParams<T>>,
 	) -> DispatchResultWithPostInfo {
 		let project_policy = self.get_project_metadata(project_id).policy_ipfs_cid.unwrap();
-		for UserToUSDBalance { account, usd_amount } in bonds {
+		for EvaluationParams { account, usd_amount } in bonds {
 			self.execute(|| {
 				crate::Pallet::<T>::do_evaluate(
 					&account.clone(),
@@ -738,7 +738,7 @@ impl<
 		project_metadata: ProjectMetadataOf<T>,
 		issuer: AccountIdOf<T>,
 		maybe_did: Option<Did>,
-		evaluations: Vec<UserToUSDBalance<T>>,
+		evaluations: Vec<EvaluationParams<T>>,
 	) -> ProjectId {
 		let project_id = self.create_evaluating_project(project_metadata, issuer.clone(), maybe_did);
 
@@ -782,7 +782,7 @@ impl<
 		project_metadata: ProjectMetadataOf<T>,
 		issuer: AccountIdOf<T>,
 		maybe_did: Option<Did>,
-		evaluations: Vec<UserToUSDBalance<T>>,
+		evaluations: Vec<EvaluationParams<T>>,
 		bids: Vec<BidParams<T>>,
 	) -> ProjectId {
 		let project_id =
@@ -841,7 +841,7 @@ impl<
 		project_metadata: ProjectMetadataOf<T>,
 		issuer: AccountIdOf<T>,
 		maybe_did: Option<Did>,
-		evaluations: Vec<UserToUSDBalance<T>>,
+		evaluations: Vec<EvaluationParams<T>>,
 		bids: Vec<BidParams<T>>,
 		contributions: Vec<ContributionParams<T>>,
 	) -> ProjectId {
@@ -909,7 +909,7 @@ impl<
 		project_metadata: ProjectMetadataOf<T>,
 		issuer: AccountIdOf<T>,
 		maybe_did: Option<Did>,
-		evaluations: Vec<UserToUSDBalance<T>>,
+		evaluations: Vec<EvaluationParams<T>>,
 		bids: Vec<BidParams<T>>,
 		community_contributions: Vec<ContributionParams<T>>,
 		remainder_contributions: Vec<ContributionParams<T>>,
@@ -1016,7 +1016,7 @@ impl<
 		project_metadata: ProjectMetadataOf<T>,
 		issuer: AccountIdOf<T>,
 		maybe_did: Option<Did>,
-		evaluations: Vec<UserToUSDBalance<T>>,
+		evaluations: Vec<EvaluationParams<T>>,
 		bids: Vec<BidParams<T>>,
 		community_contributions: Vec<ContributionParams<T>>,
 		remainder_contributions: Vec<ContributionParams<T>>,
@@ -1043,7 +1043,7 @@ impl<
 		status: ProjectStatus<BlockNumberFor<T>>,
 		project_metadata: ProjectMetadataOf<T>,
 		issuer: AccountIdOf<T>,
-		evaluations: Vec<UserToUSDBalance<T>>,
+		evaluations: Vec<EvaluationParams<T>>,
 		bids: Vec<BidParams<T>>,
 		community_contributions: Vec<ContributionParams<T>>,
 		remainder_contributions: Vec<ContributionParams<T>>,

@@ -6,11 +6,11 @@ use sp_runtime::bounded_vec;
 fn top_evaluations() {
 	let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 	let evaluations = vec![
-		UserToUSDBalance::new(EVALUATOR_1, 500_000 * USD_UNIT),
-		UserToUSDBalance::new(EVALUATOR_2, 250_000 * USD_UNIT),
-		UserToUSDBalance::new(EVALUATOR_3, 320_000 * USD_UNIT),
-		UserToUSDBalance::new(EVALUATOR_4, 1_000_000 * USD_UNIT),
-		UserToUSDBalance::new(EVALUATOR_1, 1_000 * USD_UNIT),
+		EvaluationParams::new(EVALUATOR_1, 500_000 * USD_UNIT),
+		EvaluationParams::new(EVALUATOR_2, 250_000 * USD_UNIT),
+		EvaluationParams::new(EVALUATOR_3, 320_000 * USD_UNIT),
+		EvaluationParams::new(EVALUATOR_4, 1_000_000 * USD_UNIT),
+		EvaluationParams::new(EVALUATOR_1, 1_000 * USD_UNIT),
 	];
 	let project_id = inst.create_auctioning_project(default_project_metadata(ISSUER_1), ISSUER_1, None, evaluations);
 
@@ -646,9 +646,9 @@ fn get_message_to_sign_by_receiving_account() {
 fn get_next_vesting_schedule_merge_candidates() {
 	let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 	let evaluations = vec![
-		UserToUSDBalance::new(EVALUATOR_1, 500_000 * USD_UNIT),
-		UserToUSDBalance::new(EVALUATOR_2, 250_000 * USD_UNIT),
-		UserToUSDBalance::new(BIDDER_1, 320_000 * USD_UNIT),
+		EvaluationParams::new(EVALUATOR_1, 500_000 * USD_UNIT),
+		EvaluationParams::new(EVALUATOR_2, 250_000 * USD_UNIT),
+		EvaluationParams::new(BIDDER_1, 320_000 * USD_UNIT),
 	];
 	let bids = vec![
 		BidParams::new(BIDDER_1, 50_000 * CT_UNIT, ParticipationMode::Classic(10u8), AcceptedFundingAsset::USDT),
@@ -970,9 +970,9 @@ fn all_project_participations_by_did() {
 	let project_id = inst.create_evaluating_project(project_metadata.clone(), ISSUER_1, None);
 
 	let evaluations = vec![
-		UserToUSDBalance::new(EVALUATOR_1, 500_000 * USD_UNIT),
-		UserToUSDBalance::new(EVALUATOR_2, 250_000 * USD_UNIT),
-		UserToUSDBalance::new(EVALUATOR_3, 320_000 * USD_UNIT),
+		EvaluationParams::new(EVALUATOR_1, 500_000 * USD_UNIT),
+		EvaluationParams::new(EVALUATOR_2, 250_000 * USD_UNIT),
+		EvaluationParams::new(EVALUATOR_3, 320_000 * USD_UNIT),
 	];
 	let bids = vec![
 		BidParams::new(BIDDER_1, 400_000 * CT_UNIT, ParticipationMode::Classic(1u8), AcceptedFundingAsset::USDT),

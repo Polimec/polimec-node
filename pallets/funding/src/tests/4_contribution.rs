@@ -329,8 +329,8 @@ mod contribute_extrinsic {
 			const BOB: AccountId = 42069;
 			const CARL: AccountId = 420691;
 			let mut evaluations = default_evaluations();
-			let bob_evaluation: UserToUSDBalance<TestRuntime> = (BOB, 1337 * USD_UNIT).into();
-			let carl_evaluation: UserToUSDBalance<TestRuntime> = (CARL, 1337 * USD_UNIT).into();
+			let bob_evaluation: EvaluationParams<TestRuntime> = (BOB, 1337 * USD_UNIT).into();
+			let carl_evaluation: EvaluationParams<TestRuntime> = (CARL, 1337 * USD_UNIT).into();
 			evaluations.push(bob_evaluation.clone());
 			evaluations.push(carl_evaluation.clone());
 

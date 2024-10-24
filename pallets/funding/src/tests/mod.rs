@@ -179,24 +179,24 @@ pub mod defaults {
 		]
 	}
 
-	pub fn default_evaluations() -> Vec<UserToUSDBalance<TestRuntime>> {
+	pub fn default_evaluations() -> Vec<EvaluationParams<TestRuntime>> {
 		vec![
-			UserToUSDBalance::new(EVALUATOR_1, 500_000 * USD_UNIT),
-			UserToUSDBalance::new(EVALUATOR_2, 250_000 * USD_UNIT),
-			UserToUSDBalance::new(EVALUATOR_3, 320_000 * USD_UNIT),
+			EvaluationParams::new(EVALUATOR_1, 500_000 * USD_UNIT),
+			EvaluationParams::new(EVALUATOR_2, 250_000 * USD_UNIT),
+			EvaluationParams::new(EVALUATOR_3, 320_000 * USD_UNIT),
 		]
 	}
 
-	pub fn knowledge_hub_evaluations() -> Vec<UserToUSDBalance<TestRuntime>> {
+	pub fn knowledge_hub_evaluations() -> Vec<EvaluationParams<TestRuntime>> {
 		vec![
-			UserToUSDBalance::new(EVALUATOR_1, 75_000 * USDT_UNIT),
-			UserToUSDBalance::new(EVALUATOR_2, 65_000 * USDT_UNIT),
-			UserToUSDBalance::new(EVALUATOR_3, 60_000 * USDT_UNIT),
+			EvaluationParams::new(EVALUATOR_1, 75_000 * USDT_UNIT),
+			EvaluationParams::new(EVALUATOR_2, 65_000 * USDT_UNIT),
+			EvaluationParams::new(EVALUATOR_3, 60_000 * USDT_UNIT),
 		]
 	}
 
-	pub fn default_failing_evaluations() -> Vec<UserToUSDBalance<TestRuntime>> {
-		vec![UserToUSDBalance::new(EVALUATOR_1, 3_000 * USD_UNIT), UserToUSDBalance::new(EVALUATOR_2, 1_000 * USD_UNIT)]
+	pub fn default_failing_evaluations() -> Vec<EvaluationParams<TestRuntime>> {
+		vec![EvaluationParams::new(EVALUATOR_1, 3_000 * USD_UNIT), EvaluationParams::new(EVALUATOR_2, 1_000 * USD_UNIT)]
 	}
 
 	pub fn default_bids() -> Vec<BidParams<TestRuntime>> {

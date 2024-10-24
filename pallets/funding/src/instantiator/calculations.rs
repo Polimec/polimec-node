@@ -4,6 +4,7 @@ use crate::{MultiplierOf, ParticipationMode};
 use core::cmp::Ordering;
 use itertools::GroupBy;
 use polimec_common::{ProvideAssetPrice, USD_DECIMALS};
+use sp_core::{ecdsa, hexdisplay::AsBytesRef, keccak_256, sr25519, Pair};
 
 impl<
 		T: Config,
@@ -32,7 +33,7 @@ impl<
 
 	pub fn calculate_evaluation_plmc_spent(
 		&mut self,
-		evaluations: Vec<UserToUSDBalance<T>>,
+		evaluations: Vec<EvaluationParams<T>>,
 	) -> Vec<UserToPLMCBalance<T>> {
 		let plmc_usd_price = self.execute(|| {
 			<PriceProviderOf<T>>::get_decimals_aware_price(PLMC_FOREIGN_ID, USD_DECIMALS, PLMC_DECIMALS).unwrap()
@@ -344,7 +345,7 @@ impl<
 
 	pub fn calculate_total_plmc_locked_from_evaluations_and_remainder_contributions(
 		&mut self,
-		evaluations: Vec<UserToUSDBalance<T>>,
+		evaluations: Vec<EvaluationParams<T>>,
 		contributions: Vec<ContributionParams<T>>,
 		price: PriceOf<T>,
 		slashed: bool,
@@ -536,7 +537,7 @@ impl<
 		project_metadata: ProjectMetadataOf<T>,
 		evaluators: Vec<AccountIdOf<T>>,
 		weights: Vec<u8>,
-	) -> Vec<UserToUSDBalance<T>> {
+	) -> Vec<EvaluationParams<T>> {
 		let funding_target = project_metadata.minimum_price.saturating_mul_int(project_metadata.total_allocation_size);
 		let evaluation_success_threshold = <T as Config>::EvaluationSuccessThreshold::get(); // if we use just the threshold, then for big usd targets we lose the evaluation due to PLMC conversion errors in `evaluation_end`
 		let usd_threshold = evaluation_success_threshold * funding_target * 2u128;
@@ -794,5 +795,55 @@ impl<
 			T::AuctionRoundDuration::get() +
 			T::CommunityRoundDuration::get() +
 			One::one()
+	}
+
+	pub fn eth_key_and_sig_from(
+		&mut self,
+		s: &str,
+		project_id: ProjectId,
+		polimec_account: AccountIdOf<T>,
+	) -> (Junction, [u8; 65]) {
+		let message_to_sign = self.execute(|| Pallet::<T>::get_message_to_sign(polimec_account, project_id)).unwrap();
+		let message_to_sign = message_to_sign.into_bytes();
+		let ecdsa_pair = ecdsa::Pair::from_string(s, None).unwrap();
+		let message_length = message_to_sign.len();
+		let message_prefix = format!("\x19Ethereum Signed Message:\n{}", message_length).into_bytes();
+		let expected_message = [&message_prefix[..], &message_to_sign[..]].concat();
+		let signature = ecdsa_pair.sign_prehashed(&keccak_256(&expected_message));
+		let mut signature_bytes = [0u8; 65];
+		signature_bytes[..65].copy_from_slice(signature.as_bytes_ref());
+
+		match signature_bytes[64] {
+			0x00 => signature_bytes[64] = 27,
+			0x01 => signature_bytes[64] = 28,
+			_v => unreachable!("Recovery bit should be always either 0 or 1"),
+		}
+
+		let compressed_public_key = ecdsa_pair.public().to_raw();
+		let public_uncompressed = k256::ecdsa::VerifyingKey::from_sec1_bytes(&compressed_public_key).unwrap();
+		let public_uncompressed_point = public_uncompressed.to_encoded_point(false).to_bytes();
+		let derived_ethereum_account: [u8; 20] =
+			keccak_256(&public_uncompressed_point[1..])[12..32].try_into().unwrap();
+		let junction =
+			Junction::AccountKey20 { network: Some(Ethereum { chain_id: 1 }), key: derived_ethereum_account };
+
+		(junction, signature_bytes)
+	}
+
+	pub fn dot_key_and_sig_from(
+		&mut self,
+		s: &str,
+		project_id: ProjectId,
+		polimec_account: AccountIdOf<T>,
+	) -> (Junction, [u8; 65]) {
+		let message_to_sign = self.execute(|| Pallet::<T>::get_message_to_sign(polimec_account, project_id)).unwrap();
+		let message_to_sign = message_to_sign.into_bytes();
+
+		let sr_pair = sr25519::Pair::from_string(s, None).unwrap();
+		let signature = sr_pair.sign(&message_to_sign);
+		let mut signature_bytes = [0u8; 65];
+		signature_bytes[..64].copy_from_slice(signature.as_bytes_ref());
+		let junction = Junction::AccountId32 { network: Some(Polkadot), id: sr_pair.public().to_raw() };
+		(junction, signature_bytes)
 	}
 }

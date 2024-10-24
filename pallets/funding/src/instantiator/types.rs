@@ -17,7 +17,7 @@ pub struct TestProjectParams<T: Config> {
 	pub expected_state: ProjectStatus<BlockNumberFor<T>>,
 	pub metadata: ProjectMetadataOf<T>,
 	pub issuer: AccountIdOf<T>,
-	pub evaluations: Vec<UserToUSDBalance<T>>,
+	pub evaluations: Vec<EvaluationParams<T>>,
 	pub bids: Vec<BidParams<T>>,
 	pub community_contributions: Vec<ContributionParams<T>>,
 	pub remainder_contributions: Vec<ContributionParams<T>>,
@@ -115,37 +115,47 @@ impl<T: Config> Total for Vec<UserToPLMCBalance<T>> {
 
 #[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields, bound(serialize = ""), bound(deserialize = ""))]
-pub struct UserToUSDBalance<T: Config> {
+pub struct EvaluationParams<T: Config> {
 	pub account: AccountIdOf<T>,
 	pub usd_amount: Balance,
+	pub receiving_account: Junction,
 }
-impl<T: Config> UserToUSDBalance<T> {
-	pub fn new(account: AccountIdOf<T>, usd_amount: Balance) -> Self {
-		Self { account, usd_amount }
+impl<T: Config> EvaluationParams<T> {
+	pub fn new(account: AccountIdOf<T>, usd_amount: Balance, receiving_account: Junction) -> Self {
+		EvaluationParams::<T> { account, usd_amount, receiving_account }
 	}
 }
-impl<T: Config> From<(AccountIdOf<T>, Balance)> for UserToUSDBalance<T> {
+impl<T: Config> From<(AccountIdOf<T>, Balance, Junction)> for EvaluationParams<T> {
+	fn from((account, usd_amount, receiving_account): (AccountIdOf<T>, Balance, Junction)) -> Self {
+		EvaluationParams::<T>::new(account, usd_amount, receiving_account)
+	}
+}
+impl<T: Config> From<(AccountIdOf<T>, Balance)> for EvaluationParams<T> {
 	fn from((account, usd_amount): (AccountIdOf<T>, Balance)) -> Self {
-		UserToUSDBalance::<T>::new(account, usd_amount)
+		let receiving_account = Junction::AccountId32 {
+			network: NetworkId::Polkadot,
+			id: T::AccountId32Conversion::convert(account.clone()),
+		};
+		EvaluationParams::<T>::new(account, usd_amount, receiving_account)
 	}
 }
-impl<T: Config> Accounts for Vec<UserToUSDBalance<T>> {
+impl<T: Config> Accounts for Vec<EvaluationParams<T>> {
 	type Account = AccountIdOf<T>;
 
 	fn accounts(&self) -> Vec<Self::Account> {
 		let mut btree = BTreeSet::new();
-		for UserToUSDBalance { account, usd_amount: _ } in self {
+		for EvaluationParams { account, usd_amount: _ , receiving_account: _} in self {
 			btree.insert(account.clone());
 		}
 		btree.into_iter().collect_vec()
 	}
 }
-impl<T: Config> AccountMerge for Vec<UserToUSDBalance<T>> {
-	type Inner = UserToUSDBalance<T>;
+impl<T: Config> AccountMerge for Vec<EvaluationParams<T>> {
+	type Inner = EvaluationParams<T>;
 
 	fn merge_accounts(&self, ops: MergeOperation) -> Self {
 		let mut btree = BTreeMap::new();
-		for UserToUSDBalance { account, usd_amount } in self.iter() {
+		for EvaluationParams { account, usd_amount, receiving_account } in self.iter() {
 			btree
 				.entry(account.clone())
 				.and_modify(|e: &mut Balance| {
@@ -156,7 +166,7 @@ impl<T: Config> AccountMerge for Vec<UserToUSDBalance<T>> {
 				})
 				.or_insert(*usd_amount);
 		}
-		btree.into_iter().map(|(account, usd_amount)| UserToUSDBalance::new(account, usd_amount)).collect()
+		btree.into_iter().map(|(account, usd_amount)| EvaluationParams::new(account, usd_amount, receiving_account)).collect()
 	}
 
 	fn subtract_accounts(&self, other_list: Self) -> Self {
@@ -173,7 +183,7 @@ impl<T: Config> AccountMerge for Vec<UserToUSDBalance<T>> {
 		output.merge_accounts(MergeOperation::Add)
 	}
 }
-impl<T: Config> Total for Vec<UserToUSDBalance<T>> {
+impl<T: Config> Total for Vec<EvaluationParams<T>> {
 	fn total(&self) -> Balance {
 		self.iter().map(|x| x.usd_amount).sum()
 	}
