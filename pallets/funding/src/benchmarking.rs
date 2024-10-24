@@ -81,6 +81,7 @@ where
 		participation_currencies: vec![AcceptedFundingAsset::USDT].try_into().unwrap(),
 		funding_destination_account: issuer,
 		policy_ipfs_cid: Some(metadata_hash.into()),
+		participants_account_type: ParticipantsAccountType::Polkadot,
 	}
 }
 
@@ -410,6 +411,7 @@ mod benchmarks {
 			participation_currencies: vec![AcceptedFundingAsset::USDT, AcceptedFundingAsset::USDC].try_into().unwrap(),
 			funding_destination_account: issuer_funding.clone().clone(),
 			policy_ipfs_cid: Some(BoundedVec::try_from(IPFS_CID.as_bytes().to_vec()).unwrap()),
+			participants_account_type: ParticipantsAccountType::Ethereum,
 		};
 
 		let jwt = get_mock_jwt_with_cid(

@@ -17,10 +17,7 @@ use polimec_common::{
 	migration_types::{MigrationInfo, MigrationOrigin, MigrationStatus, ParticipationType},
 	ReleaseSchedule,
 };
-use sp_runtime::{
-	traits::{Convert, Zero},
-	Perquintill,
-};
+use sp_runtime::{traits::Zero, Perquintill};
 
 impl<T: Config> Pallet<T> {
 	#[transactional]
@@ -140,6 +137,7 @@ impl<T: Config> Pallet<T> {
 				ParticipationType::Evaluation,
 				ct_rewarded,
 				duration,
+				evaluation.receiving_account,
 			)?;
 		}
 		Evaluations::<T>::remove((project_id, evaluation.evaluator.clone(), evaluation.id));
@@ -204,6 +202,7 @@ impl<T: Config> Pallet<T> {
 				ParticipationType::Bid,
 				final_ct_amount,
 				ct_vesting_duration,
+				bid.receiving_account,
 			)?;
 
 			Self::release_funding_asset(
@@ -310,6 +309,7 @@ impl<T: Config> Pallet<T> {
 				ParticipationType::Contribution,
 				contribution.ct_amount,
 				ct_vesting_duration,
+				contribution.receiving_account,
 			)?;
 
 			final_ct_amount = contribution.ct_amount;
@@ -484,10 +484,10 @@ impl<T: Config> Pallet<T> {
 		participation_type: ParticipationType,
 		ct_amount: Balance,
 		vesting_time: BlockNumberFor<T>,
+		receiving_account: Junction,
 	) -> DispatchResult {
 		UserMigrations::<T>::try_mutate((project_id, origin), |maybe_migrations| -> DispatchResult {
-			let location_user =
-				Location::new(0, AccountId32 { network: None, id: T::AccountId32Conversion::convert(origin.clone()) });
+			let location_user = Location::new(0, receiving_account);
 			let migration_origin = MigrationOrigin { user: location_user, id, participation_type };
 			let vesting_time: u64 = vesting_time.try_into().map_err(|_| Error::<T>::BadMath)?;
 			let migration_info: MigrationInfo = (ct_amount, vesting_time).into();

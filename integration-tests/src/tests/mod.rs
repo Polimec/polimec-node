@@ -18,6 +18,7 @@ mod credentials;
 mod ct_migration;
 mod defaults;
 mod e2e;
+mod ethereum_support;
 mod evaluator_slash_sideffects;
 mod governance;
 mod oracle;

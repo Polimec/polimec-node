@@ -82,6 +82,8 @@ pallet-session.workspace = true
 pallet-proxy-bonding.workspace = true
 pallet-skip-feeless-payment.workspace = true
 xcm-fee-payment-runtime-api.workspace = true
+hex-literal.workspace = true
+hex.workspace = true
 
 # Runtimes
 polkadot-runtime.workspace = true

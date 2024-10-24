@@ -13,6 +13,7 @@ impl<T: Config> Pallet<T> {
 			investor_type,
 			did,
 			whitelisted_policy,
+			receiving_account,
 		} = params;
 		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 		let did_has_winning_bid = DidWithWinningBids::<T>::get(project_id, did.clone());
@@ -46,6 +47,7 @@ impl<T: Config> Pallet<T> {
 			investor_type,
 			did,
 			whitelisted_policy,
+			receiving_account,
 		};
 
 		Self::do_perform_contribution(perform_params)
@@ -63,6 +65,7 @@ impl<T: Config> Pallet<T> {
 			investor_type,
 			did,
 			whitelisted_policy,
+			receiving_account,
 		} = params;
 
 		let project_metadata = ProjectsMetadata::<T>::get(project_id).ok_or(Error::<T>::ProjectMetadataNotFound)?;
@@ -107,6 +110,10 @@ impl<T: Config> Pallet<T> {
 			contributor_ticket_size.usd_ticket_below_maximum_per_did(total_usd_bought_by_did + ticket_size),
 			Error::<T>::TooHigh
 		);
+		ensure!(
+			project_metadata.participants_account_type.junction_is_supported(&receiving_account),
+			Error::<T>::UnsupportedReceiverAccountJunction
+		);
 
 		let plmc_bond = Self::calculate_plmc_bond(ticket_size, multiplier)?;
 		let funding_asset_amount = Self::calculate_funding_asset_amount(ticket_size, funding_asset)?;
@@ -124,6 +131,7 @@ impl<T: Config> Pallet<T> {
 			funding_asset_amount,
 			plmc_bond,
 			when: now,
+			receiving_account,
 		};
 
 		// Try adding the new contribution to the system

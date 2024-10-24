@@ -932,6 +932,7 @@ mod edit_project_extrinsic {
 
 				funding_destination_account: ISSUER_2,
 				policy_ipfs_cid: Some(new_policy_hash),
+				participants_account_type: ParticipantsAccountType::Polkadot,
 			};
 
 			// No fields changed

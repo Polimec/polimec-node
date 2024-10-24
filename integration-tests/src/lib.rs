@@ -15,12 +15,12 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 pub mod constants;
-
 #[cfg(test)]
 mod tests;
 
 pub use constants::{accounts::*, asset_hub, penpal, polimec, polkadot};
 pub use frame_support::{assert_noop, assert_ok, pallet_prelude::Weight, parameter_types, traits::Hooks};
+use macros::generate_accounts;
 pub use parachains_common::{AccountId, AssetHubPolkadotAuraId, AuraId, Balance, BlockNumber};
 pub use sp_core::{sr25519, storage::Storage, Encode, Get};
 pub use xcm::prelude::*;
