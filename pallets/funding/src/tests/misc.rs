@@ -97,11 +97,11 @@ mod helper_functions {
 		);
 
 		let evaluations = vec![
-			UserToUSDBalance::<TestRuntime>::new(EVALUATOR_1, USD_AMOUNT_1),
-			UserToUSDBalance::<TestRuntime>::new(EVALUATOR_2, USD_AMOUNT_2),
-			UserToUSDBalance::<TestRuntime>::new(EVALUATOR_3, USD_AMOUNT_3),
-			UserToUSDBalance::<TestRuntime>::new(EVALUATOR_4, USD_AMOUNT_4),
-			UserToUSDBalance::<TestRuntime>::new(EVALUATOR_5, USD_AMOUNT_5),
+			EvaluationParams::<TestRuntime>::new(EVALUATOR_1, USD_AMOUNT_1),
+			EvaluationParams::<TestRuntime>::new(EVALUATOR_2, USD_AMOUNT_2),
+			EvaluationParams::<TestRuntime>::new(EVALUATOR_3, USD_AMOUNT_3),
+			EvaluationParams::<TestRuntime>::new(EVALUATOR_4, USD_AMOUNT_4),
+			EvaluationParams::<TestRuntime>::new(EVALUATOR_5, USD_AMOUNT_5),
 		];
 
 		let expected_plmc_spent = vec![
@@ -350,6 +350,67 @@ mod helper_functions {
 		for (expected, calculated) in zip(expected_plmc_spent, calculated_plmc_spent) {
 			assert_close_enough!(expected, calculated, Perquintill::from_float(0.999));
 		}
+	}
+
+	#[test]
+	fn get_message_to_sign() {
+		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+		let account = 69u64;
+		let project_id = 4u32;
+		let message_to_sign = inst.execute(|| PolimecFunding::get_message_to_sign(account, project_id)).unwrap();
+
+		const EXPECTED_MESSAGE: &str =
+			"polimec account: 57qWuK1HShHMA5o1TX7Q6Xhino5iNwf9qgiSBdkQZMNYddKs - project id: 4 - nonce: 0";
+		assert_eq!(&message_to_sign, EXPECTED_MESSAGE);
+	}
+
+	#[test]
+	fn verify_receiving_account_signature() {
+		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+		let message_to_sign = inst.execute(|| PolimecFunding::get_message_to_sign(BUYER_1, 1)).unwrap();
+		let message_to_sign = message_to_sign.into_bytes();
+
+		// Polkadot verification
+		let sr_pair = sr25519::Pair::from_seed_slice(&[69u8; 32]).unwrap();
+		let signature = sr_pair.sign(&message_to_sign);
+		let mut signature_bytes = [0u8; 65];
+		signature_bytes[..64].copy_from_slice(signature.as_bytes_ref());
+		let junction = Junction::AccountId32 { network: None, id: sr_pair.public().to_raw() };
+		assert_ok!(inst.execute(|| PolimecFunding::verify_receiving_account_signature(
+			&BUYER_1,
+			1,
+			&junction,
+			signature_bytes
+		)));
+
+		// Ethereum verification
+		let ecdsa_pair = ecdsa::Pair::from_seed_slice(&[69u8; 32]).unwrap();
+		let message_length = message_to_sign.len();
+		let message_prefix = format!("\x19Ethereum Signed Message:\n{}", message_length).into_bytes();
+		let expected_message = [&message_prefix[..], &message_to_sign[..]].concat();
+		let signature = ecdsa_pair.sign_prehashed(&keccak_256(&expected_message));
+		let mut signature_bytes = [0u8; 65];
+		signature_bytes[..65].copy_from_slice(signature.as_bytes_ref());
+
+		match signature_bytes[64] {
+			0x00 => signature_bytes[64] = 27,
+			0x01 => signature_bytes[64] = 28,
+			_v => unreachable!("Recovery bit should be always either 0 or 1"),
+		}
+
+		let compressed_public_key = ecdsa_pair.public().to_raw();
+		let public_uncompressed = k256::ecdsa::VerifyingKey::from_sec1_bytes(&compressed_public_key).unwrap();
+		let public_uncompressed_point = public_uncompressed.to_encoded_point(false).to_bytes();
+		let derived_ethereum_account: [u8; 20] =
+			keccak_256(&public_uncompressed_point[1..])[12..32].try_into().unwrap();
+		let junction =
+			Junction::AccountKey20 { network: Some(Ethereum { chain_id: 1 }), key: derived_ethereum_account };
+		assert_ok!(inst.execute(|| PolimecFunding::verify_receiving_account_signature(
+			&BUYER_1,
+			1,
+			&junction,
+			signature_bytes
+		)));
 	}
 }
 

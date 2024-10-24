@@ -85,7 +85,7 @@ where
 	}
 }
 
-pub fn default_evaluations<T: Config>() -> Vec<UserToUSDBalance<T>>
+pub fn default_evaluations<T: Config>() -> Vec<EvaluationParams<T>>
 where
 	<T as Config>::Price: From<u128>,
 	T::Hash: From<H256>,
@@ -98,15 +98,15 @@ where
 	let evaluation_target = threshold * funding_target;
 
 	vec![
-		UserToUSDBalance::new(
+		EvaluationParams::new(
 			account::<AccountIdOf<T>>("evaluator_1", 0, 0),
 			Percent::from_percent(35) * evaluation_target,
 		),
-		UserToUSDBalance::new(
+		EvaluationParams::new(
 			account::<AccountIdOf<T>>("evaluator_2", 0, 0),
 			Percent::from_percent(35) * evaluation_target,
 		),
-		UserToUSDBalance::new(
+		EvaluationParams::new(
 			account::<AccountIdOf<T>>("evaluator_3", 0, 0),
 			Percent::from_percent(35) * evaluation_target,
 		),
@@ -501,8 +501,8 @@ mod benchmarks {
 		let project_metadata = default_project_metadata::<T>(issuer.clone());
 		let project_id = inst.create_evaluating_project(project_metadata.clone(), issuer, None);
 
-		let existing_evaluation = UserToUSDBalance::new(test_evaluator.clone(), (200 * USD_UNIT).into());
-		let extrinsic_evaluation = UserToUSDBalance::new(test_evaluator.clone(), (1_000 * USD_UNIT).into());
+		let existing_evaluation = EvaluationParams::new(test_evaluator.clone(), (200 * USD_UNIT).into());
+		let extrinsic_evaluation = EvaluationParams::new(test_evaluator.clone(), (1_000 * USD_UNIT).into());
 		let existing_evaluations = vec![existing_evaluation; x as usize];
 
 		let plmc_for_existing_evaluations = inst.calculate_evaluation_plmc_spent(existing_evaluations.clone());
@@ -597,15 +597,15 @@ mod benchmarks {
 			<T as Config>::EvaluationSuccessThreshold::get() * project_details.fundraising_target_usd;
 		// we only fund 50% of the minimum threshold for the evaluation round, since we want it to fail
 		let evaluations = vec![
-			UserToUSDBalance::new(
+			EvaluationParams::new(
 				account::<AccountIdOf<T>>("evaluator_1", 0, 0),
 				(Percent::from_percent(5) * evaluation_usd_target).into(),
 			),
-			UserToUSDBalance::new(
+			EvaluationParams::new(
 				account::<AccountIdOf<T>>("evaluator_2", 0, 0),
 				(Percent::from_percent(20) * evaluation_usd_target).into(),
 			),
-			UserToUSDBalance::new(
+			EvaluationParams::new(
 				account::<AccountIdOf<T>>("evaluator_3", 0, 0),
 				(Percent::from_percent(25) * evaluation_usd_target).into(),
 			),
@@ -1227,7 +1227,7 @@ mod benchmarks {
 		inst.advance_time(1u32.into());
 
 		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
-		let evaluations: Vec<UserToUSDBalance<T>> = default_evaluations::<T>();
+		let evaluations: Vec<EvaluationParams<T>> = default_evaluations::<T>();
 		let evaluator: AccountIdOf<T> = evaluations[0].account.clone();
 		whitelist_account!(evaluator);
 
@@ -1513,7 +1513,7 @@ mod benchmarks {
 		let max_contributions = x - max_evaluations - max_bids;
 
 		let participant_evaluations = (0..max_evaluations)
-			.map(|_| UserToUSDBalance::new(participant.clone(), (100 * USD_UNIT).into()))
+			.map(|_| EvaluationParams::new(participant.clone(), (100 * USD_UNIT).into()))
 			.collect_vec();
 		let participant_bids = (0..max_bids)
 			.map(|_| {
@@ -1862,7 +1862,7 @@ mod benchmarks {
 		let max_contributions = x - max_evaluations - max_bids;
 
 		let participant_evaluations = (0..max_evaluations)
-			.map(|_| UserToUSDBalance::new(participant.clone(), (100 * USD_UNIT).into()))
+			.map(|_| EvaluationParams::new(participant.clone(), (100 * USD_UNIT).into()))
 			.collect_vec();
 		let participant_bids = (0..max_bids)
 			.map(|_| {
@@ -1960,7 +1960,7 @@ mod benchmarks {
 		let max_contributions = x - max_evaluations - max_bids;
 
 		let participant_evaluations = (0..max_evaluations)
-			.map(|_| UserToUSDBalance::new(participant.clone(), (100 * USD_UNIT).into()))
+			.map(|_| EvaluationParams::new(participant.clone(), (100 * USD_UNIT).into()))
 			.collect_vec();
 		let participant_bids = (0..max_bids)
 			.map(|_| {

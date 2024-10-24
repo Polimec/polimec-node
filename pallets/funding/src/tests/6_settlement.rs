@@ -154,9 +154,9 @@ mod settle_evaluation_extrinsic {
 				ISSUER_1,
 				None,
 				vec![
-					UserToUSDBalance::new(EVALUATOR_1, 500_000 * USD_UNIT),
-					UserToUSDBalance::new(EVALUATOR_2, 250_000 * USD_UNIT),
-					UserToUSDBalance::new(EVALUATOR_3, 320_000 * USD_UNIT),
+					EvaluationParams::new(EVALUATOR_1, 500_000 * USD_UNIT),
+					EvaluationParams::new(EVALUATOR_2, 250_000 * USD_UNIT),
+					EvaluationParams::new(EVALUATOR_3, 320_000 * USD_UNIT),
 				],
 				inst.generate_bids_from_total_ct_percent(
 					project_metadata.clone(),
@@ -291,7 +291,7 @@ mod settle_evaluation_extrinsic {
 		fn evaluation_round_failed() {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 			let project_metadata = default_project_metadata(ISSUER_1);
-			let evaluation = UserToUSDBalance::new(EVALUATOR_1, 1_000 * USD_UNIT);
+			let evaluation = EvaluationParams::new(EVALUATOR_1, 1_000 * USD_UNIT);
 			let project_id = inst.create_evaluating_project(project_metadata.clone(), ISSUER_1, None);
 
 			let evaluation_plmc = inst.calculate_evaluation_plmc_spent(vec![evaluation.clone()]);
