@@ -60,7 +60,7 @@ impl<T: Config> Pallet<T> {
 				project_details,
 				ProjectStatus::EvaluationRound,
 				ProjectStatus::FundingFailed,
-				Some(One::one()),
+				None,
 				false,
 			)
 		}
