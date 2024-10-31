@@ -837,7 +837,7 @@ parameter_types! {
 	pub const ExpiresIn: Moment = 1000 * 60; // 1 mins
 	pub const MaxHasDispatchedSize: u32 = 20;
 	pub RootOperatorAccountId: AccountId = AccountId::from([0xffu8; 32]);
-	pub const MaxFeedValues: u32 = 4; // max 4 values allowd to feed in one call (USDT, USDC, DOT, PLMC).
+	pub const MaxFeedValues: u32 = AcceptedFundingAsset::VARIANT_COUNT as u32 + 1; // Funding asset prices + PLMC
 }
 
 impl orml_oracle::Config for Runtime {
@@ -1708,9 +1708,9 @@ impl_runtime_apis! {
 		fn query_acceptable_payment_assets(xcm_version: xcm::Version) -> Result<Vec<VersionedAssetId>, XcmPaymentApiError> {
 			let acceptable_assets = vec![
 				xcm_config::HereLocation::get().into(),
-				xcm_config::DotLocation::get().into(),
-				xcm_config::UsdtLocation::get().into(),
-				xcm_config::UsdcLocation::get().into()
+				xcm_config::DOTLocation::get().into(),
+				xcm_config::USDTLocation::get().into(),
+				xcm_config::USDCLocation::get().into()
 			];
 
 			PolkadotXcm::query_acceptable_payment_assets(xcm_version, acceptable_assets)

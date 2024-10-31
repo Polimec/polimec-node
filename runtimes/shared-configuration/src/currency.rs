@@ -90,6 +90,7 @@ impl Convert<(AssetName, FixedU128), (AssetId, Price)> for AssetPriceConverter {
 			AssetName::USDC => (AcceptedFundingAsset::USDC.id(), price),
 			AssetName::USDT => (AcceptedFundingAsset::USDT.id(), price),
 			AssetName::PLMC => (PLMC_FOREIGN_ID, price),
+			AssetName::WETH => (AcceptedFundingAsset::WETH.id(), price),
 		}
 	}
 }

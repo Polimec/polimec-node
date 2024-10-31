@@ -4,7 +4,6 @@ use super::*;
 mod helper_functions {
 	use super::*;
 	use polimec_common::USD_DECIMALS;
-	use sp_core::{ecdsa, hexdisplay::AsBytesRef, keccak_256, sr25519, Pair};
 
 	#[test]
 	fn test_usd_price_decimal_aware() {

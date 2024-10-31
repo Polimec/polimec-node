@@ -105,6 +105,7 @@ impl Convert<(AssetName, FixedU128), (OracleKey, OracleValue)> for AssetPriceCon
 			AssetName::USDC => (1337, price),
 			AssetName::USDT => (1984, price),
 			AssetName::PLMC => (3344, price),
+			AssetName::WETH => (10_000, price),
 		}
 	}
 }
