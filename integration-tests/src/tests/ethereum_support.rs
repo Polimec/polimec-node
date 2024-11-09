@@ -11,8 +11,8 @@ fn test_hardcoded_signatures() {
 
 	// Values generated with `https://github.com/lrazovic/ethsigner`
 	let polimec_account_ss58 = polimec_runtime::SS58Converter::convert(polimec_account.clone());
-	let ethereum_account: [u8; 20] = hex!("FCAd0B19bB29D4674531d6f115237E16AfCE377c");
-	let signature: [u8; 65] = hex!("4fa35369a2d654112d3fb419e24dc0d7d61b7e3f23936d6d4df0ac8608fa4530795971d4d1967da60853aa974ad57252a521f97bcd5a68ddea5f8959a5c60b471c");
+	let ethereum_account: [u8; 20] = hex!("796afe7b8933ee8cf337f17887e5c19b657f9ab8");
+	let signature: [u8; 65] = hex!("952e312ac892fefc7c69051521e78a3bc2727fbb495585bdb5fb77e662b8a3de2b1254058d824e85034710e338c2590e2f92d74ce3c60292ed25c7537d94ed621b");
 
 	PolimecNet::execute_with(|| {
 		assert_ok!(PolimecFunding::verify_receiving_account_signature(
