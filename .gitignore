@@ -19,3 +19,5 @@ genesis-wasm
 *.log
 fly.toml
 bin/
+integration-tests/chopsticks/.papi/*
+integration-tests/chopsticks/node_modules/*

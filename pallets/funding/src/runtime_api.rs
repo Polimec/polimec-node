@@ -1,7 +1,7 @@
+use crate::traits::BondingRequirementCalculation;
 #[allow(clippy::wildcard_imports)]
 use crate::*;
 use alloc::{collections::BTreeMap, string::String};
-use crate::traits::BondingRequirementCalculation;
 use frame_support::traits::fungibles::{Inspect, InspectEnumerable};
 use itertools::Itertools;
 use parity_scale_codec::{Decode, Encode};
@@ -74,7 +74,7 @@ sp_api::decl_runtime_apis! {
 		fn get_funding_asset_min_max_amounts(project_id: ProjectId, did: Did, funding_asset: AcceptedFundingAsset, investor_type: InvestorType) -> Option<(Balance, Balance)>;
 
 		/// Gets the hex encoded bytes of the message needed to be signed by the receiving account to participate in the project.
-		/// The message will first be prefixed with a string depending on the blockchain, hashed, and then signed.
+		/// The message will first be prefixed with a blockchain-dependent string, then hashed, and then signed.
 		fn get_message_to_sign_by_receiving_account(project_id: ProjectId, polimec_account: AccountIdOf<T>) -> Option<String>;
 
 	}
