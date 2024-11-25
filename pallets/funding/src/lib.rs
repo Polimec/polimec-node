@@ -70,7 +70,7 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 // Needed due to empty sections raising the warning
 #![allow(unreachable_patterns)]
-// Needed for now beause receiving account extrinsics have too many arguments
+// Needed for now because receiving account extrinsics have too many arguments
 #![allow(clippy::too_many_arguments)]
 // This recursion limit is needed because we have too many benchmarks and benchmarking will fail if
 // we add more without this limit.
