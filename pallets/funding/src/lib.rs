@@ -576,7 +576,7 @@ pub mod pallet {
 		WrongInvestorType,
 		/// Could not verify that the signature provided corresponds to the specified receiver account.
 		BadReceiverAccountSignature,
-		/// Used a Junction variant unsupported to represent a receving account.
+		/// Used a Junction variant unsupported to represent a receiving account.
 		UnsupportedReceiverAccountJunction,
 
 		// * Project Error. Project information not found, or project has an incorrect state. *
