@@ -1,0 +1,67 @@
+import { setupWithServer } from '@acala-network/chopsticks';
+import {
+  type Blockchain,
+  BuildBlockMode,
+  connectParachains,
+  connectVertical,
+} from '@acala-network/chopsticks-core';
+import { POLIMEC_WASM, polkadot_hub_storage, polkadot_storage } from '../overrides';
+
+export class ChainSetup {
+  private relaychain?: Blockchain;
+  private polimec?: Blockchain;
+  private assetHub?: Blockchain;
+
+  async initialize() {
+    const [polimecSetup, assetHubSetup, relaychainSetup] = await Promise.all([
+      this.setupPolimec(),
+      this.setupAssetHub(),
+      this.setupRelaychain(),
+    ]);
+
+    console.log('✅ Nodes are ready');
+
+    this.polimec = polimecSetup.chain;
+    this.assetHub = assetHubSetup.chain;
+    this.relaychain = relaychainSetup.chain;
+
+    await Promise.all([
+      connectVertical(this.relaychain, this.polimec),
+      connectVertical(this.relaychain, this.assetHub),
+      connectParachains([this.polimec, this.assetHub]),
+    ]);
+
+    console.log('✅ HRMP channels created');
+  }
+
+  async cleanup() {
+    await Promise.all([this.relaychain?.close(), this.polimec?.close(), this.assetHub?.close()]);
+  }
+
+  private setupPolimec() {
+    return setupWithServer({
+      endpoint: 'wss://polimec.ibp.network',
+      port: 8000,
+      'wasm-override': POLIMEC_WASM,
+      'build-block-mode': BuildBlockMode.Instant,
+    });
+  }
+
+  private setupAssetHub() {
+    return setupWithServer({
+      endpoint: 'wss://sys.ibp.network/statemint',
+      port: 8001,
+      'build-block-mode': BuildBlockMode.Instant,
+      'import-storage': polkadot_hub_storage,
+    });
+  }
+
+  private setupRelaychain() {
+    return setupWithServer({
+      endpoint: 'wss://rpc.ibp.network/polkadot',
+      port: 8002,
+      'import-storage': polkadot_storage,
+      'build-block-mode': BuildBlockMode.Instant,
+    });
+  }
+}

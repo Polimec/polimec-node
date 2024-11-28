@@ -1,0 +1,18 @@
+{
+  "version": 0,
+  "descriptorPath": ".papi/descriptors",
+  "entries": {
+    "polimec": {
+      "wsUrl": "ws://127.0.0.1:8001",
+      "metadata": ".papi/metadata/polimec.scale"
+    },
+    "polkadot": {
+      "wsUrl": "ws://localhost:8002",
+      "metadata": ".papi/metadata/polkadot.scale"
+    },
+    "pah": {
+      "wsUrl": "ws://localhost:8001",
+      "metadata": ".papi/metadata/pah.scale"
+    }
+  }
+}

@@ -19,3 +19,4 @@ genesis-wasm
 *.log
 fly.toml
 bin/
+integration-tests/chopsticks/db/*
