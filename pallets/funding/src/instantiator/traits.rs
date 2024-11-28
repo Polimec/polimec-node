@@ -1,6 +1,5 @@
 use super::{Config, UserToPLMCBalance, Vec};
 use crate::Balance;
-// use itertools::Itertools;
 
 pub trait Deposits<T: Config> {
 	fn existential_deposits(&self) -> Vec<UserToPLMCBalance<T>>;
