@@ -22,6 +22,7 @@ export enum Assets {
   USDT = 1984,
   DOT = 10,
   USDC = 1337,
+  UNKNOWN = 42,
 }
 
 export type ChainToDefinition = {

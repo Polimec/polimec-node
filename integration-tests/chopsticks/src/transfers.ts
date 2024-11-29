@@ -1,21 +1,22 @@
 import { expect } from 'bun:test';
 import type { ChainTestManager } from './chainManager';
 import { TRANSFER_AMOUNTS } from './constants';
-import { Accounts, Assets, Chains } from './types';
+import { Accounts, Assets, Chains, type Parachain } from './types';
 import { createTransferData } from './utils';
 
 export class TransferTest {
   constructor(private chainManager: ChainTestManager) {}
 
-  async testAssetTransfer(asset: Assets, initialBalance: bigint) {
+  async testAssetTransfer(asset: Assets, initialBalance?: bigint) {
     const { balances: initialBalances } = await this.checkBalances(asset, Accounts.ALICE);
-    this.verifyInitialBalances(initialBalances, initialBalance);
+    if (initialBalance) this.verifyInitialBalances(initialBalances, initialBalance);
 
     const blockNumbers = await this.executeTransfer(asset);
     await this.waitForBlocks(blockNumbers);
+    await this.checkExecution(Chains.Polimec);
 
     const { balances: finalBalances } = await this.checkBalances(asset, Accounts.ALICE);
-    this.verifyFinalBalances(finalBalances, initialBalance);
+    if (initialBalance) this.verifyFinalBalances(finalBalances, initialBalance);
   }
 
   async testNativeTransfer(initialBalance: bigint) {
@@ -36,6 +37,14 @@ export class TransferTest {
     return {
       balances: { hub: hubBalance, polimec: polimecBalance },
     };
+  }
+
+  private async checkExecution(chain: Parachain) {
+    const events = await this.chainManager.getMessageQueueEvents(chain);
+    expect(events).not.toBeEmpty();
+    expect(events).toBeArray();
+    expect(events).toHaveLength(1);
+    expect(events[0].payload.success).toBeTrue();
   }
 
   private async checkNativeBalances(account: Accounts) {

@@ -39,6 +39,12 @@ export const polkadot_hub_storage = {
         },
       ],
       [
+        [Assets.UNKNOWN, Accounts.ALICE],
+        {
+          balance: INITIAL_BALANCES.USDT,
+        },
+      ],
+      [
         [Assets.USDT, Accounts.BOB],
         {
           balance: INITIAL_BALANCES.USDT,

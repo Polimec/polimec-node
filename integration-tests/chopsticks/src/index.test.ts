@@ -1,4 +1,4 @@
-import { afterAll, afterEach, beforeAll, beforeEach, describe, test } from 'bun:test';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test } from 'bun:test';
 import { ChainTestManager } from './chainManager';
 import { INITIAL_BALANCES } from './constants';
 import { ChainSetup } from './setup';
@@ -25,11 +25,13 @@ describe('Asset Management Tests', () => {
   test('Polkadot Hub: Send DOT to Polimec', () =>
     transferTest.testNativeTransfer(INITIAL_BALANCES.DOT));
 
+  test('Polkadot Hub: Send Unknown Asset to Polimec', () =>
+    expect(() => transferTest.testAssetTransfer(Assets.UNKNOWN)).toThrow());
+
   // TODO: Add:
   // [] Polimec: Send USDt to Polkadot Hub
   // [] Polimec: Send USDC to Polkadot Hub
   // [] Polimec: Send DOT to Polkadot Hub
   // [] Polkadot: Send DOT to Polimec, via Polkadot Hub
-  // [] Polkadot Hub: Send Random Asset to Polimec
   // Double check the current XCM Emulator tests
 });

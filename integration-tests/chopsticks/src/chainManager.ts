@@ -89,6 +89,11 @@ export class ChainTestManager {
     );
   };
 
+  getMessageQueueEvents = async (chain: Parachain) => {
+    const api = this.getApi(chain);
+    return api.event.MessageQueue.Processed.pull();
+  };
+
   // TODO: Add a method to check a specific Event
 
   async getFreeBalance(chain: Chains, account: Accounts) {
