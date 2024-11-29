@@ -1,3 +1,4 @@
+import { INITIAL_BALANCES } from '../src/constants';
 import { Accounts, Assets } from '../src/types';
 
 export const polkadot_hub_storage = {
@@ -8,7 +9,7 @@ export const polkadot_hub_storage = {
         {
           providers: 1,
           data: {
-            free: '10000000000000000',
+            free: INITIAL_BALANCES.DOT,
           },
         },
       ],
@@ -17,7 +18,7 @@ export const polkadot_hub_storage = {
         {
           providers: 1,
           data: {
-            free: '10000000000000000',
+            free: INITIAL_BALANCES.DOT,
           },
         },
       ],
@@ -28,25 +29,25 @@ export const polkadot_hub_storage = {
       [
         [Assets.USDT, Accounts.ALICE],
         {
-          balance: 52000000000,
+          balance: INITIAL_BALANCES.USDT,
         },
       ],
       [
         [Assets.USDC, Accounts.ALICE],
         {
-          balance: 66600000000,
+          balance: INITIAL_BALANCES.USDC,
         },
       ],
       [
         [Assets.USDT, Accounts.BOB],
         {
-          balance: 66600000000,
+          balance: INITIAL_BALANCES.USDT,
         },
       ],
       [
         [Assets.USDC, Accounts.BOB],
         {
-          balance: 66600000000,
+          balance: INITIAL_BALANCES.USDC,
         },
       ],
     ],

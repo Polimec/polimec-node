@@ -31,5 +31,5 @@ describe('Asset Management Tests', () => {
   // [] Polimec: Send DOT to Polkadot Hub
   // [] Polkadot: Send DOT to Polimec, via Polkadot Hub
   // [] Polkadot Hub: Send Random Asset to Polimec
-  // Double check the current XCM Emulator tests 
+  // Double check the current XCM Emulator tests
 });

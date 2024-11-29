@@ -1,3 +1,4 @@
+import { INITIAL_BALANCES } from '../src/constants';
 import { Accounts } from '../src/types';
 
 export const polkadot_storage = {
@@ -8,7 +9,7 @@ export const polkadot_storage = {
         {
           providers: 1,
           data: {
-            free: '20000000000000000000',
+            free: INITIAL_BALANCES.DOT,
           },
         },
       ],
