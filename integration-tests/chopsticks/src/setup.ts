@@ -41,14 +41,12 @@ export class ChainSetup {
   private async setupPolimec() {
     const file = Bun.file(POLIMEC_WASM);
 
-    // Verify the existence of the Polimec runtime WASM file
     if (!(await file.exists())) {
       throw new Error(
         'Polimec runtime not found! Please build it by running `cargo b -r -p polimec-runtime` before executing the tests.',
       );
     }
 
-    // Compute the hash of the WASM file for logging purposes
     const hasher = new Bun.CryptoHasher('blake2b256');
     hasher.update(await file.bytes());
     const runtimeHash = hasher.digest('hex');
