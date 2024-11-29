@@ -94,8 +94,6 @@ export class ChainTestManager {
     return api.event.MessageQueue.Processed.pull();
   };
 
-  // TODO: Add a method to check a specific Event
-
   async getFreeBalance(chain: Chains, account: Accounts) {
     const api = this.getApi(chain);
     const balance = await api.query.System.Account.getValue(account);

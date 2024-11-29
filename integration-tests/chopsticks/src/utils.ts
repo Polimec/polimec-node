@@ -1,3 +1,4 @@
+import { Accounts } from '@/types';
 import {
   XcmV3Junction,
   XcmV3Junctions,
@@ -8,7 +9,6 @@ import {
   type XcmVersionedLocation,
 } from '@polkadot-api/descriptors';
 import { FixedSizeBinary } from 'polkadot-api';
-import { Accounts } from './types';
 
 /**
  * Helper to create XCM assets.

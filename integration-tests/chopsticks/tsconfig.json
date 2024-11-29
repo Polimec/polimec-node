@@ -6,6 +6,9 @@
     "module": "ESNext",
     "moduleDetection": "force",
     "allowJs": false,
+    "paths": {
+      "@/*": ["./src/*", "./overrides/*"]
+    },
 
     // Bundler mode
     "moduleResolution": "bundler",

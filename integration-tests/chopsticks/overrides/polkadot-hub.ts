@@ -1,20 +1,11 @@
-import { INITIAL_BALANCES } from '../src/constants';
-import { Accounts, Assets } from '../src/types';
+import { INITIAL_BALANCES } from '@/constants';
+import { Accounts, Assets } from '@/types';
 
 export const polkadot_hub_storage = {
   System: {
     Account: [
       [
         [Accounts.ALICE],
-        {
-          providers: 1,
-          data: {
-            free: INITIAL_BALANCES.DOT,
-          },
-        },
-      ],
-      [
-        [Accounts.BOB],
         {
           providers: 1,
           data: {
@@ -42,18 +33,6 @@ export const polkadot_hub_storage = {
         [Assets.UNKNOWN, Accounts.ALICE],
         {
           balance: INITIAL_BALANCES.USDT,
-        },
-      ],
-      [
-        [Assets.USDT, Accounts.BOB],
-        {
-          balance: INITIAL_BALANCES.USDT,
-        },
-      ],
-      [
-        [Assets.USDC, Accounts.BOB],
-        {
-          balance: INITIAL_BALANCES.USDC,
         },
       ],
     ],

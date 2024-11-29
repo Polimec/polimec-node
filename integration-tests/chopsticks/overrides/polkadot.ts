@@ -1,5 +1,5 @@
-import { INITIAL_BALANCES } from '../src/constants';
-import { Accounts } from '../src/types';
+import { INITIAL_BALANCES } from '@/constants';
+import { Accounts } from '@/types';
 
 export const polkadot_storage = {
   System: {

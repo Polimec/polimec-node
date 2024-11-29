@@ -12,9 +12,9 @@ export class ChainSetup {
   private polimec?: Blockchain;
   private assetHub?: Blockchain;
 
-  async initialize() {
+  async initialize(polimec_storage?: unknown) {
     const [polimecSetup, assetHubSetup, relaychainSetup] = await Promise.all([
-      this.setupPolimec(),
+      this.setupPolimec(polimec_storage),
       this.setupAssetHub(),
       this.setupRelaychain(),
     ]);
@@ -38,7 +38,7 @@ export class ChainSetup {
     await Promise.all([this.relaychain?.close(), this.polimec?.close(), this.assetHub?.close()]);
   }
 
-  private async setupPolimec() {
+  private async setupPolimec(polimec_storage: unknown) {
     const file = Bun.file(POLIMEC_WASM);
 
     if (!(await file.exists())) {
@@ -52,12 +52,15 @@ export class ChainSetup {
     const runtimeHash = hasher.digest('hex');
     console.log(`✅ Polimec runtime used in tests: 0x${runtimeHash}`);
 
+    if (polimec_storage !== undefined) console.info('✅ Polimec custom storage provided');
+
     // Initialize the Polimec setup with the provided server configuration
     return setupWithServer({
       endpoint: 'wss://polimec.ibp.network',
       port: 8000,
       'wasm-override': POLIMEC_WASM,
       'build-block-mode': BuildBlockMode.Instant,
+      'import-storage': polimec_storage,
     });
   }
 
