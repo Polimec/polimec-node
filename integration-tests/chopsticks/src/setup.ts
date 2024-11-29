@@ -38,7 +38,23 @@ export class ChainSetup {
     await Promise.all([this.relaychain?.close(), this.polimec?.close(), this.assetHub?.close()]);
   }
 
-  private setupPolimec() {
+  private async setupPolimec() {
+    const file = Bun.file(POLIMEC_WASM);
+
+    // Verify the existence of the Polimec runtime WASM file
+    if (!(await file.exists())) {
+      throw new Error(
+        'Polimec runtime not found! Please build it by running `cargo b -r -p polimec-runtime` before executing the tests.',
+      );
+    }
+
+    // Compute the hash of the WASM file for logging purposes
+    const hasher = new Bun.CryptoHasher('blake2b256');
+    hasher.update(await file.bytes());
+    const runtimeHash = hasher.digest('hex');
+    console.log(`✅ Polimec runtime used in tests: 0x${runtimeHash}`);
+
+    // Initialize the Polimec setup with the provided server configuration
     return setupWithServer({
       endpoint: 'wss://polimec.ibp.network',
       port: 8000,
@@ -51,8 +67,8 @@ export class ChainSetup {
     return setupWithServer({
       endpoint: 'wss://sys.ibp.network/statemint',
       port: 8001,
-      'build-block-mode': BuildBlockMode.Instant,
       'import-storage': polkadot_hub_storage,
+      'build-block-mode': BuildBlockMode.Instant,
     });
   }
 
