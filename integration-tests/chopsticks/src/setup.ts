@@ -7,10 +7,17 @@ import {
 } from '@acala-network/chopsticks-core';
 import { POLIMEC_WASM, polkadot_hub_storage, polkadot_storage } from '../overrides';
 
+type SetupResult = Awaited<ReturnType<typeof setupWithServer>>;
+
 export class ChainSetup {
   private relaychain?: Blockchain;
   private polimec?: Blockchain;
   private assetHub?: Blockchain;
+
+  // Store setup objects for cleanup
+  private polimecSetup?: SetupResult;
+  private assetHubSetup?: SetupResult;
+  private relaychainSetup?: SetupResult;
 
   async initialize(polimec_storage?: unknown) {
     const [polimecSetup, assetHubSetup, relaychainSetup] = await Promise.all([
@@ -19,8 +26,14 @@ export class ChainSetup {
       this.setupRelaychain(),
     ]);
 
-    console.log('✅ Nodes are ready');
+    console.log('✅ Local nodes instances are up');
 
+    // Store setup objects
+    this.polimecSetup = polimecSetup;
+    this.assetHubSetup = assetHubSetup;
+    this.relaychainSetup = relaychainSetup;
+
+    // Store chain references
     this.polimec = polimecSetup.chain;
     this.assetHub = assetHubSetup.chain;
     this.relaychain = relaychainSetup.chain;
@@ -36,6 +49,12 @@ export class ChainSetup {
 
   async cleanup() {
     await Promise.all([this.relaychain?.close(), this.polimec?.close(), this.assetHub?.close()]);
+    await Promise.all([
+      this.relaychainSetup?.close(),
+      this.polimecSetup?.close(),
+      this.assetHubSetup?.close(),
+    ]);
+    console.log('✅ Local nodes instances are down');
   }
 
   private async setupPolimec(polimec_storage: unknown) {

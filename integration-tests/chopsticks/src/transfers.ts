@@ -1,33 +1,61 @@
 import { expect } from 'bun:test';
-import type { ChainTestManager } from './chainManager';
-import { TRANSFER_AMOUNTS } from './constants';
-import { Accounts, Assets, Chains, type Parachain } from './types';
-import { createTransferData } from './utils';
+import type { ChainTestManager } from '@/chainManager';
+import { INITIAL_BALANCES, TRANSFER_AMOUNTS } from '@/constants';
+import { Accounts, Assets, Chains, type Parachain } from '@/types';
+import { createTransferData } from '@/utils';
+
+export type TransferDirection = {
+  source: Parachain;
+  destination: Parachain;
+};
 
 export class TransferTest {
   constructor(private chainManager: ChainTestManager) {}
 
-  async testAssetTransfer(asset: Assets, initialBalance?: bigint) {
-    const { balances: initialBalances } = await this.checkBalances(asset, Accounts.ALICE);
-    if (initialBalance) this.verifyInitialBalances(initialBalances, initialBalance);
+  async testAssetTransfer(
+    asset: Assets,
+    direction: TransferDirection,
+    account: Accounts = Accounts.ALICE,
+    initialBalance?: bigint,
+  ) {
+    const { balances: initialBalances } = await this.checkBalances(asset, account);
+    if (initialBalance) this.verifyInitialBalances(initialBalances, initialBalance, direction);
 
-    const blockNumbers = await this.executeTransfer(asset);
-    await this.waitForBlocks(blockNumbers);
-    await this.checkExecution(Chains.Polimec);
+    const blockNumbers = await this.executeTransfer(asset, direction, account);
+    await this.waitForBlocks(blockNumbers, direction);
 
-    const { balances: finalBalances } = await this.checkBalances(asset, Accounts.ALICE);
-    if (initialBalance) this.verifyFinalBalances(finalBalances, initialBalance);
+    await this.checkExecutionOn(direction.destination);
+
+    if (
+      direction.source === Chains.Polimec &&
+      direction.destination === Chains.PolkadotHub &&
+      asset === Assets.DOT
+    ) {
+      const { balances: finalBalances } = await this.checkNativeBalances(account);
+      this.verifyFinalNativeBalancesHub(finalBalances, 35930000n);
+      return;
+    }
+    const { balances: finalBalances } = await this.checkBalances(asset, account);
+    if (initialBalance) this.verifyFinalBalances(finalBalances, initialBalance, direction);
   }
 
-  async testNativeTransfer(initialBalance: bigint) {
-    const { balances: initialBalances } = await this.checkNativeBalances(Accounts.BOB);
+  async testNativeTransfer(initialBalance: bigint, account: Accounts = Accounts.ALICE) {
+    const { balances: initialBalances } = await this.checkNativeBalances(account);
     this.verifyInitialNativeBalances(initialBalances, initialBalance);
 
-    const blockNumbers = await this.executeNativeTransfer();
-    await this.waitForBlocks(blockNumbers);
+    const blockNumbers = await this.executeNativeTransfer(account);
+    await this.waitForBlocks(blockNumbers, {
+      source: Chains.PolkadotHub,
+      destination: Chains.Polimec,
+    });
 
-    const { balances: finalBalances } = await this.checkNativeBalances(Accounts.ALICE);
-    this.verifyFinalNativeBalances(finalBalances);
+    const { balances: finalBalances } = await this.checkNativeBalances(account);
+    await this.checkExecutionOn(Chains.Polimec);
+    const fee = await this.chainManager.getExtrinsicFee(Chains.PolkadotHub);
+    const xcmFee = await this.chainManager.getXcmFee(Chains.PolkadotHub);
+    const totalFee = fee + xcmFee;
+
+    this.verifyFinalNativeBalances(finalBalances, totalFee);
   }
 
   private async checkBalances(asset: Assets, account: Accounts) {
@@ -39,7 +67,7 @@ export class TransferTest {
     };
   }
 
-  private async checkExecution(chain: Parachain) {
+  private async checkExecutionOn(chain: Parachain) {
     const events = await this.chainManager.getMessageQueueEvents(chain);
     expect(events).not.toBeEmpty();
     expect(events).toBeArray();
@@ -60,61 +88,77 @@ export class TransferTest {
     };
   }
 
-  private async executeTransfer(asset: Assets) {
-    const api = this.chainManager.getApi(Chains.PolkadotHub);
-    const polimecApi = this.chainManager.getApi(Chains.Polimec);
+  private async executeTransfer(asset: Assets, direction: TransferDirection, account: Accounts) {
+    const sourceApi = this.chainManager.getApi(direction.source);
+    const destApi = this.chainManager.getApi(direction.destination);
 
-    const blockNumber = await api.query.System.Number.getValue();
-    const polimecBlockNumber = await polimecApi.query.System.Number.getValue();
+    const sourceBlockNumber = await sourceApi.query.System.Number.getValue();
+    const destBlockNumber = await destApi.query.System.Number.getValue();
+    const amount = asset === Assets.DOT ? TRANSFER_AMOUNTS.NATIVE : TRANSFER_AMOUNTS.TOKENS;
 
-    const data = createTransferData(TRANSFER_AMOUNTS.TOKENS, BigInt(asset));
-    const res = await api.tx.PolkadotXcm.transfer_assets(data).signAndSubmit(
-      this.chainManager.getSigner(Accounts.ALICE),
+    const data = createTransferData(amount, direction.destination, BigInt(asset), account);
+
+    const res = await sourceApi.tx.PolkadotXcm.transfer_assets(data).signAndSubmit(
+      this.chainManager.getSigner(account),
     );
 
     expect(res.ok).toBeTrue();
 
-    return { blockNumber, polimecBlockNumber };
+    return { sourceBlockNumber, destBlockNumber };
   }
 
-  private async executeNativeTransfer() {
-    const api = this.chainManager.getApi(Chains.PolkadotHub);
+  private async executeNativeTransfer(account: Accounts) {
+    const hubApi = this.chainManager.getApi(Chains.PolkadotHub);
     const polimecApi = this.chainManager.getApi(Chains.Polimec);
 
-    const blockNumber = await api.query.System.Number.getValue();
-    const polimecBlockNumber = await polimecApi.query.System.Number.getValue();
+    const sourceBlockNumber = await hubApi.query.System.Number.getValue();
+    const destBlockNumber = await polimecApi.query.System.Number.getValue();
 
-    const data = createTransferData(TRANSFER_AMOUNTS.NATIVE);
-    const res = await api.tx.PolkadotXcm.transfer_assets(data).signAndSubmit(
-      this.chainManager.getSigner(Accounts.ALICE),
+    const data = createTransferData(TRANSFER_AMOUNTS.NATIVE, Chains.Polimec);
+    const res = await hubApi.tx.PolkadotXcm.transfer_assets(data).signAndSubmit(
+      this.chainManager.getSigner(account),
     );
 
     expect(res.ok).toBeTrue();
 
-    return { blockNumber, polimecBlockNumber };
+    return { sourceBlockNumber, destBlockNumber };
   }
 
-  private async waitForBlocks({
-    blockNumber,
-    polimecBlockNumber,
-  }: { blockNumber: number; polimecBlockNumber: number }) {
+  private async waitForBlocks(
+    { sourceBlockNumber, destBlockNumber }: { sourceBlockNumber: number; destBlockNumber: number },
+    direction: TransferDirection,
+  ) {
     await Promise.all([
-      this.chainManager.waitForNextBlock(Chains.PolkadotHub, blockNumber),
-      this.chainManager.waitForNextBlock(Chains.Polimec, polimecBlockNumber),
+      this.chainManager.waitForNextBlock(direction.source, sourceBlockNumber),
+      this.chainManager.waitForNextBlock(direction.destination, destBlockNumber),
     ]);
   }
 
   private verifyInitialBalances(
     balances: { hub: bigint; polimec: bigint },
     initialBalance: bigint,
+    direction: TransferDirection,
   ) {
-    expect(balances.hub).toBe(initialBalance);
-    expect(balances.polimec).toBe(0n);
+    const isFromHub = direction.source === Chains.PolkadotHub;
+    expect(balances.hub).toBe(isFromHub ? initialBalance : 0n);
+    expect(balances.polimec).toBe(isFromHub ? 0n : initialBalance);
   }
 
-  private verifyFinalBalances(balances: { hub: bigint; polimec: bigint }, initialBalance: bigint) {
-    expect(balances.hub).toBe(initialBalance - TRANSFER_AMOUNTS.TOKENS);
-    expect(balances.polimec).toBe(1682500n);
+  private async verifyFinalBalances(
+    balances: { hub: bigint; polimec: bigint },
+    initialBalance: bigint,
+    direction: TransferDirection,
+  ) {
+    const isFromHub = direction.source === Chains.PolkadotHub;
+    let swapFee = 0n;
+    if (!isFromHub) {
+      swapFee += await this.chainManager.getSwapCreditExecuted(Chains.PolkadotHub);
+    }
+
+    expect(balances.hub).toBe(
+      isFromHub ? initialBalance - TRANSFER_AMOUNTS.TOKENS : TRANSFER_AMOUNTS.TOKENS - swapFee,
+    );
+    expect(balances.polimec).toBe(isFromHub ? 1682500n : initialBalance - TRANSFER_AMOUNTS.TOKENS);
   }
 
   private verifyInitialNativeBalances(
@@ -125,8 +169,13 @@ export class TransferTest {
     expect(balances.polimec).toBe(0n);
   }
 
-  private verifyFinalNativeBalances(balances: { hub: bigint; polimec: bigint }) {
-    expect(balances.hub).toBe(9999979047536876n);
+  private verifyFinalNativeBalances(balances: { hub: bigint; polimec: bigint }, fee: bigint) {
+    expect(balances.hub).toBe(INITIAL_BALANCES.DOT - TRANSFER_AMOUNTS.NATIVE - fee);
     expect(balances.polimec).toBe(19365000000n);
+  }
+
+  private verifyFinalNativeBalancesHub(balances: { hub: bigint; polimec: bigint }, fee: bigint) {
+    expect(balances.hub).toBe(TRANSFER_AMOUNTS.NATIVE - fee);
+    expect(balances.polimec).toBe(9999980000000000n);
   }
 }

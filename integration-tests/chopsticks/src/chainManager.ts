@@ -94,6 +94,24 @@ export class ChainTestManager {
     return api.event.MessageQueue.Processed.pull();
   };
 
+  getExtrinsicFee = async (chain: Parachain) => {
+    const api = this.getApi(chain);
+    const event = await api.event.TransactionPayment.TransactionFeePaid.pull();
+    return event[0].payload.actual_fee;
+  };
+
+  getXcmFee = async (chain: Parachain) => {
+    const api = this.getApi(chain);
+    const event = await api.event.PolkadotXcm.FeesPaid.pull();
+    return event[0].payload.fees[0].fun.value as bigint;
+  };
+
+  getSwapCreditExecuted = async (chain: Chains.PolkadotHub) => {
+    const api = this.getApi(chain);
+    const event = await api.event.AssetConversion.SwapCreditExecuted.pull();
+    return event[0]?.payload.amount_in || 0n;
+  };
+
   async getFreeBalance(chain: Chains, account: Accounts) {
     const api = this.getApi(chain);
     const balance = await api.query.System.Account.getValue(account);

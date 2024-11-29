@@ -1,4 +1,4 @@
-import { Accounts } from '@/types';
+import { Accounts, Chains, ParaId, type Parachain } from '@/types';
 import {
   XcmV3Junction,
   XcmV3Junctions,
@@ -15,7 +15,7 @@ import { FixedSizeBinary } from 'polkadot-api';
  * @param amount - The asset amount as bigint.
  * @param assetIndex - The asset id.
  */
-const createAssets = (amount: bigint, assetIndex?: bigint): XcmVersionedAssets => ({
+const createHubAssets = (amount: bigint, assetIndex?: bigint): XcmVersionedAssets => ({
   type: 'V3',
   value: [
     {
@@ -33,17 +33,42 @@ const createAssets = (amount: bigint, assetIndex?: bigint): XcmVersionedAssets =
   ],
 });
 
+const createPolimecAssets = (amount: bigint, assetIndex = 1984n): XcmVersionedAssets => ({
+  type: 'V3',
+  value: [
+    {
+      id: XcmV3MultiassetAssetId.Concrete({
+        parents: 1,
+        interior:
+          assetIndex === 10n
+            ? XcmV3Junctions.Here()
+            : XcmV3Junctions.X3([
+                XcmV3Junction.Parachain(ParaId[Chains.PolkadotHub]),
+                XcmV3Junction.PalletInstance(50),
+                XcmV3Junction.GeneralIndex(assetIndex),
+              ]),
+      }),
+      fun: XcmV3MultiassetFungibility.Fungible(amount),
+    },
+  ],
+});
+
 /**
  * Creates transfer data for XCM calls.
  * @param amount - The amount to transfer as bigint.
  * @param assetIndex - Optional asset index for multi-assets.
  */
-export const createTransferData = (amount: bigint, assetIndex?: bigint) => {
+export const createTransferData = (
+  amount: bigint,
+  toChain: Parachain,
+  assetIndex?: bigint,
+  recv?: Accounts,
+) => {
   const dest: XcmVersionedLocation = {
     type: 'V3',
     value: {
       parents: 1,
-      interior: XcmV3Junctions.X1(XcmV3Junction.Parachain(3344)),
+      interior: XcmV3Junctions.X1(XcmV3Junction.Parachain(ParaId[toChain])),
     },
   };
 
@@ -54,7 +79,7 @@ export const createTransferData = (amount: bigint, assetIndex?: bigint) => {
       interior: XcmV3Junctions.X1(
         XcmV3Junction.AccountId32({
           network: undefined,
-          id: FixedSizeBinary.fromAccountId32(Accounts.ALICE),
+          id: FixedSizeBinary.fromAccountId32(recv || Accounts.ALICE),
         }),
       ),
     },
@@ -63,7 +88,10 @@ export const createTransferData = (amount: bigint, assetIndex?: bigint) => {
   return {
     dest,
     beneficiary,
-    assets: createAssets(amount, assetIndex),
+    assets:
+      toChain === Chains.PolkadotHub
+        ? createPolimecAssets(amount, assetIndex)
+        : createHubAssets(amount, assetIndex),
     fee_asset_item: 0,
     weight_limit: XcmV3WeightLimit.Unlimited(),
   };

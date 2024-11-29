@@ -13,6 +13,11 @@ export enum Chains {
 
 export type Parachain = Chains.Polimec | Chains.PolkadotHub;
 
+export const ParaId = {
+  [Chains.Polimec]: 3344,
+  [Chains.PolkadotHub]: 1000,
+};
+
 export enum Accounts {
   BOB = '5FHneW46xGXgs5mUiveU4sbTyGBzmstUspZC92UhjJM694ty',
   ALICE = '5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY',
