@@ -28,7 +28,7 @@ scale-info = { workspace= true, default-features = false, features = [
 lazy_static = "1.5.0"
 
 # Uncomment this and the std feature below to see variables instead of <wasm:stripped> in the console output
-#sp-debug-derive = { workspace = true, features = ["force-debug"]}
+sp-debug-derive = { workspace = true, features = ["force-debug"]}
 
 # Polimec specific
 pallet-dispenser.workspace = true
@@ -179,7 +179,7 @@ std = [
 	"sp-block-builder/std",
 	"sp-consensus-aura/std",
 	"sp-core/std",
-	#	"sp-debug-derive/std",
+		"sp-debug-derive/std",
 	"sp-genesis-builder/std",
 	"sp-inherents/std",
 	"sp-offchain/std",

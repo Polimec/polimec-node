@@ -12,7 +12,10 @@ use polimec_runtime::{
 	AccountId, AuraId as AuthorityId, Balance, BlockchainOperationTreasury, ContributionTreasuryAccount,
 	ExistentialDeposit, FeeRecipient, OracleProvidersMembershipConfig, Runtime, TreasuryAccount, PLMC,
 };
-use sp_core::{crypto::UncheckedInto, sr25519};
+use sp_core::{
+	crypto::{Ss58AddressFormat, UncheckedInto},
+	sr25519,
+};
 use sp_runtime::{traits::AccountIdConversion, Perbill, Percent};
 
 pub type ChainSpec = sc_service::GenericChainSpec<Extensions>;
@@ -63,6 +66,11 @@ pub fn dave() -> polimec_runtime::AccountId {
 }
 pub fn eve() -> polimec_runtime::AccountId {
 	get_account_id_from_seed::<sr25519::Public>("Eve")
+}
+
+pub fn acc_from_ss58(string: &str) -> polimec_runtime::AccountId {
+	use sp_core::crypto::Ss58Codec;
+	sp_core::sr25519::Public::from_ss58check(string).unwrap().into()
 }
 
 pub struct GenesisConfigParams {

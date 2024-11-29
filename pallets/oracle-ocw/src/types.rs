@@ -102,6 +102,7 @@ struct KrakenResult {
 	#[serde(alias = "USDTZUSD")]
 	#[serde(alias = "DOTUSD")]
 	#[serde(alias = "USDCUSD")]
+	#[serde(alias = "XETHZUSD")]
 	#[serde(deserialize_with = "deserialize_hloc_kraken")]
 	data: Vec<OpenCloseVolume>,
 	#[serde(skip)]
@@ -132,7 +133,7 @@ impl FetchPrice for KrakenFetcher {
 			AssetName::DOT => "https://api.kraken.com/0/public/OHLC?pair=DOTUSD&interval=1",
 			AssetName::USDC => "https://api.kraken.com/0/public/OHLC?pair=USDCUSD&interval=1",
 			AssetName::PLMC => "",
-			AssetName::WETH => "",
+			AssetName::WETH => "https://api.kraken.com/0/public/OHLC?pair=XETHZUSD&interval=1",
 		}
 	}
 }
@@ -160,6 +161,7 @@ impl FetchPrice for BitFinexFetcher {
 			AssetName::USDT => "https://api-pub.bitfinex.com/v2/candles/trade%3A1m%3AtUSTUSD/hist?limit=15",
 			AssetName::DOT => "https://api-pub.bitfinex.com/v2/candles/trade%3A1m%3AtDOTUSD/hist?limit=15",
 			AssetName::USDC => "https://api-pub.bitfinex.com/v2/candles/trade%3A1m%3AtUDCUSD/hist?limit=15",
+			AssetName::WETH => "https://api-pub.bitfinex.com/v2/candles/trade%3A1m%3AtETHUSD/hist?limit=15",
 			_ => "",
 		}
 	}
@@ -226,7 +228,7 @@ impl FetchPrice for BitStampFetcher {
 			AssetName::DOT => "https://www.bitstamp.net/api/v2/ohlc/dotusd/?step=60&limit=15",
 			AssetName::USDC => "https://www.bitstamp.net/api/v2/ohlc/usdcusd/?step=60&limit=15",
 			AssetName::PLMC => "",
-			AssetName::WETH => "",
+			AssetName::WETH => "https://www.bitstamp.net/api/v2/ohlc/ethusd/?step=60&limit=15",
 		}
 	}
 }
@@ -257,6 +259,7 @@ impl FetchPrice for CoinbaseFetcher {
 		match name {
 			AssetName::USDT => "https://api.exchange.coinbase.com/products/USDT-USD/candles?granularity=60",
 			AssetName::DOT => "https://api.exchange.coinbase.com/products/DOT-USD/candles?granularity=60",
+			AssetName::WETH => "https://api.exchange.coinbase.com/products/ETH-USD/candles?granularity=60",
 			_ => "",
 		}
 	}

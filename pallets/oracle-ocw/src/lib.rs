@@ -125,6 +125,8 @@ pub mod pallet {
 				let account = public.clone().into_account();
 				if <T as pallet::Config>::Members::contains(&account) {
 					if let Ok(generic_public) = TryInto::<GenericPublicOf<T>>::try_into(public) {
+						log::trace!(target: LOG_TARGET, "OCW is a member!");
+
 						return Some(generic_public.into());
 					}
 				}
@@ -132,6 +134,7 @@ pub mod pallet {
 			});
 
 			if let Some(_authority_key) = maybe_key {
+				log::trace!(target: LOG_TARGET, "Executing Logic...");
 				let mut lock = StorageLock::<Time>::with_deadline(
 					b"oracle_ocw::lock",
 					Duration::from_millis(LOCK_TIMEOUT_EXPIRATION),
@@ -140,6 +143,8 @@ pub mod pallet {
 				// We try to acquire the lock here. If failed, we know another ocw
 				// is executing at the moment and exit this ocw.
 				if let Ok(_guard) = lock.try_lock() {
+					log::trace!(target: LOG_TARGET, "Acquired Lock");
+
 					let val = StorageValueRef::persistent(b"oracle_ocw::last_send");
 					let last_send_for_assets_result: Result<
 						Option<BTreeMap<AssetName, BlockNumberFor<T>>>,
@@ -152,27 +157,42 @@ pub mod pallet {
 							(AssetName::USDC, Zero::zero()),
 							(AssetName::DOT, Zero::zero()),
 							(AssetName::PLMC, Zero::zero()),
+							(AssetName::WETH, Zero::zero()),
 						]),
 					};
+					log::trace!(target: LOG_TARGET, "Last send for assets: {:?}", last_send_for_assets);
 
 					// Fix for missing PLMC in last_send_for_assets for old nodes, that did not have PLMC in the list.
 					last_send_for_assets.entry(AssetName::PLMC).or_insert_with(Zero::zero);
+					// Fix for missing WETH in last_send_for_assets for old nodes, that did not have PLMC in the list.
+					last_send_for_assets.entry(AssetName::WETH).or_insert_with(Zero::zero);
 
 					let assets = last_send_for_assets
 						.iter()
 						.filter_map(|(asset_name, last_send)| {
+							// The interval's window where we can submit new prices
 							let window = T::FetchWindow::get();
+
+							// Position of the current block inside the fetch interval
 							let remainder = block_number.rem(T::FetchInterval::get());
-							if remainder >= BlockNumberFor::<T>::zero() &&
-								remainder < window && last_send < &block_number.saturating_sub(window)
-							{
-								return Some(*asset_name);
+
+							// Condition 1: Is the current block inside the submission window?
+							let is_in_window = remainder < window;
+
+							// Condition 2: Has enough time passed since the asset's last send?
+							let is_outside_last_window = last_send <= &block_number.saturating_sub(window);
+
+							// Include the asset if both conditions are met
+							if is_in_window && is_outside_last_window {
+								Some(*asset_name)
+							} else {
+								None
 							}
-							None
 						})
-						.collect::<Vec<AssetName>>();
+							.collect::<Vec<AssetName>>();
 
 					if assets.is_empty() {
+						log::trace!(target: LOG_TARGET, "Assets to fetch list is empty :c");
 						return;
 					}
 
