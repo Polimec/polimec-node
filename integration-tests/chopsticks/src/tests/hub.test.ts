@@ -1,36 +1,50 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, test } from 'bun:test';
-import { ChainTestManager } from '@/chainManager';
-import { INITIAL_BALANCES } from '@/constants';
+import { TRANSFER_AMOUNTS } from '@/constants';
+import { createChainManager } from '@/managers/Factory';
 import { ChainSetup } from '@/setup';
-import { type TransferDirection, TransferTest } from '@/transfers';
+import { HubToPolimecTransfer } from '@/transfers/HubToPolimec';
 import { Accounts, Assets, Chains } from '@/types';
 
-describe('Polkadot Hub -> Polimec Asset Transfer Tests', () => {
-  const chainManager = new ChainTestManager();
+describe('Polkadot Hub -> Polimec Transfer Tests', () => {
+  const sourceManager = createChainManager(Chains.PolkadotHub);
+  const destManager = createChainManager(Chains.Polimec);
+  const transferTest = new HubToPolimecTransfer(sourceManager, destManager);
   const chainSetup = new ChainSetup();
-  const transferTest = new TransferTest(chainManager);
-
-  const direction: TransferDirection = {
-    source: Chains.PolkadotHub,
-    destination: Chains.Polimec,
-  };
 
   beforeAll(async () => await chainSetup.initialize());
-
-  beforeEach(() => chainManager.connect());
-
+  beforeEach(() => {
+    sourceManager.connect();
+    destManager.connect();
+  });
   afterAll(async () => await chainSetup.cleanup());
 
-  test('Send DOT to Polimec', () => transferTest.testNativeTransfer(INITIAL_BALANCES.DOT));
+  test('Send DOT to Polimec', () =>
+    transferTest.testTransfer({
+      amount: TRANSFER_AMOUNTS.NATIVE,
+      account: Accounts.ALICE,
+      asset: Assets.DOT,
+    }));
 
   test('Send USDt to Polimec', () =>
-    transferTest.testAssetTransfer(Assets.USDT, direction, Accounts.ALICE, INITIAL_BALANCES.USDT));
+    transferTest.testTransfer({
+      amount: TRANSFER_AMOUNTS.TOKENS,
+      account: Accounts.ALICE,
+      asset: Assets.USDT,
+    }));
 
   test('Send USDC to Polimec', () =>
-    transferTest.testAssetTransfer(Assets.USDC, direction, Accounts.ALICE, INITIAL_BALANCES.USDC));
+    transferTest.testTransfer({
+      amount: TRANSFER_AMOUNTS.TOKENS,
+      account: Accounts.ALICE,
+      asset: Assets.USDC,
+    }));
 
   test('Send Unknown Asset to Polimec', () =>
     expect(() =>
-      transferTest.testAssetTransfer(Assets.UNKNOWN, direction, Accounts.ALICE),
+      transferTest.testTransfer({
+        amount: TRANSFER_AMOUNTS.TOKENS,
+        account: Accounts.ALICE,
+        asset: Assets.UNKNOWN,
+      }),
     ).toThrow());
 });

@@ -1,34 +1,42 @@
 import { afterAll, beforeAll, beforeEach, describe, test } from 'bun:test';
-import { ChainTestManager } from '@/chainManager';
-import { INITIAL_BALANCES } from '@/constants';
+import { TRANSFER_AMOUNTS } from '@/constants';
+import { createChainManager } from '@/managers/Factory';
 import { polimec_storage } from '@/polimec';
 import { ChainSetup } from '@/setup';
-import { type TransferDirection, TransferTest } from '@/transfers';
+import { PolimecToHubTransfer } from '@/transfers/PolimecToHub';
 import { Accounts, Assets, Chains } from '@/types';
 
-describe('Polimec -> Polkadot Hub Transfer Tests', () => {
-  const chainManager = new ChainTestManager();
+describe('Polimec -> Hub Transfer Tests', () => {
+  const sourceManager = createChainManager(Chains.Polimec);
+  const destManager = createChainManager(Chains.PolkadotHub);
+  const transferTest = new PolimecToHubTransfer(sourceManager, destManager);
   const chainSetup = new ChainSetup();
-  const transferTest = new TransferTest(chainManager);
 
-  const direction: TransferDirection = {
-    source: Chains.Polimec,
-    destination: Chains.PolkadotHub,
-  };
-
-  // Note: Here we assume that the Polimec Sovereign Account on Polkadot Hub has enough DOT/USDC/USDt.
   beforeAll(async () => await chainSetup.initialize(polimec_storage));
-
-  beforeEach(() => chainManager.connect());
-
+  beforeEach(() => {
+    sourceManager.connect();
+    destManager.connect();
+  });
   afterAll(async () => await chainSetup.cleanup());
 
-  test('Send USDC to Polkadot Hub', () =>
-    transferTest.testAssetTransfer(Assets.USDC, direction, Accounts.BOB, INITIAL_BALANCES.USDC));
+  test('Send USDC to Hub', () =>
+    transferTest.testTransfer({
+      amount: TRANSFER_AMOUNTS.TOKENS,
+      account: Accounts.BOB,
+      asset: Assets.USDC,
+    }));
 
-  test('Send USDt to Polkadot Hub', () =>
-    transferTest.testAssetTransfer(Assets.USDT, direction, Accounts.BOB, INITIAL_BALANCES.USDT));
+  test('Send USDt to Hub', () =>
+    transferTest.testTransfer({
+      amount: TRANSFER_AMOUNTS.TOKENS,
+      account: Accounts.BOB,
+      asset: Assets.USDT,
+    }));
 
-  test('Send DOT to Polkadot Hub', () =>
-    transferTest.testAssetTransfer(Assets.DOT, direction, Accounts.BOB, INITIAL_BALANCES.DOT));
+  test('Send DOT to Hub', () =>
+    transferTest.testTransfer({
+      amount: TRANSFER_AMOUNTS.NATIVE,
+      account: Accounts.BOB,
+      asset: Assets.DOT,
+    }));
 });

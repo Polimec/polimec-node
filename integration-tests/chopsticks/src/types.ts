@@ -38,3 +38,13 @@ export type ChainClient<T extends Chains> = {
   api: TypedApi<ChainToDefinition[T]>;
   client: PolkadotClient;
 };
+
+export interface TransferResult {
+  sourceBlock: number;
+  destBlock: number;
+}
+
+export interface BalanceCheck {
+  source: bigint;
+  destination: bigint;
+}
