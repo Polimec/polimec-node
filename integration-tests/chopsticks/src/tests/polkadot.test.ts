@@ -1,14 +1,19 @@
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test } from 'bun:test';
+import { afterAll, beforeAll, beforeEach, describe, test } from 'bun:test';
 import { ChainTestManager } from '@/chainManager';
 import { INITIAL_BALANCES } from '@/constants';
 import { ChainSetup } from '@/setup';
-import { TransferTest } from '@/transfers';
-import { Assets } from '@/types';
+import { type TransferDirection, TransferTest } from '@/transfers';
+import { Accounts, Chains } from '@/types';
 
 describe('Polkadot -> Polimec Transfer Tests', () => {
   const chainManager = new ChainTestManager();
   const chainSetup = new ChainSetup();
   const transferTest = new TransferTest(chainManager);
+
+  const direction: TransferDirection = {
+    source: Chains.Polkadot,
+    destination: Chains.Polimec,
+  };
 
   beforeAll(async () => await chainSetup.initialize());
 
@@ -16,7 +21,6 @@ describe('Polkadot -> Polimec Transfer Tests', () => {
 
   afterAll(async () => await chainSetup.cleanup());
 
-  // TODO: Add:
-  // [] Polkadot: Send DOT to Polimec, via Polkadot Hub
-  // Double check the current XCM Emulator tests
+  test('Send DOT to Polimec', () =>
+    transferTest.testNativeTransfer(INITIAL_BALANCES.DOT, Accounts.ALICE, direction));
 });

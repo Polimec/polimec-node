@@ -1,4 +1,4 @@
-import { afterAll, afterEach, beforeAll, beforeEach, describe, test } from 'bun:test';
+import { afterAll, beforeAll, beforeEach, describe, test } from 'bun:test';
 import { ChainTestManager } from '@/chainManager';
 import { INITIAL_BALANCES } from '@/constants';
 import { polimec_storage } from '@/polimec';
@@ -10,11 +10,13 @@ describe('Polimec -> Polkadot Hub Transfer Tests', () => {
   const chainManager = new ChainTestManager();
   const chainSetup = new ChainSetup();
   const transferTest = new TransferTest(chainManager);
+
   const direction: TransferDirection = {
     source: Chains.Polimec,
     destination: Chains.PolkadotHub,
   };
 
+  // Note: Here we assume that the Polimec Sovereign Account on Polkadot Hub has enough DOT/USDC/USDt.
   beforeAll(async () => await chainSetup.initialize(polimec_storage));
 
   beforeEach(() => chainManager.connect());

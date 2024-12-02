@@ -11,8 +11,6 @@ export enum Chains {
   Polkadot = 'ws://localhost:8002',
 }
 
-export type Parachain = Chains.Polimec | Chains.PolkadotHub;
-
 export const ParaId = {
   [Chains.Polimec]: 3344,
   [Chains.PolkadotHub]: 1000,

@@ -1,6 +1,8 @@
 import { pah, polimec, polkadot } from '@polkadot-api/descriptors';
 import { sr25519CreateDerive } from '@polkadot-labs/hdkd';
 import { DEV_PHRASE, entropyToMiniSecret, mnemonicToEntropy } from '@polkadot-labs/hdkd-helpers';
+// TODO: Find a way to encode the address using PAPI.
+import { encodeAddress } from '@polkadot/keyring';
 import { type PolkadotSigner, type TypedApi, createClient } from 'polkadot-api';
 import { getPolkadotSigner } from 'polkadot-api/signer';
 import { getWsProvider } from 'polkadot-api/ws-provider/web';
@@ -11,7 +13,6 @@ import {
   type ChainClient,
   type ChainToDefinition,
   Chains,
-  type Parachain,
 } from './types';
 
 export class ChainTestManager {
@@ -89,18 +90,30 @@ export class ChainTestManager {
     );
   };
 
-  getMessageQueueEvents = async (chain: Parachain) => {
+  getMessageQueueEvents = (chain: Chains) => {
     const api = this.getApi(chain);
     return api.event.MessageQueue.Processed.pull();
   };
 
-  getExtrinsicFee = async (chain: Parachain) => {
+  getExtrinsicFee = async (chain: Chains, caller = Accounts.ALICE) => {
     const api = this.getApi(chain);
     const event = await api.event.TransactionPayment.TransactionFeePaid.pull();
-    return event[0].payload.actual_fee;
+    const encodedCaller = await this.formatAccount(chain, caller);
+    // Find the event that payload.who === Alice
+    const feeEvent = event.find((e) => e.payload.who === encodedCaller);
+    if (!feeEvent) {
+      throw new Error('Fee event not found');
+    }
+    return feeEvent.payload.actual_fee;
   };
 
-  getXcmFee = async (chain: Parachain) => {
+  getXcmFee = async (chain: Chains) => {
+    if (chain === Chains.Polkadot) {
+      const api = this.getApi(chain);
+      // TODO: Fix this event type.
+      const event = await api.event.XcmPallet.FeesPaid.pull();
+      return event[0].payload.fees[0].fun.value as bigint;
+    }
     const api = this.getApi(chain);
     const event = await api.event.PolkadotXcm.FeesPaid.pull();
     return event[0].payload.fees[0].fun.value as bigint;
@@ -124,7 +137,16 @@ export class ChainTestManager {
     return blockNumber;
   }
 
-  async getAssetsBalance(chain: Parachain, account: Accounts, asset: Assets) {
+  async formatAccount(chain: Chains, account: Accounts) {
+    const api = this.getApi(chain);
+    const prefix = await api.constants.System.SS58Prefix();
+    return encodeAddress(account, prefix);
+  }
+
+  async getAssetsBalance(chain: Chains, account: Accounts, asset: Assets) {
+    if (chain === Chains.Polkadot) {
+      throw new Error('The Relay Chain does not support assets');
+    }
     if (chain === Chains.Polimec) {
       const api = this.getApi(chain);
       const assetBalance = await api.query.ForeignAssets.Account.getValue(asset, account);

@@ -1,4 +1,4 @@
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test } from 'bun:test';
+import { afterAll, beforeAll, beforeEach, describe, expect, test } from 'bun:test';
 import { ChainTestManager } from '@/chainManager';
 import { INITIAL_BALANCES } from '@/constants';
 import { ChainSetup } from '@/setup';
@@ -9,6 +9,7 @@ describe('Polkadot Hub -> Polimec Asset Transfer Tests', () => {
   const chainManager = new ChainTestManager();
   const chainSetup = new ChainSetup();
   const transferTest = new TransferTest(chainManager);
+
   const direction: TransferDirection = {
     source: Chains.PolkadotHub,
     destination: Chains.Polimec,
