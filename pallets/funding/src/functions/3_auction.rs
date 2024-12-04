@@ -164,7 +164,7 @@ impl<T: Config> Pallet<T> {
 
 		Ok(PostDispatchInfo {
 			actual_weight: Some(WeightInfoOf::<T>::bid(existing_bids_amount, perform_bid_calls)),
-			pays_fee: Pays::Yes,
+			pays_fee: Pays::No,
 		})
 	}
 

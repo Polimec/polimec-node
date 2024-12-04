@@ -5,7 +5,7 @@ use xcm::v4::MaxPalletNameLen;
 // Offchain migration functions
 impl<T: Config> Pallet<T> {
 	#[transactional]
-	pub fn do_start_offchain_migration(project_id: ProjectId, caller: AccountIdOf<T>) -> DispatchResult {
+	pub fn do_start_offchain_migration(project_id: ProjectId, caller: AccountIdOf<T>) -> DispatchResultWithPostInfo {
 		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 
 		ensure!(project_details.issuer_account == caller, Error::<T>::NotIssuer);
@@ -21,8 +21,10 @@ impl<T: Config> Pallet<T> {
 			false,
 		)?;
 
-		Ok(())
-	}
+		Ok(PostDispatchInfo{
+			actual_weight: None,
+			pays_fee: Pays::No,
+		})	}
 
 	#[transactional]
 	pub fn do_confirm_offchain_migration(
@@ -50,7 +52,7 @@ impl<T: Config> Pallet<T> {
 		caller: &AccountIdOf<T>,
 		project_id: ProjectId,
 		para_id: ParaId,
-	) -> DispatchResult {
+	) -> DispatchResultWithPostInfo {
 		// * Get variables *
 		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 
@@ -83,8 +85,10 @@ impl<T: Config> Pallet<T> {
 			false,
 		)?;
 
-		Ok(())
-	}
+		Ok(PostDispatchInfo{
+			actual_weight: None,
+			pays_fee: Pays::No,
+		})	}
 
 	/// Handle the channel open request from the relay on behalf of a parachain.
 	/// If the parachain id belongs to a funded project with the same project id, then send an acceptance message and a request for a
@@ -206,7 +210,7 @@ impl<T: Config> Pallet<T> {
 	/// After the bidirectional HRMP channels are established, check that the project chain has the Polimec receiver pallet,
 	/// and has minted the amount of CTs sold to the Polimec sovereign account.
 	#[transactional]
-	pub fn do_start_pallet_migration_readiness_check(caller: &AccountIdOf<T>, project_id: ProjectId) -> DispatchResult {
+	pub fn do_start_pallet_migration_readiness_check(caller: &AccountIdOf<T>, project_id: ProjectId) -> DispatchResultWithPostInfo {
 		// * Get variables *
 		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 		let Some(MigrationType::Pallet(ref mut migration_info)) = project_details.migration_type else {
@@ -298,8 +302,10 @@ impl<T: Config> Pallet<T> {
 		// * Emit events *
 		Self::deposit_event(Event::<T>::MigrationReadinessCheckStarted { project_id, caller: caller.clone() });
 
-		Ok(())
-	}
+		Ok(PostDispatchInfo{
+			actual_weight: None,
+			pays_fee: Pays::No,
+		})	}
 
 	/// Handle the migration readiness check response from the project chain.
 	#[transactional]
