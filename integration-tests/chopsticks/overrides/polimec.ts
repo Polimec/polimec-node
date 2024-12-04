@@ -2,7 +2,7 @@ import { INITIAL_BALANCES } from '@/constants';
 import { Accounts, Assets } from '@/types';
 
 export const POLIMEC_WASM =
-  '../../target/release/wbuild/polimec-runtime/polimec_runtime.compact.compressed.wasm' as const;
+  '../../target/release/wbuild/polimec-runtime/polimec_runtime.compact.compressed.wasm';
 
 export const polimec_storage = {
   System: {

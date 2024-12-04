@@ -3,7 +3,7 @@
   "descriptorPath": ".papi/descriptors",
   "entries": {
     "polimec": {
-      "wsUrl": "ws://127.0.0.1:8001",
+      "wsUrl": "ws://127.0.0.1:8000",
       "metadata": ".papi/metadata/polimec.scale"
     },
     "polkadot": {
