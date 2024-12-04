@@ -7,6 +7,7 @@ members = [
     "macros",
     "macros/tests",
     "polimec-common/*",
+    "debug-executor",
 ]
 default-members = ["nodes/*", "pallets/*"]
 resolver = "2"
@@ -248,3 +249,6 @@ cumulus-pallet-session-benchmarking = { version = "16.0.0", default-features = f
 polimec-runtime = { path = "runtimes/polimec" }
 rococo-runtime-constants = { version = "14.0.0" }
 rococo-runtime = { version = "14.0.0" }
+
+[patch.crates-io]
+xcm-executor = { path = "./debug-executor", package = "staging-xcm-executor", default-features = false }

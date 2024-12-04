@@ -1,5 +1,26 @@
 import { INITIAL_BALANCES } from '@/constants';
-import { Accounts, Assets } from '@/types';
+import { Accounts, Asset } from '@/types';
+
+
+const weth_location = {
+  parents: 2,
+  interior: {
+    x2: [
+      {
+        globalConsensus: {
+          ethereum: {
+            chainId: 1n
+          }
+        }
+      },
+      {
+        accountKey20: {
+          key: "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2"
+        }
+      }
+    ]
+  }
+}
 
 export const polkadot_hub_storage = {
   System: {
@@ -18,24 +39,25 @@ export const polkadot_hub_storage = {
   Assets: {
     Account: [
       [
-        [Assets.USDT, Accounts.ALICE],
+        [Asset.USDT, Accounts.ALICE],
         {
           balance: INITIAL_BALANCES.USDT,
         },
       ],
       [
-        [Assets.USDC, Accounts.ALICE],
+        [Asset.USDC, Accounts.ALICE],
         {
           balance: INITIAL_BALANCES.USDC,
         },
       ],
-      [
-        [Assets.UNKNOWN, Accounts.ALICE],
-        {
-          balance: INITIAL_BALANCES.USDT,
-        },
-      ],
     ],
   },
-  // TODO: Add the foreignAssets storage to give to ALICE WETH = INITIAL_BALANCES.WETH
+  ForeignAssets: {
+    Account: [
+      [[weth_location, Accounts.ALICE], { balance: 10000000000000 }]
+    ],
+    Asset: [
+      [[weth_location], { supply: 10000000000000 }]
+    ]
+  }
 } as const;

@@ -11,7 +11,7 @@ export const INITIAL_BALANCES = {
 export const TRANSFER_AMOUNTS = {
   TOKENS: 2n * 10n ** 6n, // e.g. 2 USDC
   NATIVE: 2n * 10n ** 10n, // e.g. 2 DOT
-  BRIDGED: 1n * 10n ** 17n, // e.g. 0.1 WETH
+  BRIDGED: 1n * 10n ** 10n, // e.g. 0.1 WETH
 } as const;
 
 export const DERIVE_PATHS = {

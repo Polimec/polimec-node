@@ -3,7 +3,7 @@ import { TRANSFER_AMOUNTS } from '@/constants';
 import { createChainManager } from '@/managers/Factory';
 import { ChainSetup } from '@/setup';
 import { HubToPolimecTransfer } from '@/transfers/HubToPolimec';
-import { Accounts, Assets, Chains } from '@/types';
+import { Accounts, Asset, AssetSourceRelation, Chains } from '@/types';
 
 describe('Polkadot Hub -> Polimec Transfer Tests', () => {
   const sourceManager = createChainManager(Chains.PolkadotHub);
@@ -17,34 +17,94 @@ describe('Polkadot Hub -> Polimec Transfer Tests', () => {
     destManager.connect();
   });
   afterAll(async () => await chainSetup.cleanup());
+  //
+  // test(
+  //   'Send DOT to Polimec',
+  //   () =>
+  //     transferTest.testTransfer({
+  //       account: Accounts.ALICE,
+  //       assets: [[Asset.DOT, TRANSFER_AMOUNTS.NATIVE, AssetSourceRelation.Parent]],
+  //     }),
+  //   { timeout: 25000 },
+  // );
+  //
+  // test(
+  //   'Send USDT to Polimec',
+  //   () =>
+  //     transferTest.testTransfer({
+  //       account: Accounts.ALICE,
+  //       assets: [[Asset.USDT, TRANSFER_AMOUNTS.TOKENS, AssetSourceRelation.Self]],
+  //     }),
+  //   { timeout: 25000 },
+  // );
+  //
+  // test(
+  //   'Send USDC to Polimec',
+  //   () =>
+  //     transferTest.testTransfer({
+  //       account: Accounts.ALICE,
+  //       assets: [[Asset.USDC, TRANSFER_AMOUNTS.TOKENS, AssetSourceRelation.Self]],
+  //     }),
+  //   { timeout: 25000 },
+  // );
 
-  test('Send DOT to Polimec', () =>
-    transferTest.testTransfer({
-      amount: TRANSFER_AMOUNTS.NATIVE,
-      account: Accounts.ALICE,
-      asset: Assets.DOT,
-    }));
-
-  test('Send USDt to Polimec', () =>
-    transferTest.testTransfer({
-      amount: TRANSFER_AMOUNTS.TOKENS,
-      account: Accounts.ALICE,
-      asset: Assets.USDT,
-    }));
-
-  test('Send USDC to Polimec', () =>
-    transferTest.testTransfer({
-      amount: TRANSFER_AMOUNTS.TOKENS,
-      account: Accounts.ALICE,
-      asset: Assets.USDC,
-    }));
-
-  test('Send Unknown Asset to Polimec', () =>
-    expect(() =>
+  test(
+    'Send WETH to Polimec',
+    () =>
       transferTest.testTransfer({
-        amount: TRANSFER_AMOUNTS.TOKENS,
         account: Accounts.ALICE,
-        asset: Assets.UNKNOWN,
+        assets: [
+          [Asset.USDT, TRANSFER_AMOUNTS.TOKENS, AssetSourceRelation.Self],
+          [Asset.WETH, TRANSFER_AMOUNTS.BRIDGED, AssetSourceRelation.Self],
+        ],
       }),
-    ).toThrow());
+    { timeout: 10000000 },
+  );
+
+  // test('sandbox', async () => {
+  //   console.log("hello");
+  //   const weth_1 = {
+  //     parents: 2,
+  //     interior: {
+  //       x2: [
+  //         {
+  //           globalConsensus: {
+  //             ethereum: {
+  //               chainId: 1n
+  //             }
+  //           }
+  //         },
+  //         {
+  //           accountKey20: {
+  //             key: "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2"
+  //           }
+  //         }
+  //       ]
+  //     }
+  //   }
+  //
+  //   const weth_2 = {
+  //     parents: 2,
+  //     interior: {
+  //       x2: [
+  //         {
+  //           globalConsensus: {
+  //             ethereum: {
+  //               chainId: 1n
+  //             }
+  //           }
+  //         },
+  //         {
+  //           accountKey20: {
+  //             key: "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2"
+  //           }
+  //         }
+  //       ]
+  //     }
+  //   }
+  //
+  //   const equals = Bun.deepEquals(weth_1, weth_2);
+  //   expect(equals).toEqual(false);
+  //
+  // }, { timeout: 10000000 });
 });

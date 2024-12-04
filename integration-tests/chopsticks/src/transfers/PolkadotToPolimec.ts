@@ -1,15 +1,11 @@
 import { expect } from 'bun:test';
 import type { PolimecManager } from '@/managers/PolimecManager';
 import type { PolkadotManager } from '@/managers/PolkadotManager';
-import { Assets, Chains, type PolimecBalanceCheck } from '@/types';
-import { createMultiHopTransferData } from '@/utils';
+import { Asset, Chains, type PolimecBalanceCheck } from '@/types';
+import { createDotMultiHopTransferData } from '@/utils';
 import { type BaseTransferOptions, BaseTransferTest } from './BaseTransfer';
 
-interface PolkadotTransferOptions extends BaseTransferOptions {
-  asset: Assets.DOT;
-}
-
-export class PolkadotToPolimecTransfer extends BaseTransferTest<PolkadotTransferOptions> {
+export class PolkadotToPolimecTransfer extends BaseTransferTest<BaseTransferOptions> {
   constructor(
     protected override sourceManager: PolkadotManager,
     protected override destManager: PolimecManager,
@@ -17,17 +13,14 @@ export class PolkadotToPolimecTransfer extends BaseTransferTest<PolkadotTransfer
     super(sourceManager, destManager);
   }
 
-  async executeTransfer({ amount, account }: PolkadotTransferOptions) {
+  async executeTransfer({ account, assets }: BaseTransferOptions) {
     const [sourceBlock, destBlock] = await Promise.all([
       this.sourceManager.getBlockNumber(),
       this.destManager.getBlockNumber(),
     ]);
 
-    const data = createMultiHopTransferData({
-      amount,
-      toChain: Chains.Polimec,
-      recv: account,
-    });
+    const amount = assets[0][1];
+    const data = createDotMultiHopTransferData(amount);
 
     const api = this.sourceManager.getApi(Chains.Polkadot);
     const res = await api.tx.XcmPallet.transfer_assets_using_type_and_then(data).signAndSubmit(
@@ -40,13 +33,13 @@ export class PolkadotToPolimecTransfer extends BaseTransferTest<PolkadotTransfer
 
   async getBalances({
     account,
-  }: Omit<PolkadotTransferOptions, 'amount'>): Promise<{ balances: PolimecBalanceCheck }> {
+  }: Omit<BaseTransferOptions, 'amount'>): Promise<{ balances: PolimecBalanceCheck }> {
     const treasuryAccount = this.destManager.getTreasuryAccount();
     return {
       balances: {
-        source: await this.sourceManager.getNativeBalanceOf(account),
-        destination: await this.destManager.getAssetBalanceOf(account, Assets.DOT),
-        treasury: await this.destManager.getAssetBalanceOf(treasuryAccount, Assets.DOT),
+        source: await this.sourceManager.getAssetBalanceOf(account, Asset.DOT),
+        destination: await this.destManager.getAssetBalanceOf(account, Asset.DOT),
+        treasury: await this.destManager.getAssetBalanceOf(treasuryAccount, Asset.DOT),
       },
     };
   }

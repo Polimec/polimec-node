@@ -1176,29 +1176,38 @@ impl pallet_dispenser::Config for Runtime {
 	type WeightInfo = weights::pallet_dispenser::WeightInfo<Runtime>;
 	type WhitelistedPolicy = DispenserWhitelistedPolicy;
 }
-pub struct PLMCToFundingAssetBalance;
-impl ConversionToAssetBalance<Balance, Location, Balance> for PLMCToFundingAssetBalance {
+pub struct PLMCToAssetBalance;
+impl ConversionToAssetBalance<Balance, Location, Balance> for PLMCToAssetBalance {
 	type Error = InvalidTransaction;
 
 	fn to_asset_balance(plmc_balance: Balance, asset_id: Location) -> Result<Balance, Self::Error> {
+		if asset_id == Location::here() {
+			return Ok(plmc_balance);
+		}
+
 		let plmc_price =
 			<PriceProviderOf<Runtime>>::get_decimals_aware_price(Location::here(), USD_DECIMALS, PLMC_DECIMALS)
 				.ok_or(InvalidTransaction::Payment)?;
+
 		let funding_asset_decimals =
 			<ForeignAssets as fungibles::metadata::Inspect<AccountId>>::decimals(asset_id.clone());
+
 		let funding_asset_price =
 			<PriceProviderOf<Runtime>>::get_decimals_aware_price(asset_id, USD_DECIMALS, funding_asset_decimals)
 				.ok_or(InvalidTransaction::Payment)?;
+
 		let usd_balance = plmc_price.saturating_mul_int(plmc_balance);
+
 		let funding_asset_balance =
 			funding_asset_price.reciprocal().ok_or(InvalidTransaction::Payment)?.saturating_mul_int(usd_balance);
+
 		Ok(funding_asset_balance)
 	}
 }
 impl pallet_asset_tx_payment::Config for Runtime {
 	type Fungibles = ForeignAssets;
 	type OnChargeAssetTransaction = TxFeeFungiblesAdapter<
-		PLMCToFundingAssetBalance,
+		PLMCToAssetBalance,
 		CreditFungiblesToAccount<AccountId, ForeignAssets, BlockchainOperationTreasury>,
 		AssetsToBlockAuthor<Runtime, ForeignAssetsInstance>,
 	>;
@@ -1716,9 +1725,10 @@ impl_runtime_apis! {
 			let location: Location = xcm::v4::AssetId::try_from(asset).map_err(|_| XcmPaymentApiError::VersionedConversionFailed)?.0;
 			let native_fee = TransactionPayment::weight_to_fee(weight);
 			if location == Location::here() {
+				log::info!("Native fee in XcmPaymentApi: {:?}", native_fee);
 				return Ok(native_fee)
 			}
-			PLMCToFundingAssetBalance::to_asset_balance(native_fee, location).map_err(|_| XcmPaymentApiError::AssetNotFound)
+			PLMCToAssetBalance::to_asset_balance(native_fee, location).map_err(|_| XcmPaymentApiError::AssetNotFound)
 
 		}
 

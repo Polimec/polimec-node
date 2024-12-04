@@ -45,6 +45,9 @@ export class ChainSetup {
     ]);
 
     console.log('✅ HRMP channels created');
+
+    // Needed to execute storage migrations within the new WASM before running tests.
+    await this.polimec?.newBlock();
   }
 
   async cleanup() {
@@ -80,6 +83,7 @@ export class ChainSetup {
       'wasm-override': POLIMEC_WASM,
       'import-storage': polimec_storage,
       'build-block-mode': BuildBlockMode.Instant,
+      'runtime-log-level': 5,
     });
   }
 
@@ -89,6 +93,7 @@ export class ChainSetup {
       port: 8001,
       'import-storage': polkadot_hub_storage,
       'build-block-mode': BuildBlockMode.Instant,
+      'runtime-log-level': 5,
     });
   }
 

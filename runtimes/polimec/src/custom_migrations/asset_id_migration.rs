@@ -115,12 +115,12 @@ impl OnRuntimeUpgrade for FromOldAssetIdMigration {
 
 	fn on_runtime_upgrade() -> frame_support::weights::Weight {
 		let version = Funding::on_chain_storage_version();
-		log::info!("funding version: {:?}", version);
+		let runtime_version = <Runtime as frame_system::Config>::Version::get();
 		if version != 5 {
-			log::info!("funding version is not 5");
-			return frame_support::weights::Weight::zero();
+			log::info!("AssetId Migration can be removed");
+			return <Runtime as frame_system::Config>::DbWeight::get().reads(1)
 		}
-		let runtime_version = Runtime::version();
+		log::info!("Running AssetId Migration...");
 		let mut items = 0;
 		if runtime_version.spec_version == 1_000_000 {
 			let id_map = BTreeMap::from([
@@ -133,7 +133,6 @@ impl OnRuntimeUpgrade for FromOldAssetIdMigration {
 			let old_account_iterator = pallet_assets_storage_items::old_types::Account::iter().collect_vec();
 			for (old_asset_id, account, account_info) in old_account_iterator {
 				items += 1;
-				log::info!("old_account item {:?}", items);
 				pallet_assets_storage_items::new_types::Account::insert(
 					id_map.get(&old_asset_id).unwrap(),
 					account.clone(),
@@ -145,7 +144,6 @@ impl OnRuntimeUpgrade for FromOldAssetIdMigration {
 			let old_asset_iterator = pallet_assets_storage_items::old_types::Asset::iter().collect_vec();
 			for (old_asset_id, asset_info) in old_asset_iterator {
 				items += 1;
-				log::info!("old_asset item {:?}", items);
 				pallet_assets_storage_items::new_types::Asset::insert(id_map.get(&old_asset_id).unwrap(), asset_info);
 				pallet_assets_storage_items::old_types::Asset::remove(old_asset_id);
 			}
@@ -153,7 +151,6 @@ impl OnRuntimeUpgrade for FromOldAssetIdMigration {
 			let old_approvals_iterator = pallet_assets_storage_items::old_types::Approvals::iter().collect_vec();
 			for ((old_asset_id, owner, delegate), approval) in old_approvals_iterator {
 				items += 1;
-				log::info!("old_approvals item {:?}", items);
 				pallet_assets_storage_items::new_types::Approvals::insert(
 					(id_map.get(&old_asset_id).unwrap(), owner.clone(), delegate.clone()),
 					approval,
@@ -189,6 +186,8 @@ impl OnRuntimeUpgrade for FromOldAssetIdMigration {
 				orml_oracle_storage_items::old_types::Values::remove(old_asset_id);
 			}
 		}
+
+		log::info!("Total items migrated: {:?}", items);
 
 		<Runtime as frame_system::Config>::DbWeight::get().reads_writes(items, items)
 	}

@@ -18,6 +18,7 @@
   "dependencies": {
     "@polkadot-api/descriptors": "file:.papi/descriptors",
     "@polkadot/keyring": "13.2.3",
+    "lodash": "^4.17.21",
     "polkadot-api": "^1.7.7"
   }
 }
