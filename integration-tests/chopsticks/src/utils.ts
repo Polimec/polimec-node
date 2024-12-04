@@ -51,11 +51,6 @@ const custom_xcm_on_dest = (): XcmVersionedXcm => {
   ]);
 };
 
-/**
- * Helper to create XCM assets.
- * @param amount - The asset amount as bigint.
- * @param assetIndex - The asset id.
- */
 const createHubAssets = (amount: bigint, assetIndex?: bigint): XcmVersionedAssets =>
   XcmVersionedAssets.V3([
     {
@@ -109,11 +104,6 @@ interface TransferDataParams {
   isMultiHop?: boolean;
 }
 
-/**
- * Creates transfer data for XCM calls.
- * @param amount - The amount to transfer as bigint.
- * @param assetIndex - Optional asset index for multi-assets.
- */
 export const createTransferData = ({ amount, toChain, assetIndex, recv }: TransferDataParams) => {
   if (toChain === Chains.Polkadot) {
     throw new Error('Invalid chain');

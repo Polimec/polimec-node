@@ -30,6 +30,10 @@ export class PolimecManager extends BaseChainManager {
     return api.tx.PolkadotXcm;
   }
 
+  getTreasuryAccount() {
+    return '58kXueYKLr5b8yCeY3Gd1nLQX2zSJLXjfMzTAuksNq25CFEL' as Accounts;
+  }
+
   async getAssetBalanceOf(account: Accounts, asset: Assets) {
     const api = this.getApi(Chains.Polimec);
     const balance = await api.query.ForeignAssets.Account.getValue(asset, account);

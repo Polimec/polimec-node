@@ -1,8 +1,7 @@
 import { expect } from 'bun:test';
-import { INITIAL_BALANCES } from '@/constants';
-import type { BaseChainManager } from '@/managers/BaseManager';
+import type { PolimecManager } from '@/managers/PolimecManager';
 import type { PolkadotManager } from '@/managers/PolkadotManager';
-import { type Accounts, Assets, Chains } from '@/types';
+import { Assets, type BalanceCheck, Chains } from '@/types';
 import { createMultiHopTransferData } from '@/utils';
 import { type BaseTransferOptions, BaseTransferTest } from './BaseTransfer';
 
@@ -13,7 +12,7 @@ interface PolkadotTransferOptions extends BaseTransferOptions {
 export class PolkadotToPolimecTransfer extends BaseTransferTest<PolkadotTransferOptions> {
   constructor(
     protected override sourceManager: PolkadotManager,
-    protected override destManager: BaseChainManager,
+    protected override destManager: PolimecManager,
   ) {
     super(sourceManager, destManager);
   }
@@ -39,7 +38,9 @@ export class PolkadotToPolimecTransfer extends BaseTransferTest<PolkadotTransfer
     return { sourceBlock, destBlock };
   }
 
-  async checkBalances({ account }: Omit<PolkadotTransferOptions, 'amount'>) {
+  async getBalances({
+    account,
+  }: Omit<PolkadotTransferOptions, 'amount'>): Promise<{ balances: BalanceCheck }> {
     return {
       balances: {
         source: await this.sourceManager.getNativeBalanceOf(account),
@@ -49,14 +50,13 @@ export class PolkadotToPolimecTransfer extends BaseTransferTest<PolkadotTransfer
   }
 
   async verifyFinalBalances(
-    balances: { source: bigint; destination: bigint },
+    initialBalances: BalanceCheck,
+    finalBalances: BalanceCheck,
     { amount }: PolkadotTransferOptions,
   ) {
-    const fee = await this.sourceManager.getExtrinsicFee();
-    const xcmFee = await this.sourceManager.getXcmFee();
-    const totalFee = fee + xcmFee;
-
-    expect(balances.source).toBe(INITIAL_BALANCES.DOT - amount - totalFee);
-    expect(balances.destination).toBeGreaterThan(0n);
+    // TODO: At the moment we exclude fees from the balance check since the PAPI team is wotking on some utilies to calculate fees.
+    expect(initialBalances.destination).toBe(0n);
+    expect(finalBalances.source).toBeLessThan(initialBalances.source);
+    expect(finalBalances.destination).toBeGreaterThan(initialBalances.destination);
   }
 }

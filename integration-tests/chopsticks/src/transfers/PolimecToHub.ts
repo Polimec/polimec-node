@@ -1,8 +1,8 @@
 import { expect } from 'bun:test';
 import { INITIAL_BALANCES } from '@/constants';
-import type { BaseChainManager } from '@/managers/BaseManager';
+import type { PolimecManager } from '@/managers/PolimecManager';
 import type { PolkadotHubManager } from '@/managers/PolkadotHubManager';
-import { type Accounts, Assets, Chains } from '@/types';
+import { Assets, Chains, type PolimecBalanceCheck } from '@/types';
 import { createTransferData } from '@/utils';
 import { type BaseTransferOptions, BaseTransferTest } from './BaseTransfer';
 
@@ -12,7 +12,7 @@ interface PolimecTransferOptions extends BaseTransferOptions {
 
 export class PolimecToHubTransfer extends BaseTransferTest<PolimecTransferOptions> {
   constructor(
-    protected override sourceManager: BaseChainManager,
+    protected override sourceManager: PolimecManager,
     protected override destManager: PolkadotHubManager,
   ) {
     super(sourceManager, destManager);
@@ -40,22 +40,29 @@ export class PolimecToHubTransfer extends BaseTransferTest<PolimecTransferOption
     return { sourceBlock, destBlock };
   }
 
-  async checkBalances({ account, asset }: Omit<PolimecTransferOptions, 'amount'>) {
+  async getBalances({
+    account,
+    asset,
+  }: Omit<PolimecTransferOptions, 'amount'>): Promise<{ balances: PolimecBalanceCheck }> {
     const isNativeTransfer = asset === Assets.DOT;
+    const treasuryAccount = this.sourceManager.getTreasuryAccount();
     return {
       balances: {
         source: await this.sourceManager.getAssetBalanceOf(account, asset),
         destination: isNativeTransfer
           ? await this.destManager.getNativeBalanceOf(account)
           : await this.destManager.getAssetBalanceOf(account, asset),
+        treasury: await this.sourceManager.getAssetBalanceOf(treasuryAccount, asset),
       },
     };
   }
 
   async verifyFinalBalances(
-    balances: { source: bigint; destination: bigint },
-    { amount, asset }: PolimecTransferOptions,
+    initialBalances: PolimecBalanceCheck,
+    finalBalances: PolimecBalanceCheck,
+    { asset }: PolimecTransferOptions,
   ) {
+    // TODO: At the moment we exclude fees from the balance check since the PAPI team is wotking on some utilies to calculate fees.
     const initialBalance =
       asset === Assets.DOT
         ? INITIAL_BALANCES.DOT
@@ -63,7 +70,10 @@ export class PolimecToHubTransfer extends BaseTransferTest<PolimecTransferOption
           ? INITIAL_BALANCES.USDT
           : INITIAL_BALANCES.USDC;
 
-    expect(balances.source).toBe(initialBalance - amount);
-    expect(balances.destination).toBeGreaterThan(0n);
+    expect(initialBalances.destination).toBe(0n);
+    expect(initialBalances.source).toBe(initialBalance);
+    expect(finalBalances.source).toBeLessThan(initialBalances.source);
+    expect(finalBalances.destination).toBeGreaterThan(initialBalances.destination);
+    // expect(finalBalances.treasury).toBeGreaterThan(initialBalances.treasury);
   }
 }

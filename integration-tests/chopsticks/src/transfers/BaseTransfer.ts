@@ -14,17 +14,20 @@ export abstract class BaseTransferTest<T extends BaseTransferOptions = BaseTrans
   ) {}
 
   abstract executeTransfer(options: T): Promise<TransferResult>;
-  abstract checkBalances(options: Omit<T, 'amount'>): Promise<{ balances: BalanceCheck }>;
-  abstract verifyFinalBalances(balances: BalanceCheck, options: T): Promise<void>;
+  abstract getBalances(options: Omit<T, 'amount'>): Promise<{ balances: BalanceCheck }>;
+  abstract verifyFinalBalances(
+    initialBalances: BalanceCheck,
+    finalBalances: BalanceCheck,
+    options: T,
+  ): Promise<void>;
 
   async testTransfer(options: T) {
-    const { balances: initialBalances } = await this.checkBalances(options);
+    const { balances: initialBalances } = await this.getBalances(options);
     const blockNumbers = await this.executeTransfer(options);
     await this.waitForBlocks(blockNumbers);
     await this.verifyExecution();
-    const { balances: finalBalances } = await this.checkBalances(options);
-    await this.verifyFinalBalances(finalBalances, options);
-    return { initialBalances, finalBalances };
+    const { balances: finalBalances } = await this.getBalances(options);
+    await this.verifyFinalBalances(initialBalances, finalBalances, options);
   }
 
   protected async waitForBlocks({ sourceBlock, destBlock }: TransferResult) {
