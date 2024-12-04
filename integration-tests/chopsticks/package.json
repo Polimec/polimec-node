@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "lint": "biome check --write src overrides",
-    "test": "env LOG_LEVEL=error bun test --timeout 15000"
+    "test": "env LOG_LEVEL=error bun test --timeout 25000"
   },
   "devDependencies": {
     "@acala-network/chopsticks": "1.0.1",

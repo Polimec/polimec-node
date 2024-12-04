@@ -73,13 +73,12 @@ export class ChainSetup {
 
     if (polimec_storage !== undefined) console.info('✅ Polimec custom storage provided');
 
-    // Initialize the Polimec setup with the provided server configuration
     return setupWithServer({
       endpoint: 'wss://polimec.ibp.network',
       port: 8000,
       'wasm-override': POLIMEC_WASM,
-      'build-block-mode': BuildBlockMode.Instant,
       'import-storage': polimec_storage,
+      'build-block-mode': BuildBlockMode.Instant,
     });
   }
 

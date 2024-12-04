@@ -1,7 +1,7 @@
 import { expect } from 'bun:test';
 import type { PolimecManager } from '@/managers/PolimecManager';
 import type { PolkadotManager } from '@/managers/PolkadotManager';
-import { Assets, type BalanceCheck, Chains } from '@/types';
+import { Assets, Chains, type PolimecBalanceCheck } from '@/types';
 import { createMultiHopTransferData } from '@/utils';
 import { type BaseTransferOptions, BaseTransferTest } from './BaseTransfer';
 
@@ -40,23 +40,26 @@ export class PolkadotToPolimecTransfer extends BaseTransferTest<PolkadotTransfer
 
   async getBalances({
     account,
-  }: Omit<PolkadotTransferOptions, 'amount'>): Promise<{ balances: BalanceCheck }> {
+  }: Omit<PolkadotTransferOptions, 'amount'>): Promise<{ balances: PolimecBalanceCheck }> {
+    const treasuryAccount = this.destManager.getTreasuryAccount();
     return {
       balances: {
         source: await this.sourceManager.getNativeBalanceOf(account),
         destination: await this.destManager.getAssetBalanceOf(account, Assets.DOT),
+        treasury: await this.destManager.getAssetBalanceOf(treasuryAccount, Assets.DOT),
       },
     };
   }
 
   async verifyFinalBalances(
-    initialBalances: BalanceCheck,
-    finalBalances: BalanceCheck,
+    initialBalances: PolimecBalanceCheck,
+    finalBalances: PolimecBalanceCheck,
     { amount }: PolkadotTransferOptions,
   ) {
     // TODO: At the moment we exclude fees from the balance check since the PAPI team is wotking on some utilies to calculate fees.
     expect(initialBalances.destination).toBe(0n);
     expect(finalBalances.source).toBeLessThan(initialBalances.source);
     expect(finalBalances.destination).toBeGreaterThan(initialBalances.destination);
+    expect(finalBalances.treasury).toBeGreaterThan(initialBalances.treasury);
   }
 }

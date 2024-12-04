@@ -2,7 +2,7 @@ import { expect } from 'bun:test';
 import { INITIAL_BALANCES } from '@/constants';
 import type { PolimecManager } from '@/managers/PolimecManager';
 import type { PolkadotHubManager } from '@/managers/PolkadotHubManager';
-import { type Accounts, Assets, type BalanceCheck, Chains } from '@/types';
+import { type Accounts, Assets, Chains, type PolimecBalanceCheck } from '@/types';
 import { createTransferData } from '@/utils';
 import { BaseTransferTest } from './BaseTransfer';
 
@@ -45,41 +45,37 @@ export class HubToPolimecTransfer extends BaseTransferTest<HubTransferOptions> {
   async getBalances({
     account,
     asset,
-  }: Omit<HubTransferOptions, 'amount'>): Promise<{ balances: BalanceCheck }> {
+  }: Omit<HubTransferOptions, 'amount'>): Promise<{ balances: PolimecBalanceCheck }> {
     const isNativeTransfer = asset === Assets.DOT;
+    const treasuryAccount = this.destManager.getTreasuryAccount();
     return {
       balances: {
         source: isNativeTransfer
           ? await this.sourceManager.getNativeBalanceOf(account)
           : await this.sourceManager.getAssetBalanceOf(account, asset),
         destination: await this.destManager.getAssetBalanceOf(account, asset),
+        treasury: await this.destManager.getAssetBalanceOf(treasuryAccount, asset),
       },
     };
   }
 
   async verifyFinalBalances(
-    initialBalances: BalanceCheck,
-    finalBalances: BalanceCheck,
+    initialBalances: PolimecBalanceCheck,
+    finalBalances: PolimecBalanceCheck,
     { amount, asset }: HubTransferOptions,
   ) {
-    // const fee = await this.sourceManager.getExtrinsicFee();
-    // const xcmFee = await this.sourceManager.getXcmFee();
-    // const totalFee = fee + xcmFee;
+    // TODO: At the moment we exclude fees from the balance check since the PAPI team is wotking on some utilies to calculate fees.
     const initialBalance =
       asset === Assets.DOT
         ? INITIAL_BALANCES.DOT
         : asset === Assets.USDT
           ? INITIAL_BALANCES.USDT
           : INITIAL_BALANCES.USDC;
-
-    //    expect(initialBalances.source).toBe(
-    //    initialBalance - amount - (asset === Assets.DOT ? totalFee : 0n),
-    //  );
-
     // Note: Initially every account on destination is empty.
     expect(initialBalances.destination).toBe(0n);
     expect(initialBalances.source).toBe(initialBalance);
     expect(finalBalances.source).toBeLessThan(initialBalances.source);
     expect(finalBalances.destination).toBeGreaterThan(initialBalances.destination);
+    expect(finalBalances.treasury).toBeGreaterThan(initialBalances.treasury);
   }
 }

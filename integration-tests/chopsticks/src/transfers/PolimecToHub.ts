@@ -2,7 +2,7 @@ import { expect } from 'bun:test';
 import { INITIAL_BALANCES } from '@/constants';
 import type { PolimecManager } from '@/managers/PolimecManager';
 import type { PolkadotHubManager } from '@/managers/PolkadotHubManager';
-import { Assets, Chains, type PolimecBalanceCheck } from '@/types';
+import { Assets, type BalanceCheck, Chains } from '@/types';
 import { createTransferData } from '@/utils';
 import { type BaseTransferOptions, BaseTransferTest } from './BaseTransfer';
 
@@ -43,23 +43,21 @@ export class PolimecToHubTransfer extends BaseTransferTest<PolimecTransferOption
   async getBalances({
     account,
     asset,
-  }: Omit<PolimecTransferOptions, 'amount'>): Promise<{ balances: PolimecBalanceCheck }> {
+  }: Omit<PolimecTransferOptions, 'amount'>): Promise<{ balances: BalanceCheck }> {
     const isNativeTransfer = asset === Assets.DOT;
-    const treasuryAccount = this.sourceManager.getTreasuryAccount();
     return {
       balances: {
         source: await this.sourceManager.getAssetBalanceOf(account, asset),
         destination: isNativeTransfer
           ? await this.destManager.getNativeBalanceOf(account)
           : await this.destManager.getAssetBalanceOf(account, asset),
-        treasury: await this.sourceManager.getAssetBalanceOf(treasuryAccount, asset),
       },
     };
   }
 
   async verifyFinalBalances(
-    initialBalances: PolimecBalanceCheck,
-    finalBalances: PolimecBalanceCheck,
+    initialBalances: BalanceCheck,
+    finalBalances: BalanceCheck,
     { asset }: PolimecTransferOptions,
   ) {
     // TODO: At the moment we exclude fees from the balance check since the PAPI team is wotking on some utilies to calculate fees.
@@ -74,6 +72,5 @@ export class PolimecToHubTransfer extends BaseTransferTest<PolimecTransferOption
     expect(initialBalances.source).toBe(initialBalance);
     expect(finalBalances.source).toBeLessThan(initialBalances.source);
     expect(finalBalances.destination).toBeGreaterThan(initialBalances.destination);
-    // expect(finalBalances.treasury).toBeGreaterThan(initialBalances.treasury);
   }
 }
