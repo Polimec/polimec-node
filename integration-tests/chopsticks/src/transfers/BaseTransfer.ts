@@ -15,17 +15,17 @@ export abstract class BaseTransferTest<T extends BaseTransferOptions = BaseTrans
 
   // Note: here are also checking if the extrinsic is executed successfully on the source chain.
   abstract executeTransfer(options: T): Promise<TransferResult>;
-  abstract checkBalances(options: Omit<T, 'amount'>): Promise<{ balances: BalanceCheck }>;
+  abstract getBalances(options: Omit<T, 'amount'>): Promise<{ balances: BalanceCheck }>;
   abstract verifyFinalBalances(balances: BalanceCheck, options: T): Promise<void>;
 
   async testTransfer(options: T) {
-    const { balances: initialBalances } = await this.checkBalances(options);
+    const { balances: initialBalances } = await this.getBalances(options);
     const blockNumbers = await this.executeTransfer(options);
     // Note: here we wait for the blocks to be finalized on both chains.
     await this.waitForBlocks(blockNumbers);
     // Note: here we check if the extrinsic is executed successfully on the destination chain.
     await this.verifyExecution();
-    const { balances: finalBalances } = await this.checkBalances(options);
+    const { balances: finalBalances } = await this.getBalances(options);
     await this.verifyFinalBalances(finalBalances, options);
     return { initialBalances, finalBalances };
   }

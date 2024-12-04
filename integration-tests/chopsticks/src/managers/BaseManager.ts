@@ -73,6 +73,8 @@ export abstract class BaseChainManager {
     return balance.data.free;
   }
 
+  abstract getTreasuryAccount(): Accounts;
+
   // @ts-expect-error - TODO: Not sure which is the correct return type for this
   abstract getXcmPallet();
 

@@ -42,7 +42,7 @@ export class HubToPolimecTransfer extends BaseTransferTest<HubTransferOptions> {
     return { sourceBlock, destBlock };
   }
 
-  async checkBalances({ account, asset }: Omit<HubTransferOptions, 'amount'>) {
+  async getBalances({ account, asset }: Omit<HubTransferOptions, 'amount'>) {
     const isNativeTransfer = asset === Assets.DOT;
     return {
       balances: {

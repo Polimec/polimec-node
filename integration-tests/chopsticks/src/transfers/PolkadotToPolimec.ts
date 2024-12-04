@@ -39,7 +39,7 @@ export class PolkadotToPolimecTransfer extends BaseTransferTest<PolkadotTransfer
     return { sourceBlock, destBlock };
   }
 
-  async checkBalances({ account }: Omit<PolkadotTransferOptions, 'amount'>) {
+  async getBalances({ account }: Omit<PolkadotTransferOptions, 'amount'>) {
     return {
       balances: {
         source: await this.sourceManager.getNativeBalanceOf(account),

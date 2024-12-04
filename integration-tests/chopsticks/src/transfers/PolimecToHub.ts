@@ -2,8 +2,8 @@ import { expect } from 'bun:test';
 import { INITIAL_BALANCES } from '@/constants';
 import type { PolimecManager } from '@/managers/PolimecManager';
 import type { PolkadotHubManager } from '@/managers/PolkadotHubManager';
-import { Assets, Chains } from '@/types';
-import { createTransferData } from '@/utils';
+import { Assets, Chains, type PolimecBalanceCheck } from '@/types';
+import { createPolimecAssets, createTransferData } from '@/utils';
 import { type BaseTransferOptions, BaseTransferTest } from './BaseTransfer';
 
 interface PolimecTransferOptions extends BaseTransferOptions {
@@ -40,14 +40,19 @@ export class PolimecToHubTransfer extends BaseTransferTest<PolimecTransferOption
     return { sourceBlock, destBlock };
   }
 
-  async checkBalances({ account, asset }: Omit<PolimecTransferOptions, 'amount'>) {
+  async getBalances({
+    account,
+    asset,
+  }: Omit<PolimecTransferOptions, 'amount'>): Promise<{ balances: PolimecBalanceCheck }> {
     const isNativeTransfer = asset === Assets.DOT;
+    const treasuryAccount = this.sourceManager.getTreasuryAccount();
     return {
       balances: {
         source: await this.sourceManager.getAssetBalanceOf(account, asset),
         destination: isNativeTransfer
           ? await this.destManager.getNativeBalanceOf(account)
           : await this.destManager.getAssetBalanceOf(account, asset),
+        treasury: await this.sourceManager.getAssetBalanceOf(treasuryAccount, asset),
       },
     };
   }

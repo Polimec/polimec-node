@@ -48,3 +48,6 @@ export interface BalanceCheck {
   source: bigint;
   destination: bigint;
 }
+export interface PolimecBalanceCheck extends BalanceCheck {
+  treasury: bigint;
+}

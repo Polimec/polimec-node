@@ -81,7 +81,7 @@ const createPolkadotAssets = (amount: bigint): XcmVersionedAssets =>
   ]);
 
 // On Polimec, the XcmVersionedAssets is an asset in the Pallet Assets.
-const createPolimecAssets = (amount: bigint, assetIndex = 1984n): XcmVersionedAssets =>
+export const createPolimecAssets = (amount: bigint, assetIndex = 1984n): XcmVersionedAssets =>
   XcmVersionedAssets.V3([
     {
       id: XcmV3MultiassetAssetId.Concrete({

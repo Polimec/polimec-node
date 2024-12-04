@@ -39,4 +39,9 @@ export class PolimecManager extends BaseChainManager {
     if (!fees?.length) return 0n;
     return (fees[0]?.fun?.value as bigint) || 0n;
   }
+
+  getTreasuryAccount() {
+    const treasuryAccount = '5EYCAe5ij8xKJ2c7Sa9ePgbqAX8jMXAFrJYanbQAqgcZUeda';
+    return treasuryAccount as Accounts;
+  }
 }
