@@ -73,7 +73,7 @@ export abstract class BaseChainManager {
     return balance.data.free;
   }
 
-  // @ts-expect-error - TODO: Not sure which is the correct type for this
+  // @ts-expect-error - TODO: Not sure which is the correct return type for this
   abstract getXcmPallet();
 
   abstract getChainType(): Chains;

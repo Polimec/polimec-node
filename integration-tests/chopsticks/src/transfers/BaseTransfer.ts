@@ -13,6 +13,7 @@ export abstract class BaseTransferTest<T extends BaseTransferOptions = BaseTrans
     protected destManager: BaseChainManager,
   ) {}
 
+  // Note: here are also checking if the extrinsic is executed successfully on the source chain.
   abstract executeTransfer(options: T): Promise<TransferResult>;
   abstract checkBalances(options: Omit<T, 'amount'>): Promise<{ balances: BalanceCheck }>;
   abstract verifyFinalBalances(balances: BalanceCheck, options: T): Promise<void>;
@@ -20,7 +21,9 @@ export abstract class BaseTransferTest<T extends BaseTransferOptions = BaseTrans
   async testTransfer(options: T) {
     const { balances: initialBalances } = await this.checkBalances(options);
     const blockNumbers = await this.executeTransfer(options);
+    // Note: here we wait for the blocks to be finalized on both chains.
     await this.waitForBlocks(blockNumbers);
+    // Note: here we check if the extrinsic is executed successfully on the destination chain.
     await this.verifyExecution();
     const { balances: finalBalances } = await this.checkBalances(options);
     await this.verifyFinalBalances(finalBalances, options);
@@ -38,7 +41,8 @@ export abstract class BaseTransferTest<T extends BaseTransferOptions = BaseTrans
     const events = await this.destManager.getMessageQueueEvents();
     expect(events).not.toBeEmpty();
     expect(events).toBeArray();
-    expect(events).toHaveLength(1);
+    // Note: If in the same block there are multiple events, we should check if OUR message is processed correctly.
+    // Here we are just assuming that the first event is the one we are interested in.
     expect(events[0].payload.success).toBeTrue();
   }
 }

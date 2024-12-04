@@ -1,8 +1,8 @@
 import { expect } from 'bun:test';
 import { INITIAL_BALANCES } from '@/constants';
-import type { BaseChainManager } from '@/managers/BaseManager';
+import type { PolimecManager } from '@/managers/PolimecManager';
 import type { PolkadotManager } from '@/managers/PolkadotManager';
-import { type Accounts, Assets, Chains } from '@/types';
+import { Assets, Chains } from '@/types';
 import { createMultiHopTransferData } from '@/utils';
 import { type BaseTransferOptions, BaseTransferTest } from './BaseTransfer';
 
@@ -13,7 +13,7 @@ interface PolkadotTransferOptions extends BaseTransferOptions {
 export class PolkadotToPolimecTransfer extends BaseTransferTest<PolkadotTransferOptions> {
   constructor(
     protected override sourceManager: PolkadotManager,
-    protected override destManager: BaseChainManager,
+    protected override destManager: PolimecManager,
   ) {
     super(sourceManager, destManager);
   }

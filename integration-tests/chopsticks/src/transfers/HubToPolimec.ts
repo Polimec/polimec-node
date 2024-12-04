@@ -69,6 +69,7 @@ export class HubToPolimecTransfer extends BaseTransferTest<HubTransferOptions> {
           : INITIAL_BALANCES.USDC;
 
     expect(balances.source).toBe(initialBalance - amount - (asset === Assets.DOT ? totalFee : 0n));
+    // TODO: Here I would like to check the precise balance after the transfer.
     expect(balances.destination).toBeGreaterThan(0n);
   }
 }

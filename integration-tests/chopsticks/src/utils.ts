@@ -51,11 +51,7 @@ const custom_xcm_on_dest = (): XcmVersionedXcm => {
   ]);
 };
 
-/**
- * Helper to create XCM assets.
- * @param amount - The asset amount as bigint.
- * @param assetIndex - The asset id.
- */
+// On Polkadot Hub, the XcmVersionedAssets could be DOT or an asset in the Pallet Assets.
 const createHubAssets = (amount: bigint, assetIndex?: bigint): XcmVersionedAssets =>
   XcmVersionedAssets.V3([
     {
@@ -72,7 +68,8 @@ const createHubAssets = (amount: bigint, assetIndex?: bigint): XcmVersionedAsset
     },
   ]);
 
-const createDotAssets = (amount: bigint): XcmVersionedAssets =>
+// On Polkadot, the XcmVersionedAssets could only be the native currency, DOT.
+const createPolkadotAssets = (amount: bigint): XcmVersionedAssets =>
   XcmVersionedAssets.V3([
     {
       fun: XcmV3MultiassetFungibility.Fungible(amount),
@@ -83,6 +80,7 @@ const createDotAssets = (amount: bigint): XcmVersionedAssets =>
     },
   ]);
 
+// On Polimec, the XcmVersionedAssets is an asset in the Pallet Assets.
 const createPolimecAssets = (amount: bigint, assetIndex = 1984n): XcmVersionedAssets =>
   XcmVersionedAssets.V3([
     {
@@ -109,11 +107,7 @@ interface TransferDataParams {
   isMultiHop?: boolean;
 }
 
-/**
- * Creates transfer data for XCM calls.
- * @param amount - The amount to transfer as bigint.
- * @param assetIndex - Optional asset index for multi-assets.
- */
+// Note: This should be used if the destination AND the soure is either Polimec or Polkadot Hub.
 export const createTransferData = ({ amount, toChain, assetIndex, recv }: TransferDataParams) => {
   if (toChain === Chains.Polkadot) {
     throw new Error('Invalid chain');
@@ -145,6 +139,7 @@ export const createTransferData = ({ amount, toChain, assetIndex, recv }: Transf
   };
 };
 
+// Note: This should be used if the destination is Polimec and the source is Polkadot.
 export const createMultiHopTransferData = ({ amount, toChain }: TransferDataParams) => {
   if (toChain === Chains.Polkadot) {
     throw new Error('The Multi Hop destination cannot be Polkadot');
@@ -155,7 +150,7 @@ export const createMultiHopTransferData = ({ amount, toChain }: TransferDataPara
   });
   return {
     dest,
-    assets: createDotAssets(amount),
+    assets: createPolkadotAssets(amount),
     assets_transfer_type: Enum('Teleport'),
     remote_fees_id: XcmVersionedAssetId.V3(
       XcmV3MultiassetAssetId.Concrete({

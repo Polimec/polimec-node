@@ -9,11 +9,6 @@ export class PolimecManager extends BaseChainManager {
     const client = createClient(getWsProvider(this.getChainType()));
     const api = client.getTypedApi(polimec);
 
-    // Verify connection
-    if (!client || !api) {
-      throw new Error(`Failed to connect to ${this.getChainType()}`);
-    }
-
     this.clients.set(this.getChainType(), { client, api });
   }
 
