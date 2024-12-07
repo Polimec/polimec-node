@@ -62,7 +62,7 @@ export class HubToPolimecTransfer extends BaseTransferTest<HubTransferOptions> {
   async verifyFinalBalances(
     initialBalances: PolimecBalanceCheck,
     finalBalances: PolimecBalanceCheck,
-    { amount, asset }: HubTransferOptions,
+    { asset }: HubTransferOptions,
   ) {
     // TODO: At the moment we exclude fees from the balance check since the PAPI team is wotking on some utilies to calculate fees.
     const initialBalance =

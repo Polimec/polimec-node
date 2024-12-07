@@ -37,4 +37,5 @@ export const polkadot_hub_storage = {
       ],
     ],
   },
+  // TODO: Add the foreignAssets storage to give to ALICE WETH = INITIAL_BALANCES.WETH
 } as const;

@@ -54,7 +54,6 @@ export class PolkadotToPolimecTransfer extends BaseTransferTest<PolkadotTransfer
   async verifyFinalBalances(
     initialBalances: PolimecBalanceCheck,
     finalBalances: PolimecBalanceCheck,
-    { amount }: PolkadotTransferOptions,
   ) {
     // TODO: At the moment we exclude fees from the balance check since the PAPI team is wotking on some utilies to calculate fees.
     expect(initialBalances.destination).toBe(0n);

@@ -52,3 +52,19 @@ export interface BalanceCheck {
 export interface PolimecBalanceCheck extends BalanceCheck {
   treasury: bigint;
 }
+
+export interface TransferDataParams {
+  amount: bigint;
+  toChain: Chains;
+  assetIndex?: bigint;
+  recv?: Accounts;
+  isMultiHop?: boolean;
+  // TODO: Check if this flag is actually needed.
+  isFromBridge?: boolean;
+}
+
+export interface CreateAssetsParams {
+  amount: bigint;
+  assetIndex?: bigint;
+  isFromBridge?: boolean;
+}

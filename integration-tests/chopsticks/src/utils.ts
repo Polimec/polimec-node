@@ -1,4 +1,10 @@
-import { Accounts, Chains, ParaId } from '@/types';
+import {
+  Accounts,
+  Chains,
+  type CreateAssetsParams,
+  ParaId,
+  type TransferDataParams,
+} from '@/types';
 import {
   XcmV3Instruction,
   XcmV3Junction,
@@ -51,7 +57,12 @@ const custom_xcm_on_dest = (): XcmVersionedXcm => {
   ]);
 };
 
-const createHubAssets = (amount: bigint, assetIndex?: bigint): XcmVersionedAssets =>
+// TODO: Modify this function to allow the creation of an XcmVersionedAssets that supports also WETH/bridged assets.
+const createHubAssets = ({
+  amount,
+  assetIndex,
+  isFromBridge,
+}: CreateAssetsParams): XcmVersionedAssets =>
   XcmVersionedAssets.V3([
     {
       fun: XcmV3MultiassetFungibility.Fungible(amount),
@@ -67,7 +78,7 @@ const createHubAssets = (amount: bigint, assetIndex?: bigint): XcmVersionedAsset
     },
   ]);
 
-const createDotAssets = (amount: bigint): XcmVersionedAssets =>
+const createDotAssets = ({ amount }: CreateAssetsParams): XcmVersionedAssets =>
   XcmVersionedAssets.V3([
     {
       fun: XcmV3MultiassetFungibility.Fungible(amount),
@@ -78,8 +89,11 @@ const createDotAssets = (amount: bigint): XcmVersionedAssets =>
     },
   ]);
 
-const createPolimecAssets = (amount: bigint, assetIndex = 1984n): XcmVersionedAssets =>
-  XcmVersionedAssets.V3([
+const createPolimecAssets = ({ amount, assetIndex }: CreateAssetsParams): XcmVersionedAssets => {
+  if (!assetIndex) {
+    throw new Error('You need to specify an Asset ID while creating an asset for Polimec');
+  }
+  return XcmVersionedAssets.V3([
     {
       id: XcmV3MultiassetAssetId.Concrete({
         parents: 1,
@@ -95,14 +109,7 @@ const createPolimecAssets = (amount: bigint, assetIndex = 1984n): XcmVersionedAs
       fun: XcmV3MultiassetFungibility.Fungible(amount),
     },
   ]);
-
-interface TransferDataParams {
-  amount: bigint;
-  toChain: Chains;
-  assetIndex?: bigint;
-  recv?: Accounts;
-  isMultiHop?: boolean;
-}
+};
 
 export const createTransferData = ({ amount, toChain, assetIndex, recv }: TransferDataParams) => {
   if (toChain === Chains.Polkadot) {
@@ -128,24 +135,22 @@ export const createTransferData = ({ amount, toChain, assetIndex, recv }: Transf
     beneficiary,
     assets:
       toChain === Chains.PolkadotHub
-        ? createPolimecAssets(amount, assetIndex)
-        : createHubAssets(amount, assetIndex),
+        ? createPolimecAssets({ amount, assetIndex })
+        : createHubAssets({ amount, assetIndex }),
     fee_asset_item: 0,
     weight_limit: XcmV3WeightLimit.Unlimited(),
   };
 };
 
-export const createMultiHopTransferData = ({ amount, toChain }: TransferDataParams) => {
-  if (toChain === Chains.Polkadot) {
-    throw new Error('The Multi Hop destination cannot be Polkadot');
-  }
+export const createMultiHopTransferData = ({ amount }: TransferDataParams) => {
   const dest = XcmVersionedLocation.V3({
     parents: 0,
     interior: XcmV3Junctions.X1(XcmV3Junction.Parachain(ParaId[Chains.PolkadotHub])),
   });
+
   return {
     dest,
-    assets: createDotAssets(amount),
+    assets: createDotAssets({ amount }),
     assets_transfer_type: Enum('Teleport'),
     remote_fees_id: XcmVersionedAssetId.V3(
       XcmV3MultiassetAssetId.Concrete({

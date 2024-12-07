@@ -60,6 +60,7 @@ export class ChainSetup {
   private async setupPolimec(polimec_storage: unknown) {
     const file = Bun.file(POLIMEC_WASM);
 
+    // Note: the tests are inteded to use a pre-production, locally compiled runtime, that's why we throw an error.
     if (!(await file.exists())) {
       throw new Error(
         'Polimec runtime not found! Please build it by running `cargo b -r -p polimec-runtime` before executing the tests.',
