@@ -16,11 +16,10 @@
 
 use crate::Balance;
 use frame_support::parameter_types;
-use pallet_funding::AcceptedFundingAsset;
 use pallet_oracle_ocw::types::AssetName;
-use parachains_common::AssetIdForTrustBackedAssets as AssetId;
-use polimec_common::PLMC_FOREIGN_ID;
+use polimec_common::assets::AcceptedFundingAsset;
 use sp_runtime::{traits::Convert, FixedU128};
+use xcm::v4::Location;
 
 /// One PLMC
 pub const PLMC: Balance = 10u128.pow(10);
@@ -83,13 +82,13 @@ pub type Price = FixedU128;
 pub type Moment = u64;
 
 pub struct AssetPriceConverter;
-impl Convert<(AssetName, FixedU128), (AssetId, Price)> for AssetPriceConverter {
-	fn convert((asset, price): (AssetName, FixedU128)) -> (AssetId, Price) {
+impl Convert<(AssetName, FixedU128), (Location, Price)> for AssetPriceConverter {
+	fn convert((asset, price): (AssetName, FixedU128)) -> (Location, Price) {
 		match asset {
 			AssetName::DOT => (AcceptedFundingAsset::DOT.id(), price),
 			AssetName::USDC => (AcceptedFundingAsset::USDC.id(), price),
 			AssetName::USDT => (AcceptedFundingAsset::USDT.id(), price),
-			AssetName::PLMC => (PLMC_FOREIGN_ID, price),
+			AssetName::PLMC => (Location::here(), price),
 			AssetName::WETH => (AcceptedFundingAsset::WETH.id(), price),
 		}
 	}

@@ -42,7 +42,7 @@ pub mod pallet {
 	use polimec_common::ProvideAssetPrice;
 	use sp_runtime::{Perbill, TypeId};
 
-	pub type AssetId = u32;
+	pub type AssetId = xcm::v4::prelude::Location;
 	pub type BalanceOf<T> = <<T as Config>::BondingToken as fungible::Inspect<AccountIdOf<T>>>::Balance;
 	pub type AccountIdOf<T> = <T as frame_system::Config>::AccountId;
 	pub type HoldReasonOf<T> = <<T as Config>::BondingToken as fungible::InspectHold<AccountIdOf<T>>>::Reason;
@@ -84,7 +84,7 @@ pub mod pallet {
 		type FeePercentage: Get<Perbill>;
 
 		/// Method to get the price of an asset like USDT or PLMC. Likely to come from an oracle
-		type PriceProvider: ProvideAssetPrice<AssetId = u32>;
+		type PriceProvider: ProvideAssetPrice<AssetId = AssetId>;
 
 		/// The account holding the tokens to be bonded. Normally the treasury
 		#[pallet::constant]
@@ -200,8 +200,14 @@ pub mod pallet {
 			let release_type = Releases::<T>::get(derivation_path, hold_reason).ok_or(Error::<T>::ReleaseTypeNotSet)?;
 			ensure!(release_type != ReleaseType::Refunded, Error::<T>::FeeToRecipientDisallowed);
 
-			let fees_balance = T::FeeToken::balance(fee_asset, &bonding_account);
-			T::FeeToken::transfer(fee_asset, &bonding_account, &fee_recipient, fees_balance, Preservation::Expendable)?;
+			let fees_balance = T::FeeToken::balance(fee_asset.clone(), &bonding_account);
+			T::FeeToken::transfer(
+				fee_asset.clone(),
+				&bonding_account,
+				&fee_recipient,
+				fees_balance,
+				Preservation::Expendable,
+			)?;
 
 			Self::deposit_event(Event::FeesTransferredToFeeRecipient { fee_asset, fee_amount: fees_balance });
 

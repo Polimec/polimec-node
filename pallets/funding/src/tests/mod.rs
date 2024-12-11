@@ -72,6 +72,7 @@ const BUYER_7: AccountId = 47;
 
 pub mod defaults {
 	use super::*;
+	use polimec_common::assets::AcceptedFundingAsset;
 
 	pub fn default_token_information() -> CurrencyMetadata<BoundedVec<u8, StringLimitOf<TestRuntime>>> {
 		CurrencyMetadata { name: bounded_name(), symbol: bounded_symbol(), decimals: CT_DECIMALS }

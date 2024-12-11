@@ -20,6 +20,7 @@
 
 use super::*;
 use crate::{instantiator::*, traits::SetPrices};
+use polimec_common::assets::AcceptedFundingAsset;
 use ParticipationMode::{Classic, OTM};
 
 use frame_benchmarking::v2::*;
@@ -47,7 +48,7 @@ const CT_DECIMALS: u8 = 17;
 const CT_UNIT: u128 = 10u128.pow(CT_DECIMALS as u32);
 type BenchInstantiator<T> = Instantiator<T, <T as Config>::AllPalletsWithoutSystem, <T as Config>::RuntimeEvent>;
 
-pub fn usdt_id() -> u32 {
+pub fn usdt_id() -> Location {
 	AcceptedFundingAsset::USDT.id()
 }
 

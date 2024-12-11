@@ -21,7 +21,6 @@
 #[cfg(feature = "std")]
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 extern crate alloc;
-use assets_common::fungible_conversion::{convert, convert_balance};
 use core::ops::RangeInclusive;
 use cumulus_pallet_parachain_system::RelayNumberMonotonicallyIncreases;
 use cumulus_primitives_core::{AggregateMessageOrigin, ParaId};
@@ -43,16 +42,16 @@ use frame_system::{EnsureRoot, EnsureRootWithSuccess, EnsureSigned, EnsureSigned
 use pallet_aura::Authorities;
 use pallet_democracy::GetElectorate;
 use pallet_funding::{
-	runtime_api::ProjectParticipationIds, types::AcceptedFundingAsset, BidInfoOf, ContributionInfoOf, DaysToBlocks,
-	EvaluationInfoOf, PriceProviderOf, ProjectDetailsOf, ProjectId, ProjectMetadataOf,
+	runtime_api::ProjectParticipationIds, BidInfoOf, ContributionInfoOf, DaysToBlocks, EvaluationInfoOf,
+	HereLocationGetter, PriceProviderOf, ProjectDetailsOf, ProjectId, ProjectMetadataOf,
 };
 use parachains_common::{
 	impls::AssetsToBlockAuthor,
 	message_queue::{NarrowOriginToSibling, ParaIdToSibling},
-	AssetIdForTrustBackedAssets as AssetId,
 };
 use parity_scale_codec::Encode;
 use polimec_common::{
+	assets::AcceptedFundingAsset,
 	credentials::{Did, EnsureInvestor, InvestorType},
 	ProvideAssetPrice, USD_UNIT,
 };
@@ -73,14 +72,7 @@ use sp_std::{cmp::Ordering, prelude::*};
 use sp_version::RuntimeVersion;
 
 // XCM Imports
-use xcm::{
-	v3::{
-		Junction::{GeneralIndex, PalletInstance, Parachain},
-		Junctions::{Here, X3},
-		MultiLocation,
-	},
-	VersionedAssets, VersionedLocation, VersionedXcm,
-};
+use xcm::{v3::MultiLocation, VersionedAssets, VersionedLocation, VersionedXcm};
 use xcm_config::{PriceForSiblingParachainDelivery, XcmOriginToTransactDispatchOrigin};
 use xcm_fee_payment_runtime_api::{
 	dry_run::{CallDryRunEffects, Error as XcmDryRunApiError, XcmDryRunEffects},
@@ -105,7 +97,11 @@ use alloc::string::String;
 use sp_core::crypto::Ss58Codec;
 #[cfg(any(feature = "std", test))]
 pub use sp_runtime::BuildStorage;
-use xcm::VersionedAssetId;
+use xcm::{
+	v4::{Location},
+	VersionedAssetId,
+};
+
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmark_helpers;
 mod custom_migrations;
@@ -442,15 +438,23 @@ impl pallet_transaction_payment::Config for Runtime {
 
 pub type ForeignAssetsInstance = pallet_assets::Instance2;
 
+#[cfg(feature = "runtime-benchmarks")]
+pub struct PalletAssetsBenchmarkHelper;
+#[cfg(feature = "runtime-benchmarks")]
+impl pallet_assets::BenchmarkHelper<Location> for PalletAssetsBenchmarkHelper {
+	fn create_asset_id_parameter(id: u32) -> Location {
+		(Parent, Parachain(id)).into()
+	}
+}
 impl pallet_assets::Config<ForeignAssetsInstance> for Runtime {
 	type ApprovalDeposit = ExistentialDeposit;
 	type AssetAccountDeposit = AssetAccountDeposit;
 	type AssetDeposit = AssetDeposit;
-	type AssetId = AssetId;
-	type AssetIdParameter = parity_scale_codec::Compact<AssetId>;
+	type AssetId = Location;
+	type AssetIdParameter = Location;
 	type Balance = Balance;
 	#[cfg(feature = "runtime-benchmarks")]
-	type BenchmarkHelper = ();
+	type BenchmarkHelper = PalletAssetsBenchmarkHelper;
 	type CallbackHandle = ();
 	// Only Root (aka Governance) can create a new asset.
 	type CreateOrigin = AsEnsureOriginWithArg<EnsureRootWithSuccess<AccountId, RootOperatorAccountId>>;
@@ -848,7 +852,7 @@ impl orml_oracle::Config for Runtime {
 	type MaxHasDispatchedSize = MaxHasDispatchedSize;
 	type Members = OracleProvidersMembership;
 	type OnNewData = ();
-	type OracleKey = AssetId;
+	type OracleKey = Location;
 	type OracleValue = Price;
 	type RootOperatorAccountId = RootOperatorAccountId;
 	type RuntimeEvent = RuntimeEvent;
@@ -897,7 +901,7 @@ where
 		use sp_runtime::traits::StaticLookup;
 		// take the biggest period possible.
 		let period = BlockHashCount::get().checked_next_power_of_two().map(|c| c / 2).unwrap_or(2) as u64;
-		log::warn!("Attempted call: {:?}", call);
+
 		let current_block = System::block_number()
 			.saturated_into::<u64>()
 			// The `System::block_number` is initialized with `n+1`,
@@ -922,7 +926,6 @@ where
 			frame_metadata_hash_extension::CheckMetadataHash::<Runtime>::new(true),
 			#[cfg(not(feature = "metadata-hash"))]
 			frame_metadata_hash_extension::CheckMetadataHash::<Runtime>::new(false),
-
 		);
 		let raw_payload = generic::SignedPayload::new(call, extra)
 			.map_err(|e| {
@@ -1006,8 +1009,8 @@ impl pallet_assets::Config<ContributionTokensInstance> for Runtime {
 	type ApprovalDeposit = ExistentialDeposit;
 	type AssetAccountDeposit = ZeroDeposit;
 	type AssetDeposit = AssetDeposit;
-	type AssetId = AssetId;
-	type AssetIdParameter = parity_scale_codec::Compact<AssetId>;
+	type AssetId = u32;
+	type AssetIdParameter = parity_scale_codec::Compact<u32>;
 	type Balance = Balance;
 	#[cfg(feature = "runtime-benchmarks")]
 	type BenchmarkHelper = ();
@@ -1087,7 +1090,7 @@ impl pallet_funding::Config for Runtime {
 	type OnSlash = Vesting;
 	type PalletId = FundingPalletId;
 	type Price = Price;
-	type PriceProvider = OraclePriceProvider<AssetId, Price, Oracle>;
+	type PriceProvider = OraclePriceProvider<Location, Price, Oracle>;
 	type RemainderRoundDuration = RemainderRoundDuration;
 	type RequiredMaxCapacity = RequiredMaxCapacity;
 	type RequiredMaxMessageSize = RequiredMaxMessageSize;
@@ -1103,7 +1106,7 @@ impl pallet_funding::Config for Runtime {
 	type WeightInfo = weights::pallet_funding::WeightInfo<Runtime>;
 }
 
-use polimec_common::{PLMC_DECIMALS, PLMC_FOREIGN_ID, USD_DECIMALS};
+use polimec_common::{PLMC_DECIMALS, USD_DECIMALS};
 
 parameter_types! {
 	// Fee is defined as 1.5% of the usd_amount. Since fee is applied to the plmc amount, and that is always 5 times
@@ -1116,12 +1119,12 @@ parameter_types! {
 impl pallet_proxy_bonding::Config for Runtime {
 	type BondingToken = Balances;
 	type BondingTokenDecimals = ConstU8<PLMC_DECIMALS>;
-	type BondingTokenId = ConstU32<PLMC_FOREIGN_ID>;
+	type BondingTokenId = HereLocationGetter;
 	type FeePercentage = FeePercentage;
 	type FeeRecipient = FeeRecipient;
 	type FeeToken = ForeignAssets;
 	type Id = PalletId;
-	type PriceProvider = OraclePriceProvider<AssetId, Price, Oracle>;
+	type PriceProvider = OraclePriceProvider<Location, Price, Oracle>;
 	type RootId = TreasuryId;
 	type RuntimeEvent = RuntimeEvent;
 	type RuntimeHoldReason = RuntimeHoldReason;
@@ -1168,28 +1171,16 @@ impl pallet_dispenser::Config for Runtime {
 	type WeightInfo = weights::pallet_dispenser::WeightInfo<Runtime>;
 	type WhitelistedPolicy = DispenserWhitelistedPolicy;
 }
-
-pub struct ConvertMultilocationToAssetId;
-impl Convert<MultiLocation, AssetId> for ConvertMultilocationToAssetId {
-	fn convert(location: MultiLocation) -> AssetId {
-		match location {
-			MultiLocation { parents: 1, interior: Here } => 10,
-			MultiLocation { parents: 1, interior: X3(Parachain(1000), PalletInstance(50), GeneralIndex(1337)) } => 1337,
-			MultiLocation { parents: 1, interior: X3(Parachain(1000), PalletInstance(50), GeneralIndex(1984)) } => 1984,
-			// Since the asset with `AssetId` 0 does not exist and has no price, it is invalid.
-			_ => 0,
-		}
-	}
-}
 pub struct PLMCToFundingAssetBalance;
-impl ConversionToAssetBalance<Balance, AssetId, Balance> for PLMCToFundingAssetBalance {
+impl ConversionToAssetBalance<Balance, Location, Balance> for PLMCToFundingAssetBalance {
 	type Error = InvalidTransaction;
 
-	fn to_asset_balance(plmc_balance: Balance, asset_id: AssetId) -> Result<Balance, Self::Error> {
+	fn to_asset_balance(plmc_balance: Balance, asset_id: Location) -> Result<Balance, Self::Error> {
 		let plmc_price =
-			<PriceProviderOf<Runtime>>::get_decimals_aware_price(PLMC_FOREIGN_ID, USD_DECIMALS, PLMC_DECIMALS)
+			<PriceProviderOf<Runtime>>::get_decimals_aware_price(Location::here(), USD_DECIMALS, PLMC_DECIMALS)
 				.ok_or(InvalidTransaction::Payment)?;
-		let funding_asset_decimals = <ForeignAssets as fungibles::metadata::Inspect<AccountId>>::decimals(asset_id);
+		let funding_asset_decimals =
+			<ForeignAssets as fungibles::metadata::Inspect<AccountId>>::decimals(asset_id.clone());
 		let funding_asset_price =
 			<PriceProviderOf<Runtime>>::get_decimals_aware_price(asset_id, USD_DECIMALS, funding_asset_decimals)
 				.ok_or(InvalidTransaction::Payment)?;
@@ -1203,7 +1194,6 @@ impl pallet_asset_tx_payment::Config for Runtime {
 	type Fungibles = ForeignAssets;
 	type OnChargeAssetTransaction = TxFeeFungiblesAdapter<
 		PLMCToFundingAssetBalance,
-		ConvertMultilocationToAssetId,
 		CreditFungiblesToAccount<AccountId, ForeignAssets, BlockchainOperationTreasury>,
 		AssetsToBlockAuthor<Runtime, ForeignAssetsInstance>,
 	>;
@@ -1325,29 +1315,30 @@ mod benches {
 impl_runtime_apis! {
 	impl assets_common::runtime_api::FungiblesApi<Block,AccountId,> for Runtime{
 		fn query_account_balances(account: AccountId) -> Result<xcm::VersionedAssets, assets_common::runtime_api::FungiblesAccessError> {
-			Ok([
-				// collect pallet_balance
-				{
-					let balance = Balances::balance(&account);
-					if balance > 0 {
-						vec![convert_balance::<xcm_config::HereLocation, Balance>(balance)?]
-					} else {
-						vec![]
-					}
-				},
-				// collect pallet_assets (ContributionTokens)
-				convert::<_, _, _, _, xcm_config::ContributionTokensConvertedConcreteId>(
-					ContributionTokens::account_balances(account.clone())
-						.iter()
-						.filter(|(_, balance)| balance > &0)
-				)?,
-				// collect pallet_assets (ForeignAssets)
-				convert::<_, _, _, _, xcm_config::ForeignAssetsConvertedConcreteId>(
-					ForeignAssets::account_balances(account)
-						.iter()
-						.filter(|(_, balance)| balance > &0)
-				)?,
-			].concat().into())
+			// Ok([
+			// 	// collect pallet_balance
+			// 	{
+			// 		let balance = Balances::balance(&account);
+			// 		if balance > 0 {
+			// 			vec![convert_balance::<xcm_config::HereLocation, Balance>(balance)?]
+			// 		} else {
+			// 			vec![]
+			// 		}
+			// 	},
+			// 	// collect pallet_assets (ContributionTokens)
+			// 	convert::<_, _, _, _, xcm_config::ContributionTokensConvertedConcreteId>(
+			// 		ContributionTokens::account_balances(account.clone())
+			// 			.iter()
+			// 			.filter(|(_, balance)| balance > &0)
+			// 	)?,
+			// 	// collect pallet_assets (ForeignAssets)
+			// 	convert::<_, _, _, _, xcm_config::ForeignAssetsConvertedConcreteId>(
+			// 		ForeignAssets::account_balances(account)
+			// 			.iter()
+			// 			.filter(|(_, balance)| balance > &0)
+			// 	)?,
+			// ].concat().into())
+			Ok(vec![].into())
 		}
 	}
 
@@ -1710,31 +1701,21 @@ impl_runtime_apis! {
 
 	impl xcm_fee_payment_runtime_api::fees::XcmPaymentApi<Block> for Runtime {
 		fn query_acceptable_payment_assets(xcm_version: xcm::Version) -> Result<Vec<VersionedAssetId>, XcmPaymentApiError> {
-			let acceptable_assets = vec![
-				xcm_config::HereLocation::get().into(),
-				xcm_config::DOTLocation::get().into(),
-				xcm_config::USDTLocation::get().into(),
-				xcm_config::USDCLocation::get().into()
-			];
+			let mut acceptable_assets = AcceptedFundingAsset::all_ids();
+			acceptable_assets.push(Location::here());
+			let acceptable_assets = acceptable_assets.into_iter().map(|a| a.into()).collect::<Vec<xcm::v4::AssetId>>();
 
 			PolkadotXcm::query_acceptable_payment_assets(xcm_version, acceptable_assets)
 		}
 
 		fn query_weight_to_asset_fee(weight: Weight, asset: VersionedAssetId) -> Result<u128, XcmPaymentApiError> {
-			match xcm::v3::AssetId::try_from(asset) {
-				Ok(xcm::v3::AssetId::Concrete(multilocation)) if multilocation == MultiLocation::here() => {
-					// for native token
-					Ok(TransactionPayment::weight_to_fee(weight))
-				},
-				Ok(xcm::v3::AssetId::Concrete(multilocation)) => {
-					let native_fee = TransactionPayment::weight_to_fee(weight);
-					let converted_asset_id = ConvertMultilocationToAssetId::convert(multilocation);
-					PLMCToFundingAssetBalance::to_asset_balance(native_fee, converted_asset_id).map_err(|_| XcmPaymentApiError::AssetNotFound)
-				},
-				_ => {
-					Err(XcmPaymentApiError::VersionedConversionFailed)
-				}
+			let location: Location = xcm::v4::AssetId::try_from(asset).map_err(|_| XcmPaymentApiError::VersionedConversionFailed)?.0;
+			let native_fee = TransactionPayment::weight_to_fee(weight);
+			if location == Location::here() {
+				return Ok(native_fee)
 			}
+			PLMCToFundingAssetBalance::to_asset_balance(native_fee, location).map_err(|_| XcmPaymentApiError::AssetNotFound)
+
 		}
 
 		fn query_xcm_weight(message: VersionedXcm<()>) -> Result<Weight, XcmPaymentApiError> {

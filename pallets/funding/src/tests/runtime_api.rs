@@ -1,7 +1,9 @@
 use super::*;
 use crate::runtime_api::{ExtrinsicHelpers, Leaderboards, ProjectInformation, UserInformation};
 use frame_support::traits::fungibles::{metadata::Inspect, Mutate};
+use polimec_common::assets::AcceptedFundingAsset;
 use sp_runtime::bounded_vec;
+
 #[test]
 fn top_evaluations() {
 	let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
@@ -739,10 +741,10 @@ fn calculate_otm_fee() {
 	project_metadata.participation_currencies = bounded_vec![AcceptedFundingAsset::DOT];
 
 	let dot_id = AcceptedFundingAsset::DOT.id();
-	let dot_decimals = inst.execute(|| ForeignAssets::decimals(dot_id));
+	let dot_decimals = inst.execute(|| ForeignAssets::decimals(dot_id.clone()));
 	let dot_unit = 10u128.pow(dot_decimals as u32);
 	let dot_ticket = 10_000 * dot_unit;
-	let dot_ed = inst.get_funding_asset_ed(dot_id);
+	let dot_ed = inst.get_funding_asset_ed(dot_id.clone());
 
 	let block_hash = inst.execute(|| System::block_hash(System::block_number()));
 	let calculated_fee = inst.execute(|| {
@@ -765,7 +767,7 @@ fn calculate_otm_fee() {
 		})
 		.unwrap();
 
-	inst.execute(|| ForeignAssets::set_balance(dot_id, &BIDDER_1, dot_ticket + calculated_fee + dot_ed));
+	inst.execute(|| ForeignAssets::set_balance(dot_id.clone(), &BIDDER_1, dot_ticket + calculated_fee + dot_ed));
 
 	let jwt = get_mock_jwt_with_cid(
 		BIDDER_1,
@@ -797,7 +799,7 @@ fn get_funding_asset_min_max_amounts() {
 	ConstPriceProvider::set_price(AcceptedFundingAsset::USDT.id(), PriceOf::<TestRuntime>::from_float(1.0f64));
 	ConstPriceProvider::set_price(AcceptedFundingAsset::USDC.id(), PriceOf::<TestRuntime>::from_float(1.0f64));
 	ConstPriceProvider::set_price(AcceptedFundingAsset::DOT.id(), PriceOf::<TestRuntime>::from_float(10.0f64));
-	ConstPriceProvider::set_price(PLMC_FOREIGN_ID, PriceOf::<TestRuntime>::from_float(0.5f64));
+	ConstPriceProvider::set_price(Location::here(), PriceOf::<TestRuntime>::from_float(0.5f64));
 	const DOT_UNIT: u128 = 10u128.pow(10u32);
 
 	// We test the following cases:

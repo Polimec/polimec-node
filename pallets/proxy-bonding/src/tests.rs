@@ -24,7 +24,7 @@ fn locked_outcome() {
 		let expected_fee = 5 * MOCK_FEE_ASSET_UNIT;
 
 		// User decides to pay the fee with asset 1337
-		let fee_asset = MOCK_FEE_ASSET_ID;
+		let fee_asset = mock_fee_asset_id();
 
 		let hold_reason = MockRuntimeHoldReason::Reason;
 
@@ -49,17 +49,17 @@ fn locked_outcome() {
 		// )
 		// .unwrap();
 		// User should have enough fee tokens to pay the fee, but also some amount for the ED, which is defined above as `min_balance`
-		<Assets as Mutate<u64>>::mint_into(fee_asset, &user, expected_fee + 100).unwrap();
+		<Assets as Mutate<u64>>::mint_into(fee_asset.clone(), &user, expected_fee + 100).unwrap();
 
 		// The user requests the proxy bond
-		ProxyBonding::bond_on_behalf_of(derivation_path, user, bond_amount, fee_asset, hold_reason).unwrap();
+		ProxyBonding::bond_on_behalf_of(derivation_path, user, bond_amount, fee_asset.clone(), hold_reason).unwrap();
 
 		// The user has locked 100 native tokens on sub-account 0
 		let sub_account_0: AccountIdOf<TestRuntime> = RootId::get().into_sub_account_truncating(0);
 		assert_eq!(<Balances as Inspect<u64>>::balance(&treasury), ed);
 		assert_eq!(<Balances as InspectHold<u64>>::balance_on_hold(&hold_reason, &sub_account_0), bond_amount);
-		assert_eq!(<Assets as FungiblesInspect<u64>>::balance(fee_asset, &sub_account_0), expected_fee);
-		assert_eq!(<Assets as FungiblesInspect<u64>>::balance(fee_asset, &user), 100);
+		assert_eq!(<Assets as FungiblesInspect<u64>>::balance(fee_asset.clone(), &sub_account_0), expected_fee);
+		assert_eq!(<Assets as FungiblesInspect<u64>>::balance(fee_asset.clone(), &user), 100);
 
 		// Mark the release type as Locked, which sends the fee to the fee_recipient, and the bond to the treasury after the inner block number is passed
 		ProxyBonding::set_release_type(derivation_path, hold_reason, ReleaseType::Locked(10));
@@ -72,7 +72,7 @@ fn locked_outcome() {
 			RuntimeOrigin::signed(1),
 			derivation_path,
 			hold_reason,
-			fee_asset
+			fee_asset.clone()
 		));
 		assert_eq!(<Assets as FungiblesInspect<u64>>::balance(fee_asset, &fee_recipient), expected_fee);
 
@@ -101,8 +101,7 @@ fn refunded_outcome() {
 		let bond_amount = 200 * NATIVE_UNIT;
 		let expected_fee = 5 * MOCK_FEE_ASSET_UNIT;
 
-		// User decides to pay the fee with asset 1337
-		let fee_asset = MOCK_FEE_ASSET_ID;
+		let fee_asset = mock_fee_asset_id();
 
 		let hold_reason = MockRuntimeHoldReason::Reason;
 
@@ -114,17 +113,17 @@ fn refunded_outcome() {
 		<Balances as FungibleMutate<u64>>::set_balance(&fee_recipient, ed);
 
 		// User should have enough fee tokens to pay the fee, but also some amount for the ED, which is defined above as `min_balance`
-		<Assets as Mutate<u64>>::mint_into(fee_asset, &user, expected_fee + 100).unwrap();
+		<Assets as Mutate<u64>>::mint_into(fee_asset.clone(), &user, expected_fee + 100).unwrap();
 
 		// The user requests the proxy bond
-		ProxyBonding::bond_on_behalf_of(derivation_path, user, bond_amount, fee_asset, hold_reason).unwrap();
+		ProxyBonding::bond_on_behalf_of(derivation_path, user, bond_amount, fee_asset.clone(), hold_reason).unwrap();
 
 		// The user has locked 100 native tokens on sub-account 0
 		let sub_account_0: AccountIdOf<TestRuntime> = RootId::get().into_sub_account_truncating(0);
 		assert_eq!(<Balances as Inspect<u64>>::balance(&treasury), ed);
 		assert_eq!(<Balances as InspectHold<u64>>::balance_on_hold(&hold_reason, &sub_account_0), bond_amount);
-		assert_eq!(<Assets as FungiblesInspect<u64>>::balance(fee_asset, &sub_account_0), expected_fee);
-		assert_eq!(<Assets as FungiblesInspect<u64>>::balance(fee_asset, &user), 100);
+		assert_eq!(<Assets as FungiblesInspect<u64>>::balance(fee_asset.clone(), &sub_account_0), expected_fee);
+		assert_eq!(<Assets as FungiblesInspect<u64>>::balance(fee_asset.clone(), &user), 100);
 
 		// Mark the release type as Refunded, which leaves the fee to subsequent `refund_fee` calls, and allows to send the bond immediately the treasury.
 		ProxyBonding::set_release_type(derivation_path, hold_reason, ReleaseType::Refunded);
@@ -136,11 +135,16 @@ fn refunded_outcome() {
 		),);
 		assert_eq!(<Balances as Inspect<u64>>::balance(&treasury), ed + bond_amount);
 		assert_noop!(
-			ProxyBonding::transfer_fees_to_recipient(RuntimeOrigin::signed(1), derivation_path, hold_reason, fee_asset),
+			ProxyBonding::transfer_fees_to_recipient(
+				RuntimeOrigin::signed(1),
+				derivation_path,
+				hold_reason,
+				fee_asset.clone()
+			),
 			Error::<TestRuntime>::FeeToRecipientDisallowed
 		);
 
-		assert_ok!(ProxyBonding::refund_fee(derivation_path, &user, bond_amount, fee_asset));
+		assert_ok!(ProxyBonding::refund_fee(derivation_path, &user, bond_amount, fee_asset.clone()));
 		assert_eq!(<Assets as FungiblesInspect<u64>>::balance(fee_asset, &user), 100 + expected_fee);
 	});
 }

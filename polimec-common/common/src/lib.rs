@@ -24,6 +24,7 @@ use sp_runtime::{
 use sp_std::prelude::*;
 pub use xcm::v4::{opaque::Xcm, Assets, Location, QueryId, SendError, SendResult, SendXcm, XcmHash};
 
+pub mod assets;
 pub mod credentials;
 
 /// A release schedule over a fungible. This allows a particular fungible to have release limits
@@ -226,7 +227,6 @@ pub mod migration_types {
 pub const USD_DECIMALS: u8 = 6;
 pub const USD_UNIT: u128 = 10u128.pow(USD_DECIMALS as u32);
 pub const PLMC_DECIMALS: u8 = 10;
-pub const PLMC_FOREIGN_ID: u32 = 3344;
 
 pub trait ProvideAssetPrice {
 	type AssetId;

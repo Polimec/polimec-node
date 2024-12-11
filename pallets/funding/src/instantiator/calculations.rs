@@ -1,8 +1,9 @@
-#[allow(clippy::wildcard_imports)]
 use super::*;
 use crate::{MultiplierOf, ParticipationMode};
 use core::cmp::Ordering;
 use itertools::GroupBy;
+#[allow(clippy::wildcard_imports)]
+use polimec_common::assets::AcceptedFundingAsset;
 use polimec_common::{ProvideAssetPrice, USD_DECIMALS};
 use sp_core::{ecdsa, hexdisplay::AsBytesRef, keccak_256, sr25519, Pair};
 
@@ -36,7 +37,7 @@ impl<
 		evaluations: Vec<EvaluationParams<T>>,
 	) -> Vec<UserToPLMCBalance<T>> {
 		let plmc_usd_price = self.execute(|| {
-			<PriceProviderOf<T>>::get_decimals_aware_price(PLMC_FOREIGN_ID, USD_DECIMALS, PLMC_DECIMALS).unwrap()
+			<PriceProviderOf<T>>::get_decimals_aware_price(Location::here(), USD_DECIMALS, PLMC_DECIMALS).unwrap()
 		});
 
 		let mut output = Vec::new();
@@ -412,7 +413,7 @@ impl<
 	) {
 		let multiplier: MultiplierOf<T> = ParticipationMode::OTM.multiplier().try_into().ok().unwrap();
 		let plmc_usd_price = self.execute(|| {
-			<PriceProviderOf<T>>::get_decimals_aware_price(PLMC_FOREIGN_ID, USD_DECIMALS, PLMC_DECIMALS).unwrap()
+			<PriceProviderOf<T>>::get_decimals_aware_price(Location::here(), USD_DECIMALS, PLMC_DECIMALS).unwrap()
 		});
 		let usd_bond = multiplier.calculate_usd_bonding_requirement::<T>(usd_ticket_size).unwrap();
 		let plmc_bond = plmc_usd_price.reciprocal().unwrap().saturating_mul_int(usd_bond);
@@ -425,7 +426,7 @@ impl<
 		let multiplier: MultiplierOf<T> = multiplier.try_into().ok().unwrap();
 		let usd_bond = multiplier.calculate_usd_bonding_requirement::<T>(usd_ticket_size).unwrap();
 		let plmc_usd_price = self.execute(|| {
-			<PriceProviderOf<T>>::get_decimals_aware_price(PLMC_FOREIGN_ID, USD_DECIMALS, PLMC_DECIMALS).unwrap()
+			<PriceProviderOf<T>>::get_decimals_aware_price(Location::here(), USD_DECIMALS, PLMC_DECIMALS).unwrap()
 		});
 		let plmc_bond = plmc_usd_price.reciprocal().unwrap().saturating_mul_int(usd_bond);
 		*balance += plmc_bond;
@@ -516,7 +517,7 @@ impl<
 
 		#[allow(clippy::type_complexity)]
 		let asset_lists: GroupBy<AssetIdOf<T>, _, fn(&UserToFundingAsset<T>) -> AssetIdOf<T>> =
-			ordered_list.into_iter().group_by(|item| item.asset_id);
+			ordered_list.into_iter().group_by(|item| item.asset_id.clone());
 
 		let mut output = Vec::new();
 

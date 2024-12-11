@@ -15,27 +15,27 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use crate::*;
-use pallet_funding::AcceptedFundingAsset;
 /// Tests for the oracle pallet integration.
 /// Alice, Bob, Charlie are members of the OracleProvidersMembers.
 /// Only members should be able to feed data into the oracle.
 use parity_scale_codec::alloc::collections::HashMap;
-use polimec_common::PLMC_FOREIGN_ID;
+use polimec_common::assets::AcceptedFundingAsset;
 use polimec_runtime::{Oracle, RuntimeOrigin};
 use sp_runtime::{bounded_vec, BoundedVec, FixedU128};
+use std::collections::BTreeMap;
 use tests::defaults::*;
 
 use AcceptedFundingAsset::{DOT, USDC, USDT, WETH};
 fn values(
 	values: [f64; 5],
-) -> BoundedVec<(u32, FixedU128), <polimec_runtime::Runtime as orml_oracle::Config<()>>::MaxFeedValues> {
+) -> BoundedVec<(Location, FixedU128), <polimec_runtime::Runtime as orml_oracle::Config<()>>::MaxFeedValues> {
 	let [dot, usdc, usdt, weth, plmc] = values;
 	bounded_vec![
 		(DOT.id(), FixedU128::from_float(dot)),
 		(USDC.id(), FixedU128::from_float(usdc)),
 		(USDT.id(), FixedU128::from_float(usdt)),
 		(WETH.id(), FixedU128::from_float(weth)),
-		(PLMC_FOREIGN_ID, FixedU128::from_float(plmc))
+		(Location::here(), FixedU128::from_float(plmc))
 	]
 }
 
@@ -55,12 +55,12 @@ fn members_can_feed_data() {
 		let charlie = PolimecNet::account_id_of(CHARLIE);
 		assert_ok!(Oracle::feed_values(RuntimeOrigin::signed(charlie.clone()), values([4.84, 1.0, 1.0, 2500.0, 0.4])));
 
-		let expected_values = HashMap::from([
+		let expected_values = BTreeMap::from([
 			(DOT.id(), FixedU128::from_float(4.84)),
 			(USDC.id(), FixedU128::from_float(1.0)),
 			(USDT.id(), FixedU128::from_float(1.0)),
 			(WETH.id(), FixedU128::from_float(2500.0)),
-			(PLMC_FOREIGN_ID, FixedU128::from_float(0.4)),
+			(Location::here(), FixedU128::from_float(0.4)),
 		]);
 
 		for (key, value) in Oracle::get_all_values() {
@@ -101,12 +101,12 @@ fn data_is_correctly_combined() {
 		));
 
 		// Default CombineData implementation is the median value
-		let expected_values = HashMap::from([
+		let expected_values = BTreeMap::from([
 			(DOT.id(), FixedU128::from_float(2.0)),
 			(USDC.id(), FixedU128::from_float(1.0)),
 			(USDT.id(), FixedU128::from_float(1.1)),
 			(WETH.id(), FixedU128::from_float(2500.0)),
-			(PLMC_FOREIGN_ID, FixedU128::from_float(0.22222)),
+			(Location::here(), FixedU128::from_float(0.22222)),
 		]);
 
 		for (key, value) in Oracle::get_all_values() {

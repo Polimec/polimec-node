@@ -22,7 +22,6 @@ scale-info = { workspace = true, default-features = false, features = [
 	"derive",
 ] }
 log.workspace = true
-variant_count = "1.1.0"
 
 pallet-linear-release.workspace = true
 on-slash-vesting.workspace = true

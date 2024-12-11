@@ -16,9 +16,9 @@
 extern crate alloc;
 
 use super::{
-	AccountId, AllPalletsWithSystem, AssetId as AssetIdPalletAssets, Balance, Balances, ContributionTokens, EnsureRoot,
-	ForeignAssets, Funding, ParachainInfo, ParachainSystem, PolkadotXcm, Runtime, RuntimeCall, RuntimeEvent,
-	RuntimeOrigin, ToTreasury, TreasuryAccount, Vec, WeightToFee,
+	AccountId, AllPalletsWithSystem, Balance, Balances, ContributionTokens, EnsureRoot, ForeignAssets, Funding,
+	ParachainInfo, ParachainSystem, PolkadotXcm, Runtime, RuntimeCall, RuntimeEvent, RuntimeOrigin, ToTreasury,
+	TreasuryAccount, Vec, WeightToFee,
 };
 use core::marker::PhantomData;
 use cumulus_primitives_core::ParaId;
@@ -30,20 +30,13 @@ use frame_support::{
 	weights::Weight,
 };
 use pallet_xcm::XcmPassthrough;
+use polimec_common::assets::AcceptedFundingAsset;
 #[cfg(feature = "runtime-benchmarks")]
 use polimec_common_test_utils::DummyXcmSender;
 use polkadot_parachain_primitives::primitives::Sibling;
 use polkadot_runtime_common::xcm_sender::NoPriceForMessageDelivery;
-use sp_runtime::traits::MaybeEquivalence;
 use xcm::v4::prelude::*;
-use xcm_builder::{
-	AccountId32Aliases, AllowExplicitUnpaidExecutionFrom, AllowKnownQueryResponses, AllowSubscriptionsFrom,
-	AllowTopLevelPaidExecutionFrom, CreateMatcher, DenyReserveTransferToRelayChain, DenyThenTry, EnsureXcmOrigin,
-	FixedRateOfFungible, FixedWeightBounds, FrameTransactionalProcessor, FungibleAdapter, FungiblesAdapter, IsConcrete,
-	MatchXcm, MatchedConvertedConcreteId, MintLocation, NoChecking, ParentIsPreset, RelayChainAsNative,
-	SiblingParachainAsNative, SiblingParachainConvertsVia, SignedAccountId32AsNative, SignedToAccountId32,
-	SovereignSignedViaLocation, TakeWeightCredit, TrailingSetTopicAsId, UsingComponents, WithComputedOrigin,
-};
+use xcm_builder::{AccountId32Aliases, AllowExplicitUnpaidExecutionFrom, AllowKnownQueryResponses, AllowSubscriptionsFrom, AllowTopLevelPaidExecutionFrom, CreateMatcher, DenyReserveTransferToRelayChain, DenyThenTry, EnsureXcmOrigin, FixedRateOfFungible, FixedWeightBounds, FrameTransactionalProcessor, FungibleAdapter, FungiblesAdapter, IsConcrete, MatchXcm, MatchedConvertedConcreteId, MintLocation, NoChecking, ParentIsPreset, RelayChainAsNative, SiblingParachainAsNative, SiblingParachainConvertsVia, SignedAccountId32AsNative, SignedToAccountId32, SovereignSignedViaLocation, StartsWith, StartsWithExplicitGlobalConsensus, TakeWeightCredit, TrailingSetTopicAsId, UsingComponents, WithComputedOrigin};
 use xcm_executor::{
 	traits::{JustTry, Properties, ShouldExecute},
 	XcmExecutor,
@@ -61,8 +54,6 @@ const USDT_PER_MB_PROOF: u128 = 1_000_000; // 1 USDT per Megabyte of proof size
 const USDC_PER_SECOND_EXECUTION: u128 = 1_000_000; // 1 USDC per second of execution time
 const USDC_PER_MB_PROOF: u128 = 1_000_000; // 1 USDC per Megabyte of proof size
 
-pub const WETH_ADDRESS: [u8; 20] = hex_literal::hex!("c02aaa39b223fe8d0a0e5c4f27ead9083c756cc2");
-
 parameter_types! {
 	pub const RelayLocation: Location = Location::parent();
 	pub const RelayNetwork: Option<NetworkId> = None;
@@ -71,6 +62,7 @@ parameter_types! {
 		GlobalConsensus(Polkadot),
 		Parachain(ParachainInfo::parachain_id().into()),
 	).into();
+	pub UniversalLocationNetworkId: NetworkId = UniversalLocation::get().global_consensus().unwrap();
 	pub const HereLocation: Location = Location::here();
 	pub AssetHubLocation: Location = (Parent, Parachain(1000)).into();
 	pub CheckAccount: AccountId = PolkadotXcm::check_account();
@@ -83,32 +75,10 @@ parameter_types! {
 	pub ContributionTokensPalletIndex: u8 = <ContributionTokens as PalletInfoAccess>::index() as u8;
 	pub ContributionTokensPalletLocation: Location = PalletInstance(ContributionTokensPalletIndex::get()).into();
 
-	pub DOTLocation: Location = Location::new(DOT_PARENTS, DOT_JUNCTIONS);
-	pub USDTLocation: Location = Location::new(USDT_PARENTS, USDT_JUNCTIONS);
-	pub USDCLocation: Location = Location::new(USDC_PARENTS, USDC_JUNCTIONS);
-	pub WETHLocation: Location = Location::new(WETH_PARENTS, WETH_JUNCTIONS);
-
-	pub DotTraderParams: (AssetId, u128, u128) = (DOTLocation::get().into(), DOT_PER_SECOND_EXECUTION, DOT_PER_MB_PROOF);
-	pub UsdtTraderParams: (AssetId, u128, u128) = (USDTLocation::get().into(), USDT_PER_SECOND_EXECUTION, USDT_PER_MB_PROOF);
-	pub UsdcTraderParams: (AssetId, u128, u128) = (USDCLocation::get().into(), USDC_PER_SECOND_EXECUTION, USDC_PER_MB_PROOF);
+	pub DotTraderParams: (AssetId, u128, u128) = (AcceptedFundingAsset::DOT.id().into(), DOT_PER_SECOND_EXECUTION, DOT_PER_MB_PROOF);
+	pub UsdtTraderParams: (AssetId, u128, u128) = (AcceptedFundingAsset::USDT.id().into(), USDT_PER_SECOND_EXECUTION, USDT_PER_MB_PROOF);
+	pub UsdcTraderParams: (AssetId, u128, u128) = (AcceptedFundingAsset::USDC.id().into(), USDC_PER_SECOND_EXECUTION, USDC_PER_MB_PROOF);
 }
-
-const DOT_PARENTS: u8 = 1;
-const DOT_JUNCTIONS: [Junction; 0] = [];
-const DOT_UNPACKED: (u8, &[Junction]) = (DOT_PARENTS, &DOT_JUNCTIONS);
-
-const USDT_PARENTS: u8 = 1;
-const USDT_JUNCTIONS: [Junction; 3] = [Parachain(1000), PalletInstance(50), GeneralIndex(1984)];
-const USDT_UNPACKED: (u8, &[Junction]) = (USDT_PARENTS, &USDT_JUNCTIONS);
-
-const USDC_PARENTS: u8 = 1;
-const USDC_JUNCTIONS: [Junction; 3] = [Parachain(1000), PalletInstance(50), GeneralIndex(1337)];
-const USDC_UNPACKED: (u8, &[Junction]) = (USDC_PARENTS, &USDC_JUNCTIONS);
-
-const WETH_PARENTS: u8 = 2;
-const WETH_JUNCTIONS: [Junction; 2] =
-	[GlobalConsensus(Ethereum { chain_id: 1 }), AccountKey20 { network: None, key: WETH_ADDRESS }];
-const WETH_UNPACKED: (u8, &[Junction]) = (WETH_PARENTS, &WETH_JUNCTIONS);
 
 /// Type for specifying how a `Location` can be converted into an `AccountId`. This is used
 /// when determining ownership of accounts for asset transacting and when attempting to use XCM
@@ -137,8 +107,20 @@ pub type FungibleTransactor = FungibleAdapter<
 >;
 
 /// `AssetId`/`Balance` converter for `ForeignAssets`.
-pub type ForeignAssetsConvertedConcreteId =
-	assets_common::TrustBackedAssetsConvertedConcreteId<ForeignAssetsPalletLocation, Balance>;
+pub type ForeignAssetsConvertedConcreteId = assets_common::ForeignAssetsConvertedConcreteId<
+	(
+		// Ignore `TrustBackedAssets` explicitly
+		StartsWith<ForeignAssetsPalletLocation>,
+		// Ignore assets that start explicitly with our `GlobalConsensus(NetworkId)`, means:
+		// - foreign assets from our consensus should be: `Location {parents: 1, X*(Parachain(xyz),
+		//   ..)}`
+		// - foreign assets outside our consensus with the same `GlobalConsensus(NetworkId)` won't
+		//   be accepted here
+		StartsWithExplicitGlobalConsensus<UniversalLocationNetworkId>,
+	),
+	Balance,
+	xcm::v4::Location,
+>;
 
 /// `AssetId`/`Balance` converter for `ContributionTokens`.
 pub type ContributionTokensConvertedConcreteId =
@@ -149,30 +131,8 @@ pub type ContributionTokensConvertedConcreteId =
 pub struct SupportedAssets;
 impl frame_support::traits::Contains<Location> for SupportedAssets {
 	fn contains(l: &Location) -> bool {
-		let funding_assets = [DOTLocation::get(), USDTLocation::get(), USDCLocation::get(), WETHLocation::get()];
+		let funding_assets = AcceptedFundingAsset::all_ids();
 		funding_assets.contains(l)
-	}
-}
-
-impl MaybeEquivalence<Location, AssetIdPalletAssets> for SupportedAssets {
-	fn convert(asset_id: &Location) -> Option<AssetIdPalletAssets> {
-		match asset_id.unpack() {
-			DOT_UNPACKED => Some(10),
-			USDT_UNPACKED => Some(1984),
-			USDC_UNPACKED => Some(1337),
-			WETH_UNPACKED => Some(10_000),
-			_ => None,
-		}
-	}
-
-	fn convert_back(asset_id: &AssetIdPalletAssets) -> Option<Location> {
-		match asset_id {
-			10 => Some(DOTLocation::get()),
-			1337 => Some(USDCLocation::get()),
-			1984 => Some(USDTLocation::get()),
-			10_000 => Some(WETHLocation::get()),
-			_ => None,
-		}
 	}
 }
 
@@ -182,7 +142,7 @@ pub type ForeignAssetsAdapter = FungiblesAdapter<
 	// Use this fungibles implementation:
 	ForeignAssets,
 	// Use this currency when it is a fungible asset matching the given location or name:
-	MatchedConvertedConcreteId<AssetIdPalletAssets, Balance, SupportedAssets, SupportedAssets, JustTry>,
+	MatchedConvertedConcreteId<Location, Balance, SupportedAssets, JustTry, JustTry>,
 	// Convert an XCM Location into a local account id:
 	LocationToAccountId,
 	// Our chain's account ID type (we can't get away without mentioning it explicitly):

@@ -25,7 +25,8 @@ impl<T: Config> Pallet<T> {
 		)
 		.ok_or(Error::<T>::PriceNotAvailable)?;
 
-		let fee_asset_decimals = <T::FeeToken as fungibles::metadata::Inspect<AccountIdOf<T>>>::decimals(fee_asset);
+		let fee_asset_decimals =
+			<T::FeeToken as fungibles::metadata::Inspect<AccountIdOf<T>>>::decimals(fee_asset.clone());
 		let fee_token_price =
 			<PriceProviderOf<T>>::get_decimals_aware_price(fee_asset, T::UsdDecimals::get(), fee_asset_decimals)
 				.ok_or(Error::<T>::PriceNotAvailable)?;
@@ -56,7 +57,7 @@ impl<T: Config> Pallet<T> {
 		let bonding_account: AccountIdOf<T> = Self::get_bonding_account(derivation_path);
 		let existential_deposit = <T::BondingToken as fungible::Inspect<T::AccountId>>::minimum_balance();
 
-		let fee_in_fee_asset = Self::calculate_fee(bond_amount, fee_asset)?;
+		let fee_in_fee_asset = Self::calculate_fee(bond_amount, fee_asset.clone())?;
 
 		// Pay the fee from the user to the bonding account. It awaits either a full transfer to the T::FeeRecipient, or a refund to each user
 		T::FeeToken::transfer(fee_asset, &account, &bonding_account, fee_in_fee_asset, Preservation::Preserve)?;
@@ -102,7 +103,7 @@ impl<T: Config> Pallet<T> {
 		fee_asset: AssetId,
 	) -> Result<(), DispatchError> {
 		let bonding_account = Self::get_bonding_account(derivation_path);
-		let fee_in_fee_asset = Self::calculate_fee(bond_amount, fee_asset)?;
+		let fee_in_fee_asset = Self::calculate_fee(bond_amount, fee_asset.clone())?;
 
 		// We know this fee token account is existing thanks to the provider reference of the ED of the native asset, so we can fully move all the funds.
 		// FYI same cannot be said of the `account`. We assume they only hold the fee token so their fee asset balance must not go below the min_balance.

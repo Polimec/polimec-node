@@ -18,6 +18,7 @@ use frame_support::BoundedVec;
 use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
 use pallet_parachain_staking::inflation::{perbill_annual_to_perbill_round, BLOCKS_PER_YEAR};
 pub use parachains_common::{AccountId, AssetHubPolkadotAuraId, AuraId, Balance, BlockNumber};
+use polimec_common::assets::AcceptedFundingAsset;
 use polimec_runtime::{pallet_parachain_staking::Range, PLMC};
 use polkadot_primitives::{AssignmentId, ValidatorId};
 pub use polkadot_runtime_parachains::configuration::HostConfiguration;
@@ -436,9 +437,8 @@ pub mod penpal {
 pub mod polimec {
 	use super::*;
 	use crate::{PolimecNet, PolimecOrigin, PolimecRuntime};
-	use pallet_funding::AcceptedFundingAsset;
 	use polimec_runtime::{BlockchainOperationTreasury, TreasuryAccount};
-	use xcm::v4::Parent;
+	use xcm::v4::{Location, Parent};
 	use xcm_emulator::TestExt;
 
 	pub const PARA_ID: u32 = 3344;
@@ -454,10 +454,10 @@ pub mod polimec {
 			let dot = (AcceptedFundingAsset::DOT.id(), prices.dot);
 			let usdc = (AcceptedFundingAsset::USDC.id(), prices.usdc);
 			let usdt = (AcceptedFundingAsset::USDT.id(), prices.usdt);
-			let plmc = (polimec_common::PLMC_FOREIGN_ID, prices.plmc);
+			let plmc = (Location::here(), prices.plmc);
 			let weth = (AcceptedFundingAsset::WETH.id(), prices.weth);
 
-			let values: BoundedVec<(u32, FixedU128), <PolimecRuntime as orml_oracle::Config>::MaxFeedValues> =
+			let values: BoundedVec<(Location, FixedU128), <PolimecRuntime as orml_oracle::Config>::MaxFeedValues> =
 				vec![dot, usdc, usdt, plmc, weth].try_into().expect("benchmarks can panic");
 			let alice: [u8; 32] = [
 				212, 53, 147, 199, 21, 253, 211, 28, 97, 20, 26, 189, 4, 169, 159, 214, 130, 44, 133, 88, 133, 76, 205,
@@ -524,15 +524,15 @@ pub mod polimec {
 			contribution_tokens: Default::default(),
 			foreign_assets: polimec_runtime::ForeignAssetsConfig {
 				assets: vec![
-					(dot_asset_id, alice_account.clone(), true, 100_000_000),
-					(usdt_asset_id, alice_account.clone(), true, 70_000),
-					(usdc_asset_id, alice_account.clone(), true, 70_000),
+					(dot_asset_id.clone(), alice_account.clone(), true, 100_000_000),
+					(usdt_asset_id.clone(), alice_account.clone(), true, 70_000),
+					(usdc_asset_id.clone(), alice_account.clone(), true, 70_000),
 					(weth_asset_id, alice_account.clone(), true, 0_000_041_000_000_000_000),
 				],
 				metadata: vec![
 					(dot_asset_id, "Local DOT".as_bytes().to_vec(), "DOT".as_bytes().to_vec(), 10),
 					(usdt_asset_id, "Local USDT".as_bytes().to_vec(), "USDT".as_bytes().to_vec(), 6),
-					(usdc_asset_id, "Local USDC".as_bytes().to_vec(), "USDC".as_bytes().to_vec(), 6),
+					(usdc_asset_id.clone(), "Local USDC".as_bytes().to_vec(), "USDC".as_bytes().to_vec(), 6),
 					(usdc_asset_id, "Local WETH".as_bytes().to_vec(), "WETH".as_bytes().to_vec(), 18),
 				],
 				accounts: vec![],

@@ -50,7 +50,6 @@ polkadot-parachain-primitives.workspace = true
 pallet-collective.workspace = true
 pallet-elections-phragmen.workspace = true
 pallet-message-queue.workspace = true
-
 cumulus-primitives-core.workspace = true
 cumulus-pallet-xcm.workspace = true
 
@@ -84,6 +83,7 @@ pallet-skip-feeless-payment.workspace = true
 xcm-fee-payment-runtime-api.workspace = true
 hex-literal.workspace = true
 hex.workspace = true
+assets-common.workspace = true
 
 # Runtimes
 polkadot-runtime.workspace = true

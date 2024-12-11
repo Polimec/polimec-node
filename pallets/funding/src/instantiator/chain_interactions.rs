@@ -2,6 +2,7 @@
 
 #[allow(clippy::wildcard_imports)]
 use super::*;
+use polimec_common::assets::AcceptedFundingAsset;
 
 // general chain interactions
 impl<
@@ -79,7 +80,7 @@ impl<
 		self.execute(|| {
 			let mut balances: Vec<UserToFundingAsset<T>> = Vec::new();
 			for (account, asset_id) in list {
-				let asset_amount = <T as Config>::FundingCurrency::balance(asset_id, &account);
+				let asset_amount = <T as Config>::FundingCurrency::balance(asset_id.clone(), &account);
 				balances.push(UserToFundingAsset { account, asset_amount, asset_id });
 			}
 			balances.sort_by(|a, b| a.account.cmp(&b.account));
@@ -120,7 +121,8 @@ impl<
 	}
 
 	pub fn get_all_free_funding_asset_balances(&mut self, asset_id: AssetIdOf<T>) -> Vec<UserToFundingAsset<T>> {
-		let user_keys = self.execute(|| frame_system::Account::<T>::iter_keys().map(|a| (a, asset_id)).collect());
+		let user_keys =
+			self.execute(|| frame_system::Account::<T>::iter_keys().map(|a| (a, asset_id.clone())).collect());
 		self.get_free_funding_asset_balances_for(user_keys)
 	}
 
@@ -225,9 +227,9 @@ impl<
 
 	pub fn mint_funding_asset_ed_if_required(&mut self, list: Vec<(AccountIdOf<T>, AssetIdOf<T>)>) {
 		for (account, asset_id) in list {
-			let ed = self.get_funding_asset_ed(asset_id);
+			let ed = self.get_funding_asset_ed(asset_id.clone());
 			self.execute(|| {
-				if <T as Config>::FundingCurrency::balance(asset_id, &account) < ed {
+				if <T as Config>::FundingCurrency::balance(asset_id.clone(), &account) < ed {
 					<T as Config>::FundingCurrency::mint_into(asset_id, &account, ed).expect("Minting should work");
 				}
 			});

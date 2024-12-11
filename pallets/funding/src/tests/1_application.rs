@@ -1,5 +1,5 @@
 use super::*;
-use polimec_common::credentials::InvestorType;
+use polimec_common::{assets::AcceptedFundingAsset, credentials::InvestorType};
 use polimec_common_test_utils::{generate_did_from_account, get_mock_jwt_with_cid};
 
 #[cfg(test)]

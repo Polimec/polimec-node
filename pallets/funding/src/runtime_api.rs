@@ -1,10 +1,12 @@
 use crate::traits::BondingRequirementCalculation;
 #[allow(clippy::wildcard_imports)]
-use crate::*;
+
+use crate::{traits::BondingRequirementCalculation, *};
 use alloc::{collections::BTreeMap, string::String};
 use frame_support::traits::fungibles::{Inspect, InspectEnumerable};
 use itertools::Itertools;
 use parity_scale_codec::{Decode, Encode};
+use polimec_common::assets::AcceptedFundingAsset;
 use polimec_common::{credentials::InvestorType, ProvideAssetPrice, USD_DECIMALS};
 use scale_info::TypeInfo;
 use sp_core::Get;
@@ -269,7 +271,7 @@ impl<T: Config> Pallet<T> {
 	}
 
 	pub fn calculate_otm_fee(funding_asset: AcceptedFundingAsset, funding_asset_amount: Balance) -> Option<Balance> {
-		let plmc_price = <PriceProviderOf<T>>::get_decimals_aware_price(PLMC_FOREIGN_ID, USD_DECIMALS, PLMC_DECIMALS)
+		let plmc_price = <PriceProviderOf<T>>::get_decimals_aware_price(Location::here(), USD_DECIMALS, PLMC_DECIMALS)
 			.expect("Price not found");
 		let funding_asset_usd_price = Pallet::<T>::get_decimals_aware_funding_asset_price(&funding_asset).unwrap();
 		let usd_amount = funding_asset_usd_price.saturating_mul_int(funding_asset_amount);
