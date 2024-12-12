@@ -62,7 +62,7 @@ mod jwt_utils {
 	fn create_jwt<AccountId: frame_support::Serialize>(
 		account_id: AccountId,
 		investor_type: InvestorType,
-		did: BoundedVec<u8, ConstU32<57>>,
+		did: Did,
 		ipfs_cid: Option<BoundedVec<u8, ConstU32<96>>>,
 	) -> UntrustedToken {
 		use chrono::{TimeZone, Utc};
@@ -96,7 +96,7 @@ mod jwt_utils {
 	pub fn get_mock_jwt<AccountId: frame_support::Serialize>(
 		account_id: AccountId,
 		investor_type: InvestorType,
-		did: BoundedVec<u8, ConstU32<57>>,
+		did: Did,
 	) -> UntrustedToken {
 		create_jwt(account_id, investor_type, did, None)
 	}
@@ -105,7 +105,7 @@ mod jwt_utils {
 	pub fn get_mock_jwt_with_cid<AccountId: frame_support::Serialize>(
 		account_id: AccountId,
 		investor_type: InvestorType,
-		did: BoundedVec<u8, ConstU32<57>>,
+		did: Did,
 		ipfs_cid: BoundedVec<u8, ConstU32<96>>,
 	) -> UntrustedToken {
 		create_jwt(account_id, investor_type, did, Some(ipfs_cid))
