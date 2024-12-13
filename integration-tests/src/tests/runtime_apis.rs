@@ -1,10 +1,14 @@
 use crate::{constants::*, *};
 use assets_common::runtime_api::runtime_decl_for_fungibles_api::FungiblesApiV2;
-use frame_support::traits::{fungible::Inspect, fungibles::Mutate};
+use frame_support::traits::{
+	fungible::{Inspect, Mutate as FMutate},
+	fungibles::Mutate,
+};
 use polimec_common::assets::AcceptedFundingAsset;
 use sp_arithmetic::FixedU128;
 use xcm::v4::Junctions::X3;
 use xcm_fee_payment_runtime_api::fees::runtime_decl_for_xcm_payment_api::XcmPaymentApiV1;
+
 mod xcm_payment_api {
 	use super::*;
 	use itertools::Itertools;
@@ -76,21 +80,29 @@ mod fungibles_api {
 		PolimecNet::execute_with(|| {
 			let alice_account = PolimecNet::account_id_of(accounts::ALICE);
 
-			assert_ok!(PolimecForeignAssets::mint_into(
-				AcceptedFundingAsset::DOT.id(),
-				&alice_account,
-				100_0_000_000_000
-			));
-			assert_ok!(PolimecForeignAssets::mint_into(AcceptedFundingAsset::USDT.id(), &alice_account, 100_000));
-			assert_ok!(PolimecForeignAssets::mint_into(AcceptedFundingAsset::USDC.id(), &alice_account, 100_000));
-			assert_ok!(PolimecForeignAssets::mint_into(
+			PolimecBalances::set_balance(&alice_account, 150_0_000_000_000_u128);
+			PolimecForeignAssets::set_balance(AcceptedFundingAsset::DOT.id(), &alice_account, 100_0_000_000_000_u128);
+			PolimecForeignAssets::set_balance(AcceptedFundingAsset::USDT.id(), &alice_account, 100_000_u128);
+			PolimecForeignAssets::set_balance(AcceptedFundingAsset::USDC.id(), &alice_account, 100_000_u128);
+			PolimecForeignAssets::set_balance(
 				AcceptedFundingAsset::WETH.id(),
 				&alice_account,
-				100_000_000_000_000
-			));
+				100_000_000_000_000_u128,
+			);
 
-			let alice_assets = PolimecRuntime::query_account_balances(alice_account);
-			dbg!(alice_assets).unwrap();
+			let alice_assets = PolimecRuntime::query_account_balances(alice_account).unwrap();
+
+			let expected_assets = VersionedAssets::V4(
+				vec![
+					Asset::from((Location::here(), 150_0_000_000_000_u128)),
+					Asset::from((AcceptedFundingAsset::DOT.id(), 100_0_000_000_000_u128)),
+					Asset::from((AcceptedFundingAsset::USDC.id(), 100_000_u128)),
+					Asset::from((AcceptedFundingAsset::USDT.id(), 100_000_u128)),
+					Asset::from((AcceptedFundingAsset::WETH.id(), 100_000_000_000_000_u128)),
+				]
+				.into(),
+			);
+			assert_eq!(alice_assets, expected_assets);
 		});
 	}
 }

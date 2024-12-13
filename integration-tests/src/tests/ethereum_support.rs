@@ -2,7 +2,7 @@ use crate::*;
 use hex_literal::hex;
 use sp_runtime::traits::Convert;
 
-generate_accounts!(ETH_BUYER);
+macros::generate_accounts!(ETH_BUYER);
 
 #[test]
 fn test_hardcoded_signatures() {

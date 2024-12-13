@@ -12,13 +12,13 @@ default-members = ["nodes/*", "pallets/*"]
 resolver = "2"
 
 [workspace.lints.clippy]
-all = { level = "warn", priority = -1}
+all = { level = "warn", priority = -1 }
 inconsistent_digit_grouping = "allow"
 zero_prefixed_literal = "allow"
 missing_errors_doc = "allow"
 must_use_candidate = "allow"
 identity_op = "allow"
-tabs_in_doc_comments= "allow"
+tabs_in_doc_comments = "allow"
 
 [workspace.lints.rust]
 unreachable_patterns = "deny"
@@ -148,7 +148,7 @@ sp-authority-discovery = { version = "33.0.0", default-features = false }
 sp-consensus-babe = { version = "0.39.0", default-features = false }
 pallet-message-queue = { version = "38.0.0", default-features = false }
 sp-weights = { version = "31.0.0", default-features = false }
-sp-application-crypto = {version = "37.0.0", default-features = false}
+sp-application-crypto = { version = "37.0.0", default-features = false }
 
 # FRAME
 assets-common = { version = "0.14.0", default-features = false }
@@ -246,7 +246,5 @@ cumulus-pallet-session-benchmarking = { version = "16.0.0", default-features = f
 
 # Runtimes
 polimec-runtime = { path = "runtimes/polimec" }
-asset-hub-polkadot-runtime = { git = 'https://github.com/polkadot-fellows/runtimes', default-features = false, rev = 'c5080e43321476ec82d69b710ebfaafb634f7475' }
-polkadot-runtime-constants = { git = 'https://github.com/polkadot-fellows/runtimes', default-features = false, rev = 'c5080e43321476ec82d69b710ebfaafb634f7475' }
-system-parachains-constants = { git = 'https://github.com/polkadot-fellows/runtimes', default-features = false, rev = 'c5080e43321476ec82d69b710ebfaafb634f7475' }
-polkadot-runtime = { git = 'https://github.com/polkadot-fellows/runtimes', default-features = false, rev = 'c5080e43321476ec82d69b710ebfaafb634f7475' }
+rococo-runtime-constants = { version = "14.0.0" }
+rococo-runtime = { version = "14.0.0" }

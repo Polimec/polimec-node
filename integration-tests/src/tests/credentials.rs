@@ -53,7 +53,7 @@ fn test_jwt_verification() {
 	});
 }
 
-generate_accounts!(EMPTY_ACCOUNT);
+macros::generate_accounts!(EMPTY_ACCOUNT);
 
 #[test]
 fn dispenser_signed_extensions_pass_for_new_account() {
