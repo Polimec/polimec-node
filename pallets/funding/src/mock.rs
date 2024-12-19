@@ -210,7 +210,9 @@ impl pallet_assets::Config<ContributionTokensInstance> for TestRuntime {
 	type WeightInfo = ();
 }
 
+#[cfg(feature = "runtime-benchmarks")]
 pub struct PalletAssetsBenchmarkHelper;
+#[cfg(feature = "runtime-benchmarks")]
 impl pallet_assets::BenchmarkHelper<Location> for PalletAssetsBenchmarkHelper {
 	fn create_asset_id_parameter(id: u32) -> Location {
 		(Parent, Parachain(id)).into()

@@ -112,6 +112,7 @@ parachains-common.workspace = true
 # ORML
 orml-oracle.workspace = true
 
+itertools.workspace = true
 [features]
 default = [ "std" ]
 fast-mode = [ "shared-configuration/fast-mode" ]

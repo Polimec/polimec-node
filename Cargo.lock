@@ -8811,6 +8811,7 @@ dependencies = [
  "frame-system-rpc-runtime-api",
  "frame-try-runtime",
  "hex-literal",
+ "itertools 0.11.0",
  "lazy_static",
  "log",
  "orml-oracle",

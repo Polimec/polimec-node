@@ -78,7 +78,9 @@ impl pallet_balances::Config for TestRuntime {
 	type RuntimeHoldReason = MockRuntimeHoldReason;
 }
 
+#[cfg(feature = "runtime-benchmarks")]
 pub struct PalletAssetsBenchmarkHelper;
+#[cfg(feature = "runtime-benchmarks")]
 impl pallet_assets::BenchmarkHelper<Location> for PalletAssetsBenchmarkHelper {
 	fn create_asset_id_parameter(id: u32) -> Location {
 		(Parent, Parachain(id)).into()
@@ -89,6 +91,7 @@ impl pallet_assets::Config for TestRuntime {
 	type AssetId = Location;
 	type AssetIdParameter = Location;
 	type Balance = <TestRuntime as pallet_balances::Config>::Balance;
+	#[cfg(feature = "runtime-benchmarks")]
 	type BenchmarkHelper = PalletAssetsBenchmarkHelper;
 	type CreateOrigin = AsEnsureOriginWithArg<frame_system::EnsureSigned<u64>>;
 	type Currency = Balances;

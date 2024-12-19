@@ -1,13 +1,11 @@
 use crate::traits::BondingRequirementCalculation;
 #[allow(clippy::wildcard_imports)]
-
 use crate::{traits::BondingRequirementCalculation, *};
 use alloc::{collections::BTreeMap, string::String};
 use frame_support::traits::fungibles::{Inspect, InspectEnumerable};
 use itertools::Itertools;
 use parity_scale_codec::{Decode, Encode};
-use polimec_common::assets::AcceptedFundingAsset;
-use polimec_common::{credentials::InvestorType, ProvideAssetPrice, USD_DECIMALS};
+use polimec_common::{assets::AcceptedFundingAsset, credentials::InvestorType, ProvideAssetPrice, USD_DECIMALS};
 use scale_info::TypeInfo;
 use sp_core::Get;
 use sp_runtime::traits::Zero;
