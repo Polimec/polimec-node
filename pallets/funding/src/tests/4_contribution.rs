@@ -2184,5 +2184,40 @@ mod contribute_extrinsic {
 				);
 			});
 		}
+
+		#[test]
+		fn contributed_after_end_block_before_transitioning_project() {
+			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+			let project_metadata = default_project_metadata(ISSUER_1);
+			let project_id = inst.create_community_contributing_project(
+				project_metadata.clone(),
+				ISSUER_1,
+				None,
+				default_evaluations(),
+				vec![],
+			);
+			let end_block = inst.get_project_details(project_id).round_duration.end.unwrap();
+			inst.jump_to_block(end_block + 1);
+			assert!(matches!(inst.get_project_details(project_id).status, ProjectStatus::CommunityRound(..)));
+
+			inst.execute(|| {
+				assert_noop!(
+					PolimecFunding::contribute(
+						RuntimeOrigin::signed(BUYER_1),
+						get_mock_jwt_with_cid(
+							BUYER_1,
+							InvestorType::Professional,
+							generate_did_from_account(BUYER_1),
+							project_metadata.clone().policy_ipfs_cid.unwrap()
+						),
+						project_id,
+						5000 * CT_UNIT,
+						ParticipationMode::Classic(1u8),
+						AcceptedFundingAsset::USDT
+					),
+					Error::<TestRuntime>::IncorrectRound
+				);
+			});
+		}
 	}
 }

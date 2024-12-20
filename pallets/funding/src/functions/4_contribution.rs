@@ -24,9 +24,11 @@ impl<T: Config> Pallet<T> {
 
 		let now = <frame_system::Pallet<T>>::block_number();
 		let remainder_started = now >= remainder_start;
-		let round_end = project_details.round_duration.end().ok_or(Error::<T>::ImpossibleState)?;
 		ensure!(!did_has_winning_bid || remainder_started, Error::<T>::UserHasWinningBid);
-		ensure!(now < round_end, Error::<T>::TooLateForRound);
+		ensure!(
+			project_details.round_duration.started(now) && !project_details.round_duration.ended(now),
+			Error::<T>::IncorrectRound
+		);
 
 		let buyable_tokens = token_amount.min(project_details.remaining_contribution_tokens);
 		if buyable_tokens.is_zero() {
