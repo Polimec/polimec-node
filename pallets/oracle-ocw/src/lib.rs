@@ -195,9 +195,6 @@ pub mod pallet {
 					}
 				};
 			}
-
-			// Todo:
-			// - Fetch price information for Polimec
 		}
 	}
 

@@ -228,10 +228,10 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("polimec-mainnet"),
 	impl_name: create_runtime_str!("polimec-mainnet"),
 	authoring_version: 1,
-	spec_version: 0_008_000,
+	spec_version: 0_009_000,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
-	transaction_version: 5,
+	transaction_version: 6,
 	state_version: 1,
 };
 
@@ -451,7 +451,7 @@ impl pallet_assets::Config<ForeignAssetsInstance> for Runtime {
 	#[cfg(feature = "runtime-benchmarks")]
 	type BenchmarkHelper = ();
 	type CallbackHandle = ();
-	// TODO Check Creation Origin
+	// Only Root (aka Governance) can create a new asset.
 	type CreateOrigin = AsEnsureOriginWithArg<EnsureRootWithSuccess<AccountId, RootOperatorAccountId>>;
 	type Currency = Balances;
 	type Extra = ();
@@ -1097,10 +1097,10 @@ parameter_types! {
 	// Fee is defined as 1.5% of the usd_amount. Since fee is applied to the plmc amount, and that is always 5 times
 	// less than the usd_amount (multiplier of 5), we multiply the 1.5 by 5 to get 7.5%
 	pub FeePercentage: Perbill = Perbill::from_rational(75u32, 1000u32);
-	// TODO: add a real account here
-	pub FeeRecipient: AccountId = [0u8; 32].into();
+	pub FeeRecipient: AccountId =  AccountId::from(hex_literal::hex!("3ea952b5fa77f4c67698e79fe2d023a764a41aae409a83991b7a7bdd9b74ab56"));
 	pub RootId: PalletId = PalletId(*b"treasury");
 }
+
 impl pallet_proxy_bonding::Config for Runtime {
 	type BondingToken = Balances;
 	type BondingTokenDecimals = ConstU8<PLMC_DECIMALS>;
