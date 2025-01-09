@@ -45,28 +45,7 @@
 //! - Time-locked release: Bonds are locked until a specific block number, and fees can be sent to the configured fee recipient.
 //!
 //! ## Configuration
-//!
-//! ```rust
-//! pub trait Config: frame_system::Config {
-//! 	type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
-//! 	type RuntimeHoldReason: IsType<HoldReasonOf<Self>> + Parameter + MaxEncodedLen;
-//! 	type BondingToken: fungible::Inspect<Self::AccountId>
-//! 	+ fungible::Mutate<Self::AccountId>
-//! 	+ fungible::MutateHold<Self::AccountId>;
-//! 	type BondingTokenDecimals: Get<u8>;
-//! 	type UsdDecimals: Get<u8>;
-//! 	type BondingTokenId: Get<AssetId>;
-//! 	type FeeToken: fungibles::Inspect<Self::AccountId>
-//! 	+ fungibles::Mutate<Self::AccountId>
-//! 	+ fungibles::metadata::Inspect<Self::AccountId>;
-//! 	type FeePercentage: Get<Perbill>;
-//! 	type PriceProvider: ProvideAssetPrice<AssetId = u32>;
-//! 	type Treasury: Get<Self::AccountId>;
-//! 	type FeeRecipient: Get<Self::AccountId>;
-//! 	type Id: Encode + Decode + TypeId;
-//! 	type RootId: Get<Self::Id>;
-//! }
-//! ```
+//! [`Config`](crate::pallet::Config)
 //!
 //! ### Example Configuration (Similar on how it's configured on the Polimec Runtime)
 //!
@@ -98,6 +77,16 @@
 //!
 //!
 //! ## Extrinsics
+//! [`transfer_bonds_back_to_treasury`](crate::pallet::Pallet::transfer_bonds_back_to_treasury)
+//! [`transfer_fees_to_recipient`](crate::pallet::Pallet::transfer_fees_to_recipient)
+//!
+//! ## Public Functions
+//! [`calculate_fee`](crate::pallet::Pallet::calculate_fee)
+//! [`get_bonding_account`](crate::pallet::Pallet::get_bonding_account)
+//! [`bond_on_behalf_of`](crate::pallet::Pallet::bond_on_behalf_of)
+//! [`set_release_type`](crate::pallet::Pallet::set_release_type)
+//! [`refund_fee`](crate::pallet::Pallet::refund_fee)
+//!
 //!
 //! ### transfer_bonds_back_to_treasury
 //! Transfer bonded tokens back to the treasury when release conditions are met.
