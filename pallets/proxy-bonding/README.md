@@ -52,7 +52,7 @@ pub trait Config: frame_system::Config {
 }
 ```
 
-### Example Configuration similar on how it's used on Polimec
+### Example Configuration (Similar on how it's configured on the Polimec Runtime)
 
 ```rust
 parameter_types! {
@@ -129,3 +129,57 @@ Refunds the fee to the specified account.
 - `FeeToRecipientDisallowed`: Fee transfer to recipient not allowed for refunded release type
 - `FeeRefundDisallowed`: Fee refund not allowed for locked release type
 - `PriceNotAvailable`: Price information unavailable for fee calculation
+
+## Example integration
+
+The Proxy Bonding Pallet work seamlessly with the Funding Pallet to handle OTM (One-Token-Model) participation modes in project funding. Here's how the integration works:
+
+### Contribution Flow
+1. When a user contributes to a project using OTM mode:
+   - The Funding Pallet calls `bond_on_behalf_of` with:
+     - Project ID as the derivation path
+     - User's account
+     - PLMC bond amount
+     - Funding asset ID
+     - Participation hold reason
+
+2. During project settlement phase:
+   - For successful projects:
+     - An OTM release type is set with a time-lock based on the multiplier
+     - Bonds remain locked until the vesting duration completes
+   - For failed projects:
+     - Release type is set to `Refunded`
+     - Allows immediate return of bonds to treasury
+     - Enables fee refunds to participants
+
+### Key Interactions
+```rust
+// In Funding Pallet
+pub fn bond_plmc_with_mode(
+    who: &T::AccountId,
+    project_id: ProjectId,
+    amount: Balance,
+    mode: ParticipationMode,
+    asset: AcceptedFundingAsset,
+) -> DispatchResult {
+    match mode {
+        ParticipationMode::OTM => pallet_proxy_bonding::Pallet::<T>::bond_on_behalf_of(
+            project_id,
+            who.clone(),
+            amount,
+            asset.id(),
+            HoldReason::Participation.into(),
+        ),
+        ParticipationMode::Classic(_) => // ... other handling
+    }
+}
+```
+
+### Settlement Process
+The settlement process determines the release conditions for bonded tokens:
+- Success: Tokens remain locked with a time-based release schedule
+- Failure: Tokens are marked for immediate return to treasury with fee refunds
+
+## License
+
+License: GPL-3.0
