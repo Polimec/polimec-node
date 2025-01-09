@@ -45,15 +45,15 @@
 //! - Time-locked release: Bonds are locked until a specific block number, and fees can be sent to the configured fee recipient.
 
 //! ## Extrinsics
-//! [`transfer_bonds_back_to_treasury`](crate::pallet::Pallet::transfer_bonds_back_to_treasury): Transfer bonded tokens back to the treasury when release conditions are met.
-//! [`transfer_fees_to_recipient`](crate::pallet::Pallet::transfer_fees_to_recipient): Transfer collected fees to the designated fee recipient.
+//! - [`transfer_bonds_back_to_treasury`](crate::pallet::Pallet::transfer_bonds_back_to_treasury): Transfer bonded tokens back to the treasury when release conditions are met.
+//! - [`transfer_fees_to_recipient`](crate::pallet::Pallet::transfer_fees_to_recipient): Transfer collected fees to the designated fee recipient.
 //!
 //! ## Public Functions
-//! [`calculate_fee`](crate::pallet::Pallet::calculate_fee): Calculate the fee amount in the specified fee asset based on the bond amount.
-//! [`get_bonding_account`](crate::pallet::Pallet::get_bonding_account): Get the sub-account used for bonding based on a u32.
-//! [`bond_on_behalf_of`](crate::pallet::Pallet::bond_on_behalf_of): Bond tokens from the treasury into a sub-account on behalf of a user.
-//! [`set_release_type`](crate::pallet::Pallet::set_release_type): Set the release type for a given derivation path and hold reason.
-//! [`refund_fee`](crate::pallet::Pallet::refund_fee): Refund the fee to the specified account (only if the release is set to `Refunded`).
+//! - [`calculate_fee`](crate::pallet::Pallet::calculate_fee): Calculate the fee amount in the specified fee asset based on the bond amount.
+//! - [`get_bonding_account`](crate::pallet::Pallet::get_bonding_account): Get the sub-account used for bonding based on a u32.
+//! - [`bond_on_behalf_of`](crate::pallet::Pallet::bond_on_behalf_of): Bond tokens from the treasury into a sub-account on behalf of a user.
+//! - [`set_release_type`](crate::pallet::Pallet::set_release_type): Set the release type for a given derivation path and hold reason.
+//! - [`refund_fee`](crate::pallet::Pallet::refund_fee): Refund the fee to the specified account (only if the release is set to `Refunded`).
 //!
 
 //!
