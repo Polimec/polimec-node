@@ -149,7 +149,30 @@ pub mod pallet {
 
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
+		/// Transfer bonded tokens back to the treasury if conditions are met.
+		///
+		/// # Description
+		/// This extrinsic allows transferring bonded tokens back to the treasury account when either:
+		/// - The release block number has been reached for time-locked bonds
+		/// - Or immediately if the release type is set to `Refunded`
+		/// 
+		/// The function will release all tokens held under the specified hold reason and transfer them,
+		/// including the existential deposit, back to the treasury account.
 		/// If sub-account has all the tokens unbonded, it will transfer everything including ED back to the treasury
+		///
+		/// # Parameters
+		/// * `origin` - The origin of the call. Must be signed.
+		/// * `derivation_path` - The derivation path used to calculate the bonding sub-account
+		/// * `hold_reason` - The reason for which the tokens were held
+		///
+		/// # Errors
+		/// * [`Error::ReleaseTypeNotSet`] - If no release type is configured for the given derivation path and hold reason
+		/// * [`Error::TooEarlyToUnlock`] - If the current block is before the configured release block for locked bonds
+		///
+		/// # Events
+		/// * [`Event::BondsTransferredBackToTreasury`] - When tokens are successfully transferred back to treasury
+		///
+		/// ```
 		#[pallet::call_index(0)]
 		#[pallet::weight(Weight::zero())]
 		pub fn transfer_bonds_back_to_treasury(
@@ -186,6 +209,28 @@ pub mod pallet {
 			Ok(())
 		}
 
+		/// Transfer collected fees to the designated fee recipient.
+		///
+		/// # Description
+		/// This extrinsic transfers all collected fees in the specified fee asset from the bonding 
+		/// sub-account to the configured fee recipient. This operation is only allowed when the 
+		/// release type is set to `Locked`, indicating that the bonds are being held legitimately
+		/// rather than awaiting refund.
+		///
+		/// # Parameters
+		/// * `origin` - The origin of the call. Must be signed.
+		/// * `derivation_path` - The derivation path used to calculate the bonding sub-account
+		/// * `hold_reason` - The reason for which the tokens were held
+		/// * `fee_asset` - The asset ID of the fee token to transfer
+		///
+		/// # Errors
+		/// * [`Error::ReleaseTypeNotSet`] - If no release type is configured for the given derivation path and hold reason
+		/// * [`Error::FeeToRecipientDisallowed`] - If the release type is set to `Refunded`, which means fees should be refunded instead
+		///
+		/// # Events
+		/// * [`Event::FeesTransferredToFeeRecipient`] - When fees are successfully transferred to the recipient
+		///
+		/// ```
 		#[pallet::call_index(1)]
 		#[pallet::weight(Weight::zero())]
 		pub fn transfer_fees_to_recipient(
