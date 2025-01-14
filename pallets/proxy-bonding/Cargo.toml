@@ -1,5 +1,6 @@
 [package]
 name = "pallet-proxy-bonding"
+description = "A FRAME pallet that facilitates token bonding operations with fee management capabilities."
 authors.workspace = true
 documentation.workspace = true
 edition.workspace = true

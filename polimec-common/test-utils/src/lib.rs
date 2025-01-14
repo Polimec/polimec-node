@@ -19,7 +19,7 @@
 extern crate alloc;
 use alloc::{vec, vec::Vec};
 use frame_support::{sp_runtime::app_crypto::sp_core::bytes::to_hex, traits::ConstU32, BoundedVec, Parameter};
-use jwt_compact::{alg::Ed25519, AlgorithmExt, Header};
+use jwt_compact_frame::{alg::Ed25519, AlgorithmExt, Header};
 use parity_scale_codec::alloc::string::ToString;
 use polimec_common::credentials::{Did, InvestorType, SampleClaims, UntrustedToken};
 use xcm::{
@@ -66,7 +66,7 @@ mod jwt_utils {
 		ipfs_cid: Option<BoundedVec<u8, ConstU32<96>>>,
 	) -> UntrustedToken {
 		use chrono::{TimeZone, Utc};
-		use jwt_compact::{alg::SigningKey, Claims};
+		use jwt_compact_frame::{alg::SigningKey, Claims};
 
 		// Create a signing key from raw bytes.
 		let key = SigningKey::from_slice(
@@ -185,7 +185,7 @@ pub fn do_request(url: &str) -> String {
 #[cfg(test)]
 mod tests {
 	use crate::{generate_did_from_account, get_mock_jwt, get_mock_jwt_with_cid};
-	use jwt_compact::{
+	use jwt_compact_frame::{
 		alg::{Ed25519, VerifyingKey},
 		AlgorithmExt,
 	};

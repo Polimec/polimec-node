@@ -45,8 +45,8 @@
 //! - Time-locked release: Bonds are locked until a specific block number, and fees can be sent to the configured fee recipient.
 
 //! ## Extrinsics
-//! - [`transfer_bonds_back_to_treasury`](crate::pallet::Pallet::transfer_bonds_back_to_treasury): Transfer bonded tokens back to the treasury when release conditions are met.
-//! - [`transfer_fees_to_recipient`](crate::pallet::Pallet::transfer_fees_to_recipient): Transfer collected fees to the designated fee recipient.
+//! - [transfer_bonds_back_to_treasury](crate::pallet::Pallet::transfer_bonds_back_to_treasury): Transfer bonded tokens back to the treasury when release conditions are met.
+//! - [transfer_fees_to_recipient](crate::pallet::Pallet::transfer_fees_to_recipient): Transfer collected fees to the designated fee recipient.
 //!
 //! ## Public Functions
 //! - [`calculate_fee`](crate::pallet::Pallet::calculate_fee): Calculate the fee amount in the specified fee asset based on the bond amount.
@@ -59,7 +59,7 @@
 //!
 //! ### Example Configuration (Similar on how it's configured on the Polimec Runtime)
 //!
-//! ```rust
+//! ```rust,compile_fail
 //! parameter_types! {
 //! 	// Fee is defined as 1.5% of the USD Amount. Since fee is applied to the PLMC amount, and that is always 5 times
 //! 	// less than the usd_amount (multiplier of 5), we multiply the 1.5 by 5 to get 7.5%
@@ -109,7 +109,7 @@
 //! - Enables fee refunds to participants
 //!
 //! ### Key Integration
-//! ```rust
+//! ```rust,compile_fail
 //! // In Funding Pallet
 //! pub fn bond_plmc_with_mode(
 //! 	who: &T::AccountId,

@@ -21,7 +21,7 @@ use scale_info::{prelude::string::String, TypeInfo};
 use serde::{de::Error, ser::SerializeStruct, Serializer};
 use sp_runtime::{traits::BadOrigin, DeserializeOwned, RuntimeDebug};
 
-pub use jwt_compact::{
+pub use jwt_compact_frame::{
 	alg::{Ed25519, VerifyingKey},
 	Claims as StandardClaims, *,
 };
@@ -78,7 +78,7 @@ where
 
 	fn try_origin(
 		origin: T::RuntimeOrigin,
-		token: &jwt_compact::UntrustedToken,
+		token: &jwt_compact_frame::UntrustedToken,
 		verifying_key: [u8; 32],
 	) -> Result<Self::Success, T::RuntimeOrigin> {
 		let Some(who) = origin.clone().into_signer() else { return Err(origin) };
@@ -113,22 +113,22 @@ where
 
 	fn try_origin(
 		origin: OuterOrigin,
-		token: &jwt_compact::UntrustedToken,
+		token: &jwt_compact_frame::UntrustedToken,
 		verifying_key: [u8; 32],
 	) -> Result<Self::Success, OuterOrigin>;
 
 	fn ensure_origin(
 		origin: OuterOrigin,
-		token: &jwt_compact::UntrustedToken,
+		token: &jwt_compact_frame::UntrustedToken,
 		verifying_key: [u8; 32],
 	) -> Result<Self::Success, BadOrigin> {
 		Self::try_origin(origin, token, verifying_key).map_err(|_| BadOrigin)
 	}
 
 	fn verify_token(
-		token: &jwt_compact::UntrustedToken,
+		token: &jwt_compact_frame::UntrustedToken,
 		verifying_key: [u8; 32],
-	) -> Result<jwt_compact::Token<Self::Claims>, ValidationError> {
+	) -> Result<jwt_compact_frame::Token<Self::Claims>, ValidationError> {
 		let signing_key =
 			<<Ed25519 as Algorithm>::VerifyingKey>::from_slice(&verifying_key).expect("The Key is always valid");
 		Ed25519.validator::<Self::Claims>(&signing_key).validate(token)
