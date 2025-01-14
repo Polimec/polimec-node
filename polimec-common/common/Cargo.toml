@@ -5,8 +5,7 @@ authors = ['Polimec Foundation <info@polimec.org>']
 documentation = "https://wiki.polimec.org/"
 edition = "2021"
 homepage = "https://www.polimec.org/"
-license-file = "LICENSE"
-readme = "README.md"
+license-file.workspace = true
 repository = "https://github.com/Polimec/polimec-node"
 version.workspace = true
 
@@ -17,7 +16,7 @@ workspace = true
 parity-scale-codec = { workspace = true, features = ["derive"] }
 scale-info = { workspace = true, features = ["derive"] }
 serde = { workspace = true, features = ["derive"] }
-jwt-compact = { workspace = true, features = ["ed25519-dalek"] }
+jwt-compact-frame = { workspace = true, features = ["ed25519-dalek"] }
 
 frame-benchmarking = { workspace = true, optional = true }
 frame-support.workspace = true
@@ -33,7 +32,7 @@ std = [
 	"frame-benchmarking?/std",
 	"frame-support/std",
 	"frame-system/std",
-	"jwt-compact/std",
+	"jwt-compact-frame/std",
 	"pallet-timestamp/std",
 	"parity-scale-codec/std",
 	"scale-info/std",

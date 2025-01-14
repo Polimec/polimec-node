@@ -14,8 +14,136 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+//! # Proxy Bonding Pallet
+//!
+//! A FRAME pallet that facilitates token bonding operations with fee management capabilities. This pallet allows users to bond tokens from a configurable account (we call Treasury) while paying fees in various assets.
+//! This pallet is intended to be used as an alternative to a direct bonding mechanism. In this way, the user does not need to own or hold the tokens, but can still participate in various activities by paying a fee.
+//!
+//! ## Overview
+//!
+//! The Bonding Pallet provides functionality to:
+//! - Bond treasury tokens on behalf of users
+//! - Pay a bonding fee in different assets (e.g., DOT)
+//! - Set the bond release to either immediate refund or time-locked release
+//!
+//! ## Features
+//!
+//! ### Token Bonding
+//! - Bond tokens from a treasury account into sub-accounts
+//! - Support for existential deposit management
+//! - Hold-based bonding mechanism using runtime-defined hold reasons
+//!
+//! ### Fee Management
+//! - Accept fees in configurable assets (e.g., DOT)
+//! - Calculate fees based on bond amount and current token prices
+//! - Support both fee refunds and fee transfers to recipients
+//! - Percentage-based fee calculation in USD terms
+//!
+//! ### Release Mechanisms
+//! Two types of release mechanisms are supported:
+//! - Immediate refund: Bonds can be immediately returned to treasury, and fees await refunding to users.
+//! - Time-locked release: Bonds are locked until a specific block number, and fees can be sent to the configured fee recipient.
+
+//! ## Extrinsics
+//! - [transfer_bonds_back_to_treasury](crate::pallet::Pallet::transfer_bonds_back_to_treasury): Transfer bonded tokens back to the treasury when release conditions are met.
+//! - [transfer_fees_to_recipient](crate::pallet::Pallet::transfer_fees_to_recipient): Transfer collected fees to the designated fee recipient.
+//!
+//! ## Public Functions
+//! - [`calculate_fee`](crate::pallet::Pallet::calculate_fee): Calculate the fee amount in the specified fee asset based on the bond amount.
+//! - [`get_bonding_account`](crate::pallet::Pallet::get_bonding_account): Get the sub-account used for bonding based on a u32.
+//! - [`bond_on_behalf_of`](crate::pallet::Pallet::bond_on_behalf_of): Bond tokens from the treasury into a sub-account on behalf of a user.
+//! - [`set_release_type`](crate::pallet::Pallet::set_release_type): Set the release type for a given derivation path and hold reason.
+//! - [`refund_fee`](crate::pallet::Pallet::refund_fee): Refund the fee to the specified account (only if the release is set to `Refunded`).
+//!
+
+//!
+//! ### Example Configuration (Similar on how it's configured on the Polimec Runtime)
+//!
+//! ```rust,compile_fail
+//! parameter_types! {
+//! 	// Fee is defined as 1.5% of the USD Amount. Since fee is applied to the PLMC amount, and that is always 5 times
+//! 	// less than the usd_amount (multiplier of 5), we multiply the 1.5 by 5 to get 7.5%
+//! 	pub FeePercentage: Perbill = Perbill::from_rational(75u32, 1000u32);
+//! 	pub FeeRecipient: AccountId =  AccountId::from(hex_literal::hex!("3ea952b5fa77f4c67698e79fe2d023a764a41aae409a83991b7a7bdd9b74ab56"));
+//! 	pub RootId: PalletId = PalletId(*b"treasury");
+//! }
+//!
+//! impl pallet_proxy_bonding::Config for Runtime {
+//! 	type BondingToken = Balances; // The Balances pallet is used for the bonding token
+//! 	type BondingTokenDecimals = ConstU8<10>; // The PLMC token has 10 decimals
+//! 	type BondingTokenId = ConstU32<X>; // TODO: Replace with a proper number and explanation.
+//! 	type FeePercentage = FeePercentage; // The fee kept by the treasury
+//! 	type FeeRecipient = FeeRecipient; // THe account that receives the fee
+//! 	type FeeToken = ForeignAssets; // The Asset pallet is used for the fee token
+//! 	type Id = PalletId; // The ID type used for the ... account
+//! 	type PriceProvider = OraclePriceProvider<AssetId, Price, Oracle>; // The Oracle pallet is used for the price provider
+//! 	type RootId = TreasuryId; // The treasury account ID
+//! 	type Treasury = TreasuryAccount; // The treasury account
+//! 	type UsdDecimals = ConstU8<X>; // TODO: Replace with a proper number and explanation.
+//! 	type RuntimeEvent = RuntimeEvent;
+//! 	type RuntimeHoldReason = RuntimeHoldReason;
+//! }
+//! ```
+
+
+//! ## Example integration
+//!
+//! The Proxy Bonding Pallet work seamlessly with the Funding Pallet to handle OTM (One-Token-Model) participation modes in project funding. Here's how the integration works:
+//!
+//! ### Funding Pallet Flow
+//! 1. When a user contributes to a project using OTM mode:
+//! - The Funding Pallet calls `bond_on_behalf_of` with:
+//! - Project ID as the derivation path
+//! - User's account
+//! - PLMC bond amount
+//! - Funding asset ID
+//! - Participation hold reason
+//!
+//! 2. During project settlement phase:
+//! - For successful projects:
+//! - An OTM release type is set with a time-lock based on the multiplier
+//! - Bonds remain locked until the vesting duration completes
+//! - For failed projects:
+//! - Release type is set to `Refunded`
+//! - Allows immediate return of bonds to treasury
+//! - Enables fee refunds to participants
+//!
+//! ### Key Integration
+//! ```rust,compile_fail
+//! // In Funding Pallet
+//! pub fn bond_plmc_with_mode(
+//! 	who: &T::AccountId,
+//! 	project_id: ProjectId,
+//! 	amount: Balance,
+//! 	mode: ParticipationMode,
+//! 	asset: AcceptedFundingAsset,
+//! ) -> DispatchResult {
+//! 	match mode {
+//! 		ParticipationMode::OTM => pallet_proxy_bonding::Pallet::<T>::bond_on_behalf_of(
+//! 			project_id,
+//! 			who.clone(),
+//! 			amount,
+//! 			asset.id(),
+//! 			HoldReason::Participation.into(),
+//! 		),
+//! 		ParticipationMode::Classic(_) => // ... other handling
+//! 	}
+//! }
+//! ```
+//!
+//! ### Settlement Process
+//! The settlement process determines the release conditions for bonded tokens:
+//! - Success: Tokens remain locked with a time-based release schedule
+//! - Failure: Tokens are marked for immediate return to treasury with fee refunds
+//!
+//! ## License
+//!
+//! License: GPL-3.0
+
 #![cfg_attr(not(feature = "std"), no_std)]
 // Needed due to empty sections raising the warning
+
+
 #![allow(unreachable_patterns)]
 pub use pallet::*;
 
@@ -134,7 +262,7 @@ pub mod pallet {
 	pub enum Error<T> {
 		/// The release type for the given derivation path / hold reason is not set
 		ReleaseTypeNotSet,
-		/// Tried to unlock the native tokens and send them back to the treasury, but the release type configured a later unlock block.
+		/// Tried to unlock the native tokens and send them back to the treasury, but the release is configured for a later block.
 		TooEarlyToUnlock,
 		/// The release type for the given derivation path / hold reason is set to `Refunded`, which disallows sending fees to the recipient
 		FeeToRecipientDisallowed,
@@ -149,7 +277,30 @@ pub mod pallet {
 
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
+		/// Transfer bonded tokens back to the treasury if conditions are met.
+		///
+		/// # Description
+		/// This extrinsic allows transferring bonded tokens back to the treasury account when either:
+		/// - The release block number has been reached for time-locked bonds
+		/// - Or immediately if the release type is set to `Refunded`
+		/// 
+		/// The function will release all tokens held under the specified hold reason and transfer them,
+		/// including the existential deposit, back to the treasury account.
 		/// If sub-account has all the tokens unbonded, it will transfer everything including ED back to the treasury
+		///
+		/// # Parameters
+		/// * `origin` - The origin of the call. Must be signed. Can be anyone.
+		/// * `derivation_path` - The derivation path used to calculate the bonding sub-account
+		/// * `hold_reason` - The reason for which the tokens were held
+		///
+		/// # Errors
+		/// * [`Error::ReleaseTypeNotSet`] - If no release type is configured for the given derivation path and hold reason
+		/// * [`Error::TooEarlyToUnlock`] - If the current block is before the configured release block for locked bonds
+		///
+		/// # Events
+		/// * [`Event::BondsTransferredBackToTreasury`] - When tokens are successfully transferred back to treasury
+		///
+		/// ```
 		#[pallet::call_index(0)]
 		#[pallet::weight(Weight::zero())]
 		pub fn transfer_bonds_back_to_treasury(
@@ -186,6 +337,28 @@ pub mod pallet {
 			Ok(())
 		}
 
+		/// Transfer collected fees to the designated fee recipient.
+		///
+		/// # Description
+		/// This extrinsic transfers all collected fees in the specified fee asset from the bonding 
+		/// sub-account to the configured fee recipient. This operation is only allowed when the 
+		/// release type is set to `Locked`, indicating that the bonds are being held legitimately
+		/// rather than awaiting refund.
+		///
+		/// # Parameters
+		/// * `origin` - The origin of the call. Must be signed. Can be anyone.
+		/// * `derivation_path` - The derivation path used to calculate the bonding sub-account
+		/// * `hold_reason` - The reason for which the tokens were held
+		/// * `fee_asset` - The asset ID of the fee token to transfer
+		///
+		/// # Errors
+		/// * [`Error::ReleaseTypeNotSet`] - If no release type is configured for the given derivation path and hold reason
+		/// * [`Error::FeeToRecipientDisallowed`] - If the release type is set to `Refunded`, which means fees should be refunded instead
+		///
+		/// # Events
+		/// * [`Event::FeesTransferredToFeeRecipient`] - When fees are successfully transferred to the recipient
+		///
+		/// ```
 		#[pallet::call_index(1)]
 		#[pallet::weight(Weight::zero())]
 		pub fn transfer_fees_to_recipient(

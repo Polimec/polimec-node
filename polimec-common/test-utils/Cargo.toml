@@ -15,7 +15,7 @@ workspace = true
 
 [dependencies]
 parity-scale-codec = { workspace = true, features = ["derive"] }
-jwt-compact = { workspace = true, features = [
+jwt-compact-frame = { workspace = true, features = [
     "ed25519-dalek",
 ], default-features = false }
 polimec-common = { workspace = true, default-features = false }
@@ -33,7 +33,7 @@ default = [ "std" ]
 std = [
 	"chrono/std",
 	"frame-support/std",
-	"jwt-compact/std",
+	"jwt-compact-frame/std",
 	"parity-scale-codec/std",
 	"polimec-common/std",
 	"reqwest",

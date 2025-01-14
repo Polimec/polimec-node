@@ -15,8 +15,8 @@ use sp_runtime::{
 
 impl<T: Config> Pallet<T> {
 	/// Calculate the USD fee in `fee_asset` for bonding `bond_amount` of the native token.
-	/// e.g. if the fee is 1%, native token PLMC, fee_asset USDT, bond_amount 1000 PLMC, PLMC price 0.5USD, USDT price 1USD,
-	/// Then the calculated fee would be 1% * 1000 * 0.5 = 5USD, which is 5 USDT at a price of 1USD.
+	/// e.g. if the fee = 1%, native token = PLMC, fee_asset = USDT, bond_amount= 1000 PLMC, PLMC price = 0.5USD, USDT = 1USD,
+	/// Then the calculated fee would be 1% * 1000 * 0.5 = 5USD, which is 5 USDT at a price of 1 USD/USDT.
 	pub fn calculate_fee(bond_amount: BalanceOf<T>, fee_asset: AssetId) -> Result<BalanceOf<T>, DispatchError> {
 		let bonding_token_price = <PriceProviderOf<T>>::get_decimals_aware_price(
 			T::BondingTokenId::get(),
@@ -38,13 +38,14 @@ impl<T: Config> Pallet<T> {
 		Ok(fee_in_fee_asset)
 	}
 
+	/// Generate a sub-account for bonding, based on a u32 number.
 	pub fn get_bonding_account(derivation_path: u32) -> AccountIdOf<T> {
 		// We need to add 1 since 0u32 means no derivation from root.
 		T::RootId::get().into_sub_account_truncating(derivation_path.saturating_add(1u32))
 	}
 
 	/// Put some tokens on hold from the treasury into a sub-account, on behalf of a user.
-	/// User pays a fee for this functionality, which can be later refunded.
+	/// User pays a fee for this functionality, which can be later refunded or paid out to the configured fee-recipient.
 	pub fn bond_on_behalf_of(
 		derivation_path: u32,
 		account: T::AccountId,
@@ -84,7 +85,9 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
-	/// Set the block for which we can release the bonds of a sub-account, and transfer it back to the treasury.
+	/// Configure what kind of release should be done for a given derivation path and hold reason.
+	/// This can be a refund (i.e. if the reason for bonding is no longer valid), or a release at a certain block
+	/// (i.e. if now we know for sure the reason is valid and the treasury should get the tokens back after some bonding time).
 	pub fn set_release_type(
 		derivation_path: u32,
 		hold_reason: T::RuntimeHoldReason,

@@ -73,7 +73,7 @@ macros-tests = { path = "macros/tests" }
 # External pallets (with default disabled)
 orml-oracle = { version = "0.13.0", default-features = false }
 orml-traits = { version = "0.13.0", default-features = false }
-jwt-compact = { git = "https://github.com/lrazovic/jwt-compact", default-features = false }
+jwt-compact-frame = { version = "0.9.0-beta.0", default-features = false }
 
 # Internal support (with default disabled)
 shared-configuration = { path = "runtimes/shared-configuration", default-features = false }
