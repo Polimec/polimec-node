@@ -17,49 +17,49 @@ describe('Polkadot Hub -> Polimec Transfer Tests', () => {
     destManager.connect();
   });
   afterAll(async () => await chainSetup.cleanup());
-  //
-  // test(
-  //   'Send DOT to Polimec',
-  //   () =>
-  //     transferTest.testTransfer({
-  //       account: Accounts.ALICE,
-  //       assets: [[Asset.DOT, TRANSFER_AMOUNTS.NATIVE, AssetSourceRelation.Parent]],
-  //     }),
-  //   { timeout: 25000 },
-  // );
-  //
-  // test(
-  //   'Send USDT to Polimec',
-  //   () =>
-  //     transferTest.testTransfer({
-  //       account: Accounts.ALICE,
-  //       assets: [[Asset.USDT, TRANSFER_AMOUNTS.TOKENS, AssetSourceRelation.Self]],
-  //     }),
-  //   { timeout: 25000 },
-  // );
-  //
-  // test(
-  //   'Send USDC to Polimec',
-  //   () =>
-  //     transferTest.testTransfer({
-  //       account: Accounts.ALICE,
-  //       assets: [[Asset.USDC, TRANSFER_AMOUNTS.TOKENS, AssetSourceRelation.Self]],
-  //     }),
-  //   { timeout: 25000 },
-  // );
 
   test(
-    'Send WETH to Polimec',
+    'Send DOT to Polimec',
     () =>
       transferTest.testTransfer({
         account: Accounts.ALICE,
-        assets: [
-          [Asset.USDT, TRANSFER_AMOUNTS.TOKENS, AssetSourceRelation.Self],
-          [Asset.WETH, TRANSFER_AMOUNTS.BRIDGED, AssetSourceRelation.Self],
-        ],
+        assets: [[Asset.DOT, TRANSFER_AMOUNTS.NATIVE, AssetSourceRelation.Parent]],
       }),
-    { timeout: 10000000 },
+    { timeout: 25000 },
   );
+
+  test(
+    'Send USDT to Polimec',
+    () =>
+      transferTest.testTransfer({
+        account: Accounts.ALICE,
+        assets: [[Asset.USDT, TRANSFER_AMOUNTS.TOKENS, AssetSourceRelation.Self]],
+      }),
+    { timeout: 25000 },
+  );
+
+  test(
+    'Send USDC to Polimec',
+    () =>
+      transferTest.testTransfer({
+        account: Accounts.ALICE,
+        assets: [[Asset.USDC, TRANSFER_AMOUNTS.TOKENS, AssetSourceRelation.Self]],
+      }),
+    { timeout: 25000 },
+  );
+
+  // test(
+  //   'Send WETH to Polimec',
+  //   () =>
+  //     transferTest.testTransfer({
+  //       account: Accounts.ALICE,
+  //       assets: [
+  //         // [Asset.USDT, TRANSFER_AMOUNTS.TOKENS, AssetSourceRelation.Self],
+  //         [Asset.WETH, TRANSFER_AMOUNTS.BRIDGED, AssetSourceRelation.Self],
+  //       ],
+  //     }),
+  //   { timeout: 25000 },
+  // );
 
   // test('sandbox', async () => {
   //   console.log("hello");

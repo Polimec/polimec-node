@@ -162,8 +162,7 @@ export function AssetLocation(
 
     case Asset.WETH: {
       const contract_hex = '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2';
-      const byteArray = hexToU8a(contract_hex);
-      return EthereumAssetLocation(new FixedSizeBinary(byteArray));
+      return EthereumAssetLocation(FixedSizeBinary.fromHex(contract_hex));
     }
   }
 }

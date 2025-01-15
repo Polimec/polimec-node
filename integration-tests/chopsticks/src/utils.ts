@@ -114,3 +114,27 @@ export function unwrap<T>(value: T | undefined, errorMessage = 'Value is undefin
   }
   return value;
 }
+
+export function normalizeForComparison(obj: any): any {
+  if (obj === null || obj === undefined) {
+    return obj;
+  }
+
+  if (obj instanceof Object && 'asHex' in obj) {
+    return obj.asHex();
+  }
+
+  if (typeof obj === 'object') {
+    if (Array.isArray(obj)) {
+      return obj.map(normalizeForComparison);
+    }
+
+    const normalized: any = {};
+    for (const [key, value] of Object.entries(obj)) {
+      normalized[key] = normalizeForComparison(value);
+    }
+    return normalized;
+  }
+
+  return obj;
+}

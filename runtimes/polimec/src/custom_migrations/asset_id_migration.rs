@@ -133,6 +133,8 @@ impl OnRuntimeUpgrade for FromOldAssetIdMigration {
 			let old_account_iterator = pallet_assets_storage_items::old_types::Account::iter().collect_vec();
 			for (old_asset_id, account, account_info) in old_account_iterator {
 				items += 1;
+				log::info!("old_account item {:?}", items);
+
 				pallet_assets_storage_items::new_types::Account::insert(
 					id_map.get(&old_asset_id).unwrap(),
 					account.clone(),
@@ -144,6 +146,7 @@ impl OnRuntimeUpgrade for FromOldAssetIdMigration {
 			let old_asset_iterator = pallet_assets_storage_items::old_types::Asset::iter().collect_vec();
 			for (old_asset_id, asset_info) in old_asset_iterator {
 				items += 1;
+				log::info!("old_asset item {:?}", items);
 				pallet_assets_storage_items::new_types::Asset::insert(id_map.get(&old_asset_id).unwrap(), asset_info);
 				pallet_assets_storage_items::old_types::Asset::remove(old_asset_id);
 			}
@@ -151,6 +154,7 @@ impl OnRuntimeUpgrade for FromOldAssetIdMigration {
 			let old_approvals_iterator = pallet_assets_storage_items::old_types::Approvals::iter().collect_vec();
 			for ((old_asset_id, owner, delegate), approval) in old_approvals_iterator {
 				items += 1;
+				log::info!("old_approvals item {:?}", items);
 				pallet_assets_storage_items::new_types::Approvals::insert(
 					(id_map.get(&old_asset_id).unwrap(), owner.clone(), delegate.clone()),
 					approval,

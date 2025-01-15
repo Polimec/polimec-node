@@ -54,10 +54,10 @@ export const polkadot_hub_storage = {
   },
   ForeignAssets: {
     Account: [
-      [[weth_location, Accounts.ALICE], { balance: 10000000000000 }]
+      [[weth_location, Accounts.ALICE], { balance: INITIAL_BALANCES.WETH }]
     ],
     Asset: [
-      [[weth_location], { supply: 10000000000000 }]
+      [[weth_location], { supply: INITIAL_BALANCES.WETH }]
     ]
   }
 } as const;

@@ -13,12 +13,10 @@
     "@types/bun": "latest"
   },
   "peerDependencies": {
-    "typescript": "^5.0.0"
+    "typescript": "^5.7.3"
   },
   "dependencies": {
     "@polkadot-api/descriptors": "file:.papi/descriptors",
-    "@polkadot/keyring": "13.2.3",
-    "lodash": "^4.17.21",
-    "polkadot-api": "^1.7.7"
+    "polkadot-api": "^1.8.2"
   }
 }
