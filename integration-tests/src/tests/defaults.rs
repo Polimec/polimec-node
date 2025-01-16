@@ -15,7 +15,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 use crate::PolimecRuntime;
 use frame_support::BoundedVec;
-pub use pallet_funding::instantiator::{BidParams, ContributionParams, UserToUSDBalance};
+pub use pallet_funding::instantiator::{BidParams, ContributionParams, EvaluationParams};
 use pallet_funding::{
 	AcceptedFundingAsset, BiddingTicketSizes, ContributingTicketSizes, CurrencyMetadata, ParticipantsAccountType,
 	ParticipationMode, PriceProviderOf, ProjectMetadata, ProjectMetadataOf, TicketSize,
@@ -91,11 +91,11 @@ pub fn default_project_metadata(issuer: AccountId) -> ProjectMetadataOf<polimec_
 		participants_account_type: ParticipantsAccountType::Polkadot,
 	}
 }
-pub fn default_evaluations() -> Vec<UserToUSDBalance<PolimecRuntime>> {
+pub fn default_evaluations() -> Vec<EvaluationParams<PolimecRuntime>> {
 	vec![
-		UserToUSDBalance::new(EVAL_1.into(), 500_000 * PLMC),
-		UserToUSDBalance::new(EVAL_2.into(), 250_000 * PLMC),
-		UserToUSDBalance::new(EVAL_3.into(), 320_000 * PLMC),
+		EvaluationParams::from((EVAL_1.into(), 500_000 * PLMC)),
+		EvaluationParams::from((EVAL_2.into(), 250_000 * PLMC)),
+		EvaluationParams::from((EVAL_3.into(), 320_000 * PLMC)),
 	]
 }
 pub fn default_bidders() -> Vec<AccountId> {

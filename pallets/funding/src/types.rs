@@ -836,8 +836,7 @@ pub mod inner {
 		pub fn junction_is_supported(&self, junction: &Junction) -> bool {
 			match self {
 				// This project expects users to submit a 32 byte account, and sign it with SR25519 crypto
-				ParticipantsAccountType::Polkadot =>
-					matches!(junction, Junction::AccountId32 { network, .. } if network.is_none()),
+				ParticipantsAccountType::Polkadot => matches!(junction, Junction::AccountId32 { .. }),
 				// This project expects users to submit a 20 byte account, and sign it with ECDSA secp256k1 crypto
 				ParticipantsAccountType::Ethereum => matches!(junction, Junction::AccountKey20 { .. }),
 			}

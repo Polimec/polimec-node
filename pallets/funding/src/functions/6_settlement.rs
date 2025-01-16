@@ -487,8 +487,7 @@ impl<T: Config> Pallet<T> {
 		receiving_account: Junction,
 	) -> DispatchResult {
 		UserMigrations::<T>::try_mutate((project_id, origin), |maybe_migrations| -> DispatchResult {
-			let location_user = Location::new(0, receiving_account);
-			let migration_origin = MigrationOrigin { user: location_user, id, participation_type };
+			let migration_origin = MigrationOrigin { user: receiving_account, id, participation_type };
 			let vesting_time: u64 = vesting_time.try_into().map_err(|_| Error::<T>::BadMath)?;
 			let migration_info: MigrationInfo = (ct_amount, vesting_time).into();
 			let migration = Migration::new(migration_origin, migration_info);

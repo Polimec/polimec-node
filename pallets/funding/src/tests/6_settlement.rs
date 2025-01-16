@@ -40,6 +40,197 @@ mod round_flow {
 			inst.assert_bids_migrations_created(project_id, bids, false);
 			inst.assert_contributions_migrations_created(project_id, contributions, false);
 		}
+
+		#[test]
+		fn ethereum_project_can_be_settled() {
+			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+			let mut project_metadata = default_project_metadata(ISSUER_1);
+			project_metadata.participants_account_type = ParticipantsAccountType::Ethereum;
+
+			let evaluations = vec![
+				EvaluationParams::from((
+					EVALUATOR_1,
+					500_000 * USD_UNIT,
+					Junction::AccountKey20 { network: Some(Ethereum { chain_id: 1 }), key: [0u8; 20] },
+				)),
+				EvaluationParams::from((
+					EVALUATOR_2,
+					250_000 * USD_UNIT,
+					Junction::AccountKey20 { network: Some(Ethereum { chain_id: 1 }), key: [1u8; 20] },
+				)),
+				EvaluationParams::from((
+					EVALUATOR_3,
+					300_000 * USD_UNIT,
+					Junction::AccountKey20 { network: Some(Ethereum { chain_id: 1 }), key: [2u8; 20] },
+				)),
+			];
+			let bids = vec![
+				BidParams::from((
+					BIDDER_1,
+					120_000 * CT_UNIT,
+					ParticipationMode::Classic(3u8),
+					AcceptedFundingAsset::USDT,
+					Junction::AccountKey20 { network: Some(Ethereum { chain_id: 1 }), key: [3u8; 20] },
+				)),
+				BidParams::from((
+					BIDDER_2,
+					420_000 * CT_UNIT,
+					ParticipationMode::Classic(5u8),
+					AcceptedFundingAsset::USDT,
+					Junction::AccountKey20 { network: Some(Ethereum { chain_id: 1 }), key: [4u8; 20] },
+				)),
+			];
+			let community_contributions = vec![
+				ContributionParams::from((
+					BUYER_1,
+					20_000 * CT_UNIT,
+					ParticipationMode::OTM,
+					AcceptedFundingAsset::USDT,
+					Junction::AccountKey20 { network: Some(Ethereum { chain_id: 1 }), key: [5u8; 20] },
+				)),
+				ContributionParams::from((
+					BUYER_2,
+					5_000 * CT_UNIT,
+					ParticipationMode::OTM,
+					AcceptedFundingAsset::USDT,
+					Junction::AccountKey20 { network: Some(Ethereum { chain_id: 1 }), key: [6u8; 20] },
+				)),
+			];
+			let remainder_contributions = vec![
+				ContributionParams::from((
+					EVALUATOR_2,
+					10_000 * CT_UNIT,
+					ParticipationMode::OTM,
+					AcceptedFundingAsset::USDT,
+					Junction::AccountKey20 { network: Some(Ethereum { chain_id: 1 }), key: [7u8; 20] },
+				)),
+				ContributionParams::from((
+					BIDDER_1,
+					5_000 * CT_UNIT,
+					ParticipationMode::OTM,
+					AcceptedFundingAsset::USDT,
+					Junction::AccountKey20 { network: Some(Ethereum { chain_id: 1 }), key: [8u8; 20] },
+				)),
+				ContributionParams::from((
+					BUYER_1,
+					100 * CT_UNIT,
+					ParticipationMode::OTM,
+					AcceptedFundingAsset::USDT,
+					Junction::AccountKey20 { network: Some(Ethereum { chain_id: 1 }), key: [9u8; 20] },
+				)),
+			];
+
+			let project_id = inst.create_settled_project(
+				project_metadata.clone(),
+				ISSUER_1,
+				None,
+				evaluations,
+				bids,
+				community_contributions,
+				remainder_contributions,
+				false,
+			);
+
+			let evaluations = inst.get_evaluations(project_id);
+			let bids = inst.get_bids(project_id);
+			let contributions = inst.get_contributions(project_id);
+
+			inst.settle_project(project_id, true);
+
+			assert_eq!(
+				inst.get_project_details(project_id).status,
+				ProjectStatus::SettlementFinished(FundingOutcome::Success)
+			);
+
+			inst.assert_evaluations_migrations_created(project_id, evaluations, true);
+			inst.assert_bids_migrations_created(project_id, bids, true);
+			inst.assert_contributions_migrations_created(project_id, contributions, true);
+
+			let _user_migrations =
+				inst.execute(|| UserMigrations::<TestRuntime>::iter_prefix((project_id,)).collect_vec());
+		}
+
+		#[test]
+		fn polkadot_project_with_different_receiving_accounts_can_be_settled() {
+			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+			let project_metadata = default_project_metadata(ISSUER_1);
+
+			let evaluations = vec![
+				EvaluationParams::from((EVALUATOR_1, 500_000 * USD_UNIT, polkadot_junction!(EVALUATOR_1 + 420))),
+				EvaluationParams::from((EVALUATOR_2, 250_000 * USD_UNIT, polkadot_junction!([1u8; 32]))),
+				EvaluationParams::from((EVALUATOR_3, 300_000 * USD_UNIT, polkadot_junction!([2u8; 32]))),
+			];
+			let bids = vec![
+				BidParams::from((
+					BIDDER_1,
+					120_000 * CT_UNIT,
+					ParticipationMode::Classic(3u8),
+					AcceptedFundingAsset::USDT,
+					polkadot_junction!([3u8; 32]),
+				)),
+				BidParams::from((
+					BIDDER_2,
+					420_000 * CT_UNIT,
+					ParticipationMode::Classic(5u8),
+					AcceptedFundingAsset::USDT,
+					polkadot_junction!([4u8; 32]),
+				)),
+			];
+			let community_contributions = vec![
+				ContributionParams::from((
+					BUYER_1,
+					20_000 * CT_UNIT,
+					ParticipationMode::OTM,
+					AcceptedFundingAsset::USDT,
+					polkadot_junction!([5u8; 32]),
+				)),
+				ContributionParams::from((
+					BUYER_2,
+					5_000 * CT_UNIT,
+					ParticipationMode::OTM,
+					AcceptedFundingAsset::USDT,
+					polkadot_junction!([6u8; 32]),
+				)),
+			];
+			let remainder_contributions = vec![
+				ContributionParams::from((
+					EVALUATOR_2,
+					10_000 * CT_UNIT,
+					ParticipationMode::OTM,
+					AcceptedFundingAsset::USDT,
+					polkadot_junction!([7u8; 32]),
+				)),
+				ContributionParams::from((
+					BIDDER_1,
+					5_000 * CT_UNIT,
+					ParticipationMode::OTM,
+					AcceptedFundingAsset::USDT,
+					polkadot_junction!([8u8; 32]),
+				)),
+				ContributionParams::from((
+					BUYER_1,
+					100 * CT_UNIT,
+					ParticipationMode::OTM,
+					AcceptedFundingAsset::USDT,
+					polkadot_junction!([9u8; 32]),
+				)),
+			];
+
+			let project_id = inst.create_settled_project(
+				project_metadata.clone(),
+				ISSUER_1,
+				None,
+				evaluations,
+				bids,
+				community_contributions,
+				remainder_contributions,
+				true,
+			);
+			assert_eq!(
+				inst.get_project_details(project_id).status,
+				ProjectStatus::SettlementFinished(FundingOutcome::Success)
+			);
+		}
 	}
 }
 
@@ -154,9 +345,9 @@ mod settle_evaluation_extrinsic {
 				ISSUER_1,
 				None,
 				vec![
-					UserToUSDBalance::new(EVALUATOR_1, 500_000 * USD_UNIT),
-					UserToUSDBalance::new(EVALUATOR_2, 250_000 * USD_UNIT),
-					UserToUSDBalance::new(EVALUATOR_3, 320_000 * USD_UNIT),
+					EvaluationParams::from((EVALUATOR_1, 500_000 * USD_UNIT)),
+					EvaluationParams::from((EVALUATOR_2, 250_000 * USD_UNIT)),
+					EvaluationParams::from((EVALUATOR_3, 320_000 * USD_UNIT)),
 				],
 				inst.generate_bids_from_total_ct_percent(
 					project_metadata.clone(),
@@ -239,7 +430,7 @@ mod settle_evaluation_extrinsic {
 
 			let evals = vec![(EVALUATOR_1, EVAL_1_REWARD), (EVALUATOR_2, EVAL_2_REWARD), (EVALUATOR_3, EVAL_3_REWARD)];
 
-			for (evaluator, expected_reward) in evals {
+			for (index, (evaluator, expected_reward)) in evals.into_iter().enumerate() {
 				let evaluation_locked_plmc =
 					inst.get_reserved_plmc_balance_for(evaluator, HoldReason::Evaluation.into());
 				let free_plmc = inst.get_free_plmc_balance_for(evaluator);
@@ -253,7 +444,15 @@ mod settle_evaluation_extrinsic {
 				assert_close_enough!(ct_rewarded, expected_reward, Perquintill::from_float(0.9999));
 				assert_eq!(inst.get_reserved_plmc_balance_for(evaluator, HoldReason::Evaluation.into()), 0);
 				assert_eq!(inst.get_free_plmc_balance_for(evaluator), free_plmc + evaluation_locked_plmc);
-				inst.assert_migration(project_id, evaluator, expected_reward, 0, ParticipationType::Evaluation, true);
+				inst.assert_migration(
+					project_id,
+					evaluator,
+					expected_reward,
+					index as u32,
+					ParticipationType::Evaluation,
+					polkadot_junction!(evaluator),
+					true,
+				);
 			}
 		}
 
@@ -291,7 +490,7 @@ mod settle_evaluation_extrinsic {
 		fn evaluation_round_failed() {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 			let project_metadata = default_project_metadata(ISSUER_1);
-			let evaluation = UserToUSDBalance::new(EVALUATOR_1, 1_000 * USD_UNIT);
+			let evaluation = EvaluationParams::from((EVALUATOR_1, 1_000 * USD_UNIT));
 			let project_id = inst.create_evaluating_project(project_metadata.clone(), ISSUER_1, None);
 
 			let evaluation_plmc = inst.calculate_evaluation_plmc_spent(vec![evaluation.clone()]);
@@ -390,14 +589,14 @@ mod settle_bid_extrinsic {
 				bounded_vec![AcceptedFundingAsset::USDT, AcceptedFundingAsset::DOT];
 			let auction_allocation =
 				project_metadata.auction_round_allocation_percentage * project_metadata.total_allocation_size;
-			let partial_amount_bid_params = BidParams::new(
+			let partial_amount_bid_params = BidParams::from((
 				BIDDER_1,
 				auction_allocation,
 				ParticipationMode::Classic(3u8),
 				AcceptedFundingAsset::USDT,
-			);
+			));
 			let lower_price_bid_params =
-				BidParams::new(BIDDER_2, 2000 * CT_UNIT, ParticipationMode::Classic(5u8), AcceptedFundingAsset::DOT);
+				BidParams::from((BIDDER_2, 2000 * CT_UNIT, ParticipationMode::Classic(5u8), AcceptedFundingAsset::DOT));
 			let bids = vec![partial_amount_bid_params.clone(), lower_price_bid_params.clone()];
 
 			let project_id = inst.create_finished_project(
@@ -461,6 +660,7 @@ mod settle_bid_extrinsic {
 				auction_allocation - 2000 * CT_UNIT,
 				0,
 				ParticipationType::Bid,
+				polkadot_junction!(BIDDER_1),
 				true,
 			);
 
@@ -507,7 +707,15 @@ mod settle_bid_extrinsic {
 			inst.assert_plmc_free_balance(BIDDER_2, expected_plmc_refund + ed);
 			inst.assert_ct_balance(project_id, BIDDER_2, 2000 * CT_UNIT);
 
-			inst.assert_migration(project_id, BIDDER_2, 2000 * CT_UNIT, 1, ParticipationType::Bid, true);
+			inst.assert_migration(
+				project_id,
+				BIDDER_2,
+				2000 * CT_UNIT,
+				1,
+				ParticipationType::Bid,
+				polkadot_junction!(BIDDER_2),
+				true,
+			);
 
 			// Multiplier 5 should be unbonded no earlier than after 8.67 weeks (i.e. 436'867 blocks)
 			let multiplier: MultiplierOf<TestRuntime> =
@@ -540,12 +748,12 @@ mod settle_bid_extrinsic {
 				bounded_vec![AcceptedFundingAsset::USDT, AcceptedFundingAsset::DOT];
 			let auction_allocation =
 				project_metadata.auction_round_allocation_percentage * project_metadata.total_allocation_size;
-			let no_refund_bid_params = BidParams::new(
+			let no_refund_bid_params = BidParams::from((
 				BIDDER_1,
 				auction_allocation / 2,
 				ParticipationMode::Classic(16u8),
 				AcceptedFundingAsset::USDT,
-			);
+			));
 
 			let project_id = inst.create_finished_project(
 				project_metadata.clone(),
@@ -583,7 +791,15 @@ mod settle_bid_extrinsic {
 			inst.assert_plmc_free_balance(BIDDER_1, ed);
 			inst.assert_ct_balance(project_id, BIDDER_1, auction_allocation / 2);
 
-			inst.assert_migration(project_id, BIDDER_1, auction_allocation / 2, 0, ParticipationType::Bid, true);
+			inst.assert_migration(
+				project_id,
+				BIDDER_1,
+				auction_allocation / 2,
+				0,
+				ParticipationType::Bid,
+				polkadot_junction!(BIDDER_1),
+				true,
+			);
 
 			let hold_reason: RuntimeHoldReason = HoldReason::Participation.into();
 			let multiplier: MultiplierOf<TestRuntime> = no_refund_bid_params.mode.multiplier().try_into().ok().unwrap();
@@ -614,14 +830,14 @@ mod settle_bid_extrinsic {
 			project_metadata.auction_round_allocation_percentage = Percent::from_percent(10);
 			let auction_allocation =
 				project_metadata.auction_round_allocation_percentage * project_metadata.total_allocation_size;
-			let partial_amount_bid_params = BidParams::new(
+			let partial_amount_bid_params = BidParams::from((
 				BIDDER_1,
 				auction_allocation,
 				ParticipationMode::Classic(1u8),
 				AcceptedFundingAsset::USDC,
-			);
+			));
 			let lower_price_bid_params =
-				BidParams::new(BIDDER_2, 2000 * CT_UNIT, ParticipationMode::Classic(5u8), AcceptedFundingAsset::DOT);
+				BidParams::from((BIDDER_2, 2000 * CT_UNIT, ParticipationMode::Classic(5u8), AcceptedFundingAsset::DOT));
 			let bids = vec![partial_amount_bid_params.clone(), lower_price_bid_params.clone()];
 
 			let project_id = inst.create_finished_project(
@@ -664,7 +880,15 @@ mod settle_bid_extrinsic {
 			inst.assert_plmc_free_balance(BIDDER_1, partial_amount_bid_stored.plmc_bond + ed);
 			inst.assert_ct_balance(project_id, BIDDER_1, Zero::zero());
 
-			inst.assert_migration(project_id, BIDDER_1, Zero::zero(), 0, ParticipationType::Bid, false);
+			inst.assert_migration(
+				project_id,
+				BIDDER_1,
+				Zero::zero(),
+				0,
+				ParticipationType::Bid,
+				polkadot_junction!(BIDDER_1),
+				false,
+			);
 
 			inst.execute(|| {
 				assert_noop!(
@@ -700,7 +924,15 @@ mod settle_bid_extrinsic {
 			inst.assert_plmc_free_balance(BIDDER_2, lower_price_bid_stored.plmc_bond + ed);
 			inst.assert_ct_balance(project_id, BIDDER_2, Zero::zero());
 
-			inst.assert_migration(project_id, BIDDER_2, Zero::zero(), 1, ParticipationType::Bid, false);
+			inst.assert_migration(
+				project_id,
+				BIDDER_2,
+				Zero::zero(),
+				1,
+				ParticipationType::Bid,
+				polkadot_junction!(BIDDER_2),
+				false,
+			);
 
 			inst.execute(|| {
 				assert_noop!(
@@ -718,8 +950,12 @@ mod settle_bid_extrinsic {
 			let mut project_metadata = default_project_metadata(ISSUER_1);
 			project_metadata.participation_currencies =
 				bounded_vec![AcceptedFundingAsset::USDT, AcceptedFundingAsset::DOT];
-			let no_refund_bid_params =
-				BidParams::new(BIDDER_1, 500 * CT_UNIT, ParticipationMode::Classic(16u8), AcceptedFundingAsset::USDT);
+			let no_refund_bid_params = BidParams::from((
+				BIDDER_1,
+				500 * CT_UNIT,
+				ParticipationMode::Classic(16u8),
+				AcceptedFundingAsset::USDT,
+			));
 
 			let project_id = inst.create_finished_project(
 				project_metadata.clone(),
@@ -778,18 +1014,18 @@ mod settle_bid_extrinsic {
 				bounded_vec![AcceptedFundingAsset::USDT, AcceptedFundingAsset::DOT];
 			let auction_allocation =
 				project_metadata.auction_round_allocation_percentage * project_metadata.total_allocation_size;
-			let rejected_bid_params = BidParams::new(
+			let rejected_bid_params = BidParams::from((
 				BIDDER_1,
 				auction_allocation,
 				ParticipationMode::Classic(4u8),
 				AcceptedFundingAsset::USDT,
-			);
-			let accepted_bid_params = BidParams::new(
+			));
+			let accepted_bid_params = BidParams::from((
 				BIDDER_2,
 				auction_allocation,
 				ParticipationMode::Classic(1u8),
 				AcceptedFundingAsset::DOT,
-			);
+			));
 
 			let bids = vec![rejected_bid_params.clone(), accepted_bid_params.clone()];
 			let project_id = inst.create_community_contributing_project(
@@ -846,18 +1082,18 @@ mod settle_bid_extrinsic {
 				bounded_vec![AcceptedFundingAsset::USDT, AcceptedFundingAsset::DOT];
 			let auction_allocation =
 				project_metadata.auction_round_allocation_percentage * project_metadata.total_allocation_size;
-			let rejected_bid_params = BidParams::new(
+			let rejected_bid_params = BidParams::from((
 				BIDDER_1,
 				auction_allocation,
 				ParticipationMode::Classic(4u8),
 				AcceptedFundingAsset::USDT,
-			);
-			let accepted_bid_params = BidParams::new(
+			));
+			let accepted_bid_params = BidParams::from((
 				BIDDER_2,
 				auction_allocation,
 				ParticipationMode::Classic(1u8),
 				AcceptedFundingAsset::DOT,
-			);
+			));
 
 			let bids = vec![rejected_bid_params.clone(), accepted_bid_params.clone()];
 			let project_id = inst.create_finished_project(
@@ -918,18 +1154,18 @@ mod settle_bid_extrinsic {
 			project_metadata.auction_round_allocation_percentage = Percent::from_percent(10);
 			let auction_allocation =
 				project_metadata.auction_round_allocation_percentage * project_metadata.total_allocation_size;
-			let rejected_bid_params = BidParams::new(
+			let rejected_bid_params = BidParams::from((
 				BIDDER_1,
 				auction_allocation,
 				ParticipationMode::Classic(4u8),
 				AcceptedFundingAsset::USDT,
-			);
-			let accepted_bid_params = BidParams::new(
+			));
+			let accepted_bid_params = BidParams::from((
 				BIDDER_2,
 				auction_allocation,
 				ParticipationMode::Classic(1u8),
 				AcceptedFundingAsset::DOT,
-			);
+			));
 
 			let bids = vec![rejected_bid_params.clone(), accepted_bid_params.clone()];
 			let project_id = inst.create_finished_project(
@@ -1047,12 +1283,12 @@ mod settle_contribution_extrinsic {
 			let usdt_ed = inst.get_funding_asset_ed(AcceptedFundingAsset::USDT.id());
 			let project_metadata = default_project_metadata(ISSUER_1);
 
-			let contribution = ContributionParams::<TestRuntime>::new(
+			let contribution = ContributionParams::<TestRuntime>::from((
 				BUYER_1,
 				1000 * CT_UNIT,
 				ParticipationMode::Classic(2),
 				AcceptedFundingAsset::USDT,
-			);
+			));
 
 			let project_id = inst.create_finished_project(
 				project_metadata.clone(),
@@ -1100,6 +1336,7 @@ mod settle_contribution_extrinsic {
 				stored_contribution.ct_amount,
 				0,
 				ParticipationType::Contribution,
+				polkadot_junction!(BUYER_1),
 				true,
 			);
 
@@ -1134,18 +1371,18 @@ mod settle_contribution_extrinsic {
 				default_community_contributor_modes(),
 			);
 
-			let contribution_mul_1 = ContributionParams::<TestRuntime>::new(
+			let contribution_mul_1 = ContributionParams::<TestRuntime>::from((
 				BUYER_6,
 				1000 * CT_UNIT,
 				ParticipationMode::Classic(1),
 				AcceptedFundingAsset::USDT,
-			);
-			let contribution_mul_2 = ContributionParams::<TestRuntime>::new(
+			));
+			let contribution_mul_2 = ContributionParams::<TestRuntime>::from((
 				BUYER_7,
 				1000 * CT_UNIT,
 				ParticipationMode::Classic(2),
 				AcceptedFundingAsset::USDT,
-			);
+			));
 
 			community_contributions.push(contribution_mul_1);
 
@@ -1228,6 +1465,7 @@ mod settle_contribution_extrinsic {
 				stored_contribution.ct_amount,
 				5,
 				ParticipationType::Contribution,
+				polkadot_junction!(BUYER_6),
 				false,
 			);
 
@@ -1274,6 +1512,7 @@ mod settle_contribution_extrinsic {
 				stored_contribution.ct_amount,
 				6,
 				ParticipationType::Contribution,
+				polkadot_junction!(BUYER_7),
 				false,
 			);
 		}

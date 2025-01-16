@@ -456,6 +456,7 @@ impl<T: Config> Pallet<T> {
 			frame_system::Pallet::<T>::account_nonce(polimec_account),
 		);
 
+
 		let ecdsa_signature = EcdsaSignature::from_slice(&signature_bytes).unwrap();
 		let public_compressed: EcdsaPublic = ecdsa_signature.recover_prehashed(&hashed_message).unwrap();
 		let public_uncompressed = k256::ecdsa::VerifyingKey::from_sec1_bytes(&public_compressed).unwrap();
@@ -529,16 +530,13 @@ pub mod typed_data_v4 {
 	pub fn get_domain_separator(name: &str, version: &str, chain_id: u32, verifying_contract: [u8; 20]) -> [u8; 32] {
 		/// EIP-712 domain separator calculation
 		/// RFC: https://eips.ethereum.org/EIPS/eip-712
-		pub const DOMAIN_TYPE_HASH: &[u8; 32] = &[
-			// keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)")
-			0x8b, 0x73, 0xc3, 0xc6, 0x9b, 0xb8, 0xfe, 0x3d, 0x51, 0x2e, 0xcc, 0x4c, 0xf7, 0x59, 0xcc, 0x79, 0x23, 0x9f,
-			0x7b, 0x17, 0x9b, 0x0f, 0xfa, 0xdb, 0xa7, 0x2d, 0xef, 0x6c, 0x7c, 0x5d, 0x5c, 0x4c,
-		];
+		// keccak_256(b"EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)");
+		const DOMAIN_TYPE_HASH: [u8; 32] = hex!("8b73c3c69bb8fe3d512ecc4cf759cc79239f7b179b0ffacaa9a75d522b39400f");
 
 		let mut data = [0u8; 32 * 5];
 
 		// Copy pre-computed domain type hash
-		data[..32].copy_from_slice(DOMAIN_TYPE_HASH);
+		data[..32].copy_from_slice(&DOMAIN_TYPE_HASH);
 
 		// Hash and copy name
 		let name_hash = keccak_256(name.as_bytes());
@@ -561,22 +559,21 @@ pub mod typed_data_v4 {
 
 	/// Returns the second part needed for a typed data v4 message. It specifies the message details with type information.
 	pub fn get_message(polimec_account: &str, project_id: u32, nonce: u32) -> [u8; 32] {
-		let encoded_message_type =
-			keccak_256(b"ParticipationAuthorization(string polimecAccount,uint32 projectId,uint32 nonce)");
-		dbg!(encoded_message_type);
+		// keccak_256(b"ParticipationAuthorization(string polimecAccount,uint32 projectId,uint32 nonce)");
+		const DOMAIN_TYPE_HASH: [u8; 32] = hex!("fd56e61c83fe04559072170cf0f970f35093edf39291b74939109a1c9ded28a3");
 
 		let mut data = [0u8; 32 * 4];
 
-		data[..32].copy_from_slice(&encoded_message_type);
+		data[..32].copy_from_slice(&DOMAIN_TYPE_HASH);
 
 		let account_hash = keccak_256(polimec_account.as_bytes());
-		data[32..32 * 2].copy_from_slice(&account_hash);
+		data[32..64].copy_from_slice(&account_hash);
 
 		let project_id_bytes: [u8; 4] = project_id.to_be_bytes();
-		data[32 * 3 - 4..32 * 3].copy_from_slice(project_id_bytes);
+		data[92..96].copy_from_slice(&project_id_bytes);
 
 		let nonce_bytes: [u8; 4] = nonce.to_be_bytes();
-		data[32 * 4 - 4..32 * 4].copy_from_slice(&nonce_bytes);
+		data[124..128].copy_from_slice(&nonce_bytes);
 
 		keccak_256(&data)
 	}
@@ -587,10 +584,10 @@ pub mod typed_data_v4 {
 			get_domain_separator("Polimec", "1", 1, hex!("0000000000000000000000000000000000003344"));
 		let message = get_message(polimec_account, project_id, nonce);
 
-		let mut data = Vec::new();
-		data.extend_from_slice(b"\x19\x01");
-		data.extend_from_slice(&domain_separator);
-		data.extend_from_slice(&message);
+		let mut data = [0u8; 32 * 2 + 2];
+		data[0..2].copy_from_slice(b"\x19\x01");
+		data[2..34].copy_from_slice(&domain_separator);
+		data[34..66].copy_from_slice(&message);
 
 		keccak_256(&data)
 	}

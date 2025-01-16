@@ -6,11 +6,11 @@ use sp_runtime::bounded_vec;
 fn top_evaluations() {
 	let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 	let evaluations = vec![
-		UserToUSDBalance::new(EVALUATOR_1, 500_000 * USD_UNIT),
-		UserToUSDBalance::new(EVALUATOR_2, 250_000 * USD_UNIT),
-		UserToUSDBalance::new(EVALUATOR_3, 320_000 * USD_UNIT),
-		UserToUSDBalance::new(EVALUATOR_4, 1_000_000 * USD_UNIT),
-		UserToUSDBalance::new(EVALUATOR_1, 1_000 * USD_UNIT),
+		EvaluationParams::from((EVALUATOR_1, 500_000 * USD_UNIT)),
+		EvaluationParams::from((EVALUATOR_2, 250_000 * USD_UNIT)),
+		EvaluationParams::from((EVALUATOR_3, 320_000 * USD_UNIT)),
+		EvaluationParams::from((EVALUATOR_4, 1_000_000 * USD_UNIT)),
+		EvaluationParams::from((EVALUATOR_1, 1_000 * USD_UNIT)),
 	];
 	let project_id = inst.create_auctioning_project(default_project_metadata(ISSUER_1), ISSUER_1, None, evaluations);
 
@@ -646,24 +646,34 @@ fn get_message_to_sign_by_receiving_account() {
 fn get_next_vesting_schedule_merge_candidates() {
 	let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 	let evaluations = vec![
-		UserToUSDBalance::new(EVALUATOR_1, 500_000 * USD_UNIT),
-		UserToUSDBalance::new(EVALUATOR_2, 250_000 * USD_UNIT),
-		UserToUSDBalance::new(BIDDER_1, 320_000 * USD_UNIT),
+		EvaluationParams::from((EVALUATOR_1, 500_000 * USD_UNIT)),
+		EvaluationParams::from((EVALUATOR_2, 250_000 * USD_UNIT)),
+		EvaluationParams::from((BIDDER_1, 320_000 * USD_UNIT)),
 	];
 	let bids = vec![
-		BidParams::new(BIDDER_1, 50_000 * CT_UNIT, ParticipationMode::Classic(10u8), AcceptedFundingAsset::USDT),
-		BidParams::new(BIDDER_1, 400_000 * CT_UNIT, ParticipationMode::Classic(5u8), AcceptedFundingAsset::USDT),
-		BidParams::new(BIDDER_2, 50_000 * CT_UNIT, ParticipationMode::Classic(1u8), AcceptedFundingAsset::USDT),
+		BidParams::from((BIDDER_1, 50_000 * CT_UNIT, ParticipationMode::Classic(10u8), AcceptedFundingAsset::USDT)),
+		BidParams::from((BIDDER_1, 400_000 * CT_UNIT, ParticipationMode::Classic(5u8), AcceptedFundingAsset::USDT)),
+		BidParams::from((BIDDER_2, 50_000 * CT_UNIT, ParticipationMode::Classic(1u8), AcceptedFundingAsset::USDT)),
 	];
 	let remaining_contributions = vec![
-		ContributionParams::new(BIDDER_1, 1_000 * CT_UNIT, ParticipationMode::Classic(5u8), AcceptedFundingAsset::USDT),
-		ContributionParams::new(
+		ContributionParams::from((
+			BIDDER_1,
+			1_000 * CT_UNIT,
+			ParticipationMode::Classic(5u8),
+			AcceptedFundingAsset::USDT,
+		)),
+		ContributionParams::from((
 			BIDDER_1,
 			15_000 * CT_UNIT,
 			ParticipationMode::Classic(10u8),
 			AcceptedFundingAsset::USDT,
-		),
-		ContributionParams::new(BIDDER_1, 100 * CT_UNIT, ParticipationMode::Classic(1u8), AcceptedFundingAsset::USDT),
+		)),
+		ContributionParams::from((
+			BIDDER_1,
+			100 * CT_UNIT,
+			ParticipationMode::Classic(1u8),
+			AcceptedFundingAsset::USDT,
+		)),
 	];
 
 	let project_id = inst.create_finished_project(
@@ -937,7 +947,7 @@ fn get_funding_asset_min_max_amounts() {
 		})
 		.unwrap();
 	let contribution =
-		ContributionParams::new(BUYER_1, required_ct, ParticipationMode::OTM, AcceptedFundingAsset::USDC);
+		ContributionParams::from((BUYER_1, required_ct, ParticipationMode::OTM, AcceptedFundingAsset::USDC));
 	let usdc_to_mint = inst.calculate_contributed_funding_asset_spent(vec![contribution.clone()], min_price);
 	inst.mint_funding_asset_ed_if_required(usdc_to_mint.to_account_asset_map());
 	inst.mint_funding_asset_to(usdc_to_mint);
@@ -970,45 +980,65 @@ fn all_project_participations_by_did() {
 	let project_id = inst.create_evaluating_project(project_metadata.clone(), ISSUER_1, None);
 
 	let evaluations = vec![
-		UserToUSDBalance::new(EVALUATOR_1, 500_000 * USD_UNIT),
-		UserToUSDBalance::new(EVALUATOR_2, 250_000 * USD_UNIT),
-		UserToUSDBalance::new(EVALUATOR_3, 320_000 * USD_UNIT),
+		EvaluationParams::from((EVALUATOR_1, 500_000 * USD_UNIT)),
+		EvaluationParams::from((EVALUATOR_2, 250_000 * USD_UNIT)),
+		EvaluationParams::from((EVALUATOR_3, 320_000 * USD_UNIT)),
 	];
 	let bids = vec![
-		BidParams::new(BIDDER_1, 400_000 * CT_UNIT, ParticipationMode::Classic(1u8), AcceptedFundingAsset::USDT),
-		BidParams::new(BIDDER_2, 50_000 * CT_UNIT, ParticipationMode::Classic(1u8), AcceptedFundingAsset::USDT),
+		BidParams::from((BIDDER_1, 400_000 * CT_UNIT, ParticipationMode::Classic(1u8), AcceptedFundingAsset::USDT)),
+		BidParams::from((BIDDER_2, 50_000 * CT_UNIT, ParticipationMode::Classic(1u8), AcceptedFundingAsset::USDT)),
 	];
 	let community_contributions = vec![
-		ContributionParams::new(BUYER_1, 50_000 * CT_UNIT, ParticipationMode::Classic(1u8), AcceptedFundingAsset::USDT),
-		ContributionParams::new(
+		ContributionParams::from((
+			BUYER_1,
+			50_000 * CT_UNIT,
+			ParticipationMode::Classic(1u8),
+			AcceptedFundingAsset::USDT,
+		)),
+		ContributionParams::from((
 			BUYER_2,
 			130_000 * CT_UNIT,
 			ParticipationMode::Classic(1u8),
 			AcceptedFundingAsset::USDT,
-		),
-		ContributionParams::new(BUYER_3, 30_000 * CT_UNIT, ParticipationMode::Classic(1u8), AcceptedFundingAsset::USDT),
-		ContributionParams::new(
+		)),
+		ContributionParams::from((
+			BUYER_3,
+			30_000 * CT_UNIT,
+			ParticipationMode::Classic(1u8),
+			AcceptedFundingAsset::USDT,
+		)),
+		ContributionParams::from((
 			BUYER_4,
 			210_000 * CT_UNIT,
 			ParticipationMode::Classic(1u8),
 			AcceptedFundingAsset::USDT,
-		),
-		ContributionParams::new(BUYER_5, 10_000 * CT_UNIT, ParticipationMode::Classic(1u8), AcceptedFundingAsset::USDT),
+		)),
+		ContributionParams::from((
+			BUYER_5,
+			10_000 * CT_UNIT,
+			ParticipationMode::Classic(1u8),
+			AcceptedFundingAsset::USDT,
+		)),
 	];
 	let remainder_contributions = vec![
-		ContributionParams::new(
+		ContributionParams::from((
 			EVALUATOR_2,
 			20_000 * CT_UNIT,
 			ParticipationMode::Classic(1u8),
 			AcceptedFundingAsset::USDT,
-		),
-		ContributionParams::new(BUYER_2, 5_000 * CT_UNIT, ParticipationMode::Classic(1u8), AcceptedFundingAsset::USDT),
-		ContributionParams::new(
+		)),
+		ContributionParams::from((
+			BUYER_2,
+			5_000 * CT_UNIT,
+			ParticipationMode::Classic(1u8),
+			AcceptedFundingAsset::USDT,
+		)),
+		ContributionParams::from((
 			BIDDER_1,
 			30_000 * CT_UNIT,
 			ParticipationMode::Classic(1u8),
 			AcceptedFundingAsset::USDT,
-		),
+		)),
 	];
 
 	let evaluations_plmc = inst.calculate_evaluation_plmc_spent(evaluations.clone());

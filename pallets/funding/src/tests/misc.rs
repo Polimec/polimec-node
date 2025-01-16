@@ -97,11 +97,11 @@ mod helper_functions {
 		);
 
 		let evaluations = vec![
-			UserToUSDBalance::<TestRuntime>::new(EVALUATOR_1, USD_AMOUNT_1),
-			UserToUSDBalance::<TestRuntime>::new(EVALUATOR_2, USD_AMOUNT_2),
-			UserToUSDBalance::<TestRuntime>::new(EVALUATOR_3, USD_AMOUNT_3),
-			UserToUSDBalance::<TestRuntime>::new(EVALUATOR_4, USD_AMOUNT_4),
-			UserToUSDBalance::<TestRuntime>::new(EVALUATOR_5, USD_AMOUNT_5),
+			EvaluationParams::<TestRuntime>::from((EVALUATOR_1, USD_AMOUNT_1)),
+			EvaluationParams::<TestRuntime>::from((EVALUATOR_2, USD_AMOUNT_2)),
+			EvaluationParams::<TestRuntime>::from((EVALUATOR_3, USD_AMOUNT_3)),
+			EvaluationParams::<TestRuntime>::from((EVALUATOR_4, USD_AMOUNT_4)),
+			EvaluationParams::<TestRuntime>::from((EVALUATOR_5, USD_AMOUNT_5)),
 		];
 
 		let expected_plmc_spent = vec![
@@ -140,11 +140,16 @@ mod helper_functions {
 		const CT_AMOUNT_4: u128 = 6000 * CT_UNIT;
 		const CT_AMOUNT_5: u128 = 2000 * CT_UNIT;
 
-		let bid_1 = BidParams::new(BIDDER_1, CT_AMOUNT_1, ParticipationMode::Classic(1u8), AcceptedFundingAsset::USDT);
-		let bid_2 = BidParams::new(BIDDER_2, CT_AMOUNT_2, ParticipationMode::Classic(1u8), AcceptedFundingAsset::USDT);
-		let bid_3 = BidParams::new(BIDDER_1, CT_AMOUNT_3, ParticipationMode::Classic(1u8), AcceptedFundingAsset::USDT);
-		let bid_4 = BidParams::new(BIDDER_3, CT_AMOUNT_4, ParticipationMode::Classic(1u8), AcceptedFundingAsset::USDT);
-		let bid_5 = BidParams::new(BIDDER_4, CT_AMOUNT_5, ParticipationMode::Classic(1u8), AcceptedFundingAsset::USDT);
+		let bid_1 =
+			BidParams::from((BIDDER_1, CT_AMOUNT_1, ParticipationMode::Classic(1u8), AcceptedFundingAsset::USDT));
+		let bid_2 =
+			BidParams::from((BIDDER_2, CT_AMOUNT_2, ParticipationMode::Classic(1u8), AcceptedFundingAsset::USDT));
+		let bid_3 =
+			BidParams::from((BIDDER_1, CT_AMOUNT_3, ParticipationMode::Classic(1u8), AcceptedFundingAsset::USDT));
+		let bid_4 =
+			BidParams::from((BIDDER_3, CT_AMOUNT_4, ParticipationMode::Classic(1u8), AcceptedFundingAsset::USDT));
+		let bid_5 =
+			BidParams::from((BIDDER_4, CT_AMOUNT_5, ParticipationMode::Classic(1u8), AcceptedFundingAsset::USDT));
 
 		// post bucketing, the bids look like this:
 		// (BIDDER_1, 5k) - (BIDDER_2, 40k) - (BIDDER_1, 5k) - (BIDDER_1, 5k) - (BIDDER_3 - 5k) - (BIDDER_3 - 1k) - (BIDDER_4 - 2k)
@@ -285,36 +290,36 @@ mod helper_functions {
 		);
 
 		let contributions = vec![
-			ContributionParams::new(
+			ContributionParams::from((
 				CONTRIBUTOR_1,
 				TOKEN_AMOUNT_1,
 				ParticipationMode::Classic(MULTIPLIER_1),
 				AcceptedFundingAsset::USDT,
-			),
-			ContributionParams::new(
+			)),
+			ContributionParams::from((
 				CONTRIBUTOR_2,
 				TOKEN_AMOUNT_2,
 				ParticipationMode::Classic(MULTIPLIER_2),
 				AcceptedFundingAsset::USDT,
-			),
-			ContributionParams::new(
+			)),
+			ContributionParams::from((
 				CONTRIBUTOR_3,
 				TOKEN_AMOUNT_3,
 				ParticipationMode::Classic(MULTIPLIER_3),
 				AcceptedFundingAsset::USDT,
-			),
-			ContributionParams::new(
+			)),
+			ContributionParams::from((
 				CONTRIBUTOR_4,
 				TOKEN_AMOUNT_4,
 				ParticipationMode::Classic(MULTIPLIER_4),
 				AcceptedFundingAsset::USDT,
-			),
-			ContributionParams::new(
+			)),
+			ContributionParams::from((
 				CONTRIBUTOR_5,
 				TOKEN_AMOUNT_5,
 				ParticipationMode::Classic(MULTIPLIER_5),
 				AcceptedFundingAsset::USDT,
-			),
+			)),
 		];
 
 		let expected_plmc_spent = vec![

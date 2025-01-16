@@ -179,132 +179,155 @@ pub mod defaults {
 		]
 	}
 
-	pub fn default_evaluations() -> Vec<UserToUSDBalance<TestRuntime>> {
+	pub fn default_evaluations() -> Vec<EvaluationParams<TestRuntime>> {
 		vec![
-			UserToUSDBalance::new(EVALUATOR_1, 500_000 * USD_UNIT),
-			UserToUSDBalance::new(EVALUATOR_2, 250_000 * USD_UNIT),
-			UserToUSDBalance::new(EVALUATOR_3, 320_000 * USD_UNIT),
+			EvaluationParams::from((EVALUATOR_1, 500_000 * USD_UNIT)),
+			EvaluationParams::from((EVALUATOR_2, 250_000 * USD_UNIT)),
+			EvaluationParams::from((EVALUATOR_3, 320_000 * USD_UNIT)),
 		]
 	}
 
-	pub fn knowledge_hub_evaluations() -> Vec<UserToUSDBalance<TestRuntime>> {
+	pub fn default_eth_evaluations() -> Vec<EvaluationParams<TestRuntime>> {
 		vec![
-			UserToUSDBalance::new(EVALUATOR_1, 75_000 * USDT_UNIT),
-			UserToUSDBalance::new(EVALUATOR_2, 65_000 * USDT_UNIT),
-			UserToUSDBalance::new(EVALUATOR_3, 60_000 * USDT_UNIT),
+			EvaluationParams::new(
+				EVALUATOR_1,
+				500_000 * USD_UNIT,
+				Junction::AccountKey20 { network: Some(NetworkId::Ethereum { chain_id: 1 }), key: [0u8; 20] },
+			),
+			EvaluationParams::new(
+				EVALUATOR_2,
+				250_000 * USD_UNIT,
+				Junction::AccountKey20 { network: Some(NetworkId::Ethereum { chain_id: 1 }), key: [1u8; 20] },
+			),
+			EvaluationParams::new(
+				EVALUATOR_3,
+				320_000 * USD_UNIT,
+				Junction::AccountKey20 { network: Some(NetworkId::Ethereum { chain_id: 1 }), key: [2u8; 20] },
+			),
 		]
 	}
 
-	pub fn default_failing_evaluations() -> Vec<UserToUSDBalance<TestRuntime>> {
-		vec![UserToUSDBalance::new(EVALUATOR_1, 3_000 * USD_UNIT), UserToUSDBalance::new(EVALUATOR_2, 1_000 * USD_UNIT)]
+	pub fn knowledge_hub_evaluations() -> Vec<EvaluationParams<TestRuntime>> {
+		vec![
+			EvaluationParams::from((EVALUATOR_1, 75_000 * USDT_UNIT)),
+			EvaluationParams::from((EVALUATOR_2, 65_000 * USDT_UNIT)),
+			EvaluationParams::from((EVALUATOR_3, 60_000 * USDT_UNIT)),
+		]
+	}
+
+	pub fn default_failing_evaluations() -> Vec<EvaluationParams<TestRuntime>> {
+		vec![
+			EvaluationParams::from((EVALUATOR_1, 3_000 * USD_UNIT)),
+			EvaluationParams::from((EVALUATOR_2, 1_000 * USD_UNIT)),
+		]
 	}
 
 	pub fn default_bids() -> Vec<BidParams<TestRuntime>> {
 		vec![
-			BidParams::new(BIDDER_1, 400_000 * CT_UNIT, ParticipationMode::Classic(1u8), AcceptedFundingAsset::USDT),
-			BidParams::new(BIDDER_2, 50_000 * CT_UNIT, ParticipationMode::OTM, AcceptedFundingAsset::USDT),
+			BidParams::from((BIDDER_1, 400_000 * CT_UNIT, ParticipationMode::Classic(1u8), AcceptedFundingAsset::USDT)),
+			BidParams::from((BIDDER_2, 50_000 * CT_UNIT, ParticipationMode::OTM, AcceptedFundingAsset::USDT)),
 		]
 	}
 
 	pub fn knowledge_hub_bids() -> Vec<BidParams<TestRuntime>> {
 		// This should reflect the bidding currency, which currently is USDT
 		vec![
-			BidParams::new(BIDDER_1, 10_000 * CT_UNIT, ParticipationMode::Classic(1u8), AcceptedFundingAsset::USDT),
-			BidParams::new(BIDDER_2, 20_000 * CT_UNIT, ParticipationMode::Classic(1u8), AcceptedFundingAsset::USDT),
-			BidParams::new(BIDDER_3, 20_000 * CT_UNIT, ParticipationMode::Classic(1u8), AcceptedFundingAsset::USDT),
-			BidParams::new(BIDDER_4, 10_000 * CT_UNIT, ParticipationMode::Classic(1u8), AcceptedFundingAsset::USDT),
-			BidParams::new(BIDDER_5, 5_000 * CT_UNIT, ParticipationMode::Classic(1u8), AcceptedFundingAsset::USDT),
-			BidParams::new(BIDDER_6, 5_000 * CT_UNIT, ParticipationMode::Classic(1u8), AcceptedFundingAsset::USDT),
+			BidParams::from((BIDDER_1, 10_000 * CT_UNIT, ParticipationMode::Classic(1u8), AcceptedFundingAsset::USDT)),
+			BidParams::from((BIDDER_2, 20_000 * CT_UNIT, ParticipationMode::Classic(1u8), AcceptedFundingAsset::USDT)),
+			BidParams::from((BIDDER_3, 20_000 * CT_UNIT, ParticipationMode::Classic(1u8), AcceptedFundingAsset::USDT)),
+			BidParams::from((BIDDER_4, 10_000 * CT_UNIT, ParticipationMode::Classic(1u8), AcceptedFundingAsset::USDT)),
+			BidParams::from((BIDDER_5, 5_000 * CT_UNIT, ParticipationMode::Classic(1u8), AcceptedFundingAsset::USDT)),
+			BidParams::from((BIDDER_6, 5_000 * CT_UNIT, ParticipationMode::Classic(1u8), AcceptedFundingAsset::USDT)),
 		]
 	}
 
 	pub fn default_community_contributions() -> Vec<ContributionParams<TestRuntime>> {
 		vec![
-			ContributionParams::new(
+			ContributionParams::from((
 				BUYER_1,
 				50_000 * CT_UNIT,
 				ParticipationMode::Classic(1u8),
 				AcceptedFundingAsset::USDT,
-			),
-			ContributionParams::new(
+			)),
+			ContributionParams::from((
 				BUYER_2,
 				130_000 * CT_UNIT,
 				ParticipationMode::Classic(5u8),
 				AcceptedFundingAsset::USDT,
-			),
-			ContributionParams::new(BUYER_3, 30_000 * CT_UNIT, ParticipationMode::OTM, AcceptedFundingAsset::USDT),
-			ContributionParams::new(
+			)),
+			ContributionParams::from((BUYER_3, 30_000 * CT_UNIT, ParticipationMode::OTM, AcceptedFundingAsset::USDT)),
+			ContributionParams::from((
 				BUYER_4,
 				210_000 * CT_UNIT,
 				ParticipationMode::Classic(3u8),
 				AcceptedFundingAsset::USDT,
-			),
-			ContributionParams::new(BUYER_5, 10_000 * CT_UNIT, ParticipationMode::OTM, AcceptedFundingAsset::USDT),
+			)),
+			ContributionParams::from((BUYER_5, 10_000 * CT_UNIT, ParticipationMode::OTM, AcceptedFundingAsset::USDT)),
 		]
 	}
 
 	pub fn default_remainder_contributions() -> Vec<ContributionParams<TestRuntime>> {
 		vec![
-			ContributionParams::new(
+			ContributionParams::from((
 				EVALUATOR_2,
 				20_000 * CT_UNIT,
 				ParticipationMode::Classic(1u8),
 				AcceptedFundingAsset::USDT,
-			),
-			ContributionParams::new(
+			)),
+			ContributionParams::from((
 				BUYER_2,
 				5_000 * CT_UNIT,
 				ParticipationMode::Classic(1u8),
 				AcceptedFundingAsset::USDT,
-			),
-			ContributionParams::new(BIDDER_1, 30_000 * CT_UNIT, ParticipationMode::OTM, AcceptedFundingAsset::USDT),
+			)),
+			ContributionParams::from((BIDDER_1, 30_000 * CT_UNIT, ParticipationMode::OTM, AcceptedFundingAsset::USDT)),
 		]
 	}
 
 	pub fn knowledge_hub_buys() -> Vec<ContributionParams<TestRuntime>> {
 		vec![
-			ContributionParams::new(
+			ContributionParams::from((
 				BUYER_1,
 				4_000 * CT_UNIT,
 				ParticipationMode::Classic(1u8),
 				AcceptedFundingAsset::USDT,
-			),
-			ContributionParams::new(
+			)),
+			ContributionParams::from((
 				BUYER_2,
 				2_000 * CT_UNIT,
 				ParticipationMode::Classic(1u8),
 				AcceptedFundingAsset::USDT,
-			),
-			ContributionParams::new(
+			)),
+			ContributionParams::from((
 				BUYER_3,
 				2_000 * CT_UNIT,
 				ParticipationMode::Classic(1u8),
 				AcceptedFundingAsset::USDT,
-			),
-			ContributionParams::new(
+			)),
+			ContributionParams::from((
 				BUYER_4,
 				5_000 * CT_UNIT,
 				ParticipationMode::Classic(1u8),
 				AcceptedFundingAsset::USDT,
-			),
-			ContributionParams::new(
+			)),
+			ContributionParams::from((
 				BUYER_5,
 				30_000 * CT_UNIT,
 				ParticipationMode::Classic(1u8),
 				AcceptedFundingAsset::USDT,
-			),
-			ContributionParams::new(
+			)),
+			ContributionParams::from((
 				BUYER_6,
 				5_000 * CT_UNIT,
 				ParticipationMode::Classic(1u8),
 				AcceptedFundingAsset::USDT,
-			),
-			ContributionParams::new(
+			)),
+			ContributionParams::from((
 				BUYER_7,
 				2_000 * CT_UNIT,
 				ParticipationMode::Classic(1u8),
 				AcceptedFundingAsset::USDT,
-			),
+			)),
 		]
 	}
 
@@ -528,3 +551,33 @@ pub fn create_finished_project_with_usd_raised(
 
 	(inst, project_id)
 }
+
+macro_rules! polkadot_junction {
+    // Case 1: Explicit `[u8; 32]` literal with 32 values
+    ([ $($byte:literal),* ]) => {{
+        let id: [u8; 32] = [$($byte),*];
+        Junction::AccountId32 {
+            network: Some(NetworkId::Polkadot),
+            id,
+        }
+    }};
+
+    // Case 2: Repeated syntax `[value; 32]`
+    ([ $byte:literal ; 32 ]) => {{
+        let id: [u8; 32] = [$byte; 32];
+        Junction::AccountId32 {
+            network: Some(NetworkId::Polkadot),
+            id,
+        }
+    }};
+
+    // Case 3: Variable or expression
+    ($account:expr) => {{
+        let id: [u8; 32] = <TestRuntime as Config>::AccountId32Conversion::convert($account);
+        Junction::AccountId32 {
+            network: Some(NetworkId::Polkadot),
+            id,
+        }
+    }};
+}
+use polkadot_junction;

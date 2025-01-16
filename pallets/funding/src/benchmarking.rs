@@ -85,7 +85,7 @@ where
 	}
 }
 
-pub fn default_evaluations<T: Config>() -> Vec<UserToUSDBalance<T>>
+pub fn default_evaluations<T: Config>() -> Vec<EvaluationParams<T>>
 where
 	<T as Config>::Price: From<u128>,
 	T::Hash: From<H256>,
@@ -98,18 +98,18 @@ where
 	let evaluation_target = threshold * funding_target;
 
 	vec![
-		UserToUSDBalance::new(
+		EvaluationParams::from((
 			account::<AccountIdOf<T>>("evaluator_1", 0, 0),
 			Percent::from_percent(35) * evaluation_target,
-		),
-		UserToUSDBalance::new(
+		)),
+		EvaluationParams::from((
 			account::<AccountIdOf<T>>("evaluator_2", 0, 0),
 			Percent::from_percent(35) * evaluation_target,
-		),
-		UserToUSDBalance::new(
+		)),
+		EvaluationParams::from((
 			account::<AccountIdOf<T>>("evaluator_3", 0, 0),
 			Percent::from_percent(35) * evaluation_target,
-		),
+		)),
 	]
 }
 
@@ -501,8 +501,8 @@ mod benchmarks {
 		let project_metadata = default_project_metadata::<T>(issuer.clone());
 		let project_id = inst.create_evaluating_project(project_metadata.clone(), issuer, None);
 
-		let existing_evaluation = UserToUSDBalance::new(test_evaluator.clone(), (200 * USD_UNIT).into());
-		let extrinsic_evaluation = UserToUSDBalance::new(test_evaluator.clone(), (1_000 * USD_UNIT).into());
+		let existing_evaluation = EvaluationParams::from((test_evaluator.clone(), (200 * USD_UNIT).into()));
+		let extrinsic_evaluation = EvaluationParams::from((test_evaluator.clone(), (1_000 * USD_UNIT).into()));
 		let existing_evaluations = vec![existing_evaluation; x as usize];
 
 		let plmc_for_existing_evaluations = inst.calculate_evaluation_plmc_spent(existing_evaluations.clone());
@@ -597,18 +597,18 @@ mod benchmarks {
 			<T as Config>::EvaluationSuccessThreshold::get() * project_details.fundraising_target_usd;
 		// we only fund 50% of the minimum threshold for the evaluation round, since we want it to fail
 		let evaluations = vec![
-			UserToUSDBalance::new(
+			EvaluationParams::from((
 				account::<AccountIdOf<T>>("evaluator_1", 0, 0),
 				(Percent::from_percent(5) * evaluation_usd_target).into(),
-			),
-			UserToUSDBalance::new(
+			)),
+			EvaluationParams::from((
 				account::<AccountIdOf<T>>("evaluator_2", 0, 0),
 				(Percent::from_percent(20) * evaluation_usd_target).into(),
-			),
-			UserToUSDBalance::new(
+			)),
+			EvaluationParams::from((
 				account::<AccountIdOf<T>>("evaluator_3", 0, 0),
 				(Percent::from_percent(25) * evaluation_usd_target).into(),
-			),
+			)),
 		];
 		let plmc_for_evaluating = inst.calculate_evaluation_plmc_spent(evaluations.clone());
 
@@ -669,12 +669,12 @@ mod benchmarks {
 
 		let project_id = inst.create_auctioning_project(project_metadata.clone(), issuer, None, evaluations);
 
-		let existing_bid = BidParams::new(
+		let existing_bid = BidParams::from((
 			bidder.clone(),
 			(50 * CT_UNIT).into(),
 			ParticipationMode::Classic(5u8),
 			AcceptedFundingAsset::USDT,
-		);
+		));
 
 		let existing_bids = vec![existing_bid; x as usize];
 		let existing_bids_post_bucketing =
@@ -715,12 +715,12 @@ mod benchmarks {
 			let current_bucket = Buckets::<T>::get(project_id).unwrap();
 			// first lets bring the bucket to almost its limit with another bidder:
 			assert!(new_bidder.clone() != bidder.clone());
-			let bid_params = BidParams::new(
+			let bid_params = BidParams::from((
 				new_bidder.clone(),
 				current_bucket.amount_left,
 				ParticipationMode::Classic(1u8),
 				AcceptedFundingAsset::USDT,
-			);
+			));
 			maybe_filler_bid = Some(bid_params.clone());
 			let plmc_for_new_bidder = inst.calculate_auction_plmc_charged_with_given_price(
 				&vec![bid_params.clone()],
@@ -746,7 +746,7 @@ mod benchmarks {
 			usdt_for_filler_bidder = usdt_for_new_bidder;
 		}
 		let extrinsic_bid =
-			BidParams::new(bidder.clone(), ct_amount, ParticipationMode::Classic(1u8), AcceptedFundingAsset::USDT);
+			BidParams::from((bidder.clone(), ct_amount, ParticipationMode::Classic(1u8), AcceptedFundingAsset::USDT));
 		let original_extrinsic_bid = extrinsic_bid.clone();
 		let current_bucket = Buckets::<T>::get(project_id).unwrap();
 		// we need to call this after bidding `x` amount of times, to get the latest bucket from storage
@@ -927,34 +927,34 @@ mod benchmarks {
 		// These bids will always be rejected, and will be made after the first bucket bid
 		let rejected_bids = (0..y.saturating_sub(1))
 			.map(|i| {
-				BidParams::<T>::new(
+				BidParams::<T>::from((
 					account::<AccountIdOf<T>>("bidder", 0, i),
 					(min_bid_amount * CT_UNIT).into(),
 					ParticipationMode::Classic(1u8),
 					AcceptedFundingAsset::USDT,
-				)
+				))
 			})
 			.collect_vec();
 		all_bids.extend(rejected_bids.clone());
 
 		let already_accepted_bids_count = if y > 0 {
 			// This one needs to fill the remaining with the bucket, so that all "accepted" bids will take the CT from a rejected one
-			let last_rejected_bid = BidParams::<T>::new(
+			let last_rejected_bid = BidParams::<T>::from((
 				account::<AccountIdOf<T>>("bidder", 0, 420),
 				auction_allocation - (min_bid_amount * CT_UNIT * (y as u128 - 1u128)),
 				ParticipationMode::Classic(1u8),
 				AcceptedFundingAsset::USDT,
-			);
+			));
 			all_bids.push(last_rejected_bid.clone());
 
 			// We first need to invalidate all rejected bids.
 			// We do it by placing a bid of  the whole auction allocation, i.e. 10 new bids
-			let allocation_bid = BidParams::<T>::new(
+			let allocation_bid = BidParams::<T>::from((
 				account::<AccountIdOf<T>>("bidder", 0, y),
 				auction_allocation,
 				ParticipationMode::Classic(1u8),
 				AcceptedFundingAsset::USDT,
-			);
+			));
 			all_bids.push(allocation_bid);
 
 			10
@@ -964,12 +964,12 @@ mod benchmarks {
 
 		let accepted_bids = (0..x.saturating_sub(already_accepted_bids_count))
 			.map(|i| {
-				BidParams::<T>::new(
+				BidParams::<T>::from((
 					account::<AccountIdOf<T>>("bidder", 0, i),
 					(min_bid_amount * CT_UNIT).into(),
 					ParticipationMode::Classic(1u8),
 					AcceptedFundingAsset::USDT,
-				)
+				))
 			})
 			.collect_vec();
 		all_bids.extend(accepted_bids.clone());
@@ -1054,12 +1054,12 @@ mod benchmarks {
 		let price = inst.get_project_details(project_id).weighted_average_price.unwrap();
 
 		let contributions = vec![
-			ContributionParams::new(
+			ContributionParams::from((
 				contributor.clone(),
 				(50 * CT_UNIT).into(),
 				ParticipationMode::Classic(1u8),
 				AcceptedFundingAsset::USDT
-			);
+			));
 			x as usize + 1
 		];
 
@@ -1227,7 +1227,7 @@ mod benchmarks {
 		inst.advance_time(1u32.into());
 
 		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
-		let evaluations: Vec<UserToUSDBalance<T>> = default_evaluations::<T>();
+		let evaluations: Vec<EvaluationParams<T>> = default_evaluations::<T>();
 		let evaluator: AccountIdOf<T> = evaluations[0].account.clone();
 		whitelist_account!(evaluator);
 
@@ -1513,26 +1513,26 @@ mod benchmarks {
 		let max_contributions = x - max_evaluations - max_bids;
 
 		let participant_evaluations = (0..max_evaluations)
-			.map(|_| UserToUSDBalance::new(participant.clone(), (100 * USD_UNIT).into()))
+			.map(|_| EvaluationParams::from((participant.clone(), (100 * USD_UNIT).into())))
 			.collect_vec();
 		let participant_bids = (0..max_bids)
 			.map(|_| {
-				BidParams::new(
+				BidParams::from((
 					participant.clone(),
 					(500 * CT_UNIT).into(),
 					ParticipationMode::Classic(1u8),
 					AcceptedFundingAsset::USDT,
-				)
+				))
 			})
 			.collect_vec();
 		let participant_contributions = (0..max_contributions)
 			.map(|_| {
-				ContributionParams::<T>::new(
+				ContributionParams::<T>::from((
 					participant.clone(),
 					(10 * CT_UNIT).into(),
 					ParticipationMode::Classic(1),
 					AcceptedFundingAsset::USDT,
-				)
+				))
 			})
 			.collect_vec();
 
@@ -1862,26 +1862,26 @@ mod benchmarks {
 		let max_contributions = x - max_evaluations - max_bids;
 
 		let participant_evaluations = (0..max_evaluations)
-			.map(|_| UserToUSDBalance::new(participant.clone(), (100 * USD_UNIT).into()))
+			.map(|_| EvaluationParams::from((participant.clone(), (100 * USD_UNIT).into())))
 			.collect_vec();
 		let participant_bids = (0..max_bids)
 			.map(|_| {
-				BidParams::new(
+				BidParams::from((
 					participant.clone(),
 					(500 * CT_UNIT).into(),
 					ParticipationMode::Classic(1u8),
 					AcceptedFundingAsset::USDT,
-				)
+				))
 			})
 			.collect_vec();
 		let participant_contributions = (0..max_contributions)
 			.map(|_| {
-				ContributionParams::<T>::new(
+				ContributionParams::<T>::from((
 					participant.clone(),
 					(10 * CT_UNIT).into(),
 					ParticipationMode::Classic(1),
 					AcceptedFundingAsset::USDT,
-				)
+				))
 			})
 			.collect_vec();
 
@@ -1960,26 +1960,26 @@ mod benchmarks {
 		let max_contributions = x - max_evaluations - max_bids;
 
 		let participant_evaluations = (0..max_evaluations)
-			.map(|_| UserToUSDBalance::new(participant.clone(), (100 * USD_UNIT).into()))
+			.map(|_| EvaluationParams::from((participant.clone(), (100 * USD_UNIT).into())))
 			.collect_vec();
 		let participant_bids = (0..max_bids)
 			.map(|_| {
-				BidParams::new(
+				BidParams::from((
 					participant.clone(),
 					(500 * CT_UNIT).into(),
 					ParticipationMode::Classic(1u8),
 					AcceptedFundingAsset::USDT,
-				)
+				))
 			})
 			.collect_vec();
 		let participant_contributions = (0..max_contributions)
 			.map(|_| {
-				ContributionParams::<T>::new(
+				ContributionParams::<T>::from((
 					participant.clone(),
 					(10 * CT_UNIT).into(),
 					ParticipationMode::Classic(1),
 					AcceptedFundingAsset::USDT,
-				)
+				))
 			})
 			.collect_vec();
 

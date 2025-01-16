@@ -17,7 +17,7 @@ pub struct TestProjectParams<T: Config> {
 	pub expected_state: ProjectStatus<BlockNumberFor<T>>,
 	pub metadata: ProjectMetadataOf<T>,
 	pub issuer: AccountIdOf<T>,
-	pub evaluations: Vec<UserToUSDBalance<T>>,
+	pub evaluations: Vec<EvaluationParams<T>>,
 	pub bids: Vec<BidParams<T>>,
 	pub community_contributions: Vec<ContributionParams<T>>,
 	pub remainder_contributions: Vec<ContributionParams<T>>,
@@ -76,6 +76,10 @@ impl<T: Config> From<(AccountIdOf<T>, Balance)> for UserToPLMCBalance<T> {
 impl<T: Config> AccountMerge for Vec<UserToPLMCBalance<T>> {
 	type Inner = UserToPLMCBalance<T>;
 
+	fn get_account(inner: Self::Inner) -> Self::Account {
+		inner.account
+	}
+
 	fn merge_accounts(&self, ops: MergeOperation) -> Self {
 		let mut btree = BTreeMap::new();
 		for UserToPLMCBalance { account, plmc_amount } in self.iter() {
@@ -91,20 +95,6 @@ impl<T: Config> AccountMerge for Vec<UserToPLMCBalance<T>> {
 		}
 		btree.into_iter().map(|(account, plmc_amount)| UserToPLMCBalance::new(account, plmc_amount)).collect()
 	}
-
-	fn subtract_accounts(&self, other_list: Self) -> Self {
-		let current_accounts = self.accounts();
-		let filtered_list = other_list.into_iter().filter(|x| current_accounts.contains(&x.account)).collect_vec();
-		let mut new_list = self.clone();
-		new_list.extend(filtered_list);
-		new_list.merge_accounts(MergeOperation::Subtract)
-	}
-
-	fn sum_accounts(&self, mut other_list: Self) -> Self {
-		let mut output = self.clone();
-		output.append(&mut other_list);
-		output.merge_accounts(MergeOperation::Add)
-	}
 }
 
 impl<T: Config> Total for Vec<UserToPLMCBalance<T>> {
@@ -115,65 +105,94 @@ impl<T: Config> Total for Vec<UserToPLMCBalance<T>> {
 
 #[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields, bound(serialize = ""), bound(deserialize = ""))]
-pub struct UserToUSDBalance<T: Config> {
+pub struct EvaluationParams<T: Config> {
 	pub account: AccountIdOf<T>,
 	pub usd_amount: Balance,
+	pub receiving_account: Junction,
 }
-impl<T: Config> UserToUSDBalance<T> {
-	pub fn new(account: AccountIdOf<T>, usd_amount: Balance) -> Self {
-		Self { account, usd_amount }
+impl<T: Config> EvaluationParams<T> {
+	pub fn new(account: AccountIdOf<T>, usd_amount: Balance, receiving_account: Junction) -> Self {
+		EvaluationParams::<T> { account, usd_amount, receiving_account }
 	}
 }
-impl<T: Config> From<(AccountIdOf<T>, Balance)> for UserToUSDBalance<T> {
+impl<T: Config> From<(AccountIdOf<T>, Balance, Junction)> for EvaluationParams<T> {
+	fn from((account, usd_amount, receiving_account): (AccountIdOf<T>, Balance, Junction)) -> Self {
+		EvaluationParams::<T>::new(account, usd_amount, receiving_account)
+	}
+}
+impl<T: Config> From<(AccountIdOf<T>, Balance)> for EvaluationParams<T> {
 	fn from((account, usd_amount): (AccountIdOf<T>, Balance)) -> Self {
-		UserToUSDBalance::<T>::new(account, usd_amount)
+		let receiving_account = Junction::AccountId32 {
+			network: Some(NetworkId::Polkadot),
+			id: T::AccountId32Conversion::convert(account.clone()),
+		};
+		EvaluationParams::<T>::new(account, usd_amount, receiving_account)
 	}
 }
-impl<T: Config> Accounts for Vec<UserToUSDBalance<T>> {
+impl<T: Config> Accounts for Vec<EvaluationParams<T>> {
 	type Account = AccountIdOf<T>;
 
 	fn accounts(&self) -> Vec<Self::Account> {
 		let mut btree = BTreeSet::new();
-		for UserToUSDBalance { account, usd_amount: _ } in self {
+		for EvaluationParams { account, usd_amount: _, receiving_account: _ } in self {
 			btree.insert(account.clone());
 		}
 		btree.into_iter().collect_vec()
 	}
 }
-impl<T: Config> AccountMerge for Vec<UserToUSDBalance<T>> {
-	type Inner = UserToUSDBalance<T>;
+
+#[derive(Clone, PartialEq)]
+pub struct UserToUSDAmount<T: Config> {
+	pub account: AccountIdOf<T>,
+	pub usd_amount: Balance,
+}
+impl<T: Config> UserToUSDAmount<T> {
+	pub fn new(account: AccountIdOf<T>, usd_amount: Balance) -> Self {
+		Self { account, usd_amount }
+	}
+}
+impl<T: Config> From<(AccountIdOf<T>, Balance)> for UserToUSDAmount<T> {
+	fn from((account, usd_amount): (AccountIdOf<T>, Balance)) -> Self {
+		UserToUSDAmount::<T>::new(account, usd_amount)
+	}
+}
+impl<T: Config> Accounts for Vec<UserToUSDAmount<T>> {
+	type Account = AccountIdOf<T>;
+
+	fn accounts(&self) -> Vec<Self::Account> {
+		let mut btree = BTreeSet::new();
+		for UserToUSDAmount { account, usd_amount: _ } in self {
+			btree.insert(account.clone());
+		}
+		btree.into_iter().collect_vec()
+	}
+}
+impl<T: Config> AccountMerge for Vec<UserToUSDAmount<T>> {
+	type Inner = UserToUSDAmount<T>;
+
+	fn get_account(inner: Self::Inner) -> Self::Account {
+		inner.account
+	}
 
 	fn merge_accounts(&self, ops: MergeOperation) -> Self {
 		let mut btree = BTreeMap::new();
-		for UserToUSDBalance { account, usd_amount } in self.iter() {
+		for UserToUSDAmount { account, usd_amount } in self.iter() {
 			btree
 				.entry(account.clone())
-				.and_modify(|e: &mut Balance| {
-					*e = match ops {
-						MergeOperation::Add => e.saturating_add(*usd_amount),
-						MergeOperation::Subtract => e.saturating_sub(*usd_amount),
-					}
+				.and_modify(|stored_usd_amount: &mut Balance| match ops {
+					MergeOperation::Add => {
+						*stored_usd_amount = stored_usd_amount.saturating_add(*usd_amount);
+					},
+					MergeOperation::Subtract => {
+						*stored_usd_amount = stored_usd_amount.saturating_sub(*usd_amount);
+					},
 				})
 				.or_insert(*usd_amount);
 		}
-		btree.into_iter().map(|(account, usd_amount)| UserToUSDBalance::new(account, usd_amount)).collect()
-	}
-
-	fn subtract_accounts(&self, other_list: Self) -> Self {
-		let current_accounts = self.accounts();
-		let filtered_list = other_list.into_iter().filter(|x| current_accounts.contains(&x.account)).collect_vec();
-		let mut new_list = self.clone();
-		new_list.extend(filtered_list);
-		new_list.merge_accounts(MergeOperation::Subtract)
-	}
-
-	fn sum_accounts(&self, mut other_list: Self) -> Self {
-		let mut output = self.clone();
-		output.append(&mut other_list);
-		output.merge_accounts(MergeOperation::Add)
+		btree.into_iter().map(|(account, usd_amount)| UserToUSDAmount::new(account, usd_amount)).collect()
 	}
 }
-impl<T: Config> Total for Vec<UserToUSDBalance<T>> {
+impl<T: Config> Total for Vec<UserToUSDAmount<T>> {
 	fn total(&self) -> Balance {
 		self.iter().map(|x| x.usd_amount).sum()
 	}
@@ -213,6 +232,10 @@ impl<T: Config> Accounts for Vec<UserToFundingAsset<T>> {
 }
 impl<T: Config> AccountMerge for Vec<UserToFundingAsset<T>> {
 	type Inner = UserToFundingAsset<T>;
+
+	fn get_account(inner: Self::Inner) -> Self::Account {
+		inner.account
+	}
 
 	fn merge_accounts(&self, ops: MergeOperation) -> Self {
 		let mut btree = BTreeMap::new();
@@ -281,34 +304,93 @@ pub struct BidParams<T: Config> {
 	pub amount: Balance,
 	pub mode: ParticipationMode,
 	pub asset: AcceptedFundingAsset,
+	pub receiving_account: Junction,
 }
 impl<T: Config> BidParams<T> {
-	pub fn new(bidder: AccountIdOf<T>, amount: Balance, mode: ParticipationMode, asset: AcceptedFundingAsset) -> Self {
-		Self { bidder, amount, mode, asset }
-	}
-
-	pub fn new_with_defaults(bidder: AccountIdOf<T>, amount: Balance) -> Self {
-		Self { bidder, amount, mode: ParticipationMode::Classic(1u8), asset: AcceptedFundingAsset::USDT }
+	pub fn new(
+		bidder: AccountIdOf<T>,
+		amount: Balance,
+		mode: ParticipationMode,
+		asset: AcceptedFundingAsset,
+		receiving_account: Junction,
+	) -> Self {
+		Self { bidder, amount, mode, asset, receiving_account }
 	}
 }
 impl<T: Config> From<(AccountIdOf<T>, Balance)> for BidParams<T> {
 	fn from((bidder, amount): (AccountIdOf<T>, Balance)) -> Self {
-		Self { bidder, amount, mode: ParticipationMode::Classic(1u8), asset: AcceptedFundingAsset::USDT }
+		Self {
+			bidder: bidder.clone(),
+			amount,
+			mode: ParticipationMode::Classic(1u8),
+			asset: AcceptedFundingAsset::USDT,
+			receiving_account: Junction::AccountId32 {
+				network: Some(NetworkId::Polkadot),
+				id: T::AccountId32Conversion::convert(bidder.clone()),
+			},
+		}
 	}
 }
 impl<T: Config> From<(AccountIdOf<T>, Balance, ParticipationMode)> for BidParams<T> {
 	fn from((bidder, amount, mode): (AccountIdOf<T>, Balance, ParticipationMode)) -> Self {
-		Self { bidder, amount, mode, asset: AcceptedFundingAsset::USDT }
-	}
-}
-impl<T: Config> From<(AccountIdOf<T>, Balance, ParticipationMode, AcceptedFundingAsset)> for BidParams<T> {
-	fn from((bidder, amount, mode, asset): (AccountIdOf<T>, Balance, ParticipationMode, AcceptedFundingAsset)) -> Self {
-		Self { bidder, amount, mode, asset }
+		Self {
+			bidder: bidder.clone(),
+			amount,
+			mode,
+			asset: AcceptedFundingAsset::USDT,
+			receiving_account: Junction::AccountId32 {
+				network: Some(NetworkId::Polkadot),
+				id: T::AccountId32Conversion::convert(bidder.clone()),
+			},
+		}
 	}
 }
 impl<T: Config> From<(AccountIdOf<T>, Balance, AcceptedFundingAsset)> for BidParams<T> {
 	fn from((bidder, amount, asset): (AccountIdOf<T>, Balance, AcceptedFundingAsset)) -> Self {
-		Self { bidder, amount, mode: ParticipationMode::Classic(1u8), asset }
+		Self {
+			bidder: bidder.clone(),
+			amount,
+			mode: ParticipationMode::Classic(1u8),
+			asset,
+			receiving_account: Junction::AccountId32 {
+				network: Some(NetworkId::Polkadot),
+				id: T::AccountId32Conversion::convert(bidder.clone()),
+			},
+		}
+	}
+}
+impl<T: Config> From<(AccountIdOf<T>, Balance, ParticipationMode, AcceptedFundingAsset)> for BidParams<T> {
+	fn from((bidder, amount, mode, asset): (AccountIdOf<T>, Balance, ParticipationMode, AcceptedFundingAsset)) -> Self {
+		Self {
+			bidder: bidder.clone(),
+			amount,
+			mode,
+			asset,
+			receiving_account: Junction::AccountId32 {
+				network: Some(NetworkId::Polkadot),
+				id: T::AccountId32Conversion::convert(bidder.clone()),
+			},
+		}
+	}
+}
+impl<T: Config> From<(AccountIdOf<T>, Balance, AcceptedFundingAsset, Junction)> for BidParams<T> {
+	fn from(
+		(bidder, amount, asset, receiving_account): (AccountIdOf<T>, Balance, AcceptedFundingAsset, Junction),
+	) -> Self {
+		Self { bidder, amount, mode: ParticipationMode::Classic(1u8), asset, receiving_account }
+	}
+}
+impl<T: Config> From<(AccountIdOf<T>, Balance, ParticipationMode, AcceptedFundingAsset, Junction)> for BidParams<T> {
+	fn from(
+		(bidder, amount, mode, asset, receiving_account): (
+			AccountIdOf<T>,
+			Balance,
+			ParticipationMode,
+			AcceptedFundingAsset,
+			Junction,
+		),
+	) -> Self {
+		Self { bidder, amount, mode, asset, receiving_account }
 	}
 }
 impl<T: Config> From<BidParams<T>> for (AccountIdOf<T>, AssetIdOf<T>) {
@@ -348,6 +430,7 @@ pub struct ContributionParams<T: Config> {
 	pub amount: Balance,
 	pub mode: ParticipationMode,
 	pub asset: AcceptedFundingAsset,
+	pub receiving_account: Junction,
 }
 impl<T: Config> ContributionParams<T> {
 	pub fn new(
@@ -355,29 +438,82 @@ impl<T: Config> ContributionParams<T> {
 		amount: Balance,
 		mode: ParticipationMode,
 		asset: AcceptedFundingAsset,
+		receiving_account: Junction,
 	) -> Self {
-		Self { contributor, amount, mode, asset }
-	}
-
-	pub fn new_with_defaults(contributor: AccountIdOf<T>, amount: Balance) -> Self {
-		Self { contributor, amount, mode: ParticipationMode::Classic(1u8), asset: AcceptedFundingAsset::USDT }
+		Self { contributor, amount, mode, asset, receiving_account }
 	}
 }
 impl<T: Config> From<(AccountIdOf<T>, Balance)> for ContributionParams<T> {
 	fn from((contributor, amount): (AccountIdOf<T>, Balance)) -> Self {
-		Self { contributor, amount, mode: ParticipationMode::Classic(1u8), asset: AcceptedFundingAsset::USDT }
+		Self {
+			contributor: contributor.clone(),
+			amount,
+			mode: ParticipationMode::Classic(1u8),
+			asset: AcceptedFundingAsset::USDT,
+			receiving_account: Junction::AccountId32 {
+				network: Some(NetworkId::Polkadot),
+				id: T::AccountId32Conversion::convert(contributor.clone()),
+			},
+		}
 	}
 }
 impl<T: Config> From<(AccountIdOf<T>, Balance, ParticipationMode)> for ContributionParams<T> {
 	fn from((contributor, amount, mode): (AccountIdOf<T>, Balance, ParticipationMode)) -> Self {
-		Self { contributor, amount, mode, asset: AcceptedFundingAsset::USDT }
+		Self {
+			contributor: contributor.clone(),
+			amount,
+			mode,
+			asset: AcceptedFundingAsset::USDT,
+			receiving_account: Junction::AccountId32 {
+				network: Some(NetworkId::Polkadot),
+				id: T::AccountId32Conversion::convert(contributor.clone()),
+			},
+		}
 	}
 }
 impl<T: Config> From<(AccountIdOf<T>, Balance, ParticipationMode, AcceptedFundingAsset)> for ContributionParams<T> {
 	fn from(
 		(contributor, amount, mode, asset): (AccountIdOf<T>, Balance, ParticipationMode, AcceptedFundingAsset),
 	) -> Self {
-		Self { contributor, amount, mode, asset }
+		Self {
+			contributor: contributor.clone(),
+			amount,
+			mode,
+			asset,
+			receiving_account: Junction::AccountId32 {
+				network: Some(NetworkId::Polkadot),
+				id: T::AccountId32Conversion::convert(contributor.clone()),
+			},
+		}
+	}
+}
+impl<T: Config> From<(AccountIdOf<T>, Balance, AcceptedFundingAsset)> for ContributionParams<T> {
+	fn from((contributor, amount, asset): (AccountIdOf<T>, Balance, AcceptedFundingAsset)) -> Self {
+		Self {
+			contributor: contributor.clone(),
+			amount,
+			mode: ParticipationMode::Classic(1u8),
+			asset,
+			receiving_account: Junction::AccountId32 {
+				network: Some(NetworkId::Polkadot),
+				id: T::AccountId32Conversion::convert(contributor.clone()),
+			},
+		}
+	}
+}
+impl<T: Config> From<(AccountIdOf<T>, Balance, ParticipationMode, AcceptedFundingAsset, Junction)>
+	for ContributionParams<T>
+{
+	fn from(
+		(contributor, amount, mode, asset, receiving_account): (
+			AccountIdOf<T>,
+			Balance,
+			ParticipationMode,
+			AcceptedFundingAsset,
+			Junction,
+		),
+	) -> Self {
+		Self { contributor, amount, mode, asset, receiving_account }
 	}
 }
 impl<T: Config> Accounts for Vec<ContributionParams<T>> {

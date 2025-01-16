@@ -432,10 +432,10 @@ impl<
 	pub fn evaluate_for_users(
 		&mut self,
 		project_id: ProjectId,
-		bonds: Vec<UserToUSDBalance<T>>,
+		bonds: Vec<EvaluationParams<T>>,
 	) -> DispatchResultWithPostInfo {
 		let project_policy = self.get_project_metadata(project_id).policy_ipfs_cid.unwrap();
-		for UserToUSDBalance { account, usd_amount } in bonds {
+		for EvaluationParams { account, usd_amount, receiving_account } in bonds {
 			self.execute(|| {
 				crate::Pallet::<T>::do_evaluate(
 					&account.clone(),
@@ -443,7 +443,7 @@ impl<
 					usd_amount,
 					generate_did_from_account(account.clone()),
 					project_policy.clone(),
-					Junction::AccountId32 { network: None, id: T::AccountId32Conversion::convert(account) },
+					receiving_account,
 				)
 			})?;
 		}
@@ -465,10 +465,7 @@ impl<
 					did,
 					investor_type: InvestorType::Institutional,
 					whitelisted_policy: project_policy.clone(),
-					receiving_account: Junction::AccountId32 {
-						network: None,
-						id: T::AccountId32Conversion::convert(bid.bidder),
-					},
+					receiving_account: bid.receiving_account,
 				};
 				crate::Pallet::<T>::do_bid(params)
 			})?;
@@ -498,10 +495,7 @@ impl<
 						did,
 						investor_type,
 						whitelisted_policy: project_policy.clone(),
-						receiving_account: Junction::AccountId32 {
-							network: None,
-							id: T::AccountId32Conversion::convert(cont.contributor),
-						},
+						receiving_account: cont.receiving_account,
 					};
 					self.execute(|| crate::Pallet::<T>::do_contribute(params))?;
 				},
@@ -619,6 +613,7 @@ impl<
 				amount,
 				evaluation.id,
 				ParticipationType::Evaluation,
+				evaluation.receiving_account,
 				is_successful,
 			);
 		}
@@ -635,7 +630,15 @@ impl<
 			let account = bid.bidder.clone();
 			assert_eq!(self.execute(|| { Bids::<T>::iter_prefix_values((&project_id, &account)).count() }), 0);
 			let amount: Balance = bid.final_ct_amount();
-			self.assert_migration(project_id, account, amount, bid.id, ParticipationType::Bid, is_successful);
+			self.assert_migration(
+				project_id,
+				account,
+				amount,
+				bid.id,
+				ParticipationType::Bid,
+				bid.receiving_account,
+				is_successful,
+			);
 		}
 	}
 
@@ -656,6 +659,7 @@ impl<
 				amount,
 				contribution.id,
 				ParticipationType::Contribution,
+				contribution.receiving_account,
 				is_successful,
 			);
 		}
@@ -668,35 +672,28 @@ impl<
 		amount: Balance,
 		id: u32,
 		participation_type: ParticipationType,
+		receiving_account: Junction,
 		should_exist: bool,
 	) {
-		match (should_exist, self.execute(|| UserMigrations::<T>::get((project_id, account.clone())))) {
-			// User has migrations, so we need to check if any matches our criteria
-			(_, Some((_, migrations))) => {
-				let maybe_migration = migrations.into_iter().find(|migration| {
-					let user = T::AccountId32Conversion::convert(account.clone());
-					let location_user = Location::new(0,AccountId32 {network: None, id: user});
-					matches!(&migration.origin, MigrationOrigin { user: m_user, id: m_id, participation_type: m_participation_type } if *m_user == location_user && *m_id == id && *m_participation_type == participation_type)
-				});
-				match maybe_migration {
-					// Migration exists so we check if the amount is correct and if it should exist
-					Some(migration) => {
-						assert!(should_exist);
-						assert_close_enough!(
-							migration.info.contribution_token_amount,
-							amount,
-							Perquintill::from_percent(99u64)
-						);
-					},
-
-					// Migration doesn't exist so we check if it should not exist
-					None => assert!(should_exist),
-				}
-			},
-			// User does not have any migrations, so the migration should not exist
-			(false, None) => (),
-			(true, None) => panic!("No migration should have been found"),
+		let Some((_migration_status, user_migrations)) =
+			self.execute(|| UserMigrations::<T>::get((project_id, account.clone())))
+		else {
+			assert!(!should_exist);
+			return;
 		};
+		let expected_migration_origin = MigrationOrigin { user: receiving_account, id, participation_type };
+
+		let Some(migration) =
+			user_migrations.into_iter().find(|migration| migration.origin == expected_migration_origin)
+		else {
+			assert!(!should_exist);
+			return;
+		};
+		assert_close_enough!(
+			migration.info.contribution_token_amount,
+			amount,
+			Perquintill::from_rational(999u64, 1000u64)
+		);
 	}
 
 	pub fn create_new_project(
@@ -738,7 +735,7 @@ impl<
 		project_metadata: ProjectMetadataOf<T>,
 		issuer: AccountIdOf<T>,
 		maybe_did: Option<Did>,
-		evaluations: Vec<UserToUSDBalance<T>>,
+		evaluations: Vec<EvaluationParams<T>>,
 	) -> ProjectId {
 		let project_id = self.create_evaluating_project(project_metadata, issuer.clone(), maybe_did);
 
@@ -782,7 +779,7 @@ impl<
 		project_metadata: ProjectMetadataOf<T>,
 		issuer: AccountIdOf<T>,
 		maybe_did: Option<Did>,
-		evaluations: Vec<UserToUSDBalance<T>>,
+		evaluations: Vec<EvaluationParams<T>>,
 		bids: Vec<BidParams<T>>,
 	) -> ProjectId {
 		let project_id =
@@ -841,7 +838,7 @@ impl<
 		project_metadata: ProjectMetadataOf<T>,
 		issuer: AccountIdOf<T>,
 		maybe_did: Option<Did>,
-		evaluations: Vec<UserToUSDBalance<T>>,
+		evaluations: Vec<EvaluationParams<T>>,
 		bids: Vec<BidParams<T>>,
 		contributions: Vec<ContributionParams<T>>,
 	) -> ProjectId {
@@ -909,7 +906,7 @@ impl<
 		project_metadata: ProjectMetadataOf<T>,
 		issuer: AccountIdOf<T>,
 		maybe_did: Option<Did>,
-		evaluations: Vec<UserToUSDBalance<T>>,
+		evaluations: Vec<EvaluationParams<T>>,
 		bids: Vec<BidParams<T>>,
 		community_contributions: Vec<ContributionParams<T>>,
 		remainder_contributions: Vec<ContributionParams<T>>,
@@ -1016,7 +1013,7 @@ impl<
 		project_metadata: ProjectMetadataOf<T>,
 		issuer: AccountIdOf<T>,
 		maybe_did: Option<Did>,
-		evaluations: Vec<UserToUSDBalance<T>>,
+		evaluations: Vec<EvaluationParams<T>>,
 		bids: Vec<BidParams<T>>,
 		community_contributions: Vec<ContributionParams<T>>,
 		remainder_contributions: Vec<ContributionParams<T>>,
@@ -1043,7 +1040,7 @@ impl<
 		status: ProjectStatus<BlockNumberFor<T>>,
 		project_metadata: ProjectMetadataOf<T>,
 		issuer: AccountIdOf<T>,
-		evaluations: Vec<UserToUSDBalance<T>>,
+		evaluations: Vec<EvaluationParams<T>>,
 		bids: Vec<BidParams<T>>,
 		community_contributions: Vec<ContributionParams<T>>,
 		remainder_contributions: Vec<ContributionParams<T>>,
