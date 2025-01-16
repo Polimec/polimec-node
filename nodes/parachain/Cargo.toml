@@ -28,6 +28,7 @@ futures.workspace = true
 # Local
 polimec-runtime.workspace = true
 pallet-funding.workspace = true
+polimec-common.workspace = true
 
 # Substrate
 frame-benchmarking.workspace = true

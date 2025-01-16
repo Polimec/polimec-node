@@ -1,4 +1,5 @@
 use super::*;
+use polimec_common::assets::AcceptedFundingAsset;
 
 // check that functions created to facilitate testing return the expected results
 mod helper_functions {
@@ -91,7 +92,7 @@ mod helper_functions {
 		const PLMC_PRICE: f64 = 8.4f64;
 
 		assert_eq!(
-			<TestRuntime as Config>::PriceProvider::get_price(PLMC_FOREIGN_ID).unwrap(),
+			<TestRuntime as Config>::PriceProvider::get_price(Location::here()).unwrap(),
 			PriceOf::<TestRuntime>::from_float(PLMC_PRICE)
 		);
 
@@ -284,7 +285,7 @@ mod helper_functions {
 		const EXPECTED_PLMC_AMOUNT_5: f64 = 0.0_239_554_285f64;
 
 		assert_eq!(
-			<TestRuntime as Config>::PriceProvider::get_price(PLMC_FOREIGN_ID).unwrap(),
+			<TestRuntime as Config>::PriceProvider::get_price(Location::here()).unwrap(),
 			PriceOf::<TestRuntime>::from_float(PLMC_PRICE)
 		);
 

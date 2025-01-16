@@ -4587,6 +4587,7 @@ name = "integration-tests"
 version = "0.9.0"
 dependencies = [
  "asset-hub-polkadot-runtime",
+ "assets-common",
  "cumulus-pallet-xcm",
  "cumulus-primitives-core",
  "frame-metadata-hash-extension",
@@ -7304,7 +7305,6 @@ dependencies = [
  "staging-xcm",
  "staging-xcm-builder",
  "staging-xcm-executor",
- "variant_count",
 ]
 
 [[package]]
@@ -7743,6 +7743,7 @@ dependencies = [
  "serde",
  "sp-io",
  "sp-runtime",
+ "staging-xcm",
 ]
 
 [[package]]
@@ -8682,6 +8683,7 @@ dependencies = [
  "frame-benchmarking",
  "frame-support",
  "frame-system",
+ "hex-literal",
  "jwt-compact",
  "pallet-timestamp",
  "parity-scale-codec",
@@ -8690,6 +8692,7 @@ dependencies = [
  "sp-runtime",
  "sp-std",
  "staging-xcm",
+ "variant_count",
 ]
 
 [[package]]
@@ -8729,6 +8732,7 @@ dependencies = [
  "log",
  "pallet-funding",
  "pallet-transaction-payment-rpc",
+ "polimec-common",
  "polimec-runtime",
  "polkadot-cli",
  "polkadot-primitives",

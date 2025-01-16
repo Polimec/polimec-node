@@ -27,6 +27,10 @@ use itertools::Itertools;
 use macros::generate_accounts;
 use pallet_funding::{traits::VestingDurationCalculation, *};
 use polimec_common::{
+	assets::{
+		AcceptedFundingAsset,
+		AcceptedFundingAsset::{DOT, USDC, USDT},
+	},
 	credentials::InvestorType,
 	migration_types::{MigrationStatus, ParticipationType},
 	ProvideAssetPrice, USD_DECIMALS, USD_UNIT,
@@ -35,7 +39,6 @@ use polimec_common_test_utils::{generate_did_from_account, get_mock_jwt, get_moc
 use polimec_runtime::PLMC;
 use sp_arithmetic::{FixedPointNumber, Percent, Perquintill};
 use sp_runtime::FixedU128;
-use AcceptedFundingAsset::{DOT, USDC, USDT};
 use InvestorType::{Institutional, Professional, Retail};
 use ParticipationMode::{Classic, OTM};
 

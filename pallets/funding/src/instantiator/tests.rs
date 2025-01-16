@@ -9,7 +9,7 @@ use crate::{
 };
 use core::cell::RefCell;
 use itertools::Itertools;
-use polimec_common::{ProvideAssetPrice, USD_DECIMALS, USD_UNIT};
+use polimec_common::{assets::AcceptedFundingAsset, ProvideAssetPrice, USD_DECIMALS, USD_UNIT};
 use sp_arithmetic::Percent;
 
 #[test]

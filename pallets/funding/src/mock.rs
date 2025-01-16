@@ -34,7 +34,7 @@ use frame_support::{
 };
 use frame_system as system;
 use frame_system::{EnsureRoot, RawOrigin as SystemRawOrigin};
-use polimec_common::{credentials::EnsureInvestor, ProvideAssetPrice, USD_UNIT};
+use polimec_common::{assets::AcceptedFundingAsset, credentials::EnsureInvestor, ProvideAssetPrice, USD_UNIT};
 use polimec_common_test_utils::DummyXcmSender;
 use polkadot_parachain_primitives::primitives::Sibling;
 use sp_arithmetic::{Perbill, Percent};
@@ -210,15 +210,21 @@ impl pallet_assets::Config<ContributionTokensInstance> for TestRuntime {
 	type WeightInfo = ();
 }
 
+pub struct PalletAssetsBenchmarkHelper;
+impl pallet_assets::BenchmarkHelper<Location> for PalletAssetsBenchmarkHelper {
+	fn create_asset_id_parameter(id: u32) -> Location {
+		(Parent, Parachain(id)).into()
+	}
+}
 impl pallet_assets::Config<ForeignAssetsInstance> for TestRuntime {
 	type ApprovalDeposit = ApprovalDeposit;
 	type AssetAccountDeposit = AssetAccountDeposit;
 	type AssetDeposit = AssetDeposit;
-	type AssetId = AssetId;
-	type AssetIdParameter = parity_scale_codec::Compact<AssetId>;
+	type AssetId = Location;
+	type AssetIdParameter = Location;
 	type Balance = Balance;
 	#[cfg(feature = "runtime-benchmarks")]
-	type BenchmarkHelper = ();
+	type BenchmarkHelper = PalletAssetsBenchmarkHelper;
 	type CallbackHandle = ();
 	type CreateOrigin = AsEnsureOriginWithArg<EnsureSigned<AccountId>>;
 	type Currency = Balances;
@@ -358,20 +364,20 @@ impl ConvertBack<AccountId, [u8; 32]> for DummyConverter {
 	}
 }
 thread_local! {
-	pub static PRICE_MAP: RefCell<BTreeMap<AssetId, FixedU128>> = RefCell::new(BTreeMap::from_iter(vec![
+	pub static PRICE_MAP: RefCell<BTreeMap<Location, FixedU128>> = RefCell::new(BTreeMap::from_iter(vec![
 		(AcceptedFundingAsset::DOT.id(), FixedU128::from_float(69f64)), // DOT
 		(AcceptedFundingAsset::USDC.id(), FixedU128::from_float(0.97f64)), // USDC
 		(AcceptedFundingAsset::USDT.id(), FixedU128::from_float(1.0f64)), // USDT
 		(AcceptedFundingAsset::WETH.id(), FixedU128::from_float(3619.451f64)), // WETH
-		(PLMC_FOREIGN_ID, FixedU128::from_float(8.4f64)), // PLMC
+		(Location::here(), FixedU128::from_float(8.4f64)), // PLMC
 	]));
 }
 pub struct ConstPriceProvider;
 impl ProvideAssetPrice for ConstPriceProvider {
-	type AssetId = AssetId;
+	type AssetId = Location;
 	type Price = Price;
 
-	fn get_price(asset_id: AssetId) -> Option<Price> {
+	fn get_price(asset_id: Location) -> Option<Price> {
 		PRICE_MAP.with(|price_map| price_map.borrow().get(&asset_id).cloned())
 	}
 }
@@ -386,7 +392,7 @@ impl Convert<AccountId, String> for SS58Converter {
 }
 
 impl ConstPriceProvider {
-	pub fn set_price(asset_id: AssetId, price: Price) {
+	pub fn set_price(asset_id: Location, price: Price) {
 		PRICE_MAP.with(|price_map| {
 			price_map.borrow_mut().insert(asset_id, price);
 		});
@@ -447,7 +453,7 @@ parameter_types! {
 impl pallet_proxy_bonding::Config for TestRuntime {
 	type BondingToken = Balances;
 	type BondingTokenDecimals = ConstU8<PLMC_DECIMALS>;
-	type BondingTokenId = ConstU32<PLMC_FOREIGN_ID>;
+	type BondingTokenId = HereLocationGetter;
 	type FeePercentage = FeePercentage;
 	type FeeRecipient = FeeRecipient;
 	type FeeToken = ForeignAssets;

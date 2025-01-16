@@ -17,13 +17,13 @@ use crate::PolimecRuntime;
 use frame_support::BoundedVec;
 pub use pallet_funding::instantiator::{BidParams, ContributionParams, EvaluationParams};
 use pallet_funding::{
-	AcceptedFundingAsset, BiddingTicketSizes, ContributingTicketSizes, CurrencyMetadata, ParticipantsAccountType,
-	ParticipationMode, PriceProviderOf, ProjectMetadata, ProjectMetadataOf, TicketSize,
+	BiddingTicketSizes, ContributingTicketSizes, CurrencyMetadata, ParticipantsAccountType, ParticipationMode,
+	PriceProviderOf, ProjectMetadata, ProjectMetadataOf, TicketSize,
 };
 use sp_arithmetic::{FixedPointNumber, Percent};
 
 use macros::generate_accounts;
-use polimec_common::{ProvideAssetPrice, USD_DECIMALS, USD_UNIT};
+use polimec_common::{assets::AcceptedFundingAsset, ProvideAssetPrice, USD_DECIMALS, USD_UNIT};
 use polimec_runtime::{AccountId, PLMC};
 use sp_runtime::{traits::ConstU32, Perquintill};
 use ParticipationMode::{Classic, OTM};

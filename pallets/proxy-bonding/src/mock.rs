@@ -11,15 +11,22 @@ use scale_info::TypeInfo;
 use serde::{Deserialize, Serialize};
 use sp_runtime::{
 	app_crypto::sp_core::MaxEncodedLen,
-	traits::{parameter_types, ConstU32, ConstU64, ConstU8, Identity, IdentityLookup},
+	traits::{parameter_types, ConstU64, ConstU8, Identity, IdentityLookup},
 	BuildStorage, FixedU128, Perbill,
 };
 use std::{cell::RefCell, collections::BTreeMap};
+use xcm::{
+	prelude::Parachain,
+	v4::{Location, Parent},
+};
+
 pub const NATIVE_DECIMALS: u8 = 10;
 pub const NATIVE_UNIT: u64 = 1 * 10u64.pow(NATIVE_DECIMALS as u32);
 pub const MILLI_NATIVE_UNIT: u64 = NATIVE_UNIT / 1_000;
 
-pub const MOCK_FEE_ASSET_ID: u32 = 1337;
+pub fn mock_fee_asset_id() -> Location {
+	(Parent, Parachain(0)).into()
+}
 pub const MOCK_FEE_ASSET_DECIMALS: u8 = 6;
 pub const MOCK_FEE_ASSET_UNIT: u64 = 1 * 10u64.pow(MOCK_FEE_ASSET_DECIMALS as u32);
 
@@ -71,9 +78,18 @@ impl pallet_balances::Config for TestRuntime {
 	type RuntimeHoldReason = MockRuntimeHoldReason;
 }
 
+pub struct PalletAssetsBenchmarkHelper;
+impl pallet_assets::BenchmarkHelper<Location> for PalletAssetsBenchmarkHelper {
+	fn create_asset_id_parameter(id: u32) -> Location {
+		(Parent, Parachain(id)).into()
+	}
+}
 #[derive_impl(pallet_assets::config_preludes::TestDefaultConfig)]
 impl pallet_assets::Config for TestRuntime {
+	type AssetId = Location;
+	type AssetIdParameter = Location;
 	type Balance = <TestRuntime as pallet_balances::Config>::Balance;
+	type BenchmarkHelper = PalletAssetsBenchmarkHelper;
 	type CreateOrigin = AsEnsureOriginWithArg<frame_system::EnsureSigned<u64>>;
 	type Currency = Balances;
 	type ForceOrigin = frame_system::EnsureRoot<u64>;
@@ -109,23 +125,23 @@ parameter_types! {
 }
 
 thread_local! {
-	pub static PRICE_MAP: RefCell<BTreeMap<u32, FixedU128>> = RefCell::new(BTreeMap::from_iter(vec![
-		(3344, FixedU128::from_float(0.5f64)), // Native Token
-		(1337, FixedU128::from_float(1f64)), // Fee Asset
+	pub static PRICE_MAP: RefCell<BTreeMap<Location, FixedU128>> = RefCell::new(BTreeMap::from_iter(vec![
+		(Location::here(), FixedU128::from_float(0.5f64)), // Native Token
+		((Parent, Parachain(0)).into(), FixedU128::from_float(1f64)), // Fee Asset
 	]));
 }
 pub struct ConstPriceProvider;
 impl ProvideAssetPrice for ConstPriceProvider {
-	type AssetId = u32;
+	type AssetId = Location;
 	type Price = FixedU128;
 
-	fn get_price(asset_id: u32) -> Option<FixedU128> {
+	fn get_price(asset_id: Location) -> Option<FixedU128> {
 		PRICE_MAP.with(|price_map| price_map.borrow().get(&asset_id).cloned())
 	}
 }
 
 impl ConstPriceProvider {
-	pub fn set_price(asset_id: u32, price: FixedU128) {
+	pub fn set_price(asset_id: Location, price: FixedU128) {
 		PRICE_MAP.with(|price_map| {
 			price_map.borrow_mut().insert(asset_id, price);
 		});
@@ -155,10 +171,13 @@ impl VariantCount for MockRuntimeHoldReason {
 	const VARIANT_COUNT: u32 = 2;
 }
 
+parameter_types! {
+	pub HereLocationGetter: Location = Location::here();
+}
 impl crate::Config for TestRuntime {
 	type BondingToken = Balances;
 	type BondingTokenDecimals = ConstU8<NATIVE_DECIMALS>;
-	type BondingTokenId = ConstU32<3344>;
+	type BondingTokenId = HereLocationGetter;
 	type FeePercentage = FeePercentage;
 	type FeeRecipient = FeeRecipient;
 	type FeeToken = Assets;
@@ -176,9 +195,9 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
 	let mut storage = GenesisConfig::<TestRuntime>::default().build_storage().unwrap();
 	RuntimeGenesisConfig {
 		assets: AssetsConfig {
-			assets: vec![(MOCK_FEE_ASSET_ID, 1, true, 100)],
+			assets: vec![(mock_fee_asset_id(), 1, true, 100)],
 			metadata: vec![(
-				MOCK_FEE_ASSET_ID,
+				mock_fee_asset_id(),
 				"Tether USD".to_string().into_bytes(),
 				"USDT".to_string().into_bytes(),
 				MOCK_FEE_ASSET_DECIMALS,

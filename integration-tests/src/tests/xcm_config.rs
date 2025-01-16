@@ -23,8 +23,7 @@ fn execution_fees_go_to_treasury() {
 	let beneficiary: PolimecAccountId = [0u8; 32].into();
 
 	let assert_reserve_asset_fee_goes_to_treasury = |asset: Asset| {
-		let asset_location = asset.id.0.clone();
-		let asset_id = SupportedAssets::convert(&asset_location).unwrap();
+		let asset_id = asset.id.0.clone();
 		let asset_amount = if let Fungible(amount) = asset.fun { amount } else { unreachable!() };
 
 		let xcm = Xcm::<PolimecCall>(vec![
@@ -37,8 +36,8 @@ fn execution_fees_go_to_treasury() {
 			},
 		]);
 		PolimecNet::execute_with(|| {
-			let prev_treasury_balance = PolimecForeignAssets::balance(asset_id, TreasuryAccount::get());
-			let prev_beneficiary_balance = PolimecForeignAssets::balance(asset_id, beneficiary.clone());
+			let prev_treasury_balance = PolimecForeignAssets::balance(asset_id.clone(), TreasuryAccount::get());
+			let prev_beneficiary_balance = PolimecForeignAssets::balance(asset_id.clone(), beneficiary.clone());
 
 			let outcome = <PolimecRuntime as pallet_xcm::Config>::XcmExecutor::prepare_and_execute(
 				Location::new(1, [Parachain(1000)]),
@@ -49,7 +48,7 @@ fn execution_fees_go_to_treasury() {
 			);
 			assert!(outcome.ensure_complete().is_ok());
 
-			let post_treasury_balance = PolimecForeignAssets::balance(asset_id, TreasuryAccount::get());
+			let post_treasury_balance = PolimecForeignAssets::balance(asset_id.clone(), TreasuryAccount::get());
 			let post_beneficiary_balance = PolimecForeignAssets::balance(asset_id, beneficiary.clone());
 
 			let net_treasury_balance = post_treasury_balance - prev_treasury_balance;

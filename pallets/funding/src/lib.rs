@@ -91,7 +91,7 @@ use pallet_xcm::ensure_response;
 use polimec_common::{
 	credentials::{Cid, Did, EnsureOriginWithCredentials, InvestorType, UntrustedToken},
 	migration_types::{Migration, MigrationStatus},
-	PLMC_DECIMALS, PLMC_FOREIGN_ID, USD_DECIMALS,
+	PLMC_DECIMALS, USD_DECIMALS,
 };
 use polkadot_parachain_primitives::primitives::Id as ParaId;
 use sp_arithmetic::traits::{One, Saturating};
@@ -160,7 +160,7 @@ pub mod pallet {
 	};
 	use frame_system::pallet_prelude::*;
 	use on_slash_vesting::OnSlash;
-	use polimec_common::ProvideAssetPrice;
+	use polimec_common::{assets::AcceptedFundingAsset, ProvideAssetPrice};
 	use sp_arithmetic::Percent;
 	use sp_runtime::{
 		traits::{ConstU8, Convert, ConvertBack, Get},
@@ -187,7 +187,7 @@ pub mod pallet {
 			RuntimeHoldReason = RuntimeHoldReasonOf<Self>,
 			BondingToken = Self::NativeCurrency,
 			BondingTokenDecimals = ConstU8<PLMC_DECIMALS>,
-			BondingTokenId = ConstU32<PLMC_FOREIGN_ID>,
+			BondingTokenId = HereLocationGetter,
 			UsdDecimals = ConstU8<USD_DECIMALS>,
 			FeeToken = Self::FundingCurrency,
 			PriceProvider = PriceProviderOf<Self>,
@@ -218,7 +218,7 @@ pub mod pallet {
 			+ fungibles::InspectEnumerable<
 				AccountIdOf<Self>,
 				Balance = Balance,
-				AssetsIterator = KeyPrefixIterator<AssetIdOf<Self>>,
+				AssetsIterator = KeyPrefixIterator<ProjectId>,
 			> + fungibles::metadata::Inspect<AccountIdOf<Self>>
 			+ fungibles::metadata::Mutate<AccountIdOf<Self>>
 			+ fungibles::metadata::MetadataDeposit<Balance>
@@ -251,9 +251,9 @@ pub mod pallet {
 		type FeeBrackets: Get<Vec<(Percent, Balance)>>;
 
 		/// The currency used for funding projects in bids and contributions
-		type FundingCurrency: fungibles::InspectEnumerable<AccountIdOf<Self>, Balance = Balance, AssetId = u32>
-			+ fungibles::metadata::Inspect<AccountIdOf<Self>, AssetId = u32>
-			+ fungibles::metadata::Mutate<AccountIdOf<Self>, AssetId = u32>
+		type FundingCurrency: fungibles::InspectEnumerable<AccountIdOf<Self>, Balance = Balance, AssetId = Location>
+			+ fungibles::metadata::Inspect<AccountIdOf<Self>, AssetId = Location>
+			+ fungibles::metadata::Mutate<AccountIdOf<Self>, AssetId = Location>
 			+ fungibles::Mutate<AccountIdOf<Self>, Balance = Balance>;
 
 		type FundingSuccessThreshold: Get<Perquintill>;
@@ -321,7 +321,7 @@ pub mod pallet {
 		type Price: FixedPointNumber + Parameter + Copy + MaxEncodedLen + MaybeSerializeDeserialize;
 
 		/// Method to get the price of an asset like USDT or PLMC. Likely to come from an oracle
-		type PriceProvider: ProvideAssetPrice<AssetId = u32, Price = Self::Price>;
+		type PriceProvider: ProvideAssetPrice<AssetId = AssetIdOf<Self>, Price = Self::Price>;
 
 		/// The length (expressed in number of blocks) of the Remainder Round.
 		#[pallet::constant]

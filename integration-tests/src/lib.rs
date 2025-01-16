@@ -151,6 +151,7 @@ pub mod shortcuts {
 
 	pub type PenpalAssets = <PenNet as PenpalParaPallet>::Assets;
 	pub type AssetHubAssets = <AssetNet as AssetHubParaPallet>::LocalAssets;
+	pub type AssetHubForeignAssets = <AssetNet as AssetHubParaPallet>::ForeignAssets;
 	pub type PolimecForeignAssets = <PolimecNet as PolimecParaPallet>::ForeignAssets;
 
 	pub type PolkadotOrigin = <PolkaNet as Chain>::RuntimeOrigin;

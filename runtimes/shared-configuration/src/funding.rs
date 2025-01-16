@@ -16,12 +16,11 @@
 
 use crate::{Balance, BlockNumber};
 use frame_support::{parameter_types, PalletId};
-use pallet_funding::types::AcceptedFundingAsset;
-use parachains_common::AssetIdForTrustBackedAssets;
-use polimec_common::{PLMC_FOREIGN_ID, USD_UNIT};
+use polimec_common::{assets::AcceptedFundingAsset, USD_UNIT};
 use sp_arithmetic::{FixedU128, Percent};
 use sp_runtime::Perquintill;
 use sp_std::{collections::btree_map::BTreeMap, vec, vec::Vec};
+use xcm::v4::Location;
 
 #[cfg(feature = "instant-mode")]
 pub const EVALUATION_ROUND_DURATION: BlockNumber = 7;
@@ -59,11 +58,11 @@ parameter_types! {
 	pub const CommunityRoundDuration: BlockNumber = COMMUNITY_ROUND_DURATION;
 	pub const RemainderRoundDuration: BlockNumber = REMAINDER_ROUND_DURATION;
 	pub const FundingPalletId: PalletId = PalletId(*b"plmc/fun");
-	pub PriceMap: BTreeMap<AssetIdForTrustBackedAssets, FixedU128> = BTreeMap::from_iter(vec![
+	pub PriceMap: BTreeMap<Location, FixedU128> = BTreeMap::from_iter(vec![
 		(AcceptedFundingAsset::DOT.id(), FixedU128::from_rational(69, 1)), // DOT
 		(AcceptedFundingAsset::USDC.id(), FixedU128::from_rational(100, 100)), // USDC
 		(AcceptedFundingAsset::USDT.id(), FixedU128::from_rational(100, 100)), // USDT
-		(PLMC_FOREIGN_ID, FixedU128::from_rational(840, 100)), // PLMC
+		(Location::here(), FixedU128::from_rational(840, 100)), // PLMC
 	]);
 	pub FeeBrackets: Vec<(Percent, Balance)> = vec![
 		(Percent::from_percent(10), 1_000_000 * USD_UNIT),

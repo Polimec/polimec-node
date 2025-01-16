@@ -2,6 +2,7 @@
 use super::*;
 use crate::ParticipationMode;
 use frame_support::{Deserialize, Serialize};
+use polimec_common::assets::AcceptedFundingAsset;
 
 pub type RuntimeOriginOf<T> = <T as frame_system::Config>::RuntimeOrigin;
 pub struct BoxToFunction(pub Box<dyn FnOnce()>);
@@ -252,7 +253,7 @@ impl<T: Config> AccountMerge for Vec<UserToFundingAsset<T>> {
 		}
 		btree
 			.into_iter()
-			.map(|((account, asset_id), asset_amount)| UserToFundingAsset::new(account, asset_amount, *asset_id))
+			.map(|((account, asset_id), asset_amount)| UserToFundingAsset::new(account, asset_amount, asset_id.clone()))
 			.collect()
 	}
 
@@ -277,7 +278,7 @@ impl<T: Config> Totals for Vec<UserToFundingAsset<T>> {
 		let mut btree = BTreeMap::new();
 		for UserToFundingAsset { account: _, asset_amount, asset_id } in self.iter() {
 			btree
-				.entry(*asset_id)
+				.entry(asset_id.clone())
 				.and_modify(|e: &mut Balance| *e = e.saturating_add(*asset_amount))
 				.or_insert(*asset_amount);
 		}
@@ -291,7 +292,7 @@ impl<T: Config> Conversions for Vec<UserToFundingAsset<T>> {
 	fn to_account_asset_map(&self) -> Vec<(Self::AccountId, Self::AssetId)> {
 		let mut btree = BTreeSet::new();
 		for UserToFundingAsset { account, asset_id, .. } in self.iter() {
-			btree.insert((account.clone(), *asset_id));
+			btree.insert((account.clone(), asset_id.clone()));
 		}
 		btree.into_iter().collect_vec()
 	}

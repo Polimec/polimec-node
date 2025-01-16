@@ -7,10 +7,10 @@ use frame_support::{
 	traits::{fungible::Mutate as FungibleMutate, fungibles, fungibles::Mutate as FungiblesMutate},
 };
 use macros::generate_accounts;
-use pallet_funding::{AcceptedFundingAsset, PriceProviderOf};
+use pallet_funding::PriceProviderOf;
 use pallet_transaction_payment::FeeDetails;
 use parity_scale_codec::Encode;
-use polimec_common::{ProvideAssetPrice, PLMC_DECIMALS, PLMC_FOREIGN_ID, USD_DECIMALS};
+use polimec_common::{assets::AcceptedFundingAsset, ProvideAssetPrice, PLMC_DECIMALS, USD_DECIMALS};
 use polimec_runtime::Header;
 use sp_arithmetic::{FixedPointNumber, FixedU128};
 use sp_core::H256;
@@ -21,7 +21,11 @@ use sp_runtime::{
 use xcm_emulator::TestExt;
 generate_accounts!(ALICE, AUTHOR);
 use frame_support::traits::fungible::Inspect;
-use xcm::v3::{Junction::*, Junctions::*, MultiLocation};
+use xcm::{
+	v3::{Junction::*, Junctions::*, MultiLocation},
+	v4::Location,
+};
+
 // Setup code inspired by pallet-authorship tests
 fn seal_header(mut header: Header, aura_index: u64) -> Header {
 	{
@@ -62,16 +66,17 @@ fn fee_paid_with_foreign_assets() {
 		let usdt_id = AcceptedFundingAsset::USDT.id();
 		let usdt_multilocation =
 			MultiLocation { parents: 1, interior: X3(Parachain(1000), PalletInstance(50), GeneralIndex(1984)) };
-		let usdt_decimals = <PolimecForeignAssets as fungibles::metadata::Inspect<PolimecAccountId>>::decimals(usdt_id);
+		let usdt_decimals =
+			<PolimecForeignAssets as fungibles::metadata::Inspect<PolimecAccountId>>::decimals(usdt_id.clone());
 		let usdt_unit = 10u128.pow(usdt_decimals as u32);
 		let plmc_decimals = PLMC_DECIMALS;
 		let plmc_unit = 10u128.pow(plmc_decimals as u32);
 
 		PolimecBalances::set_balance(&alice, 0u128);
-		PolimecForeignAssets::set_balance(usdt_id, &alice, 100 * usdt_unit);
+		PolimecForeignAssets::set_balance(usdt_id.clone(), &alice, 100 * usdt_unit);
 		// Fees are usually very small, so we need to give the treasury an ED.
 		PolimecForeignAssets::set_balance(
-			usdt_id,
+			usdt_id.clone(),
 			&polimec_runtime::BlockchainOperationTreasury::get(),
 			100 * usdt_unit,
 		);
@@ -98,20 +103,20 @@ fn fee_paid_with_foreign_assets() {
 		let expected_plmc_tip = tip;
 
 		let plmc_price_decimal_aware =
-			<PriceProviderOf<PolimecRuntime>>::get_decimals_aware_price(PLMC_FOREIGN_ID, USD_DECIMALS, plmc_decimals)
+			<PriceProviderOf<PolimecRuntime>>::get_decimals_aware_price(Location::here(), USD_DECIMALS, plmc_decimals)
 				.expect("Price irretrievable");
 
 		// USDT should be configured with the same decimals as our underlying USD unit, and we set the price to 1USD at the beginning of this test.
 		let expected_usd_fee = plmc_price_decimal_aware.saturating_mul_int(expected_plmc_fee);
 		let expected_usd_tip = plmc_price_decimal_aware.saturating_mul_int(expected_plmc_tip);
 
-		let prev_alice_usdt_balance = PolimecForeignAssets::balance(usdt_id, alice.clone());
+		let prev_alice_usdt_balance = PolimecForeignAssets::balance(usdt_id.clone(), alice.clone());
 		let prev_alice_plmc_balance = PolimecBalances::balance(&alice);
 		let prev_blockchain_operation_treasury_usdt_balance =
-			PolimecForeignAssets::balance(usdt_id, polimec_runtime::BlockchainOperationTreasury::get());
+			PolimecForeignAssets::balance(usdt_id.clone(), polimec_runtime::BlockchainOperationTreasury::get());
 		let prev_blockchain_operation_treasury_plmc_balance =
 			PolimecBalances::balance(&polimec_runtime::BlockchainOperationTreasury::get());
-		let prev_block_author_usdt_balance = PolimecForeignAssets::balance(usdt_id, block_author.clone());
+		let prev_block_author_usdt_balance = PolimecForeignAssets::balance(usdt_id.clone(), block_author.clone());
 		let prev_block_author_plmc_balance = PolimecBalances::balance(&block_author.clone());
 
 		// Executes the `pre_dispatch` check for the transaction using the signed extension.
@@ -123,13 +128,13 @@ fn fee_paid_with_foreign_assets() {
 
 		TxPaymentExtension::post_dispatch(Some(pre), &dispatch_info, &post_info, paid_call_len, &Ok(())).unwrap();
 
-		let post_alice_usdt_balance = PolimecForeignAssets::balance(usdt_id, alice.clone());
+		let post_alice_usdt_balance = PolimecForeignAssets::balance(usdt_id.clone(), alice.clone());
 		let post_alice_plmc_balance = PolimecBalances::balance(&alice);
 		let post_blockchain_operation_treasury_usdt_balance =
-			PolimecForeignAssets::balance(usdt_id, polimec_runtime::BlockchainOperationTreasury::get());
+			PolimecForeignAssets::balance(usdt_id.clone(), polimec_runtime::BlockchainOperationTreasury::get());
 		let post_blockchain_operation_treasury_plmc_balance =
 			PolimecBalances::balance(&polimec_runtime::BlockchainOperationTreasury::get());
-		let post_block_author_usdt_balance = PolimecForeignAssets::balance(usdt_id, block_author.clone());
+		let post_block_author_usdt_balance = PolimecForeignAssets::balance(usdt_id.clone(), block_author.clone());
 		let post_block_author_plmc_balance = PolimecBalances::balance(&block_author.clone());
 
 		assert_eq!(prev_alice_usdt_balance - post_alice_usdt_balance, expected_usd_fee + expected_usd_tip);
@@ -144,7 +149,7 @@ fn fee_paid_with_foreign_assets() {
 
 		// * Now we check if the same behavior but using PLMC as a fee asset, produces the same results. (2plmc=1usdt) *
 		PolimecBalances::set_balance(&alice, 100 * plmc_unit);
-		PolimecForeignAssets::set_balance(usdt_id, &alice, 0u128);
+		PolimecForeignAssets::set_balance(usdt_id.clone(), &alice, 0u128);
 		// Fees are usually very small, so we need to give the treasury an ED.
 		PolimecBalances::set_balance(&polimec_runtime::BlockchainOperationTreasury::get(), 100 * plmc_unit);
 		// Block author doesn't need to have any balance, as the tip is bigger than ED.
@@ -153,13 +158,13 @@ fn fee_paid_with_foreign_assets() {
 		let signed_extension =
 			pallet_asset_tx_payment::ChargeAssetTxPayment::<PolimecRuntime>::from(10 * plmc_unit, None);
 
-		let prev_alice_usdt_balance = PolimecForeignAssets::balance(usdt_id, alice.clone());
+		let prev_alice_usdt_balance = PolimecForeignAssets::balance(usdt_id.clone(), alice.clone());
 		let prev_alice_plmc_balance = PolimecBalances::balance(&alice);
 		let prev_blockchain_operation_treasury_usdt_balance =
-			PolimecForeignAssets::balance(usdt_id, polimec_runtime::BlockchainOperationTreasury::get());
+			PolimecForeignAssets::balance(usdt_id.clone(), polimec_runtime::BlockchainOperationTreasury::get());
 		let prev_blockchain_operation_treasury_plmc_balance =
 			PolimecBalances::balance(&polimec_runtime::BlockchainOperationTreasury::get());
-		let prev_block_author_usdt_balance = PolimecForeignAssets::balance(usdt_id, block_author.clone());
+		let prev_block_author_usdt_balance = PolimecForeignAssets::balance(usdt_id.clone(), block_author.clone());
 		let prev_block_author_plmc_balance = PolimecBalances::balance(&block_author.clone());
 
 		let pre = signed_extension.pre_dispatch(&alice, &paid_call, &dispatch_info, paid_call_len).unwrap();
@@ -167,10 +172,10 @@ fn fee_paid_with_foreign_assets() {
 
 		TxPaymentExtension::post_dispatch(Some(pre), &dispatch_info, &post_info, paid_call_len, &Ok(())).unwrap();
 
-		let post_alice_usdt_balance = PolimecForeignAssets::balance(usdt_id, alice.clone());
+		let post_alice_usdt_balance = PolimecForeignAssets::balance(usdt_id.clone(), alice.clone());
 		let post_alice_plmc_balance = PolimecBalances::balance(&alice);
 		let post_blockchain_operation_treasury_usdt_balance =
-			PolimecForeignAssets::balance(usdt_id, polimec_runtime::BlockchainOperationTreasury::get());
+			PolimecForeignAssets::balance(usdt_id.clone(), polimec_runtime::BlockchainOperationTreasury::get());
 		let post_blockchain_operation_treasury_plmc_balance =
 			PolimecBalances::balance(&polimec_runtime::BlockchainOperationTreasury::get());
 		let post_block_author_usdt_balance = PolimecForeignAssets::balance(usdt_id, block_author.clone());

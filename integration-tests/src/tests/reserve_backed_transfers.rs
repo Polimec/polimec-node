@@ -17,12 +17,13 @@
 use crate::*;
 use frame_support::{
 	traits::{
-		fungible::{Inspect as FungibleInspect, Unbalanced},
+		fungible::{Inspect as FungibleInspect, Mutate as FMutate, Unbalanced},
 		fungibles::{Inspect, Mutate},
 		PalletInfoAccess,
 	},
 	weights::WeightToFee,
 };
+use polimec_common::assets::AcceptedFundingAsset;
 use sp_runtime::DispatchError;
 use xcm_emulator::Parachain;
 
@@ -30,96 +31,118 @@ const RESERVE_TRANSFER_AMOUNT: u128 = 10_0_000_000_000; // 10 DOT
 const MAX_REF_TIME: u64 = 5_000_000_000;
 const MAX_PROOF_SIZE: u64 = 200_000;
 
-fn create_asset_on_asset_hub(asset_id: u32) {
-	if asset_id == 10 {
-		return;
-	}
+fn create_asset_on_asset_hub(asset: Location) {
 	let admin_account = AssetNet::account_id_of(FERDIE);
-	AssetNet::execute_with(|| {
-		assert_ok!(AssetHubAssets::force_create(
-			AssetHubOrigin::root(),
-			asset_id.into(),
-			sp_runtime::MultiAddress::Id(admin_account.clone()),
-			true,
-			0_0_010_000_000u128
-		));
-	});
+	AssetNet::execute_with(|| match asset.unpack() {
+		(1, [Parachain(1000), PalletInstance(50), GeneralIndex(id)]) => {
+			assert_ok!(AssetHubAssets::force_create(
+				AssetHubOrigin::root(),
+				(*id as u32).into(),
+				sp_runtime::MultiAddress::Id(admin_account.clone()),
+				true,
+				0_0_010_000_000u128
+			));
+		},
+		weth if weth == AcceptedFundingAsset::WETH.id().unpack() => {
+			assert_ok!(AssetHubForeignAssets::force_create(
+				AssetHubOrigin::root(),
+				asset.try_into().unwrap(),
+				sp_runtime::MultiAddress::Id(admin_account.clone()),
+				true,
+				0_000_041_000_000_000_000
+			));
+		},
+		(1, []) => {},
+		_ => unreachable!("Unexpected Asset"),
+	})
 }
 
-fn mint_asset_on_asset_hub_to(asset_id: u32, recipient: &AssetHubAccountId, amount: u128) {
-	AssetNet::execute_with(|| {
-		match asset_id {
-			10 => {
-				assert_ok!(AssetHubBalances::write_balance(recipient, amount));
-			},
-			_ => {
-				assert_ok!(AssetHubAssets::mint_into(asset_id, recipient, amount));
-			},
-		}
-		AssetHubSystem::reset_events();
-	});
+fn mint_asset_on_asset_hub_to(asset: Location, recipient: &AssetHubAccountId, amount: u128) {
+	AssetNet::execute_with(|| match asset.unpack() {
+		(1, [Parachain(1000), PalletInstance(50), GeneralIndex(id)]) => {
+			assert_ok!(AssetHubAssets::mint_into(*id as u32, recipient, amount));
+		},
+		weth if weth == AcceptedFundingAsset::WETH.id().unpack() => {
+			assert_ok!(AssetHubForeignAssets::mint_into(asset.try_into().unwrap(), recipient, amount));
+		},
+		(1, []) => {
+			assert_ok!(AssetHubBalances::mint_into(recipient, amount));
+		},
+		_ => unreachable!("Unexpected Asset"),
+	})
 }
 
-fn get_polimec_balances(asset_id: u32, user_account: AccountId) -> (u128, u128, u128, u128) {
+fn get_polimec_balances(asset: Location, user_account: AccountId) -> (u128, u128, u128, u128) {
 	PolimecNet::execute_with(|| {
 		(
-			PolimecForeignAssets::balance(asset_id, user_account.clone()),
+			PolimecForeignAssets::balance(asset.clone(), user_account.clone()),
 			PolimecBalances::balance(&user_account.clone()),
-			PolimecForeignAssets::total_issuance(asset_id),
+			PolimecForeignAssets::total_issuance(asset),
 			PolimecBalances::total_issuance(),
 		)
 	})
 }
 
-fn get_asset_hub_balances(asset_id: u32, user_account: AccountId, polimec_account: AccountId) -> (u128, u128, u128) {
-	AssetNet::execute_with(|| {
-		match asset_id {
-			// Asset id 10 equals Dot
-			10 => (
-				AssetHubBalances::balance(&user_account),
-				AssetHubBalances::balance(&polimec_account),
-				AssetHubBalances::total_issuance(),
-			),
-			_ => (
-				AssetHubAssets::balance(asset_id, user_account.clone()),
-				AssetHubAssets::balance(asset_id, polimec_account.clone()),
-				AssetHubAssets::total_issuance(asset_id),
-			),
-		}
+fn get_asset_hub_balances(asset: Location, user_account: AccountId, polimec_account: AccountId) -> (u128, u128, u128) {
+	AssetNet::execute_with(|| match asset.unpack() {
+		(1, [Parachain(1000), PalletInstance(50), GeneralIndex(id)]) => {
+			let id = *id as u32;
+			(
+				AssetHubAssets::balance(id, user_account.clone()),
+				AssetHubAssets::balance(id, polimec_account.clone()),
+				AssetHubAssets::total_issuance(id),
+			)
+		},
+		weth if weth == AcceptedFundingAsset::WETH.id().unpack() => {
+			let multilocation = asset.try_into().unwrap();
+			(
+				AssetHubForeignAssets::balance(multilocation, user_account.clone()),
+				AssetHubForeignAssets::balance(multilocation, polimec_account.clone()),
+				AssetHubForeignAssets::total_issuance(multilocation),
+			)
+		},
+		(1, []) => (
+			AssetHubBalances::balance(&user_account),
+			AssetHubBalances::balance(&polimec_account),
+			AssetHubBalances::total_issuance(),
+		),
+		_ => unreachable!("Asset unsupported"),
 	})
 }
 
 /// Test the reserve based transfer from asset_hub to Polimec. Depending of the asset_id we
 /// transfer either USDT, USDC and DOT.
-fn test_reserve_to_polimec(asset_id: u32) {
-	create_asset_on_asset_hub(asset_id);
-	let asset_hub_asset_id: Location = match asset_id {
-		10 => Parent.into(),
-		_ => (PalletInstance(AssetHubAssets::index() as u8), GeneralIndex(asset_id as u128)).into(),
-	};
+fn test_reserve_to_polimec(asset: Location) {
+	create_asset_on_asset_hub(asset.clone());
 
 	let alice_account = PolimecNet::account_id_of(ALICE);
 	let polimec_sibling_account =
 		AssetNet::sovereign_account_id_of((Parent, Parachain(PolimecNet::para_id().into())).into());
 	let max_weight = Weight::from_parts(MAX_REF_TIME, MAX_PROOF_SIZE);
 
-	mint_asset_on_asset_hub_to(asset_id, &alice_account, 100_0_000_000_000);
+	mint_asset_on_asset_hub_to(asset.clone(), &alice_account, 100_0_000_000_000);
 
 	let (
 		polimec_prev_alice_asset_balance,
 		polimec_prev_alice_plmc_balance,
 		polimec_prev_asset_issuance,
 		polimec_prev_plmc_issuance,
-	) = get_polimec_balances(asset_id, alice_account.clone());
+	) = get_polimec_balances(asset.clone(), alice_account.clone());
 
 	// check AssetHub's pre transfer balances and issuance
 	let (asset_hub_prev_alice_asset_balance, asset_hub_prev_polimec_asset_balance, asset_hub_prev_asset_issuance) =
-		get_asset_hub_balances(asset_id, alice_account.clone(), polimec_sibling_account.clone());
+		get_asset_hub_balances(asset.clone(), alice_account.clone(), polimec_sibling_account.clone());
 
 	AssetNet::execute_with(|| {
-		let asset_transfer: Asset = (asset_hub_asset_id, RESERVE_TRANSFER_AMOUNT).into();
+		let mut local_asset = asset.clone();
+
+		local_asset = asset
+			.clone()
+			.reanchored(&(Parent, Parachain(1000)).into(), &[GlobalConsensus(NetworkId::Polkadot)].into())
+			.unwrap();
+		let asset_transfer: Asset = (local_asset.clone(), RESERVE_TRANSFER_AMOUNT).into();
 		let origin = AssetHubOrigin::signed(alice_account.clone());
-		let dest: VersionedLocation = ParentThen((Parachain(PolimecNet::para_id().into())).into()).into();
+		let dest: VersionedLocation = ParentThen(Parachain(PolimecNet::para_id().into()).into()).into();
 		let beneficiary: VersionedLocation = AccountId32 { network: None, id: alice_account.clone().into() }.into();
 		let assets: VersionedAssets = asset_transfer.into();
 		let fee_asset_item = 0;
@@ -151,10 +174,10 @@ fn test_reserve_to_polimec(asset_id: u32) {
 		polimec_post_alice_plmc_balance,
 		polimec_post_asset_issuance,
 		polimec_post_plmc_issuance,
-	) = get_polimec_balances(asset_id, alice_account.clone());
+	) = get_polimec_balances(asset.clone(), alice_account.clone());
 
 	let (asset_hub_post_alice_asset_balance, asset_hub_post_polimec_asset_balance, asset_hub_post_asset_issuance) =
-		get_asset_hub_balances(asset_id, alice_account.clone(), polimec_sibling_account.clone());
+		get_asset_hub_balances(asset, alice_account.clone(), polimec_sibling_account.clone());
 
 	let polimec_delta_alice_asset_balance = polimec_post_alice_asset_balance.abs_diff(polimec_prev_alice_asset_balance);
 	let polimec_delta_alice_plmc_balance = polimec_post_alice_plmc_balance.abs_diff(polimec_prev_alice_plmc_balance);
@@ -206,31 +229,19 @@ fn test_reserve_to_polimec(asset_id: u32) {
 	assert_eq!(polimec_delta_plmc_issuance, 0, "Polimec PLMC issuance should not have changed");
 }
 
-fn test_polimec_to_reserve(asset_id: u32) {
-	create_asset_on_asset_hub(asset_id);
-	let asset_hub_asset_id: Location = match asset_id {
-		10 => Parent.into(),
-		_ => ParentThen(
-			(
-				Parachain(AssetNet::para_id().into()),
-				PalletInstance(AssetHubAssets::index() as u8),
-				GeneralIndex(asset_id as u128),
-			)
-				.into(),
-		)
-		.into(),
-	};
+fn test_polimec_to_reserve(asset: Location) {
+	create_asset_on_asset_hub(asset.clone());
 
 	let alice_account = PolimecNet::account_id_of(ALICE);
 	let polimec_sibling_account =
 		AssetNet::sovereign_account_id_of((Parent, Parachain(PolimecNet::para_id().into())).into());
 	let max_weight = Weight::from_parts(MAX_REF_TIME, MAX_PROOF_SIZE);
 
-	mint_asset_on_asset_hub_to(asset_id, &polimec_sibling_account, RESERVE_TRANSFER_AMOUNT + 1_0_000_000_000);
+	mint_asset_on_asset_hub_to(asset.clone(), &polimec_sibling_account, RESERVE_TRANSFER_AMOUNT + 1_0_000_000_000);
 
 	PolimecNet::execute_with(|| {
 		assert_ok!(PolimecForeignAssets::mint_into(
-			asset_id,
+			asset.clone(),
 			&alice_account,
 			RESERVE_TRANSFER_AMOUNT + 1_0_000_000_000
 		));
@@ -241,14 +252,14 @@ fn test_polimec_to_reserve(asset_id: u32) {
 		polimec_prev_alice_plmc_balance,
 		polimec_prev_asset_issuance,
 		polimec_prev_plmc_issuance,
-	) = get_polimec_balances(asset_id, alice_account.clone());
+	) = get_polimec_balances(asset.clone(), alice_account.clone());
 
 	// check AssetHub's pre transfer balances and issuance
 	let (asset_hub_prev_alice_asset_balance, asset_hub_prev_polimec_asset_balance, asset_hub_prev_asset_issuance) =
-		get_asset_hub_balances(asset_id, alice_account.clone(), polimec_sibling_account.clone());
+		get_asset_hub_balances(asset.clone(), alice_account.clone(), polimec_sibling_account.clone());
 
 	PolimecNet::execute_with(|| {
-		let asset_transfer: Asset = (asset_hub_asset_id, RESERVE_TRANSFER_AMOUNT + 1_0_000_000_000).into();
+		let asset_transfer: Asset = (asset.clone(), RESERVE_TRANSFER_AMOUNT + 1_0_000_000_000).into();
 		let origin = PolimecOrigin::signed(alice_account.clone());
 		let dest: VersionedLocation = ParentThen((Parachain(AssetNet::para_id().into())).into()).into();
 
@@ -283,10 +294,10 @@ fn test_polimec_to_reserve(asset_id: u32) {
 		polimec_post_alice_plmc_balance,
 		polimec_post_asset_issuance,
 		polimec_post_plmc_issuance,
-	) = get_polimec_balances(asset_id, alice_account.clone());
+	) = get_polimec_balances(asset.clone(), alice_account.clone());
 
 	let (asset_hub_post_alice_asset_balance, asset_hub_post_polimec_asset_balance, asset_hub_post_asset_issuance) =
-		get_asset_hub_balances(asset_id, alice_account.clone(), polimec_sibling_account.clone());
+		get_asset_hub_balances(asset, alice_account.clone(), polimec_sibling_account.clone());
 
 	let polimec_delta_alice_asset_balance = polimec_post_alice_asset_balance.abs_diff(polimec_prev_alice_asset_balance);
 	let polimec_delta_alice_plmc_balance = polimec_post_alice_plmc_balance.abs_diff(polimec_prev_alice_plmc_balance);
@@ -335,61 +346,63 @@ fn test_polimec_to_reserve(asset_id: u32) {
 /// Test reserve based transfer of USDT from AssetHub to Polimec.
 #[test]
 fn reserve_usdt_to_polimec() {
-	let asset_id = 1984;
-	test_reserve_to_polimec(asset_id);
+	let asset = AcceptedFundingAsset::USDT.id();
+	test_reserve_to_polimec(asset);
 }
 
 /// Test reserve based transfer of USDC from AssetHub to Polimec.
 #[test]
 fn reserve_usdc_to_polimec() {
-	let asset_id = 1337;
-	test_reserve_to_polimec(asset_id);
+	let asset = AcceptedFundingAsset::USDC.id();
+	test_reserve_to_polimec(asset);
 }
 
 /// Test reserve based transfer of DOT from AssetHub to Polimec.
 #[test]
 fn reserve_dot_to_polimec() {
-	let asset_id = 10;
-	test_reserve_to_polimec(asset_id);
+	let asset = AcceptedFundingAsset::DOT.id();
+	test_reserve_to_polimec(asset);
 }
 
 /// Test that reserve based transfer of random asset from AssetHub to Polimec fails.
 #[test]
 #[should_panic]
 fn reserve_random_asset_to_polimec() {
-	let asset_id = 69;
-	test_reserve_to_polimec(asset_id);
+	let asset: Location = (Parent, Parachain(1000), PalletInstance(50), GeneralIndex(420)).into();
+	test_reserve_to_polimec(asset);
 }
 
 /// Test transfer of reserve-based DOT from Polimec back to AssetHub.
 #[test]
 fn polimec_usdt_to_reserve() {
-	let asset_id = 1984;
-	test_polimec_to_reserve(asset_id);
+	let asset = AcceptedFundingAsset::USDT.id();
+	test_polimec_to_reserve(asset);
 }
 
 /// Test transfer of reserve-based DOT from Polimec back to AssetHub.
 #[test]
 fn polimec_usdc_to_reserve() {
-	let asset_id = 1337;
-	test_polimec_to_reserve(asset_id);
+	let asset = AcceptedFundingAsset::USDC.id();
+	test_polimec_to_reserve(asset);
 }
 
 /// Test transfer of reserve-based DOT from Polimec back to AssetHub.
 #[test]
 fn polimec_dot_to_reserve() {
-	let asset_id = 10;
-	test_polimec_to_reserve(asset_id);
+	let asset = AcceptedFundingAsset::DOT.id();
+	test_polimec_to_reserve(asset);
 }
 
 #[test]
 fn test_user_cannot_create_foreign_asset_on_polimec() {
+	let asset: Location = (Parent, Parachain(1000), PalletInstance(50), GeneralIndex(420)).into();
+
 	PolimecNet::execute_with(|| {
 		let admin = AssetNet::account_id_of(ALICE);
 		assert_noop!(
 			PolimecForeignAssets::create(
 				PolimecOrigin::signed(admin.clone()),
-				69.into(),
+				asset.into(),
 				sp_runtime::MultiAddress::Id(admin),
 				0_0_010_000_000u128,
 			),

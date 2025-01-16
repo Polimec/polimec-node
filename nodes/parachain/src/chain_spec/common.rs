@@ -2,6 +2,7 @@ use crate::chain_spec::{get_account_id_from_seed, Extensions};
 use cumulus_primitives_core::ParaId;
 #[cfg(not(feature = "runtime-benchmarks"))]
 use itertools::Itertools;
+use polimec_common::assets::AcceptedFundingAsset;
 #[cfg(not(feature = "runtime-benchmarks"))]
 use polimec_runtime::MinCandidateStk;
 use polimec_runtime::{
@@ -17,7 +18,6 @@ use sp_core::{
 	sr25519,
 };
 use sp_runtime::{traits::AccountIdConversion, Perbill, Percent};
-
 pub type ChainSpec = sc_service::GenericChainSpec<Extensions>;
 
 /// The default XCM version to set in genesis config.
@@ -110,9 +110,9 @@ pub fn genesis_config(genesis_config_params: GenesisConfigParams) -> serde_json:
 	#[cfg(feature = "runtime-benchmarks")]
 	let staking_candidates: Vec<(AccountId, Balance)> = vec![];
 
-	let usdt_id = pallet_funding::types::AcceptedFundingAsset::USDT.id();
-	let usdc_id = pallet_funding::types::AcceptedFundingAsset::USDC.id();
-	let dot_id = pallet_funding::types::AcceptedFundingAsset::DOT.id();
+	let usdt_id = AcceptedFundingAsset::USDT.id();
+	let usdc_id = AcceptedFundingAsset::USDC.id();
+	let dot_id = AcceptedFundingAsset::DOT.id();
 
 	serde_json::json!({
 		"balances": {
@@ -123,28 +123,28 @@ pub fn genesis_config(genesis_config_params: GenesisConfigParams) -> serde_json:
 		},
 		"foreignAssets":  {
 			"assets": vec![(
-				pallet_funding::types::AcceptedFundingAsset::USDT.id(),
+				AcceptedFundingAsset::USDT.id(),
 				&AccountIdConversion::<AccountId>::into_account_truncating(&<Runtime as pallet_funding::Config>::PalletId::get()),
 				true,
 				70000,
 			),
 			(
-				pallet_funding::types::AcceptedFundingAsset::USDC.id(),
+				AcceptedFundingAsset::USDC.id(),
 				&AccountIdConversion::<AccountId>::into_account_truncating(&<Runtime as pallet_funding::Config>::PalletId::get()),
 				true,
 				70000,
 			),
 			(
-				pallet_funding::types::AcceptedFundingAsset::DOT.id(),
+				AcceptedFundingAsset::DOT.id(),
 				&AccountIdConversion::<AccountId>::into_account_truncating(&<Runtime as pallet_funding::Config>::PalletId::get()),
 				true,
 				70000,
 			)],
 			// (id, name, symbol, decimals)
 			"metadata": vec![
-				(usdt_id, b"Local USDT", b"USDT", 6),
-				(usdc_id, b"Local USDC", b"USDC", 6),
-				(dot_id, b"Local DOT ", b"DOT ", 10)
+				(usdt_id.clone(), b"Local USDT", b"USDT", 6),
+				(usdc_id.clone(), b"Local USDC", b"USDC", 6),
+				(dot_id.clone(), b"Local DOT ", b"DOT ", 10)
 			],
 			// (id, account_id, amount)
 			"accounts": vec![

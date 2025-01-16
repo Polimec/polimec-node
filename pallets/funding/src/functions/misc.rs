@@ -1,7 +1,7 @@
 #[allow(clippy::wildcard_imports)]
 use super::*;
 use alloc::string::{String, ToString};
-use polimec_common::ProvideAssetPrice;
+use polimec_common::{assets::AcceptedFundingAsset, ProvideAssetPrice};
 use sp_core::{
 	ecdsa::{Public as EcdsaPublic, Signature as EcdsaSignature},
 	keccak_256,
@@ -38,7 +38,7 @@ impl<T: Config> Pallet<T> {
 
 	pub fn calculate_plmc_bond(ticket_size: Balance, multiplier: MultiplierOf<T>) -> Result<Balance, DispatchError> {
 		let plmc_usd_price =
-			<PriceProviderOf<T>>::get_decimals_aware_price(PLMC_FOREIGN_ID, USD_DECIMALS, PLMC_DECIMALS)
+			<PriceProviderOf<T>>::get_decimals_aware_price(Location::here(), USD_DECIMALS, PLMC_DECIMALS)
 				.ok_or(Error::<T>::PriceNotFound)?;
 		let usd_bond = multiplier.calculate_usd_bonding_requirement::<T>(ticket_size).ok_or(Error::<T>::BadMath)?;
 		plmc_usd_price
@@ -53,7 +53,7 @@ impl<T: Config> Pallet<T> {
 		asset_id: AcceptedFundingAsset,
 	) -> Result<Balance, DispatchError> {
 		let asset_id = asset_id.id();
-		let asset_decimals = T::FundingCurrency::decimals(asset_id);
+		let asset_decimals = T::FundingCurrency::decimals(asset_id.clone());
 		let asset_usd_price = <PriceProviderOf<T>>::get_decimals_aware_price(asset_id, USD_DECIMALS, asset_decimals)
 			.ok_or(Error::<T>::PriceNotFound)?;
 		asset_usd_price
@@ -517,7 +517,7 @@ impl<T: Config> Pallet<T> {
 
 	pub fn get_decimals_aware_funding_asset_price(funding_asset: &AcceptedFundingAsset) -> Option<PriceOf<T>> {
 		let funding_asset_id = funding_asset.id();
-		let funding_asset_decimals = T::FundingCurrency::decimals(funding_asset_id);
+		let funding_asset_decimals = T::FundingCurrency::decimals(funding_asset_id.clone());
 		<PriceProviderOf<T>>::get_decimals_aware_price(funding_asset_id, USD_DECIMALS, funding_asset_decimals)
 	}
 }

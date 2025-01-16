@@ -1,5 +1,6 @@
 use super::*;
 use frame_support::traits::{fungible::InspectFreeze, fungibles::metadata::Inspect};
+use polimec_common::assets::{AcceptedFundingAsset, AcceptedFundingAsset::USDT};
 use sp_core::bounded_vec;
 use sp_runtime::traits::Convert;
 use std::collections::HashSet;
@@ -115,7 +116,7 @@ mod round_flow {
 			.unwrap();
 			let usable_plmc_price = inst.execute(|| {
 				<TestRuntime as Config>::PriceProvider::get_decimals_aware_price(
-					PLMC_FOREIGN_ID,
+					Location::here(),
 					USD_DECIMALS,
 					PLMC_DECIMALS,
 				)
@@ -342,7 +343,6 @@ mod bid_extrinsic {
 	#[cfg(test)]
 	mod success {
 		use super::*;
-		use crate::AcceptedFundingAsset::USDT;
 		use frame_support::pallet_prelude::DispatchResultWithPostInfo;
 
 		#[test]
@@ -908,13 +908,14 @@ mod bid_extrinsic {
 				ParticipationMode::OTM.multiplier().try_into().ok().unwrap();
 			let otm_duration = otm_multiplier.calculate_vesting_duration::<TestRuntime>();
 
-			const USDT_ID: u32 = AcceptedFundingAsset::USDT.id();
+			let usdt_id = AcceptedFundingAsset::USDT.id();
 			const USDT_PARTICIPATION: u128 = 5000 * USDT_UNIT;
 
 			let otm_usdt_fee: u128 = (FeePercentage::get() / ParticipationMode::OTM.multiplier()) * USDT_PARTICIPATION;
 
 			let usdt_ed = inst.get_funding_asset_ed(AcceptedFundingAsset::USDT.id());
-			let required_usdt = UserToFundingAsset::new(BIDDER_1, USDT_PARTICIPATION + otm_usdt_fee + usdt_ed, USDT_ID);
+			let required_usdt =
+				UserToFundingAsset::new(BIDDER_1, USDT_PARTICIPATION + otm_usdt_fee + usdt_ed, usdt_id.clone());
 			inst.mint_funding_asset_to(vec![required_usdt.clone()]);
 
 			let ct_participation = inst.execute(|| {
@@ -940,10 +941,10 @@ mod bid_extrinsic {
 			let pre_participation_otm_escrow_held_plmc =
 				inst.get_reserved_plmc_balance_for(otm_escrow_account, HoldReason::Participation.into());
 			let pre_participation_otm_escrow_usdt =
-				inst.get_free_funding_asset_balance_for(USDT_ID, otm_escrow_account);
+				inst.get_free_funding_asset_balance_for(usdt_id.clone(), otm_escrow_account);
 			let pre_participation_otm_fee_recipient_usdt =
-				inst.get_free_funding_asset_balance_for(USDT_ID, otm_fee_recipient_account);
-			let pre_participation_buyer_usdt = inst.get_free_funding_asset_balance_for(USDT_ID, BIDDER_1);
+				inst.get_free_funding_asset_balance_for(usdt_id.clone(), otm_fee_recipient_account);
+			let pre_participation_buyer_usdt = inst.get_free_funding_asset_balance_for(usdt_id.clone(), BIDDER_1);
 
 			inst.execute(|| {
 				assert_ok!(PolimecFunding::bid(
@@ -965,10 +966,10 @@ mod bid_extrinsic {
 			let post_participation_otm_escrow_held_plmc =
 				inst.get_reserved_plmc_balance_for(otm_escrow_account, HoldReason::Participation.into());
 			let post_participation_otm_escrow_usdt =
-				inst.get_free_funding_asset_balance_for(USDT_ID, otm_escrow_account);
+				inst.get_free_funding_asset_balance_for(usdt_id.clone(), otm_escrow_account);
 			let post_participation_otm_fee_recipient_usdt =
-				inst.get_free_funding_asset_balance_for(USDT_ID, otm_fee_recipient_account);
-			let post_participation_buyer_usdt = inst.get_free_funding_asset_balance_for(USDT_ID, BIDDER_1);
+				inst.get_free_funding_asset_balance_for(usdt_id.clone(), otm_fee_recipient_account);
+			let post_participation_buyer_usdt = inst.get_free_funding_asset_balance_for(usdt_id.clone(), BIDDER_1);
 
 			assert_eq!(
 				post_participation_treasury_free_plmc,
@@ -1004,7 +1005,7 @@ mod bid_extrinsic {
 					RuntimeOrigin::signed(BIDDER_1),
 					project_id,
 					HoldReason::Participation.into(),
-					USDT_ID
+					usdt_id.clone()
 				));
 				assert_noop!(
 					<pallet_proxy_bonding::Pallet<TestRuntime>>::transfer_bonds_back_to_treasury(
@@ -1027,11 +1028,12 @@ mod bid_extrinsic {
 
 			let post_settlement_treasury_free_plmc = inst.get_free_plmc_balance_for(otm_treasury_account);
 			let post_settlement_otm_escrow_held_plmc = inst.get_free_plmc_balance_for(otm_escrow_account);
-			let post_settlement_otm_escrow_usdt = inst.get_free_funding_asset_balance_for(USDT_ID, otm_escrow_account);
+			let post_settlement_otm_escrow_usdt =
+				inst.get_free_funding_asset_balance_for(usdt_id.clone(), otm_escrow_account);
 			let post_settlement_otm_fee_recipient_usdt =
-				inst.get_free_funding_asset_balance_for(USDT_ID, otm_fee_recipient_account);
-			let post_settlement_buyer_usdt = inst.get_free_funding_asset_balance_for(USDT_ID, BIDDER_1);
-			let issuer_funding_account = inst.get_free_funding_asset_balance_for(USDT_ID, issuer);
+				inst.get_free_funding_asset_balance_for(usdt_id.clone(), otm_fee_recipient_account);
+			let post_settlement_buyer_usdt = inst.get_free_funding_asset_balance_for(usdt_id.clone(), BIDDER_1);
+			let issuer_funding_account = inst.get_free_funding_asset_balance_for(usdt_id, issuer);
 
 			assert_eq!(post_settlement_treasury_free_plmc, post_participation_treasury_free_plmc + expected_plmc_bond);
 			assert_eq!(post_settlement_otm_escrow_held_plmc, inst.get_ed());
@@ -1063,12 +1065,13 @@ mod bid_extrinsic {
 			let otm_multiplier: MultiplierOf<TestRuntime> =
 				ParticipationMode::OTM.multiplier().try_into().ok().unwrap();
 
-			const USDT_ID: u32 = AcceptedFundingAsset::USDT.id();
+			let usdt_id = AcceptedFundingAsset::USDT.id();
 			const USDT_PARTICIPATION: u128 = 5000 * USDT_UNIT;
 
 			let otm_usdt_fee: u128 = (FeePercentage::get() / ParticipationMode::OTM.multiplier()) * USDT_PARTICIPATION;
 			let usdt_ed = inst.get_funding_asset_ed(AcceptedFundingAsset::USDT.id());
-			let required_usdt = UserToFundingAsset::new(BIDDER_1, USDT_PARTICIPATION + otm_usdt_fee + usdt_ed, USDT_ID);
+			let required_usdt =
+				UserToFundingAsset::new(BIDDER_1, USDT_PARTICIPATION + otm_usdt_fee + usdt_ed, usdt_id.clone());
 			inst.mint_funding_asset_to(vec![required_usdt.clone()]);
 
 			let ct_participation = inst.execute(|| {
@@ -1094,10 +1097,10 @@ mod bid_extrinsic {
 			let pre_participation_otm_escrow_held_plmc =
 				inst.get_reserved_plmc_balance_for(otm_escrow_account, HoldReason::Participation.into());
 			let pre_participation_otm_escrow_usdt =
-				inst.get_free_funding_asset_balance_for(USDT_ID, otm_escrow_account);
+				inst.get_free_funding_asset_balance_for(usdt_id.clone(), otm_escrow_account);
 			let pre_participation_otm_fee_recipient_usdt =
-				inst.get_free_funding_asset_balance_for(USDT_ID, otm_fee_recipient_account);
-			let pre_participation_buyer_usdt = inst.get_free_funding_asset_balance_for(USDT_ID, BIDDER_1);
+				inst.get_free_funding_asset_balance_for(usdt_id.clone(), otm_fee_recipient_account);
+			let pre_participation_buyer_usdt = inst.get_free_funding_asset_balance_for(usdt_id.clone(), BIDDER_1);
 
 			inst.execute(|| {
 				assert_ok!(PolimecFunding::bid(
@@ -1119,10 +1122,10 @@ mod bid_extrinsic {
 			let post_participation_otm_escrow_held_plmc =
 				inst.get_reserved_plmc_balance_for(otm_escrow_account, HoldReason::Participation.into());
 			let post_participation_otm_escrow_usdt =
-				inst.get_free_funding_asset_balance_for(USDT_ID, otm_escrow_account);
+				inst.get_free_funding_asset_balance_for(usdt_id.clone(), otm_escrow_account);
 			let post_participation_otm_fee_recipient_usdt =
-				inst.get_free_funding_asset_balance_for(USDT_ID, otm_fee_recipient_account);
-			let post_participation_buyer_usdt = inst.get_free_funding_asset_balance_for(USDT_ID, BIDDER_1);
+				inst.get_free_funding_asset_balance_for(usdt_id.clone(), otm_fee_recipient_account);
+			let post_participation_buyer_usdt = inst.get_free_funding_asset_balance_for(usdt_id.clone(), BIDDER_1);
 
 			assert_eq!(
 				post_participation_treasury_free_plmc,
@@ -1159,7 +1162,7 @@ mod bid_extrinsic {
 						RuntimeOrigin::signed(BIDDER_1),
 						project_id,
 						HoldReason::Participation.into(),
-						USDT_ID
+						usdt_id.clone()
 					),
 					pallet_proxy_bonding::Error::<TestRuntime>::FeeToRecipientDisallowed
 				);
@@ -1173,11 +1176,12 @@ mod bid_extrinsic {
 
 			let post_settlement_treasury_free_plmc = inst.get_free_plmc_balance_for(otm_treasury_account);
 			let post_settlement_otm_escrow_held_plmc = inst.get_free_plmc_balance_for(otm_escrow_account);
-			let post_settlement_otm_escrow_usdt = inst.get_free_funding_asset_balance_for(USDT_ID, otm_escrow_account);
+			let post_settlement_otm_escrow_usdt =
+				inst.get_free_funding_asset_balance_for(usdt_id.clone(), otm_escrow_account);
 			let post_settlement_otm_fee_recipient_usdt =
-				inst.get_free_funding_asset_balance_for(USDT_ID, otm_fee_recipient_account);
-			let post_settlement_buyer_usdt = inst.get_free_funding_asset_balance_for(USDT_ID, BIDDER_1);
-			let issuer_funding_account = inst.get_free_funding_asset_balance_for(USDT_ID, issuer);
+				inst.get_free_funding_asset_balance_for(usdt_id.clone(), otm_fee_recipient_account);
+			let post_settlement_buyer_usdt = inst.get_free_funding_asset_balance_for(usdt_id.clone(), BIDDER_1);
+			let issuer_funding_account = inst.get_free_funding_asset_balance_for(usdt_id, issuer);
 
 			assert_eq!(post_settlement_treasury_free_plmc, post_participation_treasury_free_plmc + expected_plmc_bond);
 			assert_eq!(post_settlement_otm_escrow_held_plmc, inst.get_ed());
@@ -2297,7 +2301,8 @@ mod end_auction_extrinsic {
 				.map(|acc| {
 					let accepted_asset = fundings.next().unwrap();
 					let asset_id = accepted_asset.id();
-					let asset_decimals = inst.execute(|| <TestRuntime as Config>::FundingCurrency::decimals(asset_id));
+					let asset_decimals =
+						inst.execute(|| <TestRuntime as Config>::FundingCurrency::decimals(asset_id.clone()));
 					let asset_unit = 10u128.checked_pow(asset_decimals.into()).unwrap();
 					UserToFundingAsset { account: *acc, asset_amount: asset_unit * 1_000_000, asset_id }
 				})

@@ -2,9 +2,10 @@ extern crate alloc;
 
 use crate::{Oracle, Runtime, RuntimeOrigin};
 use alloc::vec;
-use pallet_funding::{traits::SetPrices, AcceptedFundingAsset};
-use polimec_common::PLMC_FOREIGN_ID;
+use pallet_funding::traits::SetPrices;
+use polimec_common::assets::AcceptedFundingAsset;
 use sp_runtime::{BoundedVec, FixedU128};
+use xcm::v4::Location;
 
 pub struct SetOraclePrices;
 impl SetPrices for SetOraclePrices {
@@ -12,9 +13,9 @@ impl SetPrices for SetOraclePrices {
 		let dot = (AcceptedFundingAsset::DOT.id(), FixedU128::from_rational(69, 1));
 		let usdc = (AcceptedFundingAsset::USDC.id(), FixedU128::from_rational(1, 1));
 		let usdt = (AcceptedFundingAsset::USDT.id(), FixedU128::from_rational(1, 1));
-		let plmc = (PLMC_FOREIGN_ID, FixedU128::from_rational(840, 100));
+		let plmc = (Location::here(), FixedU128::from_rational(840, 100));
 
-		let values: BoundedVec<(u32, FixedU128), <Runtime as orml_oracle::Config>::MaxFeedValues> =
+		let values: BoundedVec<(Location, FixedU128), <Runtime as orml_oracle::Config>::MaxFeedValues> =
 			vec![dot, usdc, usdt, plmc].try_into().expect("benchmarks can panic");
 		let alice: [u8; 32] = [
 			212, 53, 147, 199, 21, 253, 211, 28, 97, 20, 26, 189, 4, 169, 159, 214, 130, 44, 133, 88, 133, 76, 205,

@@ -53,8 +53,8 @@ mod round_flow {
 			let project_id = inst.create_evaluating_project(project_metadata.clone(), ISSUER_1, None);
 			inst.evaluate_for_users(project_id, evaluations.clone()).unwrap();
 
-			let old_price = <TestRuntime as Config>::PriceProvider::get_price(PLMC_FOREIGN_ID).unwrap();
-			PRICE_MAP.with_borrow_mut(|map| map.insert(PLMC_FOREIGN_ID, old_price / 2.into()));
+			let old_price = <TestRuntime as Config>::PriceProvider::get_price(Location::here()).unwrap();
+			PRICE_MAP.with_borrow_mut(|map| map.insert(Location::here(), old_price / 2.into()));
 
 			assert_eq!(inst.go_to_next_state(project_id), ProjectStatus::AuctionRound);
 
@@ -66,8 +66,8 @@ mod round_flow {
 			let project_id = inst.create_evaluating_project(project_metadata.clone(), ISSUER_2, None);
 			inst.evaluate_for_users(project_id, evaluations.clone()).unwrap();
 
-			let old_price = <TestRuntime as Config>::PriceProvider::get_price(PLMC_FOREIGN_ID).unwrap();
-			PRICE_MAP.with_borrow_mut(|map| map.insert(PLMC_FOREIGN_ID, old_price * 2.into()));
+			let old_price = <TestRuntime as Config>::PriceProvider::get_price(Location::here()).unwrap();
+			PRICE_MAP.with_borrow_mut(|map| map.insert(Location::here(), old_price * 2.into()));
 
 			assert_eq!(inst.go_to_next_state(project_id), ProjectStatus::FundingFailed);
 			assert_eq!(inst.go_to_next_state(project_id), ProjectStatus::SettlementStarted(FundingOutcome::Failure));
@@ -88,10 +88,10 @@ mod round_flow {
 			.unwrap();
 			let min_evaluation_amount_usd = <TestRuntime as Config>::MinUsdPerEvaluation::get();
 			let stored_plmc_price =
-				inst.execute(|| <TestRuntime as Config>::PriceProvider::get_price(PLMC_FOREIGN_ID).unwrap());
+				inst.execute(|| <TestRuntime as Config>::PriceProvider::get_price(Location::here()).unwrap());
 			let usable_plmc_price = inst.execute(|| {
 				<TestRuntime as Config>::PriceProvider::get_decimals_aware_price(
-					PLMC_FOREIGN_ID,
+					Location::here(),
 					USD_DECIMALS,
 					PLMC_DECIMALS,
 				)

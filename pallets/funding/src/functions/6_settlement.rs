@@ -14,6 +14,7 @@ use frame_support::{
 use on_slash_vesting::OnSlash;
 use pallet_proxy_bonding::ReleaseType;
 use polimec_common::{
+	assets::AcceptedFundingAsset,
 	migration_types::{MigrationInfo, MigrationOrigin, MigrationStatus, ParticipationType},
 	ReleaseSchedule,
 };

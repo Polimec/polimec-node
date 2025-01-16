@@ -35,12 +35,15 @@ pub use storage::*;
 
 use crate::{traits::VestingDurationCalculation, Config};
 
+use polimec_common::assets::AcceptedFundingAsset;
 use sp_runtime::traits::Zero;
 
 pub mod config {
 	#[allow(clippy::wildcard_imports)]
 	use super::*;
 	use crate::Balance;
+	use sp_core::parameter_types;
+	use xcm::v4::Location;
 
 	#[derive(
 		Clone,
@@ -149,6 +152,10 @@ pub mod config {
 	pub const RETAIL_MAX_MULTIPLIER: u8 = 5u8;
 	pub const PROFESSIONAL_MAX_MULTIPLIER: u8 = 10u8;
 	pub const INSTITUTIONAL_MAX_MULTIPLIER: u8 = 25u8;
+
+	parameter_types! {
+		pub HereLocationGetter: Location = Location::here();
+	}
 }
 
 pub mod storage {
@@ -488,7 +495,6 @@ pub mod inner {
 	#[allow(clippy::wildcard_imports)]
 	use super::*;
 	use crate::Balance;
-	use variant_count::VariantCount;
 	use xcm::v4::{Junction, QueryId};
 
 	pub enum MetadataError {
@@ -626,43 +632,6 @@ pub mod inner {
 				}
 			}
 			Ok(())
-		}
-	}
-
-	#[derive(
-		VariantCount,
-		Clone,
-		Copy,
-		Encode,
-		Decode,
-		Eq,
-		PartialEq,
-		PartialOrd,
-		Ord,
-		RuntimeDebug,
-		TypeInfo,
-		MaxEncodedLen,
-		Serialize,
-		Deserialize,
-	)]
-	pub enum AcceptedFundingAsset {
-		#[codec(index = 0)]
-		USDT,
-		#[codec(index = 1)]
-		USDC,
-		#[codec(index = 2)]
-		DOT,
-		#[codec(index = 3)]
-		WETH,
-	}
-	impl AcceptedFundingAsset {
-		pub const fn id(&self) -> u32 {
-			match self {
-				AcceptedFundingAsset::USDT => 1984,
-				AcceptedFundingAsset::DOT => 10,
-				AcceptedFundingAsset::USDC => 1337,
-				AcceptedFundingAsset::WETH => 10_000,
-			}
 		}
 	}
 
@@ -848,10 +817,8 @@ pub mod inner {
 }
 
 pub mod extrinsic {
-	use crate::{
-		AcceptedFundingAsset, AccountIdOf, Balance, Config, ParticipationMode, PriceOf, ProjectDetailsOf, ProjectId,
-		TicketSize,
-	};
+	use super::*;
+	use crate::{AccountIdOf, Balance, Config, ParticipationMode, PriceOf, ProjectDetailsOf, ProjectId, TicketSize};
 	use frame_system::pallet_prelude::BlockNumberFor;
 	use polimec_common::credentials::{Cid, Did, InvestorType};
 	use xcm::v4::Junction;

@@ -5,8 +5,10 @@ use crate::{
 };
 use frame_support::traits::fungibles::Inspect;
 use macros::generate_accounts;
-use pallet_funding::{traits::BondingRequirementCalculation, AcceptedFundingAsset, MultiplierOf, ParticipationMode};
-use polimec_common::{credentials::InvestorType, ProvideAssetPrice, PLMC_DECIMALS, PLMC_FOREIGN_ID, USD_UNIT};
+use pallet_funding::{traits::BondingRequirementCalculation, MultiplierOf, ParticipationMode};
+use polimec_common::{
+	assets::AcceptedFundingAsset, credentials::InvestorType, ProvideAssetPrice, PLMC_DECIMALS, USD_UNIT,
+};
 use polimec_common_test_utils::{generate_did_from_account, get_mock_jwt_with_cid};
 use sp_arithmetic::{FixedPointNumber, FixedU128};
 use sp_core::bounded_vec;
@@ -42,7 +44,7 @@ fn otm_fee_below_min_amount_reverts() {
 		.unwrap();
 
 		let plmc_price = <PolimecRuntime as pallet_funding::Config>::PriceProvider::get_decimals_aware_price(
-			PLMC_FOREIGN_ID,
+			Location::here(),
 			6,
 			PLMC_DECIMALS,
 		)
@@ -132,7 +134,7 @@ fn after_otm_fee_user_goes_under_ed_reverts() {
 		);
 
 		let plmc_price = <PolimecRuntime as pallet_funding::Config>::PriceProvider::get_decimals_aware_price(
-			PLMC_FOREIGN_ID,
+			Location::here(),
 			6,
 			PLMC_DECIMALS,
 		)
