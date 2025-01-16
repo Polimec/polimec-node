@@ -18,7 +18,7 @@ extern crate alloc;
 use super::{
 	AccountId, AllPalletsWithSystem, Balance, Balances, ContributionTokens, EnsureRoot, ForeignAssets, Funding,
 	PLMCToAssetBalance, ParachainInfo, ParachainSystem, PolkadotXcm, Runtime, RuntimeCall, RuntimeEvent, RuntimeOrigin,
-	ToTreasury, TreasuryAccount, Vec, WeightToFee,
+	TreasuryAccount, Vec, WeightToFee,
 };
 use core::marker::PhantomData;
 use cumulus_primitives_core::ParaId;
@@ -27,7 +27,7 @@ use frame_support::{
 	pallet_prelude::*,
 	parameter_types,
 	traits::{
-		ConstU32, Contains, ContainsPair, Everything, Nothing, OnUnbalanced as OnUnbalancedT, ProcessMessageError,
+		tokens::ConversionToAssetBalance, ConstU32, Contains, ContainsPair, Everything, Nothing, ProcessMessageError,
 	},
 	weights::{Weight, WeightToFee as WeightToFeeT},
 };
@@ -42,18 +42,16 @@ use xcm::v4::prelude::*;
 use xcm_builder::{
 	AccountId32Aliases, AllowExplicitUnpaidExecutionFrom, AllowKnownQueryResponses, AllowSubscriptionsFrom,
 	AllowTopLevelPaidExecutionFrom, CreateMatcher, DenyReserveTransferToRelayChain, DenyThenTry, EnsureXcmOrigin,
-	FixedRateOfFungible, FixedWeightBounds, FrameTransactionalProcessor, FungibleAdapter, FungiblesAdapter, IsConcrete,
-	MatchXcm, MatchedConvertedConcreteId, MintLocation, NoChecking, ParentIsPreset, RelayChainAsNative,
-	SiblingParachainAsNative, SiblingParachainConvertsVia, SignedAccountId32AsNative, SignedToAccountId32,
-	SovereignSignedViaLocation, StartsWith, StartsWithExplicitGlobalConsensus, TakeRevenue, TakeWeightCredit,
-	TrailingSetTopicAsId, UsingComponents, WithComputedOrigin,
+	FixedWeightBounds, FrameTransactionalProcessor, FungibleAdapter, FungiblesAdapter, IsConcrete, MatchXcm,
+	MatchedConvertedConcreteId, MintLocation, NoChecking, ParentIsPreset, RelayChainAsNative, SiblingParachainAsNative,
+	SiblingParachainConvertsVia, SignedAccountId32AsNative, SignedToAccountId32, SovereignSignedViaLocation,
+	StartsWith, StartsWithExplicitGlobalConsensus, TakeRevenue, TakeWeightCredit, TrailingSetTopicAsId,
+	WithComputedOrigin,
 };
 use xcm_executor::{
 	traits::{JustTry, Properties, ShouldExecute, WeightTrader},
 	AssetsInHolding, XcmExecutor,
 };
-use frame_support::traits::tokens::ConversionToAssetBalance;
-
 
 // DOT from Polkadot Asset Hub
 const DOT_PER_SECOND_EXECUTION: u128 = 0_2_000_000_000; // 0.2 DOT per second of execution time
@@ -319,9 +317,7 @@ impl xcm_executor::Config for XcmConfig {
 	// Do not allow any Transact instructions to be executed on our chain.
 	type SafeCallFilter = Nothing;
 	type SubscriptionService = PolkadotXcm;
-	type Trader = (
-		AssetTrader<TakeRevenueToTreasury>,
-	);
+	type Trader = (AssetTrader<TakeRevenueToTreasury>,);
 	type TransactionalProcessor = FrameTransactionalProcessor;
 	type UniversalAliases = Nothing;
 	type UniversalLocation = UniversalLocation;
@@ -525,7 +521,7 @@ impl<Payee: TakeRevenue> WeightTrader for AssetTrader<Payee> {
 		ensure!(acceptable_assets.contains(&asset_id.0), XcmError::FeesNotMet);
 
 		// If the trader was used already in this xcm execution, make sure we continue trading with the same asset
-		let old_amount = if let Some(asset) =&self.asset_spent {
+		let old_amount = if let Some(asset) = &self.asset_spent {
 			ensure!(asset.id == *asset_id, XcmError::FeesNotMet);
 			if let Fungibility::Fungible(amount) = asset.fun {
 				amount
@@ -536,8 +532,8 @@ impl<Payee: TakeRevenue> WeightTrader for AssetTrader<Payee> {
 			Zero::zero()
 		};
 
-		let required_asset_amount =
-			PLMCToAssetBalance::to_asset_balance(native_amount, asset_id.0.clone()).map_err(|_| XcmError::FeesNotMet)?;
+		let required_asset_amount = PLMCToAssetBalance::to_asset_balance(native_amount, asset_id.0.clone())
+			.map_err(|_| XcmError::FeesNotMet)?;
 		ensure!(*asset_amount >= required_asset_amount, XcmError::FeesNotMet);
 
 		let required = (AssetId(asset_id.0.clone()), required_asset_amount).into();

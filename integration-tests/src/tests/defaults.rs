@@ -15,18 +15,19 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 use crate::PolimecRuntime;
 use frame_support::BoundedVec;
-pub use pallet_funding::instantiator::{BidParams, ContributionParams, EvaluationParams};
+pub use pallet_funding::instantiator::EvaluationParams;
 use pallet_funding::{
-	BiddingTicketSizes, ContributingTicketSizes, CurrencyMetadata, ParticipantsAccountType, ParticipationMode,
-	PriceProviderOf, ProjectMetadata, ProjectMetadataOf, TicketSize,
+	BiddingTicketSizes, CurrencyMetadata, ParticipantsAccountType, PriceProviderOf, ProjectMetadata, ProjectMetadataOf,
+	TicketSize,
 };
-use sp_arithmetic::{FixedPointNumber, Percent};
 
 use macros::generate_accounts;
-use polimec_common::{assets::AcceptedFundingAsset, ProvideAssetPrice, USD_DECIMALS, USD_UNIT};
-use polimec_runtime::{AccountId, PLMC};
-use sp_runtime::{traits::ConstU32, Perquintill};
-use ParticipationMode::{Classic, OTM};
+use polimec_common::{
+	assets::AcceptedFundingAsset::{DOT, USDC, USDT, WETH},
+	ProvideAssetPrice, USD_DECIMALS, USD_UNIT,
+};
+use polimec_runtime::AccountId;
+use sp_runtime::traits::ConstU32;
 
 pub const IPFS_CID: &str = "QmeuJ24ffwLAZppQcgcggJs3n689bewednYkuc8Bx5Gngz";
 pub const CT_DECIMALS: u8 = 18;
@@ -52,22 +53,12 @@ pub fn bounded_symbol() -> BoundedVec<u8, ConstU32<64>> {
 pub fn ipfs_hash() -> BoundedVec<u8, ConstU32<96>> {
 	BoundedVec::try_from(IPFS_CID.as_bytes().to_vec()).unwrap()
 }
-pub fn default_weights() -> Vec<u8> {
-	vec![20u8, 15u8, 10u8, 25u8, 30u8]
-}
-pub fn default_bidder_modes() -> Vec<ParticipationMode> {
-	vec![Classic(1u8), Classic(6u8), OTM, OTM, Classic(3u8)]
-}
-pub fn default_contributor_modes() -> Vec<ParticipationMode> {
-	vec![Classic(1u8), Classic(1u8), OTM, OTM, Classic(3u8)]
-}
 
 pub fn default_project_metadata(issuer: AccountId) -> ProjectMetadataOf<polimec_runtime::Runtime> {
 	ProjectMetadata {
 		token_information: CurrencyMetadata { name: bounded_name(), symbol: bounded_symbol(), decimals: CT_DECIMALS },
 		mainnet_token_max_supply: 8_000_000 * CT_UNIT,
 		total_allocation_size: 1_000_000 * CT_UNIT,
-		auction_round_allocation_percentage: Percent::from_percent(50u8),
 		minimum_price: PriceProviderOf::<PolimecRuntime>::calculate_decimals_aware_price(
 			sp_runtime::FixedU128::from_float(10.0),
 			USD_DECIMALS,
@@ -77,95 +68,12 @@ pub fn default_project_metadata(issuer: AccountId) -> ProjectMetadataOf<polimec_
 		bidding_ticket_sizes: BiddingTicketSizes {
 			professional: TicketSize::new(5000 * USD_UNIT, None),
 			institutional: TicketSize::new(5000 * USD_UNIT, None),
+			retail: TicketSize::new(10 * USD_UNIT, None),
 			phantom: Default::default(),
 		},
-		contributing_ticket_sizes: ContributingTicketSizes {
-			retail: TicketSize::new(USD_UNIT, None),
-			professional: TicketSize::new(USD_UNIT, None),
-			institutional: TicketSize::new(USD_UNIT, None),
-			phantom: Default::default(),
-		},
-		participation_currencies: vec![AcceptedFundingAsset::USDT].try_into().unwrap(),
+		participation_currencies: vec![USDT, USDC, DOT, WETH].try_into().unwrap(),
 		funding_destination_account: issuer,
 		policy_ipfs_cid: Some(ipfs_hash()),
 		participants_account_type: ParticipantsAccountType::Polkadot,
 	}
-}
-pub fn default_evaluations() -> Vec<EvaluationParams<PolimecRuntime>> {
-	vec![
-		EvaluationParams::from((EVAL_1.into(), 500_000 * PLMC)),
-		EvaluationParams::from((EVAL_2.into(), 250_000 * PLMC)),
-		EvaluationParams::from((EVAL_3.into(), 320_000 * PLMC)),
-	]
-}
-pub fn default_bidders() -> Vec<AccountId> {
-	vec![BIDDER_1.into(), BIDDER_2.into(), BIDDER_3.into(), BIDDER_4.into(), BIDDER_5.into()]
-}
-
-pub fn default_bids() -> Vec<BidParams<PolimecRuntime>> {
-	let inst = IntegrationInstantiator::new(None);
-	let default_metadata = default_project_metadata(ISSUER.into());
-	let auction_allocation =
-		default_metadata.auction_round_allocation_percentage * default_metadata.total_allocation_size;
-	let auction_90_percent = Perquintill::from_percent(90) * auction_allocation;
-	let auction_usd_funding = default_metadata.minimum_price.saturating_mul_int(auction_90_percent);
-
-	inst.generate_bids_from_total_usd(
-		auction_usd_funding,
-		default_metadata.minimum_price,
-		default_weights(),
-		default_bidders(),
-		default_bidder_modes(),
-	)
-}
-
-pub fn default_community_contributions() -> Vec<ContributionParams<PolimecRuntime>> {
-	let inst = IntegrationInstantiator::new(None);
-
-	let default_metadata = default_project_metadata(ISSUER.into());
-
-	let auction_allocation =
-		default_metadata.auction_round_allocation_percentage * default_metadata.total_allocation_size;
-	let contribution_allocation = default_metadata.total_allocation_size - auction_allocation;
-
-	let eighty_percent_funding_ct = Perquintill::from_percent(80) * contribution_allocation;
-	let eighty_percent_funding_usd = default_metadata.minimum_price.saturating_mul_int(eighty_percent_funding_ct);
-
-	inst.generate_contributions_from_total_usd(
-		eighty_percent_funding_usd,
-		default_metadata.minimum_price,
-		default_weights(),
-		default_community_contributors(),
-		default_contributor_modes(),
-	)
-}
-
-pub fn default_remainder_contributions() -> Vec<ContributionParams<PolimecRuntime>> {
-	let inst = IntegrationInstantiator::new(None);
-
-	let default_metadata = default_project_metadata(ISSUER.into());
-
-	let auction_allocation =
-		default_metadata.auction_round_allocation_percentage * default_metadata.total_allocation_size;
-	let contribution_allocation = default_metadata.total_allocation_size - auction_allocation;
-
-	let ten_percent_auction = Perquintill::from_percent(10) * auction_allocation;
-	let ten_percent_auction_usd = default_metadata.minimum_price.saturating_mul_int(ten_percent_auction);
-	let ten_percent_contribution = Perquintill::from_percent(10) * contribution_allocation;
-	let ten_percent_contribution_usd = default_metadata.minimum_price.saturating_mul_int(ten_percent_contribution);
-
-	inst.generate_contributions_from_total_usd(
-		ten_percent_auction_usd + ten_percent_contribution_usd,
-		default_metadata.minimum_price,
-		vec![20u8, 15u8, 10u8, 25u8, 23u8, 7u8],
-		default_remainder_contributors(),
-		default_contributor_modes(),
-	)
-}
-pub fn default_community_contributors() -> Vec<AccountId> {
-	vec![BUYER_1.into(), BUYER_2.into(), BUYER_3.into(), BUYER_4.into(), BUYER_5.into()]
-}
-
-pub fn default_remainder_contributors() -> Vec<AccountId> {
-	vec![EVAL_4.into(), BUYER_6.into(), BIDDER_6.into(), EVAL_1.into(), BUYER_1.into(), BIDDER_1.into()]
 }

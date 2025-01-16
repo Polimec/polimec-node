@@ -37,7 +37,7 @@ use polimec_common::{
 };
 use polimec_common_test_utils::{generate_did_from_account, get_mock_jwt, get_mock_jwt_with_cid};
 use polimec_runtime::PLMC;
-use sp_arithmetic::{FixedPointNumber, Percent, Perquintill};
+use sp_arithmetic::{FixedPointNumber, Perquintill};
 use sp_runtime::FixedU128;
 use InvestorType::{Institutional, Professional, Retail};
 use ParticipationMode::{Classic, OTM};
@@ -48,9 +48,6 @@ generate_accounts!(
 	ALMA, ALEX, ADAM, ALAN, ABEL, AMOS, ANNA, ABBY, ARIA,
 	// Users that only bid
 	BROCK, BEN, BILL, BRAD, BLAIR, BOB, BRETT, BLAKE, BRIAN, BELLA, BRUCE, BRENT,
-	// Users that only contributed
-	CLINT, CARL, CODY, COLE, CORY, CHAD, CRUZ, CASEY, CECIL, CINDY, CLARA, CARLY, CADEN, CRAIG, CAIN, CALEB, CAMI, CARA,
-	CARY, CATHY, CESAR, CHEN, CHIP, CHLOE, CHONG, CONOR, CYRUS, CEDRIC, CHAIM, CHICO,
 	// Users that evaluated and bid
 	DOUG, DAVE,
 	// Users that evaluated and contributed
@@ -69,8 +66,7 @@ pub fn project_metadata() -> ProjectMetadataOf<PolimecRuntime> {
 		token_information: CurrencyMetadata { name: bounded_name, symbol: bounded_symbol, decimals: CT_DECIMALS },
 		mainnet_token_max_supply: 10_000_000 * CT_UNIT, // Made up, not in the Sheet.
 		// Total Allocation of Contribution Tokens Available for the Funding Round
-		total_allocation_size: 100_000 * CT_UNIT,
-		auction_round_allocation_percentage: Percent::from_percent(50u8),
+		total_allocation_size: 50_000 * CT_UNIT,
 
 		// Minimum Price per Contribution Token (in USDT)
 		minimum_price: PriceProviderOf::<PolimecRuntime>::calculate_decimals_aware_price(
@@ -82,12 +78,7 @@ pub fn project_metadata() -> ProjectMetadataOf<PolimecRuntime> {
 		bidding_ticket_sizes: BiddingTicketSizes {
 			professional: TicketSize::new(5000 * USD_UNIT, None),
 			institutional: TicketSize::new(5000 * USD_UNIT, None),
-			phantom: Default::default(),
-		},
-		contributing_ticket_sizes: ContributingTicketSizes {
-			retail: TicketSize::new(USD_UNIT, None),
-			professional: TicketSize::new(USD_UNIT, None),
-			institutional: TicketSize::new(USD_UNIT, None),
+			retail: TicketSize::new(100 * USD_UNIT, None),
 			phantom: Default::default(),
 		},
 		participation_currencies: vec![
@@ -119,9 +110,9 @@ fn usdt_price() -> FixedU128 {
 fn evaluations() -> Vec<([u8; 32], InvestorType, u64, f64)> {
 	// (User, Investor type, USD specified in extrinsic, PLMC bonded as a consequence)
 	vec![
-		(ALMA, Institutional, 93_754, 514_566.41),
-		(ALEX, Professional, 162, 889.13),
-		(ADAM, Retail, 7_454, 40_911.09),
+		(ALMA, Institutional, 40_000, 219_538.97),
+		(ALEX, Professional, 9_500, 52_140.50),
+		(ADAM, Retail, 1_000, 5_488.47),
 		(ALAN, Retail, 8_192, 44_961.58),
 		(ABEL, Professional, 11_131, 61_092.21),
 		(AMOS, Professional, 4_765, 26_152.58),
@@ -201,104 +192,46 @@ fn post_wap_bids() -> Vec<(u32, [u8; 32], ParticipationMode, InvestorType, u64, 
 	]
 }
 
-fn community_contributions(
-) -> Vec<(u32, [u8; 32], ParticipationMode, InvestorType, u64, AcceptedFundingAsset, f64, f64)> {
-	// (contribution_id, User, Participation mode, Investor type, CTs specified in extrinsic, PLMC bonded as a consequence, Participation Currency, Final participation currency ticket)
-	vec![
-		(0, CLINT, OTM, Professional, 692, USDT, 7_236.949209, 7_826.5634),
-		(1, CARL, Classic(1), Retail, 236, USDT, 2_431.618231, 13_345.8739),
-		(2, CODY, Classic(2), Retail, 24, USDT, 247.28321, 678.6038),
-		(3, COLE, OTM, Retail, 688, USDT, 7_195.117133, 7_781.3231),
-		(4, CORY, OTM, Retail, 33, DOT, 74.21819998, 373.2321),
-		(5, CHAD, Classic(1), Retail, 1_148, DOT, 2_543.73768, 64_919.7597),
-		(6, CLINT, Classic(1), Retail, 35, DOT, 77.55297804, 1_979.2610),
-		(7, CRUZ, Classic(4), Retail, 840, USDC, 8_650.587056, 11_875.5658),
-		(8, CASEY, Classic(1), Retail, 132, USDC, 1_359.377966, 7_464.6414),
-		(9, CECIL, OTM, Retail, 21, USDT, 219.6184009, 237.5113),
-		(10, CINDY, Classic(1), Retail, 59, USDT, 607.9045578, 3_336.4685),
-		(11, CHAD, Classic(3), Retail, 89, USDT, 917.0085703, 1_677.6593),
-		(12, CLARA, Classic(1), Retail, 332, DOT, 735.6453917, 18_774.7040),
-		(13, CARLY, OTM, Retail, 8_110, USDC, 84_772.14873, 91_724.6082),
-		(14, CADEN, Classic(1), Retail, 394, USDC, 4_057.537262, 22_280.8234),
-		(15, CRAIG, Classic(1), Professional, 840, USDC, 8_650.587056, 47_502.2632),
-		(16, CAIN, Classic(1), Professional, 352, USDC, 3_625.007909, 19_905.7103),
-		(17, CALEB, Classic(1), Retail, 640, DOT, 1_418.111598, 36_192.2005),
-		(18, CAMI, Classic(1), Professional, 792, DOT, 1_754.913103, 44_787.8481),
-		(19, CARA, OTM, Retail, 993, DOT, 2_233.293109, 11_230.0),
-		(20, CARY, Classic(2), Retail, 794, USDT, 8_180.952863, 22_450.4744),
-		(21, CATHY, Classic(1), Retail, 256, USDC, 2_636.369388, 14_476.8802),
-		(22, CESAR, Classic(1), Retail, 431, USDC, 4_438.575025, 24_373.1850),
-		(23, CHAD, Classic(1), Retail, 935, USDC, 9_628.927258, 52_874.5429),
-		(24, CHEN, OTM, Retail, 174, USDC, 1_818.785928, 1_967.9509),
-		(25, CHIP, OTM, Retail, 877, DOT, 1_972.40489, 9_918.9250),
-		(26, CHLOE, OTM, Retail, 961, USDT, 10_050.15634, 10_868.9702),
-		(27, CHONG, Classic(1), Retail, 394, DOT, 873.0249528, 22_280.8234),
-	]
-}
-
-fn remainder_contributions(
-) -> Vec<(u32, [u8; 32], ParticipationMode, InvestorType, u64, AcceptedFundingAsset, f64, f64)> {
-	// (contribution_id User, Participation mode, Investor type, CTs specified in extrinsic, Participation Currency, Final participation currency ticket, PLMC bonded as a consequence, )
-	vec![
-		(28, CODY, Classic(1), Retail, 442, DOT, 979.3833227, 24_995.2385),
-		(29, CRUZ, Classic(1), Retail, 486, DOT, 1_076.878495, 27_483.4523),
-		(30, CONOR, Classic(1), Retail, 17, DOT, 37.66858933, 961.3553),
-		(31, CYRUS, Classic(25), Institutional, 9_424, DOT, 20_881.69329, 21_317.2061),
-		(32, CEDRIC, Classic(2), Retail, 1_400, USDT, 14_424.85392, 39_585.2193),
-		(33, CHAIM, OTM, Retail, 4_906, USDT, 51_307.04165, 55_487.1674),
-		(34, CHICO, Classic(17), Institutional, 68, USDT, 700.6357616, 226.2013),
-		(35, CRUZ, OTM, Institutional, 9_037, USDT, 94_509.1185, 102_209.0362),
-		(36, MASON, OTM, Retail, 442, USDT, 4_622.444437, 4_999.0477),
-		(37, MIKE, OTM, Retail, 400, USDT, 4_183.207635, 4_524.0251),
-		(38, GERALT, OTM, Professional, 68, USDT, 711.145298, 769.0843),
-		(39, GEORGE, Classic(1), Professional, 68, USDT, 700.6357616, 3_845.4213),
-		(40, GINO, OTM, Institutional, 98, USDT, 1_024.885871, 1_108.3861),
-		// These two use their evaluation bond
-		(41, STEVE, Classic(5), Professional, 500, USDT, 5_151.733541, 0.0),
-		(42, SAM, Classic(1), Professional, 422, USDT, 4_348.063109, 0.0),
-	]
-}
-
 // Includes evaluation rewards, participation purchases, and protocol fees.
 fn cts_minted() -> f64 {
-	108_938.93
+	55_000.00
 }
 
 fn usd_raised() -> f64 {
-	1_008_177.9575
+	502_791.8972
 }
 
 #[allow(unused)]
 fn ct_fees() -> (f64, f64, f64) {
 	// (LP, Evaluator Rewards, Long term holder bonus)
-	(4944.466414, 2966.679848, 1977.786566)
+	(2500.0, 1500.0, 1000.0)
 }
 
 fn issuer_payouts() -> (f64, f64, f64) {
 	// (USDT, USDC, DOT)
-	(646_218.88, 165_339.74, 42_265.73)
+	(430_124.27, 36_981.51, 7_670.46)
 }
 
 fn evaluator_reward_pots() -> (f64, f64, f64, f64) {
 	// (CTs All, CTs Early, USD All, USD Early)
-	(2373.343879, 593.3359697, 167_588.0, 100_000.0)
+	(1200.0, 300.0, 116_718.0, 50_000.0)
 }
 
 fn final_payouts() -> Vec<([u8; 32], f64, f64)> {
 	// User, CT rewarded, PLMC Self Bonded (Classic mode) with mult > 1
 	vec![
-		(ALMA, 1945.787276, 0.00),
-		(ALEX, 3.25541214, 0.00),
-		(ADAM, 141.6604459, 0.00),
-		(ALAN, 116.0132769, 0.00),
-		(ABEL, 157.6347394, 0.00),
-		(AMOS, 67.48086726, 0.00),
-		(ANNA, 58.34652111, 0.00),
-		(ABBY, 23.02704935, 0.00),
-		(ARIA, 56.59046077, 0.00),
-		(BROCK, 12_500.0, 86_595.93),
-		(BEN, 4_000.0, 0.00),
-		(BILL, 3_000.0, 54_884.74),
+		(ALMA, 696.1044569, 0.00),
+		(ALEX, 154.6713103, 0.00),
+		(ADAM, 13.28119056, 0.00),
+		(ALAN, 84.22351308, 0.00),
+		(ABEL, 114.4399321, 0.00),
+		(AMOS, 48.98987303, 0.00),
+		(ANNA, 42.35850511, 0.00),
+		(ABBY, 16.71721585, 0.00),
+		(ARIA, 41.08363749, 0.00),
+		(BROCK, 12500.0, 86_595.93),
+		(BEN, 4000.0, 0.00),
+		(BILL, 3000.0, 54_884.74),
 		(BRAD, 700.0, 6_403.22),
 		(BLAIR, 1_000.0, 6_860.59),
 		(BOB, 800.0, 4_390.78),
@@ -308,55 +241,25 @@ fn final_payouts() -> Vec<([u8; 32], f64, f64)> {
 		(BELLA, 800.0, 0.00),
 		(BRUCE, 3_000.0, 41_163.56),
 		(BRENT, 8_000.0, 0.00),
-		(CLINT, 727.0, 0.00),
-		(CARL, 236.0, 0.00),
-		(CODY, 466.0, 678.60),
-		(COLE, 688.0, 0.00),
-		(CORY, 33.0, 0.00),
-		(CRUZ, 10_363.0, 11_875.57),
-		(CASEY, 132.0, 0.00),
-		(CECIL, 21.0, 0.00),
-		(CINDY, 59.0, 0.00),
-		(CHAD, 2_172.0, 1_677.66),
-		(CLARA, 332.0, 0.00),
-		(CARLY, 8_110.0, 0.00),
-		(CADEN, 394.0, 0.00),
-		(CRAIG, 840.0, 0.00),
-		(CAIN, 352.0, 0.00),
-		(CALEB, 640.0, 0.00),
-		(CAMI, 792.0, 0.00),
-		(CARA, 993.0, 0.00),
-		(CARY, 794.0, 22_450.47),
-		(CATHY, 256.0, 0.00),
-		(CESAR, 431.0, 0.00),
-		(CHEN, 174.0, 0.00),
-		(CHIP, 877.0, 0.00),
-		(CHLOE, 961.0, 0.00),
-		(CHONG, 394.0, 0.00),
-		(CONOR, 17.0, 0.00),
-		(CYRUS, 9_424.0, 21_317.21),
-		(CEDRIC, 1_400.0, 39_585.22),
-		(CHAIM, 4_906.0, 0.0),
-		(CHICO, 68.0, 226.20),
-		(DOUG, 135.9425899, 0.00),
-		(DAVE, 1_082.180792, 0.00),
-		(MASON, 490.7306745, 0.00),
-		(MIKE, 513.973981, 0.00),
-		(GERALT, 568.0, 1_885.01),
-		(GEORGE, 1_968.0, 5_372.28),
-		(GINO, 698.0, 1_357.21),
-		(STEVE, 1_523.636006, 5_655.03),
-		(SAM, 4_714.419756, 0.0),
+		(DOUG, 126.0936616, 0.00),
+		(DAVE, 1059.661749, 0.00),
+		(MASON, 35.37757672, 0.00),
+		(MIKE, 82.74302164, 0.00),
+		(GERALT, 500.0, 1_885.01),
+		(GEORGE, 1_900.0, 5_372.28),
+		(GINO, 600.0, 1_357.21),
+		(STEVE, 1017.159307, 0.0),
+		(SAM, 4267.09505, 0.0),
 	]
 }
 
 fn otm_fee_recipient_balances() -> (f64, f64, f64) {
 	// USDT, USDC, DOT
-	(3908.966909, 1384.616511, 136.3713724)
+	(1233.208025, 104.9475262, 73.12137929)
 }
 
 fn otm_treasury_sub_account_plmc_held() -> f64 {
-	544_177.11
+	233_150.38
 }
 
 fn participate_with_checks(
@@ -408,18 +311,9 @@ fn participate_with_checks(
 	if participation_type == ParticipationType::Bid {
 		PolimecFunding::bid(PolimecOrigin::signed(user.clone()), user_jwt, project_id, ct_amount, mode, funding_asset)
 			.unwrap();
-		assert!(Bids::<PolimecRuntime>::get((project_id, user.clone(), participation_id)).is_some());
-	} else {
-		PolimecFunding::contribute(
-			PolimecOrigin::signed(user.clone()),
-			user_jwt,
-			project_id,
-			ct_amount,
-			mode,
-			funding_asset,
-		)
-		.unwrap();
-		assert!(Contributions::<PolimecRuntime>::get((project_id, user.clone(), participation_id)).is_some());
+		let stored_bid = Bids::<PolimecRuntime>::get((project_id, user.clone(), participation_id));
+		// dbg!(&stored_bid);
+		assert!(stored_bid.is_some());
 	}
 
 	let post_participation_free_plmc = PolimecBalances::free_balance(user.clone());
@@ -516,7 +410,7 @@ fn e2e_test() {
 			);
 		}
 
-		assert!(matches!(inst.go_to_next_state(project_id), ProjectStatus::CommunityRound(..)));
+		assert!(matches!(inst.go_to_next_state(project_id), ProjectStatus::FundingSuccessful));
 
 		// Only Dave got a rejected bid, so they can settle it early to get refunded:
 		let rejected_bidder = PolimecAccountId::from(DAVE);
@@ -568,58 +462,11 @@ fn e2e_test() {
 		);
 		assert_close_enough!(treasury_usdt_delta, expected_otm_fee, Perquintill::from_float(0.9999));
 
-		for (contribution_id, user, mode, investor_type, ct_amount, funding_asset, funding_asset_ticket, plmc_bonded) in
-			community_contributions()
-		{
-			inst = participate_with_checks(
-				inst,
-				project_id,
-				ParticipationType::Contribution,
-				contribution_id,
-				user,
-				mode,
-				investor_type,
-				ct_amount,
-				funding_asset,
-				funding_asset_ticket,
-				plmc_bonded,
-			);
-		}
-
-		let remainder_block =
-			if let ProjectStatus::CommunityRound(remainder_block) = inst.get_project_details(project_id).status {
-				remainder_block
-			} else {
-				panic!("Expected CommunityRound");
-			};
-
-		inst.jump_to_block(remainder_block);
-
-		for (contribution_id, user, mode, investor_type, ct_amount, funding_asset, funding_asset_ticket, plmc_bonded) in
-			remainder_contributions()
-		{
-			inst = participate_with_checks(
-				inst,
-				project_id,
-				ParticipationType::Contribution,
-				contribution_id,
-				user,
-				mode,
-				investor_type,
-				ct_amount,
-				funding_asset,
-				funding_asset_ticket,
-				plmc_bonded,
-			);
-		}
-
-		assert_eq!(inst.go_to_next_state(project_id), ProjectStatus::FundingSuccessful);
 		assert_eq!(inst.go_to_next_state(project_id), ProjectStatus::SettlementStarted(FundingOutcome::Success));
 
 		// Used for checking CT migrations at the end
 		let stored_evaluations = inst.get_evaluations(project_id);
 		let stored_bids = inst.get_bids(project_id);
-		let stored_contributions = inst.get_contributions(project_id);
 
 		inst.settle_project(project_id, true);
 
@@ -788,7 +635,6 @@ fn e2e_test() {
 
 		inst.assert_evaluations_migrations_created(project_id, stored_evaluations, true);
 		inst.assert_bids_migrations_created(project_id, stored_bids, true);
-		inst.assert_contributions_migrations_created(project_id, stored_contributions, true);
 
 		PolimecFunding::start_offchain_migration(PolimecOrigin::signed(issuer.clone()), issuer_jwt, project_id)
 			.unwrap();
