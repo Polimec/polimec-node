@@ -1,6 +1,7 @@
 #![allow(clippy::wildcard_imports)]
 #![allow(clippy::type_complexity)]
 
+use sp_runtime::offchain::http::Method::Post;
 use super::*;
 
 impl<T: Config> Pallet<T> {
@@ -59,7 +60,7 @@ impl<T: Config> Pallet<T> {
 		issuer: &AccountIdOf<T>,
 		project_metadata: ProjectMetadataOf<T>,
 		did: Did,
-	) -> DispatchResult {
+	) -> DispatchResultWithPostInfo {
 		// * Get variables *
 		let project_id = NextProjectId::<T>::get();
 		let maybe_active_project = DidWithActiveProjects::<T>::get(did.clone());
@@ -91,7 +92,10 @@ impl<T: Config> Pallet<T> {
 		// * Emit events *
 		Self::deposit_event(Event::ProjectCreated { project_id, issuer: issuer.clone(), metadata: project_metadata });
 
-		Ok(())
+		Ok(PostDispatchInfo{
+			actual_weight: None,
+			pays_fee: Pays::No,
+		})
 	}
 
 	#[transactional]
@@ -99,7 +103,7 @@ impl<T: Config> Pallet<T> {
 		issuer: AccountIdOf<T>,
 		project_id: ProjectId,
 		new_project_metadata: ProjectMetadataOf<T>,
-	) -> DispatchResult {
+	) -> DispatchResultWithPostInfo {
 		// * Get variables *
 		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 
@@ -119,11 +123,13 @@ impl<T: Config> Pallet<T> {
 		// * Emit events *
 		Self::deposit_event(Event::MetadataEdited { project_id, metadata: new_project_metadata });
 
-		Ok(())
-	}
+		Ok(PostDispatchInfo{
+			actual_weight: None,
+			pays_fee: Pays::No,
+		})	}
 
 	#[transactional]
-	pub fn do_remove_project(issuer: AccountIdOf<T>, project_id: ProjectId, did: Did) -> DispatchResult {
+	pub fn do_remove_project(issuer: AccountIdOf<T>, project_id: ProjectId, did: Did) -> DispatchResultWithPostInfo {
 		// * Get variables *
 		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 
@@ -140,6 +146,8 @@ impl<T: Config> Pallet<T> {
 		// * Emit events *
 		Self::deposit_event(Event::ProjectRemoved { project_id, issuer });
 
-		Ok(())
-	}
+		Ok(PostDispatchInfo{
+			actual_weight: None,
+			pays_fee: Pays::No,
+		})	}
 }

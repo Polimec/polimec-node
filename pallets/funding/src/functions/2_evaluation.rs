@@ -3,7 +3,7 @@ use super::*;
 use polimec_common::ProvideAssetPrice;
 impl<T: Config> Pallet<T> {
 	#[transactional]
-	pub fn do_start_evaluation(caller: AccountIdOf<T>, project_id: ProjectId) -> DispatchResult {
+	pub fn do_start_evaluation(caller: AccountIdOf<T>, project_id: ProjectId) -> DispatchResultWithPostInfo {
 		// * Get variables *
 		let project_metadata = ProjectsMetadata::<T>::get(project_id).ok_or(Error::<T>::ProjectMetadataNotFound)?;
 		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
@@ -24,7 +24,12 @@ impl<T: Config> Pallet<T> {
 			ProjectStatus::EvaluationRound,
 			Some(T::EvaluationRoundDuration::get()),
 			false,
-		)
+		)?;
+
+		Ok(PostDispatchInfo{
+			actual_weight: None,
+			pays_fee: Pays::No,
+		})
 	}
 
 	#[transactional]
@@ -156,7 +161,7 @@ impl<T: Config> Pallet<T> {
 
 		Ok(PostDispatchInfo {
 			actual_weight: Some(WeightInfoOf::<T>::evaluate(user_evaluations_count)),
-			pays_fee: Pays::Yes,
+			pays_fee: Pays::No,
 		})
 	}
 }

@@ -159,6 +159,6 @@ impl<T: Config> Pallet<T> {
 
 		// return correct weight function
 		let actual_weight = Some(WeightInfoOf::<T>::contribute(caller_existing_contributions.len() as u32));
-		Ok(PostDispatchInfo { actual_weight, pays_fee: Pays::Yes })
+		Ok(PostDispatchInfo { actual_weight, pays_fee: Pays::No })
 	}
 }
