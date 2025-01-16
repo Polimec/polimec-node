@@ -189,7 +189,7 @@ pub mod pallet {
 								None
 							}
 						})
-							.collect::<Vec<AssetName>>();
+						.collect::<Vec<AssetName>>();
 
 					if assets.is_empty() {
 						log::trace!(target: LOG_TARGET, "Assets to fetch list is empty :c");
@@ -221,8 +221,8 @@ pub mod pallet {
 	impl<T: Config> Pallet<T> {
 		fn fetch_prices(assets: Vec<AssetName>) -> BTreeMap<AssetName, FixedU128> {
 			let fetchers = vec![
-				KrakenFetcher::get_moving_average,
 				BitFinexFetcher::get_moving_average,
+				KrakenFetcher::get_moving_average,
 				BitStampFetcher::get_moving_average,
 				CoinbaseFetcher::get_moving_average,
 				XTFetcher::get_moving_average,

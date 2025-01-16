@@ -26,10 +26,7 @@ impl<T: Config> Pallet<T> {
 			false,
 		)?;
 
-		Ok(PostDispatchInfo{
-			actual_weight: None,
-			pays_fee: Pays::No,
-		})
+		Ok(PostDispatchInfo { actual_weight: None, pays_fee: Pays::No })
 	}
 
 	#[transactional]

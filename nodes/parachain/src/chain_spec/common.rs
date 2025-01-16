@@ -13,10 +13,7 @@ use polimec_runtime::{
 	AccountId, AuraId as AuthorityId, Balance, BlockchainOperationTreasury, ContributionTreasuryAccount,
 	ExistentialDeposit, FeeRecipient, OracleProvidersMembershipConfig, Runtime, TreasuryAccount, PLMC,
 };
-use sp_core::{
-	crypto::{Ss58AddressFormat, UncheckedInto},
-	sr25519,
-};
+use sp_core::{crypto::UncheckedInto, sr25519};
 use sp_runtime::{traits::AccountIdConversion, Perbill, Percent};
 pub type ChainSpec = sc_service::GenericChainSpec<Extensions>;
 

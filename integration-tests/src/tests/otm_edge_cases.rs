@@ -121,7 +121,7 @@ fn after_otm_fee_user_goes_under_ed_reverts() {
 	let issuer: PolimecAccountId = ISSUER.into();
 	let bobert: PolimecAccountId = BOBERT.into();
 
-	polimec::set_prices(PricesBuilder::default());
+	polimec::set_prices(PricesBuilder::default_prices());
 	PolimecNet::execute_with(|| {
 		let project_metadata = default_project_metadata(issuer.clone());
 

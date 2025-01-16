@@ -1,15 +1,13 @@
-use crate::{AccountId, Funding, Oracle, Runtime};
-use alloc::{collections::BTreeMap, vec::Vec};
+use crate::{AccountId, Funding, Runtime};
+use alloc::collections::BTreeMap;
 use frame_support::{
-	migrations::VersionedPostUpgradeData,
-	pallet_prelude::{NMapKey, StorageDoubleMap, StorageMap, StorageNMap, StorageValue, ValueQuery},
+	pallet_prelude::{NMapKey, ValueQuery},
 	storage_alias,
 	traits::{GetStorageVersion, OnRuntimeUpgrade},
 	Blake2_128Concat,
 };
 use itertools::Itertools;
 use pallet_assets::{Approval, AssetAccount, AssetDetails, AssetMetadata};
-use parity_scale_codec::Encode;
 use polimec_common::assets::AcceptedFundingAsset;
 use sp_api::runtime_decl_for_core::CoreV5;
 use sp_runtime::BoundedVec;
@@ -87,20 +85,18 @@ pub mod orml_oracle_storage_items {
 	use super::*;
 
 	pub mod old_types {
+		use super::*;
 		use frame_support::Twox64Concat;
 		use orml_oracle::TimestampedValue;
 		use shared_configuration::Price;
-		use super::*;
 
 		type TimeStampedValueOf = TimestampedValue<Price, u64>;
 
 		#[storage_alias]
-		pub type RawValues =
-			StorageDoubleMap<Oracle, Twox64Concat, AccountId, Twox64Concat, u32, TimeStampedValueOf>;
+		pub type RawValues = StorageDoubleMap<Oracle, Twox64Concat, AccountId, Twox64Concat, u32, TimeStampedValueOf>;
 
 		#[storage_alias]
-		pub type Values =
-			StorageMap<Oracle, Twox64Concat, u32, TimeStampedValueOf>;
+		pub type Values = StorageMap<Oracle, Twox64Concat, u32, TimeStampedValueOf>;
 	}
 }
 
@@ -131,7 +127,7 @@ impl OnRuntimeUpgrade for FromOldAssetIdMigration {
 				(1984, AcceptedFundingAsset::USDT.id()),
 				(1337, AcceptedFundingAsset::USDC.id()),
 				(10, AcceptedFundingAsset::DOT.id()),
-				(3344, Location::here())
+				(3344, Location::here()),
 			]);
 
 			let old_account_iterator = pallet_assets_storage_items::old_types::Account::iter().collect_vec();
@@ -177,7 +173,11 @@ impl OnRuntimeUpgrade for FromOldAssetIdMigration {
 			for (account, old_asset_id, raw_values) in old_oracle_raw_values_iterator {
 				items += 1;
 				log::info!("old_oracle_raw_values item {:?}", items);
-				orml_oracle::RawValues::<Runtime>::insert(account.clone(), id_map.get(&old_asset_id).unwrap(), raw_values);
+				orml_oracle::RawValues::<Runtime>::insert(
+					account.clone(),
+					id_map.get(&old_asset_id).unwrap(),
+					raw_values,
+				);
 				orml_oracle_storage_items::old_types::RawValues::remove(account, old_asset_id);
 			}
 
