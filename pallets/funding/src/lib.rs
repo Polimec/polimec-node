@@ -706,7 +706,7 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			jwt: UntrustedToken,
 			project: ProjectMetadataOf<T>,
-		) -> DispatchResult {
+		) -> DispatchResultWithPostInfo {
 			let (account, did, investor_type, _cid) =
 				T::InvestorOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get())?;
 			ensure!(investor_type == InvestorType::Institutional, Error::<T>::WrongInvestorType);
@@ -715,7 +715,11 @@ pub mod pallet {
 
 		#[pallet::call_index(1)]
 		#[pallet::weight(WeightInfoOf::<T>::remove_project())]
-		pub fn remove_project(origin: OriginFor<T>, jwt: UntrustedToken, project_id: ProjectId) -> DispatchResult {
+		pub fn remove_project(
+			origin: OriginFor<T>,
+			jwt: UntrustedToken,
+			project_id: ProjectId,
+		) -> DispatchResultWithPostInfo {
 			let (account, did, investor_type, _cid) =
 				T::InvestorOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get())?;
 			ensure!(investor_type == InvestorType::Institutional, Error::<T>::WrongInvestorType);
@@ -730,7 +734,7 @@ pub mod pallet {
 			jwt: UntrustedToken,
 			project_id: ProjectId,
 			new_project_metadata: ProjectMetadataOf<T>,
-		) -> DispatchResult {
+		) -> DispatchResultWithPostInfo {
 			let (account, _did, investor_type, _cid) =
 				T::InvestorOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get())?;
 			ensure!(investor_type == InvestorType::Institutional, Error::<T>::WrongInvestorType);
@@ -740,7 +744,11 @@ pub mod pallet {
 		/// Starts the evaluation round of a project. It needs to be called by the project issuer.
 		#[pallet::call_index(3)]
 		#[pallet::weight(WeightInfoOf::<T>::start_evaluation())]
-		pub fn start_evaluation(origin: OriginFor<T>, jwt: UntrustedToken, project_id: ProjectId) -> DispatchResult {
+		pub fn start_evaluation(
+			origin: OriginFor<T>,
+			jwt: UntrustedToken,
+			project_id: ProjectId,
+		) -> DispatchResultWithPostInfo {
 			let (account, _did, investor_type, _cid) =
 				T::InvestorOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get())?;
 			ensure!(investor_type == InvestorType::Institutional, Error::<T>::WrongInvestorType);
@@ -1024,7 +1032,7 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			jwt: UntrustedToken,
 			project_id: ProjectId,
-		) -> DispatchResult {
+		) -> DispatchResultWithPostInfo {
 			let (account, _did, investor_type, _cid) =
 				T::InvestorOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get())?;
 			ensure!(investor_type == InvestorType::Institutional, Error::<T>::WrongInvestorType);
@@ -1051,7 +1059,7 @@ pub mod pallet {
 			jwt: UntrustedToken,
 			project_id: ProjectId,
 			para_id: ParaId,
-		) -> DispatchResult {
+		) -> DispatchResultWithPostInfo {
 			let (account, _did, investor_type, _cid) =
 				T::InvestorOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get())?;
 			ensure!(investor_type == InvestorType::Institutional, Error::<T>::WrongInvestorType);
@@ -1065,7 +1073,7 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			jwt: UntrustedToken,
 			project_id: ProjectId,
-		) -> DispatchResult {
+		) -> DispatchResultWithPostInfo {
 			let (account, _did, investor_type, _cid) =
 				T::InvestorOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get())?;
 			ensure!(investor_type == InvestorType::Institutional, Error::<T>::WrongInvestorType);

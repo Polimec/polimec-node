@@ -73,7 +73,7 @@ use sp_std::{cmp::Ordering, prelude::*};
 use sp_version::RuntimeVersion;
 
 // XCM Imports
-use xcm::{v3::MultiLocation, VersionedAssets, VersionedLocation, VersionedXcm};
+use xcm::{VersionedAssets, VersionedLocation, VersionedXcm};
 use xcm_config::{PriceForSiblingParachainDelivery, XcmOriginToTransactDispatchOrigin};
 use xcm_fee_payment_runtime_api::{
 	dry_run::{CallDryRunEffects, Error as XcmDryRunApiError, XcmDryRunEffects},
@@ -98,7 +98,12 @@ use alloc::string::String;
 use sp_core::crypto::Ss58Codec;
 #[cfg(any(feature = "std", test))]
 pub use sp_runtime::BuildStorage;
-use xcm::{v4::Location, VersionedAssetId};
+use xcm::{
+	v4::{Location},
+	VersionedAssetId,
+};
+#[cfg(feature = "runtime-benchmarks")]
+use xcm::{{v4::{ParentThen, Parent, Junction::Parachain}}};
 
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmark_helpers;
@@ -443,7 +448,7 @@ pub struct PalletAssetsBenchmarkHelper;
 #[cfg(feature = "runtime-benchmarks")]
 impl pallet_assets::BenchmarkHelper<Location> for PalletAssetsBenchmarkHelper {
 	fn create_asset_id_parameter(id: u32) -> Location {
-		(Parent, Parachain(id)).into()
+		Location::from(ParentThen([Parachain(id)].into()))
 	}
 }
 impl pallet_assets::Config<ForeignAssetsInstance> for Runtime {

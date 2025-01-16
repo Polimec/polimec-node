@@ -1,7 +1,6 @@
 #![allow(clippy::wildcard_imports)]
 #![allow(clippy::type_complexity)]
 
-use sp_runtime::offchain::http::Method::Post;
 use super::*;
 
 impl<T: Config> Pallet<T> {
@@ -92,10 +91,7 @@ impl<T: Config> Pallet<T> {
 		// * Emit events *
 		Self::deposit_event(Event::ProjectCreated { project_id, issuer: issuer.clone(), metadata: project_metadata });
 
-		Ok(PostDispatchInfo{
-			actual_weight: None,
-			pays_fee: Pays::No,
-		})
+		Ok(PostDispatchInfo { actual_weight: None, pays_fee: Pays::No })
 	}
 
 	#[transactional]
@@ -123,10 +119,8 @@ impl<T: Config> Pallet<T> {
 		// * Emit events *
 		Self::deposit_event(Event::MetadataEdited { project_id, metadata: new_project_metadata });
 
-		Ok(PostDispatchInfo{
-			actual_weight: None,
-			pays_fee: Pays::No,
-		})	}
+		Ok(PostDispatchInfo { actual_weight: None, pays_fee: Pays::No })
+	}
 
 	#[transactional]
 	pub fn do_remove_project(issuer: AccountIdOf<T>, project_id: ProjectId, did: Did) -> DispatchResultWithPostInfo {
@@ -146,8 +140,6 @@ impl<T: Config> Pallet<T> {
 		// * Emit events *
 		Self::deposit_event(Event::ProjectRemoved { project_id, issuer });
 
-		Ok(PostDispatchInfo{
-			actual_weight: None,
-			pays_fee: Pays::No,
-		})	}
+		Ok(PostDispatchInfo { actual_weight: None, pays_fee: Pays::No })
+	}
 }

@@ -89,7 +89,7 @@ impl PricesBuilder {
 		Self { dot: None, usdc: None, usdt: None, plmc: None, weth: None }
 	}
 
-	pub fn default() -> Prices {
+	pub fn default_prices() -> Prices {
 		Prices {
 			dot: FixedU128::from_rational(69, 1),
 			usdc: FixedU128::from_rational(1, 1),
@@ -198,6 +198,7 @@ pub mod collators {
 pub mod validators {
 	use super::*;
 
+	#[allow(clippy::type_complexity)]
 	pub fn initial_authorities() -> Vec<(
 		AccountId,
 		AccountId,
@@ -484,7 +485,6 @@ pub mod polimec {
 					(dave_account.clone(), 0),
 					(eve_account.clone(), 0),
 				],
-				..Default::default()
 			},
 			democracy: Default::default(),
 			parachain_system: Default::default(),

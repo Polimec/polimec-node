@@ -456,7 +456,6 @@ impl<T: Config> Pallet<T> {
 			frame_system::Pallet::<T>::account_nonce(polimec_account),
 		);
 
-
 		let ecdsa_signature = EcdsaSignature::from_slice(&signature_bytes).unwrap();
 		let public_compressed: EcdsaPublic = ecdsa_signature.recover_prehashed(&hashed_message).unwrap();
 		let public_uncompressed = k256::ecdsa::VerifyingKey::from_sec1_bytes(&public_compressed).unwrap();
