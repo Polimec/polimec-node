@@ -21,20 +21,32 @@
 use sc_service::ChainType;
 
 use crate::chain_spec::{
-	common::{alice, bob, charlie, dave, eve, genesis_config, GenesisConfigParams},
+	common::{acc_from_ss58, alice, bob, charlie, dave, eve, genesis_config, GenesisConfigParams},
 	get_properties, Extensions, GenericChainSpec, DEFAULT_PARA_ID,
 };
 use polimec_runtime::{AccountId, MinCandidateStk};
 
 pub fn get_local_chain_spec() -> GenericChainSpec {
-	let endowed_accounts = vec![alice(), bob(), charlie(), dave()];
+	let endowed_accounts = vec![
+		alice(),
+		bob(),
+		charlie(),
+		dave(),
+		acc_from_ss58("5Do5UoayFvDrHroGS1YMqxTVUysSkrhNwVMzmj1foVb3vzzb"),
+		acc_from_ss58("5E5E37FNZD9KVHyGgSHt8pc2kq8e3VUS5rf8GmrxCa7ySs8s"),
+		acc_from_ss58("5ELLzYckeuomgTnv4Pf1aT4itxu35cn1KWNCGcftzv5N2x7o"),
+	];
 	let endowed_accounts =
 		endowed_accounts.iter().map(|x| (x.clone(), MinCandidateStk::get() * 20)).collect::<Vec<_>>();
 	let genesis_config_params = GenesisConfigParams {
 		stakers: vec![alice(), bob()],
 		council_members: vec![alice()],
 		technical_committee_members: vec![alice()],
-		oracle_members: vec![alice(), bob(), charlie()],
+		oracle_members: vec![
+			acc_from_ss58("5Do5UoayFvDrHroGS1YMqxTVUysSkrhNwVMzmj1foVb3vzzb"),
+			acc_from_ss58("5E5E37FNZD9KVHyGgSHt8pc2kq8e3VUS5rf8GmrxCa7ySs8s"),
+			acc_from_ss58("5ELLzYckeuomgTnv4Pf1aT4itxu35cn1KWNCGcftzv5N2x7o"),
+		],
 		endowed_accounts,
 		funding_assets_owner: eve(),
 		id: DEFAULT_PARA_ID,

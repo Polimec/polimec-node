@@ -15,23 +15,27 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use crate::*;
+use pallet_funding::AcceptedFundingAsset;
 /// Tests for the oracle pallet integration.
 /// Alice, Bob, Charlie are members of the OracleProvidersMembers.
 /// Only members should be able to feed data into the oracle.
 use parity_scale_codec::alloc::collections::HashMap;
+use polimec_common::PLMC_FOREIGN_ID;
 use polimec_runtime::{Oracle, RuntimeOrigin};
 use sp_runtime::{bounded_vec, BoundedVec, FixedU128};
 use tests::defaults::*;
 
+use AcceptedFundingAsset::{DOT, USDC, USDT, WETH};
 fn values(
-	values: [f64; 4],
+	values: [f64; 5],
 ) -> BoundedVec<(u32, FixedU128), <polimec_runtime::Runtime as orml_oracle::Config<()>>::MaxFeedValues> {
-	let [dot, usdc, usdt, plmc] = values;
+	let [dot, usdc, usdt, weth, plmc] = values;
 	bounded_vec![
-		(10u32, FixedU128::from_float(dot)),
-		(1337u32, FixedU128::from_float(usdc)),
-		(1984u32, FixedU128::from_float(usdt)),
-		(3344u32, FixedU128::from_float(plmc))
+		(DOT.id(), FixedU128::from_float(dot)),
+		(USDC.id(), FixedU128::from_float(usdc)),
+		(USDT.id(), FixedU128::from_float(usdt)),
+		(WETH.id(), FixedU128::from_float(weth)),
+		(PLMC_FOREIGN_ID, FixedU128::from_float(plmc))
 	]
 }
 
@@ -43,19 +47,20 @@ fn members_can_feed_data() {
 		// pallet_funding genesis builder already inputs prices, so we need to advance one block to feed new values.
 		inst.advance_time(1u32);
 		let alice = PolimecNet::account_id_of(ALICE);
-		assert_ok!(Oracle::feed_values(RuntimeOrigin::signed(alice.clone()), values([4.84, 1.0, 1.0, 0.4])));
+		assert_ok!(Oracle::feed_values(RuntimeOrigin::signed(alice.clone()), values([4.84, 1.0, 1.0, 2500.0, 0.4])));
 
 		let bob = PolimecNet::account_id_of(BOB);
-		assert_ok!(Oracle::feed_values(RuntimeOrigin::signed(bob.clone()), values([4.84, 1.0, 1.0, 0.4])));
+		assert_ok!(Oracle::feed_values(RuntimeOrigin::signed(bob.clone()), values([4.84, 1.0, 1.0, 2500.0, 0.4])));
 
 		let charlie = PolimecNet::account_id_of(CHARLIE);
-		assert_ok!(Oracle::feed_values(RuntimeOrigin::signed(charlie.clone()), values([4.84, 1.0, 1.0, 0.4])));
+		assert_ok!(Oracle::feed_values(RuntimeOrigin::signed(charlie.clone()), values([4.84, 1.0, 1.0, 2500.0, 0.4])));
 
 		let expected_values = HashMap::from([
-			(10u32, FixedU128::from_float(4.84)),
-			(1337u32, FixedU128::from_float(1.0)),
-			(1984u32, FixedU128::from_float(1.0)),
-			(3344u32, FixedU128::from_float(0.4)),
+			(DOT.id(), FixedU128::from_float(4.84)),
+			(USDC.id(), FixedU128::from_float(1.0)),
+			(USDT.id(), FixedU128::from_float(1.0)),
+			(WETH.id(), FixedU128::from_float(2500.0)),
+			(PLMC_FOREIGN_ID, FixedU128::from_float(0.4)),
 		]);
 
 		for (key, value) in Oracle::get_all_values() {
@@ -70,7 +75,7 @@ fn non_members_cannot_feed_data() {
 	PolimecNet::execute_with(|| {
 		let dave = PolimecNet::account_id_of(DAVE);
 		assert_noop!(
-			Oracle::feed_values(RuntimeOrigin::signed(dave.clone()), values([4.84, 1.0, 1.0, 0.4])),
+			Oracle::feed_values(RuntimeOrigin::signed(dave.clone()), values([4.84, 1.0, 1.0, 2500.0, 0.4])),
 			orml_oracle::Error::<polimec_runtime::Runtime, ()>::NoPermission
 		);
 	});
@@ -84,20 +89,24 @@ fn data_is_correctly_combined() {
 		inst.advance_time(1u32);
 
 		let alice = PolimecNet::account_id_of(ALICE);
-		assert_ok!(Oracle::feed_values(RuntimeOrigin::signed(alice.clone()), values([1.0, 1.5, 1.1, 0.11111])));
+		assert_ok!(Oracle::feed_values(RuntimeOrigin::signed(alice.clone()), values([1.0, 1.5, 1.1, 2500.0, 0.11111])));
 
 		let bob = PolimecNet::account_id_of(BOB);
-		assert_ok!(Oracle::feed_values(RuntimeOrigin::signed(bob.clone()), values([2.0, 1.0, 1.2, 0.22222])));
+		assert_ok!(Oracle::feed_values(RuntimeOrigin::signed(bob.clone()), values([2.0, 1.0, 1.2, 2500.0, 0.22222])));
 
 		let charlie = PolimecNet::account_id_of(CHARLIE);
-		assert_ok!(Oracle::feed_values(RuntimeOrigin::signed(charlie.clone()), values([3.0, 0.8, 1.1, 0.33333])));
+		assert_ok!(Oracle::feed_values(
+			RuntimeOrigin::signed(charlie.clone()),
+			values([3.0, 0.8, 1.1, 2500.0, 0.33333])
+		));
 
 		// Default CombineData implementation is the median value
 		let expected_values = HashMap::from([
-			(10u32, FixedU128::from_float(2.0)),
-			(1337u32, FixedU128::from_float(1.0)),
-			(1984u32, FixedU128::from_float(1.1)),
-			(3344u32, FixedU128::from_float(0.22222)),
+			(DOT.id(), FixedU128::from_float(2.0)),
+			(USDC.id(), FixedU128::from_float(1.0)),
+			(USDT.id(), FixedU128::from_float(1.1)),
+			(WETH.id(), FixedU128::from_float(2500.0)),
+			(PLMC_FOREIGN_ID, FixedU128::from_float(0.22222)),
 		]);
 
 		for (key, value) in Oracle::get_all_values() {
@@ -116,13 +125,13 @@ fn pallet_funding_works() {
 		inst.advance_time(1u32);
 
 		let alice = PolimecNet::account_id_of(ALICE);
-		assert_ok!(Oracle::feed_values(RuntimeOrigin::signed(alice.clone()), values([4.84, 1.0, 1.0, 0.4])));
+		assert_ok!(Oracle::feed_values(RuntimeOrigin::signed(alice.clone()), values([4.84, 1.0, 1.0, 2500.0, 0.4])));
 
 		let bob = PolimecNet::account_id_of(BOB);
-		assert_ok!(Oracle::feed_values(RuntimeOrigin::signed(bob.clone()), values([4.84, 1.0, 1.0, 0.4])));
+		assert_ok!(Oracle::feed_values(RuntimeOrigin::signed(bob.clone()), values([4.84, 1.0, 1.0, 2500.0, 0.4])));
 
 		let charlie = PolimecNet::account_id_of(CHARLIE);
-		assert_ok!(Oracle::feed_values(RuntimeOrigin::signed(charlie.clone()), values([4.84, 1.0, 1.0, 0.4])));
+		assert_ok!(Oracle::feed_values(RuntimeOrigin::signed(charlie.clone()), values([4.84, 1.0, 1.0, 2500.0, 0.4])));
 
 		let _project_id = inst.create_finished_project(
 			default_project_metadata(ISSUER.into()),

@@ -30,30 +30,33 @@ fn call_offchain_worker() {
 	let (mut ext, offchain_state, pool_state) = new_test_ext_with_offchain_storage();
 	price_oracle_response(&mut offchain_state.write());
 	ext.execute_with(|| {
-		run_to_block(6);
+		run_to_block(1);
 
 		let tx = pool_state.write().transactions.pop().unwrap();
 		let tx = Extrinsic::decode(&mut &*tx).unwrap();
 		assert_eq!(tx.signature.unwrap().0, 0);
 
 		match tx.call {
-			RuntimeCall::Oracle(orml_oracle::Call::feed_values { values }) =>
+			RuntimeCall::Oracle(orml_oracle::Call::feed_values { values }) => {
+				dbg!(&values);
 				for (asset, price) in values {
 					match asset {
 						10 => assert_close_enough(price, FixedU128::from_float(6.138485575453039783)),
 						1984 => assert_close_enough(price, FixedU128::from_float(1.000154206100002620)),
 						1337 => assert_close_enough(price, FixedU128::from_float(1.000093378020633965)),
 						3344 => assert_close_enough(price, FixedU128::from_float(0.414564170729477207)),
+						10_000 => assert_close_enough(price, FixedU128::from_float(3611.253612654460630264)),
 						_ => panic!("Unexpected asset"),
 					}
-				},
+				}
+			},
 			_ => panic!("Unexpected call"),
 		}
 	});
 }
 
 fn test_fetcher_against_real_api<F: FetchPrice>() {
-	for asset in [AssetName::DOT, AssetName::USDC, AssetName::USDT, AssetName::PLMC] {
+	for asset in [AssetName::DOT, AssetName::USDC, AssetName::USDT, AssetName::PLMC, AssetName::WETH] {
 		let url = F::get_url(asset);
 		if url.is_empty() {
 			continue;
