@@ -1,4 +1,3 @@
-import { TRANSFER_AMOUNTS } from '@/constants.ts';
 import { type Accounts, Asset, AssetSourceRelation, Chains } from '@/types';
 import { polkadot } from '@polkadot-api/descriptors';
 import { createClient } from 'polkadot-api';

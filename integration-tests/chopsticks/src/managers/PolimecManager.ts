@@ -1,10 +1,9 @@
 import { type Accounts, Asset, AssetLocation, AssetSourceRelation, Chains } from '@/types';
+import { flatObject } from '@/utils.ts';
 import { polimec } from '@polkadot-api/descriptors';
-import { isEqual } from 'lodash';
 import { createClient } from 'polkadot-api';
 import { getWsProvider } from 'polkadot-api/ws-provider/web';
 import { BaseChainManager } from './BaseManager';
-import { normalizeForComparison } from '@/utils.ts';
 
 export class PolimecManager extends BaseChainManager {
   connect() {
@@ -55,25 +54,15 @@ export class PolimecManager extends BaseChainManager {
     const asset_source_relation = this.getAssetSourceRelation(asset);
     const asset_location = AssetLocation(asset, asset_source_relation).value;
     const account_balances_result = await api.apis.FungiblesApi.query_account_balances(account);
-    console.log('Requested asset location in PolimecManager');
-    console.dir(asset_location, { depth: null, colors: true });
-    console.log('\n\n');
     if (account_balances_result.success === true && account_balances_result.value.type === 'V4') {
       const assets = account_balances_result.value.value;
       for (const asset of assets) {
-        if (Bun.deepEquals(normalizeForComparison(asset.id), normalizeForComparison(asset_location))) {
-          console.log('Found asset. Balance is: ', asset.fun.value);
-          console.dir(asset, { depth: null, colors: true });
-          console.log('\n\n');
-          return asset.fun.value;
+        if (Bun.deepEquals(flatObject(asset.id), flatObject(asset_location))) {
+          return asset.fun.value as bigint;
         }
-        console.log('Not it chief: \n');
-        console.dir(asset, { depth: null, colors: true });
-        console.log('\n\n');
       }
     }
-    console.log('Asset not found');
-    console.log('\n\n');
+    console.log('Asset not found using query_account_balances Runtime API');
     return 0n;
   }
 

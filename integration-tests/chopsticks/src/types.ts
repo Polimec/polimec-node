@@ -2,7 +2,6 @@ import {
   XcmV3Junction,
   XcmV3JunctionNetworkId,
   XcmV3Junctions,
-  XcmV3MultiassetAssetId,
   XcmV3MultiassetFungibility,
   XcmVersionedAssets,
   XcmVersionedLocation,
@@ -10,9 +9,8 @@ import {
   type polimec,
   type polkadot,
 } from '@polkadot-api/descriptors';
-import type { Ia5l7mu5a6v49o } from '@polkadot-api/descriptors/dist/common-types';
-import { hexToU8a } from '@polkadot/util';
 import { FixedSizeBinary, type PolkadotClient, type TypedApi } from 'polkadot-api';
+
 type Polimec = typeof polimec;
 type PolkadotHub = typeof pah;
 type Polkadot = typeof polkadot;
@@ -22,10 +20,12 @@ export enum Chains {
   PolkadotHub = 'ws://localhost:8001',
   Polkadot = 'ws://localhost:8002',
 }
+
 export type ChainClient<T extends Chains> = {
   api: TypedApi<ChainToDefinition[T]>;
   client: PolkadotClient;
 };
+
 export const ParaId = {
   [Chains.Polimec]: 3344,
   [Chains.PolkadotHub]: 1000,
@@ -121,7 +121,7 @@ export function NativeAssetLocation(
       }
       return XcmVersionedLocation.V4({
         parents: 1,
-        interior: XcmV3Junctions.X1([XcmV3Junction.Parachain(paraId)]),
+        interior: XcmV3Junctions.X1(XcmV3Junction.Parachain(paraId)),
       });
     case AssetSourceRelation.Self:
       return XcmVersionedLocation.V4({
@@ -170,11 +170,18 @@ export function AssetLocation(
 export function getVersionedAssets(
   assets: [Asset, bigint, AssetSourceRelation][],
 ): XcmVersionedAssets {
-  const final_assets: Ia5l7mu5a6v49o[] = [];
+  const final_assets: {
+    id: { parents: number; interior: XcmV3Junctions };
+    fun: XcmV3MultiassetFungibility;
+  }[] = [];
   for (const [asset, amount, asset_source_relation] of assets) {
     const location = AssetLocation(asset, asset_source_relation);
+    const id = {
+      parents: location.value.parents,
+      interior: location.value.interior as XcmV3Junctions, // We assume that this is not an XCM v2 MultiLocation.
+    };
     final_assets.push({
-      id: location.value,
+      id,
       fun: XcmV3MultiassetFungibility.Fungible(amount),
     });
   }

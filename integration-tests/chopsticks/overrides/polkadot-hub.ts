@@ -1,7 +1,6 @@
 import { INITIAL_BALANCES } from '@/constants';
 import { Accounts, Asset } from '@/types';
 
-
 const weth_location = {
   parents: 2,
   interior: {
@@ -9,18 +8,18 @@ const weth_location = {
       {
         globalConsensus: {
           ethereum: {
-            chainId: 1n
-          }
-        }
+            chainId: 1n,
+          },
+        },
       },
       {
         accountKey20: {
-          key: "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2"
-        }
-      }
-    ]
-  }
-}
+          key: '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2',
+        },
+      },
+    ],
+  },
+};
 
 export const polkadot_hub_storage = {
   System: {
@@ -53,11 +52,6 @@ export const polkadot_hub_storage = {
     ],
   },
   ForeignAssets: {
-    Account: [
-      [[weth_location, Accounts.ALICE], { balance: INITIAL_BALANCES.WETH }]
-    ],
-    Asset: [
-      [[weth_location], { supply: INITIAL_BALANCES.WETH }]
-    ]
-  }
+    Account: [[[weth_location, Accounts.ALICE], { balance: INITIAL_BALANCES.WETH }]],
+  },
 } as const;

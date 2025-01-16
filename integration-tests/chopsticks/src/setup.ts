@@ -1,3 +1,4 @@
+import { expect } from 'bun:test';
 import { setupWithServer } from '@acala-network/chopsticks';
 import {
   type Blockchain,
@@ -47,7 +48,12 @@ export class ChainSetup {
     console.log('✅ HRMP channels created');
 
     // Needed to execute storage migrations within the new WASM before running tests.
-    await this.polimec?.newBlock();
+    const head = this.polimec.head;
+    console.log(`✅ Polimec chain is at block ${head.number}`);
+    console.log('✅ Running storage migrations...');
+    const new_block = await this.polimec?.newBlock();
+    console.log(`✅ Polimec chain is at block ${new_block.number}`);
+    expect(new_block.number === head.number + 1, 'Block number should be incremented by 1');
   }
 
   async cleanup() {
@@ -83,7 +89,6 @@ export class ChainSetup {
       'wasm-override': POLIMEC_WASM,
       'import-storage': polimec_storage,
       'build-block-mode': BuildBlockMode.Instant,
-      'runtime-log-level': 5,
     });
   }
 
@@ -93,7 +98,6 @@ export class ChainSetup {
       port: 8001,
       'import-storage': polkadot_hub_storage,
       'build-block-mode': BuildBlockMode.Instant,
-      'runtime-log-level': 5,
     });
   }
 

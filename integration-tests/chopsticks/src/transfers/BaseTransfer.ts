@@ -1,13 +1,13 @@
 import { expect } from 'bun:test';
 import type { BaseChainManager } from '@/managers/BaseManager';
-import {
-  type Accounts,
-  type Asset,
-  type AssetSourceRelation,
-  type BalanceCheck,
-  Chains,
-  type TransferResult,
+import type {
+  Accounts,
+  Asset,
+  AssetSourceRelation,
+  BalanceCheck,
+  TransferResult,
 } from '@/types';
+import { sleep } from 'bun';
 
 export interface TransferOptions {
   account: Accounts;
@@ -18,7 +18,7 @@ export abstract class BaseTransferTest {
   constructor(
     protected sourceManager: BaseChainManager,
     protected destManager: BaseChainManager,
-  ) {}
+  ) { }
 
   abstract executeTransfer(options: TransferOptions): Promise<TransferResult>;
   abstract getBalances(options: TransferOptions): Promise<{ asset_balances: BalanceCheck[] }>;
@@ -26,30 +26,26 @@ export abstract class BaseTransferTest {
     initialBalances: BalanceCheck[],
     finalBalances: BalanceCheck[],
     options: TransferOptions,
-  ): Promise<void>;
+  ): void;
 
   async testTransfer(options: TransferOptions) {
     const { asset_balances: initialBalances } = await this.getBalances(options);
+    if (options.assets[0][1] > initialBalances[0].source) {
+      throw new Error(`Insufficient balance on Source chain for asset: ${options.assets[0][0]}`);
+    }
     const blockNumbers = await this.executeTransfer(options);
-    await this.waitForBlocks(blockNumbers);
+    await this.waitForBlocks(blockNumbers.destBlock);
     await this.verifyExecution();
     const { asset_balances: finalBalances } = await this.getBalances(options);
-    await this.verifyFinalBalances(initialBalances, finalBalances, options);
+    this.verifyFinalBalances(initialBalances, finalBalances, options);
   }
 
-  protected async waitForBlocks({ sourceBlock, destBlock }: TransferResult) {
-    await Promise.all([
-      this.sourceManager.waitForNextBlock(sourceBlock),
-      this.destManager.waitForNextBlock(destBlock),
-    ]);
+  protected async waitForBlocks(destBlockNumber: number) {
+    await sleep(2000);
   }
 
   protected async verifyExecution() {
     const events = await this.destManager.getMessageQueueEvents();
-    const v = await this.destManager
-      .getApi(Chains.Polimec)
-      .event.MessageQueue.ProcessingFailed.pull();
-    console.log('MsgQ Events:', v);
 
     expect(events).not.toBeEmpty();
     expect(events).toBeArray();

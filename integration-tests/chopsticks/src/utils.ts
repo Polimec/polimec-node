@@ -94,7 +94,7 @@ export const createDotMultiHopTransferData = (amount: bigint) => {
 
   return {
     dest,
-    assets: getVersionedAssets([[Asset.DOT, amount]], AssetSourceRelation.Self),
+    assets: getVersionedAssets([[Asset.DOT, amount, AssetSourceRelation.Self]]),
     assets_transfer_type: Enum('Teleport'),
     remote_fees_id: XcmVersionedAssetId.V3(
       XcmV3MultiassetAssetId.Concrete({
@@ -115,26 +115,22 @@ export function unwrap<T>(value: T | undefined, errorMessage = 'Value is undefin
   return value;
 }
 
-export function normalizeForComparison(obj: any): any {
+export function flatObject(obj: unknown): unknown {
   if (obj === null || obj === undefined) {
     return obj;
   }
-
-  if (obj instanceof Object && 'asHex' in obj) {
-    return obj.asHex();
+  if (obj instanceof Object && typeof (obj as { asHex?: unknown }).asHex === 'function') {
+    return (obj as { asHex: () => unknown }).asHex();
   }
-
   if (typeof obj === 'object') {
     if (Array.isArray(obj)) {
-      return obj.map(normalizeForComparison);
+      return obj.map(flatObject);
     }
-
-    const normalized: any = {};
+    const normalized: Record<string, unknown> = {};
     for (const [key, value] of Object.entries(obj)) {
-      normalized[key] = normalizeForComparison(value);
+      normalized[key] = flatObject(value);
     }
     return normalized;
   }
-
   return obj;
 }
