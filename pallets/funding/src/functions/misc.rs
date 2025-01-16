@@ -1,6 +1,14 @@
 #[allow(clippy::wildcard_imports)]
 use super::*;
+use alloc::string::{String, ToString};
 use polimec_common::ProvideAssetPrice;
+use sp_core::{
+	ecdsa::{Public as EcdsaPublic, Signature as EcdsaSignature},
+	keccak_256,
+	sr25519::{Public as SrPublic, Signature as SrSignature},
+	ByteArray,
+};
+use sp_runtime::traits::Verify;
 
 // Helper functions
 // ATTENTION: if this is called directly, it will not be transactional
@@ -413,9 +421,177 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
+	pub fn get_substrate_message_to_sign(polimec_account: AccountIdOf<T>, project_id: ProjectId) -> Option<String> {
+		let mut message = String::new();
+
+		let polimec_account_ss58_string = T::SS58Conversion::convert(polimec_account.clone());
+		let project_id_string = project_id.to_string();
+		let nonce_string = frame_system::Pallet::<T>::account_nonce(polimec_account).to_string();
+
+		use alloc::fmt::Write;
+		write!(
+			&mut message,
+			"Polimec account: {} - project id: {} - nonce: {}",
+			polimec_account_ss58_string, project_id_string, nonce_string
+		)
+		.ok()?;
+		Some(message)
+	}
+
+	pub fn verify_ethereum_account(
+		mut signature_bytes: [u8; 65],
+		expected_ethereum_account: [u8; 20],
+		polimec_account: AccountIdOf<T>,
+		project_id: ProjectId,
+	) -> bool {
+		match signature_bytes[64] {
+			27 => signature_bytes[64] = 0x00,
+			28 => signature_bytes[64] = 0x01,
+			_v => return false,
+		}
+
+		let hashed_message = typed_data_v4::get_eip_712_message(
+			&T::SS58Conversion::convert(polimec_account.clone()),
+			project_id,
+			frame_system::Pallet::<T>::account_nonce(polimec_account),
+		);
+
+		let ecdsa_signature = EcdsaSignature::from_slice(&signature_bytes).unwrap();
+		let public_compressed: EcdsaPublic = ecdsa_signature.recover_prehashed(&hashed_message).unwrap();
+		let public_uncompressed = k256::ecdsa::VerifyingKey::from_sec1_bytes(&public_compressed).unwrap();
+		let public_uncompressed_point = public_uncompressed.to_encoded_point(false).to_bytes();
+		let derived_ethereum_account: [u8; 20] =
+			keccak_256(&public_uncompressed_point[1..])[12..32].try_into().unwrap();
+
+		derived_ethereum_account == expected_ethereum_account
+	}
+
+	pub fn verify_substrate_account(
+		signature_bytes: [u8; 65],
+		expected_substrate_account: [u8; 32],
+		polimec_account: AccountIdOf<T>,
+		project_id: ProjectId,
+	) -> bool {
+		let message_to_sign = Self::get_substrate_message_to_sign(polimec_account.clone(), project_id).unwrap();
+		let message_bytes = message_to_sign.into_bytes();
+		let signature = SrSignature::from_slice(&signature_bytes[..64]).unwrap();
+		let public = SrPublic::from_slice(&expected_substrate_account).unwrap();
+		signature.verify(message_bytes.as_slice(), &public)
+	}
+
+	pub fn verify_receiving_account_signature(
+		polimec_account: &AccountIdOf<T>,
+		project_id: ProjectId,
+		receiver_account: &Junction,
+		signature_bytes: [u8; 65],
+	) -> DispatchResult {
+		match receiver_account {
+			Junction::AccountId32 { id: substrate_account, .. } => {
+				ensure!(
+					Self::verify_substrate_account(
+						signature_bytes,
+						*substrate_account,
+						polimec_account.clone(),
+						project_id
+					),
+					Error::<T>::BadReceiverAccountSignature
+				);
+			},
+
+			Junction::AccountKey20 { key: expected_ethereum_account, .. } => {
+				ensure!(
+					Self::verify_ethereum_account(
+						signature_bytes,
+						*expected_ethereum_account,
+						polimec_account.clone(),
+						project_id,
+					),
+					Error::<T>::BadReceiverAccountSignature
+				);
+			},
+			_ => return Err(Error::<T>::UnsupportedReceiverAccountJunction.into()),
+		};
+		Ok(())
+	}
+
 	pub fn get_decimals_aware_funding_asset_price(funding_asset: &AcceptedFundingAsset) -> Option<PriceOf<T>> {
 		let funding_asset_id = funding_asset.id();
 		let funding_asset_decimals = T::FundingCurrency::decimals(funding_asset_id);
 		<PriceProviderOf<T>>::get_decimals_aware_price(funding_asset_id, USD_DECIMALS, funding_asset_decimals)
+	}
+}
+
+pub mod typed_data_v4 {
+	use super::*;
+	use hex_literal::hex;
+
+	/// Returns the first part needed for a typed data v4 message. It specifies the entity that requires the signature.
+	pub fn get_domain_separator(name: &str, version: &str, chain_id: u32, verifying_contract: [u8; 20]) -> [u8; 32] {
+		/// EIP-712 domain separator calculation
+		/// RFC: https://eips.ethereum.org/EIPS/eip-712
+		pub const DOMAIN_TYPE_HASH: &[u8; 32] = &[
+			// keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)")
+			0x8b, 0x73, 0xc3, 0xc6, 0x9b, 0xb8, 0xfe, 0x3d, 0x51, 0x2e, 0xcc, 0x4c, 0xf7, 0x59, 0xcc, 0x79, 0x23, 0x9f,
+			0x7b, 0x17, 0x9b, 0x0f, 0xfa, 0xdb, 0xa7, 0x2d, 0xef, 0x6c, 0x7c, 0x5d, 0x5c, 0x4c,
+		];
+
+		let mut data = [0u8; 32 * 5];
+
+		// Copy pre-computed domain type hash
+		data[..32].copy_from_slice(DOMAIN_TYPE_HASH);
+
+		// Hash and copy name
+		let name_hash = keccak_256(name.as_bytes());
+		data[32..64].copy_from_slice(&name_hash);
+
+		// Hash and copy version
+		let version_hash = keccak_256(version.as_bytes());
+		data[64..96].copy_from_slice(&version_hash);
+
+		// Convert chain_id to big-endian bytes and pad left with zeros
+		let chain_id_bytes: [u8; 4] = chain_id.to_be_bytes();
+		data[124..128].copy_from_slice(&chain_id_bytes);
+
+		// Copy contract address with proper padding
+		data[140..160].copy_from_slice(&verifying_contract);
+
+		// Calculate final hash
+		keccak_256(&data)
+	}
+
+	/// Returns the second part needed for a typed data v4 message. It specifies the message details with type information.
+	pub fn get_message(polimec_account: &str, project_id: u32, nonce: u32) -> [u8; 32] {
+		let encoded_message_type =
+			keccak_256(b"ParticipationAuthorization(string polimecAccount,uint32 projectId,uint32 nonce)");
+		dbg!(encoded_message_type);
+
+		let mut data = [0u8; 32 * 4];
+
+		data[..32].copy_from_slice(&encoded_message_type);
+
+		let account_hash = keccak_256(polimec_account.as_bytes());
+		data[32..32 * 2].copy_from_slice(&account_hash);
+
+		let project_id_bytes: [u8; 4] = project_id.to_be_bytes();
+		data[32 * 3 - 4..32 * 3].copy_from_slice(project_id_bytes);
+
+		let nonce_bytes: [u8; 4] = nonce.to_be_bytes();
+		data[32 * 4 - 4..32 * 4].copy_from_slice(&nonce_bytes);
+
+		keccak_256(&data)
+	}
+
+	/// Returns the final message hash that will be signed by the user.
+	pub fn get_eip_712_message(polimec_account: &str, project_id: u32, nonce: u32) -> [u8; 32] {
+		let domain_separator =
+			get_domain_separator("Polimec", "1", 1, hex!("0000000000000000000000000000000000003344"));
+		let message = get_message(polimec_account, project_id, nonce);
+
+		let mut data = Vec::new();
+		data.extend_from_slice(b"\x19\x01");
+		data.extend_from_slice(&domain_separator);
+		data.extend_from_slice(&message);
+
+		keccak_256(&data)
 	}
 }

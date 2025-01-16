@@ -155,6 +155,7 @@ pub mod storage {
 	#[allow(clippy::wildcard_imports)]
 	use super::*;
 	use crate::Balance;
+	use xcm::v4::Junction;
 
 	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo, Serialize, Deserialize)]
 	pub struct ProjectMetadata<BoundedString, Price: FixedPointNumber, AccountId, Cid> {
@@ -180,6 +181,7 @@ pub mod storage {
 		pub funding_destination_account: AccountId,
 		/// Additional metadata
 		pub policy_ipfs_cid: Option<Cid>,
+		pub participants_account_type: ParticipantsAccountType,
 	}
 
 	impl<BoundedString, Price: FixedPointNumber, AccountId, Cid> ProjectMetadata<BoundedString, Price, AccountId, Cid> {
@@ -342,6 +344,7 @@ pub mod storage {
 		pub early_usd_amount: Balance,
 		pub late_usd_amount: Balance,
 		pub when: BlockNumber,
+		pub receiving_account: Junction,
 	}
 
 	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
@@ -359,6 +362,7 @@ pub mod storage {
 		pub mode: ParticipationMode,
 		pub plmc_bond: Balance,
 		pub when: BlockNumber,
+		pub receiving_account: Junction,
 	}
 	impl<ProjectId, Did, Price: FixedPointNumber, AccountId, BlockNumber>
 		BidInfo<ProjectId, Did, Price, AccountId, BlockNumber>
@@ -404,6 +408,7 @@ pub mod storage {
 		pub funding_asset_amount: Balance,
 		pub plmc_bond: Balance,
 		pub when: BlockNumber,
+		pub receiving_account: Junction,
 	}
 
 	/// Represents a bucket that holds a specific amount of tokens at a given price.
@@ -484,7 +489,7 @@ pub mod inner {
 	use super::*;
 	use crate::Balance;
 	use variant_count::VariantCount;
-	use xcm::v4::QueryId;
+	use xcm::v4::{Junction, QueryId};
 
 	pub enum MetadataError {
 		/// The minimum price per token is too low.
@@ -819,6 +824,25 @@ pub mod inner {
 			}
 		}
 	}
+
+	#[derive(
+		Clone, Copy, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen, Serialize, Deserialize,
+	)]
+	pub enum ParticipantsAccountType {
+		Polkadot,
+		Ethereum,
+	}
+	impl ParticipantsAccountType {
+		pub fn junction_is_supported(&self, junction: &Junction) -> bool {
+			match self {
+				// This project expects users to submit a 32 byte account, and sign it with SR25519 crypto
+				ParticipantsAccountType::Polkadot =>
+					matches!(junction, Junction::AccountId32 { network, .. } if network.is_none()),
+				// This project expects users to submit a 20 byte account, and sign it with ECDSA secp256k1 crypto
+				ParticipantsAccountType::Ethereum => matches!(junction, Junction::AccountKey20 { .. }),
+			}
+		}
+	}
 }
 
 pub mod extrinsic {
@@ -828,6 +852,7 @@ pub mod extrinsic {
 	};
 	use frame_system::pallet_prelude::BlockNumberFor;
 	use polimec_common::credentials::{Cid, Did, InvestorType};
+	use xcm::v4::Junction;
 
 	pub struct DoBidParams<T: Config> {
 		pub bidder: AccountIdOf<T>,
@@ -838,6 +863,7 @@ pub mod extrinsic {
 		pub did: Did,
 		pub investor_type: InvestorType,
 		pub whitelisted_policy: Cid,
+		pub receiving_account: Junction,
 	}
 
 	pub struct DoPerformBidParams<T: Config> {
@@ -853,6 +879,7 @@ pub mod extrinsic {
 		pub metadata_ticket_size_bounds: TicketSize,
 		pub total_bids_by_bidder: u32,
 		pub total_bids_for_project: u32,
+		pub receiving_account: Junction,
 	}
 
 	pub struct DoContributeParams<T: Config> {
@@ -864,6 +891,7 @@ pub mod extrinsic {
 		pub did: Did,
 		pub investor_type: InvestorType,
 		pub whitelisted_policy: Cid,
+		pub receiving_account: Junction,
 	}
 
 	pub struct DoPerformContributionParams<'a, T: Config> {
@@ -876,6 +904,7 @@ pub mod extrinsic {
 		pub investor_type: InvestorType,
 		pub did: Did,
 		pub whitelisted_policy: Cid,
+		pub receiving_account: Junction,
 	}
 
 	pub struct BidRefund<T: Config> {

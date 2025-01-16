@@ -4,6 +4,7 @@ use super::*;
 mod helper_functions {
 	use super::*;
 	use polimec_common::USD_DECIMALS;
+	use sp_core::{ecdsa, hexdisplay::AsBytesRef, keccak_256, sr25519, Pair};
 
 	#[test]
 	fn test_usd_price_decimal_aware() {
@@ -189,6 +190,7 @@ mod helper_functions {
 			participation_currencies: vec![AcceptedFundingAsset::USDT].try_into().unwrap(),
 			funding_destination_account: ISSUER_1,
 			policy_ipfs_cid: Some(ipfs_hash()),
+			participants_account_type: ParticipantsAccountType::Polkadot,
 		};
 
 		let project_id = inst.create_community_contributing_project(

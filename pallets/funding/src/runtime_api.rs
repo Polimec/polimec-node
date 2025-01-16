@@ -1,8 +1,7 @@
+use crate::traits::BondingRequirementCalculation;
 #[allow(clippy::wildcard_imports)]
 use crate::*;
-
-use crate::traits::BondingRequirementCalculation;
-use alloc::collections::BTreeMap;
+use alloc::{collections::BTreeMap, string::String};
 use frame_support::traits::fungibles::{Inspect, InspectEnumerable};
 use itertools::Itertools;
 use parity_scale_codec::{Decode, Encode};
@@ -10,7 +9,6 @@ use polimec_common::{credentials::InvestorType, ProvideAssetPrice, USD_DECIMALS}
 use scale_info::TypeInfo;
 use sp_core::Get;
 use sp_runtime::traits::Zero;
-
 #[derive(Debug, Clone, PartialEq, Eq, Encode, Decode, TypeInfo)]
 pub struct ProjectParticipationIds<T: Config> {
 	account: AccountIdOf<T>,
@@ -56,7 +54,7 @@ sp_api::decl_runtime_apis! {
 		fn projects_by_did(did: Did) -> Vec<ProjectId>;
 	}
 
-	#[api_version(3)]
+	#[api_version(4)]
 	pub trait ExtrinsicHelpers<T: Config> {
 		/// Get the current price of a contribution token (either current bucket in the auction, or WAP in contribution phase),
 		/// and calculate the amount of tokens that can be bought with the given amount USDT/USDC/DOT.
@@ -74,6 +72,10 @@ sp_api::decl_runtime_apis! {
 
 		/// Gets the minimum and maximum amount of FundingAsset a user can input in the UI.
 		fn get_funding_asset_min_max_amounts(project_id: ProjectId, did: Did, funding_asset: AcceptedFundingAsset, investor_type: InvestorType) -> Option<(Balance, Balance)>;
+
+		/// Gets the hex encoded bytes of the message needed to be signed by the receiving account to participate in the project.
+		/// The message will first be prefixed with a blockchain-dependent string, then hashed, and then signed.
+		fn get_message_to_sign_by_receiving_account(project_id: ProjectId, polimec_account: AccountIdOf<T>) -> Option<String>;
 
 	}
 }
@@ -349,6 +351,13 @@ impl<T: Config> Pallet<T> {
 		let funding_asset_max_ticket = funding_asset_price.reciprocal()?.saturating_mul_int(max_usd_ticket);
 
 		Some((funding_asset_min_ticket, funding_asset_max_ticket))
+	}
+
+	pub fn get_message_to_sign_by_receiving_account(
+		project_id: ProjectId,
+		polimec_account: AccountIdOf<T>,
+	) -> Option<String> {
+		Pallet::<T>::get_substrate_message_to_sign(polimec_account, project_id)
 	}
 
 	pub fn all_project_participations_by_did(project_id: ProjectId, did: Did) -> Vec<ProjectParticipationIds<T>> {

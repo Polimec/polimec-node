@@ -15,7 +15,7 @@ use parachains_common::DAYS;
 use polimec_common::{ProvideAssetPrice, ReleaseSchedule, USD_DECIMALS, USD_UNIT};
 use polimec_common_test_utils::{generate_did_from_account, get_mock_jwt_with_cid};
 use sp_arithmetic::{traits::Zero, Percent, Perquintill};
-use sp_runtime::TokenError;
+use sp_runtime::{traits::Convert, TokenError};
 use sp_std::cell::RefCell;
 use std::iter::zip;
 use ParticipationMode::{Classic, OTM};
@@ -107,6 +107,7 @@ pub mod defaults {
 			participation_currencies: vec![AcceptedFundingAsset::USDT].try_into().unwrap(),
 			funding_destination_account: issuer,
 			policy_ipfs_cid: Some(metadata_hash),
+			participants_account_type: ParticipantsAccountType::Polkadot,
 		}
 	}
 
@@ -142,6 +143,7 @@ pub mod defaults {
 			participation_currencies: vec![AcceptedFundingAsset::USDT].try_into().unwrap(),
 			funding_destination_account: ISSUER_1,
 			policy_ipfs_cid: Some(metadata_hash),
+			participants_account_type: ParticipantsAccountType::Polkadot,
 		}
 	}
 

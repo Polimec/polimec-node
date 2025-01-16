@@ -441,8 +441,9 @@ impl<
 					&account.clone(),
 					project_id,
 					usd_amount,
-					generate_did_from_account(account),
+					generate_did_from_account(account.clone()),
 					project_policy.clone(),
+					Junction::AccountId32 { network: None, id: T::AccountId32Conversion::convert(account) },
 				)
 			})?;
 		}
@@ -456,7 +457,7 @@ impl<
 			self.execute(|| {
 				let did = generate_did_from_account(bid.bidder.clone());
 				let params = DoBidParams::<T> {
-					bidder: bid.bidder,
+					bidder: bid.bidder.clone(),
 					project_id,
 					ct_amount: bid.amount,
 					mode: bid.mode,
@@ -464,6 +465,10 @@ impl<
 					did,
 					investor_type: InvestorType::Institutional,
 					whitelisted_policy: project_policy.clone(),
+					receiving_account: Junction::AccountId32 {
+						network: None,
+						id: T::AccountId32Conversion::convert(bid.bidder),
+					},
 				};
 				crate::Pallet::<T>::do_bid(params)
 			})?;
@@ -485,7 +490,7 @@ impl<
 					// We use institutional to be able to test most multipliers.
 					let investor_type = InvestorType::Institutional;
 					let params = DoContributeParams::<T> {
-						contributor: cont.contributor,
+						contributor: cont.contributor.clone(),
 						project_id,
 						ct_amount: cont.amount,
 						mode: cont.mode,
@@ -493,6 +498,10 @@ impl<
 						did,
 						investor_type,
 						whitelisted_policy: project_policy.clone(),
+						receiving_account: Junction::AccountId32 {
+							network: None,
+							id: T::AccountId32Conversion::convert(cont.contributor),
+						},
 					};
 					self.execute(|| crate::Pallet::<T>::do_contribute(params))?;
 				},
