@@ -1,12 +1,13 @@
 import { type Accounts, Asset, AssetSourceRelation, Chains } from '@/types';
 import { polkadot } from '@polkadot-api/descriptors';
 import { createClient } from 'polkadot-api';
+import { withPolkadotSdkCompat } from 'polkadot-api/polkadot-sdk-compat';
 import { getWsProvider } from 'polkadot-api/ws-provider/web';
 import { BaseChainManager } from './BaseManager';
 
 export class PolkadotManager extends BaseChainManager {
   connect() {
-    const client = createClient(getWsProvider(this.getChainType()));
+    const client = createClient(withPolkadotSdkCompat(getWsProvider(this.getChainType())));
     const api = client.getTypedApi(polkadot);
 
     // Verify connection
@@ -59,5 +60,11 @@ export class PolkadotManager extends BaseChainManager {
     const api = this.getApi(Chains.Polkadot);
     const events = await api.event.XcmPallet.FeesPaid.pull();
     return (events[0]?.payload.fees[0].fun.value as bigint) || 0n;
+  }
+
+  async getTransactionFee() {
+    const api = this.getApi(Chains.Polkadot);
+    const events = await api.event.TransactionPayment.TransactionFeePaid.pull();
+    return (events[0]?.payload.actual_fee as bigint) || 0n;
   }
 }

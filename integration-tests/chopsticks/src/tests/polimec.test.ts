@@ -19,17 +19,12 @@ describe('Polimec -> Hub Transfer Tests', () => {
   });
   afterAll(async () => await chainSetup.cleanup());
 
-  async function getBalance(account: Accounts, asset: Asset) {
-    return await sourceManager.getAssetBalanceOf(account, asset);
-  }
-  test('Balance query', () => getBalance(Accounts.BOB, Asset.USDT), { timeout: 250000000 });
-
   test(
     'Send USDC to Hub',
     () =>
       transferTest.testTransfer({
         account: Accounts.BOB,
-        assets: [[Asset.USDC, TRANSFER_AMOUNTS.TOKENS, AssetSourceRelation.Sibling]]
+        assets: [[Asset.USDC, TRANSFER_AMOUNTS.TOKENS, AssetSourceRelation.Sibling]],
       }),
     { timeout: 25000 },
   );
@@ -39,7 +34,7 @@ describe('Polimec -> Hub Transfer Tests', () => {
     () =>
       transferTest.testTransfer({
         account: Accounts.BOB,
-        assets: [[Asset.USDT, TRANSFER_AMOUNTS.TOKENS, AssetSourceRelation.Sibling]]
+        assets: [[Asset.USDT, TRANSFER_AMOUNTS.TOKENS, AssetSourceRelation.Sibling]],
       }),
     { timeout: 25000 },
   );
@@ -49,7 +44,7 @@ describe('Polimec -> Hub Transfer Tests', () => {
     () =>
       transferTest.testTransfer({
         account: Accounts.BOB,
-        assets: [[Asset.DOT, TRANSFER_AMOUNTS.NATIVE, AssetSourceRelation.Parent]]
+        assets: [[Asset.DOT, TRANSFER_AMOUNTS.NATIVE, AssetSourceRelation.Parent]],
       }),
     { timeout: 25000 },
   );

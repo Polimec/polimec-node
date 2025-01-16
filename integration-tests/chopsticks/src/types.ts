@@ -70,9 +70,9 @@ export interface TransferDataParams {
 }
 
 export enum Asset {
-  USDT = 1984,
   DOT = 10,
   USDC = 1337,
+  USDT = 1984,
   WETH = 10000,
 }
 

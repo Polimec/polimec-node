@@ -1,12 +1,6 @@
 import { expect } from 'bun:test';
 import type { BaseChainManager } from '@/managers/BaseManager';
-import type {
-  Accounts,
-  Asset,
-  AssetSourceRelation,
-  BalanceCheck,
-  TransferResult,
-} from '@/types';
+import type { Accounts, Asset, AssetSourceRelation, BalanceCheck, TransferResult } from '@/types';
 import { sleep } from 'bun';
 
 export interface TransferOptions {
@@ -18,7 +12,7 @@ export abstract class BaseTransferTest {
   constructor(
     protected sourceManager: BaseChainManager,
     protected destManager: BaseChainManager,
-  ) { }
+  ) {}
 
   abstract executeTransfer(options: TransferOptions): Promise<TransferResult>;
   abstract getBalances(options: TransferOptions): Promise<{ asset_balances: BalanceCheck[] }>;

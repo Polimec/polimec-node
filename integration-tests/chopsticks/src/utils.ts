@@ -134,3 +134,4 @@ export function flatObject(obj: unknown): unknown {
   }
   return obj;
 }
+export const abs = (n: bigint) => (n < 0n ? -n : n);
