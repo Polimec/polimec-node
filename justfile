@@ -27,7 +27,7 @@ dry-run-benchmarks mode="fast-mode" pallet="*" extrinsic="*" :
     # Build the project with each mode
     for mode in "${modes[@]}"; do \
         echo -e "\033[34mBuilding runtime with mode: \033[92m$mode\033[34m\033[0m"
-        cargo build --features runtime-benchmarks,$mode --release
+        cargo build --features development-settings,runtime-benchmarks,$mode --release
 
         echo -e "\033[34mRunning benchmarks"
 

@@ -470,7 +470,7 @@ pub mod pallet {
 	pub struct MaxParticipationsPerUser<T: Config>(PhantomData<T>);
 	impl<T: Config> Get<u32> for MaxParticipationsPerUser<T> {
 		fn get() -> u32 {
-			T::MaxContributionsPerUser::get() + T::MaxBidsPerUser::get() + T::MaxEvaluationsPerUser::get()
+			T::MaxBidsPerUser::get() + T::MaxEvaluationsPerUser::get()
 		}
 	}
 
@@ -495,7 +495,7 @@ pub mod pallet {
 		/// The metadata of a project was modified.
 		MetadataEdited { project_id: ProjectId, metadata: ProjectMetadataOf<T> },
 		/// Project transitioned to a new phase.
-		ProjectPhaseTransition { project_id: ProjectId, phase: ProjectStatus<BlockNumberFor<T>> },
+		ProjectPhaseTransition { project_id: ProjectId, phase: ProjectStatus },
 		/// A `bonder` bonded an `amount` of PLMC for `project_id`.
 		Evaluation { project_id: ProjectId, evaluator: AccountIdOf<T>, id: u32, plmc_amount: Balance },
 		/// A bid was made for a project
@@ -880,90 +880,6 @@ pub mod pallet {
 			Self::do_bid(params)
 		}
 
-		#[pallet::call_index(8)]
-		#[pallet::weight(WeightInfoOf::<T>::end_auction(
-			<T as Config>::MaxBidsPerProject::get() / 2,
-			<T as Config>::MaxBidsPerProject::get() / 2,
-		)
-		.max(WeightInfoOf::<T>::end_auction(
-			<T as Config>::MaxBidsPerProject::get(),
-			0u32,
-		))
-		.max(WeightInfoOf::<T>::end_auction(
-			0u32,
-			<T as Config>::MaxBidsPerProject::get(),
-		)))]
-		pub fn end_auction(origin: OriginFor<T>, project_id: ProjectId) -> DispatchResultWithPostInfo {
-			ensure_signed(origin)?;
-			Self::do_end_auction(project_id)
-		}
-
-		/// Buy tokens in the Community or Remainder round at the price set in the Auction Round
-		#[pallet::call_index(9)]
-		#[pallet::weight(
-			WeightInfoOf::<T>::contribute(T::MaxContributionsPerUser::get())
-		)]
-		pub fn contribute(
-			origin: OriginFor<T>,
-			jwt: UntrustedToken,
-			project_id: ProjectId,
-			#[pallet::compact] ct_amount: Balance,
-			mode: ParticipationMode,
-			funding_asset: AcceptedFundingAsset,
-		) -> DispatchResultWithPostInfo {
-			let (contributor, did, investor_type, whitelisted_policy) =
-				T::InvestorOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get())?;
-			let receiving_account = Junction::AccountId32 {
-				network: Some(NetworkId::Polkadot),
-				id: T::AccountId32Conversion::convert(contributor.clone()),
-			};
-			let params = DoContributeParams::<T> {
-				contributor,
-				project_id,
-				ct_amount,
-				mode,
-				funding_asset,
-				did,
-				investor_type,
-				whitelisted_policy,
-				receiving_account,
-			};
-			Self::do_contribute(params)
-		}
-
-		#[pallet::call_index(90)]
-		#[pallet::weight(
-			WeightInfoOf::<T>::contribute(T::MaxContributionsPerUser::get())
-		)]
-		pub fn contribute_with_receiving_account(
-			origin: OriginFor<T>,
-			jwt: UntrustedToken,
-			project_id: ProjectId,
-			#[pallet::compact] ct_amount: Balance,
-			mode: ParticipationMode,
-			funding_asset: AcceptedFundingAsset,
-			receiving_account: Junction,
-			signature_bytes: [u8; 65],
-		) -> DispatchResultWithPostInfo {
-			let (contributor, did, investor_type, whitelisted_policy) =
-				T::InvestorOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get())?;
-
-			Self::verify_receiving_account_signature(&contributor, project_id, &receiving_account, signature_bytes)?;
-
-			let params = DoContributeParams::<T> {
-				contributor,
-				project_id,
-				ct_amount,
-				mode,
-				funding_asset,
-				did,
-				investor_type,
-				whitelisted_policy,
-				receiving_account,
-			};
-			Self::do_contribute(params)
-		}
-
 		#[pallet::call_index(10)]
 		#[pallet::weight(WeightInfoOf::<T>::end_funding_project_successful())]
 		pub fn end_funding(origin: OriginFor<T>, project_id: ProjectId) -> DispatchResult {
@@ -1003,20 +919,6 @@ pub mod pallet {
 			let _caller = ensure_signed(origin)?;
 			let bid = Bids::<T>::get((project_id, bidder, bid_id)).ok_or(Error::<T>::ParticipationNotFound)?;
 			Self::do_settle_bid(bid, project_id)
-		}
-
-		#[pallet::call_index(17)]
-		#[pallet::weight(WeightInfoOf::<T>::settle_contribution_project_successful())]
-		pub fn settle_contribution(
-			origin: OriginFor<T>,
-			project_id: ProjectId,
-			contributor: AccountIdOf<T>,
-			contribution_id: u32,
-		) -> DispatchResult {
-			let _caller = ensure_signed(origin)?;
-			let bid = Contributions::<T>::get((project_id, contributor, contribution_id))
-				.ok_or(Error::<T>::ParticipationNotFound)?;
-			Self::do_settle_contribution(bid, project_id)
 		}
 
 		#[pallet::call_index(18)]

@@ -24,7 +24,7 @@ impl<T: Config> Pallet<T> {
 	}
 
 	pub fn create_bucket_from_metadata(metadata: &ProjectMetadataOf<T>) -> Result<BucketOf<T>, DispatchError> {
-		let auction_allocation_size = metadata.auction_round_allocation_percentage * metadata.total_allocation_size;
+		let auction_allocation_size = metadata.total_allocation_size;
 		let bucket_delta_amount = Percent::from_percent(10) * auction_allocation_size;
 		let ten_percent_in_price: <T as Config>::Price =
 			PriceOf::<T>::checked_from_rational(1, 10).ok_or(Error::<T>::BadMath)?;
@@ -397,8 +397,8 @@ impl<T: Config> Pallet<T> {
 	pub(crate) fn transition_project(
 		project_id: ProjectId,
 		mut project_details: ProjectDetailsOf<T>,
-		current_round: ProjectStatus<BlockNumberFor<T>>,
-		next_round: ProjectStatus<BlockNumberFor<T>>,
+		current_round: ProjectStatus,
+		next_round: ProjectStatus,
 		maybe_round_duration: Option<BlockNumberFor<T>>,
 		skip_end_check: bool,
 	) -> DispatchResult {

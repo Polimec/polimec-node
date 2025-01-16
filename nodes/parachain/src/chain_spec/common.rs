@@ -110,6 +110,7 @@ pub fn genesis_config(genesis_config_params: GenesisConfigParams) -> serde_json:
 	let usdt_id = AcceptedFundingAsset::USDT.id();
 	let usdc_id = AcceptedFundingAsset::USDC.id();
 	let dot_id = AcceptedFundingAsset::DOT.id();
+	let weth_id = AcceptedFundingAsset::WETH.id();
 
 	serde_json::json!({
 		"balances": {
@@ -136,18 +137,26 @@ pub fn genesis_config(genesis_config_params: GenesisConfigParams) -> serde_json:
 				&AccountIdConversion::<AccountId>::into_account_truncating(&<Runtime as pallet_funding::Config>::PalletId::get()),
 				true,
 				70000,
-			)],
+			),
+			(
+				AcceptedFundingAsset::WETH.id(),
+				&AccountIdConversion::<AccountId>::into_account_truncating(&<Runtime as pallet_funding::Config>::PalletId::get()),
+				true,
+				70000,
+			),],
 			// (id, name, symbol, decimals)
 			"metadata": vec![
 				(usdt_id.clone(), b"Local USDT", b"USDT", 6),
 				(usdc_id.clone(), b"Local USDC", b"USDC", 6),
-				(dot_id.clone(), b"Local DOT ", b"DOT ", 10)
+				(dot_id.clone(), b"Local DOT ", b"DOT ", 10),
+				(weth_id.clone(), b"Local WETH", b"WETH", 18),
 			],
 			// (id, account_id, amount)
 			"accounts": vec![
 				(usdt_id, funding_assets_owner.clone(), 1000000000000u64),
 				(usdc_id, funding_assets_owner.clone(), 1000000000000u64),
-				(dot_id, funding_assets_owner.clone(), 1000000000000u64)
+				(dot_id, funding_assets_owner.clone(), 1000000000000u64),
+				(weth_id, funding_assets_owner.clone(), 1000000000000u64),
 			],
 		},
 		"parachainStaking": {

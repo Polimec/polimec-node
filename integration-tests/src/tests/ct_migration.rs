@@ -157,16 +157,12 @@ fn migrations_are_vested(project_id: u32, accounts: Vec<AccountId>) {
 
 fn create_settled_project() -> (ProjectId, Vec<AccountId>) {
 	let mut inst = IntegrationInstantiator::new(None);
+
+	let project_metadata = default_project_metadata(ISSUER.into());
+	let evaluations = inst.generate_successful_evaluations(project_metadata.clone(), 5);
+	let bids = inst.generate_bids_from_total_ct_percent(project_metadata.clone(), 95, 8);
 	PolimecNet::execute_with(|| {
-		let project_id = inst.create_finished_project(
-			default_project_metadata(ISSUER.into()),
-			ISSUER.into(),
-			None,
-			default_evaluations(),
-			default_bids(),
-			default_community_contributions(),
-			default_remainder_contributions(),
-		);
+		let project_id = inst.create_finished_project(project_metadata, ISSUER.into(), None, evaluations, bids);
 		assert_eq!(
 			inst.go_to_next_state(project_id),
 			pallet_funding::ProjectStatus::SettlementStarted(FundingOutcome::Success)
@@ -214,15 +210,10 @@ fn full_pallet_migration_test() {
 fn create_project_with_unsettled_participation(participation_type: ParticipationType) -> (ProjectId, Vec<AccountId>) {
 	let mut inst = IntegrationInstantiator::new(None);
 	PolimecNet::execute_with(|| {
-		let project_id = inst.create_finished_project(
-			default_project_metadata(ISSUER.into()),
-			ISSUER.into(),
-			None,
-			default_evaluations(),
-			default_bids(),
-			default_community_contributions(),
-			default_remainder_contributions(),
-		);
+		let project_metadata = default_project_metadata(ISSUER.into());
+		let evaluations = inst.generate_successful_evaluations(project_metadata.clone(), 5);
+		let bids = inst.generate_bids_from_total_ct_percent(project_metadata.clone(), 95, 8);
+		let project_id = inst.create_finished_project(project_metadata, ISSUER.into(), None, evaluations, bids);
 
 		assert_eq!(
 			inst.go_to_next_state(project_id),
@@ -231,14 +222,11 @@ fn create_project_with_unsettled_participation(participation_type: Participation
 		let evaluations_to_settle =
 			pallet_funding::Evaluations::<PolimecRuntime>::iter_prefix_values((project_id,)).collect_vec();
 		let bids_to_settle = pallet_funding::Bids::<PolimecRuntime>::iter_prefix_values((project_id,)).collect_vec();
-		let contributions_to_settle =
-			pallet_funding::Contributions::<PolimecRuntime>::iter_prefix_values((project_id,)).collect_vec();
 
 		let mut participants: Vec<AccountId> = evaluations_to_settle
 			.iter()
 			.map(|eval| eval.evaluator.clone())
 			.chain(bids_to_settle.iter().map(|bid| bid.bidder.clone()))
-			.chain(contributions_to_settle.iter().map(|contribution| contribution.contributor.clone()))
 			.collect();
 		participants.sort();
 		participants.dedup();
@@ -259,35 +247,16 @@ fn create_project_with_unsettled_participation(participation_type: Participation
 			PolimecFunding::settle_bid(RuntimeOrigin::signed(alice()), project_id, bid.bidder.clone(), bid.id).unwrap()
 		}
 
-		let start = if participation_type == ParticipationType::Contribution { 1 } else { 0 };
-		for contribution in contributions_to_settle[start..].iter() {
-			PolimecFunding::settle_contribution(
-				RuntimeOrigin::signed(alice()),
-				project_id,
-				contribution.contributor.clone(),
-				contribution.id,
-			)
-			.unwrap()
-		}
-
 		let evaluations =
 			pallet_funding::Evaluations::<PolimecRuntime>::iter_prefix_values((project_id,)).collect_vec();
 		let bids = pallet_funding::Bids::<PolimecRuntime>::iter_prefix_values((project_id,)).collect_vec();
-		let contributions =
-			pallet_funding::Contributions::<PolimecRuntime>::iter_prefix_values((project_id,)).collect_vec();
 
 		if participation_type == ParticipationType::Evaluation {
 			assert_eq!(evaluations.len(), 1);
 			assert_eq!(bids.len(), 0);
-			assert_eq!(contributions.len(), 0);
 		} else if participation_type == ParticipationType::Bid {
 			assert_eq!(evaluations.len(), 0);
 			assert_eq!(bids.len(), 1);
-			assert_eq!(contributions.len(), 0);
-		} else {
-			assert_eq!(evaluations.len(), 0);
-			assert_eq!(bids.len(), 0);
-			assert_eq!(contributions.len(), 1);
 		}
 
 		(project_id, participants)
@@ -300,9 +269,8 @@ fn cannot_start_pallet_migration_with_unsettled_participations() {
 
 	let tup_1 = create_project_with_unsettled_participation(ParticipationType::Evaluation);
 	let tup_2 = create_project_with_unsettled_participation(ParticipationType::Bid);
-	let tup_3 = create_project_with_unsettled_participation(ParticipationType::Contribution);
 
-	let tups = vec![tup_1, tup_2, tup_3];
+	let tups = vec![tup_1, tup_2];
 
 	for (project_id, _participants) in tups.into_iter() {
 		PolimecNet::execute_with(|| {
