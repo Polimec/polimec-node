@@ -65,7 +65,7 @@ pub struct SampleClaims<AccountId> {
 	pub did: Did,
 }
 
-pub type Did = BoundedVec<u8, ConstU32<57>>;
+pub type Did = BoundedVec<u8, ConstU32<64>>;
 pub type Cid = BoundedVec<u8, ConstU32<96>>;
 
 pub struct EnsureInvestor<T>(sp_std::marker::PhantomData<T>);
