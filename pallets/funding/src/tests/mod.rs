@@ -6,26 +6,24 @@ use defaults::*;
 use frame_support::{
 	assert_err, assert_noop, assert_ok,
 	traits::{
-		fungible::{Inspect as FungibleInspect, InspectHold as FungibleInspectHold, MutateFreeze, MutateHold},
+		fungible::{MutateFreeze, MutateHold},
 		Get,
 	},
 };
 use itertools::Itertools;
 use parachains_common::DAYS;
-use polimec_common::{ProvideAssetPrice, ReleaseSchedule, USD_DECIMALS, USD_UNIT};
+use polimec_common::{ProvideAssetPrice, USD_DECIMALS, USD_UNIT};
 use polimec_common_test_utils::{generate_did_from_account, get_mock_jwt_with_cid};
 use sp_arithmetic::{traits::Zero, Percent, Perquintill};
 use sp_runtime::{traits::Convert, TokenError};
 use sp_std::cell::RefCell;
 use std::iter::zip;
-use ParticipationMode::{Classic, OTM};
+use InvestorType::{self, *};
 
 #[path = "1_application.rs"]
 mod application;
 #[path = "3_auction.rs"]
 mod auction;
-#[path = "4_contribution.rs"]
-mod community;
 #[path = "7_ct_migration.rs"]
 mod ct_migration;
 #[path = "2_evaluation.rs"]
@@ -62,17 +60,33 @@ const BIDDER_3: AccountId = 33;
 const BIDDER_4: AccountId = 34;
 const BIDDER_5: AccountId = 35;
 const BIDDER_6: AccountId = 36;
-const BUYER_1: AccountId = 41;
-const BUYER_2: AccountId = 42;
-const BUYER_3: AccountId = 43;
-const BUYER_4: AccountId = 44;
-const BUYER_5: AccountId = 45;
-const BUYER_6: AccountId = 46;
-const BUYER_7: AccountId = 47;
+
+const fn default_accounts() -> [AccountId; 18] {
+	[
+		ISSUER_1,
+		ISSUER_2,
+		ISSUER_3,
+		ISSUER_4,
+		ISSUER_5,
+		ISSUER_6,
+		ISSUER_7,
+		EVALUATOR_1,
+		EVALUATOR_2,
+		EVALUATOR_3,
+		EVALUATOR_4,
+		EVALUATOR_5,
+		BIDDER_1,
+		BIDDER_2,
+		BIDDER_3,
+		BIDDER_4,
+		BIDDER_5,
+		BIDDER_6,
+	]
+}
 
 pub mod defaults {
 	use super::*;
-	use polimec_common::assets::AcceptedFundingAsset;
+	use polimec_common::assets::AcceptedFundingAsset::{DOT, USDC, USDT, WETH};
 
 	pub fn default_token_information() -> CurrencyMetadata<BoundedVec<u8, StringLimitOf<TestRuntime>>> {
 		CurrencyMetadata { name: bounded_name(), symbol: bounded_symbol(), decimals: CT_DECIMALS }
@@ -91,245 +105,19 @@ pub mod defaults {
 		ProjectMetadata {
 			token_information: CurrencyMetadata { name: bounded_name, symbol: bounded_symbol, decimals: CT_DECIMALS },
 			mainnet_token_max_supply: 8_000_000 * CT_UNIT,
-			total_allocation_size: 1_000_000 * CT_UNIT,
-			auction_round_allocation_percentage: Percent::from_percent(50u8),
+			total_allocation_size: 500_000 * CT_UNIT,
 			minimum_price: decimal_aware_price,
 			bidding_ticket_sizes: BiddingTicketSizes {
-				professional: TicketSize::new(5000 * USD_UNIT, None),
-				institutional: TicketSize::new(5000 * USD_UNIT, None),
+				professional: TicketSize::new(10 * USD_UNIT, None),
+				institutional: TicketSize::new(10 * USD_UNIT, None),
+				retail: TicketSize::new(10 * USD_UNIT, None),
 				phantom: Default::default(),
 			},
-			contributing_ticket_sizes: ContributingTicketSizes {
-				retail: TicketSize::new(USD_UNIT, None),
-				professional: TicketSize::new(USD_UNIT, None),
-				institutional: TicketSize::new(USD_UNIT, None),
-				phantom: Default::default(),
-			},
-			participation_currencies: vec![AcceptedFundingAsset::USDT].try_into().unwrap(),
+			participation_currencies: vec![USDT, USDC, DOT, WETH].try_into().unwrap(),
 			funding_destination_account: issuer,
 			policy_ipfs_cid: Some(metadata_hash),
 			participants_account_type: ParticipantsAccountType::Polkadot,
 		}
-	}
-
-	pub fn knowledge_hub_project() -> ProjectMetadataOf<TestRuntime> {
-		let bounded_name = bounded_name();
-		let bounded_symbol = bounded_symbol();
-		let metadata_hash = ipfs_hash();
-		let base_price = PriceOf::<TestRuntime>::from_float(10.0);
-		let decimal_aware_price = <TestRuntime as Config>::PriceProvider::calculate_decimals_aware_price(
-			base_price,
-			USD_DECIMALS,
-			CT_DECIMALS,
-		)
-		.unwrap();
-
-		ProjectMetadataOf::<TestRuntime> {
-			token_information: CurrencyMetadata { name: bounded_name, symbol: bounded_symbol, decimals: CT_DECIMALS },
-			mainnet_token_max_supply: 8_000_000 * CT_UNIT,
-			total_allocation_size: 100_000 * CT_UNIT,
-			auction_round_allocation_percentage: Percent::from_percent(50u8),
-			minimum_price: decimal_aware_price,
-			bidding_ticket_sizes: BiddingTicketSizes {
-				professional: TicketSize::new(5000 * USD_UNIT, None),
-				institutional: TicketSize::new(5000 * USD_UNIT, None),
-				phantom: Default::default(),
-			},
-			contributing_ticket_sizes: ContributingTicketSizes {
-				retail: TicketSize::new(USD_UNIT, None),
-				professional: TicketSize::new(USD_UNIT, None),
-				institutional: TicketSize::new(USD_UNIT, None),
-				phantom: Default::default(),
-			},
-			participation_currencies: vec![AcceptedFundingAsset::USDT].try_into().unwrap(),
-			funding_destination_account: ISSUER_1,
-			policy_ipfs_cid: Some(metadata_hash),
-			participants_account_type: ParticipantsAccountType::Polkadot,
-		}
-	}
-
-	pub fn default_plmc_balances() -> Vec<UserToPLMCBalance<TestRuntime>> {
-		vec![
-			UserToPLMCBalance::new(ISSUER_1, 10_000_000 * PLMC),
-			UserToPLMCBalance::new(EVALUATOR_1, 10_000_000 * PLMC),
-			UserToPLMCBalance::new(EVALUATOR_2, 10_000_000 * PLMC),
-			UserToPLMCBalance::new(EVALUATOR_3, 10_000_000 * PLMC),
-			UserToPLMCBalance::new(BIDDER_1, 10_000_000 * PLMC),
-			UserToPLMCBalance::new(BIDDER_2, 10_000_000 * PLMC),
-			UserToPLMCBalance::new(BUYER_1, 10_000_000 * PLMC),
-			UserToPLMCBalance::new(BUYER_2, 10_000_000 * PLMC),
-			UserToPLMCBalance::new(BUYER_3, 10_000_000 * PLMC),
-			UserToPLMCBalance::new(BUYER_4, 10_000_000 * PLMC),
-			UserToPLMCBalance::new(BUYER_5, 10_000_000 * PLMC),
-		]
-	}
-
-	pub fn default_usdt_balances() -> Vec<UserToFundingAsset<TestRuntime>> {
-		vec![
-			(ISSUER_1, 10_000_000 * USDT_UNIT).into(),
-			(EVALUATOR_1, 10_000_000 * USDT_UNIT).into(),
-			(EVALUATOR_2, 10_000_000 * USDT_UNIT).into(),
-			(EVALUATOR_3, 10_000_000 * USDT_UNIT).into(),
-			(BIDDER_1, 10_000_000 * USDT_UNIT).into(),
-			(BIDDER_2, 10_000_000 * USDT_UNIT).into(),
-			(BUYER_1, 10_000_000 * USDT_UNIT).into(),
-			(BUYER_2, 10_000_000 * USDT_UNIT).into(),
-			(BUYER_3, 10_000_000 * USDT_UNIT).into(),
-			(BUYER_4, 10_000_000 * USDT_UNIT).into(),
-			(BUYER_5, 10_000_000 * USDT_UNIT).into(),
-		]
-	}
-
-	pub fn default_evaluations() -> Vec<EvaluationParams<TestRuntime>> {
-		vec![
-			EvaluationParams::from((EVALUATOR_1, 500_000 * USD_UNIT)),
-			EvaluationParams::from((EVALUATOR_2, 250_000 * USD_UNIT)),
-			EvaluationParams::from((EVALUATOR_3, 320_000 * USD_UNIT)),
-		]
-	}
-
-	pub fn default_eth_evaluations() -> Vec<EvaluationParams<TestRuntime>> {
-		vec![
-			EvaluationParams::new(
-				EVALUATOR_1,
-				500_000 * USD_UNIT,
-				Junction::AccountKey20 { network: Some(NetworkId::Ethereum { chain_id: 1 }), key: [0u8; 20] },
-			),
-			EvaluationParams::new(
-				EVALUATOR_2,
-				250_000 * USD_UNIT,
-				Junction::AccountKey20 { network: Some(NetworkId::Ethereum { chain_id: 1 }), key: [1u8; 20] },
-			),
-			EvaluationParams::new(
-				EVALUATOR_3,
-				320_000 * USD_UNIT,
-				Junction::AccountKey20 { network: Some(NetworkId::Ethereum { chain_id: 1 }), key: [2u8; 20] },
-			),
-		]
-	}
-
-	pub fn knowledge_hub_evaluations() -> Vec<EvaluationParams<TestRuntime>> {
-		vec![
-			EvaluationParams::from((EVALUATOR_1, 75_000 * USDT_UNIT)),
-			EvaluationParams::from((EVALUATOR_2, 65_000 * USDT_UNIT)),
-			EvaluationParams::from((EVALUATOR_3, 60_000 * USDT_UNIT)),
-		]
-	}
-
-	pub fn default_failing_evaluations() -> Vec<EvaluationParams<TestRuntime>> {
-		vec![
-			EvaluationParams::from((EVALUATOR_1, 3_000 * USD_UNIT)),
-			EvaluationParams::from((EVALUATOR_2, 1_000 * USD_UNIT)),
-		]
-	}
-
-	pub fn default_bids() -> Vec<BidParams<TestRuntime>> {
-		vec![
-			BidParams::from((BIDDER_1, 400_000 * CT_UNIT, ParticipationMode::Classic(1u8), AcceptedFundingAsset::USDT)),
-			BidParams::from((BIDDER_2, 50_000 * CT_UNIT, ParticipationMode::OTM, AcceptedFundingAsset::USDT)),
-		]
-	}
-
-	pub fn knowledge_hub_bids() -> Vec<BidParams<TestRuntime>> {
-		// This should reflect the bidding currency, which currently is USDT
-		vec![
-			BidParams::from((BIDDER_1, 10_000 * CT_UNIT, ParticipationMode::Classic(1u8), AcceptedFundingAsset::USDT)),
-			BidParams::from((BIDDER_2, 20_000 * CT_UNIT, ParticipationMode::Classic(1u8), AcceptedFundingAsset::USDT)),
-			BidParams::from((BIDDER_3, 20_000 * CT_UNIT, ParticipationMode::Classic(1u8), AcceptedFundingAsset::USDT)),
-			BidParams::from((BIDDER_4, 10_000 * CT_UNIT, ParticipationMode::Classic(1u8), AcceptedFundingAsset::USDT)),
-			BidParams::from((BIDDER_5, 5_000 * CT_UNIT, ParticipationMode::Classic(1u8), AcceptedFundingAsset::USDT)),
-			BidParams::from((BIDDER_6, 5_000 * CT_UNIT, ParticipationMode::Classic(1u8), AcceptedFundingAsset::USDT)),
-		]
-	}
-
-	pub fn default_community_contributions() -> Vec<ContributionParams<TestRuntime>> {
-		vec![
-			ContributionParams::from((
-				BUYER_1,
-				50_000 * CT_UNIT,
-				ParticipationMode::Classic(1u8),
-				AcceptedFundingAsset::USDT,
-			)),
-			ContributionParams::from((
-				BUYER_2,
-				130_000 * CT_UNIT,
-				ParticipationMode::Classic(5u8),
-				AcceptedFundingAsset::USDT,
-			)),
-			ContributionParams::from((BUYER_3, 30_000 * CT_UNIT, ParticipationMode::OTM, AcceptedFundingAsset::USDT)),
-			ContributionParams::from((
-				BUYER_4,
-				210_000 * CT_UNIT,
-				ParticipationMode::Classic(3u8),
-				AcceptedFundingAsset::USDT,
-			)),
-			ContributionParams::from((BUYER_5, 10_000 * CT_UNIT, ParticipationMode::OTM, AcceptedFundingAsset::USDT)),
-		]
-	}
-
-	pub fn default_remainder_contributions() -> Vec<ContributionParams<TestRuntime>> {
-		vec![
-			ContributionParams::from((
-				EVALUATOR_2,
-				20_000 * CT_UNIT,
-				ParticipationMode::Classic(1u8),
-				AcceptedFundingAsset::USDT,
-			)),
-			ContributionParams::from((
-				BUYER_2,
-				5_000 * CT_UNIT,
-				ParticipationMode::Classic(1u8),
-				AcceptedFundingAsset::USDT,
-			)),
-			ContributionParams::from((BIDDER_1, 30_000 * CT_UNIT, ParticipationMode::OTM, AcceptedFundingAsset::USDT)),
-		]
-	}
-
-	pub fn knowledge_hub_buys() -> Vec<ContributionParams<TestRuntime>> {
-		vec![
-			ContributionParams::from((
-				BUYER_1,
-				4_000 * CT_UNIT,
-				ParticipationMode::Classic(1u8),
-				AcceptedFundingAsset::USDT,
-			)),
-			ContributionParams::from((
-				BUYER_2,
-				2_000 * CT_UNIT,
-				ParticipationMode::Classic(1u8),
-				AcceptedFundingAsset::USDT,
-			)),
-			ContributionParams::from((
-				BUYER_3,
-				2_000 * CT_UNIT,
-				ParticipationMode::Classic(1u8),
-				AcceptedFundingAsset::USDT,
-			)),
-			ContributionParams::from((
-				BUYER_4,
-				5_000 * CT_UNIT,
-				ParticipationMode::Classic(1u8),
-				AcceptedFundingAsset::USDT,
-			)),
-			ContributionParams::from((
-				BUYER_5,
-				30_000 * CT_UNIT,
-				ParticipationMode::Classic(1u8),
-				AcceptedFundingAsset::USDT,
-			)),
-			ContributionParams::from((
-				BUYER_6,
-				5_000 * CT_UNIT,
-				ParticipationMode::Classic(1u8),
-				AcceptedFundingAsset::USDT,
-			)),
-			ContributionParams::from((
-				BUYER_7,
-				2_000 * CT_UNIT,
-				ParticipationMode::Classic(1u8),
-				AcceptedFundingAsset::USDT,
-			)),
-		]
 	}
 
 	pub fn bounded_name() -> BoundedVec<u8, sp_core::ConstU32<64>> {
@@ -342,139 +130,45 @@ pub mod defaults {
 		BoundedVec::try_from(IPFS_CID.as_bytes().to_vec()).unwrap()
 	}
 
-	pub fn default_weights() -> Vec<u8> {
-		vec![20u8, 15u8, 10u8, 25u8, 30u8]
+	pub fn default_plmc_balances() -> Vec<UserToPLMCBalance<TestRuntime>> {
+		let accounts = default_accounts().to_vec();
+		accounts.iter().map(|acc| UserToPLMCBalance { account: *acc, plmc_amount: PLMC * 1_000_000 }).collect()
 	}
 
-	pub fn default_evaluators() -> Vec<AccountId> {
-		vec![EVALUATOR_1, EVALUATOR_2, EVALUATOR_3, EVALUATOR_4, EVALUATOR_5]
-	}
-	pub fn default_bidders() -> Vec<AccountId> {
-		vec![BIDDER_1, BIDDER_2, BIDDER_3, BIDDER_4, BIDDER_5]
-	}
-	pub fn default_modes() -> Vec<ParticipationMode> {
-		vec![Classic(1u8), Classic(1u8), Classic(1u8), OTM, OTM]
-	}
-	pub fn default_bidder_modes() -> Vec<ParticipationMode> {
-		vec![Classic(10u8), OTM, Classic(8u8), OTM, Classic(4u8)]
-	}
-	pub fn default_community_contributor_modes() -> Vec<ParticipationMode> {
-		vec![Classic(1u8), Classic(1u8), OTM, Classic(1u8), OTM]
-	}
-	pub fn default_remainder_contributor_modes() -> Vec<ParticipationMode> {
-		vec![Classic(1u8), Classic(1u8), Classic(1u8), OTM, Classic(1u8)]
-	}
-
-	pub fn default_community_contributors() -> Vec<AccountId> {
-		vec![BUYER_1, BUYER_2, BUYER_3, BUYER_4, BUYER_5]
-	}
-
-	pub fn default_remainder_contributors() -> Vec<AccountId> {
-		vec![EVALUATOR_1, BIDDER_3, BUYER_4, BUYER_6, BIDDER_6]
-	}
-
-	pub fn default_all_participants() -> Vec<AccountId> {
-		let mut accounts: Vec<AccountId> = default_evaluators()
-			.iter()
-			.chain(default_bidders().iter())
-			.chain(default_community_contributors().iter())
-			.chain(default_remainder_contributors().iter())
-			.copied()
-			.collect();
-		accounts.sort();
-		accounts.dedup();
+	pub fn default_usdt_balances() -> Vec<UserToFundingAsset<TestRuntime>> {
+		let accounts = default_accounts().to_vec();
 		accounts
+			.iter()
+			.map(|acc| UserToFundingAsset { account: *acc, asset_amount: 1_000_000 * USD_UNIT, asset_id: USDT.id() })
+			.collect()
 	}
 
 	pub fn project_from_funding_reached(instantiator: &mut MockInstantiator, percent: u64) -> ProjectId {
 		let project_metadata = default_project_metadata(ISSUER_1);
-		let min_price = project_metadata.minimum_price;
 		let usd_to_reach = Perquintill::from_percent(percent) *
 			(project_metadata.minimum_price.checked_mul_int(project_metadata.total_allocation_size).unwrap());
-		let evaluations = default_evaluations();
-		let bids = instantiator.generate_bids_from_total_usd(
-			Percent::from_percent(50u8) * usd_to_reach,
-			min_price,
-			default_weights(),
-			default_bidders(),
-			default_modes(),
-		);
-		let contributions = instantiator.generate_contributions_from_total_usd(
-			Percent::from_percent(50u8) * usd_to_reach,
-			min_price,
-			default_weights(),
-			default_community_contributors(),
-			default_modes(),
-		);
-		instantiator.create_finished_project(project_metadata, ISSUER_1, None, evaluations, bids, contributions, vec![])
+		let evaluations = instantiator.generate_successful_evaluations(project_metadata.clone(), 5);
+		let bids = instantiator.generate_bids_from_total_usd(project_metadata.clone(), usd_to_reach, 5);
+
+		instantiator.create_finished_project(project_metadata, ISSUER_1, None, evaluations, bids)
 	}
 
 	pub fn default_bids_from_ct_percent(percent: u8) -> Vec<BidParams<TestRuntime>> {
 		// Used only to generate values, not for chain interactions
 		let inst = MockInstantiator::new(None);
 		let project_metadata = default_project_metadata(ISSUER_1);
-		inst.generate_bids_from_total_ct_percent(
-			project_metadata,
-			percent,
-			default_weights(),
-			default_bidders(),
-			default_bidder_modes(),
-		)
-	}
-
-	pub fn default_community_contributions_from_ct_percent(percent: u8) -> Vec<ContributionParams<TestRuntime>> {
-		// Used only to generate values, not for chain interactions
-		let inst = MockInstantiator::new(None);
-		let project_metadata = default_project_metadata(ISSUER_1);
-		inst.generate_contributions_from_total_ct_percent(
-			project_metadata,
-			percent,
-			default_weights(),
-			default_community_contributors(),
-			default_community_contributor_modes(),
-		)
-	}
-
-	pub fn default_remainder_contributions_from_ct_percent(percent: u8) -> Vec<ContributionParams<TestRuntime>> {
-		// Used only to generate values, not for chain interactions
-		let inst = MockInstantiator::new(None);
-		let project_metadata = default_project_metadata(ISSUER_1);
-		inst.generate_contributions_from_total_ct_percent(
-			project_metadata,
-			percent,
-			default_weights(),
-			default_remainder_contributors(),
-			default_remainder_contributor_modes(),
-		)
+		inst.generate_bids_from_total_ct_percent(project_metadata, percent, 5)
 	}
 }
 
-pub fn create_project_with_funding_percentage(
-	percentage: u64,
-	start_settlement: bool,
-) -> (MockInstantiator, ProjectId) {
+pub fn create_project_with_funding_percentage(percentage: u8, start_settlement: bool) -> (MockInstantiator, ProjectId) {
 	let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
-	let project_metadata = default_project_metadata(ISSUER_1);
-	let min_price = project_metadata.minimum_price;
-	let percentage_funded_usd = Perquintill::from_percent(percentage) *
-		(project_metadata.minimum_price.checked_mul_int(project_metadata.total_allocation_size).unwrap());
-	let evaluations = default_evaluations();
-	let bids = inst.generate_bids_from_total_usd(
-		Percent::from_percent(50u8) * percentage_funded_usd,
-		min_price,
-		default_weights(),
-		default_bidders(),
-		default_modes(),
-	);
-	let contributions = inst.generate_contributions_from_total_usd(
-		Percent::from_percent(50u8) * percentage_funded_usd,
-		min_price,
-		default_weights(),
-		default_community_contributors(),
-		default_modes(),
-	);
-	let project_id =
-		inst.create_finished_project(project_metadata, ISSUER_1, None, evaluations, bids, contributions, vec![]);
+	let mut project_metadata = default_project_metadata(ISSUER_1);
+	project_metadata.total_allocation_size = 1_000_000 * CT_UNIT;
+	let evaluations = inst.generate_successful_evaluations(project_metadata.clone(), 5);
+	let bids = inst.generate_bids_from_total_ct_percent(project_metadata.clone(), percentage, 5);
+
+	let project_id = inst.create_finished_project(project_metadata, ISSUER_1, None, evaluations, bids);
 
 	if start_settlement {
 		assert!(matches!(inst.go_to_next_state(project_id), ProjectStatus::SettlementStarted(_)));
@@ -484,7 +178,7 @@ pub fn create_project_with_funding_percentage(
 	let project_details = inst.get_project_details(project_id);
 	let percent_reached =
 		Perquintill::from_rational(project_details.funding_amount_reached_usd, project_details.fundraising_target_usd);
-	assert_eq!(percent_reached, Perquintill::from_percent(percentage));
+	assert_eq!(percent_reached, Perquintill::from_percent(percentage as u64));
 
 	(inst, project_id)
 }
@@ -494,59 +188,27 @@ pub fn create_finished_project_with_usd_raised(
 	usd_raised: Balance,
 	usd_target: Balance,
 ) -> (MockInstantiator, ProjectId) {
+	let mut test_inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 	let issuer = inst.get_new_nonce();
 	let mut project_metadata = default_project_metadata(issuer);
 	project_metadata.total_allocation_size =
 		project_metadata.minimum_price.reciprocal().unwrap().saturating_mul_int(usd_target);
-	project_metadata.auction_round_allocation_percentage = Percent::from_percent(50u8);
 
-	let required_price = if usd_raised <= usd_target {
-		project_metadata.minimum_price
+	let evaluations = inst.generate_successful_evaluations(project_metadata.clone(), 5);
+
+	let bids;
+	if usd_raised <= usd_target {
+		bids = inst.generate_bids_from_total_usd(project_metadata.clone(), usd_raised, 5);
 	} else {
-		// It's hard to know how much usd was raised on the auction to take the price to `x`. So we calculate
-		// the price needed to get the project from 0 to `usd_target` buying 50% of the supply in the contribution round.
-		// Later we adjust the exact amount of tokens based on the amount raised in the auction.
-		// This means we will never have 100% CTs sold.
-		let price_increase_percentage = FixedU128::from_rational(usd_raised, usd_target);
-		let required_price = price_increase_percentage * project_metadata.minimum_price;
+		// This function generates new projects, so we need to use the test instance
+		bids = test_inst.generate_bids_from_higher_usd_than_target(project_metadata.clone(), usd_raised);
+	}
 
-		// Since we want to reach the usd target with half the tokens, and the usd target is first calculated based on
-		// selling all the CTs, we need the price to be double
-		FixedU128::from_rational(2, 1) * required_price
-	};
-
-	let evaluations = default_evaluations();
-
-	let bids = inst.generate_bids_that_take_price_to(project_metadata.clone(), required_price, 420, |acc| acc + 1);
-
-	let project_id = inst.create_community_contributing_project(project_metadata, issuer, None, evaluations, bids);
-
-	let project_details = inst.get_project_details(project_id);
-	let wap = project_details.weighted_average_price.unwrap();
-
-	let usd_raised_so_far = project_details.funding_amount_reached_usd;
-	let usd_remaining = usd_raised - usd_raised_so_far;
-
-	let community_contributions = inst.generate_contributions_from_total_usd(
-		usd_remaining,
-		wap,
-		default_weights(),
-		default_community_contributors(),
-		default_modes(),
-	);
-	let plmc_required = inst.calculate_contributed_plmc_spent(community_contributions.clone(), required_price);
-	let usdt_required = inst.calculate_contributed_funding_asset_spent(community_contributions.clone(), required_price);
-	inst.mint_plmc_ed_if_required(plmc_required.accounts());
-	inst.mint_plmc_to(plmc_required);
-	inst.mint_funding_asset_ed_if_required(usdt_required.to_account_asset_map());
-	inst.mint_funding_asset_to(usdt_required);
-	inst.contribute_for_users(project_id, community_contributions).unwrap();
-
-	assert_eq!(inst.go_to_next_state(project_id), ProjectStatus::FundingSuccessful);
+	let project_id = inst.create_finished_project(project_metadata, issuer, None, evaluations, bids);
 
 	let project_details = inst.get_project_details(project_id);
 
-	// We are happy if the amount raised is 99.999 of what we wanted
+	// We are happy if the amount raised is 99.999% of what we wanted
 	assert_close_enough!(project_details.funding_amount_reached_usd, usd_raised, Perquintill::from_float(0.999));
 	assert_eq!(project_details.fundraising_target_usd, usd_target);
 

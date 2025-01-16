@@ -113,7 +113,6 @@ fn evaluator_slash_reduces_vesting_schedules() {
 		let project_id = inst.create_evaluating_project(project_metadata, ISSUER.into(), None);
 		assert_ok!(inst.evaluate_for_users(project_id, vec![alice_evaluation.clone(), bob_evaluation.clone()]));
 		assert_eq!(ProjectStatus::AuctionRound, inst.go_to_next_state(project_id));
-		assert!(matches!(inst.go_to_next_state(project_id), ProjectStatus::CommunityRound(_)));
 		assert_eq!(ProjectStatus::FundingFailed, inst.go_to_next_state(project_id));
 		assert_eq!(ProjectStatus::SettlementStarted(FundingOutcome::Failure), inst.go_to_next_state(project_id));
 		assert_eq!(inst.current_block(), BlockNumberFor::<PolimecRuntime>::from(25u32));

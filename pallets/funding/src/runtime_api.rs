@@ -284,61 +284,38 @@ impl<T: Config> Pallet<T> {
 		funding_asset: AcceptedFundingAsset,
 		investor_type: InvestorType,
 	) -> Option<(Balance, Balance)> {
-		let project_details = ProjectsDetails::<T>::get(project_id)?;
 		let project_metadata = ProjectsMetadata::<T>::get(project_id)?;
 		let funding_asset_price = Pallet::<T>::get_decimals_aware_funding_asset_price(&funding_asset)?;
 
-		let (min_usd_ticket, maybe_max_usd_ticket, already_spent_usd, total_cts_usd_amount) =
-			match project_details.status {
-				ProjectStatus::AuctionRound => {
-					let ticket_sizes = match investor_type {
-						InvestorType::Institutional => project_metadata.bidding_ticket_sizes.institutional,
-						InvestorType::Professional => project_metadata.bidding_ticket_sizes.professional,
-						_ => return None,
-					};
-					let already_spent_usd = AuctionBoughtUSD::<T>::get((project_id, did));
-					let mut max_contribution_tokens =
-						project_metadata.auction_round_allocation_percentage * project_metadata.total_allocation_size;
-
-					let mut total_cts_usd_amount = 0;
-
-					let mut current_bucket = Buckets::<T>::get(project_id)?;
-					while max_contribution_tokens > 0u128 {
-						let bucket_price = current_bucket.current_price;
-						let ct_to_buy = max_contribution_tokens.min(current_bucket.amount_left);
-						let usd_spent = bucket_price.saturating_mul_int(ct_to_buy);
-
-						max_contribution_tokens -= ct_to_buy;
-						total_cts_usd_amount += usd_spent;
-						current_bucket.update(ct_to_buy);
-					}
-
-					(
-						ticket_sizes.usd_minimum_per_participation,
-						ticket_sizes.usd_maximum_per_did,
-						already_spent_usd,
-						total_cts_usd_amount,
-					)
-				},
-				ProjectStatus::CommunityRound(..) => {
-					let ticket_sizes = match investor_type {
-						InvestorType::Institutional => project_metadata.contributing_ticket_sizes.institutional,
-						InvestorType::Professional => project_metadata.contributing_ticket_sizes.professional,
-						InvestorType::Retail => project_metadata.contributing_ticket_sizes.retail,
-					};
-					let already_spent_usd = ContributionBoughtUSD::<T>::get((project_id, did));
-					let max_contribution_tokens = project_details.remaining_contribution_tokens;
-					let price = project_details.weighted_average_price?;
-					let total_cts_usd_amount = price.saturating_mul_int(max_contribution_tokens);
-					(
-						ticket_sizes.usd_minimum_per_participation,
-						ticket_sizes.usd_maximum_per_did,
-						already_spent_usd,
-						total_cts_usd_amount,
-					)
-				},
-				_ => return None,
+		let (min_usd_ticket, maybe_max_usd_ticket, already_spent_usd, total_cts_usd_amount) = {
+			let ticket_sizes = match investor_type {
+				InvestorType::Institutional => project_metadata.bidding_ticket_sizes.institutional,
+				InvestorType::Professional => project_metadata.bidding_ticket_sizes.professional,
+				InvestorType::Retail => project_metadata.bidding_ticket_sizes.retail,
 			};
+			let already_spent_usd = AuctionBoughtUSD::<T>::get((project_id, did));
+			let mut max_contribution_tokens = project_metadata.total_allocation_size;
+
+			let mut total_cts_usd_amount = 0;
+
+			let mut current_bucket = Buckets::<T>::get(project_id)?;
+			while max_contribution_tokens > 0u128 {
+				let bucket_price = current_bucket.current_price;
+				let ct_to_buy = max_contribution_tokens.min(current_bucket.amount_left);
+				let usd_spent = bucket_price.saturating_mul_int(ct_to_buy);
+
+				max_contribution_tokens -= ct_to_buy;
+				total_cts_usd_amount += usd_spent;
+				current_bucket.update(ct_to_buy);
+			}
+
+			(
+				ticket_sizes.usd_minimum_per_participation,
+				ticket_sizes.usd_maximum_per_did,
+				already_spent_usd,
+				total_cts_usd_amount,
+			)
+		};
 
 		let max_usd_ticket = if let Some(issuer_set_max_usd_ticket) = maybe_max_usd_ticket {
 			total_cts_usd_amount.min(issuer_set_max_usd_ticket.saturating_sub(already_spent_usd))

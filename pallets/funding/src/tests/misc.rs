@@ -140,16 +140,41 @@ mod helper_functions {
 		const CT_AMOUNT_4: u128 = 6000 * CT_UNIT;
 		const CT_AMOUNT_5: u128 = 2000 * CT_UNIT;
 
-		let bid_1 =
-			BidParams::from((BIDDER_1, CT_AMOUNT_1, ParticipationMode::Classic(1u8), AcceptedFundingAsset::USDT));
-		let bid_2 =
-			BidParams::from((BIDDER_2, CT_AMOUNT_2, ParticipationMode::Classic(1u8), AcceptedFundingAsset::USDT));
-		let bid_3 =
-			BidParams::from((BIDDER_1, CT_AMOUNT_3, ParticipationMode::Classic(1u8), AcceptedFundingAsset::USDT));
-		let bid_4 =
-			BidParams::from((BIDDER_3, CT_AMOUNT_4, ParticipationMode::Classic(1u8), AcceptedFundingAsset::USDT));
-		let bid_5 =
-			BidParams::from((BIDDER_4, CT_AMOUNT_5, ParticipationMode::Classic(1u8), AcceptedFundingAsset::USDT));
+		let bid_1 = BidParams::from((
+			BIDDER_1,
+			Retail,
+			CT_AMOUNT_1,
+			ParticipationMode::Classic(1u8),
+			AcceptedFundingAsset::USDT,
+		));
+		let bid_2 = BidParams::from((
+			BIDDER_2,
+			Retail,
+			CT_AMOUNT_2,
+			ParticipationMode::Classic(1u8),
+			AcceptedFundingAsset::USDT,
+		));
+		let bid_3 = BidParams::from((
+			BIDDER_1,
+			Retail,
+			CT_AMOUNT_3,
+			ParticipationMode::Classic(1u8),
+			AcceptedFundingAsset::USDT,
+		));
+		let bid_4 = BidParams::from((
+			BIDDER_3,
+			Retail,
+			CT_AMOUNT_4,
+			ParticipationMode::Classic(1u8),
+			AcceptedFundingAsset::USDT,
+		));
+		let bid_5 = BidParams::from((
+			BIDDER_4,
+			Retail,
+			CT_AMOUNT_5,
+			ParticipationMode::Classic(1u8),
+			AcceptedFundingAsset::USDT,
+		));
 
 		// post bucketing, the bids look like this:
 		// (BIDDER_1, 5k) - (BIDDER_2, 40k) - (BIDDER_1, 5k) - (BIDDER_1, 5k) - (BIDDER_3 - 5k) - (BIDDER_3 - 1k) - (BIDDER_4 - 2k)
@@ -173,8 +198,7 @@ mod helper_functions {
 		let project_metadata = ProjectMetadata {
 			token_information: default_token_information(),
 			mainnet_token_max_supply: 8_000_000 * CT_UNIT,
-			total_allocation_size: 100_000 * CT_UNIT,
-			auction_round_allocation_percentage: Percent::from_percent(50u8),
+			total_allocation_size: 50_000 * CT_UNIT,
 			minimum_price: PriceProviderOf::<TestRuntime>::calculate_decimals_aware_price(
 				PriceOf::<TestRuntime>::from_float(10.0),
 				USD_DECIMALS,
@@ -184,12 +208,7 @@ mod helper_functions {
 			bidding_ticket_sizes: BiddingTicketSizes {
 				professional: TicketSize::new(5000 * USD_UNIT, None),
 				institutional: TicketSize::new(5000 * USD_UNIT, None),
-				phantom: Default::default(),
-			},
-			contributing_ticket_sizes: ContributingTicketSizes {
-				retail: TicketSize::new(USD_UNIT, None),
-				professional: TicketSize::new(USD_UNIT, None),
-				institutional: TicketSize::new(USD_UNIT, None),
+				retail: TicketSize::new(100 * USD_UNIT, None),
 				phantom: Default::default(),
 			},
 			participation_currencies: vec![AcceptedFundingAsset::USDT].try_into().unwrap(),
@@ -198,11 +217,13 @@ mod helper_functions {
 			participants_account_type: ParticipantsAccountType::Polkadot,
 		};
 
-		let project_id = inst.create_community_contributing_project(
+		let successful_evaluations = inst.generate_successful_evaluations(project_metadata.clone(), 5);
+
+		let project_id = inst.create_finished_project(
 			project_metadata.clone(),
 			ISSUER_1,
 			None,
-			default_evaluations(),
+			successful_evaluations,
 			bids.clone(),
 		);
 
@@ -245,116 +266,6 @@ mod helper_functions {
 		let expected = FixedU128::from_float(10.628);
 		let diff = if wap > expected { wap - expected } else { expected - wap };
 		assert!(diff <= FixedU128::from_float(0.001));
-	}
-
-	#[test]
-	fn calculate_contributed_plmc_spent() {
-		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
-		const PLMC_PRICE: f64 = 8.4f64;
-		const CT_PRICE: f64 = 16.32f64;
-
-		const CONTRIBUTOR_1: AccountIdOf<TestRuntime> = 1;
-		const TOKEN_AMOUNT_1: u128 = 120 * CT_UNIT;
-		const MULTIPLIER_1: u8 = 1u8;
-		const _TICKET_SIZE_USD_1: u128 = 1_958_4_000_000_000_u128;
-		const EXPECTED_PLMC_AMOUNT_1: f64 = 233.1_428_571_428f64;
-
-		const CONTRIBUTOR_2: AccountIdOf<TestRuntime> = 2;
-		const TOKEN_AMOUNT_2: u128 = 5023 * CT_UNIT;
-		const MULTIPLIER_2: u8 = 2u8;
-		const _TICKET_SIZE_USD_2: u128 = 81_975_3_600_000_000_u128;
-		const EXPECTED_PLMC_AMOUNT_2: f64 = 4_879.4_857_142_857f64;
-
-		const CONTRIBUTOR_3: AccountIdOf<TestRuntime> = 3;
-		const TOKEN_AMOUNT_3: u128 = 20_000 * CT_UNIT;
-		const MULTIPLIER_3: u8 = 17u8;
-		const _TICKET_SIZE_USD_3: u128 = 326_400_0_000_000_000_u128;
-		const EXPECTED_PLMC_AMOUNT_3: f64 = 2_285.7_142_857_142f64;
-
-		const CONTRIBUTOR_4: AccountIdOf<TestRuntime> = 4;
-		const TOKEN_AMOUNT_4: u128 = 1_000_000 * CT_UNIT;
-		const MULTIPLIER_4: u8 = 25u8;
-		const _TICKET_SIZE_4: u128 = 16_320_000_0_000_000_000_u128;
-		const EXPECTED_PLMC_AMOUNT_4: f64 = 77_714.2_857_142_857f64;
-
-		const CONTRIBUTOR_5: AccountIdOf<TestRuntime> = 5;
-		// 0.1233 CTs
-		const TOKEN_AMOUNT_5: u128 = 1_233 * CT_UNIT / 10_000;
-		const MULTIPLIER_5: u8 = 10u8;
-		const _TICKET_SIZE_5: u128 = 2_0_122_562_000_u128;
-		const EXPECTED_PLMC_AMOUNT_5: f64 = 0.0_239_554_285f64;
-
-		assert_eq!(
-			<TestRuntime as Config>::PriceProvider::get_price(Location::here()).unwrap(),
-			PriceOf::<TestRuntime>::from_float(PLMC_PRICE)
-		);
-
-		let contributions = vec![
-			ContributionParams::from((
-				CONTRIBUTOR_1,
-				TOKEN_AMOUNT_1,
-				ParticipationMode::Classic(MULTIPLIER_1),
-				AcceptedFundingAsset::USDT,
-			)),
-			ContributionParams::from((
-				CONTRIBUTOR_2,
-				TOKEN_AMOUNT_2,
-				ParticipationMode::Classic(MULTIPLIER_2),
-				AcceptedFundingAsset::USDT,
-			)),
-			ContributionParams::from((
-				CONTRIBUTOR_3,
-				TOKEN_AMOUNT_3,
-				ParticipationMode::Classic(MULTIPLIER_3),
-				AcceptedFundingAsset::USDT,
-			)),
-			ContributionParams::from((
-				CONTRIBUTOR_4,
-				TOKEN_AMOUNT_4,
-				ParticipationMode::Classic(MULTIPLIER_4),
-				AcceptedFundingAsset::USDT,
-			)),
-			ContributionParams::from((
-				CONTRIBUTOR_5,
-				TOKEN_AMOUNT_5,
-				ParticipationMode::Classic(MULTIPLIER_5),
-				AcceptedFundingAsset::USDT,
-			)),
-		];
-
-		let expected_plmc_spent = vec![
-			(CONTRIBUTOR_1, EXPECTED_PLMC_AMOUNT_1),
-			(CONTRIBUTOR_2, EXPECTED_PLMC_AMOUNT_2),
-			(CONTRIBUTOR_3, EXPECTED_PLMC_AMOUNT_3),
-			(CONTRIBUTOR_4, EXPECTED_PLMC_AMOUNT_4),
-			(CONTRIBUTOR_5, EXPECTED_PLMC_AMOUNT_5),
-		];
-
-		let calculated_plmc_spent = inst
-			.calculate_contributed_plmc_spent(
-				contributions,
-				PriceProviderOf::<TestRuntime>::calculate_decimals_aware_price(
-					PriceOf::<TestRuntime>::from_float(CT_PRICE),
-					USD_DECIMALS,
-					CT_DECIMALS,
-				)
-				.unwrap(),
-			)
-			.into_iter()
-			.sorted_by(|a, b| a.account.cmp(&b.account))
-			.map(|map| map.plmc_amount)
-			.collect_vec();
-		let expected_plmc_spent = expected_plmc_spent
-			.into_iter()
-			.sorted_by(|a, b| a.0.cmp(&b.0))
-			.map(|map| {
-				let fixed_amount = FixedU128::from_float(map.1);
-				fixed_amount.checked_mul_int(PLMC).unwrap()
-			})
-			.collect_vec();
-		for (expected, calculated) in zip(expected_plmc_spent, calculated_plmc_spent) {
-			assert_close_enough!(expected, calculated, Perquintill::from_float(0.999));
-		}
 	}
 }
 
@@ -401,14 +312,13 @@ mod inner_functions {
 #[test]
 fn project_state_transition_event() {
 	let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+	let project_metadata = default_project_metadata(ISSUER_1);
 	let project_id = inst.create_settled_project(
-		default_project_metadata(ISSUER_1),
+		project_metadata.clone(),
 		ISSUER_1,
 		None,
-		default_evaluations(),
-		default_bids(),
-		default_community_contributions(),
-		default_remainder_contributions(),
+		inst.generate_successful_evaluations(project_metadata.clone(), 5),
+		inst.generate_bids_from_total_ct_percent(project_metadata.clone(), 80, 5),
 		true,
 	);
 
@@ -427,9 +337,6 @@ fn project_state_transition_event() {
 	let mut desired_transitions = vec![
 		ProjectStatus::EvaluationRound,
 		ProjectStatus::AuctionRound,
-		ProjectStatus::CommunityRound(
-			EvaluationRoundDuration::get() + AuctionRoundDuration::get() + CommunityRoundDuration::get() + 1u64,
-		),
 		ProjectStatus::FundingSuccessful,
 		ProjectStatus::SettlementStarted(FundingOutcome::Success),
 		ProjectStatus::SettlementFinished(FundingOutcome::Success),

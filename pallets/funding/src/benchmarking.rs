@@ -35,7 +35,11 @@ use frame_support::{
 };
 use itertools::Itertools;
 use parity_scale_codec::{Decode, Encode};
-use polimec_common::{credentials::InvestorType, ProvideAssetPrice, ReleaseSchedule, USD_DECIMALS, USD_UNIT};
+use polimec_common::{
+	assets::AcceptedFundingAsset::{DOT, USDC, USDT, WETH},
+	credentials::InvestorType,
+	ProvideAssetPrice, USD_DECIMALS, USD_UNIT,
+};
 use polimec_common_test_utils::{generate_did_from_account, get_mock_jwt_with_cid};
 use sp_arithmetic::Percent;
 use sp_core::H256;
@@ -63,23 +67,17 @@ where
 	ProjectMetadata {
 		token_information: CurrencyMetadata { name: bounded_name, symbol: bounded_symbol, decimals: CT_DECIMALS },
 		mainnet_token_max_supply: 1_000_000u128 * CT_UNIT,
-		total_allocation_size: 1_000_000u128 * CT_UNIT,
-		auction_round_allocation_percentage: Percent::from_percent(50u8),
+		total_allocation_size: 500_000u128 * CT_UNIT,
 		minimum_price: PriceProviderOf::<T>::calculate_decimals_aware_price(10u128.into(), USD_DECIMALS, CT_DECIMALS)
 			.unwrap(),
 
 		bidding_ticket_sizes: BiddingTicketSizes {
-			professional: TicketSize::new(5000u128 * USD_UNIT, None),
-			institutional: TicketSize::new(5000u128 * USD_UNIT, None),
+			professional: TicketSize::new(10u128 * USD_UNIT, None),
+			institutional: TicketSize::new(10u128 * USD_UNIT, None),
+			retail: TicketSize::new(10u128 * USD_UNIT, None),
 			phantom: Default::default(),
 		},
-		contributing_ticket_sizes: ContributingTicketSizes {
-			retail: TicketSize::new(USD_UNIT, None),
-			professional: TicketSize::new(USD_UNIT, None),
-			institutional: TicketSize::new(USD_UNIT, None),
-			phantom: Default::default(),
-		},
-		participation_currencies: vec![AcceptedFundingAsset::USDT].try_into().unwrap(),
+		participation_currencies: vec![USDT, USDC, DOT, WETH].try_into().unwrap(),
 		funding_destination_account: issuer,
 		policy_ipfs_cid: Some(metadata_hash.into()),
 		participants_account_type: ParticipantsAccountType::Polkadot,
@@ -120,17 +118,14 @@ where
 	T::Hash: From<H256>,
 {
 	let default_project_metadata = default_project_metadata::<T>(account::<AccountIdOf<T>>("issuer", 0, 0));
-	let auction_funding_target = default_project_metadata.minimum_price.saturating_mul_int(
-		default_project_metadata.auction_round_allocation_percentage * default_project_metadata.total_allocation_size,
-	);
+	let auction_funding_target =
+		default_project_metadata.minimum_price.saturating_mul_int(default_project_metadata.total_allocation_size);
 	let inst = BenchInstantiator::<T>::new(None);
 
 	inst.generate_bids_from_total_usd(
+		default_project_metadata.clone(),
 		Percent::from_percent(95) * auction_funding_target,
-		default_project_metadata.minimum_price,
-		default_weights(),
-		default_bidders::<T>(),
-		default_bidder_modes(),
+		5,
 	)
 }
 
@@ -142,65 +137,9 @@ where
 {
 	let inst = BenchInstantiator::<T>::new(None);
 	let default_project = default_project_metadata::<T>(account::<AccountIdOf<T>>("issuer", 0, 0));
-	let total_ct_for_bids = default_project.auction_round_allocation_percentage * default_project.total_allocation_size;
+	let total_ct_for_bids = default_project.total_allocation_size;
 	let total_usd_for_bids = default_project.minimum_price.checked_mul_int(total_ct_for_bids).unwrap();
-	inst.generate_bids_from_total_usd(
-		total_usd_for_bids,
-		default_project.minimum_price,
-		default_weights(),
-		default_bidders::<T>(),
-		default_bidder_modes(),
-	)
-}
-
-pub fn default_community_contributions<T: Config>() -> Vec<ContributionParams<T>>
-where
-	<T as Config>::Price: From<u128>,
-	T::Hash: From<H256>,
-{
-	let inst = BenchInstantiator::<T>::new(None);
-	let default_project_metadata = default_project_metadata::<T>(account::<AccountIdOf<T>>("issuer", 0, 0));
-
-	let funding_target =
-		default_project_metadata.minimum_price.saturating_mul_int(default_project_metadata.total_allocation_size);
-	let auction_funding_target = default_project_metadata.minimum_price.saturating_mul_int(
-		default_project_metadata.auction_round_allocation_percentage * default_project_metadata.total_allocation_size,
-	);
-
-	let contributing_funding_target = funding_target - auction_funding_target;
-
-	inst.generate_contributions_from_total_usd(
-		Percent::from_percent(85) * contributing_funding_target,
-		default_project_metadata.minimum_price,
-		default_weights(),
-		default_community_contributors::<T>(),
-		default_community_contributor_modes(),
-	)
-}
-
-pub fn default_remainder_contributions<T: Config>() -> Vec<ContributionParams<T>>
-where
-	<T as Config>::Price: From<u128>,
-	T::Hash: From<H256>,
-{
-	let inst = BenchInstantiator::<T>::new(None);
-	let default_project_metadata = default_project_metadata::<T>(account::<AccountIdOf<T>>("issuer", 0, 0));
-
-	let funding_target =
-		default_project_metadata.minimum_price.saturating_mul_int(default_project_metadata.total_allocation_size);
-	let auction_funding_target = default_project_metadata.minimum_price.saturating_mul_int(
-		default_project_metadata.auction_round_allocation_percentage * default_project_metadata.total_allocation_size,
-	);
-
-	let contributing_funding_target = funding_target - auction_funding_target;
-
-	inst.generate_contributions_from_total_usd(
-		Percent::from_percent(15) * contributing_funding_target,
-		10u128.into(),
-		default_weights(),
-		default_remainder_contributors::<T>(),
-		default_remainder_contributor_modes(),
-	)
+	inst.generate_bids_from_total_usd(default_project.clone(), total_usd_for_bids, 5)
 }
 
 pub fn default_weights() -> Vec<u8> {
@@ -226,35 +165,9 @@ pub fn default_bidders<T: Config>() -> Vec<AccountIdOf<T>> {
 	]
 }
 
-pub fn default_community_contributors<T: Config>() -> Vec<AccountIdOf<T>> {
-	vec![
-		account::<AccountIdOf<T>>("contributor_1", 0, 0),
-		account::<AccountIdOf<T>>("contributor_2", 0, 0),
-		account::<AccountIdOf<T>>("contributor_3", 0, 0),
-		account::<AccountIdOf<T>>("contributor_4", 0, 0),
-		account::<AccountIdOf<T>>("contributor_5", 0, 0),
-	]
-}
-pub fn default_remainder_contributors<T: Config>() -> Vec<AccountIdOf<T>> {
-	vec![
-		account::<AccountIdOf<T>>("bidder_1", 0, 0),
-		account::<AccountIdOf<T>>("bidder_2", 0, 0),
-		account::<AccountIdOf<T>>("evaluator_1", 0, 0),
-		account::<AccountIdOf<T>>("evaluator_2", 0, 0),
-		account::<AccountIdOf<T>>("contributor_6", 0, 0),
-	]
-}
-
 pub fn default_bidder_modes() -> Vec<ParticipationMode> {
 	vec![Classic(10u8), Classic(3u8), OTM, OTM, Classic(4u8)]
 }
-pub fn default_community_contributor_modes() -> Vec<ParticipationMode> {
-	vec![Classic(2u8), Classic(1u8), Classic(3u8), OTM, OTM]
-}
-pub fn default_remainder_contributor_modes() -> Vec<ParticipationMode> {
-	vec![Classic(1u8), OTM, Classic(1u8), OTM, Classic(1u8)]
-}
-
 /// Grab an account, seeded by a name and index.
 pub fn string_account<AccountId: Decode>(
 	name: scale_info::prelude::string::String,
@@ -281,6 +194,7 @@ mod benchmarks {
 	// This is actually used in the benchmarking setup, check one line below.
 	#[allow(unused_imports)]
 	use pallet::Pallet as PalletFunding;
+	use polimec_common::credentials::InvestorType::Institutional;
 
 	impl_benchmark_test_suite!(PalletFunding, crate::mock::new_test_ext(), crate::mock::TestRuntime);
 
@@ -390,8 +304,7 @@ mod benchmarks {
 				decimals: CT_DECIMALS - 2,
 			},
 			mainnet_token_max_supply: 200_000u128 * CT_UNIT,
-			total_allocation_size: 200_000u128 * CT_UNIT,
-			auction_round_allocation_percentage: Percent::from_percent(30u8),
+			total_allocation_size: 100_000u128 * CT_UNIT,
 			minimum_price: PriceProviderOf::<T>::calculate_decimals_aware_price(
 				11u128.into(),
 				USD_DECIMALS,
@@ -401,12 +314,7 @@ mod benchmarks {
 			bidding_ticket_sizes: BiddingTicketSizes {
 				professional: TicketSize::new(5000 * USD_UNIT, Some(10_000 * USD_UNIT)),
 				institutional: TicketSize::new(5000 * USD_UNIT, Some(10_000 * USD_UNIT)),
-				phantom: Default::default(),
-			},
-			contributing_ticket_sizes: ContributingTicketSizes {
-				retail: TicketSize::new(5000 * USD_UNIT, Some(10_000 * USD_UNIT)),
-				professional: TicketSize::new(5000 * USD_UNIT, Some(10_000 * USD_UNIT)),
-				institutional: TicketSize::new(5000 * USD_UNIT, Some(10_000 * USD_UNIT)),
+				retail: TicketSize::new(10 * USD_UNIT, Some(10_000 * USD_UNIT)),
 				phantom: Default::default(),
 			},
 			participation_currencies: vec![AcceptedFundingAsset::USDT, AcceptedFundingAsset::USDC].try_into().unwrap(),
@@ -662,16 +570,13 @@ mod benchmarks {
 		)
 		.unwrap();
 
-		let evaluations = inst.generate_successful_evaluations(
-			project_metadata.clone(),
-			default_evaluators::<T>(),
-			default_weights(),
-		);
+		let evaluations = inst.generate_successful_evaluations(project_metadata.clone(), 5);
 
 		let project_id = inst.create_auctioning_project(project_metadata.clone(), issuer, None, evaluations);
 
 		let existing_bid = BidParams::from((
 			bidder.clone(),
+			Institutional,
 			(50 * CT_UNIT).into(),
 			ParticipationMode::Classic(5u8),
 			AcceptedFundingAsset::USDT,
@@ -718,6 +623,7 @@ mod benchmarks {
 			assert!(new_bidder.clone() != bidder.clone());
 			let bid_params = BidParams::from((
 				new_bidder.clone(),
+				Institutional,
 				current_bucket.amount_left,
 				ParticipationMode::Classic(1u8),
 				AcceptedFundingAsset::USDT,
@@ -740,14 +646,18 @@ mod benchmarks {
 
 			inst.bid_for_users(project_id, vec![bid_params]).unwrap();
 
-			let auction_allocation =
-				project_metadata.auction_round_allocation_percentage * project_metadata.total_allocation_size;
+			let auction_allocation = project_metadata.total_allocation_size;
 			let bucket_size = Percent::from_percent(10) * auction_allocation;
 			ct_amount = bucket_size * (y as u128);
 			usdt_for_filler_bidder = usdt_for_new_bidder;
 		}
-		let extrinsic_bid =
-			BidParams::from((bidder.clone(), ct_amount, ParticipationMode::Classic(1u8), AcceptedFundingAsset::USDT));
+		let extrinsic_bid = BidParams::from((
+			bidder.clone(),
+			Institutional,
+			ct_amount,
+			ParticipationMode::Classic(1u8),
+			AcceptedFundingAsset::USDT,
+		));
 		let original_extrinsic_bid = extrinsic_bid.clone();
 		let current_bucket = Buckets::<T>::get(project_id).unwrap();
 		// we need to call this after bidding `x` amount of times, to get the latest bucket from storage
@@ -828,14 +738,12 @@ mod benchmarks {
 		}
 
 		// Bucket Storage Check
-		let bucket_delta_amount = Percent::from_percent(10) *
-			project_metadata.auction_round_allocation_percentage *
-			project_metadata.total_allocation_size;
+		let bucket_delta_amount = Percent::from_percent(10) * project_metadata.total_allocation_size;
 		let ten_percent_in_price: <T as Config>::Price =
 			PriceOf::<T>::checked_from_rational(1, 10).unwrap() * project_metadata.minimum_price;
 
 		let mut expected_bucket = Bucket::new(
-			project_metadata.auction_round_allocation_percentage * project_metadata.total_allocation_size,
+			project_metadata.total_allocation_size,
 			project_metadata.minimum_price,
 			ten_percent_in_price,
 			bucket_delta_amount,
@@ -886,283 +794,49 @@ mod benchmarks {
 		}
 	}
 
-	#[benchmark]
-	fn end_auction(
-		// Accepted Bids
-		x: Linear<10, { 25 }>,
-		// Failed Bids
-		y: Linear<0, { 8 }>,
-	) {
-		// * setup *
-		let mut inst = BenchInstantiator::<T>::new(None);
-		<T as Config>::SetPrices::set_prices();
-		// We can't see events at block 0
-		inst.jump_to_block(1u32.into());
-
-		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
-		whitelist_account!(issuer);
-
-		let mut project_metadata = default_project_metadata::<T>(issuer.clone());
-		project_metadata.mainnet_token_max_supply = 10_000_000 * CT_UNIT;
-		project_metadata.total_allocation_size = 10_000_000 * CT_UNIT;
-		project_metadata.auction_round_allocation_percentage = Percent::from_percent(100u8);
-
-		let project_id = inst.create_auctioning_project(
-			project_metadata.clone(),
-			issuer.clone(),
-			None,
-			inst.generate_successful_evaluations(
-				project_metadata.clone(),
-				default_evaluators::<T>(),
-				default_weights(),
-			),
-		);
-		let expected_remainder_round_block = inst.remainder_round_block() - One::one();
-
-		let mut all_bids = Vec::new();
-
-		let auction_allocation =
-			project_metadata.auction_round_allocation_percentage * project_metadata.total_allocation_size;
-		let min_bid_amount = 500u128;
-
-		// These bids will always be rejected, and will be made after the first bucket bid
-		let rejected_bids = (0..y.saturating_sub(1))
-			.map(|i| {
-				BidParams::<T>::from((
-					account::<AccountIdOf<T>>("bidder", 0, i),
-					(min_bid_amount * CT_UNIT).into(),
-					ParticipationMode::Classic(1u8),
-					AcceptedFundingAsset::USDT,
-				))
-			})
-			.collect_vec();
-		all_bids.extend(rejected_bids.clone());
-
-		let already_accepted_bids_count = if y > 0 {
-			// This one needs to fill the remaining with the bucket, so that all "accepted" bids will take the CT from a rejected one
-			let last_rejected_bid = BidParams::<T>::from((
-				account::<AccountIdOf<T>>("bidder", 0, 420),
-				auction_allocation - (min_bid_amount * CT_UNIT * (y as u128 - 1u128)),
-				ParticipationMode::Classic(1u8),
-				AcceptedFundingAsset::USDT,
-			));
-			all_bids.push(last_rejected_bid.clone());
-
-			// We first need to invalidate all rejected bids.
-			// We do it by placing a bid of  the whole auction allocation, i.e. 10 new bids
-			let allocation_bid = BidParams::<T>::from((
-				account::<AccountIdOf<T>>("bidder", 0, y),
-				auction_allocation,
-				ParticipationMode::Classic(1u8),
-				AcceptedFundingAsset::USDT,
-			));
-			all_bids.push(allocation_bid);
-
-			10
-		} else {
-			0
-		};
-
-		let accepted_bids = (0..x.saturating_sub(already_accepted_bids_count))
-			.map(|i| {
-				BidParams::<T>::from((
-					account::<AccountIdOf<T>>("bidder", 0, i),
-					(min_bid_amount * CT_UNIT).into(),
-					ParticipationMode::Classic(1u8),
-					AcceptedFundingAsset::USDT,
-				))
-			})
-			.collect_vec();
-		all_bids.extend(accepted_bids.clone());
-
-		let plmc_needed_for_bids = inst.calculate_auction_plmc_charged_from_all_bids_made_or_with_bucket(
-			&all_bids,
-			project_metadata.clone(),
-			None,
-		);
-		let funding_asset_needed_for_bids = inst
-			.calculate_auction_funding_asset_charged_from_all_bids_made_or_with_bucket(
-				&all_bids,
-				project_metadata.clone(),
-				None,
-			);
-		inst.mint_plmc_ed_if_required(plmc_needed_for_bids.accounts());
-		inst.mint_plmc_to(plmc_needed_for_bids);
-		inst.mint_funding_asset_ed_if_required(funding_asset_needed_for_bids.to_account_asset_map());
-		inst.mint_funding_asset_to(funding_asset_needed_for_bids);
-
-		inst.bid_for_users(project_id, all_bids).unwrap();
-
-		let auction_end = inst.get_project_details(project_id).round_duration.end().unwrap();
-		inst.jump_to_block(auction_end);
-
-		#[block]
-		{
-			Pallet::<T>::do_end_auction(project_id).unwrap();
-		}
-
-		// * validity checks *
-		// Storage
-		let stored_details = ProjectsDetails::<T>::get(project_id).unwrap();
-		assert!(matches!(stored_details.status, ProjectStatus::CommunityRound(..)));
-
-		let accepted_bids_count = Bids::<T>::iter_prefix_values((project_id,))
-			.filter(|b| matches!(b.status, BidStatus::Accepted | BidStatus::PartiallyAccepted(..)))
-			.count();
-		let rejected_bids_count =
-			Bids::<T>::iter_prefix_values((project_id,)).filter(|b| matches!(b.status, BidStatus::Rejected)).count();
-		assert_eq!(accepted_bids_count, x as usize);
-		assert_eq!(rejected_bids_count, y as usize);
-
-		// Events
-		frame_system::Pallet::<T>::assert_last_event(
-			Event::<T>::ProjectPhaseTransition {
-				project_id,
-				phase: ProjectStatus::CommunityRound(expected_remainder_round_block),
-			}
-			.into(),
-		);
-	}
-
-	// We check if the user has a winning bid regardless if its the community or remainder round, so both rounds should have
-	// the same weight with `x` being equal.
-	#[benchmark]
-	fn contribute(
-		// How many other contributions the user did for that same project
-		x: Linear<0, { T::MaxContributionsPerUser::get() - 1 }>,
-	) {
-		// setup
-		let mut inst = BenchInstantiator::<T>::new(None);
-		<T as Config>::SetPrices::set_prices();
-
-		// We can't see events at block 0
-		inst.jump_to_block(1u32.into());
-
-		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
-		let contributor = account::<AccountIdOf<T>>("contributor", 0, 0);
-		whitelist_account!(contributor);
-
-		let project_metadata = default_project_metadata::<T>(issuer.clone());
-
-		let project_id = inst.create_community_contributing_project(
-			project_metadata.clone(),
-			issuer,
-			None,
-			default_evaluations::<T>(),
-			full_bids::<T>(),
-		);
-
-		let price = inst.get_project_details(project_id).weighted_average_price.unwrap();
-
-		let contributions = vec![
-			ContributionParams::from((
-				contributor.clone(),
-				(50 * CT_UNIT).into(),
-				ParticipationMode::Classic(1u8),
-				AcceptedFundingAsset::USDT
-			));
-			x as usize + 1
-		];
-
-		let plmc = inst.calculate_contributed_plmc_spent(contributions.clone(), price);
-		let usdt = inst.calculate_contributed_funding_asset_spent(contributions.clone(), price);
-
-		let escrow_account = Pallet::<T>::fund_account_id(project_id);
-		let prev_total_usdt_locked =
-			inst.get_free_funding_asset_balances_for(vec![(escrow_account.clone(), usdt_id())]);
-
-		inst.mint_plmc_ed_if_required(plmc.accounts());
-		inst.mint_plmc_to(plmc.clone());
-		inst.mint_funding_asset_ed_if_required(usdt.to_account_asset_map());
-		inst.mint_funding_asset_to(usdt.clone());
-
-		// do "x" contributions for this user
-		inst.contribute_for_users(project_id, contributions[1..].to_vec()).expect("All contributions are accepted");
-
-		let total_plmc_bonded = inst.sum_balance_mappings(vec![plmc.clone()]);
-		let total_usdt_locked = inst.sum_funding_asset_mappings(vec![prev_total_usdt_locked, usdt.clone()])[0].1;
-
-		let total_free_plmc = inst.get_ed();
-		let total_free_usdt = inst.get_funding_asset_ed(AcceptedFundingAsset::USDT.id());
-
-		let jwt = get_mock_jwt_with_cid(
-			contributor.clone(),
-			InvestorType::Retail,
-			generate_did_from_account(contributor.clone()),
-			project_metadata.clone().policy_ipfs_cid.unwrap(),
-		);
-
-		#[extrinsic_call]
-		contribute(
-			RawOrigin::Signed(contributor.clone()),
-			jwt,
-			project_id,
-			contributions[0].amount,
-			contributions[0].mode,
-			contributions[0].asset,
-		);
-
-		// * validity checks *
-		// Storage
-		let stored_contributions =
-			Contributions::<T>::iter_prefix_values((project_id, contributor.clone())).collect_vec();
-		assert_eq!(stored_contributions.len(), x as usize + 1);
-
-		// Balances
-		let bonded_plmc = inst.get_reserved_plmc_balance_for(contributor.clone(), HoldReason::Participation.into());
-		assert_eq!(bonded_plmc, total_plmc_bonded);
-
-		let free_plmc = inst.get_free_plmc_balance_for(contributor.clone());
-		assert_eq!(free_plmc, total_free_plmc);
-
-		let escrow_account = Pallet::<T>::fund_account_id(project_id);
-		let locked_usdt = inst.get_free_funding_asset_balance_for(usdt_id(), escrow_account.clone());
-		assert_eq!(locked_usdt, total_usdt_locked);
-
-		let free_usdt = inst.get_free_funding_asset_balance_for(usdt_id(), contributor.clone());
-		assert_eq!(free_usdt, total_free_usdt);
-
-		// Events
-		frame_system::Pallet::<T>::assert_last_event(
-			Event::Contribution {
-				project_id,
-				contributor,
-				id: x,
-				ct_amount: contributions[0].amount,
-				funding_asset: AcceptedFundingAsset::USDT,
-				funding_amount: usdt[0].asset_amount,
-				plmc_bond: plmc[0].plmc_amount,
-				mode: contributions[0].mode,
-			}
-			.into(),
-		);
-	}
-
 	// end_funding has 2 logic paths:
 	// 1 - Funding successful (most expensive, not by much)
 	// 2 - Funding failed
 	// They only differ in that 1- has to calculate the evaluator rewards.
 	#[benchmark]
 	fn end_funding_project_successful() {
+		// log something
+
 		// setup
 		let mut inst = BenchInstantiator::<T>::new(None);
 		<T as Config>::SetPrices::set_prices();
 
+		let weth_price = PriceProviderOf::<T>::get_price(WETH.id()).unwrap();
+		log::info!("weth_price: {:?}", weth_price);
+
 		// We can't see events at block 0
-		inst.jump_to_block(1u32.into());
+		inst.advance_time(1u32.into());
 
 		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
 
 		let project_metadata = default_project_metadata::<T>(issuer.clone());
+		let evaluations = inst.generate_successful_evaluations(project_metadata.clone(), 5);
 
-		let project_id = inst.create_remainder_contributing_project(
-			project_metadata,
-			issuer.clone(),
+		let project_id = inst.create_auctioning_project(project_metadata.clone(), issuer.clone(), None, evaluations);
+
+		let bids = inst.generate_bids_from_total_ct_percent(project_metadata.clone(), 95, 10);
+		let accounts = bids.accounts();
+		let necessary_plmc = inst.calculate_auction_plmc_charged_from_all_bids_made_or_with_bucket(
+			&bids,
+			project_metadata.clone(),
 			None,
-			default_evaluations::<T>(),
-			default_bids::<T>(),
-			default_community_contributions::<T>(),
 		);
+		let necessary_funding_asset = inst.calculate_auction_funding_asset_charged_from_all_bids_made_or_with_bucket(
+			&bids,
+			project_metadata.clone(),
+			None,
+		);
+
+		inst.mint_plmc_ed_if_required(accounts.clone());
+		inst.mint_funding_asset_ed_if_required(necessary_funding_asset.clone().to_account_asset_map());
+		inst.mint_plmc_to(necessary_plmc.clone());
+		inst.mint_funding_asset_to(necessary_funding_asset.clone());
+		inst.bid_for_users(project_id, bids).unwrap();
 
 		let end_block = inst.get_project_details(project_id).round_duration.end().unwrap();
 		inst.jump_to_block(end_block);
@@ -1188,7 +862,7 @@ mod benchmarks {
 		<T as Config>::SetPrices::set_prices();
 
 		// We can't see events at block 0
-		inst.jump_to_block(1u32.into());
+		inst.advance_time(1u32.into());
 
 		let anyone = account::<AccountIdOf<T>>("anyone", 0, 0);
 		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
@@ -1200,8 +874,6 @@ mod benchmarks {
 			None,
 			default_evaluations::<T>(),
 			default_bids::<T>(),
-			default_community_contributions::<T>(),
-			vec![],
 		);
 
 		#[extrinsic_call]
@@ -1238,8 +910,6 @@ mod benchmarks {
 			None,
 			evaluations,
 			default_bids::<T>(),
-			default_community_contributions::<T>(),
-			vec![],
 		);
 
 		let evaluation_to_settle =
@@ -1313,8 +983,6 @@ mod benchmarks {
 			None,
 			default_evaluations::<T>(),
 			bids.clone(),
-			default_community_contributions::<T>(),
-			vec![],
 		);
 
 		let wap = inst.get_project_details(project_id).weighted_average_price.unwrap();
@@ -1354,83 +1022,6 @@ mod benchmarks {
 		);
 	}
 
-	// We have 2 logic paths
-	// 1 - Project was successful, USDT is transferred to issuer, CT minted, PLMC locked for vesting
-	// 2 - Project failed, USDT is refunded to contributor, CT is not minted, PLMC is released
-	// Path 1 is the most expensive but not by far, so we only benchmark and charge for this weight
-	#[benchmark]
-	fn settle_contribution_project_successful() {
-		// setup
-		let mut inst = BenchInstantiator::<T>::new(None);
-		<T as Config>::SetPrices::set_prices();
-
-		// We can't see events at block 0
-		inst.advance_time(1u32.into());
-
-		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
-		let contributions = default_community_contributions::<T>();
-		let contributor = contributions[0].contributor.clone();
-		whitelist_account!(contributor);
-
-		let project_metadata = default_project_metadata::<T>(issuer.clone());
-		let project_id = inst.create_finished_project(
-			project_metadata.clone(),
-			issuer,
-			None,
-			default_evaluations::<T>(),
-			default_bids::<T>(),
-			contributions,
-			vec![],
-		);
-
-		assert_ok!(<Pallet<T>>::do_start_settlement(project_id));
-
-		let contribution_to_settle =
-			inst.execute(|| Contributions::<T>::iter_prefix_values((project_id, contributor.clone())).next().unwrap());
-
-		#[extrinsic_call]
-		settle_contribution(
-			RawOrigin::Signed(contributor.clone()),
-			project_id,
-			contributor.clone(),
-			contribution_to_settle.id,
-		);
-
-		// * validity checks *
-		// Storage
-		assert!(Contributions::<T>::get((project_id, contributor.clone(), contribution_to_settle.id)).is_none());
-
-		// Balances
-		let ct_amount = inst.get_ct_asset_balances_for(project_id, vec![contributor.clone()])[0];
-		assert_eq!(contribution_to_settle.ct_amount, ct_amount);
-		inst.assert_plmc_held_balance(
-			contributor.clone(),
-			contribution_to_settle.plmc_bond,
-			HoldReason::Participation.into(),
-		);
-		assert_eq!(
-			VestingOf::<T>::total_scheduled_amount(&contributor, HoldReason::Participation.into()),
-			Some(contribution_to_settle.plmc_bond)
-		);
-		let funding_account = project_metadata.funding_destination_account;
-		inst.assert_funding_asset_free_balance(
-			funding_account,
-			AcceptedFundingAsset::USDT.id(),
-			contribution_to_settle.funding_asset_amount,
-		);
-
-		// Events
-		frame_system::Pallet::<T>::assert_last_event(
-			Event::ContributionSettled {
-				project_id,
-				account: contributor.clone(),
-				id: contribution_to_settle.id,
-				ct_amount,
-			}
-			.into(),
-		);
-	}
-
 	#[benchmark]
 	fn mark_project_as_settled() {
 		// setup
@@ -1448,8 +1039,6 @@ mod benchmarks {
 			None,
 			default_evaluations::<T>(),
 			default_bids::<T>(),
-			default_community_contributions::<T>(),
-			vec![],
 			false,
 		);
 
@@ -1470,16 +1059,10 @@ mod benchmarks {
 		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
 
 		let project_metadata = default_project_metadata::<T>(issuer.clone());
-		let project_id = inst.create_settled_project(
-			project_metadata.clone(),
-			issuer.clone(),
-			None,
-			default_evaluations::<T>(),
-			default_bids::<T>(),
-			default_community_contributions::<T>(),
-			vec![],
-			true,
-		);
+		let evaluations = inst.generate_successful_evaluations(project_metadata.clone(), 1);
+		let bids = inst.generate_bids_from_total_ct_percent(project_metadata.clone(), 34, 1);
+		let project_id =
+			inst.create_settled_project(project_metadata.clone(), issuer.clone(), None, evaluations, bids, true);
 
 		let jwt = get_mock_jwt_with_cid(
 			issuer.clone(),
@@ -1494,13 +1077,13 @@ mod benchmarks {
 		// * validity checks *
 		let project_details = inst.get_project_details(project_id);
 		assert_eq!(project_details.status, ProjectStatus::CTMigrationStarted);
-		assert_eq!(UnmigratedCounter::<T>::get(project_id), 13);
+		assert_eq!(UnmigratedCounter::<T>::get(project_id), 2);
 	}
 
 	#[benchmark]
 	fn confirm_offchain_migration(
 		// Amount of migrations to confirm for a single user
-		x: Linear<1, { MaxParticipationsPerUser::<T>::get() }>,
+		x: Linear<1, { <<T as Config>::MaxBidsPerUser>::get() }>,
 	) {
 		// setup
 		let mut inst = BenchInstantiator::<T>::new(None);
@@ -1509,50 +1092,32 @@ mod benchmarks {
 		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
 		let participant = account::<AccountIdOf<T>>("test_participant", 0, 0);
 
-		let max_evaluations = (x / 3).min(<T as Config>::MaxEvaluationsPerUser::get());
-		let max_bids = ((x - max_evaluations) / 2).min(<T as Config>::MaxBidsPerUser::get());
-		let max_contributions = x - max_evaluations - max_bids;
-
-		let participant_evaluations = (0..max_evaluations)
-			.map(|_| EvaluationParams::from((participant.clone(), (100 * USD_UNIT).into())))
-			.collect_vec();
+		let max_bids = x;
 		let participant_bids = (0..max_bids)
 			.map(|_| {
 				BidParams::from((
 					participant.clone(),
-					(500 * CT_UNIT).into(),
+					Institutional,
+					(50 * CT_UNIT).into(),
 					ParticipationMode::Classic(1u8),
 					AcceptedFundingAsset::USDT,
 				))
 			})
 			.collect_vec();
-		let participant_contributions = (0..max_contributions)
-			.map(|_| {
-				ContributionParams::<T>::from((
-					participant.clone(),
-					(10 * CT_UNIT).into(),
-					ParticipationMode::Classic(1),
-					AcceptedFundingAsset::USDT,
-				))
-			})
-			.collect_vec();
-
-		let mut evaluations = default_evaluations::<T>();
-		evaluations.extend(participant_evaluations);
-
-		let mut bids = default_bids::<T>();
-		bids.extend(participant_bids);
 
 		let project_metadata = default_project_metadata::<T>(issuer.clone());
-		let project_id = inst.create_settled_project(
-			project_metadata.clone(),
-			issuer.clone(),
-			None,
-			evaluations,
-			bids,
-			default_community_contributions::<T>(),
-			participant_contributions,
-			true,
+
+		let evaluations = inst.generate_successful_evaluations(project_metadata.clone(), 1);
+
+		let mut bids = inst.generate_bids_from_total_ct_percent(project_metadata.clone(), 34, 1);
+		bids.extend(participant_bids);
+
+		let project_id =
+			inst.create_settled_project(project_metadata.clone(), issuer.clone(), None, evaluations, bids, true);
+
+		assert_eq!(
+			inst.get_project_details(project_id).status,
+			ProjectStatus::SettlementFinished(FundingOutcome::Success)
 		);
 
 		let jwt = get_mock_jwt_with_cid(
@@ -1565,7 +1130,8 @@ mod benchmarks {
 		<Pallet<T>>::start_offchain_migration(RawOrigin::Signed(issuer.clone()).into(), jwt.clone(), project_id)
 			.unwrap();
 
-		let participant_migrations_len = UserMigrations::<T>::get((project_id, participant.clone())).unwrap().1.len();
+		let participant_migrations = UserMigrations::<T>::get((project_id, participant.clone()));
+		let participant_migrations_len = participant_migrations.unwrap().1.len();
 		assert_eq!(participant_migrations_len as u32, x);
 
 		#[extrinsic_call]
@@ -1574,7 +1140,8 @@ mod benchmarks {
 		// * validity checks *
 		let project_details = inst.get_project_details(project_id);
 		assert_eq!(project_details.status, ProjectStatus::CTMigrationStarted);
-		assert_eq!(UnmigratedCounter::<T>::get(project_id), 13);
+		// Evaluations and Bids had 1 each where it was a different account that the one we just confirmed.
+		assert_eq!(UnmigratedCounter::<T>::get(project_id), 2);
 	}
 
 	#[benchmark]
@@ -1592,8 +1159,6 @@ mod benchmarks {
 			None,
 			default_evaluations::<T>(),
 			default_bids::<T>(),
-			default_community_contributions::<T>(),
-			vec![],
 			true,
 		);
 
@@ -1638,8 +1203,6 @@ mod benchmarks {
 			None,
 			default_evaluations::<T>(),
 			default_bids::<T>(),
-			default_community_contributions::<T>(),
-			vec![],
 			true,
 		);
 
@@ -1697,8 +1260,6 @@ mod benchmarks {
 			None,
 			default_evaluations::<T>(),
 			default_bids::<T>(),
-			default_community_contributions::<T>(),
-			vec![],
 			true,
 		);
 
@@ -1773,8 +1334,6 @@ mod benchmarks {
 			None,
 			default_evaluations::<T>(),
 			default_bids::<T>(),
-			default_community_contributions::<T>(),
-			vec![],
 			true,
 		);
 
@@ -1849,7 +1408,7 @@ mod benchmarks {
 	#[benchmark]
 	fn send_pallet_migration_for(
 		// Amount of migrations to confirm for a single user
-		x: Linear<1, { MaxParticipationsPerUser::<T>::get() }>,
+		x: Linear<1, { <T as Config>::MaxBidsPerUser::get() }>,
 	) {
 		// setup
 		let mut inst = BenchInstantiator::<T>::new(None);
@@ -1858,51 +1417,27 @@ mod benchmarks {
 		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
 		let participant = account::<AccountIdOf<T>>("test_participant", 0, 0);
 
-		let max_evaluations = (x / 3).min(<T as Config>::MaxEvaluationsPerUser::get());
-		let max_bids = ((x - max_evaluations) / 2).min(<T as Config>::MaxBidsPerUser::get());
-		let max_contributions = x - max_evaluations - max_bids;
+		let max_bids = x;
 
-		let participant_evaluations = (0..max_evaluations)
-			.map(|_| EvaluationParams::from((participant.clone(), (100 * USD_UNIT).into())))
-			.collect_vec();
 		let participant_bids = (0..max_bids)
 			.map(|_| {
 				BidParams::from((
 					participant.clone(),
+					Institutional,
 					(500 * CT_UNIT).into(),
 					ParticipationMode::Classic(1u8),
 					AcceptedFundingAsset::USDT,
 				))
 			})
 			.collect_vec();
-		let participant_contributions = (0..max_contributions)
-			.map(|_| {
-				ContributionParams::<T>::from((
-					participant.clone(),
-					(10 * CT_UNIT).into(),
-					ParticipationMode::Classic(1),
-					AcceptedFundingAsset::USDT,
-				))
-			})
-			.collect_vec();
-
-		let mut evaluations = default_evaluations::<T>();
-		evaluations.extend(participant_evaluations);
-
-		let mut bids = default_bids::<T>();
-		bids.extend(participant_bids);
 
 		let project_metadata = default_project_metadata::<T>(issuer.clone());
-		let project_id = inst.create_settled_project(
-			project_metadata.clone(),
-			issuer.clone(),
-			None,
-			evaluations,
-			bids,
-			default_community_contributions::<T>(),
-			participant_contributions,
-			true,
-		);
+		let evaluations = inst.generate_successful_evaluations(project_metadata.clone(), 5);
+		let mut bids = inst.generate_bids_from_total_ct_percent(project_metadata.clone(), 34, 1);
+		bids.extend(participant_bids);
+
+		let project_id =
+			inst.create_settled_project(project_metadata.clone(), issuer.clone(), None, evaluations, bids, true);
 
 		let jwt = get_mock_jwt_with_cid(
 			issuer.clone(),
@@ -1947,7 +1482,7 @@ mod benchmarks {
 	#[benchmark]
 	fn confirm_pallet_migrations(
 		// Amount of migrations to confirm for a single user
-		x: Linear<1, { MaxParticipationsPerUser::<T>::get() }>,
+		x: Linear<1, { <T as Config>::MaxBidsPerUser::get() }>,
 	) {
 		// setup
 		let mut inst = BenchInstantiator::<T>::new(None);
@@ -1956,51 +1491,28 @@ mod benchmarks {
 		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
 		let participant = account::<AccountIdOf<T>>("test_participant", 0, 0);
 
-		let max_evaluations = (x / 3).min(<T as Config>::MaxEvaluationsPerUser::get());
-		let max_bids = ((x - max_evaluations) / 2).min(<T as Config>::MaxBidsPerUser::get());
-		let max_contributions = x - max_evaluations - max_bids;
+		let max_bids = x;
 
-		let participant_evaluations = (0..max_evaluations)
-			.map(|_| EvaluationParams::from((participant.clone(), (100 * USD_UNIT).into())))
-			.collect_vec();
 		let participant_bids = (0..max_bids)
 			.map(|_| {
 				BidParams::from((
 					participant.clone(),
+					Institutional,
 					(500 * CT_UNIT).into(),
 					ParticipationMode::Classic(1u8),
 					AcceptedFundingAsset::USDT,
 				))
 			})
 			.collect_vec();
-		let participant_contributions = (0..max_contributions)
-			.map(|_| {
-				ContributionParams::<T>::from((
-					participant.clone(),
-					(10 * CT_UNIT).into(),
-					ParticipationMode::Classic(1),
-					AcceptedFundingAsset::USDT,
-				))
-			})
-			.collect_vec();
-
-		let mut evaluations = default_evaluations::<T>();
-		evaluations.extend(participant_evaluations);
-
-		let mut bids = default_bids::<T>();
-		bids.extend(participant_bids);
 
 		let project_metadata = default_project_metadata::<T>(issuer.clone());
-		let project_id = inst.create_settled_project(
-			project_metadata.clone(),
-			issuer.clone(),
-			None,
-			evaluations,
-			bids,
-			default_community_contributions::<T>(),
-			participant_contributions,
-			true,
-		);
+		let evaluations = inst.generate_successful_evaluations(project_metadata.clone(), 1);
+
+		let mut bids = inst.generate_bids_from_total_ct_percent(project_metadata.clone(), 34, 1);
+		bids.extend(participant_bids);
+
+		let project_id =
+			inst.create_settled_project(project_metadata.clone(), issuer.clone(), None, evaluations, bids, true);
 
 		let jwt = get_mock_jwt_with_cid(
 			issuer.clone(),
@@ -2065,8 +1577,6 @@ mod benchmarks {
 			None,
 			default_evaluations::<T>(),
 			default_bids::<T>(),
-			default_community_contributions::<T>(),
-			vec![],
 			true,
 		);
 
@@ -2106,8 +1616,6 @@ mod benchmarks {
 			None,
 			default_evaluations::<T>(),
 			default_bids::<T>(),
-			default_community_contributions::<T>(),
-			vec![],
 			true,
 		);
 
@@ -2149,8 +1657,6 @@ mod benchmarks {
 			None,
 			default_evaluations::<T>(),
 			default_bids::<T>(),
-			default_community_contributions::<T>(),
-			vec![],
 			true,
 		);
 
