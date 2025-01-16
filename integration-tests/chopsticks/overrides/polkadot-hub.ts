@@ -1,25 +1,6 @@
 import { INITIAL_BALANCES } from '@/constants';
-import { Accounts, Asset } from '@/types';
-
-const weth_location = {
-  parents: 2,
-  interior: {
-    x2: [
-      {
-        globalConsensus: {
-          ethereum: {
-            chainId: 1n,
-          },
-        },
-      },
-      {
-        accountKey20: {
-          key: '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2',
-        },
-      },
-    ],
-  },
-};
+import { Accounts, Asset } from '@/types';import { weth_location } from './polimec';
+;
 
 export const polkadot_hub_storage = {
   System: {

@@ -1,5 +1,5 @@
-import { INITIAL_BALANCES } from '@/constants';
-import { Accounts, Asset, AssetLocation, AssetSourceRelation } from '@/types';
+import { INITIAL_BALANCES, WETH_ADDRESS } from '@/constants';
+import { Accounts } from '@/types';
 
 export const POLIMEC_WASM =
   '../../target/release/wbuild/polimec-runtime/polimec_runtime.compact.compressed.wasm';
@@ -36,7 +36,7 @@ export const weth_location = {
       },
       {
         accountKey20: {
-          key: '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2',
+          key: WETH_ADDRESS,
         },
       },
     ],

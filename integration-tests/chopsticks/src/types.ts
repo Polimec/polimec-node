@@ -10,6 +10,7 @@ import {
   type polkadot,
 } from '@polkadot-api/descriptors';
 import { FixedSizeBinary, type PolkadotClient, type TypedApi } from 'polkadot-api';
+import { WETH_ADDRESS } from './constants';
 
 type Polimec = typeof polimec;
 type PolkadotHub = typeof pah;
@@ -161,8 +162,7 @@ export function AssetLocation(
       return NativeAssetLocation(asset_source_relation);
 
     case Asset.WETH: {
-      const contract_hex = '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2';
-      return EthereumAssetLocation(FixedSizeBinary.fromHex(contract_hex));
+      return EthereumAssetLocation(FixedSizeBinary.fromHex(WETH_ADDRESS));
     }
   }
 }
