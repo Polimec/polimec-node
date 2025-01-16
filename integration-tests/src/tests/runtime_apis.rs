@@ -1,10 +1,6 @@
 use crate::{constants::*, *};
 use assets_common::runtime_api::runtime_decl_for_fungibles_api::FungiblesApiV2;
-use frame_support::traits::{
-	fungible::{Inspect, Mutate as FMutate},
-	fungibles::Mutate,
-	tokens::ConversionToAssetBalance,
-};
+use frame_support::traits::{fungible::Mutate as FMutate, fungibles::Mutate, tokens::ConversionToAssetBalance};
 use polimec_common::assets::AcceptedFundingAsset;
 use polimec_runtime::PLMCToAssetBalance;
 use sp_arithmetic::FixedU128;
@@ -107,14 +103,4 @@ mod fungibles_api {
 			assert_eq!(alice_assets, expected_assets);
 		});
 	}
-}
-
-#[test]
-fn sandbox() {
-	use super::*;
-
-	PolimecNet::execute_with(|| {
-		let b = PLMCToAssetBalance::to_asset_balance(135_0_000_000_000, Location::here());
-		dbg!(b);
-	});
 }

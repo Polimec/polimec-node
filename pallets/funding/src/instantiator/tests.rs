@@ -2,7 +2,7 @@ use crate::{
 	instantiator::{UserToFundingAsset, UserToPLMCBalance},
 	mock::{new_test_ext, TestRuntime, PLMC},
 	tests::{
-		defaults::{bounded_name, bounded_symbol, default_evaluations, default_project_metadata, ipfs_hash},
+		defaults::{bounded_name, bounded_symbol, default_project_metadata, ipfs_hash},
 		CT_DECIMALS, CT_UNIT,
 	},
 	*,
@@ -10,7 +10,7 @@ use crate::{
 use core::cell::RefCell;
 use itertools::Itertools;
 use polimec_common::{assets::AcceptedFundingAsset, ProvideAssetPrice, USD_DECIMALS, USD_UNIT};
-use sp_arithmetic::Percent;
+use sp_arithmetic::Perquintill;
 
 #[test]
 fn dry_run_wap() {
@@ -36,17 +36,11 @@ fn dry_run_wap() {
 		token_information: CurrencyMetadata { name: bounded_name, symbol: bounded_symbol, decimals: CT_DECIMALS },
 		mainnet_token_max_supply: 8_000_000 * CT_UNIT,
 		total_allocation_size: 100_000 * CT_UNIT,
-		auction_round_allocation_percentage: Percent::from_percent(50u8),
 		minimum_price: decimal_aware_price,
 		bidding_ticket_sizes: BiddingTicketSizes {
 			professional: TicketSize::new(5000 * USD_UNIT, None),
 			institutional: TicketSize::new(5000 * USD_UNIT, None),
-			phantom: Default::default(),
-		},
-		contributing_ticket_sizes: ContributingTicketSizes {
-			retail: TicketSize::new(USD_UNIT, None),
-			professional: TicketSize::new(USD_UNIT, None),
-			institutional: TicketSize::new(USD_UNIT, None),
+			retail: TicketSize::new(100 * USD_UNIT, None),
 			phantom: Default::default(),
 		},
 		participation_currencies: vec![AcceptedFundingAsset::USDT].try_into().unwrap(),
@@ -69,7 +63,8 @@ fn dry_run_wap() {
 	inst.mint_plmc_to(plmc_fundings);
 	inst.mint_funding_asset_to(usdt_fundings);
 
-	let project_id = inst.create_auctioning_project(project_metadata.clone(), 0, None, default_evaluations());
+	let evaluations = inst.generate_successful_evaluations(project_metadata.clone(), 5);
+	let project_id = inst.create_auctioning_project(project_metadata.clone(), 0, None, evaluations);
 
 	let bids = vec![
 		(ADAM, 10_000 * CT_UNIT).into(),
@@ -82,13 +77,12 @@ fn dry_run_wap() {
 
 	inst.bid_for_users(project_id, bids).unwrap();
 
-	assert!(matches!(inst.go_to_next_state(project_id), ProjectStatus::CommunityRound(_)));
+	assert!(matches!(inst.go_to_next_state(project_id), ProjectStatus::FundingSuccessful));
 
 	let project_details = inst.get_project_details(project_id);
 	let wap = project_details.weighted_average_price.unwrap();
 	let bucket = inst.execute(|| Buckets::<TestRuntime>::get(project_id).unwrap());
-	let dry_run_price = bucket
-		.calculate_wap(project_metadata.auction_round_allocation_percentage * project_metadata.total_allocation_size);
+	let dry_run_price = bucket.calculate_wap(project_metadata.total_allocation_size);
 
 	assert_eq!(dry_run_price, wap);
 }
@@ -116,18 +110,12 @@ fn find_bucket_for_wap() {
 	let project_metadata = ProjectMetadata {
 		token_information: CurrencyMetadata { name: bounded_name, symbol: bounded_symbol, decimals: CT_DECIMALS },
 		mainnet_token_max_supply: 8_000_000 * CT_UNIT,
-		total_allocation_size: 100_000 * CT_UNIT,
-		auction_round_allocation_percentage: Percent::from_percent(50u8),
+		total_allocation_size: 50_000 * CT_UNIT,
 		minimum_price: decimal_aware_price,
 		bidding_ticket_sizes: BiddingTicketSizes {
 			professional: TicketSize::new(5000 * USD_UNIT, None),
 			institutional: TicketSize::new(5000 * USD_UNIT, None),
-			phantom: Default::default(),
-		},
-		contributing_ticket_sizes: ContributingTicketSizes {
-			retail: TicketSize::new(USD_UNIT, None),
-			professional: TicketSize::new(USD_UNIT, None),
-			institutional: TicketSize::new(USD_UNIT, None),
+			retail: TicketSize::new(100 * USD_UNIT, None),
 			phantom: Default::default(),
 		},
 		participation_currencies: vec![AcceptedFundingAsset::USDT].try_into().unwrap(),
@@ -150,7 +138,8 @@ fn find_bucket_for_wap() {
 	inst.mint_plmc_to(plmc_fundings);
 	inst.mint_funding_asset_to(usdt_fundings);
 
-	let project_id = inst.create_auctioning_project(project_metadata.clone(), 0, None, default_evaluations());
+	let evaluations = inst.generate_successful_evaluations(project_metadata.clone(), 5);
+	let project_id = inst.create_auctioning_project(project_metadata.clone(), 0, None, evaluations);
 
 	let bids = vec![
 		(ADAM, 10_000 * CT_UNIT).into(),
@@ -163,7 +152,7 @@ fn find_bucket_for_wap() {
 
 	inst.bid_for_users(project_id, bids).unwrap();
 
-	assert!(matches!(inst.go_to_next_state(project_id), ProjectStatus::CommunityRound(_)));
+	assert!(matches!(inst.go_to_next_state(project_id), ProjectStatus::FundingSuccessful));
 
 	let project_details = inst.get_project_details(project_id);
 	let wap = project_details.weighted_average_price.unwrap();
@@ -172,8 +161,7 @@ fn find_bucket_for_wap() {
 	let bucket_found = inst.find_bucket_for_wap(project_metadata.clone(), wap);
 	assert_eq!(bucket_found, bucket_stored);
 
-	let wap_found = bucket_found
-		.calculate_wap(project_metadata.auction_round_allocation_percentage * project_metadata.total_allocation_size);
+	let wap_found = bucket_found.calculate_wap(project_metadata.total_allocation_size);
 	assert_eq!(wap_found, wap);
 }
 
@@ -195,9 +183,23 @@ fn generate_bids_from_bucket() {
 		|x| x + 1,
 		AcceptedFundingAsset::USDT,
 	);
-	let project_id =
-		inst.create_community_contributing_project(project_metadata.clone(), 0, None, default_evaluations(), bids);
+	let evaluations = inst.generate_successful_evaluations(project_metadata.clone(), 5);
+	let project_id = inst.create_finished_project(project_metadata.clone(), 0, None, evaluations, bids);
 	let project_details = inst.get_project_details(project_id);
 	let wap = project_details.weighted_average_price.unwrap();
 	assert_eq!(wap, desired_price_aware_wap);
+}
+
+#[test]
+fn generate_bids_from_higher_usd_than_target() {
+	let mut inst = tests::MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+	let mut project_metadata = default_project_metadata(0);
+	project_metadata.total_allocation_size = 100_000 * CT_UNIT;
+
+	const TARGET_USD: u128 = 1_500_000 * USD_UNIT;
+	let bids = inst.generate_bids_from_higher_usd_than_target(project_metadata.clone(), TARGET_USD);
+	let evaluations = inst.generate_successful_evaluations(project_metadata.clone(), 5);
+	let project_id = inst.create_finished_project(project_metadata, 0, None, evaluations, bids);
+	let project_details = inst.get_project_details(project_id);
+	assert_close_enough!(project_details.funding_amount_reached_usd, TARGET_USD, Perquintill::from_float(0.9999));
 }

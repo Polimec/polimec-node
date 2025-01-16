@@ -15,10 +15,6 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use crate::*;
-/// Tests for the oracle pallet integration.
-/// Alice, Bob, Charlie are members of the OracleProvidersMembers.
-/// Only members should be able to feed data into the oracle.
-use parity_scale_codec::alloc::collections::HashMap;
 use polimec_common::assets::AcceptedFundingAsset;
 use polimec_runtime::{Oracle, RuntimeOrigin};
 use sp_runtime::{bounded_vec, BoundedVec, FixedU128};
@@ -26,6 +22,7 @@ use std::collections::BTreeMap;
 use tests::defaults::*;
 
 use AcceptedFundingAsset::{DOT, USDC, USDT, WETH};
+
 fn values(
 	values: [f64; 5],
 ) -> BoundedVec<(Location, FixedU128), <polimec_runtime::Runtime as orml_oracle::Config<()>>::MaxFeedValues> {
@@ -133,14 +130,9 @@ fn pallet_funding_works() {
 		let charlie = PolimecNet::account_id_of(CHARLIE);
 		assert_ok!(Oracle::feed_values(RuntimeOrigin::signed(charlie.clone()), values([4.84, 1.0, 1.0, 2500.0, 0.4])));
 
-		let _project_id = inst.create_finished_project(
-			default_project_metadata(ISSUER.into()),
-			ISSUER.into(),
-			None,
-			default_evaluations(),
-			default_bids(),
-			default_community_contributions(),
-			vec![],
-		);
+		let project_metadata = default_project_metadata(ISSUER.into());
+		let evaluations = inst.generate_successful_evaluations(project_metadata.clone(), 5);
+		let bids = inst.generate_bids_from_total_ct_percent(project_metadata.clone(), 95, 8);
+		let _project_id = inst.create_finished_project(project_metadata, ISSUER.into(), None, evaluations, bids);
 	});
 }

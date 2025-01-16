@@ -15,7 +15,7 @@ impl Default for BoxToFunction {
 #[derive(Clone, PartialEq, Eq, Debug, Encode, Decode, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields, bound(serialize = ""), bound(deserialize = ""))]
 pub struct TestProjectParams<T: Config> {
-	pub expected_state: ProjectStatus<BlockNumberFor<T>>,
+	pub expected_state: ProjectStatus,
 	pub metadata: ProjectMetadataOf<T>,
 	pub issuer: AccountIdOf<T>,
 	pub evaluations: Vec<EvaluationParams<T>>,
@@ -302,6 +302,7 @@ impl<T: Config> Conversions for Vec<UserToFundingAsset<T>> {
 #[serde(rename_all = "camelCase", deny_unknown_fields, bound(serialize = ""), bound(deserialize = ""))]
 pub struct BidParams<T: Config> {
 	pub bidder: AccountIdOf<T>,
+	pub investor_type: InvestorType,
 	pub amount: Balance,
 	pub mode: ParticipationMode,
 	pub asset: AcceptedFundingAsset,
@@ -310,18 +311,20 @@ pub struct BidParams<T: Config> {
 impl<T: Config> BidParams<T> {
 	pub fn new(
 		bidder: AccountIdOf<T>,
+		investor_type: InvestorType,
 		amount: Balance,
 		mode: ParticipationMode,
 		asset: AcceptedFundingAsset,
 		receiving_account: Junction,
 	) -> Self {
-		Self { bidder, amount, mode, asset, receiving_account }
+		Self { bidder, investor_type, amount, mode, asset, receiving_account }
 	}
 }
 impl<T: Config> From<(AccountIdOf<T>, Balance)> for BidParams<T> {
 	fn from((bidder, amount): (AccountIdOf<T>, Balance)) -> Self {
 		Self {
 			bidder: bidder.clone(),
+			investor_type: InvestorType::Retail,
 			amount,
 			mode: ParticipationMode::Classic(1u8),
 			asset: AcceptedFundingAsset::USDT,
@@ -332,10 +335,26 @@ impl<T: Config> From<(AccountIdOf<T>, Balance)> for BidParams<T> {
 		}
 	}
 }
-impl<T: Config> From<(AccountIdOf<T>, Balance, ParticipationMode)> for BidParams<T> {
-	fn from((bidder, amount, mode): (AccountIdOf<T>, Balance, ParticipationMode)) -> Self {
+impl<T: Config> From<(AccountIdOf<T>, InvestorType, Balance)> for BidParams<T> {
+	fn from((bidder, investor_type, amount): (AccountIdOf<T>, InvestorType, Balance)) -> Self {
 		Self {
 			bidder: bidder.clone(),
+			investor_type,
+			amount,
+			mode: ParticipationMode::Classic(1u8),
+			asset: AcceptedFundingAsset::USDT,
+			receiving_account: Junction::AccountId32 {
+				network: Some(NetworkId::Polkadot),
+				id: T::AccountId32Conversion::convert(bidder.clone()),
+			},
+		}
+	}
+}
+impl<T: Config> From<(AccountIdOf<T>, InvestorType, Balance, ParticipationMode)> for BidParams<T> {
+	fn from((bidder, investor_type, amount, mode): (AccountIdOf<T>, InvestorType, Balance, ParticipationMode)) -> Self {
+		Self {
+			bidder: bidder.clone(),
+			investor_type,
 			amount,
 			mode,
 			asset: AcceptedFundingAsset::USDT,
@@ -346,52 +365,75 @@ impl<T: Config> From<(AccountIdOf<T>, Balance, ParticipationMode)> for BidParams
 		}
 	}
 }
-impl<T: Config> From<(AccountIdOf<T>, Balance, AcceptedFundingAsset)> for BidParams<T> {
-	fn from((bidder, amount, asset): (AccountIdOf<T>, Balance, AcceptedFundingAsset)) -> Self {
-		Self {
-			bidder: bidder.clone(),
-			amount,
-			mode: ParticipationMode::Classic(1u8),
-			asset,
-			receiving_account: Junction::AccountId32 {
-				network: Some(NetworkId::Polkadot),
-				id: T::AccountId32Conversion::convert(bidder.clone()),
-			},
-		}
-	}
-}
-impl<T: Config> From<(AccountIdOf<T>, Balance, ParticipationMode, AcceptedFundingAsset)> for BidParams<T> {
-	fn from((bidder, amount, mode, asset): (AccountIdOf<T>, Balance, ParticipationMode, AcceptedFundingAsset)) -> Self {
-		Self {
-			bidder: bidder.clone(),
-			amount,
-			mode,
-			asset,
-			receiving_account: Junction::AccountId32 {
-				network: Some(NetworkId::Polkadot),
-				id: T::AccountId32Conversion::convert(bidder.clone()),
-			},
-		}
-	}
-}
-impl<T: Config> From<(AccountIdOf<T>, Balance, AcceptedFundingAsset, Junction)> for BidParams<T> {
+impl<T: Config> From<(AccountIdOf<T>, InvestorType, Balance, AcceptedFundingAsset)> for BidParams<T> {
 	fn from(
-		(bidder, amount, asset, receiving_account): (AccountIdOf<T>, Balance, AcceptedFundingAsset, Junction),
+		(bidder, investor_type, amount, asset): (AccountIdOf<T>, InvestorType, Balance, AcceptedFundingAsset),
 	) -> Self {
-		Self { bidder, amount, mode: ParticipationMode::Classic(1u8), asset, receiving_account }
+		Self {
+			bidder: bidder.clone(),
+			investor_type,
+			amount,
+			mode: ParticipationMode::Classic(1u8),
+			asset,
+			receiving_account: Junction::AccountId32 {
+				network: Some(NetworkId::Polkadot),
+				id: T::AccountId32Conversion::convert(bidder.clone()),
+			},
+		}
 	}
 }
-impl<T: Config> From<(AccountIdOf<T>, Balance, ParticipationMode, AcceptedFundingAsset, Junction)> for BidParams<T> {
+impl<T: Config> From<(AccountIdOf<T>, InvestorType, Balance, ParticipationMode, AcceptedFundingAsset)>
+	for BidParams<T>
+{
 	fn from(
-		(bidder, amount, mode, asset, receiving_account): (
+		(bidder, investor_type, amount, mode, asset): (
 			AccountIdOf<T>,
+			InvestorType,
+			Balance,
+			ParticipationMode,
+			AcceptedFundingAsset,
+		),
+	) -> Self {
+		Self {
+			bidder: bidder.clone(),
+			investor_type,
+			amount,
+			mode,
+			asset,
+			receiving_account: Junction::AccountId32 {
+				network: Some(NetworkId::Polkadot),
+				id: T::AccountId32Conversion::convert(bidder.clone()),
+			},
+		}
+	}
+}
+impl<T: Config> From<(AccountIdOf<T>, InvestorType, Balance, AcceptedFundingAsset, Junction)> for BidParams<T> {
+	fn from(
+		(bidder, investor_type, amount, asset, receiving_account): (
+			AccountIdOf<T>,
+			InvestorType,
+			Balance,
+			AcceptedFundingAsset,
+			Junction,
+		),
+	) -> Self {
+		Self { bidder, investor_type, amount, mode: ParticipationMode::Classic(1u8), asset, receiving_account }
+	}
+}
+impl<T: Config> From<(AccountIdOf<T>, InvestorType, Balance, ParticipationMode, AcceptedFundingAsset, Junction)>
+	for BidParams<T>
+{
+	fn from(
+		(bidder, investor_type, amount, mode, asset, receiving_account): (
+			AccountIdOf<T>,
+			InvestorType,
 			Balance,
 			ParticipationMode,
 			AcceptedFundingAsset,
 			Junction,
 		),
 	) -> Self {
-		Self { bidder, amount, mode, asset, receiving_account }
+		Self { bidder, investor_type, amount, mode, asset, receiving_account }
 	}
 }
 impl<T: Config> From<BidParams<T>> for (AccountIdOf<T>, AssetIdOf<T>) {
