@@ -3,47 +3,6 @@ use super::*;
 
 impl<T: Config> Pallet<T> {
 	#[transactional]
-	pub fn do_end_auction(project_id: ProjectId) -> DispatchResultWithPostInfo {
-		// * Get variables *
-		let project_metadata = ProjectsMetadata::<T>::get(project_id).ok_or(Error::<T>::ProjectMetadataNotFound)?;
-		let bucket = Buckets::<T>::get(project_id).ok_or(Error::<T>::BucketNotFound)?;
-
-		// * Calculate WAP *
-		let auction_allocation_size =
-			project_metadata.auction_round_allocation_percentage * project_metadata.total_allocation_size;
-		let weighted_token_price = bucket.calculate_wap(auction_allocation_size);
-
-		// * Update Storage *
-		let calculation_result = Self::decide_winning_bids(
-			project_id,
-			project_metadata.auction_round_allocation_percentage * project_metadata.total_allocation_size,
-			weighted_token_price,
-		);
-		let updated_project_details =
-			ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
-
-		match calculation_result {
-			Err(e) => return Err(DispatchErrorWithPostInfo { post_info: ().into(), error: e }),
-			Ok((accepted_bids_count, rejected_bids_count)) => {
-				let now = <frame_system::Pallet<T>>::block_number();
-				// * Transition Round *
-				Self::transition_project(
-					project_id,
-					updated_project_details,
-					ProjectStatus::AuctionRound,
-					ProjectStatus::CommunityRound(now.saturating_add(T::CommunityRoundDuration::get())),
-					Some(T::CommunityRoundDuration::get() + T::RemainderRoundDuration::get()),
-					false,
-				)?;
-				Ok(PostDispatchInfo {
-					actual_weight: Some(WeightInfoOf::<T>::end_auction(accepted_bids_count, rejected_bids_count)),
-					pays_fee: Pays::Yes,
-				})
-			},
-		}
-	}
-
-	#[transactional]
 	pub fn do_bid(params: DoBidParams<T>) -> DispatchResultWithPostInfo {
 		// * Get variables *
 		let DoBidParams {
@@ -79,22 +38,16 @@ impl<T: Config> Pallet<T> {
 		let metadata_ticket_size_bounds = match investor_type {
 			InvestorType::Institutional => project_metadata.bidding_ticket_sizes.institutional,
 			InvestorType::Professional => project_metadata.bidding_ticket_sizes.professional,
-			_ => return Err(Error::<T>::WrongInvestorType.into()),
+			InvestorType::Retail => project_metadata.bidding_ticket_sizes.retail,
 		};
 		let max_multiplier = match investor_type {
 			InvestorType::Professional => PROFESSIONAL_MAX_MULTIPLIER,
 			InvestorType::Institutional => INSTITUTIONAL_MAX_MULTIPLIER,
-			// unreachable
-			_ => return Err(Error::<T>::ImpossibleState.into()),
+			InvestorType::Retail => RETAIL_MAX_MULTIPLIER,
 		};
 
 		// * Validity checks *
 		ensure!(project_policy == whitelisted_policy, Error::<T>::PolicyMismatch);
-		ensure!(
-			matches!(investor_type, InvestorType::Institutional | InvestorType::Professional),
-			DispatchError::from("Retail investors are not allowed to bid")
-		);
-
 		ensure!(ct_amount > Zero::zero(), Error::<T>::TooLow);
 		ensure!(did != project_details.issuer_did, Error::<T>::ParticipationToOwnProject);
 		ensure!(matches!(project_details.status, ProjectStatus::AuctionRound), Error::<T>::IncorrectRound);
@@ -114,10 +67,7 @@ impl<T: Config> Pallet<T> {
 		ensure!(mode.multiplier() <= max_multiplier && mode.multiplier() > 0u8, Error::<T>::ForbiddenMultiplier);
 
 		// Note: We limit the CT Amount to the auction allocation size, to avoid long-running loops.
-		ensure!(
-			ct_amount <= project_metadata.auction_round_allocation_percentage * project_metadata.total_allocation_size,
-			Error::<T>::TooHigh
-		);
+		ensure!(ct_amount <= project_metadata.total_allocation_size, Error::<T>::TooHigh);
 		ensure!(existing_bids.len() < T::MaxBidsPerUser::get() as usize, Error::<T>::TooManyUserParticipations);
 		ensure!(
 			project_metadata.participants_account_type.junction_is_supported(&receiving_account),
