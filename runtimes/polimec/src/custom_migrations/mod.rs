@@ -16,3 +16,5 @@
 
 // The generated files do not pass clippy.
 #![allow(clippy::all)]
+
+pub mod asset_id_migration;

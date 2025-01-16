@@ -21,6 +21,7 @@
 #[cfg(feature = "std")]
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 extern crate alloc;
+use assets_common::fungible_conversion::{convert, convert_balance};
 use core::ops::RangeInclusive;
 use cumulus_pallet_parachain_system::RelayNumberMonotonicallyIncreases;
 use cumulus_primitives_core::{AggregateMessageOrigin, ParaId};
@@ -97,14 +98,11 @@ use alloc::string::String;
 use sp_core::crypto::Ss58Codec;
 #[cfg(any(feature = "std", test))]
 pub use sp_runtime::BuildStorage;
-use xcm::{
-	v4::{Location},
-	VersionedAssetId,
-};
+use xcm::{v4::Location, VersionedAssetId};
 
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmark_helpers;
-mod custom_migrations;
+pub mod custom_migrations;
 mod weights;
 pub mod xcm_config;
 
@@ -178,8 +176,10 @@ pub mod migrations {
 
 	/// Unreleased migrations. Add new ones here:
 	#[allow(unused_parens)]
-	pub type Unreleased =
-		(frame_support::migrations::RemovePallet<RandomPalletName, <Runtime as frame_system::Config>::DbWeight>,);
+	pub type Unreleased = (
+		super::custom_migrations::asset_id_migration::FromOldAssetIdMigration,
+		pallet_funding::storage_migrations::v6::MigrationToV6<Runtime>,
+	);
 }
 
 /// Executive: handles dispatch to the various modules.
@@ -225,7 +225,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("polimec-mainnet"),
 	impl_name: create_runtime_str!("polimec-mainnet"),
 	authoring_version: 1,
-	spec_version: 0_009_000,
+	spec_version: 1_000_000,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 6,
@@ -1315,30 +1315,29 @@ mod benches {
 impl_runtime_apis! {
 	impl assets_common::runtime_api::FungiblesApi<Block,AccountId,> for Runtime{
 		fn query_account_balances(account: AccountId) -> Result<xcm::VersionedAssets, assets_common::runtime_api::FungiblesAccessError> {
-			// Ok([
-			// 	// collect pallet_balance
-			// 	{
-			// 		let balance = Balances::balance(&account);
-			// 		if balance > 0 {
-			// 			vec![convert_balance::<xcm_config::HereLocation, Balance>(balance)?]
-			// 		} else {
-			// 			vec![]
-			// 		}
-			// 	},
-			// 	// collect pallet_assets (ContributionTokens)
-			// 	convert::<_, _, _, _, xcm_config::ContributionTokensConvertedConcreteId>(
-			// 		ContributionTokens::account_balances(account.clone())
-			// 			.iter()
-			// 			.filter(|(_, balance)| balance > &0)
-			// 	)?,
-			// 	// collect pallet_assets (ForeignAssets)
-			// 	convert::<_, _, _, _, xcm_config::ForeignAssetsConvertedConcreteId>(
-			// 		ForeignAssets::account_balances(account)
-			// 			.iter()
-			// 			.filter(|(_, balance)| balance > &0)
-			// 	)?,
-			// ].concat().into())
-			Ok(vec![].into())
+			Ok([
+				// collect pallet_balance
+				{
+					let balance = Balances::balance(&account);
+					if balance > 0 {
+						vec![convert_balance::<xcm_config::HereLocation, Balance>(balance)?]
+					} else {
+						vec![]
+					}
+				},
+				// collect pallet_assets (ContributionTokens)
+				convert::<_, _, _, _, xcm_config::ContributionTokensConvertedConcreteId>(
+					ContributionTokens::account_balances(account.clone())
+						.iter()
+						.filter(|(_, balance)| balance > &0)
+				)?,
+				// collect pallet_assets (ForeignAssets)
+				convert::<_, _, _, _, xcm_config::ForeignAssetsConvertedConcreteId>(
+					ForeignAssets::account_balances(account)
+						.iter()
+						.filter(|(_, balance)| balance > &0)
+				)?,
+			].concat().into())
 		}
 	}
 
