@@ -232,8 +232,7 @@ const SAFE_XCM_VERSION: u32 = xcm::prelude::XCM_VERSION;
 // Polkadot
 pub mod polkadot {
 	use super::*;
-	pub const ED: Balance = polkadot_runtime_constants::currency::EXISTENTIAL_DEPOSIT;
-	const STASH: u128 = 100 * polkadot_runtime_constants::currency::UNITS;
+	pub const ED: Balance = rococo_runtime_constants::currency::EXISTENTIAL_DEPOSIT;
 
 	pub fn get_host_config() -> HostConfiguration<BlockNumber> {
 		HostConfiguration {
@@ -254,17 +253,16 @@ pub mod polkadot {
 		para_assignment: AssignmentId,
 		authority_discovery: AuthorityDiscoveryId,
 		beefy: BeefyId,
-	) -> polkadot_runtime::SessionKeys {
-		polkadot_runtime::SessionKeys { babe, grandpa, para_validator, para_assignment, authority_discovery, beefy }
+	) -> rococo_runtime::SessionKeys {
+		rococo_runtime::SessionKeys { babe, grandpa, para_validator, para_assignment, authority_discovery, beefy }
 	}
 
 	pub fn genesis() -> Storage {
-		let genesis_config = polkadot_runtime::RuntimeGenesisConfig {
-			system: Default::default(),
-			balances: polkadot_runtime::BalancesConfig {
+		let genesis_config = rococo_runtime::RuntimeGenesisConfig {
+			balances: rococo_runtime::BalancesConfig {
 				balances: accounts::init_balances().iter().cloned().map(|k| (k, INITIAL_DEPOSIT)).collect(),
 			},
-			session: polkadot_runtime::SessionConfig {
+			session: rococo_runtime::SessionConfig {
 				keys: validators::initial_authorities()
 					.iter()
 					.map(|x| {
@@ -284,93 +282,13 @@ pub mod polkadot {
 					})
 					.collect::<Vec<_>>(),
 			},
-			staking: polkadot_runtime::StakingConfig {
-				validator_count: validators::initial_authorities().len() as u32,
-				minimum_validator_count: 1,
-				stakers: validators::initial_authorities()
-					.iter()
-					.map(|x| (x.0.clone(), x.1.clone(), STASH, polkadot_runtime::StakerStatus::Validator))
-					.collect(),
-				invulnerables: validators::initial_authorities().iter().map(|x| x.0.clone()).collect(),
-				force_era: pallet_staking::Forcing::ForceNone,
-				slash_reward_fraction: Perbill::from_percent(10),
-				..Default::default()
-			},
-			babe: polkadot_runtime::BabeConfig {
+			babe: rococo_runtime::BabeConfig {
 				authorities: Default::default(),
-				epoch_config: polkadot_runtime::BABE_GENESIS_EPOCH_CONFIG,
+				epoch_config: rococo_runtime::BABE_GENESIS_EPOCH_CONFIG,
 				..Default::default()
 			},
-			configuration: polkadot_runtime::ConfigurationConfig { config: get_host_config() },
+			configuration: rococo_runtime::ConfigurationConfig { config: get_host_config() },
 			..Default::default()
-		};
-
-		genesis_config.build_storage().unwrap()
-	}
-}
-
-// AssetHub
-pub mod asset_hub {
-	use super::*;
-	use crate::{AssetHub, PolkadotNet};
-	use xcm::v4::Parent;
-
-	pub const PARA_ID: u32 = 1000;
-	pub const ED: Balance = system_parachains_constants::polkadot::currency::SYSTEM_PARA_EXISTENTIAL_DEPOSIT;
-
-	pub fn genesis() -> Storage {
-		let mut funded_accounts = vec![
-			(
-				<AssetHub<PolkadotNet>>::sovereign_account_id_of(
-					(Parent, xcm::prelude::Parachain(penpal::PARA_ID)).into(),
-				),
-				INITIAL_DEPOSIT,
-			),
-			(
-				<AssetHub<PolkadotNet>>::sovereign_account_id_of(
-					(Parent, xcm::prelude::Parachain(polimec::PARA_ID)).into(),
-				),
-				INITIAL_DEPOSIT,
-			),
-		];
-		funded_accounts.extend(accounts::init_balances().iter().cloned().map(|k| (k, INITIAL_DEPOSIT)));
-
-		let genesis_config = asset_hub_polkadot_runtime::RuntimeGenesisConfig {
-			system: Default::default(),
-			balances: asset_hub_polkadot_runtime::BalancesConfig { balances: funded_accounts },
-			parachain_info: asset_hub_polkadot_runtime::ParachainInfoConfig {
-				parachain_id: PARA_ID.into(),
-				..Default::default()
-			},
-			collator_selection: asset_hub_polkadot_runtime::CollatorSelectionConfig {
-				invulnerables: collators::invulnerables_asset_hub().iter().cloned().map(|(acc, _)| acc).collect(),
-				candidacy_bond: ED * 16,
-				..Default::default()
-			},
-			session: asset_hub_polkadot_runtime::SessionConfig {
-				keys: collators::invulnerables_asset_hub()
-					.into_iter()
-					.map(|(acc, aura)| {
-						(
-							acc.clone(),                                      // account id
-							acc,                                              // validator id
-							asset_hub_polkadot_runtime::SessionKeys { aura }, // session keys
-						)
-					})
-					.collect(),
-			},
-			aura: Default::default(),
-			aura_ext: Default::default(),
-			parachain_system: Default::default(),
-			polkadot_xcm: asset_hub_polkadot_runtime::PolkadotXcmConfig {
-				safe_xcm_version: Some(SAFE_XCM_VERSION),
-				..Default::default()
-			},
-			assets: Default::default(),
-			foreign_assets: Default::default(),
-			transaction_payment: Default::default(),
-			vesting: Default::default(),
-			pool_assets: Default::default(),
 		};
 
 		genesis_config.build_storage().unwrap()
@@ -387,9 +305,7 @@ pub mod penpal {
 
 	pub fn genesis() -> Storage {
 		let mut funded_accounts = vec![(
-			<Penpal<PolkadotNet>>::sovereign_account_id_of(
-				(Parent, xcm::prelude::Parachain(asset_hub::PARA_ID)).into(),
-			),
+			<Penpal<PolkadotNet>>::sovereign_account_id_of((Parent, xcm::prelude::Parachain(1000)).into()),
 			INITIAL_DEPOSIT,
 		)];
 		funded_accounts.extend(accounts::init_balances().iter().cloned().map(|k| (k, INITIAL_DEPOSIT)));
@@ -500,10 +416,7 @@ pub mod polimec {
 				PolimecNet::sovereign_account_id_of((Parent, xcm::prelude::Parachain(penpal::PARA_ID)).into()),
 				INITIAL_DEPOSIT,
 			),
-			(
-				PolimecNet::sovereign_account_id_of((Parent, xcm::prelude::Parachain(asset_hub::PARA_ID)).into()),
-				INITIAL_DEPOSIT,
-			),
+			(PolimecNet::sovereign_account_id_of((Parent, xcm::prelude::Parachain(1000)).into()), INITIAL_DEPOSIT),
 		];
 		let alice_account = PolimecNet::account_id_of(accounts::ALICE);
 		let bob_account: AccountId = PolimecNet::account_id_of(accounts::BOB);

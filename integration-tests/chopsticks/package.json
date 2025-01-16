@@ -1,0 +1,23 @@
+{
+  "name": "chopsticks",
+  "module": "src/index.ts",
+  "type": "module",
+  "scripts": {
+    "lint": "biome check --write src overrides",
+    "test": "env LOG_LEVEL=error bun test --timeout 25000"
+  },
+  "devDependencies": {
+    "@acala-network/chopsticks": "1.0.1",
+    "@biomejs/biome": "1.9.4",
+    "@polkadot-labs/hdkd": "0.0.10",
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5.0.0"
+  },
+  "dependencies": {
+    "@polkadot-api/descriptors": "file:.papi/descriptors",
+    "@polkadot/keyring": "13.2.3",
+    "polkadot-api": "^1.7.7"
+  }
+}

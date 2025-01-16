@@ -115,7 +115,6 @@ pub type FungibleTransactor = FungibleAdapter<
 	LocalCheckAccount,
 >;
 
-/// `AssetId`/`Balance` converter for `ForeignAssets`.
 pub type ForeignAssetsConvertedConcreteId = assets_common::ForeignAssetsConvertedConcreteId<
 	(
 		// Ignore `TrustBackedAssets` explicitly
