@@ -50,7 +50,7 @@ export class ChainSetup {
     // Needed to execute storage migrations within the new WASM before running tests.
     const head = this.polimec.head;
     console.log(`✅ Polimec chain is at block ${head.number}`);
-    console.log('✅ Running storage migrations...');
+    console.log('✅ Producing a new block...');
     const new_block = await this.polimec?.newBlock();
     console.log(`✅ Polimec chain is at block ${new_block.number}`);
     expect(new_block.number === head.number + 1, 'Block number should be incremented by 1');
@@ -69,7 +69,7 @@ export class ChainSetup {
   private async setupPolimec(polimec_storage: unknown) {
     const file = Bun.file(POLIMEC_WASM);
 
-    // Note: the tests are inteded to use a pre-production, locally compiled runtime, that's why we throw an error.
+    // Note: the tests are intended to use a pre-production, locally compiled runtime, that's why we throw an error.
     if (!(await file.exists())) {
       throw new Error(
         'Polimec runtime not found! Please build it by running `cargo b -r -p polimec-runtime` before executing the tests.',
