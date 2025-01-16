@@ -652,6 +652,8 @@ pub mod inner {
 		USDC,
 		#[codec(index = 2)]
 		DOT,
+		#[codec(index = 3)]
+		WETH,
 	}
 	impl AcceptedFundingAsset {
 		pub const fn id(&self) -> u32 {
@@ -659,6 +661,7 @@ pub mod inner {
 				AcceptedFundingAsset::USDT => 1984,
 				AcceptedFundingAsset::DOT => 10,
 				AcceptedFundingAsset::USDC => 1337,
+				AcceptedFundingAsset::WETH => 10_000,
 			}
 		}
 	}

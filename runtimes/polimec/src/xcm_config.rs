@@ -13,6 +13,7 @@
 
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
+extern crate alloc;
 
 use super::{
 	AccountId, AllPalletsWithSystem, AssetId as AssetIdPalletAssets, Balance, Balances, ContributionTokens, EnsureRoot,
@@ -55,12 +56,12 @@ const DOT_PER_MB_PROOF: u128 = 0_2_000_000_000; // 0.0000001 DOT per Megabyte of
 // USDT from Polkadot Asset Hub
 const USDT_PER_SECOND_EXECUTION: u128 = 1_000_000; // 1 USDT per second of execution time
 const USDT_PER_MB_PROOF: u128 = 1_000_000; // 1 USDT per Megabyte of proof size
-pub const USDT_JUNCTION: &[Junction] = &[Parachain(1000), PalletInstance(50), GeneralIndex(1984)];
 
 // USDC from Polkadot Asset Hub
 const USDC_PER_SECOND_EXECUTION: u128 = 1_000_000; // 1 USDC per second of execution time
 const USDC_PER_MB_PROOF: u128 = 1_000_000; // 1 USDC per Megabyte of proof size
-pub const USDC_JUNCTION: &[Junction] = &[Parachain(1000), PalletInstance(50), GeneralIndex(1337)];
+
+pub const WETH_ADDRESS: [u8; 20] = hex_literal::hex!("c02aaa39b223fe8d0a0e5c4f27ead9083c756cc2");
 
 parameter_types! {
 	pub const RelayLocation: Location = Location::parent();
@@ -82,13 +83,32 @@ parameter_types! {
 	pub ContributionTokensPalletIndex: u8 = <ContributionTokens as PalletInfoAccess>::index() as u8;
 	pub ContributionTokensPalletLocation: Location = PalletInstance(ContributionTokensPalletIndex::get()).into();
 
-	pub DotLocation: Location = RelayLocation::get();
-	pub UsdtLocation: Location = Location::new(1, [Parachain(1000), PalletInstance(50), GeneralIndex(1984)]);
-	pub UsdcLocation: Location =  Location::new(1, [Parachain(1000), PalletInstance(50), GeneralIndex(1337)]);
-	pub DotTraderParams: (AssetId, u128, u128) = (DotLocation::get().into(), DOT_PER_SECOND_EXECUTION, DOT_PER_MB_PROOF);
-	pub UsdtTraderParams: (AssetId, u128, u128) = (UsdtLocation::get().into(), USDT_PER_SECOND_EXECUTION, USDT_PER_MB_PROOF);
-	pub UsdcTraderParams: (AssetId, u128, u128) = (UsdcLocation::get().into(), USDC_PER_SECOND_EXECUTION, USDC_PER_MB_PROOF);
+	pub DOTLocation: Location = Location::new(DOT_PARENTS, DOT_JUNCTIONS);
+	pub USDTLocation: Location = Location::new(USDT_PARENTS, USDT_JUNCTIONS);
+	pub USDCLocation: Location = Location::new(USDC_PARENTS, USDC_JUNCTIONS);
+	pub WETHLocation: Location = Location::new(WETH_PARENTS, WETH_JUNCTIONS);
+
+	pub DotTraderParams: (AssetId, u128, u128) = (DOTLocation::get().into(), DOT_PER_SECOND_EXECUTION, DOT_PER_MB_PROOF);
+	pub UsdtTraderParams: (AssetId, u128, u128) = (USDTLocation::get().into(), USDT_PER_SECOND_EXECUTION, USDT_PER_MB_PROOF);
+	pub UsdcTraderParams: (AssetId, u128, u128) = (USDCLocation::get().into(), USDC_PER_SECOND_EXECUTION, USDC_PER_MB_PROOF);
 }
+
+const DOT_PARENTS: u8 = 1;
+const DOT_JUNCTIONS: [Junction; 0] = [];
+const DOT_UNPACKED: (u8, &[Junction]) = (DOT_PARENTS, &DOT_JUNCTIONS);
+
+const USDT_PARENTS: u8 = 1;
+const USDT_JUNCTIONS: [Junction; 3] = [Parachain(1000), PalletInstance(50), GeneralIndex(1984)];
+const USDT_UNPACKED: (u8, &[Junction]) = (USDT_PARENTS, &USDT_JUNCTIONS);
+
+const USDC_PARENTS: u8 = 1;
+const USDC_JUNCTIONS: [Junction; 3] = [Parachain(1000), PalletInstance(50), GeneralIndex(1337)];
+const USDC_UNPACKED: (u8, &[Junction]) = (USDC_PARENTS, &USDC_JUNCTIONS);
+
+const WETH_PARENTS: u8 = 2;
+const WETH_JUNCTIONS: [Junction; 2] =
+	[GlobalConsensus(Ethereum { chain_id: 1 }), AccountKey20 { network: None, key: WETH_ADDRESS }];
+const WETH_UNPACKED: (u8, &[Junction]) = (WETH_PARENTS, &WETH_JUNCTIONS);
 
 /// Type for specifying how a `Location` can be converted into an `AccountId`. This is used
 /// when determining ownership of accounts for asset transacting and when attempting to use XCM
@@ -129,25 +149,28 @@ pub type ContributionTokensConvertedConcreteId =
 pub struct SupportedAssets;
 impl frame_support::traits::Contains<Location> for SupportedAssets {
 	fn contains(l: &Location) -> bool {
-		matches!(l.unpack(), (1, []) | (1, USDC_JUNCTION) | (1, USDT_JUNCTION))
+		let funding_assets = [DOTLocation::get(), USDTLocation::get(), USDCLocation::get(), WETHLocation::get()];
+		funding_assets.contains(l)
 	}
 }
 
 impl MaybeEquivalence<Location, AssetIdPalletAssets> for SupportedAssets {
 	fn convert(asset_id: &Location) -> Option<AssetIdPalletAssets> {
 		match asset_id.unpack() {
-			(1, []) => Some(10),
-			(1, USDC_JUNCTION) => Some(1337),
-			(1, USDT_JUNCTION) => Some(1984),
+			DOT_UNPACKED => Some(10),
+			USDT_UNPACKED => Some(1984),
+			USDC_UNPACKED => Some(1337),
+			WETH_UNPACKED => Some(10_000),
 			_ => None,
 		}
 	}
 
 	fn convert_back(asset_id: &AssetIdPalletAssets) -> Option<Location> {
 		match asset_id {
-			10 => Some(DotLocation::get()),
-			1337 => Some(UsdcLocation::get()),
-			1984 => Some(UsdtLocation::get()),
+			10 => Some(DOTLocation::get()),
+			1337 => Some(USDCLocation::get()),
+			1984 => Some(USDTLocation::get()),
+			10_000 => Some(WETHLocation::get()),
 			_ => None,
 		}
 	}
@@ -187,6 +210,20 @@ impl Contains<(Location, Vec<Asset>)> for AssetHubAssetsAsReserve {
 		// We allow all signed origins to send back the AssetHub reserve assets.
 		let (_, assets) = item;
 		assets.iter().all(|asset| SupportedAssets::contains(&asset.id.0))
+	}
+}
+
+/// Matches foreign assets from a given origin.
+/// Foreign assets are assets bridged from other consensus systems. i.e parents > 1.
+pub struct IsBridgedAssetFrom<Origin>(PhantomData<Origin>);
+impl<Origin> ContainsPair<Asset, Location> for IsBridgedAssetFrom<Origin>
+where
+	Origin: Get<Location>,
+{
+	fn contains(asset: &Asset, origin: &Location) -> bool {
+		let loc = Origin::get();
+		&loc == origin &&
+			matches!(asset, Asset { id: AssetId(Location { parents: 2, .. }), fun: Fungibility::Fungible(_) },)
 	}
 }
 

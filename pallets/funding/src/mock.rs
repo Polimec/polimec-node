@@ -362,6 +362,7 @@ thread_local! {
 		(AcceptedFundingAsset::DOT.id(), FixedU128::from_float(69f64)), // DOT
 		(AcceptedFundingAsset::USDC.id(), FixedU128::from_float(0.97f64)), // USDC
 		(AcceptedFundingAsset::USDT.id(), FixedU128::from_float(1.0f64)), // USDT
+		(AcceptedFundingAsset::WETH.id(), FixedU128::from_float(3619.451f64)), // WETH
 		(PLMC_FOREIGN_ID, FixedU128::from_float(8.4f64)), // PLMC
 	]));
 }
@@ -511,11 +512,19 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
 					true,
 					100_000_000,
 				),
+				(
+					AcceptedFundingAsset::WETH.id(),
+					<TestRuntime as Config>::PalletId::get().into_account_truncating(),
+					true,
+					// 0.07 USD = .000041WETH at this moment
+					0_000_041_000_000_000_000,
+				),
 			],
 			metadata: vec![
 				(AcceptedFundingAsset::USDT.id(), "USDT".as_bytes().to_vec(), "USDT".as_bytes().to_vec(), 6),
 				(AcceptedFundingAsset::USDC.id(), "USDC".as_bytes().to_vec(), "USDC".as_bytes().to_vec(), 6),
 				(AcceptedFundingAsset::DOT.id(), "DOT".as_bytes().to_vec(), "DOT".as_bytes().to_vec(), 10),
+				(AcceptedFundingAsset::WETH.id(), "WETH".as_bytes().to_vec(), "WETH".as_bytes().to_vec(), 18),
 			],
 			accounts: vec![],
 		},

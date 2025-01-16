@@ -30,6 +30,7 @@ pub enum AssetName {
 	USDC,
 	DOT,
 	PLMC,
+	WETH,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -131,6 +132,7 @@ impl FetchPrice for KrakenFetcher {
 			AssetName::DOT => "https://api.kraken.com/0/public/OHLC?pair=DOTUSD&interval=1",
 			AssetName::USDC => "https://api.kraken.com/0/public/OHLC?pair=USDCUSD&interval=1",
 			AssetName::PLMC => "",
+			AssetName::WETH => "",
 		}
 	}
 }
@@ -224,6 +226,7 @@ impl FetchPrice for BitStampFetcher {
 			AssetName::DOT => "https://www.bitstamp.net/api/v2/ohlc/dotusd/?step=60&limit=15",
 			AssetName::USDC => "https://www.bitstamp.net/api/v2/ohlc/usdcusd/?step=60&limit=15",
 			AssetName::PLMC => "",
+			AssetName::WETH => "",
 		}
 	}
 }

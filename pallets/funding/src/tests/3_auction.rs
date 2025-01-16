@@ -147,6 +147,7 @@ mod round_flow {
 					AcceptedFundingAsset::USDT => usdt_price,
 					AcceptedFundingAsset::USDC => usdc_price,
 					AcceptedFundingAsset::DOT => dot_price,
+					AcceptedFundingAsset::WETH => todo!(),
 				};
 
 				let mut project_metadata = default_project_metadata.clone();
@@ -2269,8 +2270,12 @@ mod end_auction_extrinsic {
 			let accounts = [ADAM, TOM, SOFIA, FRED, ANNA, DAMIAN];
 			let mut project_metadata = default_project_metadata(ISSUER_1);
 			project_metadata.total_allocation_size = 100_000 * CT_UNIT;
-			project_metadata.participation_currencies =
-				bounded_vec![AcceptedFundingAsset::USDT, AcceptedFundingAsset::USDC, AcceptedFundingAsset::DOT,];
+			project_metadata.participation_currencies = bounded_vec![
+				AcceptedFundingAsset::USDT,
+				AcceptedFundingAsset::USDC,
+				AcceptedFundingAsset::DOT,
+				AcceptedFundingAsset::WETH
+			];
 
 			// overfund with plmc
 			let plmc_fundings = accounts
@@ -2278,11 +2283,16 @@ mod end_auction_extrinsic {
 				.map(|acc| UserToPLMCBalance { account: *acc, plmc_amount: PLMC * 1_000_000 })
 				.collect_vec();
 
-			let fundings = [AcceptedFundingAsset::USDT, AcceptedFundingAsset::USDC, AcceptedFundingAsset::DOT];
+			let fundings = [
+				AcceptedFundingAsset::USDT,
+				AcceptedFundingAsset::USDC,
+				AcceptedFundingAsset::DOT,
+				AcceptedFundingAsset::WETH,
+			];
 			assert_eq!(fundings.len(), AcceptedFundingAsset::VARIANT_COUNT);
 			let mut fundings = fundings.into_iter().cycle();
 
-			let usdt_fundings = accounts
+			let funding_asset_mints = accounts
 				.iter()
 				.map(|acc| {
 					let accepted_asset = fundings.next().unwrap();
@@ -2293,7 +2303,7 @@ mod end_auction_extrinsic {
 				})
 				.collect_vec();
 			inst.mint_plmc_to(plmc_fundings);
-			inst.mint_funding_asset_to(usdt_fundings);
+			inst.mint_funding_asset_to(funding_asset_mints);
 
 			let project_id = inst.create_auctioning_project(project_metadata, ISSUER_1, None, default_evaluations());
 
@@ -2301,9 +2311,9 @@ mod end_auction_extrinsic {
 				(ADAM, 10_000 * CT_UNIT, ParticipationMode::Classic(1), AcceptedFundingAsset::USDT).into(),
 				(TOM, 20_000 * CT_UNIT, ParticipationMode::Classic(1), AcceptedFundingAsset::USDC).into(),
 				(SOFIA, 20_000 * CT_UNIT, ParticipationMode::Classic(1), AcceptedFundingAsset::DOT).into(),
-				(FRED, 10_000 * CT_UNIT, ParticipationMode::Classic(1), AcceptedFundingAsset::USDT).into(),
-				(ANNA, 5_000 * CT_UNIT, ParticipationMode::Classic(1), AcceptedFundingAsset::USDC).into(),
-				(DAMIAN, 5_000 * CT_UNIT, ParticipationMode::Classic(1), AcceptedFundingAsset::DOT).into(),
+				(FRED, 10_000 * CT_UNIT, ParticipationMode::Classic(1), AcceptedFundingAsset::WETH).into(),
+				(ANNA, 5_000 * CT_UNIT, ParticipationMode::Classic(1), AcceptedFundingAsset::USDT).into(),
+				(DAMIAN, 5_000 * CT_UNIT, ParticipationMode::Classic(1), AcceptedFundingAsset::USDC).into(),
 			];
 
 			inst.bid_for_users(project_id, bids).unwrap();

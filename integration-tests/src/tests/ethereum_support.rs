@@ -10,7 +10,7 @@ fn test_hardcoded_signatures() {
 	let project_id = 1;
 
 	// Values generated with `https://github.com/lrazovic/ethsigner`
-	let polimec_account_ss58 = polimec_runtime::SS58Converter::convert(polimec_account.clone());
+	let _polimec_account_ss58 = polimec_runtime::SS58Converter::convert(polimec_account.clone());
 	let ethereum_account: [u8; 20] = hex!("796afe7b8933ee8cf337f17887e5c19b657f9ab8");
 	let signature: [u8; 65] = hex!("952e312ac892fefc7c69051521e78a3bc2727fbb495585bdb5fb77e662b8a3de2b1254058d824e85034710e338c2590e2f92d74ce3c60292ed25c7537d94ed621b");
 

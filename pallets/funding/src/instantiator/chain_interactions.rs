@@ -545,12 +545,14 @@ impl<
 		let mut total_expected_dot: Balance = Zero::zero();
 		let mut total_expected_usdt: Balance = Zero::zero();
 		let mut total_expected_usdc: Balance = Zero::zero();
+		let mut total_expected_weth: Balance = Zero::zero();
 
 		for bid in bids {
 			match bid.funding_asset {
 				AcceptedFundingAsset::DOT => total_expected_dot += bid.funding_asset_amount_locked,
 				AcceptedFundingAsset::USDT => total_expected_usdt += bid.funding_asset_amount_locked,
 				AcceptedFundingAsset::USDC => total_expected_usdc += bid.funding_asset_amount_locked,
+				AcceptedFundingAsset::WETH => total_expected_weth += bid.funding_asset_amount_locked,
 			}
 		}
 
@@ -559,6 +561,7 @@ impl<
 				AcceptedFundingAsset::DOT => total_expected_dot += contribution.funding_asset_amount,
 				AcceptedFundingAsset::USDT => total_expected_usdt += contribution.funding_asset_amount,
 				AcceptedFundingAsset::USDC => total_expected_usdc += contribution.funding_asset_amount,
+				AcceptedFundingAsset::WETH => total_expected_weth += contribution.funding_asset_amount,
 			}
 		}
 
@@ -572,12 +575,17 @@ impl<
 		);
 		let total_stored_usdc = self.get_free_funding_asset_balance_for(
 			AcceptedFundingAsset::USDC.id(),
+			project_metadata.funding_destination_account.clone(),
+		);
+		let total_stored_weth = self.get_free_funding_asset_balance_for(
+			AcceptedFundingAsset::WETH.id(),
 			project_metadata.funding_destination_account,
 		);
 
 		assert_eq!(total_expected_dot, total_stored_dot, "DOT amount is incorrect");
 		assert_eq!(total_expected_usdt, total_stored_usdt, "USDT amount is incorrect");
 		assert_eq!(total_expected_usdc, total_stored_usdc, "USDC amount is incorrect");
+		assert_eq!(total_expected_weth, total_stored_weth, "WETH amount is incorrect");
 	}
 
 	// Used to check if all evaluations are settled correctly. We cannot check amount of
