@@ -1,11 +1,17 @@
 use super::*;
 use crate::{MultiplierOf, ParticipationMode};
 use core::cmp::Ordering;
-use itertools::GroupBy;
+use itertools::{izip, GroupBy};
 #[allow(clippy::wildcard_imports)]
 use polimec_common::assets::AcceptedFundingAsset;
-use polimec_common::{ProvideAssetPrice, USD_DECIMALS};
-use sp_core::{ecdsa, hexdisplay::AsBytesRef, keccak_256, sr25519, Pair};
+use polimec_common::{
+	assets::AcceptedFundingAsset::{DOT, USDC, USDT, WETH},
+	ProvideAssetPrice, USD_DECIMALS,
+};
+use sp_core::{blake2_256, ecdsa, hexdisplay::AsBytesRef, keccak_256, sr25519, Pair};
+use sp_runtime::traits::TrailingZeroInput;
+use sp_std::ops::Div;
+use InvestorType::{self, *};
 
 impl<
 		T: Config,
@@ -68,7 +74,7 @@ impl<
 			while !amount_to_bid.is_zero() {
 				let bid_amount = if amount_to_bid <= bucket.amount_left { amount_to_bid } else { bucket.amount_left };
 				output.push((
-					BidParams::from((bid.bidder.clone(), bid_amount, bid.mode, bid.asset)),
+					BidParams::from((bid.bidder.clone(), bid.investor_type.clone(), bid_amount, bid.mode, bid.asset)),
 					bucket.current_price,
 				));
 				bucket.update(bid_amount);
@@ -134,8 +140,7 @@ impl<
 			.collect();
 		grouped_by_price_bids.reverse();
 
-		let mut remaining_cts =
-			project_metadata.auction_round_allocation_percentage * project_metadata.total_allocation_size;
+		let mut remaining_cts = project_metadata.total_allocation_size;
 
 		for (price_charged, bids) in grouped_by_price_bids {
 			for bid in bids {
@@ -245,8 +250,7 @@ impl<
 			.collect();
 		grouped_by_price_bids.reverse();
 
-		let mut remaining_cts =
-			project_metadata.auction_round_allocation_percentage * project_metadata.total_allocation_size;
+		let mut remaining_cts = project_metadata.total_allocation_size;
 
 		for (price_charged, bids) in grouped_by_price_bids {
 			for bid in bids {
@@ -314,95 +318,17 @@ impl<
 				total_cts_left.saturating_reduce(bid.amount);
 				filtered_bids.push(bid);
 			} else if !total_cts_left.is_zero() {
-				filtered_bids.push(BidParams::from((bid.bidder.clone(), total_cts_left, bid.mode, bid.asset)));
+				filtered_bids.push(BidParams::from((
+					bid.bidder.clone(),
+					bid.investor_type,
+					total_cts_left,
+					bid.mode,
+					bid.asset,
+				)));
 				total_cts_left = Zero::zero();
 			}
 		}
 		filtered_bids
-	}
-
-	pub fn calculate_contributed_plmc_spent(
-		&mut self,
-		contributions: Vec<ContributionParams<T>>,
-		token_usd_price: PriceOf<T>,
-	) -> Vec<UserToPLMCBalance<T>> {
-		let mut output = Vec::new();
-		for cont in contributions {
-			let mut plmc_bond = 0u128;
-			if let ParticipationMode::Classic(multiplier) = cont.mode {
-				let usd_ticket_size = token_usd_price.saturating_mul_int(cont.amount);
-				self.add_required_plmc_to(&mut plmc_bond, usd_ticket_size, multiplier);
-			}
-
-			output.push(UserToPLMCBalance::new(cont.contributor, plmc_bond));
-		}
-		output
-	}
-
-	pub fn calculate_total_plmc_locked_from_evaluations_and_remainder_contributions(
-		&mut self,
-		evaluations: Vec<EvaluationParams<T>>,
-		contributions: Vec<ContributionParams<T>>,
-		price: PriceOf<T>,
-		slashed: bool,
-		with_ed: bool,
-	) -> Vec<UserToPLMCBalance<T>> {
-		let evaluation_locked_plmc_amounts = self.calculate_evaluation_plmc_spent(evaluations);
-		// how much new plmc would be locked without considering evaluation bonds
-		let theoretical_contribution_locked_plmc_amounts = self.calculate_contributed_plmc_spent(contributions, price);
-
-		let slash_percentage = <T as Config>::EvaluatorSlash::get();
-		let slashable_min_deposits = evaluation_locked_plmc_amounts
-			.iter()
-			.map(|UserToPLMCBalance { account, plmc_amount }| UserToPLMCBalance {
-				account: account.clone(),
-				plmc_amount: slash_percentage * *plmc_amount,
-			})
-			.collect::<Vec<_>>();
-		let available_evaluation_locked_plmc_for_lock_transfer = self.generic_map_operation(
-			vec![evaluation_locked_plmc_amounts.clone(), slashable_min_deposits.clone()],
-			MergeOperation::Subtract,
-		);
-
-		// how much new plmc was actually locked, considering already evaluation bonds used
-		// first.
-		let actual_contribution_locked_plmc_amounts = self.generic_map_operation(
-			vec![theoretical_contribution_locked_plmc_amounts, available_evaluation_locked_plmc_for_lock_transfer],
-			MergeOperation::Subtract,
-		);
-		let mut result = self.generic_map_operation(
-			vec![evaluation_locked_plmc_amounts, actual_contribution_locked_plmc_amounts],
-			MergeOperation::Add,
-		);
-
-		if slashed {
-			result = self.generic_map_operation(vec![result, slashable_min_deposits], MergeOperation::Subtract);
-		}
-		if with_ed {
-			for UserToPLMCBalance { account: _, plmc_amount } in result.iter_mut() {
-				*plmc_amount += self.get_ed();
-			}
-		}
-		result
-	}
-
-	pub fn calculate_contributed_funding_asset_spent(
-		&mut self,
-		contributions: Vec<ContributionParams<T>>,
-		token_usd_price: PriceOf<T>,
-	) -> Vec<UserToFundingAsset<T>> {
-		let mut output = Vec::new();
-		for cont in contributions {
-			let usd_ticket_size = token_usd_price.saturating_mul_int(cont.amount);
-			let mut funding_asset_spent = Balance::zero();
-			self.add_required_funding_asset_to(&mut funding_asset_spent, usd_ticket_size, cont.asset);
-			if cont.mode == ParticipationMode::OTM {
-				self.add_otm_fee_to(&mut funding_asset_spent, usd_ticket_size, cont.asset);
-			}
-
-			output.push(UserToFundingAsset::new(cont.contributor, funding_asset_spent, cont.asset.id()));
-		}
-		output
 	}
 
 	pub fn add_otm_fee_to(
@@ -528,102 +454,222 @@ impl<
 		output
 	}
 
+	pub fn generate_evaluations_from_total_usd(
+		&self,
+		usd_amount: Balance,
+		evaluations_count: u8,
+	) -> Vec<EvaluationParams<T>> {
+		// Even distribution of weights totaling 100% among bids.
+		let weights = {
+			if evaluations_count == 0 {
+				return vec![];
+			}
+			let base = 100 / evaluations_count;
+			let remainder = 100 % evaluations_count;
+			let mut result = vec![base; evaluations_count as usize];
+			for i in 0..remainder {
+				result[i as usize] += 1;
+			}
+			result
+		};
+
+		let evaluators = (0..evaluations_count as u32).map(|i| self.account_from_u32(i, "EVALUATOR")).collect_vec();
+		zip(evaluators, weights)
+			.map(|(evaluator, weight)| {
+				let ticket_size = Percent::from_percent(weight) * usd_amount;
+				(evaluator, ticket_size).into()
+			})
+			.collect()
+	}
+
 	pub fn generate_successful_evaluations(
 		&self,
 		project_metadata: ProjectMetadataOf<T>,
-		evaluators: Vec<AccountIdOf<T>>,
-		weights: Vec<u8>,
+		evaluations_count: u8,
 	) -> Vec<EvaluationParams<T>> {
 		let funding_target = project_metadata.minimum_price.saturating_mul_int(project_metadata.total_allocation_size);
-		let evaluation_success_threshold = <T as Config>::EvaluationSuccessThreshold::get(); // if we use just the threshold, then for big usd targets we lose the evaluation due to PLMC conversion errors in `evaluation_end`
-		let usd_threshold = evaluation_success_threshold * funding_target * 2u128;
+		// if we use just the threshold, then for big usd targets we lose the evaluation due to PLMC conversion errors in `evaluation_end`
+		let evaluation_success_threshold = 100;
+		let usd_threshold = Percent::from_percent(evaluation_success_threshold) * funding_target;
 
-		zip(evaluators, weights)
-			.map(|(evaluator, weight)| {
-				let ticket_size = Percent::from_percent(weight) * usd_threshold;
-				(evaluator, ticket_size).into()
+		self.generate_evaluations_from_total_usd(usd_threshold, evaluations_count)
+	}
+
+	pub fn generate_failing_evaluations(
+		&self,
+		project_metadata: ProjectMetadataOf<T>,
+		evaluations_count: u8,
+	) -> Vec<EvaluationParams<T>> {
+		let funding_target = project_metadata.minimum_price.saturating_mul_int(project_metadata.total_allocation_size);
+		// if we use just the threshold, then for big usd targets we lose the evaluation due to PLMC conversion errors in `evaluation_end`
+		let evaluation_fail_percent = <T as Config>::EvaluationSuccessThreshold::get().deconstruct() / 2;
+
+		let usd_threshold = Percent::from_percent(evaluation_fail_percent) * funding_target;
+
+		self.generate_evaluations_from_total_usd(usd_threshold, evaluations_count)
+	}
+
+	pub fn generate_bids_from_total_ct_amount(&self, bids_count: u8, total_ct_bid: Balance) -> Vec<BidParams<T>> {
+		// This range should be allowed for all investor types.
+		let mut multipliers = (1u8..=5u8).cycle();
+
+		let modes = (0..bids_count)
+			.map(|i| {
+				if i % 2 == 0 {
+					ParticipationMode::Classic(multipliers.next().unwrap())
+				} else {
+					ParticipationMode::OTM
+				}
+			})
+			.collect_vec();
+
+		let investor_types =
+			vec![Retail, Professional, Institutional].into_iter().cycle().take(bids_count as usize).collect_vec();
+		let funding_assets =
+			vec![USDT, USDC, DOT, WETH, USDT].into_iter().cycle().take(bids_count as usize).collect_vec();
+
+		// Even distribution of weights totaling 100% among bids.
+		let weights = {
+			if bids_count == 0 {
+				return vec![];
+			}
+			let base = 100 / bids_count;
+			let remainder = 100 % bids_count;
+			let mut result = vec![base; bids_count as usize];
+			for i in 0..remainder {
+				result[i as usize] += 1;
+			}
+			result
+		};
+
+		let bidders = (0..bids_count as u32).map(|i| self.account_from_u32(i, "BIDDER")).collect_vec();
+
+		izip!(weights, bidders, modes, investor_types, funding_assets)
+			.map(|(weight, bidder, mode, investor_type, funding_asset)| {
+				let token_amount = Percent::from_percent(weight) * total_ct_bid;
+				BidParams::from((bidder, investor_type, token_amount, mode, funding_asset))
 			})
 			.collect()
 	}
 
 	pub fn generate_bids_from_total_usd(
 		&self,
+		project_metadata: ProjectMetadataOf<T>,
 		usd_amount: Balance,
-		min_price: PriceOf<T>,
-		weights: Vec<u8>,
-		bidders: Vec<AccountIdOf<T>>,
-		modes: Vec<ParticipationMode>,
+		bids_count: u8,
 	) -> Vec<BidParams<T>> {
-		assert_eq!(weights.len(), bidders.len(), "Should have enough weights for all the bidders");
+		let min_price = project_metadata.minimum_price;
+		let total_allocation_size = project_metadata.total_allocation_size;
+		let total_ct_bid = min_price.reciprocal().unwrap().saturating_mul_int(usd_amount);
+		if total_ct_bid > total_allocation_size {
+			panic!("This function should be used for filling only the first bucket. usd_amount given was too high!")
+		}
+		self.generate_bids_from_total_ct_amount(bids_count, total_ct_bid)
+	}
 
-		zip(zip(weights, bidders), modes)
-			.map(|((weight, bidder), mode)| {
-				let ticket_size = Percent::from_percent(weight) * usd_amount;
-				let token_amount = min_price.reciprocal().unwrap().saturating_mul_int(ticket_size);
+	pub fn generate_bids_from_higher_usd_than_target(
+		&mut self,
+		project_metadata: ProjectMetadataOf<T>,
+		usd_amount: Balance,
+	) -> Vec<BidParams<T>> {
+		let min_price = project_metadata.minimum_price;
+		let total_allocation_size = project_metadata.total_allocation_size;
+		let first_bucket_usd_amount = min_price.saturating_mul_int(total_allocation_size);
 
-				BidParams::from((bidder, token_amount, mode, AcceptedFundingAsset::USDT))
-			})
-			.collect()
+		// Initial setup
+		let target_wap_multiplicator = PriceOf::<T>::saturating_from_rational(usd_amount, first_bucket_usd_amount);
+		let mut target_wap: PriceOf<T> = min_price * target_wap_multiplicator;
+		let mut bucket = self.find_bucket_for_wap(project_metadata.clone(), target_wap);
+
+		let first_account = self.account_from_u32(0, "BIDDER");
+		let next_account = |acc: AccountIdOf<T>| -> AccountIdOf<T> {
+			let acc_bytes = acc.encode();
+			let account_string = String::from_utf8_lossy(&acc_bytes);
+			let entropy = (0, account_string).using_encoded(blake2_256);
+			Decode::decode(&mut TrailingZeroInput::new(entropy.as_ref()))
+				.expect("infinite length input; no invalid inputs for type; qed")
+		};
+
+		let evaluations = self.generate_successful_evaluations(project_metadata.clone(), 5);
+
+		// Initial bid generation
+		let mut bids = self.generate_bids_that_take_price_to(
+			project_metadata.clone(),
+			target_wap,
+			first_account.clone(),
+			next_account,
+		);
+
+		// Get initial USD amount
+		let project_id = self.create_finished_project(
+			project_metadata.clone(),
+			self.account_from_u32(420, "blaze it"),
+			None,
+			evaluations.clone(),
+			bids.clone(),
+		);
+		let mut usd_amount_raised = self.get_project_details(project_id).funding_amount_reached_usd;
+
+		let mut step_divider = PriceOf::<T>::saturating_from_rational(1, 1);
+		let mut previous_direction = usd_amount_raised < usd_amount;
+		let mut previous_wap = target_wap;
+		let mut loop_counter = 0;
+
+		while usd_amount_raised != usd_amount {
+			loop_counter += 1;
+			if loop_counter > 100 {
+				return bids;
+			}
+
+			let current_direction = usd_amount_raised < usd_amount;
+
+			// If we changed direction, increase precision
+			if current_direction != previous_direction {
+				step_divider = step_divider * PriceOf::<T>::saturating_from_rational(10, 1);
+			}
+
+			let step_size = bucket.delta_price.div(step_divider);
+			target_wap = if current_direction { target_wap + step_size } else { target_wap - step_size };
+
+			// Check if WAP is the same as previous
+			if target_wap == previous_wap {
+				return bids;
+			}
+			previous_wap = target_wap;
+
+			bucket = self.find_bucket_for_wap(project_metadata.clone(), target_wap);
+			bids = self.generate_bids_that_take_price_to(
+				project_metadata.clone(),
+				target_wap,
+				first_account.clone(),
+				next_account,
+			);
+
+			let project_id = self.create_finished_project(
+				project_metadata.clone(),
+				self.account_from_u32(420, "blaze it"),
+				None,
+				evaluations.clone(),
+				bids.clone(),
+			);
+			usd_amount_raised = self.get_project_details(project_id).funding_amount_reached_usd;
+
+			previous_direction = current_direction;
+		}
+
+		bids
 	}
 
 	pub fn generate_bids_from_total_ct_percent(
 		&self,
 		project_metadata: ProjectMetadataOf<T>,
 		percent_funding: u8,
-		weights: Vec<u8>,
-		bidders: Vec<AccountIdOf<T>>,
-		modes: Vec<ParticipationMode>,
+		bids_count: u8,
 	) -> Vec<BidParams<T>> {
 		let total_allocation_size = project_metadata.total_allocation_size;
 		let total_ct_bid = Percent::from_percent(percent_funding) * total_allocation_size;
 
-		assert_eq!(weights.len(), bidders.len(), "Should have enough weights for all the bidders");
-
-		zip(zip(weights, bidders), modes)
-			.map(|((weight, bidder), mode)| {
-				let token_amount = Percent::from_percent(weight) * total_ct_bid;
-				BidParams::from((bidder, token_amount, mode, AcceptedFundingAsset::USDT))
-			})
-			.collect()
-	}
-
-	pub fn generate_contributions_from_total_usd(
-		&self,
-		usd_amount: Balance,
-		final_price: PriceOf<T>,
-		weights: Vec<u8>,
-		contributors: Vec<AccountIdOf<T>>,
-		modes: Vec<ParticipationMode>,
-	) -> Vec<ContributionParams<T>> {
-		zip(zip(weights, contributors), modes)
-			.map(|((weight, bidder), mode)| {
-				let ticket_size = Percent::from_percent(weight) * usd_amount;
-				let token_amount = final_price.reciprocal().unwrap().saturating_mul_int(ticket_size);
-
-				ContributionParams::from((bidder, token_amount, mode, AcceptedFundingAsset::USDT))
-			})
-			.collect()
-	}
-
-	pub fn generate_contributions_from_total_ct_percent(
-		&self,
-		project_metadata: ProjectMetadataOf<T>,
-		percent_funding: u8,
-		weights: Vec<u8>,
-		contributors: Vec<AccountIdOf<T>>,
-		modes: Vec<ParticipationMode>,
-	) -> Vec<ContributionParams<T>> {
-		let total_allocation_size = project_metadata.total_allocation_size;
-		let total_ct_bought = Percent::from_percent(percent_funding) * total_allocation_size;
-
-		assert_eq!(weights.len(), contributors.len(), "Should have enough weights for all the bidders");
-
-		zip(zip(weights, contributors), modes)
-			.map(|((weight, contributor), mode)| {
-				let token_amount = Percent::from_percent(weight) * total_ct_bought;
-				ContributionParams::from((contributor, token_amount, mode, AcceptedFundingAsset::USDT))
-			})
-			.collect()
+		self.generate_bids_from_total_ct_amount(bids_count, total_ct_bid)
 	}
 
 	pub fn slash_evaluator_balances(&self, mut balances: Vec<UserToPLMCBalance<T>>) -> Vec<UserToPLMCBalance<T>> {
@@ -653,8 +699,7 @@ impl<
 
 	pub fn find_bucket_for_wap(&self, project_metadata: ProjectMetadataOf<T>, target_wap: PriceOf<T>) -> BucketOf<T> {
 		let mut bucket = <Pallet<T>>::create_bucket_from_metadata(&project_metadata).unwrap();
-		let auction_allocation =
-			project_metadata.auction_round_allocation_percentage * project_metadata.total_allocation_size;
+		let auction_allocation = project_metadata.total_allocation_size;
 
 		if target_wap == bucket.initial_price {
 			return bucket
@@ -716,11 +761,10 @@ impl<
 		if bucket.current_price == bucket.initial_price {
 			return vec![]
 		}
-		let auction_allocation =
-			project_metadata.auction_round_allocation_percentage * project_metadata.total_allocation_size;
+		let auction_allocation = project_metadata.total_allocation_size;
 
 		let mut generate_bid = |ct_amount| -> BidParams<T> {
-			let bid = (starting_account.clone(), ct_amount, funding_asset).into();
+			let bid = (starting_account.clone(), Retail, ct_amount, funding_asset).into();
 			starting_account = increment_account(starting_account.clone());
 			bid
 		};
@@ -781,8 +825,7 @@ impl<
 			bucket.update(bid.amount);
 		}
 
-		let auction_allocation =
-			project_metadata.auction_round_allocation_percentage * project_metadata.total_allocation_size;
+		let auction_allocation = project_metadata.total_allocation_size;
 		bucket.calculate_wap(auction_allocation)
 	}
 
@@ -842,5 +885,11 @@ impl<
 		signature_bytes[..64].copy_from_slice(signature.as_bytes_ref());
 		let junction = Junction::AccountId32 { network: Some(Polkadot), id: sr_pair.public().to_raw() };
 		(junction, signature_bytes)
+	}
+
+	pub fn account_from_u32(&self, x: u32, seed: &str) -> AccountIdOf<T> {
+		let entropy = (x, seed).using_encoded(blake2_256);
+		Decode::decode(&mut TrailingZeroInput::new(entropy.as_ref()))
+			.expect("infinite length input; no invalid inputs for type; qed")
 	}
 }
