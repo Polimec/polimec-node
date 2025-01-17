@@ -104,9 +104,9 @@ export class PolkadotToPolimecTransfer extends BaseTransferTest {
     }
   }
 
-  async calculateHubXcmFee(transferOptions: TransferOptions): Promise<bigint> {
+  async calculateHubXcmFee(_transferOptions: TransferOptions): Promise<bigint> {
     console.log('Calculating Polkadot -> Hub -> Polimec fees');
-    return 422157353n; // TODO: Replace this with the actual fee calculation below
+    return await Promise.resolve(422157353n); // TODO: Replace this with the actual fee calculation below
   }
 
   async computeFee(transferOptions: TransferOptions) {

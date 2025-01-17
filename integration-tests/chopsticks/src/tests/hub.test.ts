@@ -53,10 +53,7 @@ describe('Polkadot Hub -> Polimec Transfer Tests', () => {
   //   () =>
   //     transferTest.testTransfer({
   //       account: Accounts.ALICE,
-  //       assets: [
-  //         // [Asset.USDT, TRANSFER_AMOUNTS.TOKENS, AssetSourceRelation.Self],
-  //         [Asset.WETH, TRANSFER_AMOUNTS.BRIDGED, AssetSourceRelation.Self],
-  //       ],
+  //       assets: [[Asset.WETH, TRANSFER_AMOUNTS.BRIDGED, AssetSourceRelation.Self]],
   //     }),
   //   { timeout: 25000 },
   // );

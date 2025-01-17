@@ -47,7 +47,7 @@ export abstract class BaseChainManager {
     return signer;
   }
 
-  async waitForNextBlock(currentBlock: number) {
+  waitForNextBlock(currentBlock: number) {
     const api = this.getApi(this.getChainType());
     return firstValueFrom(
       api.query.System.Number.watchValue().pipe(
@@ -57,13 +57,13 @@ export abstract class BaseChainManager {
     );
   }
 
-  async getBlockNumber() {
+  getBlockNumber() {
     const chain = this.getChainType();
     const api = this.getApi(chain);
     return api.query.System.Number.getValue();
   }
 
-  async getMessageQueueEvents() {
+  getMessageQueueEvents() {
     const api = this.getApi(this.getChainType());
     return api.event.MessageQueue.Processed.pull();
   }

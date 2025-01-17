@@ -27,14 +27,15 @@ export abstract class BaseTransferTest {
     if (options.assets[0][1] > initialBalances[0].source) {
       throw new Error(`Insufficient balance on Source chain for asset: ${options.assets[0][0]}`);
     }
-    const blockNumbers = await this.executeTransfer(options);
-    await this.waitForBlocks(blockNumbers.destBlock);
+    const _blockNumbers = await this.executeTransfer(options);
+    await this.waitForBlocks();
     await this.verifyExecution();
     const { asset_balances: finalBalances } = await this.getBalances(options);
     this.verifyFinalBalances(initialBalances, finalBalances, options);
   }
 
-  protected async waitForBlocks(destBlockNumber: number) {
+  // TODO: Wait for the next block to be produced.
+  protected async waitForBlocks() {
     await sleep(2000);
   }
 
