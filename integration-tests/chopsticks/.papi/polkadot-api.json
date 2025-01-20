@@ -13,6 +13,10 @@
     "pah": {
       "wsUrl": "wss://sys.ibp.network/statemint",
       "metadata": ".papi/metadata/pah.scale"
+    },
+    "bridge": {
+      "wsUrl": "wss://sys.ibp.network/bridgehub-polkadot",
+      "metadata": ".papi/metadata/bridge.scale"
     }
   }
 }

@@ -6,7 +6,7 @@ import {
   connectParachains,
   connectVertical,
 } from '@acala-network/chopsticks-core';
-import { POLIMEC_WASM, polkadot_hub_storage, polkadot_storage } from '../overrides';
+import { POLIMEC_WASM, bridge_storage, polkadot_hub_storage, polkadot_storage } from '../overrides';
 
 type SetupResult = Awaited<ReturnType<typeof setupWithServer>>;
 
@@ -14,17 +14,20 @@ export class ChainSetup {
   private relaychain?: Blockchain;
   private polimec?: Blockchain;
   private assetHub?: Blockchain;
+  private bridgeHub?: Blockchain;
 
   // Store setup objects for cleanup
   private polimecSetup?: SetupResult;
   private assetHubSetup?: SetupResult;
   private relaychainSetup?: SetupResult;
+  private bridgeHubSetup?: SetupResult;
 
   async initialize(polimec_storage?: unknown) {
-    const [polimecSetup, assetHubSetup, relaychainSetup] = await Promise.all([
+    const [polimecSetup, assetHubSetup, relaychainSetup, bridgeHubSetup] = await Promise.all([
       this.setupPolimec(polimec_storage),
       this.setupAssetHub(),
       this.setupRelaychain(),
+      this.setupBridgeHub(),
     ]);
 
     console.log('✅ Local nodes instances are up');
@@ -33,16 +36,20 @@ export class ChainSetup {
     this.polimecSetup = polimecSetup;
     this.assetHubSetup = assetHubSetup;
     this.relaychainSetup = relaychainSetup;
+    this.bridgeHubSetup = bridgeHubSetup;
 
     // Store chain references
     this.polimec = polimecSetup.chain;
     this.assetHub = assetHubSetup.chain;
     this.relaychain = relaychainSetup.chain;
+    this.bridgeHub = bridgeHubSetup.chain;
 
     await Promise.all([
       connectVertical(this.relaychain, this.polimec),
       connectVertical(this.relaychain, this.assetHub),
+      connectVertical(this.relaychain, this.bridgeHub),
       connectParachains([this.polimec, this.assetHub]),
+      connectParachains([this.bridgeHub, this.assetHub]),
     ]);
 
     console.log('✅ HRMP channels created');
@@ -57,11 +64,17 @@ export class ChainSetup {
   }
 
   async cleanup() {
-    await Promise.all([this.relaychain?.close(), this.polimec?.close(), this.assetHub?.close()]);
+    await Promise.all([
+      this.relaychain?.close(),
+      this.polimec?.close(),
+      this.assetHub?.close(),
+      this.bridgeHub?.close(),
+    ]);
     await Promise.all([
       this.relaychainSetup?.close(),
       this.polimecSetup?.close(),
       this.assetHubSetup?.close(),
+      this.bridgeHubSetup?.close(),
     ]);
     console.log('✅ Local nodes instances are down');
   }
@@ -106,6 +119,15 @@ export class ChainSetup {
       endpoint: 'wss://rpc.ibp.network/polkadot',
       port: 8002,
       'import-storage': polkadot_storage,
+      'build-block-mode': BuildBlockMode.Instant,
+    });
+  }
+
+  private setupBridgeHub() {
+    return setupWithServer({
+      endpoint: 'wss://sys.ibp.network/bridgehub-polkadot',
+      port: 8003,
+      'import-storage': bridge_storage,
       'build-block-mode': BuildBlockMode.Instant,
     });
   }

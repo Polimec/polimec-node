@@ -5,6 +5,7 @@ import {
   XcmV3MultiassetFungibility,
   XcmVersionedAssets,
   XcmVersionedLocation,
+  type bridge,
   type pah,
   type polimec,
   type polkadot,
@@ -15,11 +16,13 @@ import { WETH_ADDRESS } from './constants';
 type Polimec = typeof polimec;
 type PolkadotHub = typeof pah;
 type Polkadot = typeof polkadot;
+type BridgeHub = typeof bridge;
 
 export enum Chains {
   Polimec = 'ws://localhost:8000',
   PolkadotHub = 'ws://localhost:8001',
   Polkadot = 'ws://localhost:8002',
+  BridgeHub = 'ws://localhost:8003',
 }
 
 export type ChainClient<T extends Chains> = {
@@ -30,6 +33,7 @@ export type ChainClient<T extends Chains> = {
 export const ParaId = {
   [Chains.Polimec]: 3344,
   [Chains.PolkadotHub]: 1000,
+  [Chains.BridgeHub]: 1001,
 };
 
 export enum AssetSourceRelation {
@@ -47,6 +51,7 @@ export type ChainToDefinition = {
   [Chains.Polimec]: Polimec;
   [Chains.PolkadotHub]: PolkadotHub;
   [Chains.Polkadot]: Polkadot;
+  [Chains.BridgeHub]: BridgeHub;
 };
 
 export interface TransferResult {
