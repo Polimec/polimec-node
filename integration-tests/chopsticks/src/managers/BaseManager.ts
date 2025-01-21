@@ -9,7 +9,7 @@ import type {
 } from '@/types';
 import { sr25519CreateDerive } from '@polkadot-labs/hdkd';
 import { DEV_PHRASE, entropyToMiniSecret, mnemonicToEntropy } from '@polkadot-labs/hdkd-helpers';
-import type { PolkadotSigner, TypedApi } from 'polkadot-api';
+import type { PolkadotClient, PolkadotSigner, TypedApi } from 'polkadot-api';
 import { getPolkadotSigner } from 'polkadot-api/signer';
 import { filter, firstValueFrom, take } from 'rxjs';
 
@@ -41,6 +41,12 @@ export abstract class BaseChainManager {
     return client.api as TypedApi<ChainToDefinition[T]>;
   }
 
+  getClient<T extends Chains>(chain: T): PolkadotClient {
+    const client = this.clients.get(chain);
+    if (!client) throw new Error(`Chain ${chain} not initialized`);
+    return client.client;
+  }
+
   getSigner(account: Accounts) {
     const signer = this.signers.get(account);
     if (!signer) throw new Error(`Signer for ${account} not found`);
@@ -57,9 +63,11 @@ export abstract class BaseChainManager {
     );
   }
 
-  getBlockNumber() {
+  async getBlockNumber() {
     const chain = this.getChainType();
     const api = this.getApi(chain);
+    // Note: Not sure why this is needed, but without it we cannot retrieve the block number.
+    await api.compatibilityToken;
     return api.query.System.Number.getValue();
   }
 

@@ -33,7 +33,7 @@ export type ChainClient<T extends Chains> = {
 export const ParaId = {
   [Chains.Polimec]: 3344,
   [Chains.PolkadotHub]: 1000,
-  [Chains.BridgeHub]: 1001,
+  [Chains.BridgeHub]: 1002,
 };
 
 export enum AssetSourceRelation {
