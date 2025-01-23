@@ -43,8 +43,8 @@ use frame_system::{EnsureRoot, EnsureRootWithSuccess, EnsureSigned, EnsureSigned
 use pallet_aura::Authorities;
 use pallet_democracy::GetElectorate;
 use pallet_funding::{
-	runtime_api::ProjectParticipationIds, BidInfoOf, ContributionInfoOf, DaysToBlocks, EvaluationInfoOf,
-	HereLocationGetter, PriceProviderOf, ProjectDetailsOf, ProjectId, ProjectMetadataOf,
+	runtime_api::ProjectParticipationIds, BidInfoOf, DaysToBlocks, EvaluationInfoOf, HereLocationGetter,
+	PriceProviderOf, ProjectDetailsOf, ProjectId, ProjectMetadataOf,
 };
 use parachains_common::{
 	impls::AssetsToBlockAuthor,
@@ -1510,10 +1510,6 @@ impl_runtime_apis! {
 			Funding::top_bids(project_id, amount)
 		}
 
-		fn top_contributions(project_id: ProjectId, amount: u32) -> Vec<ContributionInfoOf<Runtime>> {
-			Funding::top_contributions(project_id, amount)
-		}
-
 		fn top_projects_by_usd_raised(amount: u32) -> Vec<(ProjectId, ProjectMetadataOf<Runtime>, ProjectDetailsOf<Runtime>)> {
 			Funding::top_projects_by_usd_raised(amount)
 		}
@@ -1561,6 +1557,9 @@ impl_runtime_apis! {
 		}
 		fn get_message_to_sign_by_receiving_account(project_id: ProjectId, polimec_account: AccountId) -> Option<String> {
 			Funding::get_message_to_sign_by_receiving_account(project_id, polimec_account)
+		}
+		fn get_ordered_bid_settlements(project_id: ProjectId) -> Vec<(ProjectId, AccountId, u32)> {
+			Funding::get_ordered_bid_settlements(project_id)
 		}
 	}
 
