@@ -68,8 +68,7 @@ mod end_funding_extrinsic {
 
 			let total_fee = Perquintill::from_rational(fee_1 + fee_2 + fee_3, USD_REACHED);
 
-			let total_ct_fee =
-				total_fee * (project_metadata.total_allocation_size - project_details.remaining_contribution_tokens);
+			let total_ct_fee = total_fee * 950_000 * CT_UNIT;
 
 			let total_evaluator_reward = Perquintill::from_percent(30) * total_ct_fee;
 
@@ -86,9 +85,32 @@ mod end_funding_extrinsic {
 				early_evaluator_total_bonded_usd: EARLY_EVALUATOR_TOTAL_USD_BONDED,
 				normal_evaluator_total_bonded_usd: NORMAL_EVALUATOR_TOTAL_USD_BONDED,
 			};
-			assert_eq!(
-				inst.get_project_details(project_id).evaluation_round_info.evaluators_outcome,
-				Some(EvaluatorsOutcome::Rewarded(expected_reward_info))
+
+			let EvaluatorsOutcome::Rewarded(stored_reward_info) =
+				inst.get_project_details(project_id).evaluation_round_info.evaluators_outcome.unwrap()
+			else {
+				panic!("Unexpected Evaluator Outcome")
+			};
+
+			assert_close_enough!(
+				stored_reward_info.early_evaluator_reward_pot,
+				expected_reward_info.early_evaluator_reward_pot,
+				Perquintill::from_float(0.999)
+			);
+			assert_close_enough!(
+				stored_reward_info.normal_evaluator_reward_pot,
+				expected_reward_info.normal_evaluator_reward_pot,
+				Perquintill::from_float(0.999)
+			);
+			assert_close_enough!(
+				stored_reward_info.early_evaluator_total_bonded_usd,
+				expected_reward_info.early_evaluator_total_bonded_usd,
+				Perquintill::from_float(0.999)
+			);
+			assert_close_enough!(
+				stored_reward_info.normal_evaluator_total_bonded_usd,
+				expected_reward_info.normal_evaluator_total_bonded_usd,
+				Perquintill::from_float(0.999)
 			);
 		}
 

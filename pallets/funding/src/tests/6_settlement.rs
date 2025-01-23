@@ -15,13 +15,21 @@ mod round_flow {
 			let percentage = 100u8;
 			let (mut inst, project_id) = create_project_with_funding_percentage(percentage, true);
 			let evaluations = inst.get_evaluations(project_id);
-			let bids = inst.get_bids(project_id);
+
+			let settlement_ordered_bids = inst.execute(|| {
+				Pallet::<TestRuntime>::get_ordered_bid_settlements(project_id)
+					.into_iter()
+					.map(|(project_id, account, bid_id)| {
+						Bids::<TestRuntime>::get((project_id, account, bid_id)).unwrap()
+					})
+					.collect_vec()
+			});
 
 			inst.settle_project(project_id, true);
 
-			inst.assert_total_funding_paid_out(project_id, bids.clone());
+			inst.assert_total_funding_paid_out(project_id, settlement_ordered_bids.clone());
 			inst.assert_evaluations_migrations_created(project_id, evaluations, true);
-			inst.assert_bids_migrations_created(project_id, bids, true);
+			inst.assert_bids_migrations_created(project_id, settlement_ordered_bids, true);
 		}
 
 		#[test]
@@ -519,12 +527,20 @@ mod settle_bid_extrinsic {
 				project_metadata.funding_destination_account,
 			);
 
-			inst.execute(|| {
-				assert_ok!(PolimecFunding::settle_bid(RuntimeOrigin::signed(BIDDER_1), project_id, BIDDER_1, 0));
-			});
+			let lower_price_bid_stored = inst.execute(|| Bids::<TestRuntime>::get((project_id, BIDDER_2, 1)).unwrap());
+			let pre_issuer_dot_balance = inst.get_free_funding_asset_balance_for(
+				AcceptedFundingAsset::DOT.id(),
+				project_metadata.funding_destination_account,
+			);
+
+			inst.settle_project(project_id, true);
 
 			let post_issuer_usdt_balance = inst.get_free_funding_asset_balance_for(
 				AcceptedFundingAsset::USDT.id(),
+				project_metadata.funding_destination_account,
+			);
+			let post_issuer_dot_balance = inst.get_free_funding_asset_balance_for(
+				AcceptedFundingAsset::DOT.id(),
 				project_metadata.funding_destination_account,
 			);
 
@@ -557,7 +573,6 @@ mod settle_bid_extrinsic {
 			inst.assert_plmc_free_balance(BIDDER_1, expected_plmc_refund + expected_final_plmc_bonded + ed);
 
 			// Price > wap bid assertions
-			let lower_price_bid_stored = inst.execute(|| Bids::<TestRuntime>::get((project_id, BIDDER_2, 1)).unwrap());
 			let expected_final_plmc_bonded = inst
 				.calculate_auction_plmc_charged_with_given_price(&vec![lower_price_bid_params.clone()], wap)[0]
 				.plmc_amount;
@@ -566,20 +581,6 @@ mod settle_bid_extrinsic {
 				.asset_amount;
 			let expected_plmc_refund = lower_price_bid_stored.plmc_bond - expected_final_plmc_bonded;
 			let expected_dot_refund = lower_price_bid_stored.funding_asset_amount_locked - expected_final_dot_paid;
-
-			let pre_issuer_dot_balance = inst.get_free_funding_asset_balance_for(
-				AcceptedFundingAsset::DOT.id(),
-				project_metadata.funding_destination_account,
-			);
-
-			inst.execute(|| {
-				assert_ok!(PolimecFunding::settle_bid(RuntimeOrigin::signed(BIDDER_1), project_id, BIDDER_2, 1));
-			});
-
-			let post_issuer_dot_balance = inst.get_free_funding_asset_balance_for(
-				AcceptedFundingAsset::DOT.id(),
-				project_metadata.funding_destination_account,
-			);
 
 			inst.assert_funding_asset_free_balance(
 				BIDDER_2,
@@ -791,16 +792,13 @@ mod settle_bid_extrinsic {
 			assert_eq!(inst.go_to_next_state(project_id), ProjectStatus::SettlementStarted(FundingOutcome::Success));
 
 			let rejected_bid_stored = inst.execute(|| Bids::<TestRuntime>::get((project_id, BIDDER_1, 0)).unwrap());
-			assert_eq!(rejected_bid_stored.status, BidStatus::Rejected);
 
 			let pre_issuer_usdt_balance = inst.get_free_funding_asset_balance_for(
 				AcceptedFundingAsset::USDT.id(),
 				project_metadata.funding_destination_account,
 			);
 
-			inst.execute(|| {
-				assert_ok!(PolimecFunding::settle_bid(RuntimeOrigin::signed(BIDDER_1), project_id, BIDDER_1, 0));
-			});
+			inst.settle_project(project_id, true);
 
 			let post_issuer_usdt_balance = inst.get_free_funding_asset_balance_for(
 				AcceptedFundingAsset::USDT.id(),

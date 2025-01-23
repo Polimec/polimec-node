@@ -19,6 +19,7 @@ use polimec_common::{
 	ReleaseSchedule,
 };
 use sp_runtime::{traits::Zero, Perquintill};
+use sp_std::cmp::Ordering;
 
 impl<T: Config> Pallet<T> {
 	#[transactional]
@@ -154,17 +155,50 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
-	pub fn do_settle_bid(bid: BidInfoOf<T>, project_id: ProjectId) -> DispatchResult {
-		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
+	pub fn do_settle_bid(project_id: ProjectId, bidder: AccountIdOf<T>, bid_id: u32) -> DispatchResult {
+		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 		let project_metadata = ProjectsMetadata::<T>::get(project_id).ok_or(Error::<T>::ProjectMetadataNotFound)?;
+		let bucket = Buckets::<T>::get(project_id).ok_or(Error::<T>::BucketNotFound)?;
 		let funding_success =
 			matches!(project_details.status, ProjectStatus::SettlementStarted(FundingOutcome::Success));
 		let wap = project_details.weighted_average_price.ok_or(Error::<T>::ImpossibleState)?;
+		let mut bid = Bids::<T>::get((project_id, bidder.clone(), bid_id)).ok_or(Error::<T>::ParticipationNotFound)?;
+		let next_bid_price = NextBidPriceToSettle::<T>::get(project_id).ok_or(Error::<T>::NotAllowed)?;
+		let (next_bid_index, last_bid_index_at_this_price) =
+			BidsSettlementOrder::<T>::get(project_id, next_bid_price).ok_or(Error::<T>::NotAllowed)?;
 
 		ensure!(
-			matches!(project_details.status, ProjectStatus::SettlementStarted(..)) || bid.status == BidStatus::Rejected,
+			matches!(project_details.status, ProjectStatus::SettlementStarted(..)),
 			Error::<T>::SettlementNotStarted
 		);
+		ensure!(bid_id == next_bid_index, Error::<T>::NotAllowed);
+		ensure!(bid.original_ct_usd_price == next_bid_price, Error::<T>::NotAllowed);
+
+		match bid.original_ct_amount.cmp(&project_details.remaining_contribution_tokens) {
+			Ordering::Greater if project_details.remaining_contribution_tokens == 0 => {
+				bid.status = BidStatus::Rejected;
+			},
+			Ordering::Greater => {
+				bid.status = BidStatus::PartiallyAccepted(project_details.remaining_contribution_tokens);
+				project_details.remaining_contribution_tokens = 0;
+			},
+			_ => {
+				bid.status = BidStatus::Accepted;
+				project_details.remaining_contribution_tokens =
+					project_details.remaining_contribution_tokens.checked_sub(bid.original_ct_amount).unwrap_or(0);
+			},
+		}
+
+		if bid_id == last_bid_index_at_this_price {
+			BidsSettlementOrder::<T>::remove(project_id, next_bid_price);
+			NextBidPriceToSettle::<T>::set(project_id, Some(next_bid_price.saturating_sub(bucket.delta_price)));
+		} else {
+			BidsSettlementOrder::<T>::insert(
+				project_id,
+				next_bid_price,
+				(bid_id.saturating_add(1), last_bid_index_at_this_price),
+			);
+		}
 
 		// Return the full bid amount to refund if bid is rejected or project failed,
 		// Return a partial amount if the project succeeded, and the wap > paid price or bid is partially accepted
@@ -215,11 +249,13 @@ impl<T: Config> Pallet<T> {
 		}
 
 		Bids::<T>::remove((project_id, bid.bidder.clone(), bid.id));
+		ProjectsDetails::<T>::insert(project_id, project_details);
 
 		Self::deposit_event(Event::BidSettled {
 			project_id,
 			account: bid.bidder,
 			id: bid.id,
+			status: bid.status,
 			final_ct_amount,
 			final_ct_usd_price,
 		});
@@ -244,7 +280,11 @@ impl<T: Config> Pallet<T> {
 				refunded_funding_asset_amount: bid.funding_asset_amount_locked,
 			});
 		}
-		let final_ct_amount = bid.final_ct_amount();
+		let final_ct_amount = match bid.status {
+			BidStatus::Accepted => bid.original_ct_amount,
+			BidStatus::PartiallyAccepted(accepted_amount) => accepted_amount,
+			_ => Zero::zero(),
+		};
 
 		let new_ticket_size = final_ct_usd_price.checked_mul_int(final_ct_amount).ok_or(Error::<T>::BadMath)?;
 		let new_plmc_bond = Self::calculate_plmc_bond(new_ticket_size, multiplier)?;
@@ -265,13 +305,9 @@ impl<T: Config> Pallet<T> {
 		// We use closers to do an early return if just one of these storage iterators returns a value.
 		let no_evaluations_remaining = || Evaluations::<T>::iter_prefix((project_id,)).next().is_none();
 		let no_bids_remaining = || Bids::<T>::iter_prefix((project_id,)).next().is_none();
-		let no_contributions_remaining = || Contributions::<T>::iter_prefix((project_id,)).next().is_none();
 
 		// Check if there are any evaluations, bids or contributions remaining
-		ensure!(
-			no_evaluations_remaining() && no_bids_remaining() && no_contributions_remaining(),
-			Error::<T>::SettlementNotComplete
-		);
+		ensure!(no_evaluations_remaining() && no_bids_remaining(), Error::<T>::SettlementNotComplete);
 
 		// Mark the project as settled
 		Self::transition_project(

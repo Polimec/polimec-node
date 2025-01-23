@@ -13,20 +13,16 @@ pub struct ProjectParticipationIds<T: Config> {
 	account: AccountIdOf<T>,
 	evaluation_ids: Vec<u32>,
 	bid_ids: Vec<u32>,
-	contribution_ids: Vec<u32>,
 }
 
 sp_api::decl_runtime_apis! {
-	#[api_version(1)]
+	#[api_version(2)]
 	pub trait Leaderboards<T: Config> {
 		/// Get the top evaluations made for a project by the amount of PLMC bonded
 		fn top_evaluations(project_id: ProjectId, amount: u32) -> Vec<EvaluationInfoOf<T>>;
 
 		/// Get the top bids for a project by the amount of CTs bought.
 		fn top_bids(project_id: ProjectId, amount: u32) -> Vec<BidInfoOf<T>>;
-
-		/// Get the top contributions for a project by the amount of CTs bought.
-		fn top_contributions(project_id: ProjectId, amount: u32) -> Vec<ContributionInfoOf<T>>;
 
 		/// Get the top projects by the absolute USD value raised
 		fn top_projects_by_usd_raised(amount: u32) -> Vec<(ProjectId, ProjectMetadataOf<T>, ProjectDetailsOf<T>)>;
@@ -76,6 +72,9 @@ sp_api::decl_runtime_apis! {
 		/// The message will first be prefixed with a blockchain-dependent string, then hashed, and then signed.
 		fn get_message_to_sign_by_receiving_account(project_id: ProjectId, polimec_account: AccountIdOf<T>) -> Option<String>;
 
+		/// Gets a list of bid settlement parameters in the order they should be called. First item should be called first.
+		fn get_ordered_bid_settlements(project_id: ProjectId) -> Vec<(ProjectId, AccountIdOf<T>, u32)>;
+
 	}
 }
 
@@ -89,14 +88,11 @@ impl<T: Config> Pallet<T> {
 
 	pub fn top_bids(project_id: ProjectId, amount: u32) -> Vec<BidInfoOf<T>> {
 		Bids::<T>::iter_prefix_values((project_id,))
-			.sorted_by(|a, b| b.final_ct_amount().cmp(&a.final_ct_amount()))
-			.take(amount as usize)
-			.collect_vec()
-	}
-
-	pub fn top_contributions(project_id: ProjectId, amount: u32) -> Vec<ContributionInfoOf<T>> {
-		Contributions::<T>::iter_prefix_values((project_id,))
-			.sorted_by(|a, b| b.ct_amount.cmp(&a.ct_amount))
+			.sorted_by(|a, b| {
+				let usd_ticket_a = a.original_ct_usd_price.saturating_mul_int(a.original_ct_amount);
+				let usd_ticket_b = b.original_ct_usd_price.saturating_mul_int(b.original_ct_amount);
+				usd_ticket_b.cmp(&usd_ticket_a)
+			})
 			.take(amount as usize)
 			.collect_vec()
 	}
@@ -177,7 +173,7 @@ impl<T: Config> Pallet<T> {
 				let usd_spent = bucket_price.saturating_mul_int(ct_to_buy).max(One::one());
 				usd_to_spend = usd_to_spend.saturating_sub(usd_spent);
 
-				current_bucket.update(ct_to_buy)
+				current_bucket.update(ct_to_buy);
 			}
 		}
 
@@ -225,7 +221,7 @@ impl<T: Config> Pallet<T> {
 				let usd_spent = bucket_price.saturating_mul_int(ct_to_buy).max(One::one());
 				usd_to_spend = usd_to_spend.saturating_sub(usd_spent);
 
-				current_bucket.update(ct_to_buy)
+				current_bucket.update(ct_to_buy);
 			}
 		}
 
@@ -336,6 +332,38 @@ impl<T: Config> Pallet<T> {
 		Pallet::<T>::get_substrate_message_to_sign(polimec_account, project_id)
 	}
 
+	pub fn get_ordered_bid_settlements(project_id: ProjectId) -> Vec<(ProjectId, AccountIdOf<T>, u32)> {
+		let mut bids = Bids::<T>::iter_prefix_values((project_id,)).collect_vec();
+		if bids.is_empty() {
+			return vec![]
+		}
+		let last_bucket = Buckets::<T>::get(project_id).expect("Bucket not found");
+		let mut current_settling_price = NextBidPriceToSettle::<T>::get(project_id).expect("Next bid price not found");
+		let (mut first_index, mut last_index) =
+			BidsSettlementOrder::<T>::get(project_id, current_settling_price).expect("Settlement order not found");
+		let mut ordered_bid_params = Vec::new();
+
+		loop {
+			for i in first_index..=last_index {
+				if let Some(position) = bids.iter().position(|bid| bid.id == i) {
+					let bid = bids.swap_remove(position);
+					ordered_bid_params.push((project_id, bid.bidder.clone(), bid.id));
+				}
+			}
+			current_settling_price = current_settling_price.saturating_sub(last_bucket.delta_price);
+			if let Some((new_first_index, new_last_index)) =
+				BidsSettlementOrder::<T>::get(project_id, current_settling_price)
+			{
+				first_index = new_first_index;
+				last_index = new_last_index;
+			} else {
+				break
+			}
+		}
+
+		ordered_bid_params
+	}
+
 	pub fn all_project_participations_by_did(project_id: ProjectId, did: Did) -> Vec<ProjectParticipationIds<T>> {
 		let evaluations = Evaluations::<T>::iter_prefix((project_id,))
 			.filter(|((_account_id, _evaluation_id), evaluation)| evaluation.did == did)
@@ -347,33 +375,19 @@ impl<T: Config> Pallet<T> {
 			.map(|((account_id, bid_id), _bid)| (account_id, bid_id))
 			.collect_vec();
 
-		let contributions = Contributions::<T>::iter_prefix((project_id,))
-			.filter(|((_account_id, _contribution_id), contribution)| contribution.did == did)
-			.map(|((account_id, contribution_id), _contribution)| (account_id, contribution_id))
-			.collect_vec();
-
 		#[allow(clippy::type_complexity)]
-		let mut map: BTreeMap<AccountIdOf<T>, (Vec<u32>, Vec<u32>, Vec<u32>)> = BTreeMap::new();
+		let mut map: BTreeMap<AccountIdOf<T>, (Vec<u32>, Vec<u32>)> = BTreeMap::new();
 
 		for (account_id, evaluation_id) in evaluations {
-			map.entry(account_id).or_insert_with(|| (Vec::new(), Vec::new(), Vec::new())).0.push(evaluation_id);
+			map.entry(account_id).or_insert_with(|| (Vec::new(), Vec::new())).0.push(evaluation_id);
 		}
 
 		for (account_id, bid_id) in bids {
-			map.entry(account_id).or_insert_with(|| (Vec::new(), Vec::new(), Vec::new())).1.push(bid_id);
-		}
-
-		for (account_id, contribution_id) in contributions {
-			map.entry(account_id).or_insert_with(|| (Vec::new(), Vec::new(), Vec::new())).2.push(contribution_id);
+			map.entry(account_id).or_insert_with(|| (Vec::new(), Vec::new())).1.push(bid_id);
 		}
 
 		map.into_iter()
-			.map(|(account, (evaluation_ids, bid_ids, contribution_ids))| ProjectParticipationIds {
-				account,
-				evaluation_ids,
-				bid_ids,
-				contribution_ids,
-			})
+			.map(|(account, (evaluation_ids, bid_ids))| ProjectParticipationIds { account, evaluation_ids, bid_ids })
 			.collect()
 	}
 
