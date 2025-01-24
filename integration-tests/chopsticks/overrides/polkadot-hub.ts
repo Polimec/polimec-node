@@ -1,5 +1,6 @@
 import { INITIAL_BALANCES } from '@/constants';
 import { Accounts, Asset } from '@/types';
+import { weth_location } from './polimec';
 
 export const polkadot_hub_storage = {
   System: {
@@ -27,6 +28,16 @@ export const polkadot_hub_storage = {
         [Asset.USDC, Accounts.ALICE],
         {
           balance: INITIAL_BALANCES.USDC,
+        },
+      ],
+    ],
+  },
+  ForeignAssets: {
+    Account: [
+      [
+        [weth_location, Accounts.POLIMEC],
+        {
+          balance: INITIAL_BALANCES.WETH,
         },
       ],
     ],

@@ -77,13 +77,8 @@ export const polimec_storage = {
           balance: INITIAL_BALANCES.DOT,
         },
       ],
-      [
-        [weth_location, Accounts.BOB],
-        {
-          balance: INITIAL_BALANCES.WETH,
-        },
-      ],
     ],
+    // Note: We can remove Asset and Metadata from the storage override as soon we set them on-chain.
     Asset: [
       [
         [weth_location],
