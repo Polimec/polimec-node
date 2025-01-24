@@ -17,15 +17,6 @@ impl<T: Config> Pallet<T> {
 			Error::<T>::TooEarlyForRound
 		);
 
-		let last_bought_price = if bucket.current_price == bucket.initial_price {
-			bucket.initial_price
-		} else if bucket.amount_left < bucket.delta_amount {
-			bucket.current_price
-		} else {
-			bucket.current_price - bucket.delta_price
-		};
-		NextBidPriceToSettle::<T>::insert(project_id, last_bought_price);
-
 		let auction_allocation_size = project_metadata.total_allocation_size;
 		let weighted_average_price = bucket.calculate_wap(auction_allocation_size);
 		project_details.weighted_average_price = Some(weighted_average_price);

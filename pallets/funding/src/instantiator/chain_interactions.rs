@@ -428,11 +428,7 @@ impl<
 		new_details.status
 	}
 
-	pub fn evaluate_for_users(
-		&mut self,
-		project_id: ProjectId,
-		bonds: Vec<EvaluationParams<T>>,
-	) -> DispatchResultWithPostInfo {
+	pub fn evaluate_for_users(&mut self, project_id: ProjectId, bonds: Vec<EvaluationParams<T>>) -> DispatchResult {
 		let project_policy = self.get_project_metadata(project_id).policy_ipfs_cid.unwrap();
 		for EvaluationParams { account, usd_amount, receiving_account } in bonds {
 			self.execute(|| {
@@ -446,7 +442,7 @@ impl<
 				)
 			})?;
 		}
-		Ok(().into())
+		Ok(())
 	}
 
 	pub fn bid_for_users(&mut self, project_id: ProjectId, bids: Vec<BidParams<T>>) -> DispatchResultWithPostInfo {
@@ -477,10 +473,9 @@ impl<
 			Evaluations::<T>::iter_prefix((project_id,))
 				.for_each(|(_, evaluation)| Pallet::<T>::do_settle_evaluation(evaluation, project_id).unwrap());
 
-			let ordered_bid_settlements = Pallet::<T>::get_ordered_bid_settlements(project_id);
-			for (project_id, bidder, id) in ordered_bid_settlements {
-				Pallet::<T>::do_settle_bid(project_id, bidder, id).unwrap();
-			}
+			Bids::<T>::iter_prefix((project_id,)).for_each(|(_, bid)| {
+				Pallet::<T>::do_settle_bid(project_id, bid.original_ct_usd_price, bid.id).unwrap()
+			});
 
 			if mark_as_settled {
 				crate::Pallet::<T>::do_mark_project_as_settled(project_id).unwrap();
@@ -494,6 +489,12 @@ impl<
 
 	pub fn get_bids(&mut self, project_id: ProjectId) -> Vec<BidInfoOf<T>> {
 		self.execute(|| Bids::<T>::iter_prefix_values((project_id,)).collect())
+	}
+
+	pub fn get_bid(&mut self, bid_id: u32) -> BidInfoOf<T> {
+		self.execute(|| {
+			Bids::<T>::iter_values().find(|bid| bid.id == bid_id).unwrap()
+		})
 	}
 
 	// Used to check all the USDT/USDC/DOT was paid to the issuer funding account
@@ -579,19 +580,40 @@ impl<
 	pub fn assert_bids_migrations_created(
 		&mut self,
 		project_id: ProjectId,
-		settlement_ordered_bids: Vec<BidInfoOf<T>>,
+		bids: Vec<BidInfoOf<T>>,
 		is_successful: bool,
 	) {
-		let mut amount_left = self.get_project_metadata(project_id).total_allocation_size;
-		for bid in settlement_ordered_bids {
-			let account = bid.bidder.clone();
-			let bid_amount = amount_left.min(bid.original_ct_amount);
-			amount_left -= bid_amount;
-			assert_eq!(self.execute(|| { Bids::<T>::iter_prefix_values((&project_id, &account)).count() }), 0);
+		assert_eq!(self.execute(|| { Bids::<T>::iter_prefix_values((&project_id,)).count() }), 0);
+
+		let maybe_outbid_bids_cutoff = self.execute(|| OutbidBidsCutoff::<T>::get(project_id));
+		for bid in bids {
+			// Determine if the bid is outbid
+			let bid_is_outbid = match maybe_outbid_bids_cutoff {
+				Some((cutoff_price, cutoff_index)) =>
+					cutoff_price > bid.original_ct_usd_price ||
+						(cutoff_price == bid.original_ct_usd_price && cutoff_index <= bid.id),
+				None => false, // If there's no cutoff, the bid is not outbid
+			};
+
+			let bid_ct_amount = if let Some((bucket_price, index)) = maybe_outbid_bids_cutoff {
+				if bucket_price == bid.original_ct_usd_price && index == bid.id {
+					match bid.status {
+						BidStatus::PartiallyAccepted(ct_amount) => ct_amount,
+						_ => Zero::zero(),
+					}
+				} else if bid_is_outbid {
+					Zero::zero()
+				} else {
+					bid.original_ct_amount
+				}
+			} else {
+				bid.original_ct_amount
+			};
+
 			self.assert_migration(
 				project_id,
-				account,
-				bid_amount,
+				bid.bidder,
+				bid_ct_amount,
 				bid.id,
 				ParticipationType::Bid,
 				bid.receiving_account,

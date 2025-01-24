@@ -266,21 +266,21 @@ impl<T: Config> Pallet<T> {
 		available_bytes_for_migration_per_message.saturating_div(one_migration_bytes)
 	}
 
-	/// Check if the user has no participations (left) in the project.
-	pub fn user_has_no_participations(project_id: ProjectId, user: AccountIdOf<T>) -> bool {
-		Evaluations::<T>::iter_prefix_values((project_id, user.clone())).next().is_none() &&
-			Bids::<T>::iter_prefix_values((project_id, user.clone())).next().is_none()
-	}
+	// /// Check if the user has no participations (left) in the project.
+	// pub fn user_has_no_participations(project_id: ProjectId, user: AccountIdOf<T>) -> bool {
+	// 	Evaluations::<T>::iter_prefix_values((project_id, user.clone())).next().is_none() &&
+	// 		Bids::<T>::iter_prefix_values((project_id, user.clone())).next().is_none()
+	// }
 
 	pub fn construct_migration_xcm_message(
-		migrations: BoundedVec<Migration, MaxParticipationsPerUser<T>>,
+		migrations: WeakBoundedVec<Migration, ConstU32<10_000>>,
 		query_id: QueryId,
 		pallet_index: PalletIndex,
 	) -> Xcm<()> {
 		// TODO: adjust this as benchmarks for polimec-receiver are written
 		const MAX_WEIGHT: Weight = Weight::from_parts(10_000, 0);
 		const MAX_RESPONSE_WEIGHT: Weight = Weight::from_parts(700_000_000, 50_000);
-		let migrations_item = Migrations::from(migrations.into());
+		let migrations_item = Migrations::from(migrations.to_vec());
 
 		// First byte is the pallet index, second byte is the call index
 		let mut encoded_call = vec![pallet_index, 0];

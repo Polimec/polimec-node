@@ -509,8 +509,8 @@ impl<
 		self.generate_evaluations_from_total_usd(usd_threshold, evaluations_count)
 	}
 
-	pub fn generate_bids_from_total_ct_amount(&self, bids_count: u8, total_ct_bid: Balance) -> Vec<BidParams<T>> {
-		// This range should be allowed for all investor types.
+	pub fn generate_bids_from_total_ct_amount(&self, bids_count: u32, total_ct_bid: Balance) -> Vec<BidParams<T>> {
+		// Use u128 for multipliers to allow for larger values
 		let mut multipliers = (1u8..=5u8).cycle();
 
 		let modes = (0..bids_count)
@@ -528,25 +528,32 @@ impl<
 		let funding_assets =
 			vec![USDT, USDC, DOT, WETH, USDT].into_iter().cycle().take(bids_count as usize).collect_vec();
 
-		// Even distribution of weights totaling 100% among bids.
+		// Use Perquintill for precise weight distribution
 		let weights = {
 			if bids_count == 0 {
 				return vec![];
 			}
-			let base = 100 / bids_count;
-			let remainder = 100 % bids_count;
-			let mut result = vec![base; bids_count as usize];
-			for i in 0..remainder {
-				result[i as usize] += 1;
+			// Convert to Perquintill for higher precision division
+			let one = Perquintill::from_percent(100);
+			let per_bid = one / bids_count;
+			let mut remaining = one;
+			let mut result = Vec::with_capacity(bids_count as usize);
+
+			// Distribute weights evenly with maximum precision
+			for _ in 0..bids_count - 1 {
+				result.push(per_bid);
+				remaining = remaining - per_bid;
 			}
+			// Add remaining weight to the last bid to ensure total is exactly 100%
+			result.push(remaining);
 			result
 		};
 
-		let bidders = (0..bids_count as u32).map(|i| self.account_from_u32(i, "BIDDER")).collect_vec();
+		let bidders = (0..bids_count).map(|i| self.account_from_u32(i, "BIDDER")).collect_vec();
 
 		izip!(weights, bidders, modes, investor_types, funding_assets)
 			.map(|(weight, bidder, mode, investor_type, funding_asset)| {
-				let token_amount = Percent::from_percent(weight) * total_ct_bid;
+				let token_amount = weight * total_ct_bid;
 				BidParams::from((bidder, investor_type, token_amount, mode, funding_asset))
 			})
 			.collect()
@@ -556,7 +563,7 @@ impl<
 		&self,
 		project_metadata: ProjectMetadataOf<T>,
 		usd_amount: Balance,
-		bids_count: u8,
+		bids_count: u32,
 	) -> Vec<BidParams<T>> {
 		let min_price = project_metadata.minimum_price;
 		let total_allocation_size = project_metadata.total_allocation_size;
@@ -581,24 +588,10 @@ impl<
 		let mut target_wap: PriceOf<T> = min_price * target_wap_multiplicator;
 		let mut bucket = self.find_bucket_for_wap(project_metadata.clone(), target_wap);
 
-		let first_account = self.account_from_u32(0, "BIDDER");
-		let next_account = |acc: AccountIdOf<T>| -> AccountIdOf<T> {
-			let acc_bytes = acc.encode();
-			let account_string = String::from_utf8_lossy(&acc_bytes);
-			let entropy = (0, account_string).using_encoded(blake2_256);
-			Decode::decode(&mut TrailingZeroInput::new(entropy.as_ref()))
-				.expect("infinite length input; no invalid inputs for type; qed")
-		};
-
 		let evaluations = self.generate_successful_evaluations(project_metadata.clone(), 5);
 
 		// Initial bid generation
-		let mut bids = self.generate_bids_that_take_price_to(
-			project_metadata.clone(),
-			target_wap,
-			first_account.clone(),
-			next_account,
-		);
+		let mut bids = self.generate_bids_that_take_price_to(project_metadata.clone(), target_wap);
 
 		// Get initial USD amount
 		let project_id = self.create_finished_project(
@@ -638,12 +631,7 @@ impl<
 			previous_wap = target_wap;
 
 			bucket = self.find_bucket_for_wap(project_metadata.clone(), target_wap);
-			bids = self.generate_bids_that_take_price_to(
-				project_metadata.clone(),
-				target_wap,
-				first_account.clone(),
-				next_account,
-			);
+			bids = self.generate_bids_that_take_price_to(project_metadata.clone(), target_wap);
 
 			let project_id = self.create_finished_project(
 				project_metadata.clone(),
@@ -664,7 +652,7 @@ impl<
 		&self,
 		project_metadata: ProjectMetadataOf<T>,
 		percent_funding: u8,
-		bids_count: u8,
+		bids_count: u32,
 	) -> Vec<BidParams<T>> {
 		let total_allocation_size = project_metadata.total_allocation_size;
 		let total_ct_bid = Percent::from_percent(percent_funding) * total_allocation_size;
@@ -747,26 +735,43 @@ impl<
 	}
 
 	// We assume a single bid can cover the whole first bucket. Make sure the ticket sizes allow this.
-	pub fn generate_bids_from_bucket<F>(
+	pub fn generate_bids_from_bucket(
 		&self,
 		project_metadata: ProjectMetadataOf<T>,
 		bucket: BucketOf<T>,
-		mut starting_account: AccountIdOf<T>,
-		mut increment_account: F,
 		funding_asset: AcceptedFundingAsset,
-	) -> Vec<BidParams<T>>
-	where
-		F: FnMut(AccountIdOf<T>) -> AccountIdOf<T>,
-	{
+	) -> Vec<BidParams<T>> {
 		if bucket.current_price == bucket.initial_price {
 			return vec![]
 		}
 		let auction_allocation = project_metadata.total_allocation_size;
 
-		let mut generate_bid = |ct_amount| -> BidParams<T> {
-			let bid = (starting_account.clone(), Retail, ct_amount, funding_asset).into();
-			starting_account = increment_account(starting_account.clone());
-			bid
+		let mut starting_account = self.account_from_u32(0, "BIDDER");
+		let mut increment_account = |acc: AccountIdOf<T>| -> AccountIdOf<T> {
+			let acc_bytes = acc.encode();
+			let account_string = String::from_utf8_lossy(&acc_bytes);
+			let entropy = (0, account_string).using_encoded(blake2_256);
+			Decode::decode(&mut TrailingZeroInput::new(entropy.as_ref()))
+				.expect("infinite length input; no invalid inputs for type; qed")
+		};
+
+		let ct_price = bucket.current_price;
+		let max_ct_per_bid = ct_price.reciprocal().unwrap().saturating_mul_int(MAX_USD_TICKET_PER_BID_EXTRINSIC);
+		let mut generate_bids = |ct_amount| -> Vec<BidParams<T>> {
+			let mut remaining_ct_amount = ct_amount;
+			let mut bids = vec![];
+			let min_ct_per_bid = ct_price
+				.reciprocal()
+				.unwrap()
+				.saturating_mul_int(project_metadata.bidding_ticket_sizes.retail.usd_minimum_per_participation);
+			while remaining_ct_amount > 0 && remaining_ct_amount > min_ct_per_bid {
+				let amount = max_ct_per_bid.min(remaining_ct_amount);
+				let bid = (starting_account.clone(), Retail, amount, funding_asset).into();
+				starting_account = increment_account(starting_account.clone());
+				bids.push(bid);
+				remaining_ct_amount -= amount
+			}
+			bids
 		};
 
 		let step_amounts = ((bucket.current_price - bucket.initial_price) / bucket.delta_price).saturating_mul_int(1u8);
@@ -774,43 +779,32 @@ impl<
 
 		let mut bids = Vec::new();
 
-		let first_bid = generate_bid(auction_allocation);
-		bids.push(first_bid);
+		let first_bids = generate_bids(auction_allocation);
+		bids.extend_from_slice(&first_bids[..]);
 
 		for _i in 0u8..step_amounts - 1u8 {
-			let full_bucket_bid = generate_bid(bucket.delta_amount);
-			bids.push(full_bucket_bid);
+			let full_bucket_bids = generate_bids(bucket.delta_amount);
+			bids.extend_from_slice(&full_bucket_bids[..]);
 		}
 
 		// A CT amount can be so low that the PLMC required is less than the minimum mintable amount. We estimate all bids
 		// should be at least 1% of a bucket.
 		let min_bid_amount = Percent::from_percent(1) * bucket.delta_amount;
 		if last_bid_amount > min_bid_amount {
-			let last_bid = generate_bid(last_bid_amount);
-			bids.push(last_bid);
+			let last_bids = generate_bids(last_bid_amount);
+			bids.extend_from_slice(&last_bids[..]);
 		}
 
 		bids
 	}
 
-	pub fn generate_bids_that_take_price_to<F>(
+	pub fn generate_bids_that_take_price_to(
 		&self,
 		project_metadata: ProjectMetadataOf<T>,
 		desired_price: PriceOf<T>,
-		bidder_account: AccountIdOf<T>,
-		next_bidder_account: F,
-	) -> Vec<BidParams<T>>
-	where
-		F: FnMut(AccountIdOf<T>) -> AccountIdOf<T>,
-	{
+	) -> Vec<BidParams<T>> {
 		let necessary_bucket = self.find_bucket_for_wap(project_metadata.clone(), desired_price);
-		self.generate_bids_from_bucket(
-			project_metadata,
-			necessary_bucket,
-			bidder_account,
-			next_bidder_account,
-			AcceptedFundingAsset::USDT,
-		)
+		self.generate_bids_from_bucket(project_metadata, necessary_bucket, AcceptedFundingAsset::USDT)
 	}
 
 	// Make sure the bids are in the order they were made

@@ -42,6 +42,7 @@ pub mod config {
 	#[allow(clippy::wildcard_imports)]
 	use super::*;
 	use crate::Balance;
+	use polimec_common::USD_UNIT;
 	use sp_core::parameter_types;
 	use xcm::v4::Location;
 
@@ -152,6 +153,8 @@ pub mod config {
 	pub const RETAIL_MAX_MULTIPLIER: u8 = 5u8;
 	pub const PROFESSIONAL_MAX_MULTIPLIER: u8 = 10u8;
 	pub const INSTITUTIONAL_MAX_MULTIPLIER: u8 = 25u8;
+	/// We limit this because an oversubscribed bid has to read through all bids it kicks off, and we need an upper bound on reads per block
+	pub const MAX_USD_TICKET_PER_BID_EXTRINSIC: Balance = 500_000 * USD_UNIT;
 
 	parameter_types! {
 		pub HereLocationGetter: Location = Location::here();
@@ -199,7 +202,7 @@ pub mod storage {
 			let usd_unit = sp_arithmetic::traits::checked_pow(10u128, USD_DECIMALS as usize)
 				.ok_or(MetadataError::BadTokenomics)?;
 
-			let min_bound_usd: Balance = usd_unit.checked_mul(10u128).ok_or(MetadataError::BadTokenomics)?;
+			let min_bound_usd: Balance = usd_unit.checked_mul(100u128).ok_or(MetadataError::BadTokenomics)?;
 			self.bidding_ticket_sizes.is_valid(vec![
 				InvestorTypeUSDBounds::Professional((min_bound_usd, None).into()),
 				InvestorTypeUSDBounds::Institutional((min_bound_usd, None).into()),
@@ -794,9 +797,8 @@ pub mod extrinsic {
 		pub now: BlockNumberFor<T>,
 		pub did: Did,
 		pub metadata_ticket_size_bounds: TicketSize,
-		pub total_bids_by_bidder: u32,
-		pub total_bids_for_project: u32,
 		pub receiving_account: Junction,
+		pub auction_oversubscribed: bool,
 	}
 
 	pub struct DoContributeParams<T: Config> {
