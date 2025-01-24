@@ -7,7 +7,7 @@
     "test": "env LOG_LEVEL=error bun test --timeout 25000"
   },
   "devDependencies": {
-    "@acala-network/chopsticks": "1.0.1",
+    "@acala-network/chopsticks": "1.0.2",
     "@biomejs/biome": "1.9.4",
     "@polkadot-labs/hdkd": "0.0.10",
     "@types/bun": "latest"
@@ -17,6 +17,6 @@
   },
   "dependencies": {
     "@polkadot-api/descriptors": "file:.papi/descriptors",
-    "polkadot-api": "^1.8.2"
+    "polkadot-api": "^1.8.3"
   }
 }

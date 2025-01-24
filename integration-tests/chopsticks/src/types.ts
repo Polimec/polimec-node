@@ -18,23 +18,38 @@ type PolkadotHub = typeof pah;
 type Polkadot = typeof polkadot;
 type BridgeHub = typeof bridge;
 
-export enum Chains {
-  Polimec = 'ws://localhost:8000',
-  PolkadotHub = 'ws://localhost:8001',
-  Polkadot = 'ws://localhost:8002',
-  BridgeHub = 'ws://localhost:8003',
-}
+export const Relay = {
+  Polkadot: 'ws://localhost:8002',
+} as const;
+
+export const Parachains = {
+  Polimec: 'ws://localhost:8000',
+  PolkadotHub: 'ws://localhost:8001',
+  BridgeHub: 'ws://localhost:8003',
+} as const;
+
+export const Chains = {
+  ...Relay,
+  ...Parachains,
+} as const;
+
+// Create a type for the combined object
+export type Chains = (typeof Chains)[keyof typeof Chains];
+
+export type Parachains = (typeof Parachains)[keyof typeof Parachains];
 
 export type ChainClient<T extends Chains> = {
   api: TypedApi<ChainToDefinition[T]>;
   client: PolkadotClient;
 };
 
-export const ParaId = {
-  [Chains.Polimec]: 3344,
-  [Chains.PolkadotHub]: 1000,
-  [Chains.BridgeHub]: 1002,
-};
+const PARACHAIN_IDS = {
+  [Parachains.Polimec]: 3344,
+  [Parachains.PolkadotHub]: 1000,
+  [Parachains.BridgeHub]: 1002,
+} as const;
+
+export const ParaId = PARACHAIN_IDS;
 
 export enum AssetSourceRelation {
   Parent = 0,
@@ -154,22 +169,16 @@ export function EthereumAssetLocation(contract_address: FixedSizeBinary<20>): Xc
 
 export function AssetLocation(
   asset: Asset,
-  asset_source_relation: AssetSourceRelation,
+  assetSourceRelation: AssetSourceRelation,
 ): XcmVersionedLocation {
-  switch (asset) {
-    case Asset.USDT:
-      return AssetHubAssetLocation(1984n, asset_source_relation);
+  const baseLocation =
+    asset === Asset.WETH
+      ? EthereumAssetLocation(FixedSizeBinary.fromHex(WETH_ADDRESS))
+      : asset === Asset.DOT
+        ? NativeAssetLocation(assetSourceRelation)
+        : AssetHubAssetLocation(BigInt(asset), assetSourceRelation);
 
-    case Asset.USDC:
-      return AssetHubAssetLocation(1337n, asset_source_relation);
-
-    case Asset.DOT:
-      return NativeAssetLocation(asset_source_relation);
-
-    case Asset.WETH: {
-      return EthereumAssetLocation(FixedSizeBinary.fromHex(WETH_ADDRESS));
-    }
-  }
+  return baseLocation;
 }
 
 export function getVersionedAssets(

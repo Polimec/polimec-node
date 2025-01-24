@@ -21,7 +21,6 @@ import {
   XcmVersionedXcm,
 } from '@polkadot-api/descriptors';
 import { Enum, FixedSizeBinary } from 'polkadot-api';
-
 const custom_xcm_on_dest = (): XcmVersionedXcm => {
   return XcmVersionedXcm.V3([
     XcmV3Instruction.DepositReserveAsset({
@@ -109,10 +108,19 @@ export const createDotMultiHopTransferData = (amount: bigint) => {
 };
 
 export function unwrap<T>(value: T | undefined, errorMessage = 'Value is undefined'): T {
-  if (value === undefined) {
-    throw new Error(errorMessage);
-  }
+  if (value === undefined) throw new Error(errorMessage);
+
   return value;
+}
+
+export function unwrap_api<T extends { success: boolean }>(
+  value: T,
+  errorMessage = 'Value is undefined',
+): T & { success: true } {
+  if (value === undefined) throw new Error(errorMessage);
+  if (value === null) throw new Error(errorMessage);
+  if (!value.success) throw new Error('Dry run failed');
+  return value as T & { success: true };
 }
 
 export function flatObject(obj: unknown): unknown {
