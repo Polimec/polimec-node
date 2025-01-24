@@ -1,6 +1,13 @@
 import { expect } from 'bun:test';
 import type { BaseChainManager } from '@/managers/BaseManager';
-import type { Accounts, Asset, AssetSourceRelation, BalanceCheck, TransferResult } from '@/types';
+import {
+  type Accounts,
+  type Asset,
+  type AssetSourceRelation,
+  type BalanceCheck,
+  Chains,
+  type TransferResult,
+} from '@/types';
 import { sleep } from 'bun';
 
 export interface TransferOptions {
@@ -26,15 +33,26 @@ export abstract class BaseTransferTest {
   ): void;
 
   async testTransfer(options: TransferOptions) {
-    // const { asset_balances: initialBalances } = await this.getBalances(options);
-    // if (options.assets[0][1] > initialBalances[0].source) {
-    //   throw new Error(`Insufficient balance on Source chain for asset: ${options.assets[0][0]}`);
-    // }
-    const blockNumbers = await this.executeTransfer(options);
-    // await this.waitForBlocks();
-    // await this.verifyExecution();
-    // const { asset_balances: finalBalances } = await this.getBalances(options);
-    // this.verifyFinalBalances(initialBalances, finalBalances, options);
+    // Note: For the bridged tests we use the dry-run Runtime API, so we don't write any data to the chain.
+    const isBridged = this.sourceManager.getChainType() === Chains.BridgeHub;
+
+    let initialBalances: BalanceCheck[] = [];
+    if (!isBridged) {
+      const { asset_balances } = await this.getBalances(options);
+      initialBalances = asset_balances; // Assign within the block
+      if (options.assets[0][1] > asset_balances[0].source) {
+        throw new Error(`Insufficient balance on Source chain for asset: ${options.assets[0][0]}`);
+      }
+    }
+
+    await this.executeTransfer(options);
+
+    if (!isBridged) {
+      await this.waitForBlocks();
+      await this.verifyExecution();
+      const { asset_balances: finalBalances } = await this.getBalances(options);
+      this.verifyFinalBalances(initialBalances, finalBalances, options);
+    }
   }
 
   // TODO: Wait for the next block to be produced.

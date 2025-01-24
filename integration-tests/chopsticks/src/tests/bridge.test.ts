@@ -1,9 +1,9 @@
 import { afterAll, beforeAll, beforeEach, describe, test } from 'bun:test';
 import { TRANSFER_AMOUNTS } from '@/constants';
 import { createChainManager } from '@/managers/Factory';
+import { polimec_storage } from '@/polimec';
 import { ChainSetup } from '@/setup';
 import { BridgeToPolimecTransfer } from '@/transfers/BridgeToPolimec';
-import { HubToPolimecTransfer } from '@/transfers/HubToPolimec';
 import { Accounts, Asset, AssetSourceRelation, Chains } from '@/types';
 
 describe('Bridge Hub -> Polimec Transfer Tests', () => {
@@ -13,7 +13,7 @@ describe('Bridge Hub -> Polimec Transfer Tests', () => {
   const transferTest = new BridgeToPolimecTransfer(sourceManager, hopManager, destManager);
   const chainSetup = new ChainSetup();
 
-  beforeAll(async () => await chainSetup.initialize());
+  beforeAll(async () => await chainSetup.initialize(polimec_storage));
   beforeEach(() => {
     sourceManager.connect();
     hopManager.connect();

@@ -44,13 +44,11 @@ export class ChainSetup {
     this.relaychain = relaychainSetup.chain;
     this.bridgeHub = bridgeHubSetup.chain;
 
-    await Promise.all([
-      connectVertical(this.relaychain, this.polimec),
-      connectVertical(this.relaychain, this.assetHub),
-      connectVertical(this.relaychain, this.bridgeHub),
-      connectParachains([this.polimec, this.assetHub]),
-      connectParachains([this.bridgeHub, this.assetHub]),
-    ]);
+    const parachains = [this.polimec, this.assetHub, this.bridgeHub];
+    for (const parachain of parachains) {
+      await connectVertical(this.relaychain, parachain);
+    }
+    await connectParachains(parachains);
 
     console.log('✅ HRMP channels created');
 

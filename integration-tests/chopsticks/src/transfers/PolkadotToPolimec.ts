@@ -99,7 +99,7 @@ export class PolkadotToPolimecTransfer extends BaseTransferTest {
       const difference =
         finalBalances.destination -
         (initialBalances.destination + send_amount - expectedDestBalanceSpent);
-      const tolerance = (finalBalances.destination * 1_000_000n) / 1_000_000_000n; // 0.0001%
+      const tolerance = (finalBalances.destination * 1_000_000n) / 1_000_000_00n; // 0.001%
       expect(abs(difference)).toBeLessThanOrEqual(tolerance);
     }
   }

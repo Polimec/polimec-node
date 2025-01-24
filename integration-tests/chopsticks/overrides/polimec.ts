@@ -77,12 +77,6 @@ export const polimec_storage = {
           balance: INITIAL_BALANCES.DOT,
         },
       ],
-      [
-        [weth_location, Accounts.BOB],
-        {
-          balance: INITIAL_BALANCES.WETH,
-        },
-      ],
     ],
     Asset: [
       [

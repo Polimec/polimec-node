@@ -47,14 +47,4 @@ describe('Polkadot Hub -> Polimec Transfer Tests', () => {
       }),
     { timeout: 25000 },
   );
-
-  // test(
-  //   'Send WETH to Polimec',
-  //   () =>
-  //     transferTest.testTransfer({
-  //       account: Accounts.ALICE,
-  //       assets: [[Asset.WETH, TRANSFER_AMOUNTS.BRIDGED, AssetSourceRelation.Self]],
-  //     }),
-  //   { timeout: 25000 },
-  // );
 });

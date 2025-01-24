@@ -31,4 +31,14 @@ export const polkadot_hub_storage = {
       ],
     ],
   },
+  ForeignAssets: {
+    Account: [
+      [
+        [Asset.WETH, Accounts.POLIMEC],
+        {
+          balance: INITIAL_BALANCES.DOT,
+        },
+      ],
+    ],
+  },
 } as const;

@@ -44,9 +44,6 @@ export class HubToPolimecTransfer extends BaseTransferTest {
     const api = this.sourceManager.getApi(Chains.PolkadotHub);
     const transfer = api.tx.PolkadotXcm.transfer_assets(data);
     const res = await transfer.signAndSubmit(this.sourceManager.getSigner(account));
-
-    console.log('Extrinsic result: ', res.ok);
-
     expect(res.ok).toBeTrue();
     return { sourceBlock, destBlock };
   }

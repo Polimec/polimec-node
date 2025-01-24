@@ -7,28 +7,31 @@ import { getWsProvider } from 'polkadot-api/ws-provider/web';
 import { BaseChainManager } from './BaseManager';
 
 export class PolkadotHubManager extends BaseChainManager {
+  private chain = Chains.PolkadotHub;
+
   connect() {
-    const client = createClient(withPolkadotSdkCompat(getWsProvider(this.getChainType())));
-    const api = client.getTypedApi(pah);
+    const provider = withPolkadotSdkCompat(getWsProvider(this.chain));
+    const client = createClient(provider);
 
     // Verify connection
-    if (!client || !api) {
-      throw new Error(`Failed to connect to ${this.getChainType()}`);
+    if (!client) {
+      throw new Error(`Failed to connect to ${this.chain}`);
     }
 
-    this.clients.set(this.getChainType(), { client, api });
+    const api = client.getTypedApi(pah);
+    this.clients.set(this.chain, { client, api });
   }
 
   disconnect() {
-    this.clients.get(Chains.PolkadotHub)?.client.destroy();
+    this.clients.get(this.chain)?.client.destroy();
   }
 
   getChainType() {
-    return Chains.PolkadotHub;
+    return this.chain;
   }
 
   getXcmPallet() {
-    const api = this.getApi(Chains.PolkadotHub);
+    const api = this.getApi(this.chain);
     return api.tx.PolkadotXcm;
   }
 
