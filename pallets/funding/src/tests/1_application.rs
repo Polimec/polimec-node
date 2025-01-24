@@ -133,7 +133,7 @@ mod create_project_extrinsic {
 			let failing_bids =
 				vec![(BIDDER_1, Professional, 1000 * CT_UNIT).into(), (BIDDER_2, Retail, 1000 * CT_UNIT).into()];
 			let successful_evaluations = inst.generate_successful_evaluations(project_metadata.clone(), 5);
-			let successful_bids = inst.generate_bids_from_total_ct_percent(project_metadata.clone(), 90, 5);
+			let successful_bids = inst.generate_bids_from_total_ct_percent(project_metadata.clone(), 90, 10);
 
 			let accounts = vec![
 				vec![ISSUER_1],
@@ -914,7 +914,7 @@ mod edit_project_extrinsic {
 				bidding_ticket_sizes: BiddingTicketSizes {
 					professional: TicketSize::new(10_000 * USD_UNIT, Some(20_000 * USD_UNIT)),
 					institutional: TicketSize::new(20_000 * USD_UNIT, Some(30_000 * USD_UNIT)),
-					retail: TicketSize::new(10 * USD_UNIT, None),
+					retail: TicketSize::new(100 * USD_UNIT, None),
 					phantom: Default::default(),
 				},
 				participation_currencies: vec![AcceptedFundingAsset::USDT, AcceptedFundingAsset::USDC]

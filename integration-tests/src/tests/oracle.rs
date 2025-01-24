@@ -131,8 +131,8 @@ fn pallet_funding_works() {
 		assert_ok!(Oracle::feed_values(RuntimeOrigin::signed(charlie.clone()), values([4.84, 1.0, 1.0, 2500.0, 0.4])));
 
 		let project_metadata = default_project_metadata(ISSUER.into());
-		let evaluations = inst.generate_successful_evaluations(project_metadata.clone(), 5);
-		let bids = inst.generate_bids_from_total_ct_percent(project_metadata.clone(), 95, 8);
+		let evaluations = inst.generate_successful_evaluations(project_metadata.clone(), 10);
+		let bids = inst.generate_bids_from_total_ct_percent(project_metadata.clone(), 95, 30);
 		let _project_id = inst.create_finished_project(project_metadata, ISSUER.into(), None, evaluations, bids);
 	});
 }

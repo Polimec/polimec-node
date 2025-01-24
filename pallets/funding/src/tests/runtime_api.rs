@@ -51,12 +51,12 @@ fn top_bids() {
 	];
 	let project_metadata = default_project_metadata(ISSUER_1);
 	let evaluations = inst.generate_successful_evaluations(project_metadata.clone(), 5);
-	let project_id = inst.create_finished_project(project_metadata, ISSUER_1, None, evaluations, bids);
+	let project_id = inst.create_finished_project(project_metadata.clone(), ISSUER_1, None, evaluations, bids);
 
 	inst.execute(|| {
 		let block_hash = System::block_hash(System::block_number());
 		let top_1 = TestRuntime::top_bids(&TestRuntime, block_hash, project_id, 1).unwrap();
-		let bidder_4_evaluation = Bids::<TestRuntime>::get((project_id, BIDDER_4, 3)).unwrap();
+		let bidder_4_evaluation = Bids::<TestRuntime>::get((project_id, project_metadata.minimum_price, 3)).unwrap();
 		assert!(top_1.len() == 1 && top_1[0] == bidder_4_evaluation);
 
 		let top_4_bidders = TestRuntime::top_bids(&TestRuntime, block_hash, project_id, 4)
@@ -176,7 +176,7 @@ fn contribution_tokens() {
 	let bids_with_bob_1 = inst.generate_bids_from_total_ct_amount(1, bob_amount_1);
 	let bob = bids_with_bob_1[0].bidder;
 
-	let bob_amount_2 = 500_000 * CT_UNIT;
+	let bob_amount_2 = 490_000 * CT_UNIT;
 	let bids_with_bob_2 = inst.generate_bids_from_total_ct_amount(1, bob_amount_2);
 
 	let bob_amount_3 = 300_020 * CT_UNIT;
@@ -185,34 +185,28 @@ fn contribution_tokens() {
 	let bob_amount_4 = 250_100 * CT_UNIT;
 	let bids_with_bob_4 = inst.generate_bids_from_total_ct_amount(1, bob_amount_4);
 
-	let project_metadata = default_project_metadata(ISSUER_1);
-	let evaluations = inst.generate_successful_evaluations(project_metadata.clone(), 5);
+	let get_project = |issuer| {
+		let mut project_metadata = default_project_metadata(issuer);
+		let base_price = PriceOf::<TestRuntime>::from_float(1.0);
+		let decimal_aware_price = <TestRuntime as Config>::PriceProvider::calculate_decimals_aware_price(
+			base_price,
+			USD_DECIMALS,
+			CT_DECIMALS,
+		)
+		.unwrap();
+		project_metadata.minimum_price = decimal_aware_price;
+		project_metadata
+	};
+
+	let evaluations = inst.generate_successful_evaluations(get_project(ISSUER_1), 5);
 	let project_id_1 =
-		inst.create_settled_project(project_metadata, ISSUER_1, None, evaluations.clone(), bids_with_bob_1, true);
-	let project_id_2 = inst.create_settled_project(
-		default_project_metadata(ISSUER_2),
-		ISSUER_2,
-		None,
-		evaluations.clone(),
-		bids_with_bob_2,
-		true,
-	);
-	let project_id_3 = inst.create_settled_project(
-		default_project_metadata(ISSUER_3),
-		ISSUER_3,
-		None,
-		evaluations.clone(),
-		bids_with_bob_3,
-		true,
-	);
-	let project_id_4 = inst.create_settled_project(
-		default_project_metadata(ISSUER_4),
-		ISSUER_4,
-		None,
-		evaluations.clone(),
-		bids_with_bob_4,
-		true,
-	);
+		inst.create_settled_project(get_project(ISSUER_1), ISSUER_1, None, evaluations.clone(), bids_with_bob_1, true);
+	let project_id_2 =
+		inst.create_settled_project(get_project(ISSUER_2), ISSUER_2, None, evaluations.clone(), bids_with_bob_2, true);
+	let project_id_3 =
+		inst.create_settled_project(get_project(ISSUER_3), ISSUER_3, None, evaluations.clone(), bids_with_bob_3, true);
+	let project_id_4 =
+		inst.create_settled_project(get_project(ISSUER_4), ISSUER_4, None, evaluations.clone(), bids_with_bob_4, true);
 
 	let expected_items = vec![
 		(project_id_2, bob_amount_2),
@@ -271,8 +265,7 @@ fn funding_asset_to_ct_amount_classic() {
 	let decimal_aware_price =
 		PriceProviderOf::<TestRuntime>::calculate_decimals_aware_price(new_price, USD_DECIMALS, CT_DECIMALS).unwrap();
 
-	let bids =
-		inst.generate_bids_that_take_price_to(project_metadata_2.clone(), decimal_aware_price, 420, |acc| acc + 1);
+	let bids = inst.generate_bids_that_take_price_to(project_metadata_2.clone(), decimal_aware_price);
 	let project_id_2 =
 		inst.create_finished_project(project_metadata_2.clone(), ISSUER_2, None, evaluations.clone(), bids);
 	// Sanity check
@@ -303,13 +296,7 @@ fn funding_asset_to_ct_amount_classic() {
 	// Price should be at 16 USD/CT
 	bucket.current_price = bucket.initial_price + bucket.delta_price * FixedU128::from_float(6.0f64);
 	bucket.amount_left = bucket.delta_amount;
-	let bids = inst.generate_bids_from_bucket(
-		project_metadata_3.clone(),
-		bucket,
-		420,
-		|acc| acc + 1,
-		AcceptedFundingAsset::USDT,
-	);
+	let bids = inst.generate_bids_from_bucket(project_metadata_3.clone(), bucket, AcceptedFundingAsset::USDT);
 	let necessary_plmc =
 		inst.calculate_auction_plmc_charged_from_all_bids_made_or_with_bucket(&bids, project_metadata_3.clone(), None);
 	let necessary_usdt = inst.calculate_auction_funding_asset_charged_from_all_bids_made_or_with_bucket(
@@ -413,8 +400,7 @@ fn funding_asset_to_ct_amount_otm() {
 	let decimal_aware_price =
 		PriceProviderOf::<TestRuntime>::calculate_decimals_aware_price(new_price, USD_DECIMALS, CT_DECIMALS).unwrap();
 
-	let bids =
-		inst.generate_bids_that_take_price_to(project_metadata_2.clone(), decimal_aware_price, 420, |acc| acc + 1);
+	let bids = inst.generate_bids_that_take_price_to(project_metadata_2.clone(), decimal_aware_price);
 	let project_id_2 =
 		inst.create_finished_project(project_metadata_2.clone(), ISSUER_2, None, evaluations.clone(), bids);
 	// Sanity check
@@ -446,13 +432,7 @@ fn funding_asset_to_ct_amount_otm() {
 	// Price should be at 16 USD/CT
 	bucket.current_price = bucket.initial_price + bucket.delta_price * FixedU128::from_float(6.0f64);
 	bucket.amount_left = bucket.delta_amount;
-	let bids = inst.generate_bids_from_bucket(
-		project_metadata_3.clone(),
-		bucket,
-		420,
-		|acc| acc + 1,
-		AcceptedFundingAsset::USDT,
-	);
+	let bids = inst.generate_bids_from_bucket(project_metadata_3.clone(), bucket, AcceptedFundingAsset::USDT);
 	let necessary_plmc =
 		inst.calculate_auction_plmc_charged_from_all_bids_made_or_with_bucket(&bids, project_metadata_3.clone(), None);
 	let necessary_usdt = inst.calculate_auction_funding_asset_charged_from_all_bids_made_or_with_bucket(
@@ -568,15 +548,15 @@ fn get_next_vesting_schedule_merge_candidates() {
 			AcceptedFundingAsset::USDT,
 		)),
 	];
+	let mut project_metadata = default_project_metadata(ISSUER_1);
+	let base_price = PriceOf::<TestRuntime>::from_float(1.0);
+	let decimal_aware_price =
+		<TestRuntime as Config>::PriceProvider::calculate_decimals_aware_price(base_price, USD_DECIMALS, CT_DECIMALS)
+			.unwrap();
+	project_metadata.minimum_price = decimal_aware_price;
 
-	let project_id = inst.create_settled_project(
-		default_project_metadata(ISSUER_1),
-		ISSUER_1,
-		None,
-		evaluations.clone(),
-		bids.clone(),
-		true,
-	);
+	let project_id =
+		inst.create_settled_project(project_metadata, ISSUER_1, None, evaluations.clone(), bids.clone(), true);
 
 	let events = inst.execute(|| System::events().into_iter().collect::<Vec<_>>());
 	dbg!(events);
@@ -619,12 +599,17 @@ fn get_next_vesting_schedule_merge_candidates() {
 fn calculate_otm_fee() {
 	let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 	let mut project_metadata = default_project_metadata(ISSUER_1);
+	let base_price = PriceOf::<TestRuntime>::from_float(1.0);
+	let decimal_aware_price =
+		<TestRuntime as Config>::PriceProvider::calculate_decimals_aware_price(base_price, USD_DECIMALS, CT_DECIMALS)
+			.unwrap();
+	project_metadata.minimum_price = decimal_aware_price;
 	project_metadata.participation_currencies = bounded_vec![AcceptedFundingAsset::DOT];
 
 	let dot_id = AcceptedFundingAsset::DOT.id();
 	let dot_decimals = inst.execute(|| ForeignAssets::decimals(dot_id.clone()));
 	let dot_unit = 10u128.pow(dot_decimals as u32);
-	let dot_ticket = 10_000 * dot_unit;
+	let dot_ticket = 1000 * dot_unit;
 	let dot_ed = inst.get_funding_asset_ed(dot_id.clone());
 
 	let block_hash = inst.execute(|| System::block_hash(System::block_number()));
@@ -775,7 +760,13 @@ fn all_project_participations_by_did() {
 	let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 
 	let did_user = generate_did_from_account(420);
-	let project_metadata = default_project_metadata(ISSUER_1);
+	let mut project_metadata = default_project_metadata(ISSUER_1);
+	let base_price = PriceOf::<TestRuntime>::from_float(1.0);
+	let decimal_aware_price =
+		<TestRuntime as Config>::PriceProvider::calculate_decimals_aware_price(base_price, USD_DECIMALS, CT_DECIMALS)
+			.unwrap();
+	project_metadata.minimum_price = decimal_aware_price;
+
 	let cid = project_metadata.clone().policy_ipfs_cid.unwrap();
 	let project_id = inst.create_evaluating_project(project_metadata.clone(), ISSUER_1, None);
 
@@ -893,7 +884,7 @@ fn projects_by_did() {
 	let did_user = generate_did_from_account(420);
 
 	let evaluations = inst.generate_successful_evaluations(default_project_metadata(ISSUER_1), 5);
-	let bids = inst.generate_bids_from_total_ct_percent(default_project_metadata(ISSUER_1), 80, 7);
+	let bids = inst.generate_bids_from_total_ct_percent(default_project_metadata(ISSUER_1), 80, 10);
 	let project_id_1 = inst.create_settled_project(
 		default_project_metadata(ISSUER_1),
 		ISSUER_1,

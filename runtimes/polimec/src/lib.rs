@@ -43,8 +43,8 @@ use frame_system::{EnsureRoot, EnsureRootWithSuccess, EnsureSigned, EnsureSigned
 use pallet_aura::Authorities;
 use pallet_democracy::GetElectorate;
 use pallet_funding::{
-	runtime_api::ProjectParticipationIds, BidInfoOf, DaysToBlocks, EvaluationInfoOf, HereLocationGetter,
-	PriceProviderOf, ProjectDetailsOf, ProjectId, ProjectMetadataOf,
+	BidInfoOf, DaysToBlocks, EvaluationInfoOf, HereLocationGetter, PriceProviderOf, ProjectDetailsOf, ProjectId,
+	ProjectMetadataOf,
 };
 use parachains_common::{
 	impls::AssetsToBlockAuthor,
@@ -179,8 +179,8 @@ pub mod migrations {
 	/// Unreleased migrations. Add new ones here:
 	#[allow(unused_parens)]
 	pub type Unreleased = (
-		super::custom_migrations::asset_id_migration::FromOldAssetIdMigration,
-		pallet_funding::storage_migrations::v6::MigrationToV6<Runtime>,
+		// super::custom_migrations::asset_id_migration::FromOldAssetIdMigration,
+		// pallet_funding::storage_migrations::v6::MigrationToV6<Runtime>,
 	);
 }
 
@@ -1076,12 +1076,7 @@ impl pallet_funding::Config for Runtime {
 	type FundingCurrency = ForeignAssets;
 	type FundingSuccessThreshold = FundingSuccessThreshold;
 	type InvestorOrigin = EnsureInvestor<Runtime>;
-	type MaxBidsPerProject = ConstU32<512>;
-	type MaxBidsPerUser = ConstU32<16>;
 	type MaxCapacityThresholds = MaxCapacityThresholds;
-	type MaxContributionsPerUser = ConstU32<16>;
-	type MaxEvaluationsPerProject = ConstU32<512>;
-	type MaxEvaluationsPerUser = ConstU32<16>;
 	type MaxMessageSizeThresholds = MaxMessageSizeThresholds;
 	type MinUsdPerEvaluation = MinUsdPerEvaluation;
 	type Multiplier = pallet_funding::types::Multiplier;
@@ -1523,10 +1518,6 @@ impl_runtime_apis! {
 		fn contribution_tokens(account: AccountId) -> Vec<(ProjectId, Balance)> {
 			Funding::contribution_tokens(account)
 		}
-
-		fn all_project_participations_by_did(project_id: ProjectId, did: Did) -> Vec<ProjectParticipationIds<Runtime>> {
-			Funding::all_project_participations_by_did(project_id, did)
-		}
 	}
 
 	impl pallet_funding::runtime_api::ProjectInformation<Block, Runtime> for Runtime {
@@ -1557,9 +1548,6 @@ impl_runtime_apis! {
 		}
 		fn get_message_to_sign_by_receiving_account(project_id: ProjectId, polimec_account: AccountId) -> Option<String> {
 			Funding::get_message_to_sign_by_receiving_account(project_id, polimec_account)
-		}
-		fn get_ordered_bid_settlements(project_id: ProjectId) -> Vec<(ProjectId, AccountId, u32)> {
-			Funding::get_ordered_bid_settlements(project_id)
 		}
 	}
 
