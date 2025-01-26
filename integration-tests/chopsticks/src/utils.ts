@@ -1,9 +1,11 @@
 import {
   Accounts,
+  Asset,
+  AssetSourceRelation,
   Chains,
-  type CreateAssetsParams,
   ParaId,
   type TransferDataParams,
+  getVersionedAssets,
 } from '@/types';
 import {
   XcmV3Instruction,
@@ -15,12 +17,10 @@ import {
   XcmV3MultiassetWildMultiAsset,
   XcmV3WeightLimit,
   XcmVersionedAssetId,
-  XcmVersionedAssets,
   XcmVersionedLocation,
   XcmVersionedXcm,
 } from '@polkadot-api/descriptors';
 import { Enum, FixedSizeBinary } from 'polkadot-api';
-
 const custom_xcm_on_dest = (): XcmVersionedXcm => {
   return XcmVersionedXcm.V3([
     XcmV3Instruction.DepositReserveAsset({
@@ -57,61 +57,7 @@ const custom_xcm_on_dest = (): XcmVersionedXcm => {
   ]);
 };
 
-// TODO: Modify this function to allow the creation of an XcmVersionedAssets that supports also WETH/bridged assets.
-const createHubAssets = ({
-  amount,
-  assetIndex,
-  isFromBridge,
-}: CreateAssetsParams): XcmVersionedAssets =>
-  XcmVersionedAssets.V3([
-    {
-      fun: XcmV3MultiassetFungibility.Fungible(amount),
-      id: XcmV3MultiassetAssetId.Concrete({
-        parents: assetIndex ? 0 : 1,
-        interior: assetIndex
-          ? XcmV3Junctions.X2([
-              XcmV3Junction.PalletInstance(50),
-              XcmV3Junction.GeneralIndex(assetIndex),
-            ])
-          : XcmV3Junctions.Here(),
-      }),
-    },
-  ]);
-
-const createDotAssets = ({ amount }: CreateAssetsParams): XcmVersionedAssets =>
-  XcmVersionedAssets.V3([
-    {
-      fun: XcmV3MultiassetFungibility.Fungible(amount),
-      id: XcmV3MultiassetAssetId.Concrete({
-        parents: 0,
-        interior: XcmV3Junctions.Here(),
-      }),
-    },
-  ]);
-
-const createPolimecAssets = ({ amount, assetIndex }: CreateAssetsParams): XcmVersionedAssets => {
-  if (!assetIndex) {
-    throw new Error('You need to specify an Asset ID while creating an asset for Polimec');
-  }
-  return XcmVersionedAssets.V3([
-    {
-      id: XcmV3MultiassetAssetId.Concrete({
-        parents: 1,
-        interior:
-          assetIndex === 10n
-            ? XcmV3Junctions.Here()
-            : XcmV3Junctions.X3([
-                XcmV3Junction.Parachain(ParaId[Chains.PolkadotHub]),
-                XcmV3Junction.PalletInstance(50),
-                XcmV3Junction.GeneralIndex(assetIndex),
-              ]),
-      }),
-      fun: XcmV3MultiassetFungibility.Fungible(amount),
-    },
-  ]);
-};
-
-export const createTransferData = ({ amount, toChain, assetIndex, recv }: TransferDataParams) => {
+export const createTransferData = ({ toChain, assets, recv }: TransferDataParams) => {
   if (toChain === Chains.Polkadot) {
     throw new Error('Invalid chain');
   }
@@ -133,16 +79,13 @@ export const createTransferData = ({ amount, toChain, assetIndex, recv }: Transf
   return {
     dest,
     beneficiary,
-    assets:
-      toChain === Chains.PolkadotHub
-        ? createPolimecAssets({ amount, assetIndex })
-        : createHubAssets({ amount, assetIndex }),
+    assets,
     fee_asset_item: 0,
     weight_limit: XcmV3WeightLimit.Unlimited(),
   };
 };
 
-export const createMultiHopTransferData = ({ amount }: TransferDataParams) => {
+export const createDotMultiHopTransferData = (amount: bigint) => {
   const dest = XcmVersionedLocation.V3({
     parents: 0,
     interior: XcmV3Junctions.X1(XcmV3Junction.Parachain(ParaId[Chains.PolkadotHub])),
@@ -150,7 +93,7 @@ export const createMultiHopTransferData = ({ amount }: TransferDataParams) => {
 
   return {
     dest,
-    assets: createDotAssets({ amount }),
+    assets: getVersionedAssets([[Asset.DOT, amount, AssetSourceRelation.Self]]),
     assets_transfer_type: Enum('Teleport'),
     remote_fees_id: XcmVersionedAssetId.V3(
       XcmV3MultiassetAssetId.Concrete({
@@ -163,3 +106,40 @@ export const createMultiHopTransferData = ({ amount }: TransferDataParams) => {
     weight_limit: XcmV3WeightLimit.Unlimited(),
   };
 };
+
+export function unwrap<T>(value: T | undefined, errorMessage = 'Value is undefined'): T {
+  if (value === undefined) throw new Error(errorMessage);
+
+  return value;
+}
+
+export function unwrap_api<T extends { success: boolean }>(
+  value: T,
+  errorMessage = 'Value is undefined',
+): T & { success: true } {
+  if (value === undefined) throw new Error(errorMessage);
+  if (value === null) throw new Error(errorMessage);
+  if (!value.success) throw new Error('Dry run failed');
+  return value as T & { success: true };
+}
+
+export function flatObject(obj: unknown): unknown {
+  if (obj === null || obj === undefined) {
+    return obj;
+  }
+  if (obj instanceof Object && typeof (obj as { asHex?: unknown }).asHex === 'function') {
+    return (obj as { asHex: () => unknown }).asHex();
+  }
+  if (typeof obj === 'object') {
+    if (Array.isArray(obj)) {
+      return obj.map(flatObject);
+    }
+    const normalized: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(obj)) {
+      normalized[key] = flatObject(value);
+    }
+    return normalized;
+  }
+  return obj;
+}
+export const abs = (n: bigint) => (n < 0n ? -n : n);

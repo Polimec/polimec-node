@@ -1,44 +1,68 @@
 import { expect } from 'bun:test';
 import type { BaseChainManager } from '@/managers/BaseManager';
-import type { Accounts, BalanceCheck, TransferResult } from '@/types';
+import {
+  type Accounts,
+  type Asset,
+  type AssetSourceRelation,
+  type BalanceCheck,
+  Chains,
+  type TransferResult,
+} from '@/types';
+import { sleep } from 'bun';
 
-export interface BaseTransferOptions {
-  amount: bigint;
+export interface TransferOptions {
   account: Accounts;
+  assets: [Asset, bigint, AssetSourceRelation][];
 }
 
-export abstract class BaseTransferTest<T extends BaseTransferOptions = BaseTransferOptions> {
+export abstract class BaseTransferTest {
   constructor(
     protected sourceManager: BaseChainManager,
     protected destManager: BaseChainManager,
-  ) {}
-
-  abstract executeTransfer(options: T): Promise<TransferResult>;
-  abstract getBalances(options: Omit<T, 'amount'>): Promise<{ balances: BalanceCheck }>;
-  abstract verifyFinalBalances(
-    initialBalances: BalanceCheck,
-    finalBalances: BalanceCheck,
-    options: T,
-  ): Promise<void>;
-
-  async testTransfer(options: T) {
-    const { balances: initialBalances } = await this.getBalances(options);
-    const blockNumbers = await this.executeTransfer(options);
-    await this.waitForBlocks(blockNumbers);
-    await this.verifyExecution();
-    const { balances: finalBalances } = await this.getBalances(options);
-    await this.verifyFinalBalances(initialBalances, finalBalances, options);
+  ) {
+    this.sourceManager = sourceManager;
+    this.destManager = destManager;
   }
 
-  protected async waitForBlocks({ sourceBlock, destBlock }: TransferResult) {
-    await Promise.all([
-      this.sourceManager.waitForNextBlock(sourceBlock),
-      this.destManager.waitForNextBlock(destBlock),
-    ]);
+  abstract executeTransfer(options: TransferOptions): Promise<TransferResult>;
+  abstract getBalances(options: TransferOptions): Promise<{ asset_balances: BalanceCheck[] }>;
+  abstract verifyFinalBalances(
+    initialBalances: BalanceCheck[],
+    finalBalances: BalanceCheck[],
+    options: TransferOptions,
+  ): void;
+
+  async testTransfer(options: TransferOptions) {
+    // Note: For the bridged tests we use the dry-run Runtime API, so we don't write any data to the chain.
+    const isBridged = this.sourceManager.getChainType() === Chains.BridgeHub;
+
+    let initialBalances: BalanceCheck[] = [];
+    if (!isBridged) {
+      const { asset_balances } = await this.getBalances(options);
+      initialBalances = asset_balances; // Assign within the block
+      if (options.assets[0][1] > asset_balances[0].source) {
+        throw new Error(`Insufficient balance on Source chain for asset: ${options.assets[0][0]}`);
+      }
+    }
+
+    await this.executeTransfer(options);
+
+    if (!isBridged) {
+      await this.waitForBlocks();
+      await this.verifyExecution();
+      const { asset_balances: finalBalances } = await this.getBalances(options);
+      this.verifyFinalBalances(initialBalances, finalBalances, options);
+    }
+  }
+
+  // TODO: Wait for the next block to be produced.
+  protected async waitForBlocks() {
+    await sleep(2000);
   }
 
   protected async verifyExecution() {
     const events = await this.destManager.getMessageQueueEvents();
+
     expect(events).not.toBeEmpty();
     expect(events).toBeArray();
     expect(events).toHaveLength(1);

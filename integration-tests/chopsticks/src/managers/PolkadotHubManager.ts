@@ -1,39 +1,69 @@
-import { type Accounts, type Assets, Chains } from '@/types';
+import { type Accounts, Asset, AssetLocation, AssetSourceRelation, Chains } from '@/types';
+import { flatObject } from '@/utils.ts';
 import { pah } from '@polkadot-api/descriptors';
 import { createClient } from 'polkadot-api';
+import { withPolkadotSdkCompat } from 'polkadot-api/polkadot-sdk-compat';
 import { getWsProvider } from 'polkadot-api/ws-provider/web';
 import { BaseChainManager } from './BaseManager';
 
 export class PolkadotHubManager extends BaseChainManager {
+  private chain = Chains.PolkadotHub;
+
   connect() {
-    const client = createClient(getWsProvider(this.getChainType()));
-    const api = client.getTypedApi(pah);
+    const provider = withPolkadotSdkCompat(getWsProvider(this.chain));
+    const client = createClient(provider);
 
     // Verify connection
-    if (!client || !api) {
-      throw new Error(`Failed to connect to ${this.getChainType()}`);
+    if (!client) {
+      throw new Error(`Failed to connect to ${this.chain}`);
     }
 
-    this.clients.set(this.getChainType(), { client, api });
+    const api = client.getTypedApi(pah);
+    this.clients.set(this.chain, { client, api });
   }
 
   disconnect() {
-    this.clients.get(Chains.PolkadotHub)?.client.destroy();
+    this.clients.get(this.chain)?.client.destroy();
   }
 
   getChainType() {
-    return Chains.PolkadotHub;
+    return this.chain;
   }
 
   getXcmPallet() {
-    const api = this.getApi(Chains.PolkadotHub);
+    const api = this.getApi(this.chain);
     return api.tx.PolkadotXcm;
   }
 
-  async getAssetBalanceOf(account: Accounts, asset: Assets) {
+  getAssetSourceRelation(asset: Asset): AssetSourceRelation {
+    switch (asset) {
+      case Asset.DOT:
+        return AssetSourceRelation.Parent;
+      case Asset.USDT:
+        return AssetSourceRelation.Self;
+      case Asset.USDC:
+        return AssetSourceRelation.Self;
+      case Asset.WETH:
+        // This is not actually used, so we use Self as a placeholder
+        return AssetSourceRelation.Self;
+    }
+  }
+
+  async getAssetBalanceOf(account: Accounts, asset: Asset): Promise<bigint> {
     const api = this.getApi(Chains.PolkadotHub);
-    const balance = await api.query.Assets.Account.getValue(asset, account);
-    return balance?.balance || 0n;
+    const asset_source_relation = this.getAssetSourceRelation(asset);
+    const asset_location = AssetLocation(asset, asset_source_relation).value;
+    const account_balances_result = await api.apis.FungiblesApi.query_account_balances(account);
+
+    if (account_balances_result.success === true && account_balances_result.value.type === 'V4') {
+      const assets = account_balances_result.value.value;
+      for (const asset of assets) {
+        if (Bun.deepEquals(flatObject(asset.id), flatObject(asset_location))) {
+          return asset.fun.value as bigint;
+        }
+      }
+    }
+    return 0n;
   }
 
   async getSwapCredit() {
@@ -46,5 +76,11 @@ export class PolkadotHubManager extends BaseChainManager {
     const api = this.getApi(Chains.PolkadotHub);
     const events = await api.event.PolkadotXcm.FeesPaid.pull();
     return (events[0]?.payload.fees[0].fun.value as bigint) || 0n;
+  }
+
+  async getTransactionFee() {
+    const api = this.getApi(Chains.PolkadotHub);
+    const events = await api.event.TransactionPayment.TransactionFeePaid.pull();
+    return (events[0]?.payload.actual_fee as bigint) || 0n;
   }
 }

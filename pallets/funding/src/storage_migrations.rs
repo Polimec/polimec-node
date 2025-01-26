@@ -95,10 +95,6 @@ pub mod v6 {
 			log::info!("Starting migration to V5");
 			let translate_project_details = |_key, item: OldProjectMetadataOf<T>| -> Option<ProjectMetadataOf<T>> {
 				items += 1;
-				log::info!("project_details item {:?}", items);
-
-				// let old_participation_currencies = item.participation_currencies.to_vec();
-				// let new_participation_currencies: BoundedVec<AcceptedFundingAsset, ConstU32<{ AcceptedFundingAsset::VARIANT_COUNT as u32 }>> = old_participation_currencies.try_into().ok()?;
 
 				Some(ProjectMetadataOf::<T> {
 					token_information: item.token_information,
@@ -125,7 +121,6 @@ pub mod v6 {
 
 					for mut old_migration in old_migrations {
 						items += 1;
-						log::info!("migration items {:?}", items);
 						let origin_junction = old_migration.origin.user.interior.take_first().unwrap();
 						let new_origin = MigrationOrigin {
 							user: origin_junction,
@@ -139,6 +134,7 @@ pub mod v6 {
 				};
 			crate::UserMigrations::<T>::translate(translate_migration);
 
+			log::info!("Migration to V5 completed. Migrated {} items", items);
 			T::DbWeight::get().reads_writes(items, items)
 		}
 	}

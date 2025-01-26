@@ -17,8 +17,8 @@ extern crate alloc;
 
 use super::{
 	AccountId, AllPalletsWithSystem, Balance, Balances, ContributionTokens, EnsureRoot, ForeignAssets, Funding,
-	ParachainInfo, ParachainSystem, PolkadotXcm, Runtime, RuntimeCall, RuntimeEvent, RuntimeOrigin, ToTreasury,
-	TreasuryAccount, Vec, WeightToFee,
+	PLMCToAssetBalance, ParachainInfo, ParachainSystem, PolkadotXcm, Runtime, RuntimeCall, RuntimeEvent, RuntimeOrigin,
+	ToTreasury, TreasuryAccount, Vec, WeightToFee,
 };
 use core::marker::PhantomData;
 use cumulus_primitives_core::ParaId;
@@ -26,8 +26,10 @@ use frame_support::{
 	ensure,
 	pallet_prelude::*,
 	parameter_types,
-	traits::{ConstU32, Contains, ContainsPair, Everything, Nothing, ProcessMessageError},
-	weights::Weight,
+	traits::{
+		ConstU32, Contains, ContainsPair, Everything, Nothing, OnUnbalanced as OnUnbalancedT, ProcessMessageError,
+	},
+	weights::{Weight, WeightToFee as WeightToFeeT},
 };
 use pallet_xcm::XcmPassthrough;
 use polimec_common::assets::AcceptedFundingAsset;
@@ -35,6 +37,7 @@ use polimec_common::assets::AcceptedFundingAsset;
 use polimec_common_test_utils::DummyXcmSender;
 use polkadot_parachain_primitives::primitives::Sibling;
 use polkadot_runtime_common::xcm_sender::NoPriceForMessageDelivery;
+use sp_runtime::traits::Zero;
 use xcm::v4::prelude::*;
 use xcm_builder::{
 	AccountId32Aliases, AllowExplicitUnpaidExecutionFrom, AllowKnownQueryResponses, AllowSubscriptionsFrom,
@@ -42,13 +45,15 @@ use xcm_builder::{
 	FixedRateOfFungible, FixedWeightBounds, FrameTransactionalProcessor, FungibleAdapter, FungiblesAdapter, IsConcrete,
 	MatchXcm, MatchedConvertedConcreteId, MintLocation, NoChecking, ParentIsPreset, RelayChainAsNative,
 	SiblingParachainAsNative, SiblingParachainConvertsVia, SignedAccountId32AsNative, SignedToAccountId32,
-	SovereignSignedViaLocation, StartsWith, StartsWithExplicitGlobalConsensus, TakeWeightCredit, TrailingSetTopicAsId,
-	UsingComponents, WithComputedOrigin,
+	SovereignSignedViaLocation, StartsWith, StartsWithExplicitGlobalConsensus, TakeRevenue, TakeWeightCredit,
+	TrailingSetTopicAsId, UsingComponents, WithComputedOrigin,
 };
 use xcm_executor::{
-	traits::{JustTry, Properties, ShouldExecute},
-	XcmExecutor,
+	traits::{JustTry, Properties, ShouldExecute, WeightTrader},
+	AssetsInHolding, XcmExecutor,
 };
+use frame_support::traits::tokens::ConversionToAssetBalance;
+
 
 // DOT from Polkadot Asset Hub
 const DOT_PER_SECOND_EXECUTION: u128 = 0_2_000_000_000; // 0.2 DOT per second of execution time
@@ -70,10 +75,9 @@ parameter_types! {
 		GlobalConsensus(Polkadot),
 		Parachain(ParachainInfo::parachain_id().into()),
 	).into();
-	pub UniversalLocationNetworkId: NetworkId = UniversalLocation::get().global_consensus().unwrap();
 	pub const HereLocation: Location = Location::here();
 	pub AssetHubLocation: Location = (Parent, Parachain(1000)).into();
-
+	pub UniversalLocationNetworkId: NetworkId = UniversalLocation::get().global_consensus().unwrap();
 	pub CheckAccount: AccountId = PolkadotXcm::check_account();
 	/// The check account that is allowed to mint assets locally. Used for PLMC teleport
 	/// checking once enabled.
@@ -316,11 +320,7 @@ impl xcm_executor::Config for XcmConfig {
 	type SafeCallFilter = Nothing;
 	type SubscriptionService = PolkadotXcm;
 	type Trader = (
-		// TODO: `WeightToFee` has to be carefully considered. For now use default
-		UsingComponents<WeightToFee, HereLocation, AccountId, Balances, ToTreasury>,
-		FixedRateOfFungible<DotTraderParams, TakeRevenueToTreasury>,
-		FixedRateOfFungible<UsdcTraderParams, TakeRevenueToTreasury>,
-		FixedRateOfFungible<UsdtTraderParams, TakeRevenueToTreasury>,
+		AssetTrader<TakeRevenueToTreasury>,
 	);
 	type TransactionalProcessor = FrameTransactionalProcessor;
 	type UniversalAliases = Nothing;
@@ -494,4 +494,92 @@ impl<T: Contains<Location>> ShouldExecute for AllowHrmpNotifications<T> {
 impl cumulus_pallet_xcmp_queue::migration::v5::V5Config for Runtime {
 	// This must be the same as the `ChannelInfo` from the `Config`:
 	type ChannelList = ParachainSystem;
+}
+
+/// Can be used to buy weight in exchange for an accepted asset.
+/// Only one asset can be used to buy weight at a time.
+pub struct AssetTrader<Payee: TakeRevenue> {
+	weight_bought: Weight,
+	asset_spent: Option<Asset>,
+	phantom: PhantomData<Payee>,
+}
+impl<Payee: TakeRevenue> WeightTrader for AssetTrader<Payee> {
+	fn new() -> Self {
+		Self { weight_bought: Weight::zero(), asset_spent: None, phantom: PhantomData }
+	}
+
+	fn buy_weight(
+		&mut self,
+		weight: Weight,
+		payment: AssetsInHolding,
+		context: &XcmContext,
+	) -> Result<AssetsInHolding, XcmError> {
+		log::trace!(target: "xcm::weight", "AssetsTrader::buy_weight weight: {:?}, payment: {:?}, context: {:?}", weight, payment, context);
+		let native_amount = WeightToFee::weight_to_fee(&weight);
+		let mut acceptable_assets = AcceptedFundingAsset::all_ids();
+		acceptable_assets.push(Location::here());
+
+		// We know the executor always sends just one asset to pay for weight, even if the struct supports multiple.
+		let payment_fun = payment.fungible.clone();
+		let (asset_id, asset_amount) = payment_fun.first_key_value().ok_or(XcmError::FeesNotMet)?;
+		ensure!(acceptable_assets.contains(&asset_id.0), XcmError::FeesNotMet);
+
+		// If the trader was used already in this xcm execution, make sure we continue trading with the same asset
+		let old_amount = if let Some(asset) =&self.asset_spent {
+			ensure!(asset.id == *asset_id, XcmError::FeesNotMet);
+			if let Fungibility::Fungible(amount) = asset.fun {
+				amount
+			} else {
+				return Err(XcmError::FeesNotMet)
+			}
+		} else {
+			Zero::zero()
+		};
+
+		let required_asset_amount =
+			PLMCToAssetBalance::to_asset_balance(native_amount, asset_id.0.clone()).map_err(|_| XcmError::FeesNotMet)?;
+		ensure!(*asset_amount >= required_asset_amount, XcmError::FeesNotMet);
+
+		let required = (AssetId(asset_id.0.clone()), required_asset_amount).into();
+		let unused = payment.checked_sub(required).map_err(|_| XcmError::FeesNotMet)?;
+
+		self.weight_bought = self.weight_bought.saturating_add(weight);
+		self.asset_spent =
+			Some(Asset { id: asset_id.clone(), fun: Fungibility::Fungible(old_amount + required_asset_amount) });
+
+		Ok(unused)
+	}
+
+	fn refund_weight(&mut self, weight: Weight, context: &XcmContext) -> Option<Asset> {
+		log::trace!(target: "xcm::weight", "AssetsTrader::refund_weight weight: {:?}, context: {:?}, available weight: {:?}, available amount: {:?}", weight, context, self.weight_bought, self.asset_spent);
+		let weight_refunded = weight.min(self.weight_bought);
+		self.weight_bought -= weight_refunded;
+
+		let native_amount = WeightToFee::weight_to_fee(&weight_refunded);
+		let asset_id = self.asset_spent.clone()?.id;
+		let asset_amount = PLMCToAssetBalance::to_asset_balance(native_amount, asset_id.0.clone()).ok()?;
+		log::trace!(target: "xcm::weight", "AssetTrader::refund_weight amount to refund: {:?}", asset_amount);
+
+		if let Fungibility::Fungible(amount) = self.asset_spent.clone()?.fun {
+			self.asset_spent =
+				Some(Asset { id: asset_id.clone(), fun: Fungibility::Fungible(amount.saturating_sub(asset_amount)) });
+		} else {
+			log::trace!(target: "xcm::weight", "AssetTrader::refund_weight unexpected non-fungible asset found. Bug somewhere");
+			return None;
+		}
+
+		if asset_amount > 0 {
+			Some((asset_id.clone(), asset_amount).into())
+		} else {
+			None
+		}
+	}
+}
+impl<Payee: TakeRevenue> Drop for AssetTrader<Payee> {
+	fn drop(&mut self) {
+		if let Some(asset) = &self.asset_spent {
+			log::trace!(target: "xcm::weight", "AssetTrader::drop asset: {:?}", asset);
+			Payee::take_revenue(asset.clone());
+		}
+	}
 }

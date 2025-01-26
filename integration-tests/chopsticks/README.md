@@ -6,6 +6,10 @@ To install dependencies:
 bun install
 ```
 
+```bash
+bun papi
+```
+
 To start the chains:
 
 ```bash

@@ -1,13 +1,12 @@
-import { type Accounts, Asset, AssetLocation, AssetSourceRelation, Chains } from '@/types';
-import { flatObject } from '@/utils.ts';
-import { polimec } from '@polkadot-api/descriptors';
+import { type Accounts, Asset, AssetSourceRelation, Chains } from '@/types';
+import { bridge } from '@polkadot-api/descriptors';
 import { createClient } from 'polkadot-api';
 import { withPolkadotSdkCompat } from 'polkadot-api/polkadot-sdk-compat';
 import { getWsProvider } from 'polkadot-api/ws-provider/web';
 import { BaseChainManager } from './BaseManager';
 
-export class PolimecManager extends BaseChainManager {
-  private chain = Chains.Polimec;
+export class BridgerHubManagaer extends BaseChainManager {
+  private chain = Chains.BridgeHub;
 
   connect() {
     const provider = withPolkadotSdkCompat(getWsProvider(this.chain));
@@ -18,7 +17,7 @@ export class PolimecManager extends BaseChainManager {
       throw new Error(`Failed to connect to ${this.chain}`);
     }
 
-    const api = client.getTypedApi(polimec);
+    const api = client.getTypedApi(bridge);
     this.clients.set(this.chain, { client, api });
   }
 
@@ -48,29 +47,19 @@ export class PolimecManager extends BaseChainManager {
       case Asset.USDC:
         return AssetSourceRelation.Sibling;
       case Asset.WETH:
-        // Placeholder
+        // TODO: Check it Placeholder
         return AssetSourceRelation.Self;
     }
   }
 
+  // Note: On BridgeHub, there should be no balance for any asset.
+  // There is DOT, but we are not tracking it.
   async getAssetBalanceOf(account: Accounts, asset: Asset): Promise<bigint> {
-    const api = this.getApi(Chains.Polimec);
-    const asset_source_relation = this.getAssetSourceRelation(asset);
-    const asset_location = AssetLocation(asset, asset_source_relation).value;
-    const account_balances_result = await api.apis.FungiblesApi.query_account_balances(account);
-    if (account_balances_result.success === true && account_balances_result.value.type === 'V4') {
-      const assets = account_balances_result.value.value;
-      for (const asset of assets) {
-        if (Bun.deepEquals(flatObject(asset.id), flatObject(asset_location))) {
-          return asset.fun.value as bigint;
-        }
-      }
-    }
     return 0n;
   }
 
   async getLocalXcmFee() {
-    const api = this.getApi(Chains.Polimec);
+    const api = this.getApi(Chains.BridgeHub);
     const events = await api.event.PolkadotXcm.FeesPaid.pull();
     if (!events.length) return 0n;
     const fees = events[0]?.payload?.fees;
