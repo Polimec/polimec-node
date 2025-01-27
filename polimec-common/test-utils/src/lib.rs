@@ -21,7 +21,7 @@ use alloc::{vec, vec::Vec};
 use frame_support::{sp_runtime::app_crypto::sp_core::bytes::to_hex, traits::ConstU32, BoundedVec, Parameter};
 use jwt_compact::{alg::Ed25519, AlgorithmExt, Header};
 use parity_scale_codec::alloc::string::ToString;
-use polimec_common::credentials::{Did, InvestorType, SampleClaims, UntrustedToken};
+use polimec_common::credentials::{Did, InvestorType, PolimecPayload, UntrustedToken};
 use xcm::{
 	opaque::{v4::Xcm, VersionedXcm},
 	v4::{Assets, Location, SendError, SendResult, SendXcm, XcmHash},
@@ -83,7 +83,7 @@ mod jwt_utils {
 		// Handle optional IPFS CID
 		let ipfs_cid = ipfs_cid.unwrap_or_else(|| BoundedVec::with_bounded_capacity(96));
 		let custom_claims =
-			SampleClaims { subject: account_id, investor_type, issuer: "verifier".to_string(), did, ipfs_cid };
+			PolimecPayload { subject: account_id, investor_type, issuer: "verifier".to_string(), did, ipfs_cid };
 
 		let mut claims = Claims::new(custom_claims);
 		claims.expiration = Some(Utc.with_ymd_and_hms(2030, 1, 1, 0, 0, 0).unwrap());
@@ -92,7 +92,7 @@ mod jwt_utils {
 		UntrustedToken::new(&token_string).expect("Failed to parse the JWT")
 	}
 
-	// The `Serialize` trait is needed to serialize the `account_id` into a  `SampleClaims` struct.
+	// The `Serialize` trait is needed to serialize the `account_id` into a  `PolimecPayload` struct.
 	pub fn get_mock_jwt<AccountId: frame_support::Serialize>(
 		account_id: AccountId,
 		investor_type: InvestorType,
@@ -101,7 +101,7 @@ mod jwt_utils {
 		create_jwt(account_id, investor_type, did, None)
 	}
 
-	// The `Serialize` trait is needed to serialize the `account_id` into a  `SampleClaims` struct.
+	// The `Serialize` trait is needed to serialize the `account_id` into a  `PolimecPayload` struct.
 	pub fn get_mock_jwt_with_cid<AccountId: frame_support::Serialize>(
 		account_id: AccountId,
 		investor_type: InvestorType,
@@ -189,7 +189,7 @@ mod tests {
 		alg::{Ed25519, VerifyingKey},
 		AlgorithmExt,
 	};
-	use polimec_common::credentials::{InvestorType, SampleClaims};
+	use polimec_common::credentials::{InvestorType, PolimecPayload};
 
 	#[test]
 	fn test_get_test_jwt() {
@@ -202,7 +202,7 @@ mod tests {
 		)
 		.unwrap();
 		let token = get_mock_jwt("0x1234", InvestorType::Institutional, generate_did_from_account(40u64));
-		let res = Ed25519.validator::<SampleClaims<String>>(&verifying_key).validate(&token);
+		let res = Ed25519.validator::<PolimecPayload<String>>(&verifying_key).validate(&token);
 		assert!(res.is_ok());
 	}
 
@@ -224,7 +224,7 @@ mod tests {
 			generate_did_from_account(40u64),
 			bounded_cid.clone(),
 		);
-		let res = Ed25519.validator::<SampleClaims<String>>(&verifying_key).validate(&token);
+		let res = Ed25519.validator::<PolimecPayload<String>>(&verifying_key).validate(&token);
 		assert!(res.is_ok());
 		let validated_token = res.unwrap();
 		let claims = validated_token.claims();
