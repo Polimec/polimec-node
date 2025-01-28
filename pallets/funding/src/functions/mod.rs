@@ -2,7 +2,7 @@
 use super::{traits::*, *};
 use core::ops::Not;
 use frame_support::{
-	dispatch::{DispatchErrorWithPostInfo, DispatchResult, DispatchResultWithPostInfo, PostDispatchInfo},
+	dispatch::{DispatchResult, DispatchResultWithPostInfo, PostDispatchInfo},
 	ensure,
 	pallet_prelude::*,
 	traits::{
@@ -31,8 +31,6 @@ const QUERY_RESPONSE_TIME_WINDOW_BLOCKS: u32 = 20u32;
 mod application;
 #[path = "3_auction.rs"]
 mod auction;
-#[path = "4_contribution.rs"]
-mod contribution;
 #[path = "7_ct_migration.rs"]
 mod ct_migration;
 #[path = "2_evaluation.rs"]

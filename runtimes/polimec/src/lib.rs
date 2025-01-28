@@ -98,12 +98,9 @@ use alloc::string::String;
 use sp_core::crypto::Ss58Codec;
 #[cfg(any(feature = "std", test))]
 pub use sp_runtime::BuildStorage;
-use xcm::{
-	v4::{Location},
-	VersionedAssetId,
-};
 #[cfg(feature = "runtime-benchmarks")]
-use xcm::{{v4::{ParentThen, Parent, Junction::Parachain}}};
+use xcm::v4::{Junction::Parachain, ParentThen};
+use xcm::{v4::Location, VersionedAssetId};
 
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmark_helpers;
@@ -265,13 +262,10 @@ impl Contains<RuntimeCall> for BaseCallFilter {
 							pallet_funding::Call::evaluate { .. } |
 							pallet_funding::Call::end_evaluation { .. } |
 							pallet_funding::Call::bid { .. } |
-							pallet_funding::Call::end_auction { .. } |
-							pallet_funding::Call::contribute { .. } |
 							pallet_funding::Call::end_funding { .. } |
 							pallet_funding::Call::start_settlement { .. } |
 							pallet_funding::Call::settle_evaluation { .. } |
 							pallet_funding::Call::settle_bid { .. } |
-							pallet_funding::Call::settle_contribution { .. } |
 							pallet_funding::Call::mark_project_as_settled { .. } |
 							pallet_funding::Call::start_offchain_migration { .. } |
 							pallet_funding::Call::confirm_offchain_migration { .. } |

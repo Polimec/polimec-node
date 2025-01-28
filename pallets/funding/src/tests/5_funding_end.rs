@@ -13,8 +13,7 @@ mod round_flow {
 		fn auction_oversubscription() {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 			let project_metadata = default_project_metadata(ISSUER_1);
-			let auction_allocation =
-				project_metadata.auction_round_allocation_percentage * project_metadata.total_allocation_size;
+			let auction_allocation = project_metadata.total_allocation_size;
 			let bucket_size = Percent::from_percent(10) * auction_allocation;
 			let bids = vec![
 				(BIDDER_1, auction_allocation).into(),
@@ -29,10 +28,8 @@ mod round_flow {
 				project_metadata.clone(),
 				ISSUER_1,
 				None,
-				default_evaluations(),
+				inst.generate_successful_evaluations(project_metadata.clone(), 5),
 				bids,
-				default_community_contributions(),
-				default_remainder_contributions(),
 			);
 
 			let wap = inst.get_project_details(project_id).weighted_average_price.unwrap();
@@ -80,7 +77,8 @@ mod end_funding_extrinsic {
 
 			let normal_evaluator_reward = Perquintill::from_percent(80u64) * total_evaluator_reward;
 			const EARLY_EVALUATOR_TOTAL_USD_BONDED: u128 = 1_000_000 * USD_UNIT;
-			const NORMAL_EVALUATOR_TOTAL_USD_BONDED: u128 = 1_070_000 * USD_UNIT;
+			// The function that generates the successful evaluation does the full usd target amount as evaluation
+			const NORMAL_EVALUATOR_TOTAL_USD_BONDED: u128 = 10_000_000 * USD_UNIT;
 
 			let expected_reward_info = RewardInfo {
 				early_evaluator_reward_pot: early_evaluator_reward,
@@ -136,13 +134,7 @@ mod end_funding_extrinsic {
 			);
 			assert_eq!(
 				project_details.funding_end_block,
-				Some(
-					EvaluationRoundDuration::get() +
-						AuctionRoundDuration::get() +
-						CommunityRoundDuration::get() +
-						RemainderRoundDuration::get() +
-						1
-				)
+				Some(EvaluationRoundDuration::get() + AuctionRoundDuration::get() + 1)
 			);
 		}
 	}
@@ -154,12 +146,12 @@ mod end_funding_extrinsic {
 		#[test]
 		fn called_too_early() {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
-			let project_id = inst.create_community_contributing_project(
-				default_project_metadata(ISSUER_1),
+			let project_metadata = default_project_metadata(ISSUER_1);
+			let project_id = inst.create_auctioning_project(
+				project_metadata.clone(),
 				ISSUER_1,
 				None,
-				default_evaluations(),
-				vec![],
+				inst.generate_successful_evaluations(project_metadata.clone(), 5),
 			);
 			inst.execute(|| {
 				assert_noop!(
@@ -187,7 +179,7 @@ mod end_funding_extrinsic {
 			let funding_threshold: u128 =
 				funding_threshold.deconstruct() as u128 * 100u128 / Perquintill::ACCURACY as u128;
 
-			let (mut inst, project_id) = create_project_with_funding_percentage(funding_threshold as u64 - 1, true);
+			let (mut inst, project_id) = create_project_with_funding_percentage(funding_threshold as u8 - 1, true);
 			assert_eq!(
 				inst.get_project_details(project_id).status,
 				ProjectStatus::SettlementStarted(FundingOutcome::Failure)

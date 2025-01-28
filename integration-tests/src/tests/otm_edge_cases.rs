@@ -1,6 +1,6 @@
 use crate::{
 	constants::PricesBuilder,
-	tests::defaults::{default_evaluations, default_project_metadata, ipfs_hash, IntegrationInstantiator},
+	tests::defaults::{default_project_metadata, ipfs_hash, IntegrationInstantiator},
 	*,
 };
 use frame_support::traits::fungibles::Inspect;
@@ -12,15 +12,13 @@ use polimec_common::{
 use polimec_common_test_utils::{generate_did_from_account, get_mock_jwt_with_cid};
 use sp_arithmetic::{FixedPointNumber, FixedU128};
 use sp_core::bounded_vec;
-use sp_runtime::TokenError;
 
 generate_accounts!(ISSUER, BOBERT);
 
 #[test]
-fn otm_fee_below_min_amount_reverts() {
+fn otm_fee_below_min_amount_impossible() {
 	let mut inst = IntegrationInstantiator::new(None);
 	let issuer: PolimecAccountId = ISSUER.into();
-	let bobert: PolimecAccountId = BOBERT.into();
 
 	let prices = PricesBuilder::new()
 		.plmc(FixedU128::from_float(0.17f64))
@@ -50,26 +48,15 @@ fn otm_fee_below_min_amount_reverts() {
 		)
 		.unwrap();
 
-		let project_id = inst.create_community_contributing_project(
-			project_metadata.clone(),
-			issuer.clone(),
-			None,
-			default_evaluations(),
-			vec![],
-		);
-
-		let plmc_ed = inst.get_ed();
-
-		let min_usd_contribution = USD_UNIT;
+		let min_usd_bid = 10 * USD_UNIT;
 		let otm_multiplier: MultiplierOf<PolimecRuntime> = ParticipationMode::OTM.multiplier().try_into().unwrap();
-		let min_usd_bond =
-			otm_multiplier.calculate_usd_bonding_requirement::<PolimecRuntime>(min_usd_contribution).unwrap();
+		let min_usd_bond = otm_multiplier.calculate_usd_bonding_requirement::<PolimecRuntime>(min_usd_bid).unwrap();
 		let min_plmc_bond = plmc_price.reciprocal().unwrap().saturating_mul_int(min_usd_bond);
 		let min_usd_otm_fee =
 			polimec_runtime::ProxyBonding::calculate_fee(min_plmc_bond, AcceptedFundingAsset::USDT.id()).unwrap();
 
-		let mut min_usdt_contribution = usdt_price.reciprocal().unwrap().saturating_mul_int(min_usd_contribution);
-		while usdt_price.saturating_mul_int(min_usdt_contribution) < min_usd_contribution {
+		let mut min_usdt_contribution = usdt_price.reciprocal().unwrap().saturating_mul_int(min_usd_bid);
+		while usdt_price.saturating_mul_int(min_usdt_contribution) < min_usd_bid {
 			min_usdt_contribution += 1;
 		}
 
@@ -77,41 +64,7 @@ fn otm_fee_below_min_amount_reverts() {
 
 		let usdt_min_balance = inst.execute(|| PolimecForeignAssets::minimum_balance(AcceptedFundingAsset::USDT.id()));
 
-		assert!(min_usdt_contribution_otm_fee < usdt_min_balance);
-
-		let ct_for_min_usdt_contribution = PolimecFunding::funding_asset_to_ct_amount_classic(
-			project_id,
-			AcceptedFundingAsset::USDT,
-			min_usdt_contribution,
-		);
-
-		let jwt = get_mock_jwt_with_cid(
-			bobert.clone(),
-			InvestorType::Retail,
-			generate_did_from_account(bobert.clone()),
-			ipfs_hash(),
-		);
-
-		inst.mint_plmc_to(vec![(bobert.clone(), plmc_ed).into()]);
-		inst.mint_funding_asset_to(vec![(
-			bobert.clone(),
-			min_usdt_contribution + min_usdt_contribution_otm_fee + 10_000,
-			AcceptedFundingAsset::USDT.id(),
-		)
-			.into()]);
-
-		// Assert noop checks that storage had no changes
-		assert_noop!(
-			PolimecFunding::contribute(
-				PolimecOrigin::signed(bobert.clone()),
-				jwt.clone(),
-				project_id,
-				ct_for_min_usdt_contribution,
-				ParticipationMode::OTM,
-				AcceptedFundingAsset::USDT
-			),
-			TokenError::BelowMinimum
-		);
+		assert!(min_usdt_contribution_otm_fee > usdt_min_balance);
 	});
 }
 
@@ -124,14 +77,9 @@ fn after_otm_fee_user_goes_under_ed_reverts() {
 	polimec::set_prices(PricesBuilder::default_prices());
 	PolimecNet::execute_with(|| {
 		let project_metadata = default_project_metadata(issuer.clone());
+		let evaluations = inst.generate_successful_evaluations(project_metadata.clone(), 5);
 
-		let project_id = inst.create_community_contributing_project(
-			project_metadata.clone(),
-			issuer.clone(),
-			None,
-			default_evaluations(),
-			vec![],
-		);
+		let project_id = inst.create_auctioning_project(project_metadata.clone(), issuer.clone(), None, evaluations);
 
 		let plmc_price = <PolimecRuntime as pallet_funding::Config>::PriceProvider::get_decimals_aware_price(
 			Location::here(),
@@ -177,7 +125,7 @@ fn after_otm_fee_user_goes_under_ed_reverts() {
 			.into()]);
 
 		assert_noop!(
-			PolimecFunding::contribute(
+			PolimecFunding::bid(
 				PolimecOrigin::signed(bobert.clone()),
 				jwt.clone(),
 				project_id,
@@ -190,7 +138,7 @@ fn after_otm_fee_user_goes_under_ed_reverts() {
 
 		inst.mint_funding_asset_to(vec![(bobert.clone(), usdt_ed, AcceptedFundingAsset::USDT.id()).into()]);
 
-		assert_ok!(PolimecFunding::contribute(
+		assert_ok!(PolimecFunding::bid(
 			PolimecOrigin::signed(bobert.clone()),
 			jwt.clone(),
 			project_id,

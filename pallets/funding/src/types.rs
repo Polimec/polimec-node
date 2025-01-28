@@ -28,7 +28,7 @@ use parachains_common::DAYS;
 use polimec_common::USD_DECIMALS;
 use polkadot_parachain_primitives::primitives::Id as ParaId;
 use serde::{Deserialize, Serialize};
-use sp_arithmetic::{traits::Saturating, FixedPointNumber, FixedU128, Percent};
+use sp_arithmetic::{traits::Saturating, FixedPointNumber, FixedU128};
 use sp_runtime::traits::{Convert, One};
 use sp_std::{cmp::Eq, prelude::*};
 pub use storage::*;
@@ -172,14 +172,10 @@ pub mod storage {
 		pub mainnet_token_max_supply: Balance,
 		/// Total allocation of Contribution Tokens available for the Funding Round.
 		pub total_allocation_size: Balance,
-		/// Percentage of the total allocation of Contribution Tokens available for the Auction Round
-		pub auction_round_allocation_percentage: Percent,
 		/// The minimum price per token in USD, decimal-aware. See [`calculate_decimals_aware_price()`](crate::traits::ProvideAssetPrice::calculate_decimals_aware_price) for more information.
 		pub minimum_price: Price,
 		/// Maximum and minimum ticket sizes for auction round
 		pub bidding_ticket_sizes: BiddingTicketSizes<Price>,
-		/// Maximum and minimum ticket sizes for community/remainder rounds
-		pub contributing_ticket_sizes: ContributingTicketSizes<Price>,
 		/// Participation currencies (e.g stablecoin, DOT, KSM)
 		/// e.g. https://github.com/paritytech/substrate/blob/427fd09bcb193c1e79dec85b1e207c718b686c35/frame/uniques/src/types.rs#L110
 		/// For now is easier to handle the case where only just one Currency is accepted
@@ -203,17 +199,11 @@ pub mod storage {
 			let usd_unit = sp_arithmetic::traits::checked_pow(10u128, USD_DECIMALS as usize)
 				.ok_or(MetadataError::BadTokenomics)?;
 
-			let min_bidder_bound_usd: Balance = usd_unit.checked_mul(5000u128).ok_or(MetadataError::BadTokenomics)?;
+			let min_bound_usd: Balance = usd_unit.checked_mul(10u128).ok_or(MetadataError::BadTokenomics)?;
 			self.bidding_ticket_sizes.is_valid(vec![
-				InvestorTypeUSDBounds::Professional((min_bidder_bound_usd, None).into()),
-				InvestorTypeUSDBounds::Institutional((min_bidder_bound_usd, None).into()),
-			])?;
-
-			let min_contributor_bound_usd: Balance = usd_unit.checked_mul(1u128).ok_or(MetadataError::BadTokenomics)?;
-			self.contributing_ticket_sizes.is_valid(vec![
-				InvestorTypeUSDBounds::Institutional((min_contributor_bound_usd, None).into()),
-				InvestorTypeUSDBounds::Professional((min_contributor_bound_usd, None).into()),
-				InvestorTypeUSDBounds::Retail((min_contributor_bound_usd, None).into()),
+				InvestorTypeUSDBounds::Professional((min_bound_usd, None).into()),
+				InvestorTypeUSDBounds::Institutional((min_bound_usd, None).into()),
+				InvestorTypeUSDBounds::Retail((min_bound_usd, None).into()),
 			])?;
 
 			if self.total_allocation_size == 0u64.into() ||
@@ -221,10 +211,6 @@ pub mod storage {
 				self.total_allocation_size < 10u128.saturating_pow(self.token_information.decimals as u32)
 			{
 				return Err(MetadataError::AllocationSizeError);
-			}
-
-			if self.auction_round_allocation_percentage <= Percent::from_percent(0) {
-				return Err(MetadataError::AuctionRoundPercentageError);
 			}
 
 			let mut deduped = self.participation_currencies.clone().to_vec();
@@ -308,7 +294,7 @@ pub mod storage {
 		/// The price in USD per token decided after the Auction Round
 		pub weighted_average_price: Option<Price>,
 		/// The current status of the project
-		pub status: ProjectStatus<BlockNumber>,
+		pub status: ProjectStatus,
 		/// When the different project phases start and end
 		pub round_duration: BlockNumberPair<BlockNumber>,
 		/// Fundraising target amount in USD (6 decimals)
@@ -583,37 +569,10 @@ pub mod inner {
 	pub struct BiddingTicketSizes<Price: FixedPointNumber> {
 		pub professional: TicketSize,
 		pub institutional: TicketSize,
+		pub retail: TicketSize,
 		pub phantom: PhantomData<(Price, Balance)>,
 	}
 	impl<Price: FixedPointNumber> BiddingTicketSizes<Price> {
-		pub fn is_valid(&self, usd_bounds: Vec<InvestorTypeUSDBounds>) -> Result<(), MetadataError> {
-			for bound in usd_bounds {
-				match bound {
-					InvestorTypeUSDBounds::Professional(bound) =>
-						if !self.professional.check_valid(bound) {
-							return Err(MetadataError::TicketSizeError);
-						},
-					InvestorTypeUSDBounds::Institutional(bound) =>
-						if !self.institutional.check_valid(bound) {
-							return Err(MetadataError::TicketSizeError);
-						},
-					_ => {},
-				}
-			}
-			Ok(())
-		}
-	}
-
-	#[derive(
-		Clone, Copy, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo, Serialize, Deserialize,
-	)]
-	pub struct ContributingTicketSizes<Price: FixedPointNumber> {
-		pub retail: TicketSize,
-		pub professional: TicketSize,
-		pub institutional: TicketSize,
-		pub phantom: PhantomData<(Price, Balance)>,
-	}
-	impl<Price: FixedPointNumber> ContributingTicketSizes<Price> {
 		pub fn is_valid(&self, usd_bounds: Vec<InvestorTypeUSDBounds>) -> Result<(), MetadataError> {
 			for bound in usd_bounds {
 				match bound {
@@ -638,12 +597,11 @@ pub mod inner {
 	#[derive(
 		Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen, Serialize, Deserialize,
 	)]
-	pub enum ProjectStatus<BlockNumber> {
+	pub enum ProjectStatus {
 		#[default]
 		Application,
 		EvaluationRound,
 		AuctionRound,
-		CommunityRound(BlockNumber),
 		FundingFailed,
 		FundingSuccessful,
 		SettlementStarted(FundingOutcome),

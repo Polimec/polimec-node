@@ -1,5 +1,8 @@
 use super::*;
-use polimec_common::{assets::AcceptedFundingAsset, credentials::InvestorType};
+use polimec_common::{
+	assets::AcceptedFundingAsset,
+	credentials::InvestorType::{self},
+};
 use polimec_common_test_utils::{generate_did_from_account, get_mock_jwt_with_cid};
 
 #[cfg(test)]
@@ -29,7 +32,9 @@ mod create_project_extrinsic {
 	#[cfg(test)]
 	mod success {
 		use super::*;
+		use polimec_common::assets::AcceptedFundingAsset::{DOT, USDC, USDT, WETH};
 		use polimec_common_test_utils::get_mock_jwt_with_cid;
+		use std::collections::BTreeSet;
 
 		#[test]
 		fn project_id_autoincrement_works() {
@@ -125,10 +130,66 @@ mod create_project_extrinsic {
 				project_metadata.clone().policy_ipfs_cid.unwrap(),
 			);
 
-			let failing_bids = vec![(BIDDER_1, 1000 * CT_UNIT).into(), (BIDDER_2, 1000 * CT_UNIT).into()];
+			let failing_bids =
+				vec![(BIDDER_1, Professional, 1000 * CT_UNIT).into(), (BIDDER_2, Retail, 1000 * CT_UNIT).into()];
+			let successful_evaluations = inst.generate_successful_evaluations(project_metadata.clone(), 5);
+			let successful_bids = inst.generate_bids_from_total_ct_percent(project_metadata.clone(), 90, 5);
 
-			inst.mint_plmc_to(default_plmc_balances());
-			inst.mint_funding_asset_to(default_usdt_balances());
+			let accounts = vec![
+				vec![ISSUER_1],
+				successful_evaluations.accounts(),
+				successful_bids.accounts(),
+				failing_bids.accounts(),
+			]
+			.concat()
+			.into_iter()
+			.collect::<BTreeSet<_>>()
+			.into_iter()
+			.collect_vec();
+
+			inst.mint_plmc_to(
+				accounts.iter().map(|acc| UserToPLMCBalance { account: *acc, plmc_amount: 1_000_000 * PLMC }).collect(),
+			);
+			inst.mint_funding_asset_to(
+				accounts
+					.iter()
+					.map(|acc| UserToFundingAsset {
+						account: *acc,
+						asset_amount: 1_000_000 * USD_UNIT,
+						asset_id: USDT.id(),
+					})
+					.collect(),
+			);
+			inst.mint_funding_asset_to(
+				accounts
+					.iter()
+					.map(|acc| UserToFundingAsset {
+						account: *acc,
+						asset_amount: 1_000_000 * USD_UNIT,
+						asset_id: USDC.id(),
+					})
+					.collect(),
+			);
+			inst.mint_funding_asset_to(
+				accounts
+					.iter()
+					.map(|acc| UserToFundingAsset {
+						account: *acc,
+						asset_amount: 1_000_000__000_000_000_0,
+						asset_id: DOT.id(),
+					})
+					.collect(),
+			);
+			inst.mint_funding_asset_to(
+				accounts
+					.iter()
+					.map(|acc| UserToFundingAsset {
+						account: *acc,
+						asset_amount: 1_000_000__000_000_000_000_000_000,
+						asset_id: WETH.id(),
+					})
+					.collect(),
+			);
 
 			// Cannot create 2 projects consecutively
 			inst.execute(|| {
@@ -175,23 +236,12 @@ mod create_project_extrinsic {
 			// A Project is "inactive" after the funding fails
 			assert_eq!(inst.go_to_next_state(1), ProjectStatus::EvaluationRound);
 
-			inst.evaluate_for_users(1, default_evaluations()).unwrap();
+			inst.evaluate_for_users(1, successful_evaluations.clone()).unwrap();
 
 			assert_eq!(inst.go_to_next_state(1), ProjectStatus::AuctionRound);
 
 			inst.bid_for_users(1, failing_bids).unwrap();
 
-			assert!(matches!(inst.go_to_next_state(1), ProjectStatus::CommunityRound(_)));
-			inst.execute(|| {
-				assert_noop!(
-					Pallet::<TestRuntime>::create_project(
-						RuntimeOrigin::signed(ISSUER_1),
-						jwt.clone(),
-						project_metadata.clone()
-					),
-					Error::<TestRuntime>::HasActiveProject
-				);
-			});
 			assert_eq!(inst.go_to_next_state(1), ProjectStatus::FundingFailed);
 			inst.execute(|| {
 				assert_ok!(Pallet::<TestRuntime>::create_project(
@@ -203,19 +253,11 @@ mod create_project_extrinsic {
 
 			// A project is "inactive" after the funding succeeds
 			assert_eq!(inst.go_to_next_state(2), ProjectStatus::EvaluationRound);
-			inst.evaluate_for_users(2, default_evaluations()).unwrap();
+			inst.evaluate_for_users(2, successful_evaluations).unwrap();
 
 			assert_eq!(inst.go_to_next_state(2), ProjectStatus::AuctionRound);
 
-			inst.bid_for_users(2, default_bids()).unwrap();
-
-			let ProjectStatus::CommunityRound(remainder_start) = inst.go_to_next_state(2) else {
-				panic!("Expected CommunityRound");
-			};
-
-			inst.contribute_for_users(2, default_community_contributions()).unwrap();
-			inst.jump_to_block(remainder_start);
-			inst.contribute_for_users(2, default_remainder_contributions()).unwrap();
+			inst.bid_for_users(2, successful_bids).unwrap();
 
 			assert_eq!(inst.go_to_next_state(2), ProjectStatus::FundingSuccessful);
 
@@ -391,48 +433,30 @@ mod create_project_extrinsic {
 		fn invalid_ticket_sizes() {
 			let correct_project = default_project_metadata(ISSUER_1);
 
-			// min in bidding below 5k
+			// min in bidding below 10 USD
 			let mut wrong_project_1 = correct_project.clone();
-			wrong_project_1.bidding_ticket_sizes.professional = TicketSize::new(4999 * USD_UNIT, None);
+			wrong_project_1.bidding_ticket_sizes.professional = TicketSize::new(9 * USD_UNIT, None);
 
 			let mut wrong_project_2 = correct_project.clone();
-			wrong_project_2.bidding_ticket_sizes.institutional = TicketSize::new(4999 * USD_UNIT, None);
+			wrong_project_2.bidding_ticket_sizes.institutional = TicketSize::new(9 * USD_UNIT, None);
 
 			let mut wrong_project_3 = correct_project.clone();
-			wrong_project_3.bidding_ticket_sizes.professional = TicketSize::new(3000 * USD_UNIT, None);
-			wrong_project_3.bidding_ticket_sizes.institutional = TicketSize::new(0 * USD_UNIT, None);
+			wrong_project_3.bidding_ticket_sizes.professional = TicketSize::new(9 * USD_UNIT, None);
+			wrong_project_3.bidding_ticket_sizes.institutional = TicketSize::new(9 * USD_UNIT, None);
+			wrong_project_3.bidding_ticket_sizes.retail = TicketSize::new(9 * USD_UNIT, None);
 
 			let mut wrong_project_4 = correct_project.clone();
-			wrong_project_4.bidding_ticket_sizes.professional = TicketSize::new(USD_UNIT, None);
-			wrong_project_4.bidding_ticket_sizes.institutional = TicketSize::new(USD_UNIT, None);
-
-			// min in contributing below 1 USD
-			let mut wrong_project_5 = correct_project.clone();
-			wrong_project_5.contributing_ticket_sizes.retail = TicketSize::new(USD_UNIT / 2, None);
-
-			let mut wrong_project_6 = correct_project.clone();
-			wrong_project_6.contributing_ticket_sizes.professional = TicketSize::new(USD_UNIT / 2, None);
-
-			let mut wrong_project_7 = correct_project.clone();
-			wrong_project_7.contributing_ticket_sizes.institutional = TicketSize::new(USD_UNIT / 2, None);
+			wrong_project_4.bidding_ticket_sizes.professional = TicketSize::new(0, None);
+			wrong_project_4.bidding_ticket_sizes.institutional = TicketSize::new(0, None);
+			wrong_project_4.bidding_ticket_sizes.retail = TicketSize::new(0, None);
 
 			// min higher than max
 			let mut wrong_project_8 = correct_project.clone();
-			wrong_project_8.bidding_ticket_sizes.professional = TicketSize::new(5000 * USD_UNIT, Some(4990 * USD_UNIT));
+			wrong_project_8.bidding_ticket_sizes.professional = TicketSize::new(100 * USD_UNIT, Some(50 * USD_UNIT));
+			wrong_project_8.bidding_ticket_sizes.retail = TicketSize::new(100 * USD_UNIT, Some(50 * USD_UNIT));
 
 			let mut wrong_project_9 = correct_project.clone();
 			wrong_project_9.bidding_ticket_sizes.institutional =
-				TicketSize::new(6000 * USD_UNIT, Some(5500 * USD_UNIT));
-
-			let mut wrong_project_10 = correct_project.clone();
-			wrong_project_10.contributing_ticket_sizes.retail = TicketSize::new(6000 * USD_UNIT, Some(5500 * USD_UNIT));
-
-			let mut wrong_project_11 = correct_project.clone();
-			wrong_project_11.contributing_ticket_sizes.professional =
-				TicketSize::new(6000 * USD_UNIT, Some(5500 * USD_UNIT));
-
-			let mut wrong_project_12 = correct_project.clone();
-			wrong_project_12.contributing_ticket_sizes.professional =
 				TicketSize::new(6000 * USD_UNIT, Some(5500 * USD_UNIT));
 
 			let wrong_projects = vec![
@@ -440,14 +464,8 @@ mod create_project_extrinsic {
 				wrong_project_2,
 				wrong_project_3.clone(),
 				wrong_project_4,
-				wrong_project_5,
-				wrong_project_6,
-				wrong_project_7,
 				wrong_project_8,
 				wrong_project_9,
-				wrong_project_10,
-				wrong_project_11,
-				wrong_project_12,
 			];
 
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
@@ -538,27 +556,6 @@ mod create_project_extrinsic {
 				assert_noop!(
 					Pallet::<TestRuntime>::create_project(RuntimeOrigin::signed(ISSUER_1), jwt, project_metadata),
 					Error::<TestRuntime>::AllocationSizeError
-				);
-			});
-		}
-
-		#[test]
-		fn auction_round_percentage_zero() {
-			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
-			let mut project_metadata = default_project_metadata(ISSUER_1);
-			project_metadata.auction_round_allocation_percentage = Percent::from_percent(0);
-
-			inst.mint_plmc_to(default_plmc_balances());
-			let jwt = get_mock_jwt_with_cid(
-				ISSUER_1,
-				InvestorType::Institutional,
-				generate_did_from_account(ISSUER_1),
-				project_metadata.clone().policy_ipfs_cid.unwrap(),
-			);
-			inst.execute(|| {
-				assert_noop!(
-					Pallet::<TestRuntime>::create_project(RuntimeOrigin::signed(ISSUER_1), jwt, project_metadata),
-					Error::<TestRuntime>::AuctionRoundPercentageError
 				);
 			});
 		}
@@ -908,7 +905,6 @@ mod edit_project_extrinsic {
 				},
 				mainnet_token_max_supply: 100_000_000 * CT_UNIT,
 				total_allocation_size: 5_000_000 * CT_UNIT,
-				auction_round_allocation_percentage: Percent::from_percent(30u8),
 				minimum_price: PriceProviderOf::<TestRuntime>::calculate_decimals_aware_price(
 					PriceOf::<TestRuntime>::from_float(20.0),
 					USD_DECIMALS,
@@ -918,12 +914,7 @@ mod edit_project_extrinsic {
 				bidding_ticket_sizes: BiddingTicketSizes {
 					professional: TicketSize::new(10_000 * USD_UNIT, Some(20_000 * USD_UNIT)),
 					institutional: TicketSize::new(20_000 * USD_UNIT, Some(30_000 * USD_UNIT)),
-					phantom: Default::default(),
-				},
-				contributing_ticket_sizes: ContributingTicketSizes {
-					retail: TicketSize::new(1_000 * USD_UNIT, Some(2_000 * USD_UNIT)),
-					professional: TicketSize::new(2_000 * USD_UNIT, Some(3_000 * USD_UNIT)),
-					institutional: TicketSize::new(3_000 * USD_UNIT, Some(4_000 * USD_UNIT)),
+					retail: TicketSize::new(10 * USD_UNIT, None),
 					phantom: Default::default(),
 				},
 				participation_currencies: vec![AcceptedFundingAsset::USDT, AcceptedFundingAsset::USDC]

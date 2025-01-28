@@ -9,15 +9,10 @@ mod pallet_migration {
 	#[test]
 	fn start_pallet_migration() {
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
-		let project_id = inst.create_finished_project(
-			default_project_metadata(ISSUER_1),
-			ISSUER_1,
-			None,
-			default_evaluations(),
-			default_bids(),
-			default_community_contributions(),
-			default_remainder_contributions(),
-		);
+		let project_metadata = default_project_metadata(ISSUER_1);
+		let evaluations = inst.generate_successful_evaluations(project_metadata.clone(), 5);
+		let bids = inst.generate_bids_from_total_ct_percent(project_metadata.clone(), 90, 5);
+		let project_id = inst.create_finished_project(project_metadata.clone(), ISSUER_1, None, evaluations, bids);
 		assert_eq!(inst.go_to_next_state(project_id), ProjectStatus::SettlementStarted(FundingOutcome::Success));
 		inst.settle_project(project_id, true);
 
@@ -32,10 +27,6 @@ mod pallet_migration {
 			);
 			assert_err!(
 				crate::Pallet::<TestRuntime>::do_start_pallet_migration(&BIDDER_1, project_id, ParaId::from(2006u32),),
-				Error::<TestRuntime>::NotIssuer
-			);
-			assert_err!(
-				crate::Pallet::<TestRuntime>::do_start_pallet_migration(&BUYER_1, project_id, ParaId::from(2006u32),),
 				Error::<TestRuntime>::NotIssuer
 			);
 			assert_ok!(crate::Pallet::<TestRuntime>::do_start_pallet_migration(
@@ -62,15 +53,10 @@ mod pallet_migration {
 	}
 
 	fn create_pallet_migration_project(mut inst: MockInstantiator) -> (ProjectId, MockInstantiator) {
-		let project_id = inst.create_finished_project(
-			default_project_metadata(ISSUER_1),
-			ISSUER_1,
-			None,
-			default_evaluations(),
-			default_bids(),
-			default_community_contributions(),
-			default_remainder_contributions(),
-		);
+		let evaluations = inst.generate_successful_evaluations(default_project_metadata(ISSUER_1), 5);
+		let bids = inst.generate_bids_from_total_ct_percent(default_project_metadata(ISSUER_1), 90, 5);
+		let project_id =
+			inst.create_finished_project(default_project_metadata(ISSUER_1), ISSUER_1, None, evaluations, bids);
 		assert_eq!(inst.go_to_next_state(project_id), ProjectStatus::SettlementStarted(FundingOutcome::Success));
 		inst.settle_project(project_id, true);
 		inst.execute(|| {
@@ -187,28 +173,21 @@ mod offchain_migration {
 	#[test]
 	fn start_offchain_migration() {
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+		let evaluations = inst.generate_successful_evaluations(default_project_metadata(ISSUER_1), 5);
+		let bids = inst.generate_bids_from_total_ct_percent(default_project_metadata(ISSUER_1), 90, 5);
 		// Create migrations for 2 projects, to check the `remaining_participants` is unaffected by other projects
 		let project_id = inst.create_finished_project(
 			default_project_metadata(ISSUER_1),
 			ISSUER_1,
 			None,
-			default_evaluations(),
-			default_bids(),
-			default_community_contributions(),
-			default_remainder_contributions(),
+			evaluations.clone(),
+			bids.clone(),
 		);
 		assert_eq!(inst.go_to_next_state(project_id), ProjectStatus::SettlementStarted(FundingOutcome::Success));
 		inst.settle_project(project_id, true);
 
-		let project_id = inst.create_finished_project(
-			default_project_metadata(ISSUER_1),
-			ISSUER_1,
-			None,
-			default_evaluations(),
-			default_bids(),
-			default_community_contributions(),
-			default_remainder_contributions(),
-		);
+		let project_id =
+			inst.create_finished_project(default_project_metadata(ISSUER_1), ISSUER_1, None, evaluations, bids);
 		assert_eq!(inst.go_to_next_state(project_id), ProjectStatus::SettlementStarted(FundingOutcome::Success));
 		inst.settle_project(project_id, true);
 
@@ -227,15 +206,10 @@ mod offchain_migration {
 	}
 
 	fn create_offchain_migration_project(mut inst: MockInstantiator) -> (ProjectId, MockInstantiator) {
-		let project_id = inst.create_finished_project(
-			default_project_metadata(ISSUER_1),
-			ISSUER_1,
-			None,
-			default_evaluations(),
-			default_bids(),
-			default_community_contributions(),
-			default_remainder_contributions(),
-		);
+		let project_metadata = default_project_metadata(ISSUER_1);
+		let evaluations = inst.generate_successful_evaluations(project_metadata.clone(), 5);
+		let bids = inst.generate_bids_from_total_ct_percent(project_metadata.clone(), 90, 5);
+		let project_id = inst.create_finished_project(project_metadata, ISSUER_1, None, evaluations, bids);
 		assert_eq!(inst.go_to_next_state(project_id), ProjectStatus::SettlementStarted(FundingOutcome::Success));
 		inst.settle_project(project_id, true);
 		inst.execute(|| {
@@ -248,15 +222,16 @@ mod offchain_migration {
 	fn confirm_offchain_migration() {
 		let inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		let (project_id, mut inst) = create_offchain_migration_project(inst);
+		let bidder_1 = inst.account_from_u32(0, "BIDDER");
 
-		let bidder_1_migrations = inst.execute(|| UserMigrations::<TestRuntime>::get((project_id, BIDDER_1))).unwrap();
+		let bidder_1_migrations = inst.execute(|| UserMigrations::<TestRuntime>::get((project_id, bidder_1))).unwrap();
 		assert_eq!(bidder_1_migrations.0, MigrationStatus::NotStarted);
 
 		inst.execute(|| {
-			assert_ok!(crate::Pallet::<TestRuntime>::do_confirm_offchain_migration(project_id, ISSUER_1, BIDDER_1));
+			assert_ok!(crate::Pallet::<TestRuntime>::do_confirm_offchain_migration(project_id, ISSUER_1, bidder_1));
 		});
 
-		let bidder_1_migrations = inst.execute(|| UserMigrations::<TestRuntime>::get((project_id, BIDDER_1))).unwrap();
+		let bidder_1_migrations = inst.execute(|| UserMigrations::<TestRuntime>::get((project_id, bidder_1))).unwrap();
 		assert_eq!(bidder_1_migrations.0, MigrationStatus::Confirmed);
 	}
 

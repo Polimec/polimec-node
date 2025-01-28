@@ -14,7 +14,7 @@ mod round_flow {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 			let issuer = ISSUER_1;
 			let project_metadata = default_project_metadata(issuer);
-			let evaluations = default_evaluations();
+			let evaluations = inst.generate_successful_evaluations(project_metadata.clone(), 5);
 
 			inst.create_auctioning_project(project_metadata, issuer, None, evaluations);
 		}
@@ -26,7 +26,7 @@ mod round_flow {
 			let project2 = default_project_metadata(ISSUER_2);
 			let project3 = default_project_metadata(ISSUER_3);
 			let project4 = default_project_metadata(ISSUER_4);
-			let evaluations = default_evaluations();
+			let evaluations = inst.generate_successful_evaluations(project1.clone(), 5);
 
 			inst.create_auctioning_project(project1, ISSUER_1, None, evaluations.clone());
 			inst.create_auctioning_project(project2, ISSUER_2, None, evaluations.clone());
@@ -209,8 +209,9 @@ mod round_flow {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 			let issuer = ISSUER_1;
 			let project_metadata = default_project_metadata(issuer);
-			let evaluations = default_failing_evaluations();
-			let plmc_eval_deposits: Vec<UserToPLMCBalance<_>> = inst.calculate_evaluation_plmc_spent(evaluations);
+			let evaluations = inst.generate_failing_evaluations(project_metadata.clone(), 5);
+			let plmc_eval_deposits: Vec<UserToPLMCBalance<_>> =
+				inst.calculate_evaluation_plmc_spent(evaluations.clone());
 			let plmc_existential_deposits = plmc_eval_deposits.accounts().existential_deposits();
 
 			let expected_evaluator_balances = inst.generic_map_operation(
@@ -223,7 +224,7 @@ mod round_flow {
 
 			let project_id = inst.create_evaluating_project(project_metadata, issuer, None);
 
-			inst.evaluate_for_users(project_id, default_failing_evaluations()).expect("Bonding should work");
+			inst.evaluate_for_users(project_id, evaluations).expect("Bonding should work");
 
 			inst.do_free_plmc_assertions(plmc_existential_deposits);
 			inst.do_reserved_plmc_assertions(plmc_eval_deposits, HoldReason::Evaluation.into());
@@ -631,15 +632,13 @@ mod evaluate_extrinsic {
 				));
 			});
 
-			let new_evaluations = default_evaluations();
+			let new_evaluations = inst.generate_successful_evaluations(project_metadata.clone(), 5);
 			let new_plmc_required = inst.calculate_evaluation_plmc_spent(new_evaluations.clone());
 			inst.mint_plmc_ed_if_required(new_plmc_required.accounts());
 			inst.mint_plmc_to(new_plmc_required.clone());
 			inst.evaluate_for_users(project_id, new_evaluations).unwrap();
 
 			assert_eq!(inst.go_to_next_state(project_id), ProjectStatus::AuctionRound);
-
-			assert!(matches!(inst.go_to_next_state(project_id), ProjectStatus::CommunityRound(_)));
 			assert_eq!(inst.go_to_next_state(project_id), ProjectStatus::FundingFailed);
 
 			let free_balance = inst.get_free_plmc_balance_for(EVALUATOR_4);
@@ -764,8 +763,12 @@ mod evaluate_extrinsic {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 			let issuer = ISSUER_1;
 			let project_metadata = default_project_metadata(issuer);
-			let project_id =
-				inst.create_auctioning_project(project_metadata.clone(), issuer, None, default_evaluations());
+			let project_id = inst.create_auctioning_project(
+				project_metadata.clone(),
+				issuer,
+				None,
+				inst.generate_successful_evaluations(project_metadata.clone(), 5),
+			);
 
 			inst.execute(|| {
 				assert_noop!(
@@ -790,7 +793,7 @@ mod evaluate_extrinsic {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 			let issuer = ISSUER_1;
 			let project_metadata = default_project_metadata(issuer);
-			let evaluations = default_evaluations();
+			let evaluations = inst.generate_successful_evaluations(project_metadata.clone(), 5);
 			let insufficient_eval_deposits = inst
 				.calculate_evaluation_plmc_spent(evaluations.clone())
 				.iter()
