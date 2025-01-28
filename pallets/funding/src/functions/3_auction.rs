@@ -100,8 +100,18 @@ impl<T: Config> Pallet<T> {
 				total_bids_for_project: total_bids_for_project.saturating_add(perform_bid_calls),
 				receiving_account,
 			};
-			Self::do_perform_bid(perform_params)?;
+			let bid_info = Self::do_perform_bid(perform_params)?;
+			let bid_index = bid_info.id;
 
+			BidsSettlementOrder::<T>::mutate(project_id, current_bucket.current_price, |maybe_indexes| {
+				if let Some((i, j)) = maybe_indexes {
+					// TODO: remove the debug_assert before the PR is merged.
+					debug_assert!(bid_index == *j + 1);
+					*maybe_indexes = Some((*i, bid_index));
+				} else {
+					*maybe_indexes = Some((bid_index, bid_index));
+				}
+			});
 			perform_bid_calls = perform_bid_calls.saturating_add(1);
 
 			// Update the current bucket and reduce the amount to bid by the amount we just bid

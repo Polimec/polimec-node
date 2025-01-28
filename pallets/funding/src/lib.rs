@@ -436,23 +436,18 @@ pub mod pallet {
 	>;
 
 	#[pallet::storage]
-	/// Contributions made during the Community and Remainder round. i.e token buys
-	pub type Contributions<T: Config> = StorageNMap<
-		_,
-		(
-			NMapKey<Blake2_128Concat, ProjectId>,
-			NMapKey<Blake2_128Concat, AccountIdOf<T>>,
-			NMapKey<Blake2_128Concat, u32>,
-		),
-		ContributionInfoOf<T>,
-	>;
+	/// StorageMap containing the first bid that should be settled at a certain price point, and the last bid available at that price point.
+	/// Bids should be settled from the higest price first, and then from the lowest index first. Both indexes are inclusive.
+	pub type BidsSettlementOrder<T: Config> =
+		StorageDoubleMap<_, Blake2_128Concat, ProjectId, Blake2_128Concat, PriceOf<T>, (u32, u32), OptionQuery>;
+
+	#[pallet::storage]
+	/// Bid settlement function knows the price of the next bid to settle from this function. It should then update this map
+	/// if its settling the last index at that price, to the previous price of the bucket.
+	pub type NextBidPriceToSettle<T: Config> = StorageMap<_, Blake2_128Concat, ProjectId, PriceOf<T>, OptionQuery>;
 
 	#[pallet::storage]
 	pub type AuctionBoughtUSD<T: Config> =
-		StorageNMap<_, (NMapKey<Blake2_128Concat, ProjectId>, NMapKey<Blake2_128Concat, Did>), Balance, ValueQuery>;
-
-	#[pallet::storage]
-	pub type ContributionBoughtUSD<T: Config> =
 		StorageNMap<_, (NMapKey<Blake2_128Concat, ProjectId>, NMapKey<Blake2_128Concat, Did>), Balance, ValueQuery>;
 
 	#[pallet::storage]
@@ -480,10 +475,6 @@ pub mod pallet {
 	/// A map to keep track of what issuer's did has an active project. It prevents one issuer having multiple active projects
 	#[pallet::storage]
 	pub type DidWithActiveProjects<T: Config> = StorageMap<_, Blake2_128Concat, Did, ProjectId, OptionQuery>;
-
-	#[pallet::storage]
-	pub type DidWithWinningBids<T: Config> =
-		StorageDoubleMap<_, Blake2_128Concat, ProjectId, Blake2_128Concat, Did, bool, ValueQuery>;
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub (super) fn deposit_event)]
@@ -536,6 +527,7 @@ pub mod pallet {
 			project_id: ProjectId,
 			account: AccountIdOf<T>,
 			id: u32,
+			status: BidStatus,
 			final_ct_amount: Balance,
 			final_ct_usd_price: PriceOf<T>,
 		},
@@ -917,8 +909,7 @@ pub mod pallet {
 			bid_id: u32,
 		) -> DispatchResult {
 			let _caller = ensure_signed(origin)?;
-			let bid = Bids::<T>::get((project_id, bidder, bid_id)).ok_or(Error::<T>::ParticipationNotFound)?;
-			Self::do_settle_bid(bid, project_id)
+			Self::do_settle_bid(project_id, bidder, bid_id)
 		}
 
 		#[pallet::call_index(18)]

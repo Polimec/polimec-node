@@ -357,17 +357,6 @@ pub mod storage {
 		pub when: BlockNumber,
 		pub receiving_account: Junction,
 	}
-	impl<ProjectId, Did, Price: FixedPointNumber, AccountId, BlockNumber>
-		BidInfo<ProjectId, Did, Price, AccountId, BlockNumber>
-	{
-		pub fn final_ct_amount(&self) -> Balance {
-			match self.status {
-				BidStatus::Accepted => self.original_ct_amount,
-				BidStatus::PartiallyAccepted(amount) => amount,
-				_ => Zero::zero(),
-			}
-		}
-	}
 
 	impl<ProjectId: Eq, Did: Eq, Price: FixedPointNumber, AccountId: Eq, BlockNumber: Eq + Ord> Ord
 		for BidInfo<ProjectId, Did, Price, AccountId, BlockNumber>
@@ -432,12 +421,13 @@ pub mod storage {
 			Self { amount_left, current_price: initial_price, initial_price, delta_price, delta_amount }
 		}
 
-		/// Update the bucket
-		pub fn update(&mut self, removed_amount: Balance) {
+		/// Update the bucket, return the new price.
+		pub fn update(&mut self, removed_amount: Balance) -> Price {
 			self.amount_left.saturating_reduce(removed_amount);
 			if self.amount_left.is_zero() {
 				self.next();
 			}
+			self.current_price
 		}
 
 		/// Updates the bucket to represent the next one in the sequence. This involves:

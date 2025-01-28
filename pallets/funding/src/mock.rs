@@ -559,10 +559,6 @@ sp_api::mock_impl_runtime_apis! {
 			PolimecFunding::top_bids(project_id, amount)
 		}
 
-		fn top_contributions(project_id: ProjectId, amount: u32) -> Vec<ContributionInfoOf<TestRuntime>> {
-			PolimecFunding::top_contributions(project_id, amount)
-		}
-
 		fn top_projects_by_usd_raised(amount: u32) -> Vec<(ProjectId, ProjectMetadataOf<TestRuntime>, ProjectDetailsOf<TestRuntime>)> {
 			PolimecFunding::top_projects_by_usd_raised(amount)
 		}
@@ -617,6 +613,8 @@ sp_api::mock_impl_runtime_apis! {
 			PolimecFunding::get_message_to_sign_by_receiving_account(project_id, polimec_account)
 		}
 
-
+		fn get_ordered_bid_settlements(project_id: ProjectId) -> Vec<(ProjectId, AccountId, u32)> {
+			PolimecFunding::get_ordered_bid_settlements(project_id)
+		}
 	}
 }

@@ -171,10 +171,6 @@ fn create_settled_project() -> (ProjectId, Vec<AccountId>) {
 			pallet_funding::Evaluations::<PolimecRuntime>::iter_prefix_values((project_id,))
 				.map(|eval| eval.evaluator)
 				.chain(pallet_funding::Bids::<PolimecRuntime>::iter_prefix_values((project_id,)).map(|bid| bid.bidder))
-				.chain(
-					pallet_funding::Contributions::<PolimecRuntime>::iter_prefix_values((project_id,))
-						.map(|contribution| contribution.contributor),
-				)
 				.collect();
 		participants.sort();
 		participants.dedup();
@@ -221,12 +217,12 @@ fn create_project_with_unsettled_participation(participation_type: Participation
 		);
 		let evaluations_to_settle =
 			pallet_funding::Evaluations::<PolimecRuntime>::iter_prefix_values((project_id,)).collect_vec();
-		let bids_to_settle = pallet_funding::Bids::<PolimecRuntime>::iter_prefix_values((project_id,)).collect_vec();
+		let bids_to_settle = PolimecFunding::get_ordered_bid_settlements(project_id);
 
 		let mut participants: Vec<AccountId> = evaluations_to_settle
 			.iter()
 			.map(|eval| eval.evaluator.clone())
-			.chain(bids_to_settle.iter().map(|bid| bid.bidder.clone()))
+			.chain(bids_to_settle.iter().map(|x| x.1.clone()))
 			.collect();
 		participants.sort();
 		participants.dedup();
@@ -242,9 +238,10 @@ fn create_project_with_unsettled_participation(participation_type: Participation
 			.unwrap()
 		}
 
-		let start = if participation_type == ParticipationType::Bid { 1 } else { 0 };
-		for bid in bids_to_settle[start..].iter() {
-			PolimecFunding::settle_bid(RuntimeOrigin::signed(alice()), project_id, bid.bidder.clone(), bid.id).unwrap()
+		let proposed_start = if participation_type == ParticipationType::Bid { 1 } else { 0 };
+		let end = if proposed_start == 1 { bids_to_settle.len() - 1 } else { bids_to_settle.len() };
+		for (project_id, bidder, id) in bids_to_settle[..end].iter() {
+			PolimecFunding::settle_bid(RuntimeOrigin::signed(alice()), *project_id, bidder.clone(), *id).unwrap()
 		}
 
 		let evaluations =

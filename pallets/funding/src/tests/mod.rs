@@ -174,12 +174,6 @@ pub fn create_project_with_funding_percentage(percentage: u8, start_settlement: 
 		assert!(matches!(inst.go_to_next_state(project_id), ProjectStatus::SettlementStarted(_)));
 	}
 
-	// Sanity check
-	let project_details = inst.get_project_details(project_id);
-	let percent_reached =
-		Perquintill::from_rational(project_details.funding_amount_reached_usd, project_details.fundraising_target_usd);
-	assert_eq!(percent_reached, Perquintill::from_percent(percentage as u64));
-
 	(inst, project_id)
 }
 

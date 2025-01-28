@@ -477,8 +477,10 @@ impl<
 			Evaluations::<T>::iter_prefix((project_id,))
 				.for_each(|(_, evaluation)| Pallet::<T>::do_settle_evaluation(evaluation, project_id).unwrap());
 
-			Bids::<T>::iter_prefix((project_id,))
-				.for_each(|(_, bid)| Pallet::<T>::do_settle_bid(bid, project_id).unwrap());
+			let ordered_bid_settlements = Pallet::<T>::get_ordered_bid_settlements(project_id);
+			for (project_id, bidder, id) in ordered_bid_settlements {
+				Pallet::<T>::do_settle_bid(project_id, bidder, id).unwrap();
+			}
 
 			if mark_as_settled {
 				crate::Pallet::<T>::do_mark_project_as_settled(project_id).unwrap();
@@ -577,17 +579,19 @@ impl<
 	pub fn assert_bids_migrations_created(
 		&mut self,
 		project_id: ProjectId,
-		bids: Vec<BidInfoOf<T>>,
+		settlement_ordered_bids: Vec<BidInfoOf<T>>,
 		is_successful: bool,
 	) {
-		for bid in bids {
+		let mut amount_left = self.get_project_metadata(project_id).total_allocation_size;
+		for bid in settlement_ordered_bids {
 			let account = bid.bidder.clone();
+			let bid_amount = amount_left.min(bid.original_ct_amount);
+			amount_left -= bid_amount;
 			assert_eq!(self.execute(|| { Bids::<T>::iter_prefix_values((&project_id, &account)).count() }), 0);
-			let amount: Balance = bid.final_ct_amount();
 			self.assert_migration(
 				project_id,
 				account,
-				amount,
+				bid_amount,
 				bid.id,
 				ParticipationType::Bid,
 				bid.receiving_account,
@@ -759,20 +763,7 @@ impl<
 		let status = self.go_to_next_state(project_id);
 
 		if status == ProjectStatus::FundingSuccessful {
-			// Check that remaining CTs are updated
-			let project_details = self.get_project_details(project_id);
-			// if our bids were creating an oversubscription, then just take the total allocation size
-			let auction_bought_tokens = bids
-				.iter()
-				.map(|bid| bid.amount)
-				.fold(Balance::zero(), |acc, item| item + acc)
-				.min(project_metadata.total_allocation_size);
-
-			assert_eq!(
-				project_details.remaining_contribution_tokens,
-				project_metadata.total_allocation_size - auction_bought_tokens,
-				"Remaining CTs are incorrect"
-			);
+			self.test_ct_not_created_for(project_id);
 		} else if status == ProjectStatus::FundingFailed {
 			self.test_ct_not_created_for(project_id);
 		} else {
@@ -799,9 +790,25 @@ impl<
 			bids.clone(),
 		);
 
+		// if our bids were creating an oversubscription, then just take the total allocation size
+		let auction_bought_tokens = bids
+			.iter()
+			.map(|bid| bid.amount)
+			.fold(Balance::zero(), |acc, item| item + acc)
+			.min(project_metadata.total_allocation_size);
+
 		assert!(matches!(self.go_to_next_state(project_id), ProjectStatus::SettlementStarted(_)));
 
 		self.settle_project(project_id, mark_as_settled);
+
+		// Check that remaining CTs are updated
+		let project_details = self.get_project_details(project_id);
+		assert_eq!(
+			project_details.remaining_contribution_tokens,
+			project_metadata.total_allocation_size - auction_bought_tokens,
+			"Remaining CTs are incorrect"
+		);
+
 		project_id
 	}
 }

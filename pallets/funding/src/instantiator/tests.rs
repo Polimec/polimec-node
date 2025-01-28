@@ -77,7 +77,9 @@ fn dry_run_wap() {
 
 	inst.bid_for_users(project_id, bids).unwrap();
 
-	assert!(matches!(inst.go_to_next_state(project_id), ProjectStatus::FundingSuccessful));
+	let next_state = inst.go_to_next_state(project_id);
+	dbg!(&next_state);
+	assert!(matches!(next_state, ProjectStatus::FundingSuccessful));
 
 	let project_details = inst.get_project_details(project_id);
 	let wap = project_details.weighted_average_price.unwrap();

@@ -537,11 +537,7 @@ fn get_message_to_sign_by_receiving_account() {
 #[test]
 fn get_next_vesting_schedule_merge_candidates() {
 	let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
-	let evaluations = vec![
-		EvaluationParams::from((EVALUATOR_1, 500_000 * USD_UNIT)),
-		EvaluationParams::from((EVALUATOR_2, 250_000 * USD_UNIT)),
-		EvaluationParams::from((BIDDER_1, 320_000 * USD_UNIT)),
-	];
+	let evaluations = vec![EvaluationParams::from((EVALUATOR_1, 500_000 * USD_UNIT))];
 	let bids = vec![
 		BidParams::from((
 			BIDDER_1,
@@ -573,15 +569,17 @@ fn get_next_vesting_schedule_merge_candidates() {
 		)),
 	];
 
-	let project_id = inst.create_finished_project(
+	let project_id = inst.create_settled_project(
 		default_project_metadata(ISSUER_1),
 		ISSUER_1,
 		None,
 		evaluations.clone(),
 		bids.clone(),
+		true,
 	);
-	assert_eq!(ProjectStatus::SettlementStarted(FundingOutcome::Success), inst.go_to_next_state(project_id));
-	inst.settle_project(project_id, true);
+
+	let events = inst.execute(|| System::events().into_iter().collect::<Vec<_>>());
+	dbg!(events);
 
 	let hold_reason: mock::RuntimeHoldReason = HoldReason::Participation.into();
 	let bidder_1_schedules =
@@ -595,12 +593,11 @@ fn get_next_vesting_schedule_merge_candidates() {
 			block_hash,
 			BIDDER_1,
 			HoldReason::Participation.into(),
-			// around 4 weeks of blocks
-			210_000,
+			300_000,
 		)
 		.unwrap()
 		.unwrap();
-		assert_eq!((idx_1, idx_2), (1, 2));
+		assert_eq!((idx_1, idx_2), (0, 1));
 
 		// Merging the two schedules deletes them and creates a new one at the end of the vec.
 		LinearRelease::merge_schedules(RuntimeOrigin::signed(BIDDER_1), idx_1, idx_2, hold_reason).unwrap();
@@ -610,8 +607,7 @@ fn get_next_vesting_schedule_merge_candidates() {
 			block_hash,
 			BIDDER_1,
 			HoldReason::Participation.into(),
-			// around 4 weeks of blocks
-			210_000,
+			300_000,
 		)
 		.unwrap()
 		.unwrap();

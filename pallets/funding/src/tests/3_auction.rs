@@ -40,41 +40,6 @@ mod round_flow {
 		}
 
 		#[test]
-		fn auction_gets_percentage_of_ct_total_allocation() {
-			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
-			let project_metadata = default_project_metadata(ISSUER_1);
-			let evaluations = inst.generate_successful_evaluations(project_metadata.clone(), 5);
-			let total_allocation = project_metadata.total_allocation_size;
-			let auction_allocation = total_allocation;
-
-			let bids = vec![(BIDDER_1, Retail, auction_allocation).into()];
-			let project_id =
-				inst.create_finished_project(project_metadata.clone(), ISSUER_1, None, evaluations.clone(), bids);
-			let mut bid_infos = Bids::<TestRuntime>::iter_prefix_values((project_id,));
-			let bid_info = inst.execute(|| bid_infos.next().unwrap());
-			assert!(inst.execute(|| bid_infos.next().is_none()));
-			assert_eq!(bid_info.original_ct_amount, auction_allocation);
-
-			let project_metadata = default_project_metadata(ISSUER_2);
-			let bids =
-				vec![(BIDDER_1, Retail, auction_allocation).into(), (BIDDER_1, Institutional, 1000 * CT_UNIT).into()];
-			let project_id =
-				inst.create_finished_project(project_metadata.clone(), ISSUER_2, None, evaluations.clone(), bids);
-			let project_details = inst.get_project_details(project_id);
-
-			let bid_info_1 = inst.execute(|| Bids::<TestRuntime>::get((project_id, BIDDER_1, 1)).unwrap());
-			let bid_info_2 = inst.execute(|| Bids::<TestRuntime>::get((project_id, BIDDER_1, 2)).unwrap());
-			assert!(inst.execute(|| bid_infos.next().is_none()));
-			assert_eq!(
-				bid_info_1.status,
-				BidStatus::PartiallyAccepted(auction_allocation - 1000 * CT_UNIT),
-				"Should not be able to buy more than auction allocation"
-			);
-			assert_eq!(bid_info_2.status, BidStatus::Accepted, "Should outbid the previous bid");
-			assert_eq!(project_details.remaining_contribution_tokens, total_allocation - auction_allocation);
-		}
-
-		#[test]
 		fn no_bids_made() {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 			let issuer = ISSUER_1;
@@ -589,6 +554,8 @@ mod bid_extrinsic {
 			stored_bids.sort_by(|a, b| a.id.cmp(&b.id));
 			// 90% + 10% + 10% + 10% + 3% = 5 total bids
 			assert_eq!(stored_bids.len(), 5);
+
+			dbg!(&stored_bids);
 
 			let normalize_price = |decimal_aware_price| {
 				PriceProviderOf::<TestRuntime>::convert_back_to_normal_price(
@@ -2080,7 +2047,7 @@ mod end_auction_extrinsic {
 				AcceptedFundingAsset::USDC,
 			));
 			let bid_3 = BidParams::from((
-				BIDDER_1,
+				BIDDER_5,
 				Professional,
 				10_000 * CT_UNIT,
 				ParticipationMode::Classic(5u8),
@@ -2101,8 +2068,8 @@ mod end_auction_extrinsic {
 				AcceptedFundingAsset::DOT,
 			));
 			// post bucketing, the bids look like this:
-			// (BIDDER_1, 5k) - (BIDDER_2, 40k) - (BIDDER_1, 5k) - (BIDDER_1, 5k) - (BIDDER_3 - 5k) - (BIDDER_3 - 1k) - (BIDDER_4 - 2k)
-			// | -------------------- 10USD ----------------------|---- 11 USD ---|---- 12 USD ----|----------- 13 USD -------------|
+			// (BIDDER_1, 5k) - (BIDDER_2, 40k) - (BIDDER_5, 5k)   - (BIDDER_5, 5k) - (BIDDER_3 - 5k) - (BIDDER_3 - 1k) - (BIDDER_4 - 2k)
+			// | -------------------- 10 USD ----------------------|---- 11 USD ---|---- 12 USD ----|----------- 13 USD -------------|
 			// post wap ~ 1.0557252:
 			// (Accepted, 5k) - (Partially, 32k) - (Rejected, 5k) - (Accepted, 5k) - (Accepted - 5k) - (Accepted - 1k) - (Accepted - 2k)
 
@@ -2140,6 +2107,20 @@ mod end_auction_extrinsic {
 
 			assert!(matches!(inst.go_to_next_state(project_id), ProjectStatus::FundingSuccessful));
 
+			let bidder_5_rejected_bid = inst.execute(|| Bids::<TestRuntime>::get((project_id, BIDDER_5, 2)).unwrap());
+			let bidder_5_accepted_bid = inst.execute(|| Bids::<TestRuntime>::get((project_id, BIDDER_5, 3)).unwrap());
+			let bidder_5_plmc_pre_balance = inst.get_free_plmc_balance_for(bidder_5_rejected_bid.bidder);
+			let bidder_5_funding_asset_pre_balance = inst.get_free_funding_asset_balance_for(
+				bidder_5_rejected_bid.funding_asset.id(),
+				bidder_5_rejected_bid.bidder,
+			);
+
+			assert!(matches!(
+				inst.go_to_next_state(project_id),
+				ProjectStatus::SettlementStarted(FundingOutcome::Success)
+			));
+			inst.settle_project(project_id, true);
+
 			let wap = inst.get_project_details(project_id).weighted_average_price.unwrap();
 			let returned_auction_plmc =
 				inst.calculate_auction_plmc_returned_from_all_bids_made(&bids, project_metadata.clone(), wap);
@@ -2152,47 +2133,36 @@ mod end_auction_extrinsic {
 				vec![returned_funding_assets.clone(), prev_funding_asset_balances],
 				MergeOperation::Add,
 			);
-			let expected_reserved_plmc =
-				inst.generic_map_operation(vec![plmc_amounts.clone(), returned_auction_plmc], MergeOperation::Subtract);
+			let expected_reserved_plmc = inst.generic_map_operation(
+				vec![plmc_amounts.clone(), returned_auction_plmc.clone()],
+				MergeOperation::Subtract,
+			);
 			let expected_final_funding_spent = inst.generic_map_operation(
-				vec![funding_asset_amounts.clone(), returned_funding_assets],
+				vec![funding_asset_amounts.clone(), returned_funding_assets.clone()],
 				MergeOperation::Subtract,
 			);
 			let expected_issuer_funding = inst.sum_funding_asset_mappings(vec![expected_final_funding_spent]);
 
 			// Assertions about rejected bid
-			let rejected_bid = inst.execute(|| Bids::<TestRuntime>::get((project_id, BIDDER_1, 2)).unwrap());
-			assert_eq!(rejected_bid.status, BidStatus::Rejected);
-			let bidder_plmc_pre_balance = inst.get_free_plmc_balance_for(rejected_bid.bidder);
-			let bidder_funding_asset_pre_balance =
-				inst.get_free_funding_asset_balance_for(rejected_bid.funding_asset.id(), rejected_bid.bidder);
-			inst.execute(|| {
-				PolimecFunding::settle_bid(
-					RuntimeOrigin::signed(rejected_bid.bidder),
-					project_id,
-					rejected_bid.bidder,
-					2,
-				)
-			})
-			.unwrap();
-			let bidder_plmc_post_balance = inst.get_free_plmc_balance_for(rejected_bid.bidder);
-			let bidder_funding_asset_post_balance =
-				inst.get_free_funding_asset_balance_for(rejected_bid.funding_asset.id(), rejected_bid.bidder);
+			let bidder_plmc_post_balance = inst.get_free_plmc_balance_for(bidder_5_rejected_bid.bidder);
+			let bidder_funding_asset_post_balance = inst.get_free_funding_asset_balance_for(
+				bidder_5_rejected_bid.funding_asset.id(),
+				bidder_5_rejected_bid.bidder,
+			);
+
+			// Bidder 5's accepted bid should have some refunds due to paying the wap in the end instead of the bucket price.
+			// Bidder 5's rejected bid should have a full refund
+			let bidder_5_returned_plmc =
+				returned_auction_plmc.iter().find(|x| x.account == BIDDER_5).unwrap().plmc_amount;
+			let bidder_5_returned_funding_asset =
+				returned_funding_assets.iter().find(|x| x.account == BIDDER_5).unwrap().asset_amount;
+
 			assert!(inst.execute(|| Bids::<TestRuntime>::get((project_id, BIDDER_1, 2))).is_none());
-			assert_eq!(bidder_plmc_post_balance, bidder_plmc_pre_balance + rejected_bid.plmc_bond);
+			assert_eq!(bidder_plmc_post_balance, bidder_5_plmc_pre_balance + bidder_5_returned_plmc);
 			assert_eq!(
 				bidder_funding_asset_post_balance,
-				bidder_funding_asset_pre_balance + rejected_bid.funding_asset_amount_locked
+				bidder_5_funding_asset_pre_balance + bidder_5_returned_funding_asset
 			);
-
-			// Any refunds on bids that were accepted/partially accepted will be done at the settlement once funding finishes
-			assert_eq!(
-				inst.execute(|| Bids::<TestRuntime>::get((project_id, BIDDER_2, 1)).unwrap()).status,
-				BidStatus::PartiallyAccepted(32_000 * CT_UNIT)
-			);
-			assert_eq!(inst.go_to_next_state(project_id), ProjectStatus::SettlementStarted(FundingOutcome::Success));
-
-			inst.settle_project(project_id, true);
 
 			inst.do_free_plmc_assertions(expected_free_plmc);
 			inst.do_reserved_plmc_assertions(expected_reserved_plmc, HoldReason::Participation.into());
