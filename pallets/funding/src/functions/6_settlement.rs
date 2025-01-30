@@ -19,7 +19,6 @@ use polimec_common::{
 	ReleaseSchedule,
 };
 use sp_runtime::{traits::Zero, Perquintill};
-use sp_std::cmp::Ordering;
 
 impl<T: Config> Pallet<T> {
 	#[transactional]
@@ -155,50 +154,45 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
-	pub fn do_settle_bid(project_id: ProjectId, bidder: AccountIdOf<T>, bid_id: u32) -> DispatchResult {
+	pub fn do_settle_bid(project_id: ProjectId, bid_price: PriceOf<T>, bid_id: u32) -> DispatchResult {
 		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 		let project_metadata = ProjectsMetadata::<T>::get(project_id).ok_or(Error::<T>::ProjectMetadataNotFound)?;
-		let bucket = Buckets::<T>::get(project_id).ok_or(Error::<T>::BucketNotFound)?;
 		let funding_success =
 			matches!(project_details.status, ProjectStatus::SettlementStarted(FundingOutcome::Success));
 		let wap = project_details.weighted_average_price.ok_or(Error::<T>::ImpossibleState)?;
-		let mut bid = Bids::<T>::get((project_id, bidder.clone(), bid_id)).ok_or(Error::<T>::ParticipationNotFound)?;
-		let next_bid_price = NextBidPriceToSettle::<T>::get(project_id).ok_or(Error::<T>::NotAllowed)?;
-		let (next_bid_index, last_bid_index_at_this_price) =
-			BidsSettlementOrder::<T>::get(project_id, next_bid_price).ok_or(Error::<T>::NotAllowed)?;
+		let mut bid = Bids::<T>::get((project_id, bid_price, bid_id)).ok_or(Error::<T>::ParticipationNotFound)?;
+		let maybe_outbid_bids_cutoff = OutbidBidsCutoff::<T>::get(project_id);
+
+		// Determine if the bid is outbid
+		match maybe_outbid_bids_cutoff {
+			Some((cutoff_price, cutoff_index)) => {
+				if cutoff_price > bid_price || (cutoff_price == bid_price && cutoff_index < bid_id) {
+					bid.status = BidStatus::Rejected
+				} else if cutoff_price == bid_price && cutoff_index == bid_id {
+					// nothing
+				} else {
+					bid.status = BidStatus::Accepted
+				}
+			},
+
+			None => bid.status = BidStatus::Accepted, // If there's no cutoff, the bid is not outbid
+		};
+
+		let bid_ct_amount = match bid.status {
+			BidStatus::YetUnknown => return Err(Error::<T>::ImpossibleState.into()),
+			BidStatus::Accepted => bid.original_ct_amount,
+			BidStatus::Rejected => Zero::zero(),
+			BidStatus::PartiallyAccepted(amount) => amount,
+		};
 
 		ensure!(
-			matches!(project_details.status, ProjectStatus::SettlementStarted(..)),
+			matches!(bid.status, BidStatus::Rejected | BidStatus::PartiallyAccepted(_)) ||
+				matches!(project_details.status, ProjectStatus::SettlementStarted(..)),
 			Error::<T>::SettlementNotStarted
 		);
-		ensure!(bid_id == next_bid_index, Error::<T>::NotAllowed);
-		ensure!(bid.original_ct_usd_price == next_bid_price, Error::<T>::NotAllowed);
 
-		match bid.original_ct_amount.cmp(&project_details.remaining_contribution_tokens) {
-			Ordering::Greater if project_details.remaining_contribution_tokens == 0 => {
-				bid.status = BidStatus::Rejected;
-			},
-			Ordering::Greater => {
-				bid.status = BidStatus::PartiallyAccepted(project_details.remaining_contribution_tokens);
-				project_details.remaining_contribution_tokens = 0;
-			},
-			_ => {
-				bid.status = BidStatus::Accepted;
-				project_details.remaining_contribution_tokens =
-					project_details.remaining_contribution_tokens.checked_sub(bid.original_ct_amount).unwrap_or(0);
-			},
-		}
-
-		if bid_id == last_bid_index_at_this_price {
-			BidsSettlementOrder::<T>::remove(project_id, next_bid_price);
-			NextBidPriceToSettle::<T>::set(project_id, Some(next_bid_price.saturating_sub(bucket.delta_price)));
-		} else {
-			BidsSettlementOrder::<T>::insert(
-				project_id,
-				next_bid_price,
-				(bid_id.saturating_add(1), last_bid_index_at_this_price),
-			);
-		}
+		project_details.remaining_contribution_tokens =
+			project_details.remaining_contribution_tokens.saturating_sub(bid_ct_amount);
 
 		// Return the full bid amount to refund if bid is rejected or project failed,
 		// Return a partial amount if the project succeeded, and the wap > paid price or bid is partially accepted
@@ -248,7 +242,7 @@ impl<T: Config> Pallet<T> {
 			)?;
 		}
 
-		Bids::<T>::remove((project_id, bid.bidder.clone(), bid.id));
+		Bids::<T>::remove((project_id, bid_price, bid.id));
 		ProjectsDetails::<T>::insert(project_id, project_details);
 
 		Self::deposit_event(Event::BidSettled {
@@ -450,22 +444,25 @@ impl<T: Config> Pallet<T> {
 		vesting_time: BlockNumberFor<T>,
 		receiving_account: Junction,
 	) -> DispatchResult {
-		UserMigrations::<T>::try_mutate((project_id, origin), |maybe_migrations| -> DispatchResult {
-			let migration_origin = MigrationOrigin { user: receiving_account, id, participation_type };
-			let vesting_time: u64 = vesting_time.try_into().map_err(|_| Error::<T>::BadMath)?;
-			let migration_info: MigrationInfo = (ct_amount, vesting_time).into();
-			let migration = Migration::new(migration_origin, migration_info);
-			if let Some((_, migrations)) = maybe_migrations {
-				migrations.try_push(migration).map_err(|_| Error::<T>::TooManyMigrations)?;
-			} else {
-				let mut migrations = BoundedVec::<_, MaxParticipationsPerUser<T>>::new();
-				migrations.try_push(migration).map_err(|_| Error::<T>::TooManyMigrations)?;
-				*maybe_migrations = Some((MigrationStatus::NotStarted, migrations));
+		let (status, user_migrations) = UserMigrations::<T>::get((project_id, origin))
+			.unwrap_or((MigrationStatus::NotStarted, WeakBoundedVec::<_, ConstU32<10_000>>::force_from(vec![], None)));
 
-				UnmigratedCounter::<T>::mutate(project_id, |counter| *counter = counter.saturating_add(1));
-			}
+		if user_migrations.is_empty() {
+			UnmigratedCounter::<T>::mutate(project_id, |counter| *counter = counter.saturating_add(1));
+		}
 
-			Ok(())
-		})
+		let mut user_migrations = user_migrations.to_vec();
+		let migration_origin = MigrationOrigin { user: receiving_account, id, participation_type };
+		let vesting_time: u64 = vesting_time.try_into().map_err(|_| Error::<T>::BadMath)?;
+		let migration_info: MigrationInfo = (ct_amount, vesting_time).into();
+		let migration = Migration::new(migration_origin, migration_info);
+		user_migrations.push(migration);
+
+		UserMigrations::<T>::insert(
+			(project_id, origin),
+			(status, WeakBoundedVec::<_, ConstU32<10_000>>::force_from(user_migrations, None)),
+		);
+
+		Ok(())
 	}
 }

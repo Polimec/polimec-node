@@ -832,63 +832,6 @@ mod evaluate_extrinsic {
 		}
 
 		#[test]
-		fn cannot_evaluate_more_than_project_limit() {
-			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
-			let project_metadata = default_project_metadata(ISSUER_1);
-			let evaluations = (0u32..<TestRuntime as Config>::MaxEvaluationsPerProject::get())
-				.map(|i| EvaluationParams::<TestRuntime>::from((i as u64 + 420, 100u128 * CT_UNIT)))
-				.collect_vec();
-			let failing_evaluation = EvaluationParams::from((EVALUATOR_1, 1000 * CT_UNIT));
-
-			let project_id = inst.create_evaluating_project(project_metadata.clone(), ISSUER_1, None);
-
-			let plmc_for_evaluating = inst.calculate_evaluation_plmc_spent(evaluations.clone());
-
-			inst.mint_plmc_ed_if_required(plmc_for_evaluating.accounts());
-			inst.mint_plmc_to(plmc_for_evaluating.clone());
-
-			inst.evaluate_for_users(project_id, evaluations.clone()).unwrap();
-
-			let plmc_for_failing_evaluating = inst.calculate_evaluation_plmc_spent(vec![failing_evaluation.clone()]);
-
-			inst.mint_plmc_to(plmc_for_failing_evaluating.clone());
-
-			assert_err!(
-				inst.evaluate_for_users(project_id, vec![failing_evaluation]),
-				Error::<TestRuntime>::TooManyProjectParticipations
-			);
-		}
-
-		#[test]
-		fn cannot_evaluate_more_than_user_limit() {
-			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
-			let project_metadata = default_project_metadata(ISSUER_1);
-			let evaluations = (0u32..<TestRuntime as Config>::MaxEvaluationsPerUser::get())
-				.map(|_| EvaluationParams::<TestRuntime>::from((EVALUATOR_1, 100u128 * USD_UNIT)))
-				.collect_vec();
-			let failing_evaluation = EvaluationParams::from((EVALUATOR_1, 100 * USD_UNIT));
-
-			let project_id = inst.create_evaluating_project(project_metadata.clone(), ISSUER_1, None);
-
-			let plmc_for_evaluating = inst.calculate_evaluation_plmc_spent(evaluations.clone());
-			let plmc_existential_deposits = evaluations.accounts().existential_deposits();
-
-			inst.mint_plmc_to(plmc_for_evaluating.clone());
-			inst.mint_plmc_to(plmc_existential_deposits.clone());
-
-			inst.evaluate_for_users(project_id, evaluations.clone()).unwrap();
-
-			let plmc_for_failing_evaluating = inst.calculate_evaluation_plmc_spent(vec![failing_evaluation.clone()]);
-
-			inst.mint_plmc_to(plmc_for_failing_evaluating.clone());
-
-			assert_err!(
-				inst.evaluate_for_users(project_id, vec![failing_evaluation]),
-				Error::<TestRuntime>::TooManyUserParticipations
-			);
-		}
-
-		#[test]
 		fn cannot_use_balance_on_hold() {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 			let issuer = ISSUER_1;

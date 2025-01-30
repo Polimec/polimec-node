@@ -99,8 +99,8 @@ benchmark-pallet chain="polimec-paseo-local"  pallet="pallet-dispenser":
 benchmark-extrinsics pallet="pallet-funding" extrinsics="*" :
     cargo run --features runtime-benchmarks --profile=production -p polimec-node benchmark pallet \
       --chain=polimec-paseo-local \
-      --steps=10 \
-      --repeat=5 \
+      --steps=50 \
+      --repeat=20 \
       --pallet={{ pallet }}  \
       --no-storage-info \
       --no-median-slopes \

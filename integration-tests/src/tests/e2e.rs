@@ -311,9 +311,6 @@ fn participate_with_checks(
 	if participation_type == ParticipationType::Bid {
 		PolimecFunding::bid(PolimecOrigin::signed(user.clone()), user_jwt, project_id, ct_amount, mode, funding_asset)
 			.unwrap();
-		let stored_bid = Bids::<PolimecRuntime>::get((project_id, user.clone(), participation_id));
-		// dbg!(&stored_bid);
-		assert!(stored_bid.is_some());
 	}
 
 	let post_participation_free_plmc = PolimecBalances::free_balance(user.clone());
@@ -425,10 +422,11 @@ fn e2e_test() {
 		let prev_treasury_usdt_balance = PolimecForeignAssets::balance(USDT.id(), otm_project_sub_account.clone());
 		let prev_escrow_usdt_balance = PolimecForeignAssets::balance(USDT.id(), funding_escrow_account.clone());
 
+		let rejected_bidder_bid = inst.get_bid(rejected_bid_id);
 		PolimecFunding::settle_bid(
 			PolimecOrigin::signed(rejected_bidder.clone()),
 			project_id,
-			rejected_bidder.clone(),
+			rejected_bidder_bid.original_ct_usd_price,
 			rejected_bid_id,
 		)
 		.unwrap();
@@ -662,4 +660,24 @@ fn e2e_test() {
 			assert_close_enough!(stored_total_cts, expected_total_cts, Perquintill::from_float(0.9999));
 		}
 	});
+}
+
+#[test]
+fn sandbox() {
+	fn bid(x: u32, ) -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `4850 + x * (226 ±0)`
+		//  Estimated: `28875 + x * (2816 ±0)`
+		// Minimum execution time: 829_000_000 picoseconds.
+		Weight::from_parts(767_882_619, 28875)
+			// Standard Error: 8_838
+			.saturating_add(Weight::from_parts(5_852_038, 0).saturating_mul(x.into()))
+			.saturating_add(<PolimecRuntime as frame_system::Config>::DbWeight::get().reads(26_u64))
+			.saturating_add(<PolimecRuntime as frame_system::Config>::DbWeight::get().reads((1_u64).saturating_mul(x.into())))
+			.saturating_add(<PolimecRuntime as frame_system::Config>::DbWeight::get().writes(36_u64))
+			.saturating_add(Weight::from_parts(0, 2816).saturating_mul(x.into()))
+	}
+
+	let max_weight = bid(1000);
+	dbg!(max_weight);
 }

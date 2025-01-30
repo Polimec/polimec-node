@@ -418,10 +418,6 @@ impl<T: Config> Pallet<T> {
 		let migration_readiness_check = migration_info.migration_readiness_check.ok_or(Error::<T>::ChannelNotReady)?;
 		let project_para_id = migration_info.parachain_id;
 		let now = <frame_system::Pallet<T>>::block_number();
-		ensure!(
-			Self::user_has_no_participations(project_id, participant.clone()),
-			Error::<T>::ParticipationsNotSettled
-		);
 		let (_, migrations) =
 			UserMigrations::<T>::get((project_id, participant.clone())).ok_or(Error::<T>::NoMigrationsFound)?;
 

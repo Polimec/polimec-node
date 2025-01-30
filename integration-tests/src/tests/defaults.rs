@@ -68,7 +68,7 @@ pub fn default_project_metadata(issuer: AccountId) -> ProjectMetadataOf<polimec_
 		bidding_ticket_sizes: BiddingTicketSizes {
 			professional: TicketSize::new(5000 * USD_UNIT, None),
 			institutional: TicketSize::new(5000 * USD_UNIT, None),
-			retail: TicketSize::new(10 * USD_UNIT, None),
+			retail: TicketSize::new(100 * USD_UNIT, None),
 			phantom: Default::default(),
 		},
 		participation_currencies: vec![USDT, USDC, DOT, WETH].try_into().unwrap(),

@@ -16,20 +16,12 @@ mod round_flow {
 			let (mut inst, project_id) = create_project_with_funding_percentage(percentage, true);
 			let evaluations = inst.get_evaluations(project_id);
 
-			let settlement_ordered_bids = inst.execute(|| {
-				Pallet::<TestRuntime>::get_ordered_bid_settlements(project_id)
-					.into_iter()
-					.map(|(project_id, account, bid_id)| {
-						Bids::<TestRuntime>::get((project_id, account, bid_id)).unwrap()
-					})
-					.collect_vec()
-			});
-
+			let bids = inst.get_bids(project_id);
 			inst.settle_project(project_id, true);
 
-			inst.assert_total_funding_paid_out(project_id, settlement_ordered_bids.clone());
+			inst.assert_total_funding_paid_out(project_id, bids.clone());
 			inst.assert_evaluations_migrations_created(project_id, evaluations, true);
-			inst.assert_bids_migrations_created(project_id, settlement_ordered_bids, true);
+			inst.assert_bids_migrations_created(project_id, bids, true);
 		}
 
 		#[test]
@@ -49,6 +41,15 @@ mod round_flow {
 		fn ethereum_project_can_be_settled() {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 			let mut project_metadata = default_project_metadata(ISSUER_1);
+			let base_price = PriceOf::<TestRuntime>::from_float(1.0);
+			let decimal_aware_price = <TestRuntime as Config>::PriceProvider::calculate_decimals_aware_price(
+				base_price,
+				USD_DECIMALS,
+				CT_DECIMALS,
+			)
+			.unwrap();
+			project_metadata.minimum_price = decimal_aware_price;
+
 			project_metadata.participants_account_type = ParticipantsAccountType::Ethereum;
 
 			let evaluations = vec![
@@ -110,7 +111,15 @@ mod round_flow {
 		#[test]
 		fn polkadot_project_with_different_receiving_accounts_can_be_settled() {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
-			let project_metadata = default_project_metadata(ISSUER_1);
+			let mut project_metadata = default_project_metadata(ISSUER_1);
+			let base_price = PriceOf::<TestRuntime>::from_float(1.0);
+			let decimal_aware_price = <TestRuntime as Config>::PriceProvider::calculate_decimals_aware_price(
+				base_price,
+				USD_DECIMALS,
+				CT_DECIMALS,
+			)
+			.unwrap();
+			project_metadata.minimum_price = decimal_aware_price;
 
 			let evaluations = vec![
 				EvaluationParams::from((EVALUATOR_1, 500_000 * USD_UNIT, polkadot_junction!(EVALUATOR_1 + 420))),
@@ -248,7 +257,6 @@ mod settle_evaluation_extrinsic {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 			let mut project_metadata = default_project_metadata(ISSUER_1);
 			project_metadata.total_allocation_size = 1_000_000 * CT_UNIT;
-
 			let project_id = inst.create_finished_project(
 				project_metadata.clone(),
 				ISSUER_1,
@@ -258,7 +266,7 @@ mod settle_evaluation_extrinsic {
 					EvaluationParams::from((EVALUATOR_2, 250_000 * USD_UNIT)),
 					EvaluationParams::from((EVALUATOR_3, 320_000 * USD_UNIT)),
 				],
-				inst.generate_bids_from_total_ct_percent(project_metadata.clone(), 100, 5),
+				inst.generate_bids_from_total_ct_percent(project_metadata.clone(), 100, 30),
 			);
 			assert_eq!(inst.go_to_next_state(project_id), ProjectStatus::SettlementStarted(FundingOutcome::Success));
 
@@ -480,6 +488,14 @@ mod settle_bid_extrinsic {
 			let usdt_ed = inst.get_funding_asset_ed(AcceptedFundingAsset::USDT.id());
 			let dot_ed = inst.get_funding_asset_ed(AcceptedFundingAsset::DOT.id());
 			let mut project_metadata = default_project_metadata(ISSUER_1);
+			let base_price = PriceOf::<TestRuntime>::from_float(1.0);
+			let decimal_aware_price = <TestRuntime as Config>::PriceProvider::calculate_decimals_aware_price(
+				base_price,
+				USD_DECIMALS,
+				CT_DECIMALS,
+			)
+			.unwrap();
+			project_metadata.minimum_price = decimal_aware_price;
 			project_metadata.participation_currencies =
 				bounded_vec![AcceptedFundingAsset::USDT, AcceptedFundingAsset::DOT];
 			let auction_allocation = project_metadata.total_allocation_size;
@@ -502,10 +518,11 @@ mod settle_bid_extrinsic {
 			let project_id = inst.create_finished_project(project_metadata.clone(), ISSUER_1, None, evaluations, bids);
 			assert_eq!(inst.go_to_next_state(project_id), ProjectStatus::SettlementStarted(FundingOutcome::Success));
 			let wap = inst.get_project_details(project_id).weighted_average_price.unwrap();
+			let bucket = inst.execute(|| Buckets::<TestRuntime>::get(project_id).unwrap());
 
 			// Partial amount bid assertions
 			let partial_amount_bid_stored =
-				inst.execute(|| Bids::<TestRuntime>::get((project_id, BIDDER_1, 0)).unwrap());
+				inst.execute(|| Bids::<TestRuntime>::get((project_id, project_metadata.minimum_price, 0)).unwrap());
 			let mut final_partial_amount_bid_params = partial_amount_bid_params.clone();
 			final_partial_amount_bid_params.amount = auction_allocation - 2000 * CT_UNIT;
 			let expected_final_plmc_bonded = inst.calculate_auction_plmc_charged_with_given_price(
@@ -527,7 +544,9 @@ mod settle_bid_extrinsic {
 				project_metadata.funding_destination_account,
 			);
 
-			let lower_price_bid_stored = inst.execute(|| Bids::<TestRuntime>::get((project_id, BIDDER_2, 1)).unwrap());
+			let lower_price_bid_stored = inst.execute(|| {
+				Bids::<TestRuntime>::get((project_id, project_metadata.minimum_price + bucket.delta_price, 1)).unwrap()
+			});
 			let pre_issuer_dot_balance = inst.get_free_funding_asset_balance_for(
 				AcceptedFundingAsset::DOT.id(),
 				project_metadata.funding_destination_account,
@@ -629,6 +648,14 @@ mod settle_bid_extrinsic {
 			let usdt_ed = inst.get_funding_asset_ed(AcceptedFundingAsset::USDT.id());
 
 			let mut project_metadata = default_project_metadata(ISSUER_1);
+			let base_price = PriceOf::<TestRuntime>::from_float(1.0);
+			let decimal_aware_price = <TestRuntime as Config>::PriceProvider::calculate_decimals_aware_price(
+				base_price,
+				USD_DECIMALS,
+				CT_DECIMALS,
+			)
+			.unwrap();
+			project_metadata.minimum_price = decimal_aware_price;
 			project_metadata.participation_currencies =
 				bounded_vec![AcceptedFundingAsset::USDT, AcceptedFundingAsset::DOT];
 			let auction_allocation = project_metadata.total_allocation_size;
@@ -649,7 +676,8 @@ mod settle_bid_extrinsic {
 			);
 			assert_eq!(inst.go_to_next_state(project_id), ProjectStatus::SettlementStarted(FundingOutcome::Success));
 
-			let no_refund_bid_stored = inst.execute(|| Bids::<TestRuntime>::get((project_id, BIDDER_1, 0)).unwrap());
+			let no_refund_bid_stored =
+				inst.execute(|| Bids::<TestRuntime>::get((project_id, project_metadata.minimum_price, 0)).unwrap());
 
 			let pre_issuer_usdc_balance = inst.get_free_funding_asset_balance_for(
 				AcceptedFundingAsset::USDT.id(),
@@ -657,7 +685,12 @@ mod settle_bid_extrinsic {
 			);
 
 			inst.execute(|| {
-				assert_ok!(PolimecFunding::settle_bid(RuntimeOrigin::signed(BIDDER_1), project_id, BIDDER_1, 0));
+				assert_ok!(PolimecFunding::settle_bid(
+					RuntimeOrigin::signed(BIDDER_1),
+					project_id,
+					project_metadata.minimum_price,
+					0
+				));
 			});
 
 			let post_issuer_usdc_balance = inst.get_free_funding_asset_balance_for(
@@ -727,7 +760,8 @@ mod settle_bid_extrinsic {
 			assert_eq!(inst.go_to_next_state(project_id), ProjectStatus::SettlementStarted(FundingOutcome::Failure));
 
 			// Partial amount bid assertions
-			let no_refund_bid_stored = inst.execute(|| Bids::<TestRuntime>::get((project_id, BIDDER_1, 0)).unwrap());
+			let no_refund_bid_stored =
+				inst.execute(|| Bids::<TestRuntime>::get((project_id, project_metadata.minimum_price, 0)).unwrap());
 
 			let pre_issuer_usdc_balance = inst.get_free_funding_asset_balance_for(
 				AcceptedFundingAsset::USDT.id(),
@@ -735,7 +769,12 @@ mod settle_bid_extrinsic {
 			);
 
 			inst.execute(|| {
-				assert_ok!(PolimecFunding::settle_bid(RuntimeOrigin::signed(BIDDER_1), project_id, BIDDER_1, 0));
+				assert_ok!(PolimecFunding::settle_bid(
+					RuntimeOrigin::signed(BIDDER_1),
+					project_id,
+					project_metadata.minimum_price,
+					0
+				));
 			});
 
 			let post_issuer_usdc_balance = inst.get_free_funding_asset_balance_for(
@@ -768,6 +807,14 @@ mod settle_bid_extrinsic {
 			let ed = inst.get_ed();
 			let usdt_ed = inst.get_funding_asset_ed(AcceptedFundingAsset::USDT.id());
 			let mut project_metadata = default_project_metadata(ISSUER_1);
+			let base_price = PriceOf::<TestRuntime>::from_float(0.5);
+			let decimal_aware_price = <TestRuntime as Config>::PriceProvider::calculate_decimals_aware_price(
+				base_price,
+				USD_DECIMALS,
+				CT_DECIMALS,
+			)
+			.unwrap();
+			project_metadata.minimum_price = decimal_aware_price;
 			project_metadata.participation_currencies =
 				bounded_vec![AcceptedFundingAsset::USDT, AcceptedFundingAsset::DOT];
 			let auction_allocation = project_metadata.total_allocation_size;
@@ -791,7 +838,8 @@ mod settle_bid_extrinsic {
 			let project_id = inst.create_finished_project(project_metadata.clone(), ISSUER_1, None, evaluations, bids);
 			assert_eq!(inst.go_to_next_state(project_id), ProjectStatus::SettlementStarted(FundingOutcome::Success));
 
-			let rejected_bid_stored = inst.execute(|| Bids::<TestRuntime>::get((project_id, BIDDER_1, 0)).unwrap());
+			let rejected_bid_stored =
+				inst.execute(|| Bids::<TestRuntime>::get((project_id, project_metadata.minimum_price, 0)).unwrap());
 
 			let pre_issuer_usdt_balance = inst.get_free_funding_asset_balance_for(
 				AcceptedFundingAsset::USDT.id(),
@@ -833,21 +881,21 @@ mod settle_bid_extrinsic {
 		fn cannot_settle_twice() {
 			let percentage = 100u8;
 			let (mut inst, project_id) = create_project_with_funding_percentage(percentage, true);
-
+			let project_metadata = inst.get_project_metadata(project_id);
 			let first_bid = inst.get_bids(project_id).into_iter().next().unwrap();
 			inst.execute(|| {
 				let bidder = first_bid.bidder;
 				assert_ok!(crate::Pallet::<TestRuntime>::settle_bid(
 					RuntimeOrigin::signed(bidder),
 					project_id,
-					bidder,
+					project_metadata.minimum_price,
 					first_bid.id
 				));
 				assert_noop!(
 					crate::Pallet::<TestRuntime>::settle_bid(
 						RuntimeOrigin::signed(bidder),
 						project_id,
-						bidder,
+						project_metadata.minimum_price,
 						first_bid.id
 					),
 					Error::<TestRuntime>::ParticipationNotFound
@@ -859,7 +907,7 @@ mod settle_bid_extrinsic {
 		fn cannot_be_called_before_settlement_started() {
 			let percentage = 100u8;
 			let (mut inst, project_id) = create_project_with_funding_percentage(percentage, false);
-
+			let project_metadata = inst.get_project_metadata(project_id);
 			let first_bid = inst.get_bids(project_id).into_iter().next().unwrap();
 			let bidder = first_bid.bidder;
 			inst.execute(|| {
@@ -867,7 +915,7 @@ mod settle_bid_extrinsic {
 					crate::Pallet::<TestRuntime>::settle_bid(
 						RuntimeOrigin::signed(bidder),
 						project_id,
-						bidder,
+						project_metadata.minimum_price,
 						first_bid.id
 					),
 					Error::<TestRuntime>::SettlementNotStarted

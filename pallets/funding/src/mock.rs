@@ -20,9 +20,7 @@
 
 use super::*;
 use crate as pallet_funding;
-use crate::runtime_api::{
-	ExtrinsicHelpers, Leaderboards, ProjectInformation, ProjectParticipationIds, UserInformation,
-};
+use crate::runtime_api::{ExtrinsicHelpers, Leaderboards, ProjectInformation, UserInformation};
 use alloc::string::String;
 use core::ops::RangeInclusive;
 use frame_support::{
@@ -417,12 +415,7 @@ impl Config for TestRuntime {
 	type FundingCurrency = ForeignAssets;
 	type FundingSuccessThreshold = FundingSuccessThreshold;
 	type InvestorOrigin = EnsureInvestor<TestRuntime>;
-	type MaxBidsPerProject = ConstU32<512>;
-	type MaxBidsPerUser = ConstU32<25>;
 	type MaxCapacityThresholds = MaxCapacityThresholds;
-	type MaxContributionsPerUser = ConstU32<25>;
-	type MaxEvaluationsPerProject = ConstU32<512>;
-	type MaxEvaluationsPerUser = ConstU32<4>;
 	type MaxMessageSizeThresholds = MaxMessageSizeThresholds;
 	type MinUsdPerEvaluation = MinUsdPerEvaluation;
 	type Multiplier = Multiplier;
@@ -572,10 +565,6 @@ sp_api::mock_impl_runtime_apis! {
 		fn contribution_tokens(account: AccountId) -> Vec<(ProjectId, Balance)> {
 			PolimecFunding::contribution_tokens(account)
 		}
-
-		fn all_project_participations_by_did(project_id: ProjectId, did: Did) -> Vec<ProjectParticipationIds<TestRuntime>> {
-			PolimecFunding::all_project_participations_by_did(project_id, did)
-		}
 	}
 
 	impl ProjectInformation<Block, TestRuntime> for TestRuntime {
@@ -611,10 +600,6 @@ sp_api::mock_impl_runtime_apis! {
 
 		fn get_message_to_sign_by_receiving_account(project_id: ProjectId, polimec_account: AccountId) -> Option<String> {
 			PolimecFunding::get_message_to_sign_by_receiving_account(project_id, polimec_account)
-		}
-
-		fn get_ordered_bid_settlements(project_id: ProjectId) -> Vec<(ProjectId, AccountId, u32)> {
-			PolimecFunding::get_ordered_bid_settlements(project_id)
 		}
 	}
 }
