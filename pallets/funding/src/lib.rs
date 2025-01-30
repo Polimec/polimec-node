@@ -411,6 +411,17 @@ pub mod pallet {
 	pub type BidBucketBounds<T: Config> =
 		StorageDoubleMap<_, Blake2_128Concat, ProjectId, Blake2_128Concat, PriceOf<T>, (u32, u32), OptionQuery>;
 
+	pub struct USDBucket<T: Config>  {
+		pub bucket_index: u32,
+		pub starting_bid: (PriceOf<T>, u32),
+		pub last_bid: (PriceOf<T>, u32),
+		pub total_usd: Balance
+	}
+
+
+	#[pallet::storage]
+	pub type BidUSDBounds<T: Config> = StorageDoubleMap<_, Blake2_128Concat, ProjectId, Blake2_128Concat, u32, USDBucket, OptionQuery>;
+
 	#[pallet::storage]
 	/// This map allows bidders to release their bid early if they were outbid.
 	/// The map contains the bucket price and bid index of the last bid to be outbid.
