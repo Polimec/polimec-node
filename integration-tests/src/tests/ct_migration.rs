@@ -14,7 +14,6 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use frame_support::WeakBoundedVec;
 use crate::{constants::PricesBuilder, *};
 use frame_support::traits::{fungible::Mutate, fungibles::Inspect};
 use itertools::Itertools;
@@ -242,7 +241,8 @@ fn create_project_with_unsettled_participation(participation_type: Participation
 		let proposed_start = if participation_type == ParticipationType::Bid { 1 } else { 0 };
 		let end = if proposed_start == 1 { bids_to_settle.len() - 1 } else { bids_to_settle.len() };
 		for bid in bids_to_settle[..end].iter() {
-			PolimecFunding::settle_bid(RuntimeOrigin::signed(alice()), project_id, bid.original_ct_usd_price, bid.id).unwrap()
+			PolimecFunding::settle_bid(RuntimeOrigin::signed(alice()), project_id, bid.original_ct_usd_price, bid.id)
+				.unwrap()
 		}
 
 		let evaluations =

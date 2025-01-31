@@ -747,7 +747,7 @@ impl<
 		let auction_allocation = project_metadata.total_allocation_size;
 
 		let mut starting_account = self.account_from_u32(0, "BIDDER");
-		let mut increment_account = |acc: AccountIdOf<T>| -> AccountIdOf<T> {
+		let increment_account = |acc: AccountIdOf<T>| -> AccountIdOf<T> {
 			let acc_bytes = acc.encode();
 			let account_string = String::from_utf8_lossy(&acc_bytes);
 			let entropy = (0, account_string).using_encoded(blake2_256);
@@ -755,23 +755,10 @@ impl<
 				.expect("infinite length input; no invalid inputs for type; qed")
 		};
 
-		let ct_price = bucket.current_price;
-		let max_ct_per_bid = ct_price.reciprocal().unwrap().saturating_mul_int(MAX_USD_TICKET_PER_BID_EXTRINSIC);
-		let mut generate_bids = |ct_amount| -> Vec<BidParams<T>> {
-			let mut remaining_ct_amount = ct_amount;
-			let mut bids = vec![];
-			let min_ct_per_bid = ct_price
-				.reciprocal()
-				.unwrap()
-				.saturating_mul_int(project_metadata.bidding_ticket_sizes.retail.usd_minimum_per_participation);
-			while remaining_ct_amount > 0 && remaining_ct_amount > min_ct_per_bid {
-				let amount = max_ct_per_bid.min(remaining_ct_amount);
-				let bid = (starting_account.clone(), Retail, amount, funding_asset).into();
-				starting_account = increment_account(starting_account.clone());
-				bids.push(bid);
-				remaining_ct_amount -= amount
-			}
-			bids
+		let mut generate_bid = |ct_amount| -> BidParams<T> {
+			let bid = BidParams::<T>::from((starting_account.clone(), Retail, ct_amount, funding_asset));
+			starting_account = increment_account(starting_account.clone());
+			bid
 		};
 
 		let step_amounts = ((bucket.current_price - bucket.initial_price) / bucket.delta_price).saturating_mul_int(1u8);
@@ -779,20 +766,20 @@ impl<
 
 		let mut bids = Vec::new();
 
-		let first_bids = generate_bids(auction_allocation);
-		bids.extend_from_slice(&first_bids[..]);
+		let first_bid = generate_bid(auction_allocation);
+		bids.push(first_bid);
 
 		for _i in 0u8..step_amounts - 1u8 {
-			let full_bucket_bids = generate_bids(bucket.delta_amount);
-			bids.extend_from_slice(&full_bucket_bids[..]);
+			let full_bucket_bid = generate_bid(bucket.delta_amount);
+			bids.push(full_bucket_bid);
 		}
 
 		// A CT amount can be so low that the PLMC required is less than the minimum mintable amount. We estimate all bids
 		// should be at least 1% of a bucket.
 		let min_bid_amount = Percent::from_percent(1) * bucket.delta_amount;
 		if last_bid_amount > min_bid_amount {
-			let last_bids = generate_bids(last_bid_amount);
-			bids.extend_from_slice(&last_bids[..]);
+			let last_bid = generate_bid(last_bid_amount);
+			bids.push(last_bid);
 		}
 
 		bids

@@ -72,9 +72,9 @@ where
 			.unwrap(),
 
 		bidding_ticket_sizes: BiddingTicketSizes {
-			professional: TicketSize::new(100u128 * USD_UNIT, None),
-			institutional: TicketSize::new(100u128 * USD_UNIT, None),
-			retail: TicketSize::new(100u128 * USD_UNIT, None),
+			professional: TicketSize::new(10u128 * USD_UNIT, None),
+			institutional: TicketSize::new(10u128 * USD_UNIT, None),
+			retail: TicketSize::new(10u128 * USD_UNIT, None),
 			phantom: Default::default(),
 		},
 		participation_currencies: vec![USDT, USDC, DOT, WETH].try_into().unwrap(),
@@ -449,8 +449,8 @@ mod benchmarks {
 
 	#[benchmark]
 	fn bid(
-		// Amount of bids that are outbid by this one.
-		x: Linear<1, 1000>,
+		// Amount of buckets this bid is split into
+		x: Linear<1, 10>,
 	) {
 		// * setup *
 		let mut inst = BenchInstantiator::<T>::new(None);
@@ -463,47 +463,36 @@ mod benchmarks {
 		let bidder = account::<AccountIdOf<T>>("bidder", 0, 0);
 		whitelist_account!(bidder);
 
-		let mut project_metadata = default_project_metadata::<T>(issuer.clone());
-		project_metadata.mainnet_token_max_supply = 40_000 * CT_UNIT;
-		project_metadata.total_allocation_size = 40_000 * CT_UNIT;
-		project_metadata.minimum_price = PriceProviderOf::<T>::calculate_decimals_aware_price(
-			PriceOf::<T>::checked_from_rational(10, 1).unwrap(),
-			USD_DECIMALS,
-			CT_DECIMALS,
-		)
-		.unwrap();
-
+		let project_metadata = default_project_metadata::<T>(issuer.clone());
 		let evaluations = inst.generate_successful_evaluations(project_metadata.clone(), 5);
-
 		let project_id = inst.create_auctioning_project(project_metadata.clone(), issuer, None, evaluations);
 
-		let bids = inst.generate_bids_from_total_ct_percent(project_metadata.clone(), 100, x);
-		let total_ct_bid = project_metadata.total_allocation_size;
-
-		let bids_plmc = inst.calculate_auction_plmc_charged_from_all_bids_made_or_with_bucket(
-			&bids,
+		let first_bucket_bid = inst.generate_bids_from_total_ct_percent(project_metadata.clone(), 100, 1);
+		let first_bucket_bid_plmc = inst.calculate_auction_plmc_charged_from_all_bids_made_or_with_bucket(
+			&first_bucket_bid,
 			project_metadata.clone(),
 			None,
 		);
-		let bids_funding_assets = inst.calculate_auction_funding_asset_charged_from_all_bids_made_or_with_bucket(
-			&bids,
-			project_metadata.clone(),
-			None,
-		);
-
-		inst.mint_plmc_ed_if_required(bids.accounts());
-		inst.mint_plmc_to(bids_plmc);
-
-		inst.mint_funding_asset_ed_if_required(bids.to_account_asset_map());
-		inst.mint_funding_asset_to(bids_funding_assets);
-
-		inst.bid_for_users(project_id, bids).unwrap();
+		let first_bucket_bid_funding_asset = inst
+			.calculate_auction_funding_asset_charged_from_all_bids_made_or_with_bucket(
+				&first_bucket_bid,
+				project_metadata.clone(),
+				None,
+			);
+		inst.mint_plmc_ed_if_required(first_bucket_bid_plmc.accounts());
+		inst.mint_plmc_to(first_bucket_bid_plmc.clone());
+		inst.mint_funding_asset_ed_if_required(first_bucket_bid_funding_asset.to_account_asset_map());
+		inst.mint_funding_asset_to(first_bucket_bid_funding_asset.clone());
+		inst.bid_for_users(project_id, first_bucket_bid).unwrap();
 
 		let current_bucket = Buckets::<T>::get(project_id).unwrap();
+
+		let ct_amount = (Percent::from_percent(10) * project_metadata.total_allocation_size) * x as u128;
+
 		let extrinsic_bid = BidParams::from((
 			bidder.clone(),
 			Institutional,
-			total_ct_bid,
+			ct_amount,
 			ParticipationMode::Classic(1u8),
 			AcceptedFundingAsset::USDT,
 		));
@@ -513,11 +502,12 @@ mod benchmarks {
 			project_metadata.clone(),
 			Some(current_bucket),
 		);
-		let extrinsic_bid_funding_asset = inst.calculate_auction_funding_asset_charged_from_all_bids_made_or_with_bucket(
-			&vec![extrinsic_bid.clone()],
-			project_metadata.clone(),
-			Some(current_bucket),
-		);
+		let extrinsic_bid_funding_asset = inst
+			.calculate_auction_funding_asset_charged_from_all_bids_made_or_with_bucket(
+				&vec![extrinsic_bid.clone()],
+				project_metadata.clone(),
+				Some(current_bucket),
+			);
 
 		inst.mint_plmc_ed_if_required(extrinsic_bid_plmc.accounts());
 		inst.mint_plmc_to(extrinsic_bid_plmc.clone());
@@ -529,7 +519,6 @@ mod benchmarks {
 			project_metadata.clone(),
 			Some(current_bucket),
 		);
-		dbg!(extrinsic_bids_post_bucketing.len());
 
 		let jwt = get_mock_jwt_with_cid(
 			bidder.clone(),
@@ -549,6 +538,8 @@ mod benchmarks {
 		);
 
 		// * validity checks *
+		let bids_count = Bids::<T>::iter_prefix_values((project_id,)).collect_vec().len();
+		assert_eq!(bids_count, extrinsic_bids_post_bucketing.len() + 1);
 
 		// Storage
 		for (bid_params, price) in extrinsic_bids_post_bucketing.clone() {
@@ -569,11 +560,6 @@ mod benchmarks {
 				.find(|stored_bid| bid_filter.matches_bid(stored_bid))
 				.expect("bid not found");
 		}
-
-		let cutoff = OutbidBidsCutoff::<T>::get(project_id).unwrap();
-
-		// First bucket with whole allocation should be outbid.
-		assert_eq!(cutoff, (project_metadata.minimum_price, 0));
 	}
 
 	// end_funding has 2 logic paths:

@@ -5,10 +5,7 @@ use crate::{
 use defaults::*;
 use frame_support::{
 	assert_err, assert_noop, assert_ok,
-	traits::{
-		fungible::{MutateFreeze, MutateHold},
-		Get,
-	},
+	traits::fungible::{MutateFreeze, MutateHold},
 };
 use itertools::Itertools;
 use parachains_common::DAYS;

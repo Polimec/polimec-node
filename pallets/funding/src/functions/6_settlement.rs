@@ -155,44 +155,21 @@ impl<T: Config> Pallet<T> {
 	}
 
 	pub fn do_settle_bid(project_id: ProjectId, bid_price: PriceOf<T>, bid_id: u32) -> DispatchResult {
-		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
+		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 		let project_metadata = ProjectsMetadata::<T>::get(project_id).ok_or(Error::<T>::ProjectMetadataNotFound)?;
 		let funding_success =
 			matches!(project_details.status, ProjectStatus::SettlementStarted(FundingOutcome::Success));
-		let wap = project_details.weighted_average_price.ok_or(Error::<T>::ImpossibleState)?;
+		let wap = project_details.weighted_average_price.unwrap_or(project_metadata.minimum_price);
 		let mut bid = Bids::<T>::get((project_id, bid_price, bid_id)).ok_or(Error::<T>::ParticipationNotFound)?;
-		let maybe_outbid_bids_cutoff = OutbidBidsCutoff::<T>::get(project_id);
-
-		// Determine if the bid is outbid
-		match maybe_outbid_bids_cutoff {
-			Some((cutoff_price, cutoff_index)) => {
-				if cutoff_price > bid_price || (cutoff_price == bid_price && cutoff_index < bid_id) {
-					bid.status = BidStatus::Rejected
-				} else if cutoff_price == bid_price && cutoff_index == bid_id {
-					// nothing
-				} else {
-					bid.status = BidStatus::Accepted
-				}
-			},
-
-			None => bid.status = BidStatus::Accepted, // If there's no cutoff, the bid is not outbid
-		};
-
-		let bid_ct_amount = match bid.status {
-			BidStatus::YetUnknown => return Err(Error::<T>::ImpossibleState.into()),
-			BidStatus::Accepted => bid.original_ct_amount,
-			BidStatus::Rejected => Zero::zero(),
-			BidStatus::PartiallyAccepted(amount) => amount,
-		};
 
 		ensure!(
-			matches!(bid.status, BidStatus::Rejected | BidStatus::PartiallyAccepted(_)) ||
-				matches!(project_details.status, ProjectStatus::SettlementStarted(..)),
+			matches!(project_details.status, ProjectStatus::SettlementStarted(..)) || bid.status == BidStatus::Rejected,
 			Error::<T>::SettlementNotStarted
 		);
 
-		project_details.remaining_contribution_tokens =
-			project_details.remaining_contribution_tokens.saturating_sub(bid_ct_amount);
+		if bid.status == BidStatus::YetUnknown {
+			bid.status = BidStatus::Accepted;
+		}
 
 		// Return the full bid amount to refund if bid is rejected or project failed,
 		// Return a partial amount if the project succeeded, and the wap > paid price or bid is partially accepted
@@ -214,7 +191,7 @@ impl<T: Config> Pallet<T> {
 			Self::release_participation_bond_for(&bid.bidder, refunded_plmc)?;
 		}
 
-		if funding_success && bid.status != BidStatus::Rejected {
+		if funding_success {
 			let ct_vesting_duration = Self::set_plmc_bond_release_with_mode(
 				bid.bidder.clone(),
 				bid.plmc_bond.saturating_sub(refunded_plmc),
@@ -243,7 +220,6 @@ impl<T: Config> Pallet<T> {
 		}
 
 		Bids::<T>::remove((project_id, bid_price, bid.id));
-		ProjectsDetails::<T>::insert(project_id, project_details);
 
 		Self::deposit_event(Event::BidSettled {
 			project_id,
@@ -257,6 +233,32 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
+	// pub fn do_settle_rejected_bid(project_id: ProjectId, bid_price: PriceOf<T>, bid_id: u32) -> DispatchResult {
+	// 	let mut bid = Bids::<T>::get((project_id, bid_price, bid_id)).ok_or(Error::<T>::ParticipationNotFound)?;
+	//
+	// 	ensure!(
+	// 		matches!(bid.status, BidStatus::Rejected),
+	// 		Error::<T>::NotAllowed
+	// 	);
+	//
+	// 	Self::release_funding_asset(project_id, &bid.bidder, bid.funding_asset_amount_locked, bid.funding_asset)?;
+	//
+	// 	if bid.mode == ParticipationMode::OTM {
+	// 		if bid.plmc_bond > T::NativeCurrency::minimum_balance() {
+	// 			<pallet_proxy_bonding::Pallet<T>>::refund_fee(
+	// 				project_id,
+	// 				&bid.bidder,
+	// 				bid.plmc_bond,
+	// 				bid.funding_asset.id(),
+	// 			)?;
+	// 		}
+	// 	} else {
+	// 		Self::release_participation_bond_for(&bid.bidder, bid.plmc_bond)?;
+	// 	}
+	//
+	// 	Ok(())
+	// }
+
 	/// Calculate the amount of funds the bidder should receive back based on the original bid
 	/// amount and price compared to the final bid amount and price.
 	fn calculate_refund(
@@ -266,7 +268,7 @@ impl<T: Config> Pallet<T> {
 	) -> Result<BidRefund<T>, DispatchError> {
 		let final_ct_usd_price = if bid.original_ct_usd_price > wap { wap } else { bid.original_ct_usd_price };
 		let multiplier: MultiplierOf<T> = bid.mode.multiplier().try_into().map_err(|_| Error::<T>::BadMath)?;
-		if bid.status == BidStatus::Rejected || !funding_success {
+		if !funding_success || bid.status == BidStatus::Rejected {
 			return Ok(BidRefund::<T> {
 				final_ct_usd_price,
 				final_ct_amount: Zero::zero(),

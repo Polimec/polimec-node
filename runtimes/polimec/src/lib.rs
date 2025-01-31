@@ -170,7 +170,7 @@ pub type Migrations = migrations::Unreleased;
 /// The runtime migrations per release.
 #[allow(missing_docs)]
 pub mod migrations {
-	use crate::{parameter_types, Runtime};
+	use crate::parameter_types;
 
 	parameter_types! {
 		pub const RandomPalletName: &'static str = "Random";
@@ -178,10 +178,7 @@ pub mod migrations {
 
 	/// Unreleased migrations. Add new ones here:
 	#[allow(unused_parens)]
-	pub type Unreleased = (
-		// super::custom_migrations::asset_id_migration::FromOldAssetIdMigration,
-		// pallet_funding::storage_migrations::v6::MigrationToV6<Runtime>,
-	);
+	pub type Unreleased = ();
 }
 
 /// Executive: handles dispatch to the various modules.

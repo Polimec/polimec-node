@@ -10,12 +10,14 @@ impl<T: Config> Pallet<T> {
 		let bucket = Buckets::<T>::get(project_id).ok_or(Error::<T>::BucketNotFound)?;
 		let now = <frame_system::Pallet<T>>::block_number();
 		let issuer_did = project_details.issuer_did.clone();
+		let ct_amount_oversubscribed = CTAmountOversubscribed::<T>::get(project_id);
 
 		// * Validity checks *
 		ensure!(
 			project_details.round_duration.ended(now) && matches!(project_details.status, ProjectStatus::AuctionRound),
 			Error::<T>::TooEarlyForRound
 		);
+		ensure!(ct_amount_oversubscribed.is_zero(), Error::<T>::OversubscribedBidsRemaining);
 
 		let auction_allocation_size = project_metadata.total_allocation_size;
 		let weighted_average_price = bucket.calculate_wap(auction_allocation_size);
@@ -33,6 +35,8 @@ impl<T: Config> Pallet<T> {
 
 		let usd_raised = Self::calculate_usd_sold_from_bucket(bucket.clone(), project_metadata.total_allocation_size);
 		project_details.funding_amount_reached_usd = usd_raised;
+		project_details.remaining_contribution_tokens =
+			if bucket.current_price == bucket.initial_price { bucket.amount_left } else { Zero::zero() };
 		ProjectsDetails::<T>::insert(project_id, project_details.clone());
 
 		// * Update project status *

@@ -96,7 +96,7 @@ use polimec_common::{
 use polkadot_parachain_primitives::primitives::Id as ParaId;
 use sp_arithmetic::traits::{One, Saturating};
 use sp_runtime::{traits::AccountIdConversion, FixedPointNumber, FixedU128};
-use sp_std::{marker::PhantomData, prelude::*};
+use sp_std::prelude::*;
 pub use types::*;
 use xcm::v4::{prelude::*, SendXcm};
 mod functions;
@@ -405,20 +405,23 @@ pub mod pallet {
 		BidInfoOf<T>,
 	>;
 
-	#[pallet::storage]
 	/// StorageMap containing the first bid that should be settled at a certain price point, and the last bid available at that price point.
 	/// Bids should be settled from the higest price first, and then from the lowest index first. Both indexes are inclusive.
+	#[pallet::storage]
 	pub type BidBucketBounds<T: Config> =
 		StorageDoubleMap<_, Blake2_128Concat, ProjectId, Blake2_128Concat, PriceOf<T>, (u32, u32), OptionQuery>;
 
-	#[pallet::storage]
 	/// This map allows bidders to release their bid early if they were outbid.
 	/// The map contains the bucket price and bid index of the last bid to be outbid.
 	/// Indexes higher than the one stored here in the same bucket can be released.
 	/// All bids in buckets lower than the one stored here can also be released.
 	/// The last bid to be considered outbid might be partially rejected, and so that should be refunded by the new
 	/// bidder in the "bid" call.
+	#[pallet::storage]
 	pub type OutbidBidsCutoff<T: Config> = StorageMap<_, Blake2_128Concat, ProjectId, (PriceOf<T>, u32), OptionQuery>;
+
+	#[pallet::storage]
+	pub type CTAmountOversubscribed<T: Config> = StorageMap<_, Blake2_128Concat, ProjectId, Balance, ValueQuery>;
 
 	#[pallet::storage]
 	pub type AuctionBoughtUSD<T: Config> =
@@ -626,6 +629,12 @@ pub mod pallet {
 		PolicyMismatch,
 		/// Contribution tokens have all been sold
 		ProjectSoldOut,
+		/// Tried to process an oversubscribed bid, but none remain.
+		NoBidsOversubscribed,
+		/// Tried to transition the project, but some oversubscribed bid are still pending to be processed.
+		OversubscribedBidsRemaining,
+		/// User has a partially accepted bid and needs to first process the rejected amount before settling the accepted amount.
+		RejectedAmountInPartialBidRemaining,
 
 		//  * An error related to the migration process. *
 		/// Tried to start a migration check but the bidirectional channel is not yet open
@@ -826,6 +835,13 @@ pub mod pallet {
 			};
 
 			Self::do_bid(params)
+		}
+
+		#[pallet::call_index(15)]
+		#[pallet::weight(WeightInfoOf::<T>::settle_accepted_bid_with_refund())]
+		pub fn process_next_oversubscribed_bid(origin: OriginFor<T>, project_id: ProjectId) -> DispatchResult {
+			let _caller = ensure_signed(origin)?;
+			Self::do_process_next_oversubscribed_bid(project_id)
 		}
 
 		#[pallet::call_index(10)]

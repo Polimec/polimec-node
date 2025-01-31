@@ -555,7 +555,7 @@ fn get_next_vesting_schedule_merge_candidates() {
 			.unwrap();
 	project_metadata.minimum_price = decimal_aware_price;
 
-	let project_id =
+	let _project_id =
 		inst.create_settled_project(project_metadata, ISSUER_1, None, evaluations.clone(), bids.clone(), true);
 
 	let events = inst.execute(|| System::events().into_iter().collect::<Vec<_>>());

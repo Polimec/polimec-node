@@ -197,8 +197,6 @@ mod round_flow {
 		fn auction_oversubscription() {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 			let project_metadata = default_project_metadata(ISSUER_1);
-			let auction_allocation = project_metadata.total_allocation_size;
-			let bucket_size = Percent::from_percent(10) * auction_allocation;
 			let bucket = Pallet::<TestRuntime>::create_bucket_from_metadata(&project_metadata).unwrap();
 			let bids = inst.generate_bids_that_take_price_to(
 				project_metadata.clone(),
@@ -226,7 +224,7 @@ mod bid_extrinsic {
 	#[cfg(test)]
 	mod success {
 		use super::*;
-		use frame_support::{dispatch::DispatchResult, pallet_prelude::DispatchResultWithPostInfo};
+		use frame_support::dispatch::DispatchResult;
 
 		#[test]
 		fn evaluation_bond_counts_towards_bid() {
@@ -1914,7 +1912,7 @@ mod end_auction_extrinsic {
 
 			let bidder_5_rejected_bid =
 				inst.execute(|| Bids::<TestRuntime>::get((project_id, project_metadata.minimum_price, 2)).unwrap());
-			let bidder_5_accepted_bid = inst.execute(|| {
+			let _bidder_5_accepted_bid = inst.execute(|| {
 				Bids::<TestRuntime>::get((project_id, project_metadata.minimum_price + bucket.delta_price, 3)).unwrap()
 			});
 			let bidder_5_plmc_pre_balance = inst.get_free_plmc_balance_for(bidder_5_rejected_bid.bidder);
@@ -2063,6 +2061,117 @@ mod end_auction_extrinsic {
 				normalized_wap.saturating_mul_int(USD_UNIT),
 				desired_price.saturating_mul_int(USD_UNIT),
 				Perquintill::from_float(0.99)
+			);
+		}
+
+		#[test]
+		fn oversubscribed_bid_can_get_refund_and_bid_again_in_auction_round() {
+			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+			let project_metadata = default_project_metadata(ISSUER_1);
+			let evaluations = inst.generate_successful_evaluations(project_metadata.clone(), 5);
+			let bids = inst.generate_bids_from_total_ct_percent(project_metadata.clone(), 100, 10);
+
+			let project_id = inst.create_auctioning_project(project_metadata.clone(), ISSUER_1, None, evaluations);
+
+			inst.mint_necessary_tokens_for_bids(project_id, bids.clone());
+			inst.bid_for_users(project_id, bids.clone()).unwrap();
+
+			// First bid is OTM
+			let first_bid_to_refund = bids[9].clone();
+			// Second is classic
+			let second_bid_to_refund = bids[8].clone();
+
+			let oversubscribing_bids = vec![
+				(
+					BIDDER_1,
+					Retail,
+					first_bid_to_refund.amount + 200 * CT_UNIT,
+					ParticipationMode::Classic(1),
+					AcceptedFundingAsset::USDT,
+				)
+					.into(),
+				(
+					BIDDER_2,
+					Retail,
+					second_bid_to_refund.amount,
+					ParticipationMode::Classic(1),
+					AcceptedFundingAsset::USDT,
+				)
+					.into(),
+			];
+
+			inst.mint_necessary_tokens_for_bids(project_id, oversubscribing_bids.clone());
+			inst.bid_for_users(project_id, vec![oversubscribing_bids[0].clone()]).unwrap();
+
+			inst.process_oversubscribed_bids(project_id);
+
+			let pre_first_refund_bidder_plmc_balance = inst.get_free_plmc_balance_for(first_bid_to_refund.bidder);
+			let pre_first_refund_bidder_funding_asset_balance =
+				inst.get_free_funding_asset_balance_for(first_bid_to_refund.asset.id(), first_bid_to_refund.bidder);
+
+			let first_bid =
+				inst.execute(|| Bids::<TestRuntime>::get((project_id, project_metadata.minimum_price, 9)).unwrap());
+			assert!(matches!(first_bid.status, BidStatus::Rejected));
+			let second_bid =
+				inst.execute(|| Bids::<TestRuntime>::get((project_id, project_metadata.minimum_price, 8)).unwrap());
+			assert!(matches!(second_bid.status, BidStatus::PartiallyAccepted(_)));
+
+			inst.execute(|| {
+				assert_ok!(Pallet::<TestRuntime>::do_settle_bid(project_id, project_metadata.minimum_price, 9));
+				assert_noop!(
+					Pallet::<TestRuntime>::do_settle_bid(project_id, project_metadata.minimum_price, 8),
+					Error::<TestRuntime>::SettlementNotStarted
+				);
+			});
+
+			let post_first_refund_bidder_plmc_balance = inst.get_free_plmc_balance_for(first_bid_to_refund.bidder);
+			let post_first_refund_bidder_funding_asset_balance =
+				inst.get_free_funding_asset_balance_for(first_bid_to_refund.asset.id(), first_bid_to_refund.bidder);
+
+			// OTM bid doesnt give PLMC refund to bidder
+			assert_eq!(post_first_refund_bidder_plmc_balance, pre_first_refund_bidder_plmc_balance);
+			let mut funding_asset_refund = first_bid.funding_asset_amount_locked;
+			let usd_ticket = first_bid.original_ct_usd_price.saturating_mul_int(first_bid.original_ct_amount);
+			inst.add_otm_fee_to(&mut funding_asset_refund, usd_ticket, first_bid_to_refund.asset);
+			assert_eq!(
+				post_first_refund_bidder_funding_asset_balance,
+				pre_first_refund_bidder_funding_asset_balance + funding_asset_refund
+			);
+
+			inst.bid_for_users(project_id, vec![oversubscribing_bids[1].clone()]).unwrap();
+
+			inst.process_oversubscribed_bids(project_id);
+			let pre_second_refund_bidder_plmc_balance = inst.get_free_plmc_balance_for(second_bid_to_refund.bidder);
+			let pre_second_refund_bidder_funding_asset_balance =
+				inst.get_free_funding_asset_balance_for(second_bid_to_refund.asset.id(), second_bid_to_refund.bidder);
+
+			let second_bid =
+				inst.execute(|| Bids::<TestRuntime>::get((project_id, project_metadata.minimum_price, 8)).unwrap());
+			assert!(matches!(second_bid.status, BidStatus::Rejected));
+			let third_bid =
+				inst.execute(|| Bids::<TestRuntime>::get((project_id, project_metadata.minimum_price, 7)).unwrap());
+			assert!(matches!(third_bid.status, BidStatus::PartiallyAccepted(_)));
+
+			inst.execute(|| {
+				assert_ok!(Pallet::<TestRuntime>::do_settle_bid(project_id, project_metadata.minimum_price, 8));
+				assert_noop!(
+					Pallet::<TestRuntime>::do_settle_bid(project_id, project_metadata.minimum_price, 7),
+					Error::<TestRuntime>::SettlementNotStarted
+				);
+			});
+
+			let post_second_refund_bidder_plmc_balance = inst.get_free_plmc_balance_for(second_bid_to_refund.bidder);
+			let post_second_refund_bidder_funding_asset_balance =
+				inst.get_free_funding_asset_balance_for(second_bid_to_refund.asset.id(), second_bid_to_refund.bidder);
+
+			// Classic bid
+			assert_eq!(
+				post_second_refund_bidder_plmc_balance,
+				pre_second_refund_bidder_plmc_balance + second_bid.plmc_bond
+			);
+			assert_eq!(
+				post_second_refund_bidder_funding_asset_balance,
+				pre_second_refund_bidder_funding_asset_balance + second_bid.funding_asset_amount_locked
 			);
 		}
 	}

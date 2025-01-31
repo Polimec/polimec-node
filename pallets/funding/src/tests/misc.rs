@@ -346,8 +346,8 @@ fn project_state_transition_event() {
 		project_metadata.clone(),
 		ISSUER_1,
 		None,
-		inst.generate_successful_evaluations(project_metadata.clone(), 5),
-		inst.generate_bids_from_total_ct_percent(project_metadata.clone(), 80, 10),
+		inst.generate_successful_evaluations(project_metadata.clone(), 10),
+		inst.generate_bids_from_total_ct_percent(project_metadata.clone(), 90, 30),
 		true,
 	);
 
@@ -376,5 +376,3 @@ fn project_state_transition_event() {
 		assert_eq!(event, Event::ProjectPhaseTransition { project_id, phase: desired_transitions.next().unwrap() });
 	});
 }
-
-

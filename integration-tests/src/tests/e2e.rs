@@ -664,7 +664,7 @@ fn e2e_test() {
 
 #[test]
 fn sandbox() {
-	fn bid(x: u32, ) -> Weight {
+	fn bid(x: u32) -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `4850 + x * (226 ±0)`
 		//  Estimated: `28875 + x * (2816 ±0)`
@@ -673,11 +673,13 @@ fn sandbox() {
 			// Standard Error: 8_838
 			.saturating_add(Weight::from_parts(5_852_038, 0).saturating_mul(x.into()))
 			.saturating_add(<PolimecRuntime as frame_system::Config>::DbWeight::get().reads(26_u64))
-			.saturating_add(<PolimecRuntime as frame_system::Config>::DbWeight::get().reads((1_u64).saturating_mul(x.into())))
+			.saturating_add(
+				<PolimecRuntime as frame_system::Config>::DbWeight::get().reads((1_u64).saturating_mul(x.into())),
+			)
 			.saturating_add(<PolimecRuntime as frame_system::Config>::DbWeight::get().writes(36_u64))
 			.saturating_add(Weight::from_parts(0, 2816).saturating_mul(x.into()))
 	}
 
-	let max_weight = bid(1000);
+	let max_weight = bid(0);
 	dbg!(max_weight);
 }

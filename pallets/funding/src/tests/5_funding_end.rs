@@ -12,8 +12,6 @@ mod end_funding_extrinsic {
 		#[test]
 		fn evaluator_reward_is_correct() {
 			let (mut inst, project_id) = create_project_with_funding_percentage(95, true);
-			let project_details = inst.get_project_details(project_id);
-			let project_metadata = inst.get_project_metadata(project_id);
 			assert_eq!(
 				inst.get_project_details(project_id).status,
 				ProjectStatus::SettlementStarted(FundingOutcome::Success)

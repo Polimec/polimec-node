@@ -60,7 +60,6 @@ impl<T: Config> Pallet<T> {
 			metadata_ticket_size_bounds.usd_ticket_above_minimum_per_participation(min_total_ticket_size),
 			Error::<T>::TooLow
 		);
-		ensure!(min_total_ticket_size <= MAX_USD_TICKET_PER_BID_EXTRINSIC, Error::<T>::TooHigh);
 		ensure!(mode.multiplier() <= max_multiplier && mode.multiplier() > 0u8, Error::<T>::ForbiddenMultiplier);
 
 		// Note: We limit the CT Amount to the auction allocation size, to avoid long-running loops.
@@ -177,7 +176,7 @@ impl<T: Config> Pallet<T> {
 		AuctionBoughtUSD::<T>::mutate((project_id, did), |amount| *amount = amount.saturating_add(usd_ticket_size));
 
 		if auction_oversubscribed {
-			Self::update_outbid_bids_cutoff(project_id, ct_amount)?;
+			CTAmountOversubscribed::<T>::mutate(project_id, |amount| *amount = amount.saturating_add(ct_amount));
 		}
 
 		Self::deposit_event(Event::Bid {
@@ -195,21 +194,25 @@ impl<T: Config> Pallet<T> {
 		Ok(new_bid)
 	}
 
-	fn update_outbid_bids_cutoff(project_id: ProjectId, ct_amount: Balance) -> DispatchResult {
+	/// Go over one oversubscribed bid and update the cutoff.
+	pub fn do_process_next_oversubscribed_bid(project_id: ProjectId) -> DispatchResult {
 		let project_metadata = ProjectsMetadata::<T>::get(project_id).ok_or(Error::<T>::ProjectMetadataNotFound)?;
 		let bucket = Buckets::<T>::get(project_id).ok_or(Error::<T>::BucketNotFound)?;
 		let maybe_current_cutoff = OutbidBidsCutoff::<T>::get(project_id);
-		let mut current_cutoff: (PriceOf<T>, u32);
-		let mut remaining_ct_amount = ct_amount;
+		let mut ct_amount_oversubscribed = CTAmountOversubscribed::<T>::get(project_id);
+
+		ensure!(ct_amount_oversubscribed > Zero::zero(), Error::<T>::NoBidsOversubscribed);
+
+		let current_cutoff: (PriceOf<T>, u32);
 
 		// Adjust initial cutoff if necessary
 		if let Some((price, index)) = maybe_current_cutoff {
 			let bid = Bids::<T>::get((project_id, price, index)).ok_or(Error::<T>::ImpossibleState)?;
-			if !matches!(bid.status, BidStatus::PartiallyAccepted(_)) {
+			if matches!(bid.status, BidStatus::PartiallyAccepted(_)) {
+				current_cutoff = (price, index);
+			} else {
 				let (new_price, new_index) = Self::get_next_cutoff(project_id, bucket.delta_price, price, index)?;
 				current_cutoff = (new_price, new_index);
-			} else {
-				current_cutoff = (price, index);
 			}
 		} else {
 			// Initialize to the first bucket
@@ -219,35 +222,28 @@ impl<T: Config> Pallet<T> {
 			current_cutoff = (first_price, first_bucket_bounds.1);
 		}
 
-		while remaining_ct_amount > Zero::zero() {
-			let (price, index) = current_cutoff;
+		let (price, index) = current_cutoff;
 
-			let mut bid = Bids::<T>::get((project_id, price, index)).ok_or(Error::<T>::ImpossibleState)?;
+		let mut bid = Bids::<T>::get((project_id, price, index)).ok_or(Error::<T>::ImpossibleState)?;
 
-			let bid_amount = match bid.status {
-				BidStatus::PartiallyAccepted(amount) => amount,
-				_ => bid.original_ct_amount,
-			};
+		let bid_amount = match bid.status {
+			BidStatus::PartiallyAccepted(ct_amount_accepted) => ct_amount_accepted,
+			_ => bid.original_ct_amount,
+		};
 
-			if bid_amount > remaining_ct_amount {
-				bid.status = BidStatus::PartiallyAccepted(bid_amount.saturating_sub(remaining_ct_amount));
-				Bids::<T>::insert((project_id, bid.original_ct_usd_price, bid.id), bid);
-				remaining_ct_amount = Zero::zero();
-			} else {
-				if let BidStatus::PartiallyAccepted(_) = bid.status {
-					bid.status = BidStatus::Rejected;
-					Bids::<T>::insert((project_id, bid.original_ct_usd_price, bid.id), bid);
-				}
-				remaining_ct_amount = remaining_ct_amount.saturating_sub(bid_amount);
-			}
-
-			// Move to the next cutoff if we still have remaining amount to process
-			if remaining_ct_amount > Zero::zero() {
-				current_cutoff = Self::get_next_cutoff(project_id, bucket.delta_price, price, index)?;
-			}
+		if bid_amount > ct_amount_oversubscribed {
+			bid.status = BidStatus::PartiallyAccepted(bid_amount.saturating_sub(ct_amount_oversubscribed));
+			Bids::<T>::insert((project_id, bid.original_ct_usd_price, bid.id), bid);
+			ct_amount_oversubscribed = Zero::zero();
+		} else {
+			bid.status = BidStatus::Rejected;
+			Bids::<T>::insert((project_id, bid.original_ct_usd_price, bid.id), bid);
+			ct_amount_oversubscribed = ct_amount_oversubscribed.saturating_sub(bid_amount);
 		}
 
 		OutbidBidsCutoff::<T>::set(project_id, Some(current_cutoff));
+		CTAmountOversubscribed::<T>::insert(project_id, ct_amount_oversubscribed);
+
 		Ok(())
 	}
 

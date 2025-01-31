@@ -415,6 +415,7 @@ impl<
 				self.execute(|| <Pallet<T>>::do_end_evaluation(project_id).unwrap());
 			},
 			ProjectStatus::AuctionRound => {
+				self.process_oversubscribed_bids(project_id);
 				self.execute(|| <Pallet<T>>::do_end_funding(project_id).unwrap());
 			},
 			ProjectStatus::FundingSuccessful | ProjectStatus::FundingFailed => {
@@ -445,6 +446,27 @@ impl<
 		Ok(())
 	}
 
+	pub fn mint_necessary_tokens_for_bids(&mut self, project_id: ProjectId, bids: Vec<BidParams<T>>) {
+		let current_bucket = self.execute(|| Buckets::<T>::get(project_id).unwrap());
+		let project_metadata = self.get_project_metadata(project_id);
+
+		let necessary_plmc = self.calculate_auction_plmc_charged_from_all_bids_made_or_with_bucket(
+			&bids,
+			project_metadata.clone(),
+			Some(current_bucket),
+		);
+		let necessary_funding_assets = self.calculate_auction_funding_asset_charged_from_all_bids_made_or_with_bucket(
+			&bids,
+			project_metadata,
+			Some(current_bucket),
+		);
+
+		self.mint_plmc_ed_if_required(necessary_plmc.accounts());
+		self.mint_funding_asset_ed_if_required(necessary_funding_assets.to_account_asset_map());
+		self.mint_plmc_to(necessary_plmc);
+		self.mint_funding_asset_to(necessary_funding_assets);
+	}
+
 	pub fn bid_for_users(&mut self, project_id: ProjectId, bids: Vec<BidParams<T>>) -> DispatchResultWithPostInfo {
 		let project_policy = self.get_project_metadata(project_id).policy_ipfs_cid.unwrap();
 
@@ -466,6 +488,10 @@ impl<
 			})?;
 		}
 		Ok(().into())
+	}
+
+	pub fn process_oversubscribed_bids(&mut self, project_id: ProjectId) {
+		self.execute(|| while Pallet::<T>::do_process_next_oversubscribed_bid(project_id).is_ok() {});
 	}
 
 	pub fn settle_project(&mut self, project_id: ProjectId, mark_as_settled: bool) {
@@ -492,9 +518,7 @@ impl<
 	}
 
 	pub fn get_bid(&mut self, bid_id: u32) -> BidInfoOf<T> {
-		self.execute(|| {
-			Bids::<T>::iter_values().find(|bid| bid.id == bid_id).unwrap()
-		})
+		self.execute(|| Bids::<T>::iter_values().find(|bid| bid.id == bid_id).unwrap())
 	}
 
 	// Used to check all the USDT/USDC/DOT was paid to the issuer funding account
@@ -812,6 +836,12 @@ impl<
 			bids.clone(),
 		);
 
+		assert!(matches!(self.go_to_next_state(project_id), ProjectStatus::SettlementStarted(_)));
+
+		self.settle_project(project_id, mark_as_settled);
+
+		// Check that remaining CTs are updated
+		let project_details = self.get_project_details(project_id);
 		// if our bids were creating an oversubscription, then just take the total allocation size
 		let auction_bought_tokens = bids
 			.iter()
@@ -819,12 +849,6 @@ impl<
 			.fold(Balance::zero(), |acc, item| item + acc)
 			.min(project_metadata.total_allocation_size);
 
-		assert!(matches!(self.go_to_next_state(project_id), ProjectStatus::SettlementStarted(_)));
-
-		self.settle_project(project_id, mark_as_settled);
-
-		// Check that remaining CTs are updated
-		let project_details = self.get_project_details(project_id);
 		assert_eq!(
 			project_details.remaining_contribution_tokens,
 			project_metadata.total_allocation_size - auction_bought_tokens,
