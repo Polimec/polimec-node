@@ -83,7 +83,7 @@ use frame_support::{
 		tokens::{fungible, fungibles},
 		AccountTouch, ContainsPair,
 	},
-	BoundedVec, PalletId,
+	BoundedVec, PalletId, WeakBoundedVec,
 };
 use frame_system::pallet_prelude::BlockNumberFor;
 pub use pallet::*;
@@ -264,29 +264,9 @@ pub mod pallet {
 			Success = (AccountIdOf<Self>, Did, InvestorType, Cid),
 		>;
 
-		/// Max individual bids per project. Used to estimate worst case weight for price calculation
-		#[pallet::constant]
-		type MaxBidsPerProject: Get<u32>;
-
-		/// Max individual bids per project. Used to estimate worst case weight for price calculation
-		#[pallet::constant]
-		type MaxBidsPerUser: Get<u32>;
-
 		/// Range of max_capacity_thresholds values for the hrmp config where we accept the incoming channel request
 		#[pallet::constant]
 		type MaxCapacityThresholds: Get<RangeInclusive<u32>>;
-
-		/// Max individual contributions per project per user. Used to estimate worst case weight for price calculation
-		#[pallet::constant]
-		type MaxContributionsPerUser: Get<u32>;
-
-		/// Max individual evaluations per project. Used to estimate worst case weight for price calculation
-		#[pallet::constant]
-		type MaxEvaluationsPerProject: Get<u32>;
-
-		/// How many distinct evaluations per user per project
-		#[pallet::constant]
-		type MaxEvaluationsPerUser: Get<u32>;
 
 		#[pallet::constant]
 		type MinUsdPerEvaluation: Get<Balance>;
@@ -394,12 +374,6 @@ pub mod pallet {
 	pub type NextContributionId<T: Config> = StorageValue<_, u32, ValueQuery>;
 
 	#[pallet::storage]
-	pub type BidCounts<T: Config> = StorageMap<_, Blake2_128Concat, ProjectId, u32, ValueQuery>;
-
-	#[pallet::storage]
-	pub type EvaluationCounts<T: Config> = StorageMap<_, Blake2_128Concat, ProjectId, u32, ValueQuery>;
-
-	#[pallet::storage]
 	/// A StorageMap containing the primary project information of projects
 	pub type ProjectsMetadata<T: Config> = StorageMap<_, Blake2_128Concat, ProjectId, ProjectMetadataOf<T>>;
 
@@ -410,6 +384,9 @@ pub mod pallet {
 	#[pallet::storage]
 	/// StorageMap containing additional information for the projects, relevant for correctness of the protocol
 	pub type ProjectsDetails<T: Config> = StorageMap<_, Blake2_128Concat, ProjectId, ProjectDetailsOf<T>>;
+
+	#[pallet::storage]
+	pub type ProjectsInAuctionRound<T: Config> = StorageValue<_, WeakBoundedVec<ProjectId, ConstU32<1000>>, ValueQuery>;
 
 	#[pallet::storage]
 	/// Keep track of the PLMC bonds made to each project by each evaluator
@@ -425,41 +402,34 @@ pub mod pallet {
 
 	#[pallet::storage]
 	/// StorageMap containing the bids for each project and user
-	pub type Bids<T: Config> = StorageNMap<
-		_,
-		(
-			NMapKey<Blake2_128Concat, ProjectId>,
-			NMapKey<Blake2_128Concat, AccountIdOf<T>>,
-			NMapKey<Blake2_128Concat, u32>,
-		),
-		BidInfoOf<T>,
-	>;
+	pub type Bids<T: Config> =
+		StorageNMap<_, (NMapKey<Blake2_128Concat, ProjectId>, NMapKey<Blake2_128Concat, u32>), BidInfoOf<T>>;
 
 	#[pallet::storage]
-	/// Contributions made during the Community and Remainder round. i.e token buys
-	pub type Contributions<T: Config> = StorageNMap<
-		_,
-		(
-			NMapKey<Blake2_128Concat, ProjectId>,
-			NMapKey<Blake2_128Concat, AccountIdOf<T>>,
-			NMapKey<Blake2_128Concat, u32>,
-		),
-		ContributionInfoOf<T>,
-	>;
+	/// StorageMap containing the first bid that should be settled at a certain price point, and the last bid available at that price point.
+	/// Bids should be settled from the higest price first, and then from the lowest index first. Both indexes are inclusive.
+	pub type BidBucketBounds<T: Config> =
+		StorageDoubleMap<_, Blake2_128Concat, ProjectId, Blake2_128Concat, PriceOf<T>, (u32, u32), OptionQuery>;
+
+	#[pallet::storage]
+	/// This map allows bidders to release their bid early if they were outbid.
+	/// The map contains the bucket price and bid index of the last bid to be outbid.
+	/// Indexes higher than the one stored here in the same bucket can be released.
+	/// All bids in buckets lower than the one stored here can also be released.
+	/// The last bid to be considered outbid might be partially rejected, and so that should be refunded by the new
+	/// bidder in the "bid" call.
+	pub type OutbidBidsCutoff<T: Config> = StorageMap<_, Blake2_128Concat, ProjectId, (PriceOf<T>, u32), OptionQuery>;
 
 	#[pallet::storage]
 	pub type AuctionBoughtUSD<T: Config> =
 		StorageNMap<_, (NMapKey<Blake2_128Concat, ProjectId>, NMapKey<Blake2_128Concat, Did>), Balance, ValueQuery>;
 
 	#[pallet::storage]
-	pub type ContributionBoughtUSD<T: Config> =
-		StorageNMap<_, (NMapKey<Blake2_128Concat, ProjectId>, NMapKey<Blake2_128Concat, Did>), Balance, ValueQuery>;
-
-	#[pallet::storage]
 	pub type UserMigrations<T: Config> = StorageNMap<
 		_,
 		(NMapKey<Blake2_128Concat, ProjectId>, NMapKey<Blake2_128Concat, AccountIdOf<T>>),
-		(MigrationStatus, BoundedVec<Migration, MaxParticipationsPerUser<T>>),
+		// We assume an upper bound of 10k migrations per user. This is not tracked, but is a sensible amount.
+		(MigrationStatus, WeakBoundedVec<Migration, ConstU32<10_000>>),
 	>;
 
 	/// Counts how many participants have not yet migrated their CTs. Counter goes up on each settlement, and goes
@@ -467,23 +437,12 @@ pub mod pallet {
 	#[pallet::storage]
 	pub type UnmigratedCounter<T: Config> = StorageMap<_, Blake2_128Concat, ProjectId, u32, ValueQuery>;
 
-	pub struct MaxParticipationsPerUser<T: Config>(PhantomData<T>);
-	impl<T: Config> Get<u32> for MaxParticipationsPerUser<T> {
-		fn get() -> u32 {
-			T::MaxBidsPerUser::get() + T::MaxEvaluationsPerUser::get()
-		}
-	}
-
 	#[pallet::storage]
 	pub type ActiveMigrationQueue<T: Config> = StorageMap<_, Blake2_128Concat, QueryId, (ProjectId, T::AccountId)>;
 
 	/// A map to keep track of what issuer's did has an active project. It prevents one issuer having multiple active projects
 	#[pallet::storage]
 	pub type DidWithActiveProjects<T: Config> = StorageMap<_, Blake2_128Concat, Did, ProjectId, OptionQuery>;
-
-	#[pallet::storage]
-	pub type DidWithWinningBids<T: Config> =
-		StorageDoubleMap<_, Blake2_128Concat, ProjectId, Blake2_128Concat, Did, bool, ValueQuery>;
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub (super) fn deposit_event)]
@@ -536,6 +495,7 @@ pub mod pallet {
 			project_id: ProjectId,
 			account: AccountIdOf<T>,
 			id: u32,
+			status: BidStatus,
 			final_ct_amount: Balance,
 			final_ct_usd_price: PriceOf<T>,
 		},
@@ -655,8 +615,6 @@ pub mod pallet {
 		FundingAssetNotAccepted,
 		/// The user already has the maximum number of participations in this project.
 		TooManyUserParticipations,
-		/// The project already has the maximum number of participations.
-		TooManyProjectParticipations,
 		/// The user is not allowed to use the selected multiplier.
 		ForbiddenMultiplier,
 		/// The user has a winning bid in the auction round and is not allowed to participate
@@ -757,13 +715,14 @@ pub mod pallet {
 
 		/// Bond PLMC for a project in the evaluation stage
 		#[pallet::call_index(4)]
-		#[pallet::weight(WeightInfoOf::<T>::evaluate(<T as Config>::MaxEvaluationsPerUser::get()))]
+		#[pallet::weight(WeightInfoOf::<T>::start_settlement())]
+		// TODO: Change weight after benchmarks
 		pub fn evaluate(
 			origin: OriginFor<T>,
 			jwt: UntrustedToken,
 			project_id: ProjectId,
 			#[pallet::compact] usd_amount: Balance,
-		) -> DispatchResultWithPostInfo {
+		) -> DispatchResult {
 			let (account, did, _investor_type, whitelisted_policy) =
 				T::InvestorOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get())?;
 
@@ -776,7 +735,8 @@ pub mod pallet {
 		}
 
 		#[pallet::call_index(40)]
-		#[pallet::weight(WeightInfoOf::<T>::evaluate(<T as Config>::MaxEvaluationsPerUser::get()))]
+		#[pallet::weight(WeightInfoOf::<T>::start_settlement())]
+		// TODO: Change weight after benchmarks
 		pub fn evaluate_with_receiving_account(
 			origin: OriginFor<T>,
 			jwt: UntrustedToken,
@@ -784,7 +744,7 @@ pub mod pallet {
 			#[pallet::compact] usd_amount: Balance,
 			receiving_account: Junction,
 			signature_bytes: [u8; 65],
-		) -> DispatchResultWithPostInfo {
+		) -> DispatchResult {
 			let (account, did, _investor_type, whitelisted_policy) =
 				T::InvestorOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get())?;
 
@@ -802,14 +762,8 @@ pub mod pallet {
 
 		/// Bid for a project in the Auction round
 		#[pallet::call_index(7)]
-		#[pallet::weight(
-			WeightInfoOf::<T>::bid(
-				<T as Config>::MaxBidsPerUser::get(),
-				// Assuming the current bucket is full, and has a price higher than the minimum.
-				// This user is buying 100% of the bid allocation.
-				// Since each bucket has 10% of the allocation, one bid can be split into a max of 10
-				10
-		))]
+		#[pallet::weight(WeightInfoOf::<T>::start_settlement())]
+		// TODO: Change weight after benchmarks
 		pub fn bid(
 			origin: OriginFor<T>,
 			jwt: UntrustedToken,
@@ -817,7 +771,7 @@ pub mod pallet {
 			#[pallet::compact] ct_amount: Balance,
 			mode: ParticipationMode,
 			funding_asset: AcceptedFundingAsset,
-		) -> DispatchResultWithPostInfo {
+		) -> DispatchResult {
 			let (bidder, did, investor_type, whitelisted_policy) =
 				T::InvestorOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get())?;
 
@@ -842,14 +796,8 @@ pub mod pallet {
 		}
 
 		#[pallet::call_index(70)]
-		#[pallet::weight(
-			WeightInfoOf::<T>::bid(
-				<T as Config>::MaxBidsPerUser::get(),
-				// Assuming the current bucket is full, and has a price higher than the minimum.
-				// This user is buying 100% of the bid allocation.
-				// Since each bucket has 10% of the allocation, one bid can be split into a max of 10
-				10
-		))]
+		#[pallet::weight(WeightInfoOf::<T>::start_settlement())]
+		// TODO: Change weight after benchmarks
 		pub fn bid_with_receiving_account(
 			origin: OriginFor<T>,
 			jwt: UntrustedToken,
@@ -859,7 +807,7 @@ pub mod pallet {
 			funding_asset: AcceptedFundingAsset,
 			receiving_account: Junction,
 			signature_bytes: [u8; 65],
-		) -> DispatchResultWithPostInfo {
+		) -> DispatchResult {
 			let (bidder, did, investor_type, whitelisted_policy) =
 				T::InvestorOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get())?;
 
@@ -910,15 +858,9 @@ pub mod pallet {
 
 		#[pallet::call_index(13)]
 		#[pallet::weight(WeightInfoOf::<T>::settle_accepted_bid_with_refund())]
-		pub fn settle_bid(
-			origin: OriginFor<T>,
-			project_id: ProjectId,
-			bidder: AccountIdOf<T>,
-			bid_id: u32,
-		) -> DispatchResult {
+		pub fn settle_bid(origin: OriginFor<T>, project_id: ProjectId, bid_id: u32) -> DispatchResult {
 			let _caller = ensure_signed(origin)?;
-			let bid = Bids::<T>::get((project_id, bidder, bid_id)).ok_or(Error::<T>::ParticipationNotFound)?;
-			Self::do_settle_bid(bid, project_id)
+			Self::do_settle_bid(project_id, bid_id)
 		}
 
 		#[pallet::call_index(18)]
@@ -943,7 +885,8 @@ pub mod pallet {
 		}
 
 		#[pallet::call_index(20)]
-		#[pallet::weight(WeightInfoOf::<T>::confirm_offchain_migration(MaxParticipationsPerUser::<T>::get()))]
+		#[pallet::weight(WeightInfoOf::<T>::start_settlement())]
+		// TODO: Change weight after benchmarks
 		pub fn confirm_offchain_migration(
 			origin: OriginFor<T>,
 			project_id: ProjectId,
@@ -997,7 +940,8 @@ pub mod pallet {
 		}
 
 		#[pallet::call_index(24)]
-		#[pallet::weight(WeightInfoOf::<T>::send_pallet_migration_for(MaxParticipationsPerUser::<T>::get()))]
+		#[pallet::weight(WeightInfoOf::<T>::start_settlement())]
+		// TODO: Change weight after benchmarks
 		pub fn send_pallet_migration_for(
 			origin: OriginFor<T>,
 			project_id: ProjectId,
@@ -1008,7 +952,8 @@ pub mod pallet {
 		}
 
 		#[pallet::call_index(25)]
-		#[pallet::weight(WeightInfoOf::<T>::confirm_pallet_migrations(MaxParticipationsPerUser::<T>::get()))]
+		#[pallet::weight(WeightInfoOf::<T>::start_settlement())]
+		// TODO: Change weight after benchmarks
 		pub fn confirm_pallet_migrations(
 			origin: OriginFor<T>,
 			query_id: QueryId,
@@ -1025,6 +970,40 @@ pub mod pallet {
 			let _caller = ensure_signed(origin)?;
 
 			Self::do_mark_project_ct_migration_as_finished(project_id)
+		}
+	}
+
+	#[pallet::hooks]
+	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
+		fn on_idle(_n: BlockNumberFor<T>, available_weight: Weight) -> Weight {
+			let projects = ProjectsInAuctionRound::<T>::get();
+			if projects.is_empty() {
+				return <T as frame_system::Config>::DbWeight::get().reads(1);
+			}
+
+			let mut weight_consumed = <T as frame_system::Config>::DbWeight::get().reads(1);
+			let process_weight = <T as frame_system::Config>::DbWeight::get().reads_writes(1, 1);
+
+			for project_id in projects {
+				loop {
+					// Check weight before processing each bid
+					if weight_consumed.saturating_add(process_weight).all_gt(available_weight) {
+						return weight_consumed;
+					}
+
+					weight_consumed.saturating_accrue(process_weight);
+					match Self::do_process_next_oversubscribed_bid(project_id) {
+						// Returns Ok if a bid was processed successfully
+						Ok(_) => continue,
+						// Returns Err if there are no more bids to process, so we go to next project in the auction round
+						Err(_) => {
+							break;
+						},
+					}
+				}
+			}
+
+			weight_consumed
 		}
 	}
 }

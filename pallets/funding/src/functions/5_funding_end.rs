@@ -1,62 +1,57 @@
 #[allow(clippy::wildcard_imports)]
 use super::*;
+use itertools::Itertools;
 
 impl<T: Config> Pallet<T> {
 	#[transactional]
 	pub fn do_end_funding(project_id: ProjectId) -> DispatchResult {
 		// * Get variables *
 		let project_metadata = ProjectsMetadata::<T>::get(project_id).ok_or(Error::<T>::ProjectMetadataNotFound)?;
-		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
+		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 		let bucket = Buckets::<T>::get(project_id).ok_or(Error::<T>::BucketNotFound)?;
-		let remaining_cts = project_details.remaining_contribution_tokens;
 		let now = <frame_system::Pallet<T>>::block_number();
 		let issuer_did = project_details.issuer_did.clone();
 
 		// * Validity checks *
 		ensure!(
-			// Can end due to running out of CTs
-			remaining_cts == Zero::zero() ||
-				// or the last funding round ending
-				project_details.round_duration.ended(now) && matches!(project_details.status, ProjectStatus::AuctionRound),
+			project_details.round_duration.ended(now) && matches!(project_details.status, ProjectStatus::AuctionRound),
 			Error::<T>::TooEarlyForRound
 		);
 
-		// * Calculate WAP *
-		let auction_allocation_size = project_metadata.total_allocation_size;
-		let weighted_token_price = bucket.calculate_wap(auction_allocation_size);
+		let mut project_ids = ProjectsInAuctionRound::<T>::get().to_vec();
+		let (pos, _) = project_ids.iter().find_position(|id| **id == project_id).ok_or(Error::<T>::ImpossibleState)?;
+		project_ids.remove(pos);
+		ProjectsInAuctionRound::<T>::put(WeakBoundedVec::force_from(project_ids, None));
 
-		// * Update Storage *
-		let _calculation_result =
-			Self::decide_winning_bids(project_id, project_metadata.total_allocation_size, weighted_token_price)?;
-		let mut updated_project_details =
-			ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
+		let auction_allocation_size = project_metadata.total_allocation_size;
+		let weighted_average_price = bucket.calculate_wap(auction_allocation_size);
+		project_details.weighted_average_price = Some(weighted_average_price);
+
+		let bucket_price_higher_than_initial = bucket.current_price > bucket.initial_price;
+		let sold_percent =
+			Perquintill::from_rational(auction_allocation_size - bucket.amount_left, auction_allocation_size);
+		let threshold = T::FundingSuccessThreshold::get();
+		let sold_more_than_min = sold_percent >= threshold;
+
+		let funding_successful = bucket_price_higher_than_initial || sold_more_than_min;
 
 		DidWithActiveProjects::<T>::set(issuer_did, None);
 
-		// * Calculate new variables *
-		let funding_target = updated_project_details.fundraising_target_usd;
-		let funding_reached = updated_project_details.funding_amount_reached_usd;
-		let funding_ratio = Perquintill::from_rational(funding_reached, funding_target);
+		let usd_raised = Self::calculate_usd_sold_from_bucket(bucket.clone(), project_metadata.total_allocation_size);
+		project_details.funding_amount_reached_usd = usd_raised;
+		ProjectsDetails::<T>::insert(project_id, project_details.clone());
 
 		// * Update project status *
-		let next_status = if funding_ratio < T::FundingSuccessThreshold::get() {
-			updated_project_details.evaluation_round_info.evaluators_outcome = Some(EvaluatorsOutcome::Slashed);
-			ProjectStatus::FundingFailed
-		} else {
+		let next_status = if funding_successful {
 			let reward_info = Self::generate_evaluator_rewards_info(project_id)?;
-			updated_project_details.evaluation_round_info.evaluators_outcome =
-				Some(EvaluatorsOutcome::Rewarded(reward_info));
+			project_details.evaluation_round_info.evaluators_outcome = Some(EvaluatorsOutcome::Rewarded(reward_info));
 			ProjectStatus::FundingSuccessful
+		} else {
+			project_details.evaluation_round_info.evaluators_outcome = Some(EvaluatorsOutcome::Slashed);
+			ProjectStatus::FundingFailed
 		};
 
-		Self::transition_project(
-			project_id,
-			updated_project_details.clone(),
-			project_details.status,
-			next_status,
-			None,
-			true,
-		)?;
+		Self::transition_project(project_id, project_details.clone(), project_details.status, next_status, None, true)?;
 
 		Ok(())
 	}

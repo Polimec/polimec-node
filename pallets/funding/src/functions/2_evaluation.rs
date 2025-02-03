@@ -45,6 +45,10 @@ impl<T: Config> Pallet<T> {
 		// * Branch in possible project paths *
 		// Successful path
 		return if is_funded {
+			let mut project_ids = ProjectsInAuctionRound::<T>::get().to_vec();
+			project_ids.push(project_id);
+			let project_ids = WeakBoundedVec::force_from(project_ids, None);
+			ProjectsInAuctionRound::<T>::put(project_ids);
 			Self::transition_project(
 				project_id,
 				project_details,

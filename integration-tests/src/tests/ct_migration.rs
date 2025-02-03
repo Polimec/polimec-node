@@ -70,7 +70,7 @@ fn get_migrations_for_participants(
 		for participant in participants {
 			let (status, migrations) =
 				pallet_funding::UserMigrations::<PolimecRuntime>::get((project_id, participant.clone())).unwrap();
-			user_migrations.insert(participant, (status, Migrations::from(migrations.into())));
+			user_migrations.insert(participant, (status, Migrations::from(migrations.to_vec())));
 		}
 	});
 	user_migrations
@@ -159,8 +159,8 @@ fn create_settled_project() -> (ProjectId, Vec<AccountId>) {
 	let mut inst = IntegrationInstantiator::new(None);
 
 	let project_metadata = default_project_metadata(ISSUER.into());
-	let evaluations = inst.generate_successful_evaluations(project_metadata.clone(), 5);
-	let bids = inst.generate_bids_from_total_ct_percent(project_metadata.clone(), 95, 8);
+	let evaluations = inst.generate_successful_evaluations(project_metadata.clone(), 10);
+	let bids = inst.generate_bids_from_total_ct_percent(project_metadata.clone(), 95, 30);
 	PolimecNet::execute_with(|| {
 		let project_id = inst.create_finished_project(project_metadata, ISSUER.into(), None, evaluations, bids);
 		assert_eq!(
@@ -171,10 +171,6 @@ fn create_settled_project() -> (ProjectId, Vec<AccountId>) {
 			pallet_funding::Evaluations::<PolimecRuntime>::iter_prefix_values((project_id,))
 				.map(|eval| eval.evaluator)
 				.chain(pallet_funding::Bids::<PolimecRuntime>::iter_prefix_values((project_id,)).map(|bid| bid.bidder))
-				.chain(
-					pallet_funding::Contributions::<PolimecRuntime>::iter_prefix_values((project_id,))
-						.map(|contribution| contribution.contributor),
-				)
 				.collect();
 		participants.sort();
 		participants.dedup();
@@ -211,8 +207,8 @@ fn create_project_with_unsettled_participation(participation_type: Participation
 	let mut inst = IntegrationInstantiator::new(None);
 	PolimecNet::execute_with(|| {
 		let project_metadata = default_project_metadata(ISSUER.into());
-		let evaluations = inst.generate_successful_evaluations(project_metadata.clone(), 5);
-		let bids = inst.generate_bids_from_total_ct_percent(project_metadata.clone(), 95, 8);
+		let evaluations = inst.generate_successful_evaluations(project_metadata.clone(), 10);
+		let bids = inst.generate_bids_from_total_ct_percent(project_metadata.clone(), 95, 30);
 		let project_id = inst.create_finished_project(project_metadata, ISSUER.into(), None, evaluations, bids);
 
 		assert_eq!(
@@ -221,12 +217,12 @@ fn create_project_with_unsettled_participation(participation_type: Participation
 		);
 		let evaluations_to_settle =
 			pallet_funding::Evaluations::<PolimecRuntime>::iter_prefix_values((project_id,)).collect_vec();
-		let bids_to_settle = pallet_funding::Bids::<PolimecRuntime>::iter_prefix_values((project_id,)).collect_vec();
+		let bids_to_settle = inst.get_bids(project_id);
 
 		let mut participants: Vec<AccountId> = evaluations_to_settle
 			.iter()
 			.map(|eval| eval.evaluator.clone())
-			.chain(bids_to_settle.iter().map(|bid| bid.bidder.clone()))
+			.chain(bids_to_settle.iter().map(|x| x.bidder.clone()))
 			.collect();
 		participants.sort();
 		participants.dedup();
@@ -242,9 +238,10 @@ fn create_project_with_unsettled_participation(participation_type: Participation
 			.unwrap()
 		}
 
-		let start = if participation_type == ParticipationType::Bid { 1 } else { 0 };
-		for bid in bids_to_settle[start..].iter() {
-			PolimecFunding::settle_bid(RuntimeOrigin::signed(alice()), project_id, bid.bidder.clone(), bid.id).unwrap()
+		let proposed_start = if participation_type == ParticipationType::Bid { 1 } else { 0 };
+		let end = if proposed_start == 1 { bids_to_settle.len() - 1 } else { bids_to_settle.len() };
+		for bid in bids_to_settle[..end].iter() {
+			PolimecFunding::settle_bid(RuntimeOrigin::signed(alice()), project_id, bid.id).unwrap()
 		}
 
 		let evaluations =
