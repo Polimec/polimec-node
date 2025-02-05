@@ -11,7 +11,7 @@ mod pallet_migration {
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		let project_metadata = default_project_metadata(ISSUER_1);
 		let evaluations = inst.generate_successful_evaluations(project_metadata.clone(), 5);
-		let bids = inst.generate_bids_from_total_ct_percent(project_metadata.clone(), 90, 5);
+		let bids = inst.generate_bids_from_total_ct_percent(project_metadata.clone(), 90, 10);
 		let project_id = inst.create_finished_project(project_metadata.clone(), ISSUER_1, None, evaluations, bids);
 		assert_eq!(inst.go_to_next_state(project_id), ProjectStatus::SettlementStarted(FundingOutcome::Success));
 		inst.settle_project(project_id, true);
@@ -49,12 +49,12 @@ mod pallet_migration {
 			}))
 		);
 		assert_eq!(project_details.status, ProjectStatus::CTMigrationStarted);
-		assert_eq!(inst.execute(|| UnmigratedCounter::<TestRuntime>::get(project_id)), 10);
+		assert_eq!(inst.execute(|| UnmigratedCounter::<TestRuntime>::get(project_id)), 15);
 	}
 
 	fn create_pallet_migration_project(mut inst: MockInstantiator) -> (ProjectId, MockInstantiator) {
 		let evaluations = inst.generate_successful_evaluations(default_project_metadata(ISSUER_1), 5);
-		let bids = inst.generate_bids_from_total_ct_percent(default_project_metadata(ISSUER_1), 90, 5);
+		let bids = inst.generate_bids_from_total_ct_percent(default_project_metadata(ISSUER_1), 90, 10);
 		let project_id =
 			inst.create_finished_project(default_project_metadata(ISSUER_1), ISSUER_1, None, evaluations, bids);
 		assert_eq!(inst.go_to_next_state(project_id), ProjectStatus::SettlementStarted(FundingOutcome::Success));
@@ -174,7 +174,7 @@ mod offchain_migration {
 	fn start_offchain_migration() {
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		let evaluations = inst.generate_successful_evaluations(default_project_metadata(ISSUER_1), 5);
-		let bids = inst.generate_bids_from_total_ct_percent(default_project_metadata(ISSUER_1), 90, 5);
+		let bids = inst.generate_bids_from_total_ct_percent(default_project_metadata(ISSUER_1), 90, 10);
 		// Create migrations for 2 projects, to check the `remaining_participants` is unaffected by other projects
 		let project_id = inst.create_finished_project(
 			default_project_metadata(ISSUER_1),
@@ -201,14 +201,14 @@ mod offchain_migration {
 		});
 
 		let project_details = inst.get_project_details(project_id);
-		assert_eq!(inst.execute(|| UnmigratedCounter::<TestRuntime>::get(project_id)), 10);
+		assert_eq!(inst.execute(|| UnmigratedCounter::<TestRuntime>::get(project_id)), 15);
 		assert_eq!(project_details.status, ProjectStatus::CTMigrationStarted);
 	}
 
 	fn create_offchain_migration_project(mut inst: MockInstantiator) -> (ProjectId, MockInstantiator) {
 		let project_metadata = default_project_metadata(ISSUER_1);
 		let evaluations = inst.generate_successful_evaluations(project_metadata.clone(), 5);
-		let bids = inst.generate_bids_from_total_ct_percent(project_metadata.clone(), 90, 5);
+		let bids = inst.generate_bids_from_total_ct_percent(project_metadata.clone(), 90, 10);
 		let project_id = inst.create_finished_project(project_metadata, ISSUER_1, None, evaluations, bids);
 		assert_eq!(inst.go_to_next_state(project_id), ProjectStatus::SettlementStarted(FundingOutcome::Success));
 		inst.settle_project(project_id, true);
