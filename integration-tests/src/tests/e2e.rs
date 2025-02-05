@@ -266,7 +266,6 @@ fn participate_with_checks(
 	mut inst: IntegrationInstantiator,
 	project_id: ProjectId,
 	participation_type: ParticipationType,
-	participation_id: u32,
 	user: [u8; 32],
 	mode: ParticipationMode,
 	investor_type: InvestorType,
@@ -311,9 +310,6 @@ fn participate_with_checks(
 	if participation_type == ParticipationType::Bid {
 		PolimecFunding::bid(PolimecOrigin::signed(user.clone()), user_jwt, project_id, ct_amount, mode, funding_asset)
 			.unwrap();
-		let stored_bid = Bids::<PolimecRuntime>::get((project_id, user.clone(), participation_id));
-		// dbg!(&stored_bid);
-		assert!(stored_bid.is_some());
 	}
 
 	let post_participation_free_plmc = PolimecBalances::free_balance(user.clone());
@@ -392,14 +388,13 @@ fn e2e_test() {
 
 		assert_eq!(inst.go_to_next_state(project_id), ProjectStatus::AuctionRound);
 
-		for (bid_id, user, mode, investor_type, ct_amount, _price, funding_asset, funding_asset_ticket, plmc_bonded) in
+		for (_bid_id, user, mode, investor_type, ct_amount, _price, funding_asset, funding_asset_ticket, plmc_bonded) in
 			pre_wap_bids()
 		{
 			inst = participate_with_checks(
 				inst,
 				project_id,
 				ParticipationType::Bid,
-				bid_id,
 				user,
 				mode,
 				investor_type,
@@ -425,13 +420,8 @@ fn e2e_test() {
 		let prev_treasury_usdt_balance = PolimecForeignAssets::balance(USDT.id(), otm_project_sub_account.clone());
 		let prev_escrow_usdt_balance = PolimecForeignAssets::balance(USDT.id(), funding_escrow_account.clone());
 
-		PolimecFunding::settle_bid(
-			PolimecOrigin::signed(rejected_bidder.clone()),
-			project_id,
-			rejected_bidder.clone(),
-			rejected_bid_id,
-		)
-		.unwrap();
+		PolimecFunding::settle_bid(PolimecOrigin::signed(rejected_bidder.clone()), project_id, rejected_bid_id)
+			.unwrap();
 
 		let post_bid_free_plmc = PolimecBalances::free_balance(rejected_bidder.clone());
 		let post_bid_reserved_plmc = PolimecBalances::reserved_balance(rejected_bidder.clone());

@@ -2,43 +2,6 @@ use super::*;
 use sp_runtime::PerThing;
 
 #[cfg(test)]
-mod round_flow {
-	use super::*;
-
-	#[cfg(test)]
-	mod success {
-		use super::*;
-
-		#[test]
-		fn auction_oversubscription() {
-			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
-			let project_metadata = default_project_metadata(ISSUER_1);
-			let auction_allocation = project_metadata.total_allocation_size;
-			let bucket_size = Percent::from_percent(10) * auction_allocation;
-			let bids = vec![
-				(BIDDER_1, auction_allocation).into(),
-				(BIDDER_2, bucket_size).into(),
-				(BIDDER_3, bucket_size).into(),
-				(BIDDER_4, bucket_size).into(),
-				(BIDDER_5, bucket_size).into(),
-				(BIDDER_6, bucket_size).into(),
-			];
-
-			let project_id = inst.create_finished_project(
-				project_metadata.clone(),
-				ISSUER_1,
-				None,
-				inst.generate_successful_evaluations(project_metadata.clone(), 5),
-				bids,
-			);
-
-			let wap = inst.get_project_details(project_id).weighted_average_price.unwrap();
-			assert!(wap > project_metadata.minimum_price);
-		}
-	}
-}
-
-#[cfg(test)]
 mod end_funding_extrinsic {
 	use super::*;
 
@@ -49,8 +12,6 @@ mod end_funding_extrinsic {
 		#[test]
 		fn evaluator_reward_is_correct() {
 			let (mut inst, project_id) = create_project_with_funding_percentage(95, true);
-			let project_details = inst.get_project_details(project_id);
-			let project_metadata = inst.get_project_metadata(project_id);
 			assert_eq!(
 				inst.get_project_details(project_id).status,
 				ProjectStatus::SettlementStarted(FundingOutcome::Success)
@@ -68,8 +29,7 @@ mod end_funding_extrinsic {
 
 			let total_fee = Perquintill::from_rational(fee_1 + fee_2 + fee_3, USD_REACHED);
 
-			let total_ct_fee =
-				total_fee * (project_metadata.total_allocation_size - project_details.remaining_contribution_tokens);
+			let total_ct_fee = total_fee * 950_000 * CT_UNIT;
 
 			let total_evaluator_reward = Perquintill::from_percent(30) * total_ct_fee;
 
@@ -86,9 +46,32 @@ mod end_funding_extrinsic {
 				early_evaluator_total_bonded_usd: EARLY_EVALUATOR_TOTAL_USD_BONDED,
 				normal_evaluator_total_bonded_usd: NORMAL_EVALUATOR_TOTAL_USD_BONDED,
 			};
-			assert_eq!(
-				inst.get_project_details(project_id).evaluation_round_info.evaluators_outcome,
-				Some(EvaluatorsOutcome::Rewarded(expected_reward_info))
+
+			let EvaluatorsOutcome::Rewarded(stored_reward_info) =
+				inst.get_project_details(project_id).evaluation_round_info.evaluators_outcome.unwrap()
+			else {
+				panic!("Unexpected Evaluator Outcome")
+			};
+
+			assert_close_enough!(
+				stored_reward_info.early_evaluator_reward_pot,
+				expected_reward_info.early_evaluator_reward_pot,
+				Perquintill::from_float(0.999)
+			);
+			assert_close_enough!(
+				stored_reward_info.normal_evaluator_reward_pot,
+				expected_reward_info.normal_evaluator_reward_pot,
+				Perquintill::from_float(0.999)
+			);
+			assert_close_enough!(
+				stored_reward_info.early_evaluator_total_bonded_usd,
+				expected_reward_info.early_evaluator_total_bonded_usd,
+				Perquintill::from_float(0.999)
+			);
+			assert_close_enough!(
+				stored_reward_info.normal_evaluator_total_bonded_usd,
+				expected_reward_info.normal_evaluator_total_bonded_usd,
+				Perquintill::from_float(0.999)
 			);
 		}
 

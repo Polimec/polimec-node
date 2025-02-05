@@ -307,6 +307,35 @@ mod inner_functions {
 		let multiplier_25_duration = multiplier_25.calculate_vesting_duration::<TestRuntime>();
 		assert_eq!(multiplier_25_duration, FixedU128::from_rational(52008, 1000).saturating_mul_int((DAYS * 7) as u64));
 	}
+
+	#[test]
+	pub fn calculate_usd_sold_from_bucket() {
+		let project_metadata = default_project_metadata(ISSUER_1);
+
+		let mut bucket = Pallet::<TestRuntime>::create_bucket_from_metadata(&project_metadata).unwrap();
+		bucket.update(10_000 * CT_UNIT);
+
+		// We bought 10k CTs at a price of 10USD, meaning we should get 100k USD
+		let usd_sold =
+			Pallet::<TestRuntime>::calculate_usd_sold_from_bucket(bucket, project_metadata.total_allocation_size);
+		assert_eq!(usd_sold, 100_000 * USD_UNIT);
+
+		// This bucket has 2 buckets sold out on top of the first one
+		let mut bucket = Pallet::<TestRuntime>::create_bucket_from_metadata(&project_metadata).unwrap();
+		bucket.update(project_metadata.total_allocation_size);
+		bucket.update(50_000 * CT_UNIT);
+		bucket.update(50_000 * CT_UNIT);
+		let wap = bucket.calculate_wap(project_metadata.total_allocation_size);
+		let usd_raised_first_bucket = project_metadata.minimum_price.saturating_mul_int(400_000 * CT_UNIT);
+		let usd_raised_second_bucket = wap.saturating_mul_int(50_000 * CT_UNIT);
+		let usd_raised_third_bucket = wap.saturating_mul_int(50_000 * CT_UNIT);
+		let total_expected_rasied = usd_raised_first_bucket + usd_raised_second_bucket + usd_raised_third_bucket;
+
+		// We bought 10k CTs at a price of 10USD, meaning we should get 100k USD
+		let usd_sold =
+			Pallet::<TestRuntime>::calculate_usd_sold_from_bucket(bucket, project_metadata.total_allocation_size);
+		assert_eq!(usd_sold, total_expected_rasied);
+	}
 }
 
 #[test]
@@ -317,8 +346,8 @@ fn project_state_transition_event() {
 		project_metadata.clone(),
 		ISSUER_1,
 		None,
-		inst.generate_successful_evaluations(project_metadata.clone(), 5),
-		inst.generate_bids_from_total_ct_percent(project_metadata.clone(), 80, 5),
+		inst.generate_successful_evaluations(project_metadata.clone(), 10),
+		inst.generate_bids_from_total_ct_percent(project_metadata.clone(), 90, 30),
 		true,
 	);
 

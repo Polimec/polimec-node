@@ -45,6 +45,10 @@ impl<T: Config> Pallet<T> {
 		// * Branch in possible project paths *
 		// Successful path
 		return if is_funded {
+			let mut project_ids = ProjectsInAuctionRound::<T>::get().to_vec();
+			project_ids.push(project_id);
+			let project_ids = WeakBoundedVec::force_from(project_ids, None);
+			ProjectsInAuctionRound::<T>::put(project_ids);
 			Self::transition_project(
 				project_id,
 				project_details,
@@ -76,7 +80,7 @@ impl<T: Config> Pallet<T> {
 		did: Did,
 		whitelisted_policy: Cid,
 		receiving_account: Junction,
-	) -> DispatchResultWithPostInfo {
+	) -> DispatchResult {
 		// * Get variables *
 		let project_metadata = ProjectsMetadata::<T>::get(project_id).ok_or(Error::<T>::ProjectMetadataNotFound)?;
 		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
@@ -88,8 +92,6 @@ impl<T: Config> Pallet<T> {
 		let early_evaluation_reward_threshold_usd =
 			T::EvaluationSuccessThreshold::get() * project_details.fundraising_target_usd;
 		let evaluation_round_info = &mut project_details.evaluation_round_info;
-		let total_evaluations_count = EvaluationCounts::<T>::get(project_id);
-		let user_evaluations_count = Evaluations::<T>::iter_prefix((project_id, evaluator)).count() as u32;
 		let project_policy = project_metadata.policy_ipfs_cid.ok_or(Error::<T>::ImpossibleState)?;
 		let project_metadata = ProjectsMetadata::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 
@@ -102,8 +104,6 @@ impl<T: Config> Pallet<T> {
 			project_details.round_duration.started(now) && !project_details.round_duration.ended(now),
 			Error::<T>::IncorrectRound
 		);
-		ensure!(total_evaluations_count < T::MaxEvaluationsPerProject::get(), Error::<T>::TooManyProjectParticipations);
-		ensure!(user_evaluations_count < T::MaxEvaluationsPerUser::get(), Error::<T>::TooManyUserParticipations);
 		ensure!(
 			project_metadata.participants_account_type.junction_is_supported(&receiving_account),
 			Error::<T>::UnsupportedReceiverAccountJunction
@@ -146,7 +146,6 @@ impl<T: Config> Pallet<T> {
 		evaluation_round_info.total_bonded_usd = evaluation_round_info.total_bonded_usd.saturating_add(usd_amount);
 		evaluation_round_info.total_bonded_plmc = evaluation_round_info.total_bonded_plmc.saturating_add(plmc_bond);
 		ProjectsDetails::<T>::insert(project_id, project_details);
-		EvaluationCounts::<T>::mutate(project_id, |c| *c = c.saturating_add(1));
 
 		// * Emit events *
 		Self::deposit_event(Event::Evaluation {
@@ -156,9 +155,6 @@ impl<T: Config> Pallet<T> {
 			plmc_amount: plmc_bond,
 		});
 
-		Ok(PostDispatchInfo {
-			actual_weight: Some(WeightInfoOf::<T>::evaluate(user_evaluations_count)),
-			pays_fee: Pays::No,
-		})
+		Ok(())
 	}
 }

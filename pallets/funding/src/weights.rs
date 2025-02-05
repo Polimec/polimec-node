@@ -59,7 +59,8 @@ pub trait WeightInfo {
 	fn start_evaluation() -> Weight;
 	fn evaluate(x: u32, ) -> Weight;
 	fn end_evaluation_failure() -> Weight;
-	fn bid(x: u32, y: u32, ) -> Weight;
+	fn bid(x: u32, ) -> Weight;
+	fn process_next_oversubscribed_bid() -> Weight;
 	fn end_auction(x: u32, y: u32, ) -> Weight;
 	fn contribute(x: u32, ) -> Weight;
 	fn end_funding_project_successful() -> Weight;
@@ -204,48 +205,68 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 	/// Storage: `Timestamp::Now` (r:1 w:0)
 	/// Proof: `Timestamp::Now` (`max_values`: Some(1), `max_size`: Some(8), added: 503, mode: `MaxEncodedLen`)
 	/// Storage: `Funding::ProjectsMetadata` (r:1 w:0)
-	/// Proof: `Funding::ProjectsMetadata` (`max_values`: None, `max_size`: Some(502), added: 2977, mode: `MaxEncodedLen`)
+	/// Proof: `Funding::ProjectsMetadata` (`max_values`: None, `max_size`: Some(437), added: 2912, mode: `MaxEncodedLen`)
 	/// Storage: `Funding::ProjectsDetails` (r:1 w:0)
-	/// Proof: `Funding::ProjectsDetails` (`max_values`: None, `max_size`: Some(342), added: 2817, mode: `MaxEncodedLen`)
+	/// Proof: `Funding::ProjectsDetails` (`max_values`: None, `max_size`: Some(347), added: 2822, mode: `MaxEncodedLen`)
 	/// Storage: `Funding::Buckets` (r:1 w:1)
 	/// Proof: `Funding::Buckets` (`max_values`: None, `max_size`: Some(100), added: 2575, mode: `MaxEncodedLen`)
-	/// Storage: `Funding::BidCounts` (r:1 w:1)
-	/// Proof: `Funding::BidCounts` (`max_values`: None, `max_size`: Some(24), added: 2499, mode: `MaxEncodedLen`)
-	/// Storage: `Funding::Bids` (r:7 w:10)
-	/// Proof: `Funding::Bids` (`max_values`: None, `max_size`: Some(273), added: 2748, mode: `MaxEncodedLen`)
 	/// Storage: `Funding::NextBidId` (r:1 w:1)
 	/// Proof: `Funding::NextBidId` (`max_values`: Some(1), `max_size`: Some(4), added: 499, mode: `MaxEncodedLen`)
+	/// Storage: `Funding::BidBucketBounds` (r:10 w:10)
+	/// Proof: `Funding::BidBucketBounds` (`max_values`: None, `max_size`: Some(60), added: 2535, mode: `MaxEncodedLen`)
 	/// Storage: `Funding::AuctionBoughtUSD` (r:1 w:1)
-	/// Proof: `Funding::AuctionBoughtUSD` (`max_values`: None, `max_size`: Some(110), added: 2585, mode: `MaxEncodedLen`)
+	/// Proof: `Funding::AuctionBoughtUSD` (`max_values`: None, `max_size`: Some(118), added: 2593, mode: `MaxEncodedLen`)
 	/// Storage: `Oracle::Values` (r:2 w:0)
-	/// Proof: `Oracle::Values` (`max_values`: None, `max_size`: Some(36), added: 2511, mode: `MaxEncodedLen`)
+	/// Proof: `Oracle::Values` (`max_values`: None, `max_size`: Some(634), added: 3109, mode: `MaxEncodedLen`)
 	/// Storage: `ForeignAssets::Metadata` (r:1 w:0)
-	/// Proof: `ForeignAssets::Metadata` (`max_values`: None, `max_size`: Some(140), added: 2615, mode: `MaxEncodedLen`)
+	/// Proof: `ForeignAssets::Metadata` (`max_values`: None, `max_size`: Some(738), added: 3213, mode: `MaxEncodedLen`)
 	/// Storage: `Funding::Evaluations` (r:1 w:0)
-	/// Proof: `Funding::Evaluations` (`max_values`: None, `max_size`: Some(254), added: 2729, mode: `MaxEncodedLen`)
+	/// Proof: `Funding::Evaluations` (`max_values`: None, `max_size`: Some(337), added: 2812, mode: `MaxEncodedLen`)
 	/// Storage: `Balances::Holds` (r:1 w:1)
-	/// Proof: `Balances::Holds` (`max_values`: None, `max_size`: Some(1149), added: 3624, mode: `MaxEncodedLen`)
+	/// Proof: `Balances::Holds` (`max_values`: None, `max_size`: Some(175), added: 2650, mode: `MaxEncodedLen`)
 	/// Storage: `ForeignAssets::Asset` (r:1 w:1)
-	/// Proof: `ForeignAssets::Asset` (`max_values`: None, `max_size`: Some(210), added: 2685, mode: `MaxEncodedLen`)
+	/// Proof: `ForeignAssets::Asset` (`max_values`: None, `max_size`: Some(808), added: 3283, mode: `MaxEncodedLen`)
 	/// Storage: `ForeignAssets::Account` (r:2 w:2)
-	/// Proof: `ForeignAssets::Account` (`max_values`: None, `max_size`: Some(134), added: 2609, mode: `MaxEncodedLen`)
-	/// The range of component `x` is `[0, 6]`.
-	/// The range of component `y` is `[0, 10]`.
-	fn bid(x: u32, y: u32, ) -> Weight {
+	/// Proof: `ForeignAssets::Account` (`max_values`: None, `max_size`: Some(732), added: 3207, mode: `MaxEncodedLen`)
+	/// Storage: `Funding::CTAmountOversubscribed` (r:1 w:1)
+	/// Proof: `Funding::CTAmountOversubscribed` (`max_values`: None, `max_size`: Some(36), added: 2511, mode: `MaxEncodedLen`)
+	/// Storage: `Funding::Bids` (r:0 w:10)
+	/// Proof: `Funding::Bids` (`max_values`: None, `max_size`: Some(309), added: 2784, mode: `MaxEncodedLen`)
+	/// The range of component `x` is `[1, 10]`.
+	fn bid(x: u32, ) -> Weight {
 		// Proof Size summary in bytes:
-		//  Measured:  `2870 + x * (192 ±0)`
-		//  Estimated: `6208 + x * (2748 ±0)`
-		// Minimum execution time: 279_441_000 picoseconds.
-		Weight::from_parts(215_188_573, 6208)
-			// Standard Error: 264_218
-			.saturating_add(Weight::from_parts(3_406_167, 0).saturating_mul(x.into()))
-			// Standard Error: 165_665
-			.saturating_add(Weight::from_parts(71_144_235, 0).saturating_mul(y.into()))
-			.saturating_add(T::DbWeight::get().reads(16_u64))
+		//  Measured:  `2890`
+		//  Estimated: `7404 + x * (2535 ±0)`
+		// Minimum execution time: 184_000_000 picoseconds.
+		Weight::from_parts(139_444_380, 7404)
+			// Standard Error: 76_200
+			.saturating_add(Weight::from_parts(59_216_258, 0).saturating_mul(x.into()))
+			.saturating_add(T::DbWeight::get().reads(15_u64))
 			.saturating_add(T::DbWeight::get().reads((1_u64).saturating_mul(x.into())))
 			.saturating_add(T::DbWeight::get().writes(8_u64))
-			.saturating_add(T::DbWeight::get().writes((1_u64).saturating_mul(y.into())))
-			.saturating_add(Weight::from_parts(0, 2748).saturating_mul(x.into()))
+			.saturating_add(T::DbWeight::get().writes((2_u64).saturating_mul(x.into())))
+			.saturating_add(Weight::from_parts(0, 2535).saturating_mul(x.into()))
+	}
+	/// Storage: `Funding::ProjectsMetadata` (r:1 w:0)
+	/// Proof: `Funding::ProjectsMetadata` (`max_values`: None, `max_size`: Some(437), added: 2912, mode: `MaxEncodedLen`)
+	/// Storage: `Funding::Buckets` (r:1 w:0)
+	/// Proof: `Funding::Buckets` (`max_values`: None, `max_size`: Some(100), added: 2575, mode: `MaxEncodedLen`)
+	/// Storage: `Funding::OutbidBidsCutoff` (r:1 w:1)
+	/// Proof: `Funding::OutbidBidsCutoff` (`max_values`: None, `max_size`: Some(40), added: 2515, mode: `MaxEncodedLen`)
+	/// Storage: `Funding::CTAmountOversubscribed` (r:1 w:1)
+	/// Proof: `Funding::CTAmountOversubscribed` (`max_values`: None, `max_size`: Some(36), added: 2511, mode: `MaxEncodedLen`)
+	/// Storage: `Funding::Bids` (r:2 w:1)
+	/// Proof: `Funding::Bids` (`max_values`: None, `max_size`: Some(309), added: 2784, mode: `MaxEncodedLen`)
+	/// Storage: `Funding::BidBucketBounds` (r:1 w:0)
+	/// Proof: `Funding::BidBucketBounds` (`max_values`: None, `max_size`: Some(60), added: 2535, mode: `MaxEncodedLen`)
+	fn process_next_oversubscribed_bid() -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `1630`
+		//  Estimated: `6558`
+		// Minimum execution time: 29_000_000 picoseconds.
+		Weight::from_parts(30_000_000, 6558)
+			.saturating_add(T::DbWeight::get().reads(7_u64))
+			.saturating_add(T::DbWeight::get().writes(3_u64))
 	}
 	/// Storage: `Funding::ProjectsMetadata` (r:1 w:0)
 	/// Proof: `Funding::ProjectsMetadata` (`max_values`: None, `max_size`: Some(502), added: 2977, mode: `MaxEncodedLen`)
@@ -760,48 +781,68 @@ impl WeightInfo for () {
 	/// Storage: `Timestamp::Now` (r:1 w:0)
 	/// Proof: `Timestamp::Now` (`max_values`: Some(1), `max_size`: Some(8), added: 503, mode: `MaxEncodedLen`)
 	/// Storage: `Funding::ProjectsMetadata` (r:1 w:0)
-	/// Proof: `Funding::ProjectsMetadata` (`max_values`: None, `max_size`: Some(502), added: 2977, mode: `MaxEncodedLen`)
+	/// Proof: `Funding::ProjectsMetadata` (`max_values`: None, `max_size`: Some(437), added: 2912, mode: `MaxEncodedLen`)
 	/// Storage: `Funding::ProjectsDetails` (r:1 w:0)
-	/// Proof: `Funding::ProjectsDetails` (`max_values`: None, `max_size`: Some(342), added: 2817, mode: `MaxEncodedLen`)
+	/// Proof: `Funding::ProjectsDetails` (`max_values`: None, `max_size`: Some(347), added: 2822, mode: `MaxEncodedLen`)
 	/// Storage: `Funding::Buckets` (r:1 w:1)
 	/// Proof: `Funding::Buckets` (`max_values`: None, `max_size`: Some(100), added: 2575, mode: `MaxEncodedLen`)
-	/// Storage: `Funding::BidCounts` (r:1 w:1)
-	/// Proof: `Funding::BidCounts` (`max_values`: None, `max_size`: Some(24), added: 2499, mode: `MaxEncodedLen`)
-	/// Storage: `Funding::Bids` (r:7 w:10)
-	/// Proof: `Funding::Bids` (`max_values`: None, `max_size`: Some(273), added: 2748, mode: `MaxEncodedLen`)
 	/// Storage: `Funding::NextBidId` (r:1 w:1)
 	/// Proof: `Funding::NextBidId` (`max_values`: Some(1), `max_size`: Some(4), added: 499, mode: `MaxEncodedLen`)
+	/// Storage: `Funding::BidBucketBounds` (r:10 w:10)
+	/// Proof: `Funding::BidBucketBounds` (`max_values`: None, `max_size`: Some(60), added: 2535, mode: `MaxEncodedLen`)
 	/// Storage: `Funding::AuctionBoughtUSD` (r:1 w:1)
-	/// Proof: `Funding::AuctionBoughtUSD` (`max_values`: None, `max_size`: Some(110), added: 2585, mode: `MaxEncodedLen`)
+	/// Proof: `Funding::AuctionBoughtUSD` (`max_values`: None, `max_size`: Some(118), added: 2593, mode: `MaxEncodedLen`)
 	/// Storage: `Oracle::Values` (r:2 w:0)
-	/// Proof: `Oracle::Values` (`max_values`: None, `max_size`: Some(36), added: 2511, mode: `MaxEncodedLen`)
+	/// Proof: `Oracle::Values` (`max_values`: None, `max_size`: Some(634), added: 3109, mode: `MaxEncodedLen`)
 	/// Storage: `ForeignAssets::Metadata` (r:1 w:0)
-	/// Proof: `ForeignAssets::Metadata` (`max_values`: None, `max_size`: Some(140), added: 2615, mode: `MaxEncodedLen`)
+	/// Proof: `ForeignAssets::Metadata` (`max_values`: None, `max_size`: Some(738), added: 3213, mode: `MaxEncodedLen`)
 	/// Storage: `Funding::Evaluations` (r:1 w:0)
-	/// Proof: `Funding::Evaluations` (`max_values`: None, `max_size`: Some(254), added: 2729, mode: `MaxEncodedLen`)
+	/// Proof: `Funding::Evaluations` (`max_values`: None, `max_size`: Some(337), added: 2812, mode: `MaxEncodedLen`)
 	/// Storage: `Balances::Holds` (r:1 w:1)
-	/// Proof: `Balances::Holds` (`max_values`: None, `max_size`: Some(1149), added: 3624, mode: `MaxEncodedLen`)
+	/// Proof: `Balances::Holds` (`max_values`: None, `max_size`: Some(175), added: 2650, mode: `MaxEncodedLen`)
 	/// Storage: `ForeignAssets::Asset` (r:1 w:1)
-	/// Proof: `ForeignAssets::Asset` (`max_values`: None, `max_size`: Some(210), added: 2685, mode: `MaxEncodedLen`)
+	/// Proof: `ForeignAssets::Asset` (`max_values`: None, `max_size`: Some(808), added: 3283, mode: `MaxEncodedLen`)
 	/// Storage: `ForeignAssets::Account` (r:2 w:2)
-	/// Proof: `ForeignAssets::Account` (`max_values`: None, `max_size`: Some(134), added: 2609, mode: `MaxEncodedLen`)
-	/// The range of component `x` is `[0, 6]`.
-	/// The range of component `y` is `[0, 10]`.
-	fn bid(x: u32, y: u32, ) -> Weight {
+	/// Proof: `ForeignAssets::Account` (`max_values`: None, `max_size`: Some(732), added: 3207, mode: `MaxEncodedLen`)
+	/// Storage: `Funding::CTAmountOversubscribed` (r:1 w:1)
+	/// Proof: `Funding::CTAmountOversubscribed` (`max_values`: None, `max_size`: Some(36), added: 2511, mode: `MaxEncodedLen`)
+	/// Storage: `Funding::Bids` (r:0 w:10)
+	/// Proof: `Funding::Bids` (`max_values`: None, `max_size`: Some(309), added: 2784, mode: `MaxEncodedLen`)
+	/// The range of component `x` is `[1, 10]`.
+	fn bid(x: u32, ) -> Weight {
 		// Proof Size summary in bytes:
-		//  Measured:  `2870 + x * (192 ±0)`
-		//  Estimated: `6208 + x * (2748 ±0)`
-		// Minimum execution time: 279_441_000 picoseconds.
-		Weight::from_parts(215_188_573, 6208)
-			// Standard Error: 264_218
-			.saturating_add(Weight::from_parts(3_406_167, 0).saturating_mul(x.into()))
-			// Standard Error: 165_665
-			.saturating_add(Weight::from_parts(71_144_235, 0).saturating_mul(y.into()))
-			.saturating_add(RocksDbWeight::get().reads(16_u64))
+		//  Measured:  `2890`
+		//  Estimated: `7404 + x * (2535 ±0)`
+		// Minimum execution time: 184_000_000 picoseconds.
+		Weight::from_parts(139_444_380, 7404)
+			// Standard Error: 76_200
+			.saturating_add(Weight::from_parts(59_216_258, 0).saturating_mul(x.into()))
+			.saturating_add(RocksDbWeight::get().reads(15_u64))
 			.saturating_add(RocksDbWeight::get().reads((1_u64).saturating_mul(x.into())))
 			.saturating_add(RocksDbWeight::get().writes(8_u64))
-			.saturating_add(RocksDbWeight::get().writes((1_u64).saturating_mul(y.into())))
-			.saturating_add(Weight::from_parts(0, 2748).saturating_mul(x.into()))
+			.saturating_add(RocksDbWeight::get().writes((2_u64).saturating_mul(x.into())))
+			.saturating_add(Weight::from_parts(0, 2535).saturating_mul(x.into()))
+	}
+	/// Storage: `Funding::ProjectsMetadata` (r:1 w:0)
+	/// Proof: `Funding::ProjectsMetadata` (`max_values`: None, `max_size`: Some(437), added: 2912, mode: `MaxEncodedLen`)
+	/// Storage: `Funding::Buckets` (r:1 w:0)
+	/// Proof: `Funding::Buckets` (`max_values`: None, `max_size`: Some(100), added: 2575, mode: `MaxEncodedLen`)
+	/// Storage: `Funding::OutbidBidsCutoff` (r:1 w:1)
+	/// Proof: `Funding::OutbidBidsCutoff` (`max_values`: None, `max_size`: Some(40), added: 2515, mode: `MaxEncodedLen`)
+	/// Storage: `Funding::CTAmountOversubscribed` (r:1 w:1)
+	/// Proof: `Funding::CTAmountOversubscribed` (`max_values`: None, `max_size`: Some(36), added: 2511, mode: `MaxEncodedLen`)
+	/// Storage: `Funding::Bids` (r:2 w:1)
+	/// Proof: `Funding::Bids` (`max_values`: None, `max_size`: Some(309), added: 2784, mode: `MaxEncodedLen`)
+	/// Storage: `Funding::BidBucketBounds` (r:1 w:0)
+	/// Proof: `Funding::BidBucketBounds` (`max_values`: None, `max_size`: Some(60), added: 2535, mode: `MaxEncodedLen`)
+	fn process_next_oversubscribed_bid() -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `1630`
+		//  Estimated: `6558`
+		// Minimum execution time: 29_000_000 picoseconds.
+		Weight::from_parts(30_000_000, 6558)
+			.saturating_add(RocksDbWeight::get().reads(7_u64))
+			.saturating_add(RocksDbWeight::get().writes(3_u64))
 	}
 	/// Storage: `Funding::ProjectsMetadata` (r:1 w:0)
 	/// Proof: `Funding::ProjectsMetadata` (`max_values`: None, `max_size`: Some(502), added: 2977, mode: `MaxEncodedLen`)

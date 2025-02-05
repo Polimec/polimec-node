@@ -20,9 +20,7 @@
 
 use super::*;
 use crate as pallet_funding;
-use crate::runtime_api::{
-	ExtrinsicHelpers, Leaderboards, ProjectInformation, ProjectParticipationIds, UserInformation,
-};
+use crate::runtime_api::{ExtrinsicHelpers, Leaderboards, ProjectInformation, UserInformation};
 use alloc::string::String;
 use core::ops::RangeInclusive;
 use frame_support::{
@@ -42,12 +40,13 @@ use sp_core::{
 	crypto::{Ss58AddressFormat, Ss58Codec},
 	ConstU8, H256,
 };
+
 use sp_runtime::{
 	traits::{BlakeTwo256, Convert, ConvertBack, ConvertInto, Get, IdentityLookup, TryConvert},
 	BuildStorage, Perquintill,
 };
 use sp_std::collections::btree_map::BTreeMap;
-use std::cell::RefCell;
+use std::{cell::RefCell, marker::PhantomData};
 use system::EnsureSigned;
 use xcm::v4::PalletInfo as XcmPalletInfo;
 use xcm_builder::{EnsureXcmOrigin, FixedWeightBounds, ParentIsPreset, SiblingParachainConvertsVia};
@@ -417,12 +416,7 @@ impl Config for TestRuntime {
 	type FundingCurrency = ForeignAssets;
 	type FundingSuccessThreshold = FundingSuccessThreshold;
 	type InvestorOrigin = EnsureInvestor<TestRuntime>;
-	type MaxBidsPerProject = ConstU32<512>;
-	type MaxBidsPerUser = ConstU32<25>;
 	type MaxCapacityThresholds = MaxCapacityThresholds;
-	type MaxContributionsPerUser = ConstU32<25>;
-	type MaxEvaluationsPerProject = ConstU32<512>;
-	type MaxEvaluationsPerUser = ConstU32<4>;
 	type MaxMessageSizeThresholds = MaxMessageSizeThresholds;
 	type MinUsdPerEvaluation = MinUsdPerEvaluation;
 	type Multiplier = Multiplier;
@@ -559,10 +553,6 @@ sp_api::mock_impl_runtime_apis! {
 			PolimecFunding::top_bids(project_id, amount)
 		}
 
-		fn top_contributions(project_id: ProjectId, amount: u32) -> Vec<ContributionInfoOf<TestRuntime>> {
-			PolimecFunding::top_contributions(project_id, amount)
-		}
-
 		fn top_projects_by_usd_raised(amount: u32) -> Vec<(ProjectId, ProjectMetadataOf<TestRuntime>, ProjectDetailsOf<TestRuntime>)> {
 			PolimecFunding::top_projects_by_usd_raised(amount)
 		}
@@ -575,10 +565,6 @@ sp_api::mock_impl_runtime_apis! {
 	impl UserInformation<Block, TestRuntime> for TestRuntime {
 		fn contribution_tokens(account: AccountId) -> Vec<(ProjectId, Balance)> {
 			PolimecFunding::contribution_tokens(account)
-		}
-
-		fn all_project_participations_by_did(project_id: ProjectId, did: Did) -> Vec<ProjectParticipationIds<TestRuntime>> {
-			PolimecFunding::all_project_participations_by_did(project_id, did)
 		}
 	}
 
@@ -616,7 +602,5 @@ sp_api::mock_impl_runtime_apis! {
 		fn get_message_to_sign_by_receiving_account(project_id: ProjectId, polimec_account: AccountId) -> Option<String> {
 			PolimecFunding::get_message_to_sign_by_receiving_account(project_id, polimec_account)
 		}
-
-
 	}
 }
