@@ -59,9 +59,9 @@ use polimec_common::{
 use polkadot_runtime_common::{BlockHashCount, CurrencyToVote, SlowAdjustingFeeUpdate};
 use shared_configuration::proxy;
 use sp_api::impl_runtime_apis;
-use sp_core::{crypto::KeyTypeId, ConstU128, ConstU64, ConstU8, OpaqueMetadata};
+use sp_core::{crypto::KeyTypeId, ConstU64, ConstU8, OpaqueMetadata};
 use sp_runtime::{
-	create_runtime_str, generic, impl_opaque_keys,
+	generic, impl_opaque_keys,
 	traits::{
 		AccountIdConversion, AccountIdLookup, BlakeTwo256, Block as BlockT, Convert, ConvertBack, ConvertInto,
 		IdentifyAccount, IdentityLookup, OpaqueKeys, Verify,
@@ -94,12 +94,12 @@ pub use sp_runtime::{MultiAddress, Perbill, Permill};
 #[cfg(feature = "std")]
 use sp_version::NativeVersion;
 
-use alloc::string::String;
+use alloc::{borrow::Cow, string::String};
 use sp_core::crypto::Ss58Codec;
 #[cfg(any(feature = "std", test))]
 pub use sp_runtime::BuildStorage;
 #[cfg(feature = "runtime-benchmarks")]
-use xcm::v5::{Junction::Parachain, Parent, ParentThen};
+use xcm::v5::{Junction::Parachain, ParentThen};
 use xcm::{v5::Location, VersionedAssetId};
 
 #[cfg(feature = "runtime-benchmarks")]
@@ -169,6 +169,7 @@ pub type TxExtension = (
 	frame_system::CheckTxVersion<Runtime>,
 	frame_system::CheckGenesis<Runtime>,
 	frame_system::CheckEra<Runtime>,
+	// TODO: uncomment and fix this,
 	// pallet_dispenser::extensions::CheckNonce<Runtime>,
 	frame_system::CheckWeight<Runtime>,
 	pallet_skip_feeless_payment::SkipCheckIfFeeless<Runtime, pallet_asset_tx_payment::ChargeAssetTxPayment<Runtime>>,
@@ -240,8 +241,8 @@ impl_opaque_keys! {
 
 #[sp_version::runtime_version]
 pub const VERSION: RuntimeVersion = RuntimeVersion {
-	spec_name: create_runtime_str!("polimec-mainnet"),
-	impl_name: create_runtime_str!("polimec-mainnet"),
+	spec_name: Cow::Borrowed("polimec-mainnet"),
+	impl_name: Cow::Borrowed("polimec-mainnet"),
 	authoring_version: 1,
 	spec_version: 1_000_000,
 	impl_version: 0,
@@ -405,7 +406,7 @@ impl frame_system::Config for Runtime {
 	type SS58Prefix = SS58Prefix;
 	type SingleBlockMigrations = ();
 	/// Weight information for the extrinsics of this pallet.
-	type SystemWeightInfo = frame_system::weights::SubstrateWeight<Runtime>;
+	type SystemWeightInfo = weights::frame_system::WeightInfo<Runtime>;
 	/// Runtime version.
 	type Version = Version;
 }
@@ -490,7 +491,7 @@ impl pallet_assets::Config<ForeignAssetsInstance> for Runtime {
 	type RemoveItemsLimit = frame_support::traits::ConstU32<1000>;
 	type RuntimeEvent = RuntimeEvent;
 	type StringLimit = AssetsStringLimit;
-	type WeightInfo = pallet_assets::weights::SubstrateWeight<Runtime>;
+	type WeightInfo = weights::pallet_assets::WeightInfo<Runtime>;
 }
 
 type ConsensusHook = cumulus_pallet_aura_ext::FixedVelocityConsensusHook<
@@ -648,7 +649,7 @@ impl pallet_treasury::Config for Runtime {
 	type SpendFunds = ();
 	type SpendOrigin = SpendOrigin;
 	type SpendPeriod = SpendPeriod;
-	type WeightInfo = pallet_treasury::weights::SubstrateWeight<Runtime>;
+	type WeightInfo = weights::pallet_treasury::WeightInfo<Runtime>;
 }
 
 type CouncilCollective = pallet_collective::Instance1;
@@ -671,7 +672,7 @@ impl pallet_collective::Config<CouncilCollective> for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type RuntimeOrigin = RuntimeOrigin;
 	type SetMembersOrigin = EnsureRoot<AccountId>;
-	type WeightInfo = ();
+	type WeightInfo = weights::pallet_collective::WeightInfo<Runtime>;
 }
 
 type TechnicalCollective = pallet_collective::Instance2;
@@ -694,7 +695,7 @@ impl pallet_collective::Config<TechnicalCollective> for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type RuntimeOrigin = RuntimeOrigin;
 	type SetMembersOrigin = EnsureRoot<AccountId>;
-	type WeightInfo = ();
+	type WeightInfo = weights::pallet_collective::WeightInfo<Runtime>;
 }
 
 impl pallet_elections_phragmen::Config for Runtime {
@@ -932,7 +933,7 @@ where
 		call: RuntimeCall,
 		public: <Signature as Verify>::Signer,
 		account: AccountId,
-		nonce: <Runtime as frame_system::Config>::Nonce,
+		_nonce: <Runtime as frame_system::Config>::Nonce,
 	) -> Option<UncheckedExtrinsic> {
 		use sp_runtime::traits::StaticLookup;
 		// take the biggest period possible.
@@ -1039,9 +1040,9 @@ impl pallet_identity::Config for Runtime {
 	type Slashed = Treasury;
 	type SubAccountDeposit = SubAccountDeposit;
 	type UsernameAuthorityOrigin = UsernameAuthorityOrigin;
-	type UsernameDeposit = ConstU128<100>;
-	type UsernameGracePeriod = ConstU32<10>;
-	type WeightInfo = pallet_identity::weights::SubstrateWeight<Runtime>;
+	type UsernameDeposit = UsernameDeposit;
+	type UsernameGracePeriod = UsernameGracePeriod;
+	type WeightInfo = weights::pallet_identity::WeightInfo<Runtime>;
 }
 
 pub type ContributionTokensInstance = pallet_assets::Instance1;
