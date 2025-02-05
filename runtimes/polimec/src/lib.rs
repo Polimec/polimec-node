@@ -73,7 +73,7 @@ use sp_std::{cmp::Ordering, prelude::*};
 use sp_version::RuntimeVersion;
 
 // XCM Imports
-use xcm::{VersionedAssets, VersionedLocation, VersionedXcm};
+use xcm::{v3::MultiLocation, VersionedAssets, VersionedLocation, VersionedXcm};
 use xcm_config::{PriceForSiblingParachainDelivery, XcmOriginToTransactDispatchOrigin};
 use xcm_runtime_apis::{
 	dry_run::{CallDryRunEffects, Error as XcmDryRunApiError, XcmDryRunEffects},
@@ -1231,6 +1231,8 @@ impl ConversionToAssetBalance<Balance, Location, Balance> for PLMCToFundingAsset
 	}
 }
 impl pallet_asset_tx_payment::Config for Runtime {
+	#[cfg(feature = "runtime-benchmarks")]
+	type BenchmarkHelper = AssetTxHelper;
 	type Fungibles = ForeignAssets;
 	type OnChargeAssetTransaction = TxFeeFungiblesAdapter<
 		PLMCToFundingAssetBalance,
@@ -1239,6 +1241,20 @@ impl pallet_asset_tx_payment::Config for Runtime {
 	>;
 	type RuntimeEvent = RuntimeEvent;
 	type WeightInfo = ();
+}
+
+#[cfg(feature = "runtime-benchmarks")]
+pub struct AssetTxHelper;
+
+#[cfg(feature = "runtime-benchmarks")]
+impl pallet_asset_tx_payment::BenchmarkHelperTrait<AccountId, Location, MultiLocation> for AssetTxHelper {
+	fn create_asset_id_parameter(_id: u32) -> (Location, MultiLocation) {
+		unimplemented!("Penpal uses default weights");
+	}
+
+	fn setup_balances_and_pool(_asset_id: Location, _account: AccountId) {
+		unimplemented!("Penpal uses default weights");
+	}
 }
 
 impl pallet_skip_feeless_payment::Config for Runtime {
