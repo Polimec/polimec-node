@@ -73,7 +73,7 @@ macros-tests = { path = "macros/tests" }
 # External pallets (with default disabled)
 # TODO: use orml crates `version = "1.2.2"` when it's released https://github.com/open-web3-stack/open-runtime-module-library/issues/1019
 orml-oracle = { git = "https://github.com/dastansam/open-runtime-module-library.git", rev = "f0513066a052950f103cfe70886d4816ca791ba1", default-features = false }
-orml-traits = { git = "https://github.com/dastansam/open-runtime-module-library.git", default-features = false }
+orml-traits = { git = "https://github.com/dastansam/open-runtime-module-library.git", rev = "f0513066a052950f103cfe70886d4816ca791ba1", default-features = false }
 jwt-compact = { package = "jwt-compact-frame", git = "https://github.com/lrazovic/jwt-compact", default-features = false }
 
 # Internal support (with default disabled)

@@ -7139,8 +7139,8 @@ dependencies = [
  "frame-benchmarking",
  "frame-support",
  "frame-system",
- "orml-traits 1.2.1 (git+https://github.com/dastansam/open-runtime-module-library.git?rev=f0513066a052950f103cfe70886d4816ca791ba1)",
- "orml-utilities 1.2.1 (git+https://github.com/dastansam/open-runtime-module-library.git?rev=f0513066a052950f103cfe70886d4816ca791ba1)",
+ "orml-traits",
+ "orml-utilities",
  "parity-scale-codec",
  "scale-info",
  "serde",
@@ -7158,27 +7158,7 @@ dependencies = [
  "frame-support",
  "impl-trait-for-tuples",
  "num-traits",
- "orml-utilities 1.2.1 (git+https://github.com/dastansam/open-runtime-module-library.git?rev=f0513066a052950f103cfe70886d4816ca791ba1)",
- "parity-scale-codec",
- "paste",
- "scale-info",
- "serde",
- "sp-core",
- "sp-io",
- "sp-runtime",
- "sp-std",
- "staging-xcm",
-]
-
-[[package]]
-name = "orml-traits"
-version = "1.2.1"
-source = "git+https://github.com/dastansam/open-runtime-module-library.git#f0513066a052950f103cfe70886d4816ca791ba1"
-dependencies = [
- "frame-support",
- "impl-trait-for-tuples",
- "num-traits",
- "orml-utilities 1.2.1 (git+https://github.com/dastansam/open-runtime-module-library.git)",
+ "orml-utilities",
  "parity-scale-codec",
  "paste",
  "scale-info",
@@ -7194,21 +7174,6 @@ dependencies = [
 name = "orml-utilities"
 version = "1.2.1"
 source = "git+https://github.com/dastansam/open-runtime-module-library.git?rev=f0513066a052950f103cfe70886d4816ca791ba1#f0513066a052950f103cfe70886d4816ca791ba1"
-dependencies = [
- "frame-support",
- "parity-scale-codec",
- "scale-info",
- "serde",
- "sp-core",
- "sp-io",
- "sp-runtime",
- "sp-std",
-]
-
-[[package]]
-name = "orml-utilities"
-version = "1.2.1"
-source = "git+https://github.com/dastansam/open-runtime-module-library.git#f0513066a052950f103cfe70886d4816ca791ba1"
 dependencies = [
  "frame-support",
  "parity-scale-codec",
@@ -13533,7 +13498,7 @@ version = "0.9.0"
 dependencies = [
  "frame-support",
  "frame-system",
- "orml-traits 1.2.1 (git+https://github.com/dastansam/open-runtime-module-library.git)",
+ "orml-traits",
  "pallet-asset-tx-payment",
  "pallet-authorship",
  "pallet-balances",
