@@ -59,7 +59,7 @@ use polimec_common::{
 use polkadot_runtime_common::{BlockHashCount, CurrencyToVote, SlowAdjustingFeeUpdate};
 use shared_configuration::proxy;
 use sp_api::impl_runtime_apis;
-use sp_core::{crypto::KeyTypeId, ConstU64, ConstU8, OpaqueMetadata};
+use sp_core::{crypto::KeyTypeId, ConstU128, ConstU64, ConstU8, OpaqueMetadata};
 use sp_runtime::{
 	create_runtime_str, generic, impl_opaque_keys,
 	traits::{
@@ -75,7 +75,7 @@ use sp_version::RuntimeVersion;
 // XCM Imports
 use xcm::{VersionedAssets, VersionedLocation, VersionedXcm};
 use xcm_config::{PriceForSiblingParachainDelivery, XcmOriginToTransactDispatchOrigin};
-use xcm_fee_payment_runtime_api::{
+use xcm_runtime_apis::{
 	dry_run::{CallDryRunEffects, Error as XcmDryRunApiError, XcmDryRunEffects},
 	fees::Error as XcmPaymentApiError,
 };
@@ -98,12 +98,9 @@ use alloc::string::String;
 use sp_core::crypto::Ss58Codec;
 #[cfg(any(feature = "std", test))]
 pub use sp_runtime::BuildStorage;
-use xcm::{
-	v4::{Location},
-	VersionedAssetId,
-};
 #[cfg(feature = "runtime-benchmarks")]
-use xcm::{{v4::{ParentThen, Parent, Junction::Parachain}}};
+use xcm::v5::{Junction::Parachain, Parent, ParentThen};
+use xcm::{v4::Location, VersionedAssetId};
 
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmark_helpers;
@@ -234,7 +231,8 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 6,
-	state_version: 1,
+	// TODO: maybe bump to 2?
+	system_version: 1,
 };
 
 /// The version information used to identify this runtime when compiled natively.
@@ -356,6 +354,8 @@ impl frame_system::Config for Runtime {
 	type BlockWeights = RuntimeBlockWeights;
 	/// The weight of database operations that the runtime can invoke.
 	type DbWeight = RocksDbWeight;
+	/// Extension weight info
+	type ExtensionsWeightInfo = ();
 	/// The type for hashing blocks and tries.
 	type Hash = Hash;
 	/// The hashing algorithm used.
@@ -419,6 +419,7 @@ impl tokens::imbalance::OnUnbalanced<CreditOf<Runtime>> for DustRemovalAdapter {
 impl pallet_balances::Config for Runtime {
 	type AccountStore = System;
 	type Balance = Balance;
+	type DoneSlashHandler = ();
 	type DustRemoval = DustRemovalAdapter;
 	type ExistentialDeposit = ExistentialDeposit;
 	type FreezeIdentifier = RuntimeFreezeReason;
@@ -438,6 +439,7 @@ impl pallet_transaction_payment::Config for Runtime {
 	type OnChargeTransaction = pallet_transaction_payment::FungibleAdapter<Balances, DealWithFees<Runtime>>;
 	type OperationalFeeMultiplier = frame_support::traits::ConstU8<5>;
 	type RuntimeEvent = RuntimeEvent;
+	type WeightInfo = ();
 	type WeightToFee = WeightToFee;
 }
 
@@ -490,6 +492,8 @@ impl cumulus_pallet_parachain_system::Config for Runtime {
 	type ReservedDmpWeight = ReservedDmpWeight;
 	type ReservedXcmpWeight = ReservedXcmpWeight;
 	type RuntimeEvent = RuntimeEvent;
+	// TODO: review this
+	type SelectCore = cumulus_pallet_parachain_system::DefaultCoreSelector<Runtime>;
 	type SelfParaId = parachain_info::Pallet<Runtime>;
 	type WeightInfo = weights::cumulus_pallet_parachain_system::WeightInfo<Runtime>;
 	type XcmpMessageHandler = XcmpQueue;
@@ -606,27 +610,20 @@ parameter_types! {
 }
 
 impl pallet_treasury::Config for Runtime {
-	type ApproveOrigin = EitherOfDiverse<
-		EnsureRoot<AccountId>,
-		pallet_collective::EnsureProportionAtLeast<AccountId, CouncilCollective, 1, 1>,
-	>;
 	type AssetKind = ();
 	type BalanceConverter = UnityAssetBalanceConversion;
 	#[cfg(feature = "runtime-benchmarks")]
 	type BenchmarkHelper = TreasuryBenchmarkHelper;
 	type Beneficiary = AccountId;
 	type BeneficiaryLookup = IdentityLookup<Self::Beneficiary>;
+	type BlockNumberProvider = System;
 	type Burn = Burn;
 	type BurnDestination = ();
 	type Currency = Balances;
 	type MaxApprovals = MaxApprovals;
-	type OnSlash = Treasury;
 	type PalletId = TreasuryId;
 	type Paymaster = PayFromAccount<Balances, TreasuryAccount>;
 	type PayoutPeriod = PayoutPeriod;
-	type ProposalBond = ProposalBond;
-	type ProposalBondMaximum = ();
-	type ProposalBondMinimum = ProposalBondMinimum;
 	type RejectOrigin = EitherOfDiverse<
 		EnsureRoot<AccountId>,
 		pallet_collective::EnsureProportionAtLeast<AccountId, CouncilCollective, 1, 2>,
@@ -635,12 +632,21 @@ impl pallet_treasury::Config for Runtime {
 	type SpendFunds = ();
 	type SpendOrigin = SpendOrigin;
 	type SpendPeriod = SpendPeriod;
-	type WeightInfo = weights::pallet_treasury::WeightInfo<Runtime>;
+	type WeightInfo = pallet_treasury::weights::SubstrateWeight<Runtime>;
 }
 
 type CouncilCollective = pallet_collective::Instance1;
 impl pallet_collective::Config<CouncilCollective> for Runtime {
+	type Consideration = ();
 	type DefaultVote = pallet_collective::MoreThanMajorityThenPrimeDefaultVote;
+	type DisapproveOrigin = EitherOfDiverse<
+		EnsureRoot<AccountId>,
+		pallet_collective::EnsureProportionAtLeast<AccountId, CouncilCollective, 1, 2>,
+	>;
+	type KillOrigin = EitherOfDiverse<
+		EnsureRoot<AccountId>,
+		pallet_collective::EnsureProportionAtLeast<AccountId, CouncilCollective, 1, 2>,
+	>;
 	type MaxMembers = CouncilMaxMembers;
 	type MaxProposalWeight = MaxCollectivesProposalWeight;
 	type MaxProposals = CouncilMaxProposals;
@@ -654,7 +660,16 @@ impl pallet_collective::Config<CouncilCollective> for Runtime {
 
 type TechnicalCollective = pallet_collective::Instance2;
 impl pallet_collective::Config<TechnicalCollective> for Runtime {
+	type Consideration = ();
 	type DefaultVote = pallet_collective::MoreThanMajorityThenPrimeDefaultVote;
+	type DisapproveOrigin = EitherOfDiverse<
+		EnsureRoot<AccountId>,
+		pallet_collective::EnsureProportionAtLeast<AccountId, CouncilCollective, 1, 2>,
+	>;
+	type KillOrigin = EitherOfDiverse<
+		EnsureRoot<AccountId>,
+		pallet_collective::EnsureProportionAtLeast<AccountId, CouncilCollective, 1, 2>,
+	>;
 	type MaxMembers = TechnicalMaxMembers;
 	type MaxProposalWeight = MaxCollectivesProposalWeight;
 	type MaxProposals = TechnicalMaxProposals;
@@ -897,7 +912,7 @@ impl<LocalCall> frame_system::offchain::CreateSignedTransaction<LocalCall> for R
 where
 	RuntimeCall: From<LocalCall>,
 {
-	fn create_transaction<C: frame_system::offchain::AppCrypto<Self::Public, Self::Signature>>(
+	fn create_signed_transaction<C: frame_system::offchain::AppCrypto<Self::Public, Self::Signature>>(
 		call: RuntimeCall,
 		public: <Signature as Verify>::Signer,
 		account: AccountId,
@@ -1006,7 +1021,9 @@ impl pallet_identity::Config for Runtime {
 	type Slashed = Treasury;
 	type SubAccountDeposit = SubAccountDeposit;
 	type UsernameAuthorityOrigin = UsernameAuthorityOrigin;
-	type WeightInfo = weights::pallet_identity::WeightInfo<Runtime>;
+	type UsernameDeposit = ConstU128<100>;
+	type UsernameGracePeriod = ConstU32<10>;
+	type WeightInfo = pallet_identity::weights::SubstrateWeight<Runtime>;
 }
 
 pub type ContributionTokensInstance = pallet_assets::Instance1;
@@ -1203,6 +1220,7 @@ impl pallet_asset_tx_payment::Config for Runtime {
 		AssetsToBlockAuthor<Runtime, ForeignAssetsInstance>,
 	>;
 	type RuntimeEvent = RuntimeEvent;
+	type WeightInfo = ();
 }
 
 impl pallet_skip_feeless_payment::Config for Runtime {
@@ -1703,7 +1721,7 @@ impl_runtime_apis! {
 		}
 	}
 
-	impl xcm_fee_payment_runtime_api::fees::XcmPaymentApi<Block> for Runtime {
+	impl xcm_runtime_apis::fees::XcmPaymentApi<Block> for Runtime {
 		fn query_acceptable_payment_assets(xcm_version: xcm::Version) -> Result<Vec<VersionedAssetId>, XcmPaymentApiError> {
 			let mut acceptable_assets = AcceptedFundingAsset::all_ids();
 			acceptable_assets.push(Location::here());
@@ -1731,7 +1749,7 @@ impl_runtime_apis! {
 		}
 	}
 
-	impl xcm_fee_payment_runtime_api::dry_run::DryRunApi<Block, RuntimeCall, RuntimeEvent, OriginCaller> for Runtime {
+	impl xcm_runtime_apis::dry_run::DryRunApi<Block, RuntimeCall, RuntimeEvent, OriginCaller> for Runtime {
 		fn dry_run_call(origin: OriginCaller, call: RuntimeCall) -> Result<CallDryRunEffects<RuntimeEvent>, XcmDryRunApiError> {
 			PolkadotXcm::dry_run_call::<Runtime, xcm_config::XcmRouter, OriginCaller, RuntimeCall>(origin, call)
 		}

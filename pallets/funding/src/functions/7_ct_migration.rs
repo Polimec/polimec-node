@@ -1,6 +1,6 @@
 #[allow(clippy::wildcard_imports)]
 use super::*;
-use xcm::v4::MaxPalletNameLen;
+use xcm::v5::{MaxPalletNameLen, SendXcm};
 
 // Offchain migration functions
 impl<T: Config> Pallet<T> {
@@ -129,12 +129,12 @@ impl<T: Config> Pallet<T> {
 			BuyExecution { fees: EXECUTION_DOT.clone(), weight_limit: Unlimited },
 			Transact {
 				origin_kind: OriginKind::Native,
-				require_weight_at_most: MAX_WEIGHT,
+				fallback_max_weight: Some(MAX_WEIGHT),
 				call: accept_channel_relay_call.into(),
 			},
 			Transact {
 				origin_kind: OriginKind::Native,
-				require_weight_at_most: MAX_WEIGHT,
+				fallback_max_weight: Some(MAX_WEIGHT),
 				call: request_channel_relay_call.into(),
 			},
 			RefundSurplus,
@@ -311,7 +311,7 @@ impl<T: Config> Pallet<T> {
 		query_id: QueryId,
 		response: Response,
 	) -> DispatchResult {
-		use xcm::v4::prelude::*;
+		use xcm::v5::prelude::*;
 		// TODO: check if this is too low performance. Maybe we want a new map of query_id -> project_id
 		let (project_id, mut migration_info, mut project_details) = ProjectsDetails::<T>::iter()
 			.find_map(|(project_id, details)| {

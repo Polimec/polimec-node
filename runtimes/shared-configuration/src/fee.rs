@@ -45,7 +45,6 @@ use sp_runtime::{
 	traits::{DispatchInfoOf, Get, One, PostDispatchInfoOf, Zero},
 	transaction_validity::{InvalidTransaction, TransactionValidityError},
 };
-use xcm::v4::Location;
 
 #[allow(clippy::module_name_repetitions)]
 pub struct WeightToFee;
@@ -148,7 +147,7 @@ where
 	<R as frame_system::Config>::AccountId: From<AccountId>,
 	<R as frame_system::Config>::AccountId: Into<AccountId>,
 {
-	fn on_unbalanceds<B>(mut fees_then_tips: impl Iterator<Item = Credit<R::AccountId, pallet_balances::Pallet<R>>>) {
+	fn on_unbalanceds(mut fees_then_tips: impl Iterator<Item = Credit<R::AccountId, pallet_balances::Pallet<R>>>) {
 		if let Some(fees) = fees_then_tips.next() {
 			// for fees, 100% to treasury, 0% to author
 			let mut split = fees.ration(100, 0);
@@ -191,6 +190,42 @@ where
 	type Balance = BalanceOf<Runtime>;
 	type LiquidityInfo = fungibles::Credit<Runtime::AccountId, Runtime::Fungibles>;
 
+	/// Ensure payment of the transaction fees can be withdrawn.
+	///
+	/// Note: The `fee` already includes the `tip`.
+	fn can_withdraw_fee(
+		who: &Runtime::AccountId,
+		_call: &Runtime::RuntimeCall,
+		_info: &DispatchInfoOf<Runtime::RuntimeCall>,
+		asset_id: Self::AssetId,
+		fee: Self::Balance,
+		_tip: Self::Balance,
+	) -> Result<(), TransactionValidityError> {
+		let asset_id: xcm::v4::Location =
+			asset_id.try_into().map_err(|_| TransactionValidityError::Invalid(InvalidTransaction::Payment))?;
+
+		let min_converted_fee = if fee.is_zero() { Zero::zero() } else { One::one() };
+		let converted_fee = Converter::to_asset_balance(fee, asset_id.clone())
+			.map_err(|_| TransactionValidityError::from(InvalidTransaction::Payment))?
+			.max(min_converted_fee);
+
+		// Ensure we can withdraw enough `asset_id` for the swap.
+		match <Runtime::Fungibles as fungibles::Inspect<Runtime::AccountId>>::can_withdraw(
+			asset_id.clone(),
+			who,
+			converted_fee,
+		) {
+			WithdrawConsequence::BalanceLow |
+			WithdrawConsequence::UnknownAsset |
+			WithdrawConsequence::Underflow |
+			WithdrawConsequence::Overflow |
+			WithdrawConsequence::Frozen => return Err(TransactionValidityError::from(InvalidTransaction::Payment)),
+			WithdrawConsequence::Success | WithdrawConsequence::ReducedToZero(_) | WithdrawConsequence::WouldDie => {},
+		};
+
+		Ok(())
+	}
+
 	/// Note: The `fee` already includes the `tip`.
 	fn withdraw_fee(
 		who: &Runtime::AccountId,
@@ -203,7 +238,7 @@ where
 		// We don't know the precision of the underlying asset. Because the converted fee could be
 		// less than one (e.g. 0.5) but gets rounded down by integer division we introduce a minimum
 		// fee.
-		let asset_id: Location =
+		let asset_id: xcm::v4::Location =
 			asset_id.try_into().map_err(|_| TransactionValidityError::Invalid(InvalidTransaction::Payment))?;
 		let min_converted_fee = if fee.is_zero() { Zero::zero() } else { One::one() };
 		let converted_fee = Converter::to_asset_balance(fee, asset_id.clone())

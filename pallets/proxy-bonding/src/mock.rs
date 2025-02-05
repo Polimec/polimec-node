@@ -17,7 +17,7 @@ use sp_runtime::{
 use std::{cell::RefCell, collections::BTreeMap};
 use xcm::{
 	prelude::Parachain,
-	v4::{Location, Parent},
+	v5::{Location, Parent},
 };
 
 pub const NATIVE_DECIMALS: u8 = 10;

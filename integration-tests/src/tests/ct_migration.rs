@@ -319,12 +319,12 @@ fn hrmp_functions_weight_is_under_assumed_maximum() {
 	type WeightInfo = <PolimecRuntime as pallet_funding::Config>::WeightInfo;
 	type XcmWeigher = <polimec_runtime::xcm_config::XcmConfig as xcm_executor::Config>::Weigher;
 
-	let open_channel_message = xcm::v4::Instruction::<PolimecCall>::HrmpNewChannelOpenRequest {
+	let open_channel_message = xcm::v5::Instruction::<PolimecCall>::HrmpNewChannelOpenRequest {
 		sender: 6969,
 		max_message_size: 102_300,
 		max_capacity: 1000,
 	};
-	let channel_accepted_message = xcm::v4::Instruction::<PolimecCall>::HrmpChannelAccepted { recipient: 6969u32 };
+	let channel_accepted_message = xcm::v5::Instruction::<PolimecCall>::HrmpChannelAccepted { recipient: 6969u32 };
 
 	let open_channel_message_real_weight = WeightInfo::do_handle_channel_open_request();
 	let open_channel_message_deducted_weight = XcmWeigher::instr_weight(&open_channel_message).unwrap();

@@ -34,7 +34,7 @@ pub mod pallet {
 	use polkadot_parachain_primitives::primitives::{Id as ParaId, Sibling};
 	use sp_runtime::traits::{AccountIdConversion, Convert};
 	use sp_std::prelude::*;
-	use xcm::v4::Junction::AccountId32;
+	use xcm::v5::Junction::AccountId32;
 
 	type MomentOf<T> = <<T as Config>::Vesting as VestingSchedule<<T as frame_system::Config>::AccountId>>::Moment;
 

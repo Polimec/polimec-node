@@ -219,7 +219,7 @@ impl<T: Config> Pallet<T> {
 		};
 
 		Self::bond_plmc_with_mode(&bidder, project_id, plmc_bond, mode, funding_asset)?;
-		Self::try_funding_asset_hold(&bidder, project_id, funding_asset_amount_locked, funding_asset.id())?;
+		Self::try_funding_asset_hold(&bidder, project_id, funding_asset_amount_locked, funding_asset.id().into())?;
 
 		Bids::<T>::insert((project_id, bidder.clone(), bid_id), &new_bid);
 		NextBidId::<T>::set(bid_id.saturating_add(One::one()));

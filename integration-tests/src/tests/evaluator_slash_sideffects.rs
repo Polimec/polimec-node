@@ -9,7 +9,7 @@ use polimec_common::USD_UNIT;
 use polimec_runtime::PLMC;
 use sp_arithmetic::Perquintill;
 use sp_runtime::{FixedU128, MultiAddress::Id};
-use xcm::v4::Junction;
+use xcm::v5::Junction;
 
 generate_accounts!(STASH, ALICE, BOB, CHARLIE, DAVE, ISSUER);
 

@@ -1,7 +1,7 @@
 use super::*;
 use frame_support::{assert_err, traits::fungibles::Inspect};
 use sp_runtime::bounded_vec;
-use xcm::v4::MaxPalletNameLen;
+use xcm::v5::MaxPalletNameLen;
 
 mod pallet_migration {
 	use super::*;
@@ -150,7 +150,7 @@ mod pallet_migration {
 
 		let module_name: BoundedVec<u8, MaxPalletNameLen> =
 			BoundedVec::try_from("polimec_receiver".as_bytes().to_vec()).unwrap();
-		let pallet_info = xcm::v4::PalletInfo::new(
+		let pallet_info = xcm::v5::PalletInfo::new(
 			// index is used for future `Transact` calls to the pallet for migrating a user
 			69,
 			// Doesn't matter

@@ -98,7 +98,7 @@ use sp_arithmetic::traits::{One, Saturating};
 use sp_runtime::{traits::AccountIdConversion, FixedPointNumber, FixedU128};
 use sp_std::{marker::PhantomData, prelude::*};
 pub use types::*;
-use xcm::v4::{prelude::*, SendXcm};
+use xcm::v5::{prelude::*, Result as XcmResult};
 mod functions;
 pub mod storage_migrations;
 pub mod traits;
@@ -1131,16 +1131,15 @@ pub mod xcm_executor_impl {
 	#[allow(clippy::wildcard_imports)]
 	use super::*;
 	use xcm_executor::traits::{HandleHrmpChannelAccepted, HandleHrmpNewChannelOpenRequest};
-
 	impl<T: Config> HandleHrmpChannelAccepted for Pallet<T> {
 		fn handle(recipient: u32) -> XcmResult {
-			<Pallet<T>>::do_handle_channel_accepted(recipient)
+			<Pallet<T>>::do_handle_channel_accepted(recipient).map_err(|e| e.into())
 		}
 	}
 
 	impl<T: Config> HandleHrmpNewChannelOpenRequest for Pallet<T> {
 		fn handle(sender: u32, max_message_size: u32, max_capacity: u32) -> XcmResult {
-			<Pallet<T>>::do_handle_channel_open_request(sender, max_message_size, max_capacity)
+			<Pallet<T>>::do_handle_channel_open_request(sender, max_message_size, max_capacity).map_err(|e| e.into())
 		}
 	}
 }

@@ -313,7 +313,11 @@ impl<T: Config> Pallet<T> {
 
 		let base_xcm_message: Xcm<()> = Xcm(vec![
 			UnpaidExecution { weight_limit: WeightLimit::Unlimited, check_origin: None },
-			Transact { origin_kind: OriginKind::Native, require_weight_at_most: MAX_WEIGHT, call: encoded_call.into() },
+			Transact {
+				origin_kind: OriginKind::Native,
+				fallback_max_weight: Some(MAX_WEIGHT),
+				call: encoded_call.into(),
+			},
 			ReportTransactStatus(QueryResponseInfo {
 				destination: Parachain(3344).into(),
 				query_id: 0,
@@ -354,7 +358,11 @@ impl<T: Config> Pallet<T> {
 		encoded_call.extend_from_slice(migrations_item.encode().as_slice());
 		Xcm(vec![
 			UnpaidExecution { weight_limit: WeightLimit::Unlimited, check_origin: None },
-			Transact { origin_kind: OriginKind::Native, require_weight_at_most: MAX_WEIGHT, call: encoded_call.into() },
+			Transact {
+				origin_kind: OriginKind::Native,
+				fallback_max_weight: Some(MAX_WEIGHT),
+				call: encoded_call.into(),
+			},
 			ReportTransactStatus(QueryResponseInfo {
 				destination: ParentThen(Parachain(POLIMEC_PARA_ID).into()).into(),
 				query_id,

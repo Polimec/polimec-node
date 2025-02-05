@@ -6,8 +6,8 @@ use frame_support::traits::{
 };
 use polimec_common::assets::AcceptedFundingAsset;
 use sp_arithmetic::FixedU128;
-use xcm::v4::Junctions::X3;
-use xcm_fee_payment_runtime_api::fees::runtime_decl_for_xcm_payment_api::XcmPaymentApiV1;
+use xcm::v5::Junctions::X3;
+use xcm_runtime_apis::fees::runtime_decl_for_xcm_payment_api::XcmPaymentApiV1;
 
 mod xcm_payment_api {
 	use super::*;

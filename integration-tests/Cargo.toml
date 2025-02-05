@@ -79,7 +79,7 @@ pallet-aura.workspace = true
 pallet-session.workspace = true
 pallet-proxy-bonding.workspace = true
 pallet-skip-feeless-payment.workspace = true
-xcm-fee-payment-runtime-api.workspace = true
+xcm-runtime-apis.workspace = true
 hex-literal.workspace = true
 hex.workspace = true
 assets-common.workspace = true
@@ -152,8 +152,9 @@ std = [
 	"rococo-runtime/std",
 	"xcm-builder/std",
 	"xcm-executor/std",
-	"xcm-fee-payment-runtime-api/std",
+	"xcm-runtime-apis/std",
 	"xcm/std",
+	"assets-common/std"
 ]
 development-settings = [ "polimec-runtime/development-settings" ]
 runtime-benchmarks = [
@@ -195,5 +196,7 @@ runtime-benchmarks = [
 	"rococo-runtime/runtime-benchmarks",
 	"xcm-builder/runtime-benchmarks",
 	"xcm-executor/runtime-benchmarks",
-	"xcm-fee-payment-runtime-api/runtime-benchmarks",
+	"xcm-runtime-apis/runtime-benchmarks",
+	"assets-common/runtime-benchmarks",
+	"pallet-transaction-payment/runtime-benchmarks"
 ]

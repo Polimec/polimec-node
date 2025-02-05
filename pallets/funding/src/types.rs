@@ -43,7 +43,7 @@ pub mod config {
 	use super::*;
 	use crate::Balance;
 	use sp_core::parameter_types;
-	use xcm::v4::Location;
+	use xcm::v5::Location;
 
 	#[derive(
 		Clone,
@@ -162,7 +162,7 @@ pub mod storage {
 	#[allow(clippy::wildcard_imports)]
 	use super::*;
 	use crate::Balance;
-	use xcm::v4::Junction;
+	use xcm::v5::Junction;
 
 	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo, Serialize, Deserialize)]
 	pub struct ProjectMetadata<BoundedString, Price: FixedPointNumber, AccountId, Cid> {
@@ -495,7 +495,7 @@ pub mod inner {
 	#[allow(clippy::wildcard_imports)]
 	use super::*;
 	use crate::Balance;
-	use xcm::v4::{Junction, QueryId};
+	use xcm::v5::{Junction, QueryId};
 
 	pub enum MetadataError {
 		/// The minimum price per token is too low.
@@ -821,7 +821,7 @@ pub mod extrinsic {
 	use crate::{AccountIdOf, Balance, Config, ParticipationMode, PriceOf, ProjectDetailsOf, ProjectId, TicketSize};
 	use frame_system::pallet_prelude::BlockNumberFor;
 	use polimec_common::credentials::{Cid, Did, InvestorType};
-	use xcm::v4::Junction;
+	use xcm::v5::Junction;
 
 	pub struct DoBidParams<T: Config> {
 		pub bidder: AccountIdOf<T>,

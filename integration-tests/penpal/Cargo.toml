@@ -60,8 +60,8 @@ sp-session = { workspace = true }
 sp-transaction-pool = { workspace = true }
 sp-version = { workspace = true }
 sp-std = { workspace = true }
-sp-storage = { version = "21.0.0", default-features = false }
-pallet-collator-selection = { version = "16.0.0", default-features = false }
+sp-storage =  { workspace = true }
+pallet-collator-selection =  { workspace = true }
 # Polkadot
 polkadot-primitives = { workspace = true }
 pallet-xcm = { workspace = true }
@@ -83,9 +83,9 @@ cumulus-primitives-utility = { workspace = true }
 parachain-info = { workspace = true }
 parachains-common = { workspace = true }
 polkadot-runtime-parachains = { workspace = true }
-assets-common = { version = "0.14.0", default-features = false }
-testnet-parachains-constants = { version = "7.0.0", default-features = false }
-xcm-fee-payment-runtime-api = { version = "0.4.0", default-features = false }
+assets-common =  { workspace = true }
+testnet-parachains-constants =  { workspace = true }
+xcm-runtime-apis =  { workspace = true }
 
 [features]
 default = [ "std" ]
@@ -147,7 +147,7 @@ std = [
 	"testnet-parachains-constants/std",
 	"xcm-builder/std",
 	"xcm-executor/std",
-	"xcm-fee-payment-runtime-api/std",
+	"xcm-runtime-apis/std",
 	"xcm/std",
 ]
 
@@ -182,7 +182,8 @@ runtime-benchmarks = [
 	"sp-runtime/runtime-benchmarks",
 	"xcm-builder/runtime-benchmarks",
 	"xcm-executor/runtime-benchmarks",
-	"xcm-fee-payment-runtime-api/runtime-benchmarks",
+	"xcm-runtime-apis/runtime-benchmarks",
+	"pallet-transaction-payment/runtime-benchmarks"
 ]
 
 try-runtime = [

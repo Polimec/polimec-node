@@ -49,7 +49,7 @@ use sp_runtime::{
 use sp_std::collections::btree_map::BTreeMap;
 use std::cell::RefCell;
 use system::EnsureSigned;
-use xcm::v4::PalletInfo as XcmPalletInfo;
+use xcm::v5::PalletInfo as XcmPalletInfo;
 use xcm_builder::{EnsureXcmOrigin, FixedWeightBounds, ParentIsPreset, SiblingParachainConvertsVia};
 use xcm_executor::traits::XcmAssetTransfers;
 

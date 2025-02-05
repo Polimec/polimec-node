@@ -41,7 +41,7 @@ use sp_arithmetic::Percent;
 use sp_core::H256;
 use sp_io::hashing::blake2_256;
 use sp_runtime::traits::{Get, Member, TrailingZeroInput, Zero};
-use xcm::v4::MaxPalletNameLen;
+use xcm::v5::MaxPalletNameLen;
 
 const IPFS_CID: &str = "QmbvsJBhQtu9uAGVp7x4H77JkwAQxV7TA6xTfdeALuDiYB";
 const CT_DECIMALS: u8 = 17;

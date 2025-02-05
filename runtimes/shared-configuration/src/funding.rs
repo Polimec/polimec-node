@@ -20,7 +20,7 @@ use polimec_common::{assets::AcceptedFundingAsset, USD_UNIT};
 use sp_arithmetic::{FixedU128, Percent};
 use sp_runtime::Perquintill;
 use sp_std::{collections::btree_map::BTreeMap, vec, vec::Vec};
-use xcm::v4::Location;
+use xcm::v5::Location;
 
 #[cfg(feature = "instant-mode")]
 pub const EVALUATION_ROUND_DURATION: BlockNumber = 7;

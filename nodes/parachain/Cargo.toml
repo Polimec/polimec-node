@@ -94,12 +94,14 @@ runtime-benchmarks = [
 	"polkadot-primitives/runtime-benchmarks",
 	"sc-service/runtime-benchmarks",
 	"sp-runtime/runtime-benchmarks",
+	"polimec-common/runtime-benchmarks"
 ]
 try-runtime = [
 	"pallet-funding/try-runtime",
 	"polimec-runtime/try-runtime",
 	"polkadot-cli/try-runtime",
 	"sp-runtime/try-runtime",
+	"polimec-common/try-runtime"
 ]
 on-chain-release-build = [ "polimec-runtime/on-chain-release-build" ]
 development-settings = [ "polimec-runtime/development-settings" ]
