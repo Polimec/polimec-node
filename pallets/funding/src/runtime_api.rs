@@ -3,30 +3,18 @@ use crate::{traits::BondingRequirementCalculation, *};
 use alloc::{collections::BTreeMap, string::String};
 use frame_support::traits::fungibles::{Inspect, InspectEnumerable};
 use itertools::Itertools;
-use parity_scale_codec::{Decode, Encode};
 use polimec_common::{assets::AcceptedFundingAsset, credentials::InvestorType, ProvideAssetPrice, USD_DECIMALS};
-use scale_info::TypeInfo;
 use sp_core::Get;
 use sp_runtime::traits::Zero;
-#[derive(Debug, Clone, PartialEq, Eq, Encode, Decode, TypeInfo)]
-pub struct ProjectParticipationIds<T: Config> {
-	account: AccountIdOf<T>,
-	evaluation_ids: Vec<u32>,
-	bid_ids: Vec<u32>,
-	contribution_ids: Vec<u32>,
-}
 
 sp_api::decl_runtime_apis! {
-	#[api_version(1)]
+	#[api_version(2)]
 	pub trait Leaderboards<T: Config> {
 		/// Get the top evaluations made for a project by the amount of PLMC bonded
 		fn top_evaluations(project_id: ProjectId, amount: u32) -> Vec<EvaluationInfoOf<T>>;
 
 		/// Get the top bids for a project by the amount of CTs bought.
 		fn top_bids(project_id: ProjectId, amount: u32) -> Vec<BidInfoOf<T>>;
-
-		/// Get the top contributions for a project by the amount of CTs bought.
-		fn top_contributions(project_id: ProjectId, amount: u32) -> Vec<ContributionInfoOf<T>>;
 
 		/// Get the top projects by the absolute USD value raised
 		fn top_projects_by_usd_raised(amount: u32) -> Vec<(ProjectId, ProjectMetadataOf<T>, ProjectDetailsOf<T>)>;
@@ -39,9 +27,6 @@ sp_api::decl_runtime_apis! {
 	pub trait UserInformation<T: Config> {
 		/// Get all the contribution token balances for the participated projects
 		fn contribution_tokens(account: AccountIdOf<T>) -> Vec<(ProjectId, Balance)>;
-
-		/// Get all the project participations made by a single DID.
-		fn all_project_participations_by_did(project_id: ProjectId, did: Did) -> Vec<ProjectParticipationIds<T>>;
 	}
 
 	#[api_version(1)]
@@ -75,7 +60,6 @@ sp_api::decl_runtime_apis! {
 		/// Gets the hex encoded bytes of the message needed to be signed by the receiving account to participate in the project.
 		/// The message will first be prefixed with a blockchain-dependent string, then hashed, and then signed.
 		fn get_message_to_sign_by_receiving_account(project_id: ProjectId, polimec_account: AccountIdOf<T>) -> Option<String>;
-
 	}
 }
 
@@ -89,14 +73,11 @@ impl<T: Config> Pallet<T> {
 
 	pub fn top_bids(project_id: ProjectId, amount: u32) -> Vec<BidInfoOf<T>> {
 		Bids::<T>::iter_prefix_values((project_id,))
-			.sorted_by(|a, b| b.final_ct_amount().cmp(&a.final_ct_amount()))
-			.take(amount as usize)
-			.collect_vec()
-	}
-
-	pub fn top_contributions(project_id: ProjectId, amount: u32) -> Vec<ContributionInfoOf<T>> {
-		Contributions::<T>::iter_prefix_values((project_id,))
-			.sorted_by(|a, b| b.ct_amount.cmp(&a.ct_amount))
+			.sorted_by(|a, b| {
+				let usd_ticket_a = a.original_ct_usd_price.saturating_mul_int(a.original_ct_amount);
+				let usd_ticket_b = b.original_ct_usd_price.saturating_mul_int(b.original_ct_amount);
+				usd_ticket_b.cmp(&usd_ticket_a)
+			})
 			.take(amount as usize)
 			.collect_vec()
 	}
@@ -177,7 +158,7 @@ impl<T: Config> Pallet<T> {
 				let usd_spent = bucket_price.saturating_mul_int(ct_to_buy).max(One::one());
 				usd_to_spend = usd_to_spend.saturating_sub(usd_spent);
 
-				current_bucket.update(ct_to_buy)
+				current_bucket.update(ct_to_buy);
 			}
 		}
 
@@ -225,7 +206,7 @@ impl<T: Config> Pallet<T> {
 				let usd_spent = bucket_price.saturating_mul_int(ct_to_buy).max(One::one());
 				usd_to_spend = usd_to_spend.saturating_sub(usd_spent);
 
-				current_bucket.update(ct_to_buy)
+				current_bucket.update(ct_to_buy);
 			}
 		}
 
@@ -334,47 +315,6 @@ impl<T: Config> Pallet<T> {
 		polimec_account: AccountIdOf<T>,
 	) -> Option<String> {
 		Pallet::<T>::get_substrate_message_to_sign(polimec_account, project_id)
-	}
-
-	pub fn all_project_participations_by_did(project_id: ProjectId, did: Did) -> Vec<ProjectParticipationIds<T>> {
-		let evaluations = Evaluations::<T>::iter_prefix((project_id,))
-			.filter(|((_account_id, _evaluation_id), evaluation)| evaluation.did == did)
-			.map(|((account_id, evaluation_id), _evaluation)| (account_id, evaluation_id))
-			.collect_vec();
-
-		let bids = Bids::<T>::iter_prefix((project_id,))
-			.filter(|((_account_id, _bid_id), bid)| bid.did == did)
-			.map(|((account_id, bid_id), _bid)| (account_id, bid_id))
-			.collect_vec();
-
-		let contributions = Contributions::<T>::iter_prefix((project_id,))
-			.filter(|((_account_id, _contribution_id), contribution)| contribution.did == did)
-			.map(|((account_id, contribution_id), _contribution)| (account_id, contribution_id))
-			.collect_vec();
-
-		#[allow(clippy::type_complexity)]
-		let mut map: BTreeMap<AccountIdOf<T>, (Vec<u32>, Vec<u32>, Vec<u32>)> = BTreeMap::new();
-
-		for (account_id, evaluation_id) in evaluations {
-			map.entry(account_id).or_insert_with(|| (Vec::new(), Vec::new(), Vec::new())).0.push(evaluation_id);
-		}
-
-		for (account_id, bid_id) in bids {
-			map.entry(account_id).or_insert_with(|| (Vec::new(), Vec::new(), Vec::new())).1.push(bid_id);
-		}
-
-		for (account_id, contribution_id) in contributions {
-			map.entry(account_id).or_insert_with(|| (Vec::new(), Vec::new(), Vec::new())).2.push(contribution_id);
-		}
-
-		map.into_iter()
-			.map(|(account, (evaluation_ids, bid_ids, contribution_ids))| ProjectParticipationIds {
-				account,
-				evaluation_ids,
-				bid_ids,
-				contribution_ids,
-			})
-			.collect()
 	}
 
 	pub fn usd_target_percent_reached(project_id: ProjectId) -> FixedU128 {

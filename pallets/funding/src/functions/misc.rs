@@ -80,65 +80,6 @@ impl<T: Config> Pallet<T> {
 		Ok(VestingInfo { total_amount: bonded_amount, amount_per_block, duration })
 	}
 
-	pub fn decide_winning_bids(
-		project_id: ProjectId,
-		auction_allocation_size: Balance,
-		wap: PriceOf<T>,
-	) -> Result<(u32, u32), DispatchError> {
-		let mut bids = Bids::<T>::iter_prefix_values((project_id,)).collect::<Vec<_>>();
-		// temp variable to store the sum of the bids
-		let mut bid_token_amount_sum = Zero::zero();
-		// sort bids by price, and equal prices sorted by id
-		bids.sort_by(|a, b| b.cmp(a));
-		let (accepted_bids, rejected_bids): (Vec<_>, Vec<_>) = bids
-			.into_iter()
-			.map(|mut bid| {
-				let buyable_amount = auction_allocation_size.saturating_sub(bid_token_amount_sum);
-				if buyable_amount.is_zero() {
-					bid.status = BidStatus::Rejected;
-				} else if bid.original_ct_amount <= buyable_amount {
-					bid_token_amount_sum.saturating_accrue(bid.original_ct_amount);
-					bid.status = BidStatus::Accepted;
-					DidWithWinningBids::<T>::mutate(project_id, bid.did.clone(), |flag| {
-						*flag = true;
-					});
-				} else {
-					bid_token_amount_sum.saturating_accrue(buyable_amount);
-					bid.status = BidStatus::PartiallyAccepted(buyable_amount);
-					DidWithWinningBids::<T>::mutate(project_id, bid.did.clone(), |flag| {
-						*flag = true;
-					});
-				}
-				Bids::<T>::insert((project_id, &bid.bidder, &bid.id), &bid);
-				bid
-			})
-			.partition(|bid| matches!(bid.status, BidStatus::Accepted | BidStatus::PartiallyAccepted(..)));
-
-		let accepted_bid_len = accepted_bids.len() as u32;
-		let total_auction_allocation_usd: Balance = accepted_bids
-			.into_iter()
-			.try_fold(Zero::zero(), |acc: Balance, bid: BidInfoOf<T>| {
-				let final_ct_usd_price = if bid.original_ct_usd_price > wap { wap } else { bid.original_ct_usd_price };
-				let final_ct_amount = bid.final_ct_amount();
-				final_ct_usd_price.checked_mul_int(final_ct_amount).and_then(|usd_ticket| acc.checked_add(usd_ticket))
-			})
-			.ok_or(Error::<T>::BadMath)?;
-
-		ProjectsDetails::<T>::mutate(project_id, |maybe_info| -> DispatchResult {
-			if let Some(info) = maybe_info {
-				info.remaining_contribution_tokens.saturating_reduce(bid_token_amount_sum);
-				info.funding_amount_reached_usd.saturating_accrue(total_auction_allocation_usd);
-				info.weighted_average_price = Some(wap);
-
-				Ok(())
-			} else {
-				Err(Error::<T>::ProjectDetailsNotFound.into())
-			}
-		})?;
-
-		Ok((accepted_bid_len, rejected_bids.len() as u32))
-	}
-
 	pub fn bond_plmc_with_mode(
 		who: &T::AccountId,
 		project_id: ProjectId,
@@ -203,7 +144,7 @@ impl<T: Config> Pallet<T> {
 	// Calculate the total fee allocation for a project, based on the funding reached.
 	fn calculate_fee_allocation(project_id: ProjectId) -> Result<Balance, DispatchError> {
 		let project_metadata = ProjectsMetadata::<T>::get(project_id).ok_or(Error::<T>::ProjectMetadataNotFound)?;
-
+		let bucket = Buckets::<T>::get(project_id).ok_or(Error::<T>::BucketNotFound)?;
 		// Fetching the necessary data for a specific project.
 		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 
@@ -212,14 +153,11 @@ impl<T: Config> Pallet<T> {
 		let fee_usd = Self::compute_total_fee_from_brackets(funding_amount_reached);
 		let fee_percentage = Perquintill::from_rational(fee_usd, funding_amount_reached);
 
-		let initial_token_allocation_size = project_metadata.total_allocation_size;
-		let final_remaining_contribution_tokens = project_details.remaining_contribution_tokens;
-
-		// Calculate the number of tokens sold for the project.
-		let token_sold = initial_token_allocation_size
-			.checked_sub(final_remaining_contribution_tokens)
-			// Ensure safety by providing a default in case of unexpected situations.
-			.unwrap_or(initial_token_allocation_size);
+		let token_sold = if bucket.current_price == bucket.initial_price {
+			project_metadata.total_allocation_size.saturating_sub(bucket.amount_left)
+		} else {
+			project_metadata.total_allocation_size
+		};
 		let total_fee_allocation = fee_percentage * token_sold;
 
 		Ok(total_fee_allocation)
@@ -328,22 +266,21 @@ impl<T: Config> Pallet<T> {
 		available_bytes_for_migration_per_message.saturating_div(one_migration_bytes)
 	}
 
-	/// Check if the user has no participations (left) in the project.
-	pub fn user_has_no_participations(project_id: ProjectId, user: AccountIdOf<T>) -> bool {
-		Evaluations::<T>::iter_prefix_values((project_id, user.clone())).next().is_none() &&
-			Bids::<T>::iter_prefix_values((project_id, user.clone())).next().is_none() &&
-			Contributions::<T>::iter_prefix_values((project_id, user)).next().is_none()
-	}
+	// /// Check if the user has no participations (left) in the project.
+	// pub fn user_has_no_participations(project_id: ProjectId, user: AccountIdOf<T>) -> bool {
+	// 	Evaluations::<T>::iter_prefix_values((project_id, user.clone())).next().is_none() &&
+	// 		Bids::<T>::iter_prefix_values((project_id, user.clone())).next().is_none()
+	// }
 
 	pub fn construct_migration_xcm_message(
-		migrations: BoundedVec<Migration, MaxParticipationsPerUser<T>>,
+		migrations: WeakBoundedVec<Migration, ConstU32<10_000>>,
 		query_id: QueryId,
 		pallet_index: PalletIndex,
 	) -> Xcm<()> {
 		// TODO: adjust this as benchmarks for polimec-receiver are written
 		const MAX_WEIGHT: Weight = Weight::from_parts(10_000, 0);
 		const MAX_RESPONSE_WEIGHT: Weight = Weight::from_parts(700_000_000, 50_000);
-		let migrations_item = Migrations::from(migrations.into());
+		let migrations_item = Migrations::from(migrations.to_vec());
 
 		// First byte is the pallet index, second byte is the call index
 		let mut encoded_call = vec![pallet_index, 0];
@@ -518,6 +455,44 @@ impl<T: Config> Pallet<T> {
 		let funding_asset_id = funding_asset.id();
 		let funding_asset_decimals = T::FundingCurrency::decimals(funding_asset_id.clone());
 		<PriceProviderOf<T>>::get_decimals_aware_price(funding_asset_id, USD_DECIMALS, funding_asset_decimals)
+	}
+
+	pub fn calculate_usd_sold_from_bucket(mut bucket: BucketOf<T>, auction_allocation_size: Balance) -> Balance {
+		if bucket.current_price == bucket.initial_price {
+			return bucket.initial_price.saturating_mul_int(auction_allocation_size.saturating_sub(bucket.amount_left))
+		}
+
+		let mut total_usd_sold = 0u128;
+		let wap = bucket.calculate_wap(auction_allocation_size);
+
+		let mut total_ct_amount_left = auction_allocation_size;
+
+		// Latest bucket will be partially sold
+		let ct_sold = bucket.delta_amount.saturating_sub(bucket.amount_left);
+		let usd_sold = wap.saturating_mul_int(ct_sold);
+		total_usd_sold = total_usd_sold.saturating_add(usd_sold);
+		total_ct_amount_left = total_ct_amount_left.saturating_sub(ct_sold);
+		bucket.current_price = bucket.current_price.saturating_sub(bucket.delta_price);
+
+		while total_ct_amount_left > 0 {
+			// If we reached the inital bucket, all the CTs remaining are taken from this bucket
+			if bucket.current_price == bucket.initial_price {
+				let ct_sold = total_ct_amount_left;
+				let usd_sold = bucket.initial_price.saturating_mul_int(ct_sold);
+				total_usd_sold = total_usd_sold.saturating_add(usd_sold);
+				break
+			}
+
+			let price_charged = wap.min(bucket.current_price);
+			let ct_sold = total_ct_amount_left.min(bucket.delta_amount);
+			let usd_raised = price_charged.saturating_mul_int(ct_sold);
+			total_usd_sold = total_usd_sold.saturating_add(usd_raised);
+			total_ct_amount_left = total_ct_amount_left.saturating_sub(ct_sold);
+
+			bucket.current_price = bucket.current_price.saturating_sub(bucket.delta_price);
+		}
+
+		total_usd_sold
 	}
 }
 

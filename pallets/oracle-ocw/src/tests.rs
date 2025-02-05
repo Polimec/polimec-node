@@ -38,7 +38,6 @@ fn call_offchain_worker() {
 
 		match tx.call {
 			RuntimeCall::Oracle(orml_oracle::Call::feed_values { values }) => {
-				dbg!(&values);
 				for (asset, price) in values {
 					match asset {
 						10 => assert_close_enough(price, FixedU128::from_float(6.138485575453039783)),
