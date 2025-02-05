@@ -11,7 +11,7 @@ use pallet_assets::{Approval, AssetAccount, AssetDetails, AssetMetadata};
 use polimec_common::assets::AcceptedFundingAsset;
 use sp_api::runtime_decl_for_core::CoreV5;
 use sp_runtime::BoundedVec;
-use xcm::v4::Location;
+use xcm::v5::Location;
 
 // Storage items of pallet-assets are set to private for some reason. So we have to redefine them to get the same storage
 // encoding and call the `translate` methods. -_-'

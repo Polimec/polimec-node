@@ -42,7 +42,7 @@ pub mod pallet {
 	use polimec_common::ProvideAssetPrice;
 	use sp_runtime::{Perbill, TypeId};
 
-	pub type AssetId = xcm::v5::prelude::Location;
+	pub type AssetId = xcm::v5::Location;
 	pub type BalanceOf<T> = <<T as Config>::BondingToken as fungible::Inspect<AccountIdOf<T>>>::Balance;
 	pub type AccountIdOf<T> = <T as frame_system::Config>::AccountId;
 	pub type HoldReasonOf<T> = <<T as Config>::BondingToken as fungible::InspectHold<AccountIdOf<T>>>::Reason;

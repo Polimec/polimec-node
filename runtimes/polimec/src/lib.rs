@@ -169,7 +169,7 @@ pub type TxExtension = (
 	frame_system::CheckTxVersion<Runtime>,
 	frame_system::CheckGenesis<Runtime>,
 	frame_system::CheckEra<Runtime>,
-	pallet_dispenser::extensions::CheckNonce<Runtime>,
+	// pallet_dispenser::extensions::CheckNonce<Runtime>,
 	frame_system::CheckWeight<Runtime>,
 	pallet_skip_feeless_payment::SkipCheckIfFeeless<Runtime, pallet_asset_tx_payment::ChargeAssetTxPayment<Runtime>>,
 	frame_metadata_hash_extension::CheckMetadataHash<Runtime>,
@@ -405,7 +405,7 @@ impl frame_system::Config for Runtime {
 	type SS58Prefix = SS58Prefix;
 	type SingleBlockMigrations = ();
 	/// Weight information for the extrinsics of this pallet.
-	type SystemWeightInfo = weights::frame_system::WeightInfo<Runtime>;
+	type SystemWeightInfo = frame_system::weights::SubstrateWeight<Runtime>;
 	/// Runtime version.
 	type Version = Version;
 }
@@ -490,7 +490,7 @@ impl pallet_assets::Config<ForeignAssetsInstance> for Runtime {
 	type RemoveItemsLimit = frame_support::traits::ConstU32<1000>;
 	type RuntimeEvent = RuntimeEvent;
 	type StringLimit = AssetsStringLimit;
-	type WeightInfo = weights::pallet_assets::WeightInfo<Runtime>;
+	type WeightInfo = pallet_assets::weights::SubstrateWeight<Runtime>;
 }
 
 type ConsensusHook = cumulus_pallet_aura_ext::FixedVelocityConsensusHook<
@@ -671,7 +671,7 @@ impl pallet_collective::Config<CouncilCollective> for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type RuntimeOrigin = RuntimeOrigin;
 	type SetMembersOrigin = EnsureRoot<AccountId>;
-	type WeightInfo = weights::pallet_collective::WeightInfo<Runtime>;
+	type WeightInfo = ();
 }
 
 type TechnicalCollective = pallet_collective::Instance2;
@@ -694,7 +694,7 @@ impl pallet_collective::Config<TechnicalCollective> for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type RuntimeOrigin = RuntimeOrigin;
 	type SetMembersOrigin = EnsureRoot<AccountId>;
-	type WeightInfo = weights::pallet_collective::WeightInfo<Runtime>;
+	type WeightInfo = ();
 }
 
 impl pallet_elections_phragmen::Config for Runtime {
@@ -933,7 +933,7 @@ where
 		public: <Signature as Verify>::Signer,
 		account: AccountId,
 		nonce: <Runtime as frame_system::Config>::Nonce,
-	) -> Option<(RuntimeCall, <UncheckedExtrinsic as sp_runtime::traits::Extrinsic>::SignaturePayload)> {
+	) -> Option<UncheckedExtrinsic> {
 		use sp_runtime::traits::StaticLookup;
 		// take the biggest period possible.
 		let period = BlockHashCount::get().checked_next_power_of_two().map(|c| c / 2).unwrap_or(2) as u64;
@@ -952,7 +952,7 @@ where
 			frame_system::CheckEra::<Runtime>::from(generic::Era::mortal(period, current_block)),
 			// TODO: Return to parity CheckNonce implementation once
 			// https://github.com/paritytech/polkadot-sdk/issues/3991 is resolved.
-			pallet_dispenser::extensions::CheckNonce::<Runtime>::from(nonce),
+			// pallet_dispenser::extensions::CheckNonce::<Runtime>::from(nonce),
 			frame_system::CheckWeight::<Runtime>::new(),
 			pallet_skip_feeless_payment::SkipCheckIfFeeless::<
 				Runtime,
@@ -971,7 +971,9 @@ where
 		let signature = raw_payload.using_encoded(|payload| C::sign(payload, public))?;
 		let (call, extra, _) = raw_payload.deconstruct();
 		let address = <Runtime as frame_system::Config>::Lookup::unlookup(account);
-		Some((call, (address, signature, extra)))
+		let transaction = generic::UncheckedExtrinsic::new_signed(call, address, signature, extra).into();
+
+		Some(transaction)
 	}
 }
 
@@ -1068,7 +1070,7 @@ impl pallet_assets::Config<ContributionTokensInstance> for Runtime {
 
 parameter_types! {
 	pub ContributionTreasuryAccount: AccountId = FundingPalletId::get().into_account_truncating();
-	pub PolimecReceiverInfo: xcm::v4::PalletInfo = xcm::v4::PalletInfo::new(
+	pub PolimecReceiverInfo: xcm::v5::PalletInfo = xcm::v5::PalletInfo::new(
 		51, "PolimecReceiver".into(), "polimec_receiver".into(), 0, 1, 0
 	).unwrap();
 	pub MaxMessageSizeThresholds: RangeInclusive<u32> = 50000..=102_400;
@@ -1741,13 +1743,13 @@ impl_runtime_apis! {
 		fn query_acceptable_payment_assets(xcm_version: xcm::Version) -> Result<Vec<VersionedAssetId>, XcmPaymentApiError> {
 			let mut acceptable_assets = AcceptedFundingAsset::all_ids();
 			acceptable_assets.push(Location::here());
-			let acceptable_assets = acceptable_assets.into_iter().map(|a| a.into()).collect::<Vec<xcm::v4::AssetId>>();
+			let acceptable_assets = acceptable_assets.into_iter().map(|a| a.into()).collect::<Vec<xcm::v5::AssetId>>();
 
 			PolkadotXcm::query_acceptable_payment_assets(xcm_version, acceptable_assets)
 		}
 
 		fn query_weight_to_asset_fee(weight: Weight, asset: VersionedAssetId) -> Result<u128, XcmPaymentApiError> {
-			let location: Location = xcm::v4::AssetId::try_from(asset).map_err(|_| XcmPaymentApiError::VersionedConversionFailed)?.0;
+			let location: Location = xcm::v5::AssetId::try_from(asset).map_err(|_| XcmPaymentApiError::VersionedConversionFailed)?.0;
 			let native_fee = TransactionPayment::weight_to_fee(weight);
 			if location == Location::here() {
 				return Ok(native_fee)
