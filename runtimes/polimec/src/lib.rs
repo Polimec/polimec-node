@@ -43,8 +43,8 @@ use frame_system::{EnsureRoot, EnsureRootWithSuccess, EnsureSigned, EnsureSigned
 use pallet_aura::Authorities;
 use pallet_democracy::GetElectorate;
 use pallet_funding::{
-	runtime_api::ProjectParticipationIds, BidInfoOf, ContributionInfoOf, DaysToBlocks, EvaluationInfoOf,
-	HereLocationGetter, PriceProviderOf, ProjectDetailsOf, ProjectId, ProjectMetadataOf,
+	BidInfoOf, DaysToBlocks, EvaluationInfoOf, HereLocationGetter, PriceProviderOf, ProjectDetailsOf, ProjectId,
+	ProjectMetadataOf,
 };
 use parachains_common::{
 	impls::AssetsToBlockAuthor,
@@ -170,7 +170,7 @@ pub type Migrations = migrations::Unreleased;
 /// The runtime migrations per release.
 #[allow(missing_docs)]
 pub mod migrations {
-	use crate::{parameter_types, Runtime};
+	use crate::parameter_types;
 
 	parameter_types! {
 		pub const RandomPalletName: &'static str = "Random";
@@ -178,10 +178,7 @@ pub mod migrations {
 
 	/// Unreleased migrations. Add new ones here:
 	#[allow(unused_parens)]
-	pub type Unreleased = (
-		super::custom_migrations::asset_id_migration::FromOldAssetIdMigration,
-		pallet_funding::storage_migrations::v6::MigrationToV6<Runtime>,
-	);
+	pub type Unreleased = ();
 }
 
 /// Executive: handles dispatch to the various modules.
@@ -1076,12 +1073,7 @@ impl pallet_funding::Config for Runtime {
 	type FundingCurrency = ForeignAssets;
 	type FundingSuccessThreshold = FundingSuccessThreshold;
 	type InvestorOrigin = EnsureInvestor<Runtime>;
-	type MaxBidsPerProject = ConstU32<512>;
-	type MaxBidsPerUser = ConstU32<16>;
 	type MaxCapacityThresholds = MaxCapacityThresholds;
-	type MaxContributionsPerUser = ConstU32<16>;
-	type MaxEvaluationsPerProject = ConstU32<512>;
-	type MaxEvaluationsPerUser = ConstU32<16>;
 	type MaxMessageSizeThresholds = MaxMessageSizeThresholds;
 	type MinUsdPerEvaluation = MinUsdPerEvaluation;
 	type Multiplier = pallet_funding::types::Multiplier;
@@ -1510,10 +1502,6 @@ impl_runtime_apis! {
 			Funding::top_bids(project_id, amount)
 		}
 
-		fn top_contributions(project_id: ProjectId, amount: u32) -> Vec<ContributionInfoOf<Runtime>> {
-			Funding::top_contributions(project_id, amount)
-		}
-
 		fn top_projects_by_usd_raised(amount: u32) -> Vec<(ProjectId, ProjectMetadataOf<Runtime>, ProjectDetailsOf<Runtime>)> {
 			Funding::top_projects_by_usd_raised(amount)
 		}
@@ -1526,10 +1514,6 @@ impl_runtime_apis! {
 	impl pallet_funding::runtime_api::UserInformation<Block, Runtime> for Runtime {
 		fn contribution_tokens(account: AccountId) -> Vec<(ProjectId, Balance)> {
 			Funding::contribution_tokens(account)
-		}
-
-		fn all_project_participations_by_did(project_id: ProjectId, did: Did) -> Vec<ProjectParticipationIds<Runtime>> {
-			Funding::all_project_participations_by_did(project_id, did)
 		}
 	}
 

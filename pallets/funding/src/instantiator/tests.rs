@@ -77,7 +77,8 @@ fn dry_run_wap() {
 
 	inst.bid_for_users(project_id, bids).unwrap();
 
-	assert!(matches!(inst.go_to_next_state(project_id), ProjectStatus::FundingSuccessful));
+	let next_state = inst.go_to_next_state(project_id);
+	assert!(matches!(next_state, ProjectStatus::FundingSuccessful));
 
 	let project_details = inst.get_project_details(project_id);
 	let wap = project_details.weighted_average_price.unwrap();
@@ -176,13 +177,7 @@ fn generate_bids_from_bucket() {
 		PriceProviderOf::<TestRuntime>::calculate_decimals_aware_price(desired_real_wap, USD_DECIMALS, CT_DECIMALS)
 			.unwrap();
 	let necessary_bucket = inst.find_bucket_for_wap(project_metadata.clone(), desired_price_aware_wap);
-	let bids = inst.generate_bids_from_bucket(
-		project_metadata.clone(),
-		necessary_bucket,
-		420,
-		|x| x + 1,
-		AcceptedFundingAsset::USDT,
-	);
+	let bids = inst.generate_bids_from_bucket(project_metadata.clone(), necessary_bucket, AcceptedFundingAsset::USDT);
 	let evaluations = inst.generate_successful_evaluations(project_metadata.clone(), 5);
 	let project_id = inst.create_finished_project(project_metadata.clone(), 0, None, evaluations, bids);
 	let project_details = inst.get_project_details(project_id);
