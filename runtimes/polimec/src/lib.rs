@@ -100,7 +100,7 @@ use sp_core::crypto::Ss58Codec;
 pub use sp_runtime::BuildStorage;
 #[cfg(feature = "runtime-benchmarks")]
 use xcm::v5::{Junction::Parachain, Parent, ParentThen};
-use xcm::{v4::Location, VersionedAssetId};
+use xcm::{v5::Location, VersionedAssetId};
 
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmark_helpers;
@@ -158,12 +158,28 @@ pub type SignedExtra = (
 	pallet_skip_feeless_payment::SkipCheckIfFeeless<Runtime, pallet_asset_tx_payment::ChargeAssetTxPayment<Runtime>>,
 	frame_metadata_hash_extension::CheckMetadataHash<Runtime>,
 );
+/// The TransactionExtension to the basic transaction logic.
+///
+/// When you change this, you **MUST** modify [`sign`] in `bin/node/testing/src/keyring.rs`!
+///
+/// [`sign`]: <../../testing/src/keyring.rs.html>
+pub type TxExtension = (
+	frame_system::CheckNonZeroSender<Runtime>,
+	frame_system::CheckSpecVersion<Runtime>,
+	frame_system::CheckTxVersion<Runtime>,
+	frame_system::CheckGenesis<Runtime>,
+	frame_system::CheckEra<Runtime>,
+	pallet_dispenser::extensions::CheckNonce<Runtime>,
+	frame_system::CheckWeight<Runtime>,
+	pallet_skip_feeless_payment::SkipCheckIfFeeless<Runtime, pallet_asset_tx_payment::ChargeAssetTxPayment<Runtime>>,
+	frame_metadata_hash_extension::CheckMetadataHash<Runtime>,
+);
 
 /// Unchecked extrinsic type as expected by this runtime.
-pub type UncheckedExtrinsic = generic::UncheckedExtrinsic<Address, RuntimeCall, Signature, SignedExtra>;
+pub type UncheckedExtrinsic = generic::UncheckedExtrinsic<Address, RuntimeCall, Signature, TxExtension>;
 
 /// Extrinsic type that has already been checked.
-pub type CheckedExtrinsic = generic::CheckedExtrinsic<AccountId, RuntimeCall, SignedExtra>;
+pub type CheckedExtrinsic = generic::CheckedExtrinsic<AccountId, RuntimeCall, TxExtension>;
 
 pub type Migrations = migrations::Unreleased;
 
@@ -900,12 +916,12 @@ impl frame_system::offchain::SigningTypes for Runtime {
 	type Signature = Signature;
 }
 
-impl<LocalCall> frame_system::offchain::SendTransactionTypes<LocalCall> for Runtime
+impl<C> frame_system::offchain::CreateTransactionBase<C> for Runtime
 where
-	RuntimeCall: From<LocalCall>,
+	RuntimeCall: From<C>,
 {
 	type Extrinsic = UncheckedExtrinsic;
-	type OverarchingCall = RuntimeCall;
+	type RuntimeCall = RuntimeCall;
 }
 
 impl<LocalCall> frame_system::offchain::CreateSignedTransaction<LocalCall> for Runtime
@@ -928,7 +944,7 @@ where
 			// so the actual block number is `n`.
 			.saturating_sub(1);
 		let tip = 0;
-		let extra: SignedExtra = (
+		let extra: TxExtension = (
 			frame_system::CheckNonZeroSender::<Runtime>::new(),
 			frame_system::CheckSpecVersion::<Runtime>::new(),
 			frame_system::CheckTxVersion::<Runtime>::new(),

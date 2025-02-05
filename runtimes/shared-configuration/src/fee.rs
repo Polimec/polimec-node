@@ -180,7 +180,7 @@ impl<Runtime, Converter, FeeCreditor, TipCreditor> OnChargeAssetTransaction<Runt
 	for TxFeeFungiblesAdapter<Converter, FeeCreditor, TipCreditor>
 where
 	Runtime: pallet_asset_tx_payment::Config,
-	Runtime::Fungibles: Inspect<AccountIdOf<Runtime>, AssetId = xcm::v4::Location>,
+	Runtime::Fungibles: Inspect<AccountIdOf<Runtime>, AssetId = xcm::v5::Location>,
 	Converter: ConversionToAssetBalance<BalanceOf<Runtime>, AssetIdOf<Runtime>, AssetBalanceOf<Runtime>>,
 	FeeCreditor: HandleCredit<Runtime::AccountId, Runtime::Fungibles>,
 	TipCreditor: HandleCredit<Runtime::AccountId, Runtime::Fungibles>,
@@ -203,15 +203,17 @@ where
 	) -> Result<(), TransactionValidityError> {
 		let asset_id: xcm::v4::Location =
 			asset_id.try_into().map_err(|_| TransactionValidityError::Invalid(InvalidTransaction::Payment))?;
+		let assed_id_v5: xcm::v5::Location =
+			asset_id.try_into().map_err(|_| TransactionValidityError::Invalid(InvalidTransaction::Payment))?;
 
 		let min_converted_fee = if fee.is_zero() { Zero::zero() } else { One::one() };
-		let converted_fee = Converter::to_asset_balance(fee, asset_id.clone())
+		let converted_fee = Converter::to_asset_balance(fee, assed_id_v5.clone())
 			.map_err(|_| TransactionValidityError::from(InvalidTransaction::Payment))?
 			.max(min_converted_fee);
 
 		// Ensure we can withdraw enough `asset_id` for the swap.
 		match <Runtime::Fungibles as fungibles::Inspect<Runtime::AccountId>>::can_withdraw(
-			asset_id.clone(),
+			assed_id_v5.clone(),
 			who,
 			converted_fee,
 		) {
@@ -240,17 +242,20 @@ where
 		// fee.
 		let asset_id: xcm::v4::Location =
 			asset_id.try_into().map_err(|_| TransactionValidityError::Invalid(InvalidTransaction::Payment))?;
+		let assed_id_v5: xcm::v5::Location =
+			asset_id.try_into().map_err(|_| TransactionValidityError::Invalid(InvalidTransaction::Payment))?;
+
 		let min_converted_fee = if fee.is_zero() { Zero::zero() } else { One::one() };
-		let converted_fee = Converter::to_asset_balance(fee, asset_id.clone())
+		let converted_fee = Converter::to_asset_balance(fee, assed_id_v5.clone())
 			.map_err(|_| TransactionValidityError::from(InvalidTransaction::Payment))?
 			.max(min_converted_fee);
 		let can_withdraw =
-			<Runtime::Fungibles as Inspect<Runtime::AccountId>>::can_withdraw(asset_id.clone(), who, converted_fee);
+			<Runtime::Fungibles as Inspect<Runtime::AccountId>>::can_withdraw(assed_id_v5.clone(), who, converted_fee);
 		if can_withdraw != WithdrawConsequence::Success {
 			return Err(InvalidTransaction::Payment.into())
 		}
 		<Runtime::Fungibles as fungibles::Balanced<Runtime::AccountId>>::withdraw(
-			asset_id,
+			assed_id_v5,
 			who,
 			converted_fee,
 			Exact,

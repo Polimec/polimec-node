@@ -3,7 +3,7 @@ use scale_info::TypeInfo;
 use serde::{Deserialize, Serialize};
 use sp_runtime::RuntimeDebug;
 use variant_count::VariantCount;
-use xcm::v4::prelude::{AccountKey20, Ethereum, GeneralIndex, GlobalConsensus, Location, PalletInstance, Parachain};
+use xcm::v5::prelude::{AccountKey20, Ethereum, GeneralIndex, GlobalConsensus, Location, PalletInstance, Parachain};
 extern crate alloc;
 use alloc::{vec, vec::*};
 

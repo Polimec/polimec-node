@@ -22,7 +22,7 @@ use sp_runtime::{
 	FixedPointNumber, RuntimeDebug,
 };
 use sp_std::prelude::*;
-pub use xcm::v4::{opaque::Xcm, Assets, Location, QueryId, SendError, SendResult, SendXcm, XcmHash};
+pub use xcm::v5::{opaque::Xcm, Assets, Location, QueryId, SendError, SendResult, SendXcm, XcmHash};
 
 pub mod assets;
 pub mod credentials;
