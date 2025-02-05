@@ -206,6 +206,7 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
 				MOCK_FEE_ASSET_DECIMALS,
 			)],
 			accounts: vec![],
+			next_asset_id: None,
 		},
 		..Default::default()
 	}

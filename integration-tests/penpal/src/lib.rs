@@ -239,7 +239,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
-	state_version: 1,
+	system_version: 1,
 };
 
 /// This determines the average expected block time that we are targeting.
@@ -398,6 +398,7 @@ impl pallet_balances::Config for Runtime {
 	type AccountStore = System;
 	/// The type for recording an account's balance.
 	type Balance = Balance;
+	type DoneSlashHandler = ();
 	type DustRemoval = ();
 	type ExistentialDeposit = ExistentialDeposit;
 	type FreezeIdentifier = ();
@@ -423,6 +424,7 @@ impl pallet_transaction_payment::Config for Runtime {
 	type OnChargeTransaction = pallet_transaction_payment::FungibleAdapter<Balances, ()>;
 	type OperationalFeeMultiplier = ConstU8<5>;
 	type RuntimeEvent = RuntimeEvent;
+	type WeightInfo = ();
 	type WeightToFee = WeightToFee;
 }
 
@@ -517,6 +519,7 @@ impl cumulus_pallet_parachain_system::Config for Runtime {
 	type ReservedDmpWeight = ReservedDmpWeight;
 	type ReservedXcmpWeight = ReservedXcmpWeight;
 	type RuntimeEvent = RuntimeEvent;
+	type SelectCore = cumulus_pallet_parachain_system::DefaultCoreSelector<Self>;
 	type SelfParaId = parachain_info::Pallet<Runtime>;
 	type WeightInfo = ();
 	type XcmpMessageHandler = XcmpQueue;
@@ -634,6 +637,7 @@ impl pallet_asset_tx_payment::Config for Runtime {
 		AssetsToBlockAuthor<Runtime, pallet_assets::Instance1>,
 	>;
 	type RuntimeEvent = RuntimeEvent;
+	type WeightInfo = ();
 }
 
 impl pallet_sudo::Config for Runtime {

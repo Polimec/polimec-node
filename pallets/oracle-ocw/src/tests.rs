@@ -34,9 +34,9 @@ fn call_offchain_worker() {
 
 		let tx = pool_state.write().transactions.pop().unwrap();
 		let tx = Extrinsic::decode(&mut &*tx).unwrap();
-		assert_eq!(tx.signature.unwrap().0, 0);
+		assert_eq!(tx.preamble.to_signed().unwrap().0, 0);
 
-		match tx.call {
+		match tx.function {
 			RuntimeCall::Oracle(orml_oracle::Call::feed_values { values }) => {
 				dbg!(&values);
 				for (asset, price) in values {

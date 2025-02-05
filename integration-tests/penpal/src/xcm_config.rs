@@ -41,15 +41,15 @@ use parachains_common::{xcm_config::AssetFeeAsExistentialDepositMultiplier, TREA
 use polkadot_parachain_primitives::primitives::Sibling;
 use polkadot_runtime_common::{impls::ToAuthor, xcm_sender::ExponentialPrice};
 use sp_runtime::traits::{AccountIdConversion, ConvertInto, Identity, TryConvertInto};
-use xcm::latest::prelude::*;
+use xcm::{latest::prelude::*, v5::WESTEND_GENESIS_HASH};
 use xcm_builder::{
 	AccountId32Aliases, AllowExplicitUnpaidExecutionFrom, AllowHrmpNotificationsFromRelayChain,
 	AllowKnownQueryResponses, AllowSubscriptionsFrom, AsPrefixedGeneralIndex, ConvertedConcreteId, EnsureXcmOrigin,
 	FixedWeightBounds, FrameTransactionalProcessor, FungibleAdapter, FungiblesAdapter, IsConcrete, LocalMint,
-	NativeAsset, NoChecking, ParentAsSuperuser, ParentIsPreset, RelayChainAsNative, SiblingParachainAsNative,
-	SiblingParachainConvertsVia, SignedAccountId32AsNative, SignedToAccountId32, SovereignSignedViaLocation,
-	StartsWith, TakeWeightCredit, TrailingSetTopicAsId, UsingComponents, WithComputedOrigin, WithUniqueTopic,
-	XcmFeeManagerFromComponents, XcmFeeToAccount,
+	NativeAsset, NoChecking, ParentAsSuperuser, ParentIsPreset, RelayChainAsNative, SendXcmFeeToAccount,
+	SiblingParachainAsNative, SiblingParachainConvertsVia, SignedAccountId32AsNative, SignedToAccountId32,
+	SovereignSignedViaLocation, StartsWith, TakeWeightCredit, TrailingSetTopicAsId, UsingComponents,
+	WithComputedOrigin, WithUniqueTopic, XcmFeeManagerFromComponents,
 };
 use xcm_executor::{traits::JustTry, XcmExecutor};
 
@@ -60,7 +60,7 @@ parameter_types! {
 	// The Penpal runtime is utilized for testing with various environment setups.
 	// This storage item allows us to customize the `NetworkId` where Penpal is deployed.
 	// By default, it is set to `NetworkId::Rococo` and can be changed using `System::set_storage`.
-	pub storage RelayNetworkId: NetworkId = NetworkId::Westend;
+	pub storage RelayNetworkId: NetworkId = NetworkId::ByGenesis(WESTEND_GENESIS_HASH);
 	pub RelayNetwork: Option<NetworkId> = Some(RelayNetworkId::get());
 	pub RelayChainOrigin: RuntimeOrigin = cumulus_pallet_xcm::Origin::Relay.into();
 	pub UniversalLocation: InteriorLocation = [
@@ -328,8 +328,7 @@ impl xcm_executor::Config for XcmConfig {
 	type AssetTrap = PolkadotXcm;
 	type Barrier = Barrier;
 	type CallDispatcher = RuntimeCall;
-	type FeeManager =
-		XcmFeeManagerFromComponents<(), XcmFeeToAccount<Self::AssetTransactor, AccountId, TreasuryAccount>>;
+	type FeeManager = XcmFeeManagerFromComponents<(), SendXcmFeeToAccount<Self::AssetTransactor, TreasuryAccount>>;
 	type HrmpChannelAcceptedHandler = ();
 	type HrmpChannelClosingHandler = ();
 	type HrmpNewChannelOpenRequestHandler = ();

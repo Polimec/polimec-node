@@ -72,6 +72,7 @@ parameter_types! {
 impl pallet_balances::Config for Test {
 	type AccountStore = System;
 	type Balance = Balance;
+	type DoneSlashHandler = ();
 	type DustRemoval = ();
 	type ExistentialDeposit = ExistentialDeposit;
 	type FreezeIdentifier = ();
