@@ -132,34 +132,26 @@ impl<T: Config> Pallet<T> {
 		asset: AcceptedFundingAsset,
 		asset_amount: Balance,
 	) -> Balance {
-		let project_details = ProjectsDetails::<T>::get(project_id).expect("Project not found");
 		let funding_asset_usd_price =
 			Pallet::<T>::get_decimals_aware_funding_asset_price(&asset).expect("Price not found");
 		let usd_ticket_size = funding_asset_usd_price.saturating_mul_int(asset_amount);
 
-		let mut ct_amount = Zero::zero();
+		let mut ct_amount = Balance::zero();
 
-		// Contribution phase
-		if let Some(wap) = project_details.weighted_average_price {
-			ct_amount = wap.reciprocal().expect("Bad math").saturating_mul_int(usd_ticket_size);
-		}
-		// Auction phase, we need to consider multiple buckets
-		else {
-			let mut usd_to_spend = usd_ticket_size;
-			let mut current_bucket = Buckets::<T>::get(project_id).expect("Bucket not found");
-			while usd_to_spend > Zero::zero() {
-				let bucket_price = current_bucket.current_price;
+		let mut usd_to_spend = usd_ticket_size;
+		let mut current_bucket = Buckets::<T>::get(project_id).expect("Bucket not found");
+		while usd_to_spend > Zero::zero() {
+			let bucket_price = current_bucket.current_price;
 
-				let ct_to_buy = bucket_price.reciprocal().expect("Bad math").saturating_mul_int(usd_to_spend);
-				let ct_to_buy = ct_to_buy.min(current_bucket.amount_left);
+			let ct_to_buy = bucket_price.reciprocal().expect("Bad math").saturating_mul_int(usd_to_spend);
+			let ct_to_buy = ct_to_buy.min(current_bucket.amount_left);
 
-				ct_amount = ct_amount.saturating_add(ct_to_buy);
-				// if usd spent is 0, we will have an infinite loop
-				let usd_spent = bucket_price.saturating_mul_int(ct_to_buy).max(One::one());
-				usd_to_spend = usd_to_spend.saturating_sub(usd_spent);
+			ct_amount = ct_amount.saturating_add(ct_to_buy);
+			// if usd spent is 0, we will have an infinite loop
+			let usd_spent = bucket_price.saturating_mul_int(ct_to_buy).max(One::one());
+			usd_to_spend = usd_to_spend.saturating_sub(usd_spent);
 
-				current_bucket.update(ct_to_buy);
-			}
+			current_bucket.update(ct_to_buy);
 		}
 
 		ct_amount
@@ -170,7 +162,6 @@ impl<T: Config> Pallet<T> {
 		funding_asset: AcceptedFundingAsset,
 		total_funding_asset_amount: Balance,
 	) -> (Balance, Balance) {
-		let project_details = ProjectsDetails::<T>::get(project_id).expect("Project not found");
 		let funding_asset_usd_price =
 			Pallet::<T>::get_decimals_aware_funding_asset_price(&funding_asset).expect("Price not found");
 		let otm_multiplier = ParticipationMode::OTM.multiplier();
@@ -185,29 +176,22 @@ impl<T: Config> Pallet<T> {
 		let participating_usd_ticket_size =
 			funding_asset_usd_price.saturating_mul_int(participating_funding_asset_amount);
 
-		let mut ct_amount = Zero::zero();
+		let mut ct_amount = Balance::zero();
 
-		// Contribution phase
-		if let Some(wap) = project_details.weighted_average_price {
-			ct_amount = wap.reciprocal().expect("Bad math").saturating_mul_int(participating_usd_ticket_size);
-		}
-		// Auction phase, we need to consider multiple buckets
-		else {
-			let mut usd_to_spend = participating_usd_ticket_size;
-			let mut current_bucket = Buckets::<T>::get(project_id).expect("Bucket not found");
-			while usd_to_spend > Zero::zero() {
-				let bucket_price = current_bucket.current_price;
+		let mut usd_to_spend = participating_usd_ticket_size;
+		let mut current_bucket = Buckets::<T>::get(project_id).expect("Bucket not found");
+		while usd_to_spend > Zero::zero() {
+			let bucket_price = current_bucket.current_price;
 
-				let ct_to_buy = bucket_price.reciprocal().expect("Bad math").saturating_mul_int(usd_to_spend);
-				let ct_to_buy = ct_to_buy.min(current_bucket.amount_left);
+			let ct_to_buy = bucket_price.reciprocal().expect("Bad math").saturating_mul_int(usd_to_spend);
+			let ct_to_buy = ct_to_buy.min(current_bucket.amount_left);
 
-				ct_amount = ct_amount.saturating_add(ct_to_buy);
-				// if usd spent is 0, we will have an infinite loop
-				let usd_spent = bucket_price.saturating_mul_int(ct_to_buy).max(One::one());
-				usd_to_spend = usd_to_spend.saturating_sub(usd_spent);
+			ct_amount = ct_amount.saturating_add(ct_to_buy);
+			// if usd spent is 0, we will have an infinite loop
+			let usd_spent = bucket_price.saturating_mul_int(ct_to_buy).max(One::one());
+			usd_to_spend = usd_to_spend.saturating_sub(usd_spent);
 
-				current_bucket.update(ct_to_buy);
-			}
+			current_bucket.update(ct_to_buy);
 		}
 
 		(ct_amount, fee_funding_asset_amount)

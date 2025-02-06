@@ -134,7 +134,7 @@ pub type AssetIdOf<T> =
 pub type VestingInfoOf<T> = VestingInfo<BlockNumberFor<T>>;
 
 pub type ProjectMetadataOf<T> = ProjectMetadata<BoundedVec<u8, StringLimitOf<T>>, PriceOf<T>, AccountIdOf<T>, Cid>;
-pub type ProjectDetailsOf<T> = ProjectDetails<AccountIdOf<T>, Did, BlockNumberFor<T>, PriceOf<T>, EvaluationRoundInfo>;
+pub type ProjectDetailsOf<T> = ProjectDetails<AccountIdOf<T>, Did, BlockNumberFor<T>, EvaluationRoundInfo>;
 pub type EvaluationInfoOf<T> = EvaluationInfo<u32, Did, ProjectId, AccountIdOf<T>, BlockNumberFor<T>>;
 pub type BidInfoOf<T> = BidInfo<ProjectId, Did, PriceOf<T>, AccountIdOf<T>, BlockNumberFor<T>>;
 
@@ -501,7 +501,6 @@ pub mod pallet {
 			id: u32,
 			status: BidStatus,
 			final_ct_amount: Balance,
-			final_ct_usd_price: PriceOf<T>,
 		},
 		/// A contribution was settled. On Funding Success the PLMC has been unbonded/locked with a vesting schedule and the funding assets have been transferred to the issuer.
 		/// If Funding Failed, the PLMC has been unbonded and the funds have been returned to the contributor.
