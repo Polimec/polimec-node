@@ -284,7 +284,6 @@ impl<
 			issuer_account: self.get_issuer(project_id),
 			issuer_did,
 			is_frozen: false,
-			weighted_average_price: None,
 			status: ProjectStatus::Application,
 			round_duration: BlockNumberPair::new(None, None),
 			fundraising_target_usd: expected_metadata
@@ -334,7 +333,6 @@ impl<
 		let project_metadata = self.get_project_metadata(project_id);
 		let project_details = self.get_project_details(project_id);
 		let project_bids = self.execute(|| Bids::<T>::iter_prefix_values((project_id,)).collect::<Vec<_>>());
-		assert!(project_details.weighted_average_price.is_some(), "Weighted average price should exist");
 
 		for filter in bid_expectations {
 			let _found_bid = project_bids.iter().find(|bid| filter.matches_bid(bid)).unwrap();

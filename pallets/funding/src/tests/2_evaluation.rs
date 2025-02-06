@@ -286,7 +286,6 @@ mod start_evaluation_extrinsic {
 				issuer_account: ISSUER_1,
 				issuer_did,
 				is_frozen: true,
-				weighted_average_price: None,
 				status: ProjectStatus::EvaluationRound,
 				round_duration: BlockNumberPair::new(
 					Some(1),

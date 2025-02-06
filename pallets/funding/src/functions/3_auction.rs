@@ -97,7 +97,7 @@ impl<T: Config> Pallet<T> {
 			};
 
 			BidBucketBounds::<T>::mutate(project_id, current_bucket.current_price, |maybe_indexes| {
-				if let Some((i, j)) = maybe_indexes {
+				if let Some((i, _j)) = maybe_indexes {
 					*maybe_indexes = Some((*i, bid_id));
 				} else {
 					*maybe_indexes = Some((bid_id, bid_id));

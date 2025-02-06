@@ -456,44 +456,6 @@ impl<T: Config> Pallet<T> {
 		let funding_asset_decimals = T::FundingCurrency::decimals(funding_asset_id.clone());
 		<PriceProviderOf<T>>::get_decimals_aware_price(funding_asset_id, USD_DECIMALS, funding_asset_decimals)
 	}
-
-	pub fn calculate_usd_sold_from_bucket(mut bucket: BucketOf<T>, auction_allocation_size: Balance) -> Balance {
-		if bucket.current_price == bucket.initial_price {
-			return bucket.initial_price.saturating_mul_int(auction_allocation_size.saturating_sub(bucket.amount_left))
-		}
-
-		let mut total_usd_sold = 0u128;
-		let wap = bucket.calculate_wap(auction_allocation_size);
-
-		let mut total_ct_amount_left = auction_allocation_size;
-
-		// Latest bucket will be partially sold
-		let ct_sold = bucket.delta_amount.saturating_sub(bucket.amount_left);
-		let usd_sold = wap.saturating_mul_int(ct_sold);
-		total_usd_sold = total_usd_sold.saturating_add(usd_sold);
-		total_ct_amount_left = total_ct_amount_left.saturating_sub(ct_sold);
-		bucket.current_price = bucket.current_price.saturating_sub(bucket.delta_price);
-
-		while total_ct_amount_left > 0 {
-			// If we reached the inital bucket, all the CTs remaining are taken from this bucket
-			if bucket.current_price == bucket.initial_price {
-				let ct_sold = total_ct_amount_left;
-				let usd_sold = bucket.initial_price.saturating_mul_int(ct_sold);
-				total_usd_sold = total_usd_sold.saturating_add(usd_sold);
-				break
-			}
-
-			let price_charged = wap.min(bucket.current_price);
-			let ct_sold = total_ct_amount_left.min(bucket.delta_amount);
-			let usd_raised = price_charged.saturating_mul_int(ct_sold);
-			total_usd_sold = total_usd_sold.saturating_add(usd_raised);
-			total_ct_amount_left = total_ct_amount_left.saturating_sub(ct_sold);
-
-			bucket.current_price = bucket.current_price.saturating_sub(bucket.delta_price);
-		}
-
-		total_usd_sold
-	}
 }
 
 pub mod typed_data_v4 {

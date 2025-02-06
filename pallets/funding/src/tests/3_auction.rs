@@ -1,6 +1,6 @@
 use super::*;
 use crate::ParticipationMode::*;
-use frame_support::traits::{fungible::InspectFreeze, fungibles::metadata::Inspect};
+use frame_support::traits::fungible::InspectFreeze;
 use polimec_common::assets::{AcceptedFundingAsset, AcceptedFundingAsset::USDT};
 use sp_core::bounded_vec;
 use sp_runtime::traits::Convert;
@@ -49,11 +49,6 @@ mod round_flow {
 			let project_id = inst.create_auctioning_project(project_metadata.clone(), issuer, None, evaluations);
 
 			assert!(matches!(inst.go_to_next_state(project_id), ProjectStatus::FundingFailed));
-
-			assert_eq!(
-				inst.get_project_details(project_id).weighted_average_price,
-				Some(project_metadata.minimum_price)
-			);
 		}
 
 		#[test]
@@ -198,22 +193,19 @@ mod round_flow {
 		fn auction_oversubscription() {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 			let project_metadata = default_project_metadata(ISSUER_1);
-			let bucket = Pallet::<TestRuntime>::create_bucket_from_metadata(&project_metadata).unwrap();
-			let bids = inst.generate_bids_that_take_price_to(
-				project_metadata.clone(),
-				project_metadata.minimum_price + bucket.delta_price * FixedU128::from_float(3.0),
-			);
+			let mut bucket = Pallet::<TestRuntime>::create_bucket_from_metadata(&project_metadata).unwrap();
+			bucket.current_price =
+				bucket.initial_price + (bucket.delta_price.mul(PriceOf::<TestRuntime>::from_float(10.0)));
+			bucket.amount_left = bucket.delta_amount;
+			let bids = inst.generate_bids_from_bucket(project_metadata.clone(), bucket, USDT);
 
-			let project_id = inst.create_finished_project(
+			let _project_id = inst.create_finished_project(
 				project_metadata.clone(),
 				ISSUER_1,
 				None,
 				inst.generate_successful_evaluations(project_metadata.clone(), 5),
 				bids,
 			);
-
-			let wap = inst.get_project_details(project_id).weighted_average_price.unwrap();
-			assert!(wap > project_metadata.minimum_price);
 		}
 
 		#[test]
@@ -1829,100 +1821,7 @@ mod end_auction_extrinsic {
 	mod success {
 		use super::*;
 
-		#[test]
-		fn wap_is_accurate() {
-			// From the knowledge hub: https://hub.polimec.org/learn/calculation-example#auction-round-calculation-example
-			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
-
-			const ADAM: AccountIdOf<TestRuntime> = 60;
-			const TOM: AccountIdOf<TestRuntime> = 61;
-			const SOFIA: AccountIdOf<TestRuntime> = 62;
-			const FRED: AccountIdOf<TestRuntime> = 63;
-			const ANNA: AccountIdOf<TestRuntime> = 64;
-			const DAMIAN: AccountIdOf<TestRuntime> = 65;
-
-			let accounts = [ADAM, TOM, SOFIA, FRED, ANNA, DAMIAN];
-
-			let bounded_name = bounded_name();
-			let bounded_symbol = bounded_symbol();
-			let metadata_hash = ipfs_hash();
-			let normalized_price = PriceOf::<TestRuntime>::from_float(10.0);
-			let decimal_aware_price = PriceProviderOf::<TestRuntime>::calculate_decimals_aware_price(
-				normalized_price,
-				USD_DECIMALS,
-				CT_DECIMALS,
-			)
-			.unwrap();
-			let project_metadata = ProjectMetadata {
-				token_information: CurrencyMetadata {
-					name: bounded_name,
-					symbol: bounded_symbol,
-					decimals: CT_DECIMALS,
-				},
-				mainnet_token_max_supply: 8_000_000 * CT_UNIT,
-				total_allocation_size: 50_000 * CT_UNIT,
-				minimum_price: decimal_aware_price,
-				bidding_ticket_sizes: BiddingTicketSizes {
-					professional: TicketSize::new(100 * USD_UNIT, None),
-					institutional: TicketSize::new(100 * USD_UNIT, None),
-					retail: TicketSize::new(100 * USD_UNIT, None),
-					phantom: Default::default(),
-				},
-				participation_currencies: vec![AcceptedFundingAsset::USDT].try_into().unwrap(),
-				funding_destination_account: ISSUER_1,
-				policy_ipfs_cid: Some(metadata_hash),
-				participants_account_type: ParticipantsAccountType::Polkadot,
-			};
-
-			// overfund with plmc
-			let plmc_fundings = accounts
-				.iter()
-				.map(|acc| UserToPLMCBalance { account: *acc, plmc_amount: PLMC * 1_000_000 })
-				.collect_vec();
-			let usdt_fundings = accounts
-				.iter()
-				.map(|acc| UserToFundingAsset {
-					account: *acc,
-					asset_amount: USD_UNIT * 1_000_000,
-					asset_id: AcceptedFundingAsset::USDT.id(),
-				})
-				.collect_vec();
-			inst.mint_plmc_to(plmc_fundings);
-			inst.mint_funding_asset_to(usdt_fundings);
-
-			let evaluations = inst.generate_successful_evaluations(project_metadata.clone(), 5);
-			let project_id = inst.create_auctioning_project(project_metadata.clone(), ISSUER_1, None, evaluations);
-
-			let bids = vec![
-				(ADAM, 10_000 * CT_UNIT).into(),
-				(TOM, 20_000 * CT_UNIT).into(),
-				(SOFIA, 20_000 * CT_UNIT).into(),
-				(FRED, 10_000 * CT_UNIT).into(),
-				(ANNA, 5_000 * CT_UNIT).into(),
-				(DAMIAN, 5_000 * CT_UNIT).into(),
-			];
-
-			inst.bid_for_users(project_id, bids).unwrap();
-
-			let next_state = inst.go_to_next_state(project_id);
-
-			assert!(matches!(next_state, ProjectStatus::FundingSuccessful));
-
-			let token_price = inst.get_project_details(project_id).weighted_average_price.unwrap();
-			let normalized_wap =
-				PriceProviderOf::<TestRuntime>::convert_back_to_normal_price(token_price, USD_DECIMALS, CT_DECIMALS)
-					.unwrap();
-			let desired_price = PriceOf::<TestRuntime>::from_float(11.1818f64);
-
-			assert_close_enough!(
-				normalized_wap.saturating_mul_int(CT_UNIT),
-				desired_price.saturating_mul_int(CT_UNIT),
-				Perquintill::from_float(0.9999)
-			);
-		}
-
 		// Partial acceptance at price <= wap (refund due to less CT bought)
-		// Full Acceptance at price > wap (refund due to final price lower than original price paid)
 		// Rejection due to no more tokens left (full refund)
 		#[test]
 		fn bids_get_rejected_and_refunded() {
@@ -1982,7 +1881,6 @@ mod end_auction_extrinsic {
 			// post bucketing, the bids look like this:
 			// (BIDDER_1, 5k) - (BIDDER_2, 40k) - (BIDDER_5, 5k)   - (BIDDER_5, 5k) - (BIDDER_3 - 5k) - (BIDDER_3 - 1k) - (BIDDER_4 - 2k)
 			// | -------------------- 10 USD ----------------------|---- 11 USD ---|---- 12 USD ----|----------- 13 USD -------------|
-			// post wap ~ 1.0557252:
 			// (Accepted, 5k) - (Partially, 32k) - (Rejected, 5k) - (Accepted, 5k) - (Accepted - 5k) - (Accepted - 1k) - (Accepted - 2k)
 
 			let bids = vec![bid_1, bid_2, bid_3, bid_4, bid_5];
@@ -2033,11 +1931,10 @@ mod end_auction_extrinsic {
 			));
 			inst.settle_project(project_id, true);
 
-			let wap = inst.get_project_details(project_id).weighted_average_price.unwrap();
 			let returned_auction_plmc =
-				inst.calculate_auction_plmc_returned_from_all_bids_made(&bids, project_metadata.clone(), wap);
+				inst.calculate_auction_plmc_returned_from_all_bids_made(&bids, project_metadata.clone());
 			let returned_funding_assets =
-				inst.calculate_auction_funding_asset_returned_from_all_bids_made(&bids, project_metadata.clone(), wap);
+				inst.calculate_auction_funding_asset_returned_from_all_bids_made(&bids, project_metadata.clone());
 
 			let expected_free_plmc = inst
 				.generic_map_operation(vec![returned_auction_plmc.clone(), prev_plmc_balances], MergeOperation::Add);
@@ -2084,88 +1981,6 @@ mod end_auction_extrinsic {
 				let real_amount = inst.get_free_funding_asset_balance_for(asset, ISSUER_1);
 				assert_eq!(real_amount, expected_amount);
 			}
-		}
-
-		#[test]
-		fn wap_from_different_funding_assets() {
-			// From the knowledge hub: https://hub.polimec.org/learn/calculation-example#auction-round-calculation-example
-			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
-
-			const ADAM: AccountIdOf<TestRuntime> = 60;
-			const TOM: AccountIdOf<TestRuntime> = 61;
-			const SOFIA: AccountIdOf<TestRuntime> = 62;
-			const FRED: AccountIdOf<TestRuntime> = 63;
-			const ANNA: AccountIdOf<TestRuntime> = 64;
-			const DAMIAN: AccountIdOf<TestRuntime> = 65;
-
-			let accounts = [ADAM, TOM, SOFIA, FRED, ANNA, DAMIAN];
-			let mut project_metadata = default_project_metadata(ISSUER_1);
-			project_metadata.total_allocation_size = 50_000 * CT_UNIT;
-			project_metadata.participation_currencies = bounded_vec![
-				AcceptedFundingAsset::USDT,
-				AcceptedFundingAsset::USDC,
-				AcceptedFundingAsset::DOT,
-				AcceptedFundingAsset::WETH
-			];
-
-			// overfund with plmc
-			let plmc_fundings = accounts
-				.iter()
-				.map(|acc| UserToPLMCBalance { account: *acc, plmc_amount: PLMC * 1_000_000 })
-				.collect_vec();
-
-			let fundings = [
-				AcceptedFundingAsset::USDT,
-				AcceptedFundingAsset::USDC,
-				AcceptedFundingAsset::DOT,
-				AcceptedFundingAsset::WETH,
-			];
-			assert_eq!(fundings.len(), AcceptedFundingAsset::VARIANT_COUNT);
-			let mut fundings = fundings.into_iter().cycle();
-
-			let funding_asset_mints = accounts
-				.iter()
-				.map(|acc| {
-					let accepted_asset = fundings.next().unwrap();
-					let asset_id = accepted_asset.id();
-					let asset_decimals =
-						inst.execute(|| <TestRuntime as Config>::FundingCurrency::decimals(asset_id.clone()));
-					let asset_unit = 10u128.checked_pow(asset_decimals.into()).unwrap();
-					UserToFundingAsset { account: *acc, asset_amount: asset_unit * 1_000_000, asset_id }
-				})
-				.collect_vec();
-			inst.mint_plmc_to(plmc_fundings);
-			inst.mint_funding_asset_to(funding_asset_mints);
-
-			let evaluations = inst.generate_successful_evaluations(project_metadata.clone(), 5);
-			let project_id = inst.create_auctioning_project(project_metadata, ISSUER_1, None, evaluations);
-
-			let bids = vec![
-				(ADAM, Retail, 10_000 * CT_UNIT, ParticipationMode::Classic(1), AcceptedFundingAsset::USDT).into(),
-				(TOM, Professional, 20_000 * CT_UNIT, ParticipationMode::Classic(1), AcceptedFundingAsset::USDC).into(),
-				(SOFIA, Retail, 20_000 * CT_UNIT, ParticipationMode::Classic(1), AcceptedFundingAsset::DOT).into(),
-				(FRED, Institutional, 10_000 * CT_UNIT, ParticipationMode::Classic(1), AcceptedFundingAsset::WETH)
-					.into(),
-				(ANNA, Retail, 5_000 * CT_UNIT, ParticipationMode::Classic(1), AcceptedFundingAsset::USDT).into(),
-				(DAMIAN, Retail, 5_000 * CT_UNIT, ParticipationMode::Classic(1), AcceptedFundingAsset::USDC).into(),
-			];
-
-			inst.bid_for_users(project_id, bids).unwrap();
-
-			assert!(matches!(inst.go_to_next_state(project_id), ProjectStatus::FundingSuccessful));
-
-			let token_price = inst.get_project_details(project_id).weighted_average_price.unwrap();
-			let normalized_wap =
-				PriceProviderOf::<TestRuntime>::convert_back_to_normal_price(token_price, USD_DECIMALS, CT_DECIMALS)
-					.unwrap();
-
-			let desired_price = PriceOf::<TestRuntime>::from_float(11.1818f64);
-
-			assert_close_enough!(
-				normalized_wap.saturating_mul_int(USD_UNIT),
-				desired_price.saturating_mul_int(USD_UNIT),
-				Perquintill::from_float(0.99)
-			);
 		}
 
 		#[test]

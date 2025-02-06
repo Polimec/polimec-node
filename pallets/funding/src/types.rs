@@ -287,13 +287,11 @@ pub mod storage {
 	}
 
 	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
-	pub struct ProjectDetails<AccountId, Did, BlockNumber, Price: FixedPointNumber, EvaluationRoundInfo> {
+	pub struct ProjectDetails<AccountId, Did, BlockNumber, EvaluationRoundInfo> {
 		pub issuer_account: AccountId,
 		pub issuer_did: Did,
 		/// Whether the project is frozen, so no `metadata` changes are allowed.
 		pub is_frozen: bool,
-		/// The price in USD per token decided after the Auction Round
-		pub weighted_average_price: Option<Price>,
 		/// The current status of the project
 		pub status: ProjectStatus,
 		/// When the different project phases start and end
@@ -441,31 +439,42 @@ pub mod storage {
 			self.current_price = self.current_price.saturating_add(self.delta_price);
 		}
 
-		pub fn calculate_wap(self, mut total_amount: Balance) -> Price {
-			// First bucket is not empty so wap is the same as the initial price
-			if self.current_price == self.initial_price {
-				return self.current_price;
+		pub fn calculate_usd_raised(self, allocation_size: Balance) -> Balance {
+			let mut usd_raised = Balance::zero();
+			let mut cts_left = allocation_size;
+			let mut calculation_bucket = self.clone();
+
+			// If current bucket is the first bucket, then its not oversubscribed and we just return the price * tokens bought
+			if calculation_bucket.current_price == calculation_bucket.initial_price {
+				let amount_bought = allocation_size.saturating_sub(calculation_bucket.amount_left);
+				return calculation_bucket.current_price.saturating_mul_int(amount_bought);
 			}
-			let mut amount: Balance = self.delta_amount.saturating_sub(self.amount_left);
-			let mut price: Price = self.current_price;
-			let mut bucket_sizes: Vec<(Balance, Price)> = Vec::new();
-			while price > self.initial_price && total_amount > Balance::zero() {
-				total_amount.saturating_reduce(amount);
-				bucket_sizes.push((price.saturating_mul_int(amount), price));
-				price = price.saturating_sub(self.delta_price);
-				amount = self.delta_amount;
+			// If the current bucket is at a higher price, then auction is oversubscribed
+			// We first calculate the amount bought by checking the amount remaining in the bucket.
+			// Then we go down in buckets assuming the full amount was bought in each lower bucket.
+			else {
+				let amount_bought = calculation_bucket.delta_amount.saturating_sub(calculation_bucket.amount_left);
+				cts_left.saturating_reduce(amount_bought);
+				usd_raised =
+					usd_raised.saturating_add(calculation_bucket.current_price.saturating_mul_int(amount_bought));
+				calculation_bucket.current_price.saturating_reduce(calculation_bucket.delta_price);
 			}
 
-			if total_amount > Balance::zero() {
-				bucket_sizes.push((self.initial_price.saturating_mul_int(total_amount), self.initial_price));
+			while cts_left > 0 {
+				let amount = if calculation_bucket.current_price == calculation_bucket.initial_price {
+					cts_left
+				} else {
+					cts_left.min(calculation_bucket.delta_amount)
+				};
+
+				usd_raised = usd_raised.saturating_add(calculation_bucket.current_price.saturating_mul_int(amount));
+				cts_left = cts_left.saturating_sub(amount);
+
+				calculation_bucket.current_price =
+					calculation_bucket.current_price.saturating_sub(calculation_bucket.delta_price);
 			}
 
-			let sum = bucket_sizes.iter().map(|x| x.0).fold(Balance::zero(), |acc, x| acc.saturating_add(x));
-
-			bucket_sizes
-				.into_iter()
-				.map(|x| <Price as FixedPointNumber>::saturating_from_rational(x.0, sum).saturating_mul(x.1))
-				.fold(Price::zero(), |acc: Price, p: Price| acc.saturating_add(p))
+			usd_raised
 		}
 	}
 }
@@ -828,8 +837,7 @@ pub mod extrinsic {
 		pub receiving_account: Junction,
 	}
 
-	pub struct BidRefund<T: Config> {
-		pub final_ct_usd_price: PriceOf<T>,
+	pub struct BidRefund {
 		pub final_ct_amount: Balance,
 		pub refunded_plmc: Balance,
 		pub refunded_funding_asset_amount: Balance,
