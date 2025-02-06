@@ -771,8 +771,8 @@ mod benchmarks {
 	}
 
 	// We have 3 logic paths
-	// 1 - Accepted bid with no refunds (i.e. final price <= WAP, no partial acceptance)
-	// 2 - Accepted bid with refund (i.e. final price > WAP or partial acceptance)
+	// 1 - Accepted bid with no refunds
+	// 2 - Accepted bid with refund (i.e. partially accepted bid )
 	// 3 - Rejected bid (i.e. bid not accepted, everything refunded, no CT/migration)
 	// Path 2 is the most expensive but not by far, so we only benchmark and charge for this weight
 	#[benchmark]
@@ -788,10 +788,14 @@ mod benchmarks {
 
 		let project_metadata = default_project_metadata::<T>(issuer.clone());
 		let increase = project_metadata.minimum_price * PriceOf::<T>::saturating_from_rational(5, 10);
-		let target_wap = project_metadata.minimum_price + increase;
+		let target_price = project_metadata.minimum_price + increase;
+
+		let mut new_bucket = Pallet::<T>::create_bucket_from_metadata(&project_metadata).unwrap();
+		new_bucket.current_price = target_price;
+		new_bucket.amount_left = new_bucket.delta_amount;
 
 		let evaluations = inst.generate_successful_evaluations(project_metadata.clone(), 10);
-		let bids = inst.generate_bids_that_take_price_to(project_metadata.clone(), target_wap);
+		let bids = inst.generate_bids_from_bucket(project_metadata.clone(), new_bucket, USDT);
 
 		let project_id =
 			inst.create_finished_project(project_metadata.clone(), issuer, None, evaluations, bids.clone());
@@ -829,7 +833,6 @@ mod benchmarks {
 				id: bid_to_settle.id,
 				status: bid_to_settle.status,
 				final_ct_amount: expected_ct_amount,
-				final_ct_usd_price: bid_to_settle.original_ct_usd_price,
 			}
 			.into(),
 		);

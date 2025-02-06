@@ -159,7 +159,6 @@ impl<T: Config> Pallet<T> {
 		let project_metadata = ProjectsMetadata::<T>::get(project_id).ok_or(Error::<T>::ProjectMetadataNotFound)?;
 		let funding_success =
 			matches!(project_details.status, ProjectStatus::SettlementStarted(FundingOutcome::Success));
-		let wap = project_details.weighted_average_price.unwrap_or(project_metadata.minimum_price);
 		let mut bid = Bids::<T>::get(project_id, bid_id).ok_or(Error::<T>::ParticipationNotFound)?;
 
 		ensure!(
@@ -173,8 +172,8 @@ impl<T: Config> Pallet<T> {
 
 		// Return the full bid amount to refund if bid is rejected or project failed,
 		// Return a partial amount if the project succeeded, and the wap > paid price or bid is partially accepted
-		let BidRefund { final_ct_usd_price, final_ct_amount, refunded_plmc, refunded_funding_asset_amount } =
-			Self::calculate_refund(&bid, funding_success, wap)?;
+		let BidRefund { final_ct_amount, refunded_plmc, refunded_funding_asset_amount } =
+			Self::calculate_refund(&bid, funding_success)?;
 
 		Self::release_funding_asset(project_id, &bid.bidder, refunded_funding_asset_amount, bid.funding_asset)?;
 
@@ -227,7 +226,6 @@ impl<T: Config> Pallet<T> {
 			id: bid.id,
 			status: bid.status,
 			final_ct_amount,
-			final_ct_usd_price,
 		});
 
 		Ok(())
@@ -235,34 +233,32 @@ impl<T: Config> Pallet<T> {
 
 	/// Calculate the amount of funds the bidder should receive back based on the original bid
 	/// amount and price compared to the final bid amount and price.
-	fn calculate_refund(
-		bid: &BidInfoOf<T>,
-		funding_success: bool,
-		wap: PriceOf<T>,
-	) -> Result<BidRefund<T>, DispatchError> {
-		let final_ct_usd_price = if bid.original_ct_usd_price > wap { wap } else { bid.original_ct_usd_price };
+	fn calculate_refund(bid: &BidInfoOf<T>, funding_success: bool) -> Result<BidRefund, DispatchError> {
 		let multiplier: MultiplierOf<T> = bid.mode.multiplier().try_into().map_err(|_| Error::<T>::BadMath)?;
-		if !funding_success || bid.status == BidStatus::Rejected {
-			return Ok(BidRefund::<T> {
-				final_ct_usd_price,
+		let ct_price = bid.original_ct_usd_price;
+
+		match bid.status {
+			BidStatus::Accepted if funding_success => Ok(BidRefund {
+				final_ct_amount: bid.original_ct_amount,
+				refunded_plmc: Zero::zero(),
+				refunded_funding_asset_amount: Zero::zero(),
+			}),
+			BidStatus::PartiallyAccepted(accepted_amount) if funding_success => {
+				let new_ticket_size = ct_price.checked_mul_int(accepted_amount).ok_or(Error::<T>::BadMath)?;
+				let new_plmc_bond = Self::calculate_plmc_bond(new_ticket_size, multiplier)?;
+				let new_funding_asset_amount =
+					Self::calculate_funding_asset_amount(new_ticket_size, bid.funding_asset)?;
+				let refunded_plmc = bid.plmc_bond.saturating_sub(new_plmc_bond);
+				let refunded_funding_asset_amount =
+					bid.funding_asset_amount_locked.saturating_sub(new_funding_asset_amount);
+				Ok(BidRefund { final_ct_amount: accepted_amount, refunded_plmc, refunded_funding_asset_amount })
+			},
+			_ => Ok(BidRefund {
 				final_ct_amount: Zero::zero(),
 				refunded_plmc: bid.plmc_bond,
 				refunded_funding_asset_amount: bid.funding_asset_amount_locked,
-			});
+			}),
 		}
-		let final_ct_amount = match bid.status {
-			BidStatus::Accepted => bid.original_ct_amount,
-			BidStatus::PartiallyAccepted(accepted_amount) => accepted_amount,
-			_ => Zero::zero(),
-		};
-
-		let new_ticket_size = final_ct_usd_price.checked_mul_int(final_ct_amount).ok_or(Error::<T>::BadMath)?;
-		let new_plmc_bond = Self::calculate_plmc_bond(new_ticket_size, multiplier)?;
-		let new_funding_asset_amount = Self::calculate_funding_asset_amount(new_ticket_size, bid.funding_asset)?;
-		let refunded_plmc = bid.plmc_bond.saturating_sub(new_plmc_bond);
-		let refunded_funding_asset_amount = bid.funding_asset_amount_locked.saturating_sub(new_funding_asset_amount);
-
-		Ok(BidRefund::<T> { final_ct_usd_price, final_ct_amount, refunded_plmc, refunded_funding_asset_amount })
 	}
 
 	pub fn do_mark_project_as_settled(project_id: ProjectId) -> DispatchResult {

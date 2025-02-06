@@ -158,24 +158,20 @@ fn pre_wap_bids() -> Vec<(u32, [u8; 32], ParticipationMode, InvestorType, u64, f
 	]
 }
 
-fn wap() -> f64 {
-	10.30346708
-}
-
 #[allow(unused)]
 fn post_wap_bids() -> Vec<(u32, [u8; 32], ParticipationMode, InvestorType, u64, f64, AcceptedFundingAsset, f64, f64)> {
 	// (bid_id, User, Participation mode, Investor type, CTs specified in extrinsic, CT Price, Participation Currency, Final participation currency ticket, PLMC bonded as a consequence)
 	vec![
-		(21, SAM, OTM, Professional, 2_000, 10.303467, USDT, 20_916.0382, 22_620.1253),
-		(22, SAM, OTM, Professional, 2_200, 10.303467, DOT, 4_947.8800, 24_882.1378),
-		(16, DAVE, OTM, Professional, 1_000, 10.303467, USDT, 10_458.0191, 11_310.0627),
-		(17, GERALT, Classic(15), Institutional, 500, 10.303467, USDT, 5_151.7335, 1_885.0104),
-		(18, GEORGE, Classic(20), Institutional, 1_900, 10.303467, USDT, 19_576.5875, 5_372.2798),
-		(19, GINO, Classic(25), Institutional, 600, 10.303467, USDT, 6_182.0802, 1_357.2075),
-		(20, STEVE, OTM, Professional, 1_000, 10.303467, USDT, 10_458.0191, 11_310.0627),
-		(0, BROCK, OTM, Professional, 700, 10.000000, USDC, 7_101.4493, 7_683.8639),
-		(1, BEN, OTM, Professional, 4_000, 10.000000, USDT, 40_600.0000, 43_907.7936),
-		(2, BILL, Classic(3), Professional, 3_000, 10.000000, USDC, 29_985.0075, 54_884.7420),
+		(21, SAM, OTM, Professional, 2_000, 12.0, USDT, 24000.0, 26344.6762),
+		(22, SAM, OTM, Professional, 2_200, 12.0, DOT, 5677.419355, 28979.1438),
+		(16, DAVE, OTM, Professional, 1_000, 11.0, USDT, 11000.0, 12074.6432),
+		(17, GERALT, Classic(15), Institutional, 500, 11.0, USDT, 5500.0, 2012.4405),
+		(18, GEORGE, Classic(20), Institutional, 1_900, 11.0, USDT, 20900.0, 5735.4555),
+		(19, GINO, Classic(25), Institutional, 600, 11.0, USDT, 6600.0, 1448.9572),
+		(20, STEVE, OTM, Professional, 1_000, 11.0, USDT, 11000.0, 12074.6432),
+		(0, BROCK, OTM, Professional, 700, 10.000000, USDC, 6996.501749, 7_683.8639),
+		(1, BEN, OTM, Professional, 4_000, 10.000000, USDT, 40_000.0, 43_907.7936),
+		(2, BILL, Classic(3), Professional, 3_000, 10.000000, USDC, 29985.0075, 54_884.7420),
 		(3, BRAD, Classic(6), Professional, 700, 10.000000, USDT, 7_000.0000, 6_403.2199),
 		(4, BROCK, Classic(9), Professional, 3_400, 10.000000, USDT, 34_000.0000, 20_734.2359),
 		(5, BLAIR, Classic(8), Professional, 1_000, 10.000000, USDT, 10_000.0000, 6_860.5928),
@@ -187,7 +183,7 @@ fn post_wap_bids() -> Vec<(u32, [u8; 32], ParticipationMode, InvestorType, u64, 
 		(11, BELLA, Classic(1), Professional, 800, 10.000000, USDT, 8_000.0000, 43_907.7936),
 		(12, BRUCE, Classic(4), Institutional, 3_000, 10.000000, USDT, 30_000.0000, 41_163.5565),
 		(13, BRENT, Classic(1), Institutional, 8_000, 10.000000, USDT, 80_000.0000, 439_077.9363),
-		(14, DOUG, OTM, Institutional, 100, 10.000000, USDT, 1_015.0000, 5_488.4742),
+		(14, DOUG, OTM, Institutional, 100, 10.000000, USDT, 1000.0, 5_488.4742),
 		(15, DAVE, OTM, Professional, 0, 10.000000, USDT, 0.00, 0.00),
 	]
 }
@@ -198,7 +194,7 @@ fn cts_minted() -> f64 {
 }
 
 fn usd_raised() -> f64 {
-	502_791.8972
+	513_400.0000
 }
 
 #[allow(unused)]
@@ -209,7 +205,7 @@ fn ct_fees() -> (f64, f64, f64) {
 
 fn issuer_payouts() -> (f64, f64, f64) {
 	// (USDT, USDC, DOT)
-	(430_124.27, 36_981.51, 7_670.46)
+	(437_000.00, 36_981.51, 8_473.12)
 }
 
 fn evaluator_reward_pots() -> (f64, f64, f64, f64) {
@@ -245,9 +241,9 @@ fn final_payouts() -> Vec<([u8; 32], f64, f64)> {
 		(DAVE, 1059.661749, 0.00),
 		(MASON, 35.37757672, 0.00),
 		(MIKE, 82.74302164, 0.00),
-		(GERALT, 500.0, 1_885.01),
-		(GEORGE, 1_900.0, 5_372.28),
-		(GINO, 600.0, 1_357.21),
+		(GERALT, 500.0, 2_012.44),
+		(GEORGE, 1_900.0, 5_735.46),
+		(GINO, 600.0, 1_448.96),
 		(STEVE, 1017.159307, 0.0),
 		(SAM, 4267.09505, 0.0),
 	]
@@ -255,7 +251,7 @@ fn final_payouts() -> Vec<([u8; 32], f64, f64)> {
 
 fn otm_fee_recipient_balances() -> (f64, f64, f64) {
 	// USDT, USDC, DOT
-	(1233.208025, 104.9475262, 73.12137929)
+	(1305.0, 104.9475262, 85.16129032)
 }
 
 fn otm_treasury_sub_account_plmc_held() -> f64 {
@@ -462,18 +458,6 @@ fn e2e_test() {
 
 		let project_details = inst.get_project_details(project_id);
 		let project_metadata = inst.get_project_metadata(project_id);
-		let stored_wap = project_details.weighted_average_price.unwrap();
-		let expected_wap = PriceProviderOf::<PolimecRuntime>::calculate_decimals_aware_price(
-			PriceOf::<PolimecRuntime>::from_float(wap()),
-			USD_DECIMALS,
-			CT_DECIMALS,
-		)
-		.unwrap();
-		assert_close_enough!(
-			stored_wap.saturating_mul_int(PLMC),
-			expected_wap.saturating_mul_int(PLMC),
-			Perquintill::from_float(0.9999)
-		);
 
 		let actual_cts_minted = polimec_runtime::ContributionTokens::total_issuance(project_id);
 		let expected_cts_minted = FixedU128::from_float(cts_minted()).saturating_mul_int(CT_UNIT);
@@ -544,6 +528,8 @@ fn e2e_test() {
 		);
 
 		for (user, ct_rewarded, plmc_bonded) in final_payouts() {
+			let names = names();
+
 			let user: PolimecAccountId = user.into();
 			let ct_rewarded = FixedU128::from_float(ct_rewarded).saturating_mul_int(CT_UNIT);
 			let plmc_bonded = FixedU128::from_float(plmc_bonded).saturating_mul_int(PLMC);
