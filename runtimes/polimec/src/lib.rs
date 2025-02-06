@@ -73,7 +73,7 @@ use sp_std::{cmp::Ordering, prelude::*};
 use sp_version::RuntimeVersion;
 
 // XCM Imports
-use xcm::{v3::MultiLocation, VersionedAssets, VersionedLocation, VersionedXcm};
+use xcm::{VersionedAssets, VersionedLocation, VersionedXcm};
 use xcm_config::{PriceForSiblingParachainDelivery, XcmOriginToTransactDispatchOrigin};
 use xcm_runtime_apis::{
 	dry_run::{CallDryRunEffects, Error as XcmDryRunApiError, XcmDryRunEffects},
@@ -144,20 +144,6 @@ pub type SignedBlock = generic::SignedBlock<Block>;
 /// BlockId type as expected by this runtime.
 pub type BlockId = generic::BlockId<Block>;
 
-/// The SignedExtension to the basic transaction logic.
-pub type SignedExtra = (
-	frame_system::CheckNonZeroSender<Runtime>,
-	frame_system::CheckSpecVersion<Runtime>,
-	frame_system::CheckTxVersion<Runtime>,
-	frame_system::CheckGenesis<Runtime>,
-	frame_system::CheckEra<Runtime>,
-	// TODO: Return to parity CheckNonce implementation once
-	// https://github.com/paritytech/polkadot-sdk/issues/3991 is resolved.
-	pallet_dispenser::extensions::CheckNonce<Runtime>,
-	frame_system::CheckWeight<Runtime>,
-	pallet_skip_feeless_payment::SkipCheckIfFeeless<Runtime, pallet_asset_tx_payment::ChargeAssetTxPayment<Runtime>>,
-	frame_metadata_hash_extension::CheckMetadataHash<Runtime>,
-);
 /// The TransactionExtension to the basic transaction logic.
 ///
 /// When you change this, you **MUST** modify [`sign`] in `bin/node/testing/src/keyring.rs`!
@@ -169,8 +155,7 @@ pub type TxExtension = (
 	frame_system::CheckTxVersion<Runtime>,
 	frame_system::CheckGenesis<Runtime>,
 	frame_system::CheckEra<Runtime>,
-	// TODO: uncomment and fix this,
-	// pallet_dispenser::extensions::CheckNonce<Runtime>,
+	pallet_dispenser::extensions::CheckNonce<Runtime>,
 	frame_system::CheckWeight<Runtime>,
 	pallet_skip_feeless_payment::SkipCheckIfFeeless<Runtime, pallet_asset_tx_payment::ChargeAssetTxPayment<Runtime>>,
 	frame_metadata_hash_extension::CheckMetadataHash<Runtime>,
@@ -933,7 +918,7 @@ where
 		call: RuntimeCall,
 		public: <Signature as Verify>::Signer,
 		account: AccountId,
-		_nonce: <Runtime as frame_system::Config>::Nonce,
+		nonce: <Runtime as frame_system::Config>::Nonce,
 	) -> Option<UncheckedExtrinsic> {
 		use sp_runtime::traits::StaticLookup;
 		// take the biggest period possible.
@@ -953,7 +938,7 @@ where
 			frame_system::CheckEra::<Runtime>::from(generic::Era::mortal(period, current_block)),
 			// TODO: Return to parity CheckNonce implementation once
 			// https://github.com/paritytech/polkadot-sdk/issues/3991 is resolved.
-			// pallet_dispenser::extensions::CheckNonce::<Runtime>::from(nonce),
+			pallet_dispenser::extensions::CheckNonce::<Runtime>::from(nonce),
 			frame_system::CheckWeight::<Runtime>::new(),
 			pallet_skip_feeless_payment::SkipCheckIfFeeless::<
 				Runtime,
@@ -1248,8 +1233,8 @@ impl pallet_asset_tx_payment::Config for Runtime {
 pub struct AssetTxHelper;
 
 #[cfg(feature = "runtime-benchmarks")]
-impl pallet_asset_tx_payment::BenchmarkHelperTrait<AccountId, Location, MultiLocation> for AssetTxHelper {
-	fn create_asset_id_parameter(_id: u32) -> (Location, MultiLocation) {
+impl pallet_asset_tx_payment::BenchmarkHelperTrait<AccountId, Location, xcm::v3::MultiLocation> for AssetTxHelper {
+	fn create_asset_id_parameter(_id: u32) -> (Location, xcm::v3::MultiLocation) {
 		unimplemented!("Penpal uses default weights");
 	}
 

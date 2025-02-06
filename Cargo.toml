@@ -107,6 +107,7 @@ heapless = { version = "0.8", default-features = false }
 color-print = "0.3.6"
 k256 = { version = "0.13.4", default-features = false, features = ["ecdsa"] }
 variant_count = "1.1.0"
+parking_lot = "0.12.1"
 
 # Emulations
 xcm-emulator = { version = "0.17.1", default-features = false }

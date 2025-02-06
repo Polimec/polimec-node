@@ -18,7 +18,6 @@ use crate::*;
 /// Tests for the oracle pallet integration.
 /// Alice, Bob, Charlie are members of the OracleProvidersMembers.
 /// Only members should be able to feed data into the oracle.
-use parity_scale_codec::alloc::collections::HashMap;
 use polimec_common::assets::AcceptedFundingAsset;
 use polimec_runtime::{Oracle, RuntimeOrigin};
 use sp_runtime::{bounded_vec, BoundedVec, FixedU128};

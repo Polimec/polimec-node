@@ -1,4 +1,4 @@
-use crate::chain_spec::{get_account_id_from_seed, Extensions};
+use crate::chain_spec::Extensions;
 use cumulus_primitives_core::ParaId;
 #[cfg(not(feature = "runtime-benchmarks"))]
 use itertools::Itertools;
@@ -50,19 +50,19 @@ pub fn get_polimec_session_keys(keys: AuthorityId) -> polimec_runtime::SessionKe
 }
 
 pub fn alice() -> polimec_runtime::AccountId {
-	get_account_id_from_seed::<sr25519::Public>("Alice")
+	sp_keyring::AccountKeyring::Alice.to_account_id()
 }
 pub fn bob() -> polimec_runtime::AccountId {
-	get_account_id_from_seed::<sr25519::Public>("Bob")
+	sp_keyring::AccountKeyring::Bob.to_account_id()
 }
 pub fn charlie() -> polimec_runtime::AccountId {
-	get_account_id_from_seed::<sr25519::Public>("Charlie")
+	sp_keyring::AccountKeyring::Charlie.to_account_id()
 }
 pub fn dave() -> polimec_runtime::AccountId {
-	get_account_id_from_seed::<sr25519::Public>("Dave")
+	sp_keyring::AccountKeyring::Dave.to_account_id()
 }
 pub fn eve() -> polimec_runtime::AccountId {
-	get_account_id_from_seed::<sr25519::Public>("Eve")
+	sp_keyring::AccountKeyring::Eve.to_account_id()
 }
 
 pub fn acc_from_ss58(string: &str) -> polimec_runtime::AccountId {

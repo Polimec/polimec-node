@@ -1,6 +1,6 @@
 use crate::{AccountId, Funding, Runtime};
 use alloc::collections::BTreeMap;
-#[cfg(feature = "runtime-benchmarks")]
+#[cfg(any(feature = "runtime-benchmarks", feature = "try-runtime"))]
 use frame_support::migrations::VersionedPostUpgradeData;
 use frame_support::{
 	pallet_prelude::{NMapKey, ValueQuery},
@@ -10,7 +10,7 @@ use frame_support::{
 };
 use itertools::Itertools;
 use pallet_assets::{Approval, AssetAccount, AssetDetails, AssetMetadata};
-#[cfg(feature = "runtime-benchmarks")]
+#[cfg(any(feature = "runtime-benchmarks", feature = "try-runtime"))]
 use parity_scale_codec::Encode;
 use polimec_common::assets::AcceptedFundingAsset;
 use sp_api::runtime_decl_for_core::CoreV5;

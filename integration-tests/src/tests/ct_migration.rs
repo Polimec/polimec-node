@@ -20,14 +20,13 @@ use itertools::Itertools;
 use pallet_funding::{assert_close_enough, types::*, ProjectId, WeightInfo};
 use polimec_common::migration_types::{MigrationStatus, Migrations, ParticipationType};
 use polimec_runtime::{Funding, RuntimeOrigin};
-use polkadot_service::chain_spec::get_account_id_from_seed;
 use sp_runtime::Perquintill;
 use std::collections::HashMap;
 use tests::defaults::*;
 use xcm_executor::traits::WeightBounds;
 
 fn alice() -> AccountId {
-	get_account_id_from_seed::<sr25519::Public>(ALICE)
+	sp_keyring::AccountKeyring::Alice.to_account_id()
 }
 
 fn mock_hrmp_establishment(project_id: u32) {
@@ -319,18 +318,18 @@ fn hrmp_functions_weight_is_under_assumed_maximum() {
 	type WeightInfo = <PolimecRuntime as pallet_funding::Config>::WeightInfo;
 	type XcmWeigher = <polimec_runtime::xcm_config::XcmConfig as xcm_executor::Config>::Weigher;
 
-	let open_channel_message = xcm::v5::Instruction::<PolimecCall>::HrmpNewChannelOpenRequest {
+	let mut open_channel_message = xcm::v5::Instruction::<PolimecCall>::HrmpNewChannelOpenRequest {
 		sender: 6969,
 		max_message_size: 102_300,
 		max_capacity: 1000,
 	};
-	let channel_accepted_message = xcm::v5::Instruction::<PolimecCall>::HrmpChannelAccepted { recipient: 6969u32 };
+	let mut channel_accepted_message = xcm::v5::Instruction::<PolimecCall>::HrmpChannelAccepted { recipient: 6969u32 };
 
 	let open_channel_message_real_weight = WeightInfo::do_handle_channel_open_request();
-	let open_channel_message_deducted_weight = XcmWeigher::instr_weight(&open_channel_message).unwrap();
+	let open_channel_message_deducted_weight = XcmWeigher::instr_weight(&mut open_channel_message).unwrap();
 
 	let channel_accepted_message_real_weight = WeightInfo::do_handle_channel_accepted();
-	let channel_accepted_message_deducted_weight = XcmWeigher::instr_weight(&channel_accepted_message).unwrap();
+	let channel_accepted_message_deducted_weight = XcmWeigher::instr_weight(&mut channel_accepted_message).unwrap();
 
 	assert!(open_channel_message_deducted_weight.all_gte(open_channel_message_real_weight));
 	assert!(channel_accepted_message_deducted_weight.all_gte(channel_accepted_message_real_weight));

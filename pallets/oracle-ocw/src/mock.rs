@@ -112,9 +112,9 @@ impl Convert<(AssetName, FixedU128), (OracleKey, OracleValue)> for AssetPriceCon
 
 parameter_types! {
 	pub static Members: Vec<AccountId> = vec![
-		get_account_id_from_seed::<crate::crypto::AuthorityId>("Alice"),
-		get_account_id_from_seed::<crate::crypto::AuthorityId>("Bob"),
-		get_account_id_from_seed::<crate::crypto::AuthorityId>("Charlie"),
+		sp_keyring::AccountKeyring::Alice.to_account_id(),
+		sp_keyring::AccountKeyring::Bob.to_account_id(),
+		sp_keyring::AccountKeyring::Charlie.to_account_id(),
 	];
 }
 impl Config for Test {
@@ -248,18 +248,6 @@ pub fn run_to_block(n: u64) {
 		System::set_block_number(System::block_number() + 1);
 		Oracle::on_initialize(System::block_number());
 	}
-}
-
-/// Helper function to generate a crypto pair from seed
-pub fn get_from_seed<TPublic: Public>(seed: &str) -> <TPublic::Pair as Pair>::Public {
-	TPublic::Pair::from_string(&format!("//{}", seed), None).expect("static values are valid; qed").public()
-}
-
-pub fn get_account_id_from_seed<TPublic: Public>(seed: &str) -> AccountId
-where
-	AccountPublic: From<<TPublic::Pair as Pair>::Public>,
-{
-	AccountPublic::from(get_from_seed::<TPublic>(seed)).into_account()
 }
 
 pub fn assert_close_enough(a: FixedU128, b: FixedU128) {

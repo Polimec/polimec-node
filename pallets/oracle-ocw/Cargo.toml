@@ -35,7 +35,8 @@ substrate-fixed = {workspace = true}
 [dev-dependencies]
 pallet-balances = { workspace = true, features = ["std"] }
 sp-keystore = { workspace = true, features = ["std"] }
-parking_lot = "0.12.1"
+sp-keyring = { workspace = true, features = ["std"] }
+parking_lot.workspace = true
 polimec-common-test-utils.workspace = true
 
 [features]
