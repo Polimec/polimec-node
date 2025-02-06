@@ -167,12 +167,12 @@ mod start_settlement_extrinsic {
 			let (mut inst, project_id) = create_project_with_funding_percentage(40, false);
 			let ct_treasury = <TestRuntime as Config>::ContributionTreasury::get();
 			let project_details = inst.get_project_details(project_id);
+			let project_metadata = inst.get_project_metadata(project_id);
 
 			assert_eq!(project_details.funding_amount_reached_usd, 4_000_000 * USD_UNIT);
 			let usd_fee = Percent::from_percent(10u8) * (1_000_000 * USD_UNIT) +
 				Percent::from_percent(8u8) * (3_000_000 * USD_UNIT);
-			let ct_fee =
-				project_details.weighted_average_price.unwrap().reciprocal().unwrap().saturating_mul_int(usd_fee);
+			let ct_fee = project_metadata.minimum_price.reciprocal().unwrap().saturating_mul_int(usd_fee);
 			// Liquidity Pools and Long Term Holder Bonus treasury allocation
 			let treasury_allocation = Percent::from_percent(50) * ct_fee + Percent::from_percent(20) * ct_fee;
 
@@ -486,7 +486,6 @@ mod settle_bid_extrinsic {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 			let ed = inst.get_ed();
 			let usdt_ed = inst.get_funding_asset_ed(AcceptedFundingAsset::USDT.id());
-			let dot_ed = inst.get_funding_asset_ed(AcceptedFundingAsset::DOT.id());
 			let mut project_metadata = default_project_metadata(ISSUER_1);
 			let base_price = PriceOf::<TestRuntime>::from_float(1.0);
 			let decimal_aware_price = <TestRuntime as Config>::PriceProvider::calculate_decimals_aware_price(
@@ -506,18 +505,17 @@ mod settle_bid_extrinsic {
 				ParticipationMode::Classic(3u8),
 				AcceptedFundingAsset::USDT,
 			));
-			let lower_price_bid_params = BidParams::from((
+			let accepted_bid_params = BidParams::from((
 				BIDDER_2,
 				Retail,
 				2000 * CT_UNIT,
 				ParticipationMode::Classic(5u8),
 				AcceptedFundingAsset::DOT,
 			));
-			let bids = vec![partial_amount_bid_params.clone(), lower_price_bid_params.clone()];
+			let bids = vec![partial_amount_bid_params.clone(), accepted_bid_params.clone()];
 			let evaluations = inst.generate_successful_evaluations(project_metadata.clone(), 5);
 			let project_id = inst.create_finished_project(project_metadata.clone(), ISSUER_1, None, evaluations, bids);
 			assert_eq!(inst.go_to_next_state(project_id), ProjectStatus::SettlementStarted(FundingOutcome::Success));
-			let wap = inst.get_project_details(project_id).weighted_average_price.unwrap();
 
 			// Partial amount bid assertions
 			let partial_amount_bid_stored = inst.execute(|| Bids::<TestRuntime>::get(project_id, 0)).unwrap();
@@ -542,20 +540,10 @@ mod settle_bid_extrinsic {
 				project_metadata.funding_destination_account,
 			);
 
-			let lower_price_bid_stored = inst.execute(|| Bids::<TestRuntime>::get(project_id, 1)).unwrap();
-			let pre_issuer_dot_balance = inst.get_free_funding_asset_balance_for(
-				AcceptedFundingAsset::DOT.id(),
-				project_metadata.funding_destination_account,
-			);
-
 			inst.settle_project(project_id, true);
 
 			let post_issuer_usdt_balance = inst.get_free_funding_asset_balance_for(
 				AcceptedFundingAsset::USDT.id(),
-				project_metadata.funding_destination_account,
-			);
-			let post_issuer_dot_balance = inst.get_free_funding_asset_balance_for(
-				AcceptedFundingAsset::DOT.id(),
 				project_metadata.funding_destination_account,
 			);
 
@@ -586,55 +574,6 @@ mod settle_bid_extrinsic {
 			inst.execute(|| LinearRelease::vest(RuntimeOrigin::signed(BIDDER_1), hold_reason).expect("Vesting failed"));
 
 			inst.assert_plmc_free_balance(BIDDER_1, expected_plmc_refund + expected_final_plmc_bonded + ed);
-
-			// Price > wap bid assertions
-			let expected_final_plmc_bonded = inst
-				.calculate_auction_plmc_charged_with_given_price(&vec![lower_price_bid_params.clone()], wap)[0]
-				.plmc_amount;
-			let expected_final_dot_paid = inst
-				.calculate_auction_funding_asset_charged_with_given_price(&vec![lower_price_bid_params.clone()], wap)[0]
-				.asset_amount;
-			let expected_plmc_refund = lower_price_bid_stored.plmc_bond - expected_final_plmc_bonded;
-			let expected_dot_refund = lower_price_bid_stored.funding_asset_amount_locked - expected_final_dot_paid;
-
-			inst.assert_funding_asset_free_balance(
-				BIDDER_2,
-				AcceptedFundingAsset::DOT.id(),
-				expected_dot_refund + dot_ed,
-			);
-			assert_eq!(post_issuer_dot_balance, pre_issuer_dot_balance + expected_final_dot_paid);
-
-			inst.assert_plmc_free_balance(BIDDER_2, expected_plmc_refund + ed);
-			inst.assert_ct_balance(project_id, BIDDER_2, 2000 * CT_UNIT);
-
-			inst.assert_migration(
-				project_id,
-				BIDDER_2,
-				2000 * CT_UNIT,
-				1,
-				ParticipationType::Bid,
-				polkadot_junction!(BIDDER_2),
-				true,
-			);
-
-			// Multiplier 5 should be unbonded no earlier than after 8.67 weeks (i.e. 436'867 blocks)
-			let multiplier: MultiplierOf<TestRuntime> =
-				lower_price_bid_params.mode.multiplier().try_into().ok().unwrap();
-			let vesting_time = multiplier.calculate_vesting_duration::<TestRuntime>();
-
-			// Sanity check, 5 blocks should not be enough
-			inst.advance_time(5u64);
-			inst.execute(|| LinearRelease::vest(RuntimeOrigin::signed(BIDDER_2), hold_reason).expect("Vesting failed"));
-			assert_ne!(
-				inst.get_free_plmc_balance_for(BIDDER_2),
-				expected_plmc_refund + expected_final_plmc_bonded + ed
-			);
-
-			// After the vesting time, the full amount should be vested
-			let current_block = inst.current_block();
-			inst.jump_to_block(current_block + vesting_time - 5u64);
-			inst.execute(|| LinearRelease::vest(RuntimeOrigin::signed(BIDDER_2), hold_reason).expect("Vesting failed"));
-			inst.assert_plmc_free_balance(BIDDER_2, expected_plmc_refund + expected_final_plmc_bonded + ed);
 		}
 
 		#[test]

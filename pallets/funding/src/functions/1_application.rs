@@ -33,7 +33,6 @@ impl<T: Config> Pallet<T> {
 			issuer_account: issuer.clone(),
 			issuer_did: did.clone(),
 			is_frozen: false,
-			weighted_average_price: None,
 			fundraising_target_usd: fundraising_target,
 			status: ProjectStatus::Application,
 			round_duration: BlockNumberPair::new(None, None),
