@@ -31,7 +31,7 @@
 //! - **Evaluators**: They are incentivized to assess projects accurately by locking their PLMC. If at least 10% of its
 //!     target funding (in USD) is locked in PLMC, a project is given access to the funding round. Evaluators are either
 //!     rewarded in contribution tokens if the project gets funded, or have their PLMC slashed otherwise.
-//! - **Participants**: They contribute financially to projects by locking PLMC and paying out USDT/USDC/DOT, and are rewarded in contribution tokens.
+//! - **Bidders**: They contribute financially to projects by locking PLMC and paying out USDT/USDC/DOT, and are rewarded in contribution tokens.
 //!
 //! Users need to go through a KYC/AML by a third party in order to use the protocol. This process classifies them
 //! into one of the following categories, based on their investment experience and financial status:
@@ -45,26 +45,19 @@
 //! 3) **Evaluate**: Evaluators bond PLMC to evaluate a project with the [`evaluate`](Pallet::evaluate) extrinsic.
 //! 4) **Evaluation End**: Anyone can end the evaluation round with the [`end_evaluation`](Pallet::end_evaluation) extrinsic after the defined end block.
 //! 5) **Auction Start**: If the project receives at least 10% of its target funding (in USD) in PLMC bonded, the auction starts immediately after `end_evaluation` is called.
-//! 6) **Bid**: Professional and institutional investors can place bids on the project using the [`bid`](Pallet::bid) extrinsic. The price starts at the issuer-defined minimum, and increases by increments of 10% in price and bucket size.
-//! 7) **Auction End**: Anyone can end the auction round with the [`end_auction`](Pallet::end_auction) extrinsic after the defined end block.
-//! 8) **Community Round Start**: After `end_auction` is called, a weighted average price is calculated from the bids, and the community round starts.
-//! 9) **Contribute**: Anyone without a winning bid can now contribute at the weighted average price with the [`contribute`](Pallet::contribute) extrinsic.
-//! 10) **Remainder Round Start**: After a defined [period](<T as Config>::CommunityRoundDuration), the remainder round starts.
-//! 11) **Contribute**: Participants with winning bids can also contribute at the weighted average price with the [`contribute`](Pallet::contribute) extrinsic.
-//! 12) **Funding End**: Anyone can end the project with the [`end_project`](Pallet::end_project) extrinsic after the defined end block.
+//! 6) **Bid**: Investors can place bids on the project using the [`bid`](Pallet::bid) extrinsic. The price starts at the issuer-defined minimum, and increases by increments of 10% in price and bucket size.
+//! 7) **Funding End**: Anyone can end the project with the [`end_project`](Pallet::end_project) extrinsic after the defined end block.
 //!     The project will now be considered Failed if it reached <=33% of its target funding in USD, and Successful otherwise.
-//! 13) **Settlement Start**: Anyone can start the settlement process with the [`start_settlement`](Pallet::start_settlement) extrinsic after the defined end block.
-//! 14) **Settle Evaluation**: Anyone can now settle an evaluation with the [`settle_evaluation`](Pallet::settle_evaluation) extrinsic.
+//! 8) **Settlement Start**: Anyone can start the settlement process with the [`start_settlement`](Pallet::start_settlement) extrinsic after the defined end block.
+//! 9) **Settle Evaluation**: Anyone can now settle an evaluation with the [`settle_evaluation`](Pallet::settle_evaluation) extrinsic.
 //!     This will unlock the PLMC bonded, and either apply a slash to the PLMC, or reward CTs to the evaluator.
-//! 15) **Settle Bid**: Anyone can now settle a bid with the [`settle_bid`](Pallet::settle_bid) extrinsic.
+//! 10) **Settle Bid**: Anyone can now settle a bid with the [`settle_bid`](Pallet::settle_bid) extrinsic.
 //!     This will set a vesting schedule on the PLMC bonded, and pay out the funding assets to the issuer. It will also issue refunds in case the bid failed,
 //!     or the price paid was higher than the weighted average price.
-//! 16) **Settle Contribution**: Anyone can now settle a contribution with the [`settle_contribution`](Pallet::settle_contribution) extrinsic.
-//!     This will set a vesting schedule on the PLMC bonded, and pay out the funding assets to the issuer.
-//! 17) **Settlement End**: Anyone can now mark the project settlement as finished by calling the [`mark_project_as_settled`](Pallet::mark_project_as_settled) extrinsic.
-//! 18) **Migration Start**: Once the issuer has tokens to distribute on mainnet, he can start the migration process with the [`start_offchain`](Pallet::start_offchain_migration) extrinsic.
-//! 19) **Confirm Migration**: The issuer has to mark each participant's CTs as migrated with the [`confirm_offchain_migration`](Pallet::confirm_offchain_migration) extrinsic.
-//! 20) **Migration End**: Once all participants have migrated their CTs, anyone can mark the migration as finished with the [`mark_project_ct_migration_as_finished`](Pallet::mark_project_ct_migration_as_finished) extrinsic.
+//! 11) **Settlement End**: Anyone can now mark the project settlement as finished by calling the [`mark_project_as_settled`](Pallet::mark_project_as_settled) extrinsic.
+//! 12) **Migration Start**: Once the issuer has tokens to distribute on mainnet, he can start the migration process with the [`start_offchain`](Pallet::start_offchain_migration) extrinsic.
+//! 13) **Confirm Migration**: The issuer has to mark each participant's CTs as migrated with the [`confirm_offchain_migration`](Pallet::confirm_offchain_migration) extrinsic.
+//! 14) **Migration End**: Once all participants have migrated their CTs, anyone can mark the migration as finished with the [`mark_project_ct_migration_as_finished`](Pallet::mark_project_ct_migration_as_finished) extrinsic.
 
 // Ensure we're `no_std` when compiling for Wasm.
 #![cfg_attr(not(feature = "std"), no_std)]
@@ -78,6 +71,7 @@
 extern crate alloc;
 
 pub use crate::weights::WeightInfo;
+use alloc::string::String;
 use frame_support::{
 	traits::{
 		tokens::{fungible, fungibles},
@@ -99,12 +93,12 @@ use sp_runtime::{traits::AccountIdConversion, FixedPointNumber, FixedU128};
 use sp_std::prelude::*;
 pub use types::*;
 use xcm::v4::{prelude::*, SendXcm};
-mod functions;
+
+pub mod functions;
 pub mod storage_migrations;
 pub mod traits;
 pub mod types;
 pub mod weights;
-use alloc::string::String;
 
 #[cfg(test)]
 pub mod mock;
@@ -120,7 +114,6 @@ use polimec_common::migration_types::ParticipationType;
 
 #[cfg(feature = "runtime-benchmarks")]
 pub mod benchmarking;
-pub mod runtime_api;
 
 pub type AccountIdOf<T> = <T as frame_system::Config>::AccountId;
 pub type ProjectId = u32;
@@ -386,7 +379,7 @@ pub mod pallet {
 	pub type ProjectsDetails<T: Config> = StorageMap<_, Blake2_128Concat, ProjectId, ProjectDetailsOf<T>>;
 
 	#[pallet::storage]
-	pub type ProjectsInAuctionRound<T: Config> = StorageValue<_, WeakBoundedVec<ProjectId, ConstU32<1000>>, ValueQuery>;
+	pub type ProjectsInAuctionRound<T: Config> = StorageMap<_, Blake2_128Concat, ProjectId, ()>;
 
 	#[pallet::storage]
 	/// Keep track of the PLMC bonds made to each project by each evaluator
@@ -991,15 +984,25 @@ pub mod pallet {
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
 		fn on_idle(_n: BlockNumberFor<T>, available_weight: Weight) -> Weight {
-			let projects = ProjectsInAuctionRound::<T>::get();
-			if projects.is_empty() {
+			// Early return if no projects in auction round
+			if ProjectsInAuctionRound::<T>::iter_keys().next().is_none() {
 				return <T as frame_system::Config>::DbWeight::get().reads(1);
 			}
 
 			let mut weight_consumed = <T as frame_system::Config>::DbWeight::get().reads(1);
+			let read_weight = <T as frame_system::Config>::DbWeight::get().reads(1);
 			let process_weight = <T as frame_system::Config>::DbWeight::get().reads_writes(1, 1);
 
-			for project_id in projects {
+			// Iterate over all projects in auction round
+			for (project_id, _) in ProjectsInAuctionRound::<T>::iter() {
+				// Add weight for reading the storage item
+				weight_consumed.saturating_accrue(read_weight);
+
+				// Check if we have enough weight to continue
+				if weight_consumed.saturating_add(process_weight).all_gt(available_weight) {
+					return weight_consumed;
+				}
+
 				loop {
 					// Check weight before processing each bid
 					if weight_consumed.saturating_add(process_weight).all_gt(available_weight) {
@@ -1010,10 +1013,8 @@ pub mod pallet {
 					match Self::do_process_next_oversubscribed_bid(project_id) {
 						// Returns Ok if a bid was processed successfully
 						Ok(_) => continue,
-						// Returns Err if there are no more bids to process, so we go to next project in the auction round
-						Err(_) => {
-							break;
-						},
+						// Returns Err if there are no more bids to process, so we go to next project
+						Err(_) => break,
 					}
 				}
 			}

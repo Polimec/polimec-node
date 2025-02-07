@@ -25,17 +25,6 @@ impl<
 		self.execute(|| T::FundingCurrency::minimum_balance(asset_id))
 	}
 
-	pub fn get_funding_asset_unit(&mut self, asset_id: AssetIdOf<T>) -> Balance {
-		self.execute(|| {
-			let decimals = T::FundingCurrency::decimals(asset_id);
-			10u128.pow(decimals as u32)
-		})
-	}
-
-	pub fn get_ct_account_deposit(&self) -> Balance {
-		<T as crate::Config>::ContributionTokenCurrency::deposit_required(One::one())
-	}
-
 	pub fn calculate_evaluation_plmc_spent(
 		&mut self,
 		evaluations: Vec<EvaluationParams<T>>,
@@ -72,7 +61,7 @@ impl<
 			while !amount_to_bid.is_zero() {
 				let bid_amount = if amount_to_bid <= bucket.amount_left { amount_to_bid } else { bucket.amount_left };
 				output.push((
-					BidParams::from((bid.bidder.clone(), bid.investor_type.clone(), bid_amount, bid.mode, bid.asset)),
+					BidParams::from((bid.bidder.clone(), bid.investor_type, bid_amount, bid.mode, bid.asset)),
 					bucket.current_price,
 				));
 				bucket.update(bid_amount);
@@ -170,18 +159,6 @@ impl<
 		output.merge_accounts(MergeOperation::Add)
 	}
 
-	pub fn calculate_auction_plmc_spent_post_wap(
-		&mut self,
-		bids: &Vec<BidParams<T>>,
-		project_metadata: ProjectMetadataOf<T>,
-	) -> Vec<UserToPLMCBalance<T>> {
-		let plmc_charged =
-			self.calculate_auction_plmc_charged_from_all_bids_made_or_with_bucket(bids, project_metadata.clone(), None);
-		let plmc_returned = self.calculate_auction_plmc_returned_from_all_bids_made(bids, project_metadata.clone());
-
-		plmc_charged.subtract_accounts(plmc_returned)
-	}
-
 	pub fn calculate_auction_funding_asset_charged_with_given_price(
 		&mut self,
 		bids: &Vec<BidParams<T>>,
@@ -273,45 +250,6 @@ impl<
 		output.merge_accounts(MergeOperation::Add)
 	}
 
-	pub fn calculate_auction_funding_asset_spent_post_wap(
-		&mut self,
-		bids: &Vec<BidParams<T>>,
-		project_metadata: ProjectMetadataOf<T>,
-	) -> Vec<UserToFundingAsset<T>> {
-		let funding_asset_charged = self.calculate_auction_funding_asset_charged_from_all_bids_made_or_with_bucket(
-			bids,
-			project_metadata.clone(),
-			None,
-		);
-		let funding_asset_returned =
-			self.calculate_auction_funding_asset_returned_from_all_bids_made(bids, project_metadata.clone());
-
-		funding_asset_charged.subtract_accounts(funding_asset_returned)
-	}
-
-	/// Filters the bids that would be rejected after the auction ends.
-	pub fn filter_bids_after_auction(&self, bids: Vec<BidParams<T>>, total_cts: Balance) -> Vec<BidParams<T>> {
-		let mut filtered_bids: Vec<BidParams<T>> = Vec::new();
-		let sorted_bids = bids;
-		let mut total_cts_left = total_cts;
-		for bid in sorted_bids {
-			if total_cts_left >= bid.amount {
-				total_cts_left.saturating_reduce(bid.amount);
-				filtered_bids.push(bid);
-			} else if !total_cts_left.is_zero() {
-				filtered_bids.push(BidParams::from((
-					bid.bidder.clone(),
-					bid.investor_type,
-					total_cts_left,
-					bid.mode,
-					bid.asset,
-				)));
-				total_cts_left = Zero::zero();
-			}
-		}
-		filtered_bids
-	}
-
 	pub fn add_otm_fee_to(
 		&mut self,
 		balance: &mut Balance,
@@ -349,24 +287,6 @@ impl<
 			self.execute(|| Pallet::<T>::get_decimals_aware_funding_asset_price(&funding_asset).unwrap());
 		let funding_asset_bond = funding_asset_usd_price.reciprocal().unwrap().saturating_mul_int(usd_ticket_size);
 		*balance += funding_asset_bond;
-	}
-
-	pub fn generic_map_merge_reduce<M: Clone, K: Ord + Clone, S: Clone>(
-		&self,
-		mappings: Vec<Vec<M>>,
-		key_extractor: impl Fn(&M) -> K,
-		initial_state: S,
-		merge_reduce: impl Fn(&M, S) -> S,
-	) -> Vec<(K, S)> {
-		let mut output = BTreeMap::new();
-		for mut map in mappings {
-			for item in map.drain(..) {
-				let key = key_extractor(&item);
-				let new_state = merge_reduce(&item, output.get(&key).cloned().unwrap_or(initial_state.clone()));
-				output.insert(key, new_state);
-			}
-		}
-		output.into_iter().collect()
 	}
 
 	/// Merge the given mappings into one mapping, where the values are merged using the given
@@ -604,23 +524,6 @@ impl<
 		balances
 	}
 
-	pub fn calculate_total_reward_for_evaluation(
-		&self,
-		evaluation: EvaluationInfoOf<T>,
-		reward_info: RewardInfo,
-	) -> Balance {
-		let early_reward_weight =
-			Perquintill::from_rational(evaluation.early_usd_amount, reward_info.early_evaluator_total_bonded_usd);
-		let normal_reward_weight = Perquintill::from_rational(
-			evaluation.late_usd_amount.saturating_add(evaluation.early_usd_amount),
-			reward_info.normal_evaluator_total_bonded_usd,
-		);
-		let early_evaluators_rewards = early_reward_weight * reward_info.early_evaluator_reward_pot;
-		let normal_evaluators_rewards = normal_reward_weight * reward_info.normal_evaluator_reward_pot;
-
-		early_evaluators_rewards.saturating_add(normal_evaluators_rewards)
-	}
-
 	// We assume a single bid can cover the whole first bucket. Make sure the ticket sizes allow this.
 	pub fn generate_bids_from_bucket(
 		&self,
@@ -675,13 +578,6 @@ impl<
 		assert_eq!(new_bucket, bucket, "Buckets must match after generating bids");
 
 		bids
-	}
-
-	pub fn remainder_round_block(&self) -> BlockNumberFor<T> {
-		T::EvaluationRoundDuration::get() +
-			T::AuctionRoundDuration::get() +
-			T::CommunityRoundDuration::get() +
-			One::one()
 	}
 
 	#[cfg(feature = "std")]

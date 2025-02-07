@@ -1,9 +1,4 @@
 use super::*;
-use crate::runtime_api::{ExtrinsicHelpers, Leaderboards, ProjectInformation, UserInformation};
-use frame_support::traits::fungibles::{metadata::Inspect, Mutate};
-use polimec_common::assets::AcceptedFundingAsset;
-use sp_runtime::bounded_vec;
-use InvestorType::{self};
 
 #[test]
 fn top_evaluations() {

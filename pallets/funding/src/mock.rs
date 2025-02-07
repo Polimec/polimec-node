@@ -20,7 +20,6 @@
 
 use super::*;
 use crate as pallet_funding;
-use crate::runtime_api::{ExtrinsicHelpers, Leaderboards, ProjectInformation, UserInformation};
 use alloc::string::String;
 use core::ops::RangeInclusive;
 use frame_support::{
@@ -32,6 +31,7 @@ use frame_support::{
 };
 use frame_system as system;
 use frame_system::{EnsureRoot, RawOrigin as SystemRawOrigin};
+use functions::runtime_api::{ExtrinsicHelpers, Leaderboards, ProjectInformation, UserInformation};
 use polimec_common::{assets::AcceptedFundingAsset, credentials::EnsureInvestor, ProvideAssetPrice, USD_UNIT};
 use polimec_common_test_utils::DummyXcmSender;
 use polkadot_parachain_primitives::primitives::Sibling;

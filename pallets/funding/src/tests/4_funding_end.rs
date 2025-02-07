@@ -1,5 +1,4 @@
 use super::*;
-use sp_runtime::PerThing;
 
 #[cfg(test)]
 mod end_funding_extrinsic {

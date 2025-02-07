@@ -199,7 +199,7 @@ impl<T: Config> Pallet<T> {
 		let maybe_current_cutoff = OutbidBidsCutoff::<T>::get(project_id);
 		let mut ct_amount_oversubscribed = CTAmountOversubscribed::<T>::get(project_id);
 
-		ensure!(ct_amount_oversubscribed > Zero::zero(), Error::<T>::NoBidsOversubscribed);
+		ensure!(!ct_amount_oversubscribed.is_zero(), Error::<T>::NoBidsOversubscribed);
 
 		let current_cutoff: (PriceOf<T>, u32);
 

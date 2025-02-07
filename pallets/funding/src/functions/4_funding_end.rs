@@ -1,6 +1,5 @@
 #[allow(clippy::wildcard_imports)]
 use super::*;
-use itertools::Itertools;
 
 impl<T: Config> Pallet<T> {
 	#[transactional]
@@ -20,10 +19,7 @@ impl<T: Config> Pallet<T> {
 		);
 		ensure!(ct_amount_oversubscribed.is_zero(), Error::<T>::OversubscribedBidsRemaining);
 
-		let mut project_ids = ProjectsInAuctionRound::<T>::get().to_vec();
-		let (pos, _) = project_ids.iter().find_position(|id| **id == project_id).ok_or(Error::<T>::ImpossibleState)?;
-		project_ids.remove(pos);
-		ProjectsInAuctionRound::<T>::put(WeakBoundedVec::force_from(project_ids, None));
+		ProjectsInAuctionRound::<T>::remove(project_id);
 
 		let auction_allocation_size = project_metadata.total_allocation_size;
 
