@@ -41,17 +41,6 @@ macro_rules! assert_close_enough {
 }
 
 #[macro_export]
-macro_rules! call_and_is_ok {
-		($inst: expr, $( $call: expr ),* ) => {
-			$inst.execute(|| {
-				$(
-					let result = $call;
-					assert!(result.is_ok(), "Call failed: {:?}", result);
-				)*
-			})
-		};
-	}
-#[macro_export]
 macro_rules! find_event {
     ($runtime:ty, $pattern:pat, $($field_name:ident == $field_value:expr),+) => {
 	    {
@@ -77,37 +66,3 @@ macro_rules! find_event {
 	    }
     };
 }
-
-#[macro_export]
-macro_rules! extract_from_event {
-	($env: expr, $pattern:pat, $field:ident) => {
-		$env.execute(|| {
-			let events = System::events();
-
-			events.iter().find_map(|event_record| {
-				if let frame_system::EventRecord { event: RuntimeEvent::PolimecFunding($pattern), .. } = event_record {
-					Some($field.clone())
-				} else {
-					None
-				}
-			})
-		})
-	};
-}
-
-#[macro_export]
-macro_rules! define_names {
-		($($name:ident: $id:expr, $label:expr);* $(;)?) => {
-			$(
-				pub const $name: AccountId = $id;
-			)*
-
-			pub fn names() -> std::collections::HashMap<AccountId, &'static str> {
-				let mut names = std::collections::HashMap::new();
-				$(
-					names.insert($name, $label);
-				)*
-				names
-			}
-		};
-	}

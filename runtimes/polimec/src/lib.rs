@@ -1493,7 +1493,7 @@ impl_runtime_apis! {
 		}
 	}
 
-	impl pallet_funding::runtime_api::Leaderboards<Block, Runtime> for Runtime {
+	impl pallet_funding::functions::runtime_api::Leaderboards<Block, Runtime> for Runtime {
 		fn top_evaluations(project_id: ProjectId, amount: u32) -> Vec<EvaluationInfoOf<Runtime>> {
 			Funding::top_evaluations(project_id, amount)
 		}
@@ -1511,13 +1511,13 @@ impl_runtime_apis! {
 		}
 	}
 
-	impl pallet_funding::runtime_api::UserInformation<Block, Runtime> for Runtime {
+	impl pallet_funding::functions::runtime_api::UserInformation<Block, Runtime> for Runtime {
 		fn contribution_tokens(account: AccountId) -> Vec<(ProjectId, Balance)> {
 			Funding::contribution_tokens(account)
 		}
 	}
 
-	impl pallet_funding::runtime_api::ProjectInformation<Block, Runtime> for Runtime {
+	impl pallet_funding::functions::runtime_api::ProjectInformation<Block, Runtime> for Runtime {
 		fn usd_target_percent_reached(project_id: ProjectId) -> FixedU128 {
 			Funding::usd_target_percent_reached(project_id)
 		}
@@ -1527,7 +1527,7 @@ impl_runtime_apis! {
 		}
 	}
 
-	impl pallet_funding::runtime_api::ExtrinsicHelpers<Block, Runtime> for Runtime {
+	impl pallet_funding::functions::runtime_api::ExtrinsicHelpers<Block, Runtime> for Runtime {
 		fn funding_asset_to_ct_amount_classic(project_id: ProjectId, asset: AcceptedFundingAsset, asset_amount: Balance) -> Balance {
 			Funding::funding_asset_to_ct_amount_classic(project_id, asset, asset_amount)
 		}

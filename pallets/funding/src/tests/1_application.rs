@@ -1,27 +1,17 @@
 use super::*;
-use polimec_common::{
-	assets::AcceptedFundingAsset,
-	credentials::InvestorType::{self},
-};
-use polimec_common_test_utils::{generate_did_from_account, get_mock_jwt_with_cid};
 
 #[cfg(test)]
 mod round_flow {
 	use super::*;
 
-	#[cfg(test)]
-	mod success {
-		use super::*;
+	#[test]
+	fn application_round_completed() {
+		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 
-		#[test]
-		fn application_round_completed() {
-			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+		let issuer = ISSUER_1;
+		let project_metadata = default_project_metadata(issuer);
 
-			let issuer = ISSUER_1;
-			let project_metadata = default_project_metadata(issuer);
-
-			inst.create_evaluating_project(project_metadata, issuer, None);
-		}
+		inst.create_evaluating_project(project_metadata, issuer, None);
 	}
 }
 
@@ -32,9 +22,6 @@ mod create_project_extrinsic {
 	#[cfg(test)]
 	mod success {
 		use super::*;
-		use polimec_common::assets::AcceptedFundingAsset::{DOT, USDC, USDT, WETH};
-		use polimec_common_test_utils::get_mock_jwt_with_cid;
-		use std::collections::BTreeSet;
 
 		#[test]
 		fn project_id_autoincrement_works() {
@@ -409,7 +396,6 @@ mod create_project_extrinsic {
 			});
 		}
 
-		// Invalid metadata tests:
 		#[test]
 		fn mainnet_supply_less_than_allocation() {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
@@ -842,8 +828,7 @@ mod edit_project_extrinsic {
 	#[cfg(test)]
 	mod success {
 		use super::*;
-		use polimec_common::USD_DECIMALS;
-		use polimec_common_test_utils::get_mock_jwt;
+
 		#[test]
 		fn project_id_stays_the_same() {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));

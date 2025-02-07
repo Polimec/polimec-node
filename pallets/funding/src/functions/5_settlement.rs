@@ -21,6 +21,8 @@ use polimec_common::{
 use sp_runtime::{traits::Zero, Perquintill};
 
 impl<T: Config> Pallet<T> {
+	/// Start the settlement round. Now users can mint their contribution tokens or get their funds back, and the issuer
+	/// will get the funds in their funding account.
 	#[transactional]
 	pub fn do_start_settlement(project_id: ProjectId) -> DispatchResult {
 		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
@@ -104,6 +106,7 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
+	/// Settle an evaluation, by maybe minting CTs, and releasing the PLMC bond.
 	pub fn do_settle_evaluation(evaluation: EvaluationInfoOf<T>, project_id: ProjectId) -> DispatchResult {
 		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 
@@ -154,6 +157,9 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
+	/// Settle a bid. If bid was successful mint the CTs and release the PLMC bond (if multiplier > 1 and mode is Classic).
+	/// If was unsuccessful, release the PLMC bond and refund the funds.
+	/// If the project was successful, the issuer will get the funds.
 	pub fn do_settle_bid(project_id: ProjectId, bid_id: u32) -> DispatchResult {
 		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 		let project_metadata = ProjectsMetadata::<T>::get(project_id).ok_or(Error::<T>::ProjectMetadataNotFound)?;
@@ -261,6 +267,7 @@ impl<T: Config> Pallet<T> {
 		}
 	}
 
+	/// Mark a project as fully settled. Only once this is done we can mark migrations as completed.
 	pub fn do_mark_project_as_settled(project_id: ProjectId) -> DispatchResult {
 		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 		let outcome = match project_details.status {
@@ -288,6 +295,7 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
+	/// Helper function to Mint CTs and handle the payment of new storage with "touch"
 	fn mint_contribution_tokens(
 		project_id: ProjectId,
 		participant: &AccountIdOf<T>,
@@ -300,6 +308,7 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
+	/// Helper function to release the funding asset to the participant
 	fn release_funding_asset(
 		project_id: ProjectId,
 		participant: &AccountIdOf<T>,
@@ -313,7 +322,7 @@ impl<T: Config> Pallet<T> {
 		T::FundingCurrency::transfer(asset.id(), &project_pot, participant, amount, Preservation::Expendable)?;
 		Ok(())
 	}
-
+	/// Helper function to release the PLMC bond to the participant
 	fn release_participation_bond_for(participant: &AccountIdOf<T>, amount: Balance) -> DispatchResult {
 		if amount.is_zero() {
 			return Ok(());
@@ -323,6 +332,7 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
+	/// Set the PLMC release schedule if mode was `Classic`. Return the schedule either way.
 	fn set_plmc_bond_release_with_mode(
 		participant: AccountIdOf<T>,
 		plmc_amount: Balance,
@@ -337,6 +347,7 @@ impl<T: Config> Pallet<T> {
 		}
 	}
 
+	/// Calculate the vesting info and add the PLMC release schedule to the user, or fully release the funds if possible.
 	fn set_release_schedule_for(
 		participant: &AccountIdOf<T>,
 		plmc_amount: Balance,
@@ -361,6 +372,7 @@ impl<T: Config> Pallet<T> {
 		Ok(vesting_info.duration)
 	}
 
+	/// Slash an evaluator and transfer funds to the treasury.
 	fn slash_evaluator(evaluation: &EvaluationInfoOf<T>) -> Result<Balance, DispatchError> {
 		let slash_percentage = T::EvaluatorSlash::get();
 		let treasury_account = T::BlockchainOperationTreasury::get();
@@ -384,6 +396,7 @@ impl<T: Config> Pallet<T> {
 		Ok(evaluation.current_plmc_bond.saturating_sub(slashed_amount))
 	}
 
+	/// Reward an evaluator and mint CTs.
 	fn reward_evaluator(
 		project_id: ProjectId,
 		evaluation: &EvaluationInfoOf<T>,
