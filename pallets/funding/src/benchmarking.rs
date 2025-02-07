@@ -542,21 +542,14 @@ mod benchmarks {
 
 		// Storage
 		for (bid_params, price) in extrinsic_bids_post_bucketing.clone() {
-			let bid_filter = BidInfoFilter::<T> {
-				id: None,
-				project_id: Some(project_id),
-				bidder: Some(bidder.clone()),
-				status: Some(BidStatus::YetUnknown),
-				original_ct_amount: Some(bid_params.amount),
-				original_ct_usd_price: Some(price),
-				funding_asset: Some(AcceptedFundingAsset::USDT),
-				funding_asset_amount_locked: None,
-				mode: Some(bid_params.mode),
-				plmc_bond: None,
-				when: None,
-			};
 			Bids::<T>::iter_prefix_values(project_id)
-				.find(|stored_bid| bid_filter.matches_bid(stored_bid))
+				.find(|stored_bid| {
+					stored_bid.bidder == bidder.clone() &&
+						stored_bid.original_ct_amount == bid_params.amount &&
+						stored_bid.original_ct_usd_price == price &&
+						stored_bid.funding_asset == AcceptedFundingAsset::USDT &&
+						stored_bid.mode == bid_params.mode
+				})
 				.expect("bid not found");
 		}
 	}

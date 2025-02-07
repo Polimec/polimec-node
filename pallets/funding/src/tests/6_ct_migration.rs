@@ -1,7 +1,4 @@
 use super::*;
-use frame_support::{assert_err, traits::fungibles::Inspect};
-use sp_runtime::bounded_vec;
-use xcm::v4::MaxPalletNameLen;
 
 mod pallet_migration {
 	use super::*;

@@ -442,7 +442,7 @@ pub mod storage {
 		pub fn calculate_usd_raised(self, allocation_size: Balance) -> Balance {
 			let mut usd_raised = Balance::zero();
 			let mut cts_left = allocation_size;
-			let mut calculation_bucket = self.clone();
+			let mut calculation_bucket = self;
 
 			// If current bucket is the first bucket, then its not oversubscribed and we just return the price * tokens bought
 			if calculation_bucket.current_price == calculation_bucket.initial_price {

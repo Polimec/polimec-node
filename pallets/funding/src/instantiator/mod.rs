@@ -23,7 +23,7 @@ use frame_support::{
 			metadata::Inspect as MetadataInspect, roles::Inspect as RolesInspect, Inspect as FungiblesInspect,
 			Mutate as FungiblesMutate,
 		},
-		AccountTouch, Get, OnFinalize, OnIdle, OnInitialize,
+		Get, OnFinalize, OnIdle, OnInitialize,
 	},
 	weights::Weight,
 	Parameter,

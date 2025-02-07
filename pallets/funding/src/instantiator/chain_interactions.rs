@@ -107,25 +107,6 @@ impl<
 		self.execute(|| <T as Config>::ContributionTokenCurrency::balance(project_id, &user))
 	}
 
-	pub fn get_all_free_plmc_balances(&mut self) -> Vec<UserToPLMCBalance<T>> {
-		let user_keys = self.execute(|| frame_system::Account::<T>::iter_keys().collect());
-		self.get_free_plmc_balances_for(user_keys)
-	}
-
-	pub fn get_all_reserved_plmc_balances(
-		&mut self,
-		reserve_type: <T as Config>::RuntimeHoldReason,
-	) -> Vec<UserToPLMCBalance<T>> {
-		let user_keys = self.execute(|| frame_system::Account::<T>::iter_keys().collect());
-		self.get_reserved_plmc_balances_for(user_keys, reserve_type)
-	}
-
-	pub fn get_all_free_funding_asset_balances(&mut self, asset_id: AssetIdOf<T>) -> Vec<UserToFundingAsset<T>> {
-		let user_keys =
-			self.execute(|| frame_system::Account::<T>::iter_keys().map(|a| (a, asset_id.clone())).collect());
-		self.get_free_funding_asset_balances_for(user_keys)
-	}
-
 	pub fn get_plmc_total_supply(&mut self) -> Balance {
 		self.execute(<T as Config>::NativeCurrency::total_issuance)
 	}
@@ -324,40 +305,8 @@ impl<
 		self.do_reserved_plmc_assertions(expected_reserved_plmc_balances, HoldReason::Evaluation.into());
 	}
 
-	pub fn finalized_bids_assertions(
-		&mut self,
-		project_id: ProjectId,
-		bid_expectations: Vec<BidInfoFilter<T>>,
-		expected_ct_sold: Balance,
-	) {
-		let project_metadata = self.get_project_metadata(project_id);
-		let project_details = self.get_project_details(project_id);
-		let project_bids = self.execute(|| Bids::<T>::iter_prefix_values(project_id).collect::<Vec<_>>());
-
-		for filter in bid_expectations {
-			let _found_bid = project_bids.iter().find(|bid| filter.matches_bid(bid)).unwrap();
-		}
-
-		// Remaining CTs are updated
-		assert_eq!(
-			project_details.remaining_contribution_tokens,
-			project_metadata.total_allocation_size - expected_ct_sold,
-			"Remaining CTs are incorrect"
-		);
-	}
-
 	pub fn assert_plmc_free_balance(&mut self, account_id: AccountIdOf<T>, expected_balance: Balance) {
 		let real_balance = self.get_free_plmc_balance_for(account_id.clone());
-		assert_eq!(real_balance, expected_balance, "Unexpected PLMC balance for user {:?}", account_id);
-	}
-
-	pub fn assert_plmc_held_balance(
-		&mut self,
-		account_id: AccountIdOf<T>,
-		expected_balance: Balance,
-		hold_reason: <T as Config>::RuntimeHoldReason,
-	) {
-		let real_balance = self.get_reserved_plmc_balance_for(account_id.clone(), hold_reason);
 		assert_eq!(real_balance, expected_balance, "Unexpected PLMC balance for user {:?}", account_id);
 	}
 
@@ -465,6 +414,12 @@ impl<
 		self.mint_funding_asset_to(necessary_funding_assets);
 	}
 
+	pub fn mint_necessary_tokens_for_evaluations(&mut self, evaluations: Vec<EvaluationParams<T>>) {
+		let plmc_required = self.calculate_evaluation_plmc_spent(evaluations.clone());
+		self.mint_plmc_ed_if_required(plmc_required.accounts());
+		self.mint_plmc_to(plmc_required);
+	}
+
 	pub fn bid_for_users(&mut self, project_id: ProjectId, bids: Vec<BidParams<T>>) -> DispatchResultWithPostInfo {
 		let project_policy = self.get_project_metadata(project_id).policy_ipfs_cid.unwrap();
 
@@ -512,10 +467,6 @@ impl<
 
 	pub fn get_bids(&mut self, project_id: ProjectId) -> Vec<BidInfoOf<T>> {
 		self.execute(|| Bids::<T>::iter_prefix_values(project_id).collect())
-	}
-
-	pub fn get_bid(&mut self, bid_id: u32) -> BidInfoOf<T> {
-		self.execute(|| Bids::<T>::iter_values().find(|bid| bid.id == bid_id).unwrap())
 	}
 
 	// Used to check all the USDT/USDC/DOT was paid to the issuer funding account
@@ -805,9 +756,7 @@ impl<
 
 		let status = self.go_to_next_state(project_id);
 
-		if status == ProjectStatus::FundingSuccessful {
-			self.test_ct_not_created_for(project_id);
-		} else if status == ProjectStatus::FundingFailed {
+		if status == ProjectStatus::FundingSuccessful || status == ProjectStatus::FundingFailed {
 			self.test_ct_not_created_for(project_id);
 		} else {
 			panic!("Project should be in FundingSuccessful or FundingFailed status");
@@ -834,6 +783,7 @@ impl<
 		);
 
 		assert!(matches!(self.go_to_next_state(project_id), ProjectStatus::SettlementStarted(_)));
+		self.test_ct_created_for(project_id);
 
 		self.settle_project(project_id, mark_as_settled);
 
