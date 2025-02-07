@@ -4,6 +4,7 @@ use xcm::v4::MaxPalletNameLen;
 
 // Offchain migration functions
 impl<T: Config> Pallet<T> {
+	/// Mark a project as ready for offchain migration confirmations.
 	#[transactional]
 	pub fn do_start_offchain_migration(project_id: ProjectId, caller: AccountIdOf<T>) -> DispatchResultWithPostInfo {
 		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
@@ -24,6 +25,7 @@ impl<T: Config> Pallet<T> {
 		Ok(PostDispatchInfo { actual_weight: None, pays_fee: Pays::No })
 	}
 
+	/// Confirm a user's migrations as completed
 	#[transactional]
 	pub fn do_confirm_offchain_migration(
 		project_id: ProjectId,

@@ -4,6 +4,7 @@
 use super::*;
 
 impl<T: Config> Pallet<T> {
+	/// Make sure the data provided by the issuer on project creation makes sense.
 	fn project_validation(
 		project_metadata: &ProjectMetadataOf<T>,
 		issuer: AccountIdOf<T>,
@@ -53,6 +54,7 @@ impl<T: Config> Pallet<T> {
 		Ok((project_details, bucket))
 	}
 
+	/// Create a new project.
 	#[transactional]
 	pub fn do_create_project(
 		issuer: &AccountIdOf<T>,
@@ -93,6 +95,7 @@ impl<T: Config> Pallet<T> {
 		Ok(PostDispatchInfo { actual_weight: None, pays_fee: Pays::No })
 	}
 
+	/// Edit the project information before starting the raise
 	#[transactional]
 	pub fn do_edit_project(
 		issuer: AccountIdOf<T>,
@@ -121,6 +124,7 @@ impl<T: Config> Pallet<T> {
 		Ok(PostDispatchInfo { actual_weight: None, pays_fee: Pays::No })
 	}
 
+	/// Remove the project before the raise started.
 	#[transactional]
 	pub fn do_remove_project(issuer: AccountIdOf<T>, project_id: ProjectId, did: Did) -> DispatchResultWithPostInfo {
 		// * Get variables *

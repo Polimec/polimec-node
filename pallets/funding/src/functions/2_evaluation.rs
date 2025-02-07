@@ -2,6 +2,7 @@
 use super::*;
 use polimec_common::ProvideAssetPrice;
 impl<T: Config> Pallet<T> {
+	/// Start the evaluation round of a project. This is how the raise is started.
 	#[transactional]
 	pub fn do_start_evaluation(caller: AccountIdOf<T>, project_id: ProjectId) -> DispatchResultWithPostInfo {
 		// * Get variables *
@@ -29,6 +30,7 @@ impl<T: Config> Pallet<T> {
 		Ok(PostDispatchInfo { actual_weight: None, pays_fee: Pays::No })
 	}
 
+	/// End the evaluation round of a project, and start the auction round.
 	#[transactional]
 	pub fn do_end_evaluation(project_id: ProjectId) -> DispatchResult {
 		// * Get variables *
@@ -45,10 +47,7 @@ impl<T: Config> Pallet<T> {
 		// * Branch in possible project paths *
 		// Successful path
 		return if is_funded {
-			let mut project_ids = ProjectsInAuctionRound::<T>::get().to_vec();
-			project_ids.push(project_id);
-			let project_ids = WeakBoundedVec::force_from(project_ids, None);
-			ProjectsInAuctionRound::<T>::put(project_ids);
+			ProjectsInAuctionRound::<T>::insert(project_id, ());
 			Self::transition_project(
 				project_id,
 				project_details,
@@ -72,6 +71,7 @@ impl<T: Config> Pallet<T> {
 		}
 	}
 
+	/// Place an evaluation on a project
 	#[transactional]
 	pub fn do_evaluate(
 		evaluator: &AccountIdOf<T>,

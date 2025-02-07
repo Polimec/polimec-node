@@ -2,6 +2,7 @@
 use super::*;
 
 impl<T: Config> Pallet<T> {
+	/// Place a bid on a project in the auction round
 	#[transactional]
 	pub fn do_bid(params: DoBidParams<T>) -> DispatchResult {
 		// * Get variables *
@@ -119,6 +120,8 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
+	/// Inner function to perform bids within a bucket. do_bid makes sure to split the bid into buckets and call this as
+	/// many times as necessary
 	#[transactional]
 	fn do_perform_bid(do_perform_bid_params: DoPerformBidParams<T>) -> Result<BidInfoOf<T>, DispatchError> {
 		let DoPerformBidParams {
@@ -192,11 +195,13 @@ impl<T: Config> Pallet<T> {
 		Ok(new_bid)
 	}
 
+	/// Process a bid that was outbid by a new bid. This will set it to Rejected so the user can get their funds back with `settle_bid` and bid again.
 	pub fn do_process_next_oversubscribed_bid(project_id: ProjectId) -> DispatchResult {
 		// Load and validate initial state
 		let project_metadata = ProjectsMetadata::<T>::get(project_id).ok_or(Error::<T>::ProjectMetadataNotFound)?;
 		let bucket = Buckets::<T>::get(project_id).ok_or(Error::<T>::BucketNotFound)?;
 		let mut ct_amount_oversubscribed = CTAmountOversubscribed::<T>::get(project_id);
+
 		ensure!(ct_amount_oversubscribed > Zero::zero(), Error::<T>::NoBidsOversubscribed);
 
 		// Determine the current cutoff
@@ -206,21 +211,21 @@ impl<T: Config> Pallet<T> {
 				if matches!(bid.status, BidStatus::PartiallyAccepted(_)) {
 					cutoff
 				} else {
-					let (new_price, new_index) = Self::get_next_cutoff(project_id, bucket.delta_price, bid_price, bid_index)?;
+					let (new_price, new_index) =
+						Self::get_next_cutoff(project_id, bucket.delta_price, bid_price, bid_index)?;
 					OutbidBidsCutoff { bid_price: new_price, bid_index: new_index }
 				}
 			},
 			None => {
 				let first_price = project_metadata.minimum_price;
-				let first_bounds = BidsBucketBounds::<T>::get(project_id, first_price)
-					.ok_or(Error::<T>::ImpossibleState)?;
+				let first_bounds =
+					BidsBucketBounds::<T>::get(project_id, first_price).ok_or(Error::<T>::ImpossibleState)?;
 				OutbidBidsCutoff { bid_price: first_price, bid_index: first_bounds.last_bid_index }
-			}
+			},
 		};
 
 		// Process the bid at the cutoff
-		let mut bid = Bids::<T>::get(project_id, current_cutoff.bid_index)
-			.ok_or(Error::<T>::ImpossibleState)?;
+		let mut bid = Bids::<T>::get(project_id, current_cutoff.bid_index).ok_or(Error::<T>::ImpossibleState)?;
 
 		let bid_amount = match bid.status {
 			BidStatus::PartiallyAccepted(amount) => amount,
@@ -244,6 +249,7 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
+	/// Get the next bid that should be processed by do_process_next_oversubscribed_bid
 	pub fn get_next_cutoff(
 		project_id: ProjectId,
 		delta_price: PriceOf<T>,
