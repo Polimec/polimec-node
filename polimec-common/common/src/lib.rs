@@ -113,7 +113,6 @@ pub mod migration_types {
 	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
 	pub struct MigrationOrigin {
 		pub user: Junction,
-		pub id: u32,
 		pub participation_type: ParticipationType,
 	}
 	impl PartialOrd for MigrationOrigin {
@@ -123,10 +122,10 @@ pub mod migration_types {
 	}
 	impl Ord for MigrationOrigin {
 		fn cmp(&self, other: &Self) -> core::cmp::Ordering {
-			if self.participation_type == other.participation_type {
-				self.id.cmp(&other.id)
-			} else {
+			if self.user == other.user {
 				self.participation_type.cmp(&other.participation_type)
+			} else {
+				self.user.cmp(&other.user)
 			}
 		}
 	}

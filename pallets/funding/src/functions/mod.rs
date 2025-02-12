@@ -19,13 +19,11 @@ use frame_support::{
 use frame_system::pallet_prelude::BlockNumberFor;
 use polimec_common::{
 	credentials::{Did, InvestorType},
-	migration_types::{MigrationInfo, Migrations},
 	USD_DECIMALS,
 };
 use sp_arithmetic::{traits::Zero, Percent, Perquintill};
 use sp_runtime::traits::Convert;
 
-const POLIMEC_PARA_ID: u32 = 3344u32;
 #[path = "1_application.rs"]
 mod application;
 #[path = "3_auction.rs"]

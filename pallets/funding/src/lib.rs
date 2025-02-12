@@ -91,7 +91,7 @@ use sp_arithmetic::traits::{One, Saturating};
 use sp_runtime::{traits::AccountIdConversion, FixedPointNumber, FixedU128};
 use sp_std::prelude::*;
 pub use types::*;
-use xcm::v4::{prelude::*};
+use xcm::v4::prelude::*;
 
 pub mod functions;
 pub mod storage_migrations;
