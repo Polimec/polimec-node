@@ -296,60 +296,6 @@ pub mod polkadot {
 	}
 }
 
-// Penpal
-pub mod penpal {
-	use super::*;
-	use crate::{ParaId, Penpal, PolkadotNet};
-	use xcm::v4::Parent;
-	pub const PARA_ID: u32 = 6969;
-	pub const ED: Balance = penpal_runtime::EXISTENTIAL_DEPOSIT;
-
-	pub fn genesis() -> Storage {
-		let mut funded_accounts = vec![(
-			<Penpal<PolkadotNet>>::sovereign_account_id_of((Parent, xcm::prelude::Parachain(1000)).into()),
-			INITIAL_DEPOSIT,
-		)];
-		funded_accounts.extend(accounts::init_balances().iter().cloned().map(|k| (k, INITIAL_DEPOSIT)));
-
-		let genesis_config = penpal_runtime::RuntimeGenesisConfig {
-			system: Default::default(),
-			balances: penpal_runtime::BalancesConfig { balances: funded_accounts },
-			parachain_info: penpal_runtime::ParachainInfoConfig {
-				parachain_id: ParaId::from(PARA_ID),
-				..Default::default()
-			},
-			collator_selection: penpal_runtime::CollatorSelectionConfig {
-				invulnerables: collators::invulnerables().iter().cloned().map(|(acc, _)| acc).collect(),
-				candidacy_bond: ED * 16,
-				..Default::default()
-			},
-			session: penpal_runtime::SessionConfig {
-				keys: collators::invulnerables()
-					.into_iter()
-					.map(|(acc, aura)| {
-						(
-							acc.clone(),                          // account id
-							acc,                                  // validator id
-							penpal_runtime::SessionKeys { aura }, // session keys
-						)
-					})
-					.collect(),
-			},
-			aura: Default::default(),
-			aura_ext: Default::default(),
-			parachain_system: Default::default(),
-			polkadot_xcm: penpal_runtime::PolkadotXcmConfig {
-				safe_xcm_version: Some(SAFE_XCM_VERSION),
-				..Default::default()
-			},
-			sudo: penpal_runtime::SudoConfig { key: Some(get_account_id_from_seed::<sr25519::Public>("Alice")) },
-			..Default::default()
-		};
-
-		genesis_config.build_storage().unwrap()
-	}
-}
-
 // Polimec
 pub mod polimec {
 	use super::*;
@@ -413,10 +359,6 @@ pub mod polimec {
 		let weth_asset_id = AcceptedFundingAsset::WETH.id();
 
 		let mut funded_accounts = vec![
-			(
-				PolimecNet::sovereign_account_id_of((Parent, xcm::prelude::Parachain(penpal::PARA_ID)).into()),
-				INITIAL_DEPOSIT,
-			),
 			(PolimecNet::sovereign_account_id_of((Parent, xcm::prelude::Parachain(1000)).into()), INITIAL_DEPOSIT),
 		];
 		let alice_account = PolimecNet::account_id_of(accounts::ALICE);

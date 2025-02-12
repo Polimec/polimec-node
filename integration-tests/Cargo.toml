@@ -22,7 +22,6 @@ parity-scale-codec = { workspace = true, features = ["derive"] }
 scale-info = { workspace = true, features = ["derive"] }
 
 # Local
-polimec-receiver.workspace = true
 macros.workspace = true
 polimec-common.workspace = true
 polimec-common-test-utils.workspace = true
@@ -87,8 +86,6 @@ assets-common.workspace = true
 # Runtimes
 rococo-runtime.workspace = true
 polimec-runtime.workspace = true
-penpal-runtime = { path = "penpal", default-features = false }
-
 
 [features]
 default = [ "development-settings", "instant-mode", "std" ]
@@ -128,10 +125,8 @@ std = [
 	"parachain-info/std",
 	"parachains-common/std",
 	"parity-scale-codec/std",
-	"penpal-runtime/std",
 	"polimec-common-test-utils/std",
 	"polimec-common/std",
-	"polimec-receiver/std",
 	"polimec-runtime/std",
 	"polkadot-core-primitives/std",
 	"polkadot-parachain-primitives/std",
@@ -182,10 +177,8 @@ runtime-benchmarks = [
 	"pallet-vesting/runtime-benchmarks",
 	"pallet-xcm/runtime-benchmarks",
 	"parachains-common/runtime-benchmarks",
-	"penpal-runtime/runtime-benchmarks",
 	"polimec-common-test-utils/runtime-benchmarks",
 	"polimec-common/runtime-benchmarks",
-	"polimec-receiver/runtime-benchmarks",
 	"polimec-runtime/runtime-benchmarks",
 	"polkadot-parachain-primitives/runtime-benchmarks",
 	"polkadot-primitives/runtime-benchmarks",
