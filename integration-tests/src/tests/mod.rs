@@ -15,7 +15,6 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 mod credentials;
-mod ct_migration;
 mod defaults;
 mod e2e;
 mod ethereum_support;
