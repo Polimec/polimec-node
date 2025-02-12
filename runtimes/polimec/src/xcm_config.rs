@@ -16,7 +16,7 @@
 extern crate alloc;
 
 use super::{
-	AccountId, AllPalletsWithSystem, Balance, Balances, ContributionTokens, EnsureRoot, ForeignAssets, Funding,
+	AccountId, AllPalletsWithSystem, Balance, Balances, ContributionTokens, EnsureRoot, ForeignAssets,
 	PLMCToAssetBalance, ParachainInfo, ParachainSystem, PolkadotXcm, Runtime, RuntimeCall, RuntimeEvent, RuntimeOrigin,
 	TreasuryAccount, Vec, WeightToFee,
 };
@@ -301,9 +301,9 @@ impl xcm_executor::Config for XcmConfig {
 	type Barrier = Barrier;
 	type CallDispatcher = RuntimeCall;
 	type FeeManager = ();
-	type HrmpChannelAcceptedHandler = Funding;
+	type HrmpChannelAcceptedHandler = ();
 	type HrmpChannelClosingHandler = ();
-	type HrmpNewChannelOpenRequestHandler = Funding;
+	type HrmpNewChannelOpenRequestHandler = ();
 	/// Locations that we trust to act as reserves for specific assets.
 	type IsReserve = Reserves;
 	/// Currently we do not support teleportation of PLMC or other assets.
