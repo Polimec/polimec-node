@@ -35,7 +35,6 @@ use std::{
 	collections::{BTreeSet, HashSet},
 	iter::zip,
 };
-use xcm::v4::MaxPalletNameLen;
 use InvestorType::{self, *};
 
 #[path = "1_application.rs"]
