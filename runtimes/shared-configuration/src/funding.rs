@@ -22,31 +22,14 @@ use sp_runtime::Perquintill;
 use sp_std::{collections::btree_map::BTreeMap, vec, vec::Vec};
 use xcm::v4::Location;
 
-#[cfg(feature = "instant-mode")]
-pub const EVALUATION_ROUND_DURATION: BlockNumber = 7;
-#[cfg(feature = "fast-mode")]
-pub const EVALUATION_ROUND_DURATION: BlockNumber = 7 * crate::MINUTES;
 #[cfg(not(any(feature = "fast-mode", feature = "instant-mode")))]
 pub const EVALUATION_ROUND_DURATION: BlockNumber = 7 * crate::DAYS;
-
-#[cfg(feature = "instant-mode")]
-pub const AUCTION_ROUND_DURATION: BlockNumber = 14;
-#[cfg(feature = "fast-mode")]
-pub const AUCTION_ROUND_DURATION: BlockNumber = 14 * crate::MINUTES;
 #[cfg(not(any(feature = "fast-mode", feature = "instant-mode")))]
 pub const AUCTION_ROUND_DURATION: BlockNumber = 14 * crate::DAYS;
 
-#[cfg(feature = "instant-mode")]
-pub const COMMUNITY_ROUND_DURATION: BlockNumber = 5;
-#[cfg(feature = "fast-mode")]
-pub const COMMUNITY_ROUND_DURATION: BlockNumber = 30 * crate::MINUTES;
 #[cfg(not(any(feature = "fast-mode", feature = "instant-mode")))]
 pub const COMMUNITY_ROUND_DURATION: BlockNumber = 5 * crate::DAYS;
 
-#[cfg(feature = "instant-mode")]
-pub const REMAINDER_ROUND_DURATION: BlockNumber = 2;
-#[cfg(feature = "fast-mode")]
-pub const REMAINDER_ROUND_DURATION: BlockNumber = 15 * crate::MINUTES;
 #[cfg(not(any(feature = "fast-mode", feature = "instant-mode")))]
 pub const REMAINDER_ROUND_DURATION: BlockNumber = 2 * crate::DAYS;
 
@@ -55,8 +38,6 @@ pub type ProjectIdentifier = u32;
 parameter_types! {
 	pub const EvaluationRoundDuration: BlockNumber = EVALUATION_ROUND_DURATION;
 	pub const AuctionRoundDuration: BlockNumber = AUCTION_ROUND_DURATION;
-	pub const CommunityRoundDuration: BlockNumber = COMMUNITY_ROUND_DURATION;
-	pub const RemainderRoundDuration: BlockNumber = REMAINDER_ROUND_DURATION;
 	pub const FundingPalletId: PalletId = PalletId(*b"plmc/fun");
 	pub PriceMap: BTreeMap<Location, FixedU128> = BTreeMap::from_iter(vec![
 		(AcceptedFundingAsset::DOT.id(), FixedU128::from_rational(69, 1)), // DOT

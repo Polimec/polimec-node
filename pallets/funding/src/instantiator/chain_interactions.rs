@@ -280,7 +280,6 @@ impl<
 			},
 			usd_bid_on_oversubscription: None,
 			funding_end_block: None,
-			migration_type: None,
 		};
 		assert_eq!(metadata, expected_metadata);
 		assert_eq!(details, expected_details);
@@ -540,7 +539,6 @@ impl<
 				project_id,
 				account,
 				amount,
-				evaluation.id,
 				ParticipationType::Evaluation,
 				evaluation.receiving_account,
 				is_successful,
@@ -586,7 +584,6 @@ impl<
 				project_id,
 				bid.bidder,
 				bid_ct_amount,
-				bid.id,
 				ParticipationType::Bid,
 				bid.receiving_account,
 				is_successful,
@@ -599,7 +596,6 @@ impl<
 		project_id: ProjectId,
 		account: AccountIdOf<T>,
 		amount: Balance,
-		id: u32,
 		participation_type: ParticipationType,
 		receiving_account: Junction,
 		should_exist: bool,
@@ -610,19 +606,21 @@ impl<
 			assert!(!should_exist);
 			return;
 		};
-		let expected_migration_origin = MigrationOrigin { user: receiving_account, id, participation_type };
+		let expected_migration_origin = MigrationOrigin { user: receiving_account, participation_type };
 
-		let Some(migration) =
-			user_migrations.into_iter().find(|migration| migration.origin == expected_migration_origin)
-		else {
-			assert!(!should_exist);
-			return;
-		};
-		assert_close_enough!(
-			migration.info.contribution_token_amount,
-			amount,
-			Perquintill::from_rational(999u64, 1000u64)
-		);
+		let is_migration_found = user_migrations.into_iter().any(|migration| {
+			migration.origin == expected_migration_origin &&
+				is_close_enough!(
+					migration.info.contribution_token_amount,
+					amount,
+					Perquintill::from_rational(999u64, 1000u64)
+				)
+		});
+		if should_exist {
+			assert!(is_migration_found, "Migration not found for user {:?}", account);
+		} else {
+			assert!(!is_migration_found, "Migration found for user {:?}", account);
+		}
 	}
 
 	pub fn create_new_project(

@@ -358,9 +358,10 @@ pub mod polimec {
 		let usdc_asset_id = AcceptedFundingAsset::USDC.id();
 		let weth_asset_id = AcceptedFundingAsset::WETH.id();
 
-		let mut funded_accounts = vec![
-			(PolimecNet::sovereign_account_id_of((Parent, xcm::prelude::Parachain(1000)).into()), INITIAL_DEPOSIT),
-		];
+		let mut funded_accounts = vec![(
+			PolimecNet::sovereign_account_id_of((Parent, xcm::prelude::Parachain(1000)).into()),
+			INITIAL_DEPOSIT,
+		)];
 		let alice_account = PolimecNet::account_id_of(accounts::ALICE);
 		let bob_account: AccountId = PolimecNet::account_id_of(accounts::BOB);
 		let charlie_account: AccountId = PolimecNet::account_id_of(accounts::CHARLIE);

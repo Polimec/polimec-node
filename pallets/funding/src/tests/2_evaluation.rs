@@ -288,7 +288,6 @@ mod start_evaluation_extrinsic {
 				},
 				usd_bid_on_oversubscription: None,
 				funding_end_block: None,
-				migration_type: None,
 			};
 			assert_ok!(inst.execute(|| PolimecFunding::start_evaluation(
 				RuntimeOrigin::signed(issuer),
