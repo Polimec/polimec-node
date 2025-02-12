@@ -137,7 +137,6 @@ impl<T: Config> Pallet<T> {
 			Self::create_migration(
 				project_id,
 				&evaluation.evaluator,
-				evaluation.id,
 				ParticipationType::Evaluation,
 				ct_rewarded,
 				duration,
@@ -209,7 +208,6 @@ impl<T: Config> Pallet<T> {
 			Self::create_migration(
 				project_id,
 				&bid.bidder,
-				bid.id,
 				ParticipationType::Bid,
 				final_ct_amount,
 				ct_vesting_duration,
@@ -423,7 +421,6 @@ impl<T: Config> Pallet<T> {
 	pub fn create_migration(
 		project_id: ProjectId,
 		origin: &AccountIdOf<T>,
-		id: u32,
 		participation_type: ParticipationType,
 		ct_amount: Balance,
 		vesting_time: BlockNumberFor<T>,
@@ -437,7 +434,7 @@ impl<T: Config> Pallet<T> {
 		}
 
 		let mut user_migrations = user_migrations.to_vec();
-		let migration_origin = MigrationOrigin { user: receiving_account, id, participation_type };
+		let migration_origin = MigrationOrigin { user: receiving_account, participation_type };
 		let vesting_time: u64 = vesting_time.try_into().map_err(|_| Error::<T>::BadMath)?;
 		let migration_info: MigrationInfo = (ct_amount, vesting_time).into();
 		let migration = Migration::new(migration_origin, migration_info);

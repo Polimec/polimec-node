@@ -5,11 +5,9 @@ impl<T: Config> Pallet<T> {
 	/// Mark a project as ready for offchain migration confirmations.
 	#[transactional]
 	pub fn do_start_offchain_migration(project_id: ProjectId, caller: AccountIdOf<T>) -> DispatchResultWithPostInfo {
-		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
+		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 
 		ensure!(project_details.issuer_account == caller, Error::<T>::NotIssuer);
-
-		project_details.migration_type = Some(MigrationType::Offchain);
 
 		Self::transition_project(
 			project_id,

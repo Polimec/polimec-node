@@ -26,7 +26,6 @@ use frame_system::pallet_prelude::BlockNumberFor;
 pub use inner::*;
 use parachains_common::DAYS;
 use polimec_common::USD_DECIMALS;
-use polkadot_parachain_primitives::primitives::Id as ParaId;
 use serde::{Deserialize, Serialize};
 use sp_arithmetic::{traits::Saturating, FixedPointNumber, FixedU128};
 use sp_runtime::traits::{Convert, One};
@@ -271,22 +270,6 @@ pub mod storage {
 	}
 
 	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
-	pub enum MigrationType {
-		Offchain,
-		Pallet(PalletMigrationInfo),
-	}
-
-	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
-	pub struct PalletMigrationInfo {
-		/// ParaId of project
-		pub parachain_id: ParaId,
-		/// HRMP Channel status
-		pub hrmp_channel_status: HRMPChannelStatus,
-		/// Migration readiness check
-		pub migration_readiness_check: Option<PalletMigrationReadinessCheck>,
-	}
-
-	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
 	pub struct ProjectDetails<AccountId, Did, BlockNumber, EvaluationRoundInfo> {
 		pub issuer_account: AccountId,
 		pub issuer_did: Did,
@@ -308,7 +291,6 @@ pub mod storage {
 		pub usd_bid_on_oversubscription: Option<Balance>,
 		/// When the Funding Round ends
 		pub funding_end_block: Option<BlockNumber>,
-		pub migration_type: Option<MigrationType>,
 	}
 	/// Tells on_initialize what to do with the project
 	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
@@ -494,7 +476,7 @@ pub mod inner {
 	#[allow(clippy::wildcard_imports)]
 	use super::*;
 	use crate::Balance;
-	use xcm::v4::{Junction, QueryId};
+	use xcm::v4::Junction;
 
 	pub enum MetadataError {
 		/// The minimum price per token is too low.
@@ -706,43 +688,6 @@ pub mod inner {
 	pub enum FundingOutcomeDecision {
 		AcceptFunding,
 		RejectFunding,
-	}
-
-	#[derive(Clone, Copy, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
-	pub struct PalletMigrationReadinessCheck {
-		pub holding_check: (QueryId, CheckOutcome),
-		pub pallet_check: (QueryId, CheckOutcome),
-	}
-
-	impl PalletMigrationReadinessCheck {
-		pub fn is_ready(&self) -> bool {
-			self.holding_check.1 == CheckOutcome::Passed(None) &&
-				matches!(self.pallet_check.1, CheckOutcome::Passed(Some(_)))
-		}
-	}
-
-	pub type PalletIndex = u8;
-	#[derive(Clone, Copy, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
-	pub enum CheckOutcome {
-		AwaitingResponse,
-		Passed(Option<PalletIndex>),
-		Failed,
-	}
-
-	#[derive(Clone, Copy, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
-	pub struct HRMPChannelStatus {
-		pub project_to_polimec: ChannelStatus,
-		pub polimec_to_project: ChannelStatus,
-	}
-
-	#[derive(Clone, Copy, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
-	pub enum ChannelStatus {
-		/// hrmp channel is closed.
-		Closed,
-		/// hrmp channel is open.
-		Open,
-		/// request for a hrmp channel was sent to the relay. Waiting for response.
-		AwaitingAcceptance,
 	}
 
 	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
