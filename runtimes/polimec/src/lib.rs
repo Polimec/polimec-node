@@ -22,7 +22,6 @@
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 extern crate alloc;
 use assets_common::fungible_conversion::{convert, convert_balance};
-use core::ops::RangeInclusive;
 use cumulus_pallet_parachain_system::RelayNumberMonotonicallyIncreases;
 use cumulus_primitives_core::{AggregateMessageOrigin, ParaId};
 use frame_support::{
@@ -170,7 +169,7 @@ pub type Migrations = migrations::Unreleased;
 /// The runtime migrations per release.
 #[allow(missing_docs)]
 pub mod migrations {
-	use crate::parameter_types;
+	use crate::{parameter_types, Runtime};
 
 	parameter_types! {
 		pub const RandomPalletName: &'static str = "Random";
@@ -178,7 +177,10 @@ pub mod migrations {
 
 	/// Unreleased migrations. Add new ones here:
 	#[allow(unused_parens)]
-	pub type Unreleased = ();
+	pub type Unreleased = (
+		super::custom_migrations::asset_id_migration::FromOldAssetIdMigration,
+		pallet_funding::storage_migrations::v6::MigrationToV6<Runtime>,
+	);
 }
 
 /// Executive: handles dispatch to the various modules.
@@ -1029,10 +1031,6 @@ parameter_types! {
 	pub PolimecReceiverInfo: xcm::v4::PalletInfo = xcm::v4::PalletInfo::new(
 		51, "PolimecReceiver".into(), "polimec_receiver".into(), 0, 1, 0
 	).unwrap();
-	pub MaxMessageSizeThresholds: RangeInclusive<u32> = 50000..=102_400;
-	pub MaxCapacityThresholds: RangeInclusive<u32> = 8..=1000;
-	pub RequiredMaxCapacity: u32 = 1000;
-	pub RequiredMaxMessageSize: u32 = 102_400;
 	pub MinUsdPerEvaluation: Balance = 100 * USD_UNIT;
 
 }
@@ -1062,7 +1060,6 @@ impl pallet_funding::Config for Runtime {
 	type AuctionRoundDuration = AuctionRoundDuration;
 	type BlockNumber = BlockNumber;
 	type BlockchainOperationTreasury = BlockchainOperationTreasury;
-	type CommunityRoundDuration = CommunityRoundDuration;
 	type ContributionTokenCurrency = ContributionTokens;
 	type ContributionTreasury = ContributionTreasuryAccount;
 	type DaysToBlocks = DaysToBlocks;
@@ -1073,8 +1070,6 @@ impl pallet_funding::Config for Runtime {
 	type FundingCurrency = ForeignAssets;
 	type FundingSuccessThreshold = FundingSuccessThreshold;
 	type InvestorOrigin = EnsureInvestor<Runtime>;
-	type MaxCapacityThresholds = MaxCapacityThresholds;
-	type MaxMessageSizeThresholds = MaxMessageSizeThresholds;
 	type MinUsdPerEvaluation = MinUsdPerEvaluation;
 	type Multiplier = pallet_funding::types::Multiplier;
 	type NativeCurrency = Balances;
@@ -1082,10 +1077,6 @@ impl pallet_funding::Config for Runtime {
 	type PalletId = FundingPalletId;
 	type Price = Price;
 	type PriceProvider = OraclePriceProvider<Location, Price, Oracle>;
-	type RemainderRoundDuration = RemainderRoundDuration;
-	type RequiredMaxCapacity = RequiredMaxCapacity;
-	type RequiredMaxMessageSize = RequiredMaxMessageSize;
-	type RuntimeCall = RuntimeCall;
 	type RuntimeEvent = RuntimeEvent;
 	type RuntimeHoldReason = RuntimeHoldReason;
 	type RuntimeOrigin = RuntimeOrigin;

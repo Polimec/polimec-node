@@ -91,7 +91,7 @@ use sp_arithmetic::traits::{One, Saturating};
 use sp_runtime::{traits::AccountIdConversion, FixedPointNumber, FixedU128};
 use sp_std::prelude::*;
 pub use types::*;
-use xcm::v4::{prelude::*};
+use xcm::v4::prelude::*;
 
 pub mod functions;
 pub mod storage_migrations;
@@ -144,7 +144,6 @@ pub mod pallet {
 	#[allow(clippy::wildcard_imports)]
 	use super::*;
 	use crate::traits::{BondingRequirementCalculation, VestingDurationCalculation};
-	use core::ops::RangeInclusive;
 	use frame_support::{
 		pallet_prelude::*,
 		storage::KeyPrefixIterator,
@@ -173,7 +172,6 @@ pub mod pallet {
 	pub trait Config:
 		frame_system::Config<Nonce = u32>
 		+ pallet_balances::Config<Balance = Balance>
-		+ pallet_xcm::Config
 		+ pallet_linear_release::Config<Balance = Balance, RuntimeHoldReason = RuntimeHoldReasonOf<Self>>
 		+ pallet_proxy_bonding::Config<
 			RuntimeHoldReason = RuntimeHoldReasonOf<Self>,
@@ -199,10 +197,6 @@ pub mod pallet {
 
 		/// BlockNumber used for PLMC vesting durations on this chain, and CT vesting durations on funded chains.
 		type BlockNumber: IsType<BlockNumberFor<Self>> + Into<u64>;
-
-		/// The length (expressed in number of blocks) of the Community Round.
-		#[pallet::constant]
-		type CommunityRoundDuration: Get<BlockNumberFor<Self>>;
 
 		/// The currency used for minting contribution tokens as fungible assets (i.e pallet-assets)
 		type ContributionTokenCurrency: fungibles::Create<AccountIdOf<Self>, AssetId = ProjectId, Balance = Balance>
@@ -256,16 +250,8 @@ pub mod pallet {
 			Success = (AccountIdOf<Self>, Did, InvestorType, Cid),
 		>;
 
-		/// Range of max_capacity_thresholds values for the hrmp config where we accept the incoming channel request
-		#[pallet::constant]
-		type MaxCapacityThresholds: Get<RangeInclusive<u32>>;
-
 		#[pallet::constant]
 		type MinUsdPerEvaluation: Get<Balance>;
-
-		/// RangeInclusive of max_message_size values for the hrmp config where we accept the incoming channel request
-		#[pallet::constant]
-		type MaxMessageSizeThresholds: Get<RangeInclusive<u32>>;
 
 		/// Multiplier type that decides how much PLMC needs to be bonded for a token buy/bid
 		type Multiplier: Parameter
@@ -294,21 +280,6 @@ pub mod pallet {
 
 		/// Method to get the price of an asset like USDT or PLMC. Likely to come from an oracle
 		type PriceProvider: ProvideAssetPrice<AssetId = AssetIdOf<Self>, Price = Self::Price>;
-
-		/// The length (expressed in number of blocks) of the Remainder Round.
-		#[pallet::constant]
-		type RemainderRoundDuration: Get<BlockNumberFor<Self>>;
-
-		/// max_capacity config required for the channel from polimec to the project
-		#[pallet::constant]
-		type RequiredMaxCapacity: Get<u32>;
-
-		/// max_message_size config required for the channel from polimec to the project
-		#[pallet::constant]
-		type RequiredMaxMessageSize: Get<u32>;
-
-		/// The runtime enum constructed by the construct_runtime macro
-		type RuntimeCall: Parameter + IsType<<Self as pallet_xcm::Config>::RuntimeCall> + From<Call<Self>>;
 
 		/// The event enum constructed by the construct_runtime macro
 		type RuntimeEvent: From<Event<Self>>
@@ -655,6 +626,8 @@ pub mod pallet {
 		SettlementNotComplete,
 		/// Tried to mark a project's CT migration as finished but there are still migrations to be confirmed
 		MigrationsStillPending,
+		/// Tried to confirm an already confirmed user CT migration
+		MigrationAlreadyConfirmed,
 	}
 
 	#[pallet::call]

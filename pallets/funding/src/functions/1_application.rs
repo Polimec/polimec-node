@@ -46,7 +46,6 @@ impl<T: Config> Pallet<T> {
 			},
 			usd_bid_on_oversubscription: None,
 			funding_end_block: None,
-			migration_type: None,
 		};
 
 		let bucket: BucketOf<T> = Self::create_bucket_from_metadata(project_metadata)?;
