@@ -89,13 +89,15 @@ export interface TransferDataParams {
   assets: XcmVersionedAssets;
   recv?: Accounts;
   isMultiHop?: boolean;
+  fee_asset_item: number;
 }
 
 export enum Asset {
   DOT = 10,
   USDC = 1337,
   USDT = 1984,
-  WETH = 10000, // Note: This is not the real Asset ID - we should improve this.
+  WETH = 10000,
+  PLMC = 3344,
 }
 
 export function AssetHubAssetLocation(
@@ -175,8 +177,8 @@ export function AssetLocation(
   const baseLocation =
     asset === Asset.WETH
       ? EthereumAssetLocation(FixedSizeBinary.fromHex(WETH_ADDRESS))
-      : asset === Asset.DOT
-        ? NativeAssetLocation(assetSourceRelation)
+      : asset === Asset.DOT || asset === Asset.PLMC
+        ? NativeAssetLocation(assetSourceRelation, asset)
         : AssetHubAssetLocation(BigInt(asset), assetSourceRelation);
 
   return baseLocation;
