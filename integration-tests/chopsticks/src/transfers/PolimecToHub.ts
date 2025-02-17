@@ -2,8 +2,22 @@ import { expect } from 'bun:test';
 import { INITIAL_BALANCES } from '@/constants';
 import type { PolimecManager } from '@/managers/PolimecManager';
 import type { PolkadotHubManager } from '@/managers/PolkadotHubManager';
-import { Asset, type BalanceCheck, Chains, getVersionedAssets } from '@/types';
-import { createTransferData } from '@/utils';
+import {
+  Asset,
+  AssetSourceRelation,
+  type BalanceCheck,
+  Chains,
+  ParaId,
+  type PolimecBalanceCheck,
+  getVersionedAssets,
+} from '@/types';
+import { createTransferData, unwrap } from '@/utils';
+import {
+  DispatchRawOrigin,
+  XcmVersionedAssetId,
+  type XcmVersionedLocation,
+  type XcmVersionedXcm,
+} from '@polkadot-api/descriptors';
 import { BaseTransferTest, type TransferOptions } from './BaseTransfer';
 
 export class PolimecToHubTransfer extends BaseTransferTest {
@@ -14,7 +28,7 @@ export class PolimecToHubTransfer extends BaseTransferTest {
     super(sourceManager, destManager);
   }
 
-  async executeTransfer({ account, assets }: TransferOptions) {
+  async executeTransfer({ account, assets, fee_asset_item }: TransferOptions) {
     const [sourceBlock, destBlock] = await Promise.all([
       this.sourceManager.getBlockNumber(),
       this.destManager.getBlockNumber(),
@@ -25,12 +39,14 @@ export class PolimecToHubTransfer extends BaseTransferTest {
       toChain: Chains.PolkadotHub,
       assets: versioned_assets,
       recv: account,
+      fee_asset_item: fee_asset_item ?? 0,
     });
 
     const res = await this.sourceManager
       .getXcmPallet()
       .transfer_assets(data)
       .signAndSubmit(this.sourceManager.getSigner(account));
+    console.dir(res, { depth: null });
 
     expect(res.ok).toBeTrue();
     return { sourceBlock, destBlock };
@@ -48,23 +64,129 @@ export class PolimecToHubTransfer extends BaseTransferTest {
     return { asset_balances: [{ source, destination }] };
   }
 
-  verifyFinalBalances(
-    initialBalances: BalanceCheck[],
-    finalBalances: BalanceCheck[],
-    options: TransferOptions,
+  // verifyFinalBalances(
+  //   initialBalances: BalanceCheck[],
+  //   finalBalances: BalanceCheck[],
+  //   options: TransferOptions,
+  // ) {
+  //   // TODO: At the moment we exclude fees from the balance check since the PAPI team is wotking on some utilies to calculate fees.
+  //   const initialBalance =
+  //     options.assets[0][0] === Asset.DOT
+  //       ? INITIAL_BALANCES.DOT
+  //       : options.assets[0][0] === Asset.USDT
+  //         ? INITIAL_BALANCES.USDT
+  //         : INITIAL_BALANCES.USDC;
+  //   for (let i = 0; i < options.assets.length; i++) {
+  //     expect(initialBalances[i].destination).toBe(0n);
+  //     expect(initialBalances[i].source).toBe(initialBalance);
+  //     expect(finalBalances[i].source).toBeLessThan(initialBalances[i].source);
+  //     expect(finalBalances[i].destination).toBeGreaterThan(initialBalances[i].destination);
+  //   }
+  // }
+
+  async verifyFinalBalances(
+    assetInitialBalances: PolimecBalanceCheck[],
+    assetFinalBalances: PolimecBalanceCheck[],
+    transferOptions: TransferOptions,
   ) {
-    // TODO: At the moment we exclude fees from the balance check since the PAPI team is wotking on some utilies to calculate fees.
-    const initialBalance =
-      options.assets[0][0] === Asset.DOT
-        ? INITIAL_BALANCES.DOT
-        : options.assets[0][0] === Asset.USDT
-          ? INITIAL_BALANCES.USDT
-          : INITIAL_BALANCES.USDC;
-    for (let i = 0; i < options.assets.length; i++) {
-      expect(initialBalances[i].destination).toBe(0n);
-      expect(initialBalances[i].source).toBe(initialBalance);
-      expect(finalBalances[i].source).toBeLessThan(initialBalances[i].source);
-      expect(finalBalances[i].destination).toBeGreaterThan(initialBalances[i].destination);
+    const native_extrinsic_fee_amount = await this.sourceManager.getTransactionFee();
+    const source_xcm_asset_fee_amount = await this.sourceManager.getXcmFee();
+    const dest_xcm_asset_fee_amount = await this.calculatePolkadotHubXcmFee(transferOptions);
+
+    const fee_asset = transferOptions.assets[0][0];
+
+    for (let i = 0; i < transferOptions.assets.length; i++) {
+      const initialBalances = assetInitialBalances[i];
+      const finalBalances = assetFinalBalances[i];
+      const send_amount = transferOptions.assets[i][1];
+      const asset = transferOptions.assets[i][0];
+
+      let expectedSourceBalanceSpent = send_amount;
+      let expectedDestBalanceSpent = 0n;
+      let expectedTreasuryBalanceGained = 0n;
+
+      if (asset === Asset.PLMC) {
+        expectedSourceBalanceSpent += native_extrinsic_fee_amount + source_xcm_asset_fee_amount;
+      }
+      if (asset === fee_asset) {
+        expectedDestBalanceSpent += dest_xcm_asset_fee_amount;
+        expectedTreasuryBalanceGained += dest_xcm_asset_fee_amount;
+      }
+
+      expect(finalBalances.source).toBe(initialBalances.source - expectedSourceBalanceSpent);
+      expect(finalBalances.destination).toBe(
+        initialBalances.destination + send_amount - expectedDestBalanceSpent,
+      );
+      expect(finalBalances.treasury).toBe(initialBalances.treasury + expectedTreasuryBalanceGained);
     }
+  }
+
+  async calculatePolkadotHubXcmFee(transferOptions: TransferOptions): Promise<bigint> {
+    let destinationExecutionFee: bigint;
+
+    const sourceApi = this.sourceManager.getApi(Chains.Polimec);
+    const destApi = this.destManager.getApi(Chains.PolkadotHub);
+
+    const versioned_assets = getVersionedAssets(transferOptions.assets);
+    const transferData = createTransferData({
+      toChain: Chains.Polimec,
+      assets: versioned_assets,
+      recv: transferOptions.account,
+      fee_asset_item: transferOptions.fee_asset_item ?? 0,
+    });
+
+    let remoteFeeAssetId: XcmVersionedAssetId;
+    const feeAsset = unwrap(transferOptions.assets.at(transferData.fee_asset_item));
+    if (feeAsset[2] === AssetSourceRelation.Self) {
+      feeAsset[2] = AssetSourceRelation.Sibling;
+    }
+    const versioned_asset = getVersionedAssets([feeAsset]);
+    if (versioned_asset.type === 'V4') {
+      remoteFeeAssetId = XcmVersionedAssetId.V4(unwrap(versioned_asset.value.at(0)).id);
+    } else {
+      throw new Error('Invalid versioned assets');
+    }
+
+    const localDryRunResult = await sourceApi.apis.DryRunApi.dry_run_call(
+      { type: 'system', value: DispatchRawOrigin.Signed(transferOptions.account) },
+      { type: 'PolkadotXcm', value: { type: 'transfer_assets', value: transferData } },
+    );
+
+    let forwardedXcms: [XcmVersionedLocation, XcmVersionedXcm[]][] = [];
+    if (localDryRunResult.success && localDryRunResult.value.forwarded_xcms) {
+      forwardedXcms = localDryRunResult.value.forwarded_xcms;
+    } else {
+      throw new Error('Dry run failed');
+    }
+
+    const xcmsToPHub = forwardedXcms.find(
+      ([location, _]) =>
+        location.type === 'V4' &&
+        location.value.parents === 1 &&
+        location.value.interior.type === 'X1' &&
+        location.value.interior.value.type === 'Parachain' &&
+        location.value.interior.value.value === ParaId[Chains.PolkadotHub],
+    );
+    if (!xcmsToPHub) {
+      throw new Error('Could not find xcm to polimec');
+    }
+    const messages = xcmsToPHub[1];
+    const remoteXcm = messages[0];
+    const remoteXcmWeightResult = await destApi.apis.XcmPaymentApi.query_xcm_weight(remoteXcm);
+    if (remoteXcmWeightResult.success) {
+      const remoteExecutionFeesResult = await destApi.apis.XcmPaymentApi.query_weight_to_asset_fee(
+        remoteXcmWeightResult.value,
+        remoteFeeAssetId,
+      );
+      if (remoteExecutionFeesResult.success) {
+        destinationExecutionFee = remoteExecutionFeesResult.value;
+      } else {
+        throw new Error('Could not calculate destination xcm fee');
+      }
+    } else {
+      throw new Error('Could not calculate xcm weight');
+    }
+
+    return destinationExecutionFee;
   }
 }

@@ -20,6 +20,7 @@ import {
   XcmVersionedLocation,
   XcmVersionedXcm,
 } from '@polkadot-api/descriptors';
+import type { I5gi8h3e5lkbeq } from '@polkadot-api/descriptors/dist/common-types';
 import { Enum, FixedSizeBinary } from 'polkadot-api';
 const custom_xcm_on_dest = (): XcmVersionedXcm => {
   return XcmVersionedXcm.V3([
@@ -57,7 +58,12 @@ const custom_xcm_on_dest = (): XcmVersionedXcm => {
   ]);
 };
 
-export const createTransferData = ({ toChain, assets, recv }: TransferDataParams) => {
+export const createTransferData = ({
+  toChain,
+  assets,
+  recv,
+  fee_asset_item,
+}: TransferDataParams): I5gi8h3e5lkbeq => {
   if (toChain === Chains.Polkadot) {
     throw new Error('Invalid chain');
   }
@@ -80,7 +86,7 @@ export const createTransferData = ({ toChain, assets, recv }: TransferDataParams
     dest,
     beneficiary,
     assets,
-    fee_asset_item: 0,
+    fee_asset_item,
     weight_limit: XcmV3WeightLimit.Unlimited(),
   };
 };

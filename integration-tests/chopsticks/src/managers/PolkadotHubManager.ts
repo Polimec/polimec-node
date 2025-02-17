@@ -46,6 +46,8 @@ export class PolkadotHubManager extends BaseChainManager {
       case Asset.WETH:
         // This is not actually used, so we use Self as a placeholder
         return AssetSourceRelation.Self;
+      case Asset.PLMC:
+        return AssetSourceRelation.Sibling;
     }
   }
 
