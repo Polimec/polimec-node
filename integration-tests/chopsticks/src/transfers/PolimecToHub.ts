@@ -167,6 +167,7 @@ export class PolimecToHubTransfer extends BaseTransferTest {
         location.value.interior.value.type === 'Parachain' &&
         location.value.interior.value.value === ParaId[Chains.PolkadotHub],
     );
+
     if (!xcmsToPHub) {
       throw new Error('Could not find xcm to polimec');
     }

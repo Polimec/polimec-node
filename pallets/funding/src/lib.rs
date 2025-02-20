@@ -35,9 +35,9 @@
 //!
 //! Users need to go through a KYC/AML by a third party in order to use the protocol. This process classifies them
 //! into one of the following categories, based on their investment experience and financial status:
-//! - **Institutional**: Can take the role of issuer, evaluator, and participant. Can participate in both auction and community rounds.
-//! - **Professional**: Can take the role of evaluator and participant. Can participate in both auction and community rounds.
-//! - **Retail**: Can take the role of evaluator and participant. Can only participate in the community round.
+//! - **Institutional**
+//! - **Professional**
+//! - **Retail**
 //!
 //! Basic flow of a project's lifecycle:
 //! 1) **Project Creation**: Issuer creates a project with the [`create_project`](Pallet::create_project) extrinsic.
@@ -129,9 +129,6 @@ pub type ProjectMetadataOf<T> = ProjectMetadata<BoundedVec<u8, StringLimitOf<T>>
 pub type ProjectDetailsOf<T> = ProjectDetails<AccountIdOf<T>, Did, BlockNumberFor<T>, EvaluationRoundInfo>;
 pub type EvaluationInfoOf<T> = EvaluationInfo<u32, Did, ProjectId, AccountIdOf<T>, BlockNumberFor<T>>;
 pub type BidInfoOf<T> = BidInfo<ProjectId, Did, PriceOf<T>, AccountIdOf<T>, BlockNumberFor<T>>;
-
-pub type ContributionInfoOf<T> = ContributionInfo<u32, Did, ProjectId, AccountIdOf<T>, BlockNumberFor<T>>;
-
 pub type BucketOf<T> = Bucket<PriceOf<T>>;
 pub type WeightInfoOf<T> = <T as Config>::WeightInfo;
 pub type VestingOf<T> = pallet_linear_release::Pallet<T>;
@@ -437,17 +434,6 @@ pub mod pallet {
 			plmc_bond: Balance,
 			mode: ParticipationMode,
 		},
-		/// A contribution was made for a project. i.e token purchase
-		Contribution {
-			project_id: ProjectId,
-			contributor: AccountIdOf<T>,
-			id: u32,
-			ct_amount: Balance,
-			funding_asset: AcceptedFundingAsset,
-			funding_amount: Balance,
-			plmc_bond: Balance,
-			mode: ParticipationMode,
-		},
 		/// An evaluation was settled. PLMC has been unbonded with either a CT reward or a PLMC slash depending on the project outcome.
 		EvaluationSettled {
 			project_id: ProjectId,
@@ -466,9 +452,6 @@ pub mod pallet {
 			status: BidStatus,
 			final_ct_amount: Balance,
 		},
-		/// A contribution was settled. On Funding Success the PLMC has been unbonded/locked with a vesting schedule and the funding assets have been transferred to the issuer.
-		/// If Funding Failed, the PLMC has been unbonded and the funds have been returned to the contributor.
-		ContributionSettled { project_id: ProjectId, account: AccountIdOf<T>, id: u32, ct_amount: Balance },
 		/// Issuer started the CT migration to mainnet tokens using the pallet migration method
 		PalletMigrationStarted { project_id: ProjectId, para_id: ParaId },
 		/// A channel was accepted from a parachain to Polimec belonging to a project. A request has been sent to the relay for a Polimec->project channel
@@ -523,10 +506,6 @@ pub mod pallet {
 		/// The project is frozen, so no changes to the metadata are allowed and the project
 		/// cannot be deleted anymore.
 		ProjectIsFrozen,
-		/// The project's weighted average price is not set while in the community round.
-		/// Should not happen in practice.
-		WapNotSet,
-
 		// * A round related error. The project did not have the correct state to execute the action. *
 		/// The project is not in the correct round to execute the action.
 		IncorrectRound,

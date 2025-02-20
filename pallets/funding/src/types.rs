@@ -292,20 +292,6 @@ pub mod storage {
 		/// When the Funding Round ends
 		pub funding_end_block: Option<BlockNumber>,
 	}
-	/// Tells on_initialize what to do with the project
-	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
-	pub enum UpdateType {
-		EvaluationEnd,
-		AuctionOpeningStart,
-		AuctionClosingStart,
-		AuctionClosingEnd,
-		CommunityFundingStart,
-		RemainderFundingStart,
-		FundingEnd,
-		ProjectDecision(FundingOutcomeDecision),
-		StartSettlement,
-	}
-
 	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen, Ord, PartialOrd)]
 	pub struct EvaluationInfo<Id, Did, ProjectId, AccountId, BlockNumber> {
 		pub id: Id,
@@ -358,22 +344,6 @@ pub mod storage {
 		fn partial_cmp(&self, other: &Self) -> Option<sp_std::cmp::Ordering> {
 			Some(self.cmp(other))
 		}
-	}
-
-	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
-	pub struct ContributionInfo<Id, Did, ProjectId, AccountId, BlockNumber> {
-		pub id: Id,
-		pub did: Did,
-		pub project_id: ProjectId,
-		pub contributor: AccountId,
-		pub ct_amount: Balance,
-		pub usd_contribution_amount: Balance,
-		pub mode: ParticipationMode,
-		pub funding_asset: AcceptedFundingAsset,
-		pub funding_asset_amount: Balance,
-		pub plmc_bond: Balance,
-		pub when: BlockNumber,
-		pub receiving_account: Junction,
 	}
 
 	/// Represents a bucket that holds a specific amount of tokens at a given price.
@@ -776,19 +746,6 @@ pub mod extrinsic {
 		pub funding_asset: AcceptedFundingAsset,
 		pub did: Did,
 		pub investor_type: InvestorType,
-		pub whitelisted_policy: Cid,
-		pub receiving_account: Junction,
-	}
-
-	pub struct DoPerformContributionParams<'a, T: Config> {
-		pub contributor: AccountIdOf<T>,
-		pub project_id: ProjectId,
-		pub project_details: &'a mut ProjectDetailsOf<T>,
-		pub buyable_tokens: Balance,
-		pub mode: ParticipationMode,
-		pub funding_asset: AcceptedFundingAsset,
-		pub investor_type: InvestorType,
-		pub did: Did,
 		pub whitelisted_policy: Cid,
 		pub receiving_account: Junction,
 	}

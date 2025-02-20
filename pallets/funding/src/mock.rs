@@ -293,8 +293,6 @@ pub const HOURS: BlockNumber = 300u64;
 parameter_types! {
 	pub const EvaluationRoundDuration: BlockNumber = 10u64;
 	pub const AuctionRoundDuration: BlockNumber = 15u64;
-	pub const CommunityRoundDuration: BlockNumber = 18u64;
-	pub const RemainderRoundDuration: BlockNumber = 6u64;
 
 	pub const FundingPalletId: PalletId = PalletId(*b"plmc-fun");
 	pub FeeBrackets: Vec<(Percent, Balance)> = vec![
