@@ -1,5 +1,5 @@
 import { expect } from 'bun:test';
-import { DEFAULT_TOPIC, FEE_AMOUNT, WETH_ADDRESS, WETH_AMOUNT } from '@/constants';
+import { DEFAULT_TOPIC, ETH_AMOUNT, FEE_AMOUNT, WETH_ADDRESS } from '@/constants';
 import type { BridgerHubManagaer } from '@/managers/BridgeHubManager';
 import type { PolimecManager } from '@/managers/PolimecManager';
 import type { PolkadotHubManager } from '@/managers/PolkadotHubManager';
@@ -102,7 +102,10 @@ export class BridgeToPolimecTransfer extends BaseTransferTest {
       (event) => event.type === 'ForeignAssets' && event.value.type === 'Issued',
     );
 
-    // TODO: Check why we have 3 events instead of 2 (WETH + DOT). Curently we have 3 events (WETH + DOT + DOT)
+    console.log('Issued Events on Destination: \n');
+    console.dir(issuedEventsOnDest, { depth: null });
+
+    // TODO: Check why we have 3 events instead of 2 (ETH + DOT). Curently we have 3 events (ETH + DOT + DOT)
     expect(issuedEventsOnDest.length).toBe(3);
 
     return { sourceBlock, destBlock };
@@ -147,15 +150,11 @@ export class BridgeToPolimecTransfer extends BaseTransferTest {
           {
             id: XcmV3MultiassetAssetId.Concrete({
               parents: 2,
-              interior: XcmV3Junctions.X2([
+              interior: XcmV3Junctions.X1(
                 XcmV3Junction.GlobalConsensus(XcmV3JunctionNetworkId.Ethereum({ chain_id: 1n })),
-                XcmV3Junction.AccountKey20({
-                  network: undefined,
-                  key: FixedSizeBinary.fromHex(WETH_ADDRESS),
-                }),
-              ]),
+              ),
             }),
-            fun: XcmV3MultiassetFungibility.Fungible(WETH_AMOUNT),
+            fun: XcmV3MultiassetFungibility.Fungible(ETH_AMOUNT),
           },
         ]),
 
@@ -190,15 +189,11 @@ export class BridgeToPolimecTransfer extends BaseTransferTest {
             {
               id: XcmV3MultiassetAssetId.Concrete({
                 parents: 2,
-                interior: XcmV3Junctions.X2([
+                interior: XcmV3Junctions.X1(
                   XcmV3Junction.GlobalConsensus(XcmV3JunctionNetworkId.Ethereum({ chain_id: 1n })),
-                  XcmV3Junction.AccountKey20({
-                    network: undefined,
-                    key: FixedSizeBinary.fromHex(WETH_ADDRESS),
-                  }),
-                ]),
+                ),
               }),
-              fun: XcmV3MultiassetFungibility.Fungible(WETH_AMOUNT),
+              fun: XcmV3MultiassetFungibility.Fungible(ETH_AMOUNT),
             },
           ]),
           dest: {
@@ -250,15 +245,11 @@ export class BridgeToPolimecTransfer extends BaseTransferTest {
           {
             id: XcmV3MultiassetAssetId.Concrete({
               parents: 2,
-              interior: XcmV3Junctions.X2([
+              interior: XcmV3Junctions.X1(
                 XcmV3Junction.GlobalConsensus(XcmV3JunctionNetworkId.Ethereum({ chain_id: 1n })),
-                XcmV3Junction.AccountKey20({
-                  network: undefined,
-                  key: FixedSizeBinary.fromHex(WETH_ADDRESS),
-                }),
-              ]),
+              ),
             }),
-            fun: XcmV3MultiassetFungibility.Fungible(WETH_AMOUNT),
+            fun: XcmV3MultiassetFungibility.Fungible(ETH_AMOUNT),
           },
         ]),
 

@@ -96,7 +96,7 @@ export enum Asset {
   DOT = 10,
   USDC = 1337,
   USDT = 1984,
-  WETH = 10000,
+  ETH = 10000,
   PLMC = 3344,
 }
 
@@ -160,13 +160,12 @@ export function NativeAssetLocation(
   }
 }
 
-export function EthereumAssetLocation(contract_address: FixedSizeBinary<20>): XcmVersionedLocation {
+export function EthereumLocation(): XcmVersionedLocation {
   return XcmVersionedLocation.V4({
     parents: 2,
-    interior: XcmV3Junctions.X2([
+    interior: XcmV3Junctions.X1(
       XcmV3Junction.GlobalConsensus(XcmV3JunctionNetworkId.Ethereum({ chain_id: 1n })),
-      XcmV3Junction.AccountKey20({ network: undefined, key: contract_address }),
-    ]),
+    ),
   });
 }
 
@@ -175,8 +174,8 @@ export function AssetLocation(
   assetSourceRelation: AssetSourceRelation,
 ): XcmVersionedLocation {
   const baseLocation =
-    asset === Asset.WETH
-      ? EthereumAssetLocation(FixedSizeBinary.fromHex(WETH_ADDRESS))
+    asset === Asset.ETH
+      ? EthereumLocation()
       : asset === Asset.DOT || asset === Asset.PLMC
         ? NativeAssetLocation(assetSourceRelation, asset)
         : AssetHubAssetLocation(BigInt(asset), assetSourceRelation);

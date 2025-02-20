@@ -525,7 +525,7 @@ fn calculate_otm_fee() {
 fn get_funding_asset_min_max_amounts() {
 	ConstPriceProvider::set_price(AcceptedFundingAsset::USDT.id(), PriceOf::<TestRuntime>::from_float(1.0f64));
 	ConstPriceProvider::set_price(AcceptedFundingAsset::DOT.id(), PriceOf::<TestRuntime>::from_float(10.0f64));
-	ConstPriceProvider::set_price(AcceptedFundingAsset::WETH.id(), PriceOf::<TestRuntime>::from_float(100.0f64));
+	ConstPriceProvider::set_price(AcceptedFundingAsset::ETH.id(), PriceOf::<TestRuntime>::from_float(100.0f64));
 	ConstPriceProvider::set_price(Location::here(), PriceOf::<TestRuntime>::from_float(0.5f64));
 	const DOT_UNIT: u128 = 10u128.pow(10u32);
 	const WETH_UNIT: u128 = 10u128.pow(18u32);
@@ -601,12 +601,12 @@ fn get_funding_asset_min_max_amounts() {
 	let (min, max) = inst
 		.execute(|| {
 			TestRuntime::get_funding_asset_min_max_amounts(
-				&TestRuntime,
-				block_hash,
-				project_id,
-				generate_did_from_account(BIDDER_1),
-				AcceptedFundingAsset::WETH,
-				InvestorType::Retail,
+                &TestRuntime,
+                block_hash,
+                project_id,
+                generate_did_from_account(BIDDER_1),
+                AcceptedFundingAsset::ETH,
+                InvestorType::Retail,
 			)
 		})
 		.unwrap()

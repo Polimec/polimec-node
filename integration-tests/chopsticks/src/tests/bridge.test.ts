@@ -22,12 +22,12 @@ describe('Bridge Hub -> Polimec Transfer Tests', () => {
   afterAll(async () => await chainSetup.cleanup());
 
   test(
-    'Send WETH to Polimec',
+    'Send ETH to Polimec',
     () =>
       transferTest.testTransfer({
         account: Accounts.ALICE,
-        assets: [[Asset.WETH, TRANSFER_AMOUNTS.BRIDGED, AssetSourceRelation.Self]],
+        assets: [[Asset.ETH, TRANSFER_AMOUNTS.BRIDGED, AssetSourceRelation.Self]],
       }),
-    { timeout: 25000 },
+    { timeout: 40000 },
   );
 });

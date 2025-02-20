@@ -4,7 +4,7 @@ use itertools::{izip, GroupBy};
 #[allow(clippy::wildcard_imports)]
 use polimec_common::assets::AcceptedFundingAsset;
 use polimec_common::{
-	assets::AcceptedFundingAsset::{DOT, USDC, USDT, WETH},
+	assets::AcceptedFundingAsset::{DOT, USDC, USDT, ETH},
 	ProvideAssetPrice, USD_DECIMALS,
 };
 use sp_core::{blake2_256, ecdsa, hexdisplay::AsBytesRef, keccak_256, sr25519, Pair};
@@ -427,7 +427,7 @@ impl<
 		let investor_types =
 			vec![Retail, Professional, Institutional].into_iter().cycle().take(bids_count as usize).collect_vec();
 		let funding_assets =
-			vec![USDT, USDC, DOT, WETH, USDT].into_iter().cycle().take(bids_count as usize).collect_vec();
+			vec![USDT, USDC, DOT, ETH, USDT].into_iter().cycle().take(bids_count as usize).collect_vec();
 
 		// Use Perquintill for precise weight distribution
 		let weights = {

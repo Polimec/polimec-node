@@ -46,10 +46,12 @@ export class BridgerHubManagaer extends BaseChainManager {
         return AssetSourceRelation.Sibling;
       case Asset.USDC:
         return AssetSourceRelation.Sibling;
-      case Asset.WETH:
+      case Asset.ETH:
         // TODO: Check it Placeholder
         return AssetSourceRelation.Self;
     }
+
+    return AssetSourceRelation.Self;
   }
 
   // Note: On BridgeHub, there should be no balance for any asset.

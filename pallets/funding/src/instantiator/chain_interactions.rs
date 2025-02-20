@@ -481,7 +481,7 @@ impl<
 				AcceptedFundingAsset::DOT => total_expected_dot += bid.funding_asset_amount_locked,
 				AcceptedFundingAsset::USDT => total_expected_usdt += bid.funding_asset_amount_locked,
 				AcceptedFundingAsset::USDC => total_expected_usdc += bid.funding_asset_amount_locked,
-				AcceptedFundingAsset::WETH => total_expected_weth += bid.funding_asset_amount_locked,
+				AcceptedFundingAsset::ETH => total_expected_weth += bid.funding_asset_amount_locked,
 			}
 		}
 
@@ -498,7 +498,7 @@ impl<
 			project_metadata.funding_destination_account.clone(),
 		);
 		let total_stored_weth = self.get_free_funding_asset_balance_for(
-			AcceptedFundingAsset::WETH.id(),
+			AcceptedFundingAsset::ETH.id(),
 			project_metadata.funding_destination_account,
 		);
 

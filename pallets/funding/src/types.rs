@@ -706,7 +706,7 @@ pub mod inner {
 
 pub mod extrinsic {
 	use super::*;
-	use crate::{AccountIdOf, Balance, Config, ParticipationMode, PriceOf, ProjectDetailsOf, ProjectId, TicketSize};
+	use crate::{AccountIdOf, Balance, Config, ParticipationMode, PriceOf, ProjectId, TicketSize};
 	use frame_system::pallet_prelude::BlockNumberFor;
 	use polimec_common::credentials::{Cid, Did, InvestorType};
 	use xcm::v4::Junction;

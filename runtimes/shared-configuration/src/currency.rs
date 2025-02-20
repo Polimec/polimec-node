@@ -29,6 +29,10 @@ pub const MILLI_PLMC: Balance = 10u128.pow(7);
 /// 0.000_001 PLMC
 pub const MICRO_PLMC: Balance = 10u128.pow(4);
 
+// Required for the treasury payout benchmark, as it does a transfer under the normal ED.
+#[cfg(feature = "runtime-benchmarks")]
+pub const EXISTENTIAL_DEPOSIT: Balance = 1;
+#[cfg(not(feature = "runtime-benchmarks"))]
 pub const EXISTENTIAL_DEPOSIT: Balance = 10 * MILLI_PLMC;
 
 /// Deposit that must be provided for each occupied storage item.
@@ -55,13 +59,6 @@ parameter_types! {
 	pub const MaxReserves: u32 = 50;
 }
 
-// Required for the treasury payout benchmark, as it does a transfer under the normal ED.
-#[cfg(feature = "runtime-benchmarks")]
-parameter_types! {
-	pub const ExistentialDeposit: Balance = 1;
-}
-
-#[cfg(not(feature = "runtime-benchmarks"))]
 parameter_types! {
 	pub const ExistentialDeposit: Balance = EXISTENTIAL_DEPOSIT;
 }
@@ -89,7 +86,7 @@ impl Convert<(AssetName, FixedU128), (Location, Price)> for AssetPriceConverter 
 			AssetName::USDC => (AcceptedFundingAsset::USDC.id(), price),
 			AssetName::USDT => (AcceptedFundingAsset::USDT.id(), price),
 			AssetName::PLMC => (Location::here(), price),
-			AssetName::WETH => (AcceptedFundingAsset::WETH.id(), price),
+			AssetName::WETH => (AcceptedFundingAsset::ETH.id(), price),
 		}
 	}
 }
