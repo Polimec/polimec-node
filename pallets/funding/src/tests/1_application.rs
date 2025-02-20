@@ -173,7 +173,7 @@ mod create_project_extrinsic {
 					.map(|acc| UserToFundingAsset {
 						account: *acc,
 						asset_amount: 1_000_000__000_000_000_000_000_000,
-						asset_id: WETH.id(),
+						asset_id: ETH.id(),
 					})
 					.collect(),
 			);

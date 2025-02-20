@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use xcm::{
 	prelude::Parachain,
-	v4::prelude::{AccountKey20, Ethereum, GeneralIndex, GlobalConsensus, Location, PalletInstance},
+	v4::prelude::{Ethereum, GeneralIndex, GlobalConsensus, Location, PalletInstance},
 };
 
 use parity_scale_codec::{Decode, Encode, MaxEncodedLen};
@@ -35,7 +35,7 @@ pub enum AcceptedFundingAsset {
 	#[codec(index = 2)]
 	DOT,
 	#[codec(index = 3)]
-	WETH,
+	ETH,
 }
 impl AcceptedFundingAsset {
 	pub fn id(&self) -> Location {
@@ -43,17 +43,16 @@ impl AcceptedFundingAsset {
 			AcceptedFundingAsset::USDT => Location::new(1, [Parachain(1000), PalletInstance(50), GeneralIndex(1984)]),
 			AcceptedFundingAsset::DOT => Location::parent(),
 			AcceptedFundingAsset::USDC => Location::new(1, [Parachain(1000), PalletInstance(50), GeneralIndex(1337)]),
-			AcceptedFundingAsset::WETH => Location::new(
+			AcceptedFundingAsset::ETH => Location::new(
 				2,
 				[
 					GlobalConsensus(Ethereum { chain_id: 1 }),
-					AccountKey20 { network: None, key: hex_literal::hex!("c02aaa39b223fe8d0a0e5c4f27ead9083c756cc2") },
 				],
 			),
 		}
 	}
 
 	pub fn all_ids() -> Vec<Location> {
-		vec![Self::USDT.id(), Self::DOT.id(), Self::USDC.id(), Self::WETH.id()]
+		vec![Self::USDT.id(), Self::DOT.id(), Self::USDC.id(), Self::ETH.id()]
 	}
 }

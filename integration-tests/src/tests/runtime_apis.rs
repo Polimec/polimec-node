@@ -82,20 +82,20 @@ mod fungibles_api {
 			PolimecForeignAssets::set_balance(AcceptedFundingAsset::USDT.id(), &alice_account, 100_000_u128);
 			PolimecForeignAssets::set_balance(AcceptedFundingAsset::USDC.id(), &alice_account, 100_000_u128);
 			PolimecForeignAssets::set_balance(
-				AcceptedFundingAsset::WETH.id(),
-				&alice_account,
-				100_000_000_000_000_u128,
+                AcceptedFundingAsset::ETH.id(),
+                &alice_account,
+                100_000_000_000_000_u128,
 			);
 
 			let alice_assets = PolimecRuntime::query_account_balances(alice_account).unwrap();
 
 			let expected_assets = VersionedAssets::V4(
 				vec![
-					Asset::from((Location::here(), 150_0_000_000_000_u128)),
-					Asset::from((AcceptedFundingAsset::DOT.id(), 100_0_000_000_000_u128)),
-					Asset::from((AcceptedFundingAsset::USDC.id(), 100_000_u128)),
-					Asset::from((AcceptedFundingAsset::USDT.id(), 100_000_u128)),
-					Asset::from((AcceptedFundingAsset::WETH.id(), 100_000_000_000_000_u128)),
+                    Asset::from((Location::here(), 150_0_000_000_000_u128)),
+                    Asset::from((AcceptedFundingAsset::DOT.id(), 100_0_000_000_000_u128)),
+                    Asset::from((AcceptedFundingAsset::USDC.id(), 100_000_u128)),
+                    Asset::from((AcceptedFundingAsset::USDT.id(), 100_000_u128)),
+                    Asset::from((AcceptedFundingAsset::ETH.id(), 100_000_000_000_000_u128)),
 				]
 				.into(),
 			);

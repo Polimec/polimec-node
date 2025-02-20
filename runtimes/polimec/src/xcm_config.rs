@@ -27,7 +27,7 @@ use frame_support::{
 	pallet_prelude::*,
 	parameter_types,
 	traits::{
-		tokens::ConversionToAssetBalance, ConstU32, Contains, ContainsPair, Everything, Nothing, ProcessMessageError,
+		tokens::ConversionToAssetBalance, ConstU32, Contains, ContainsPair, Everything, Nothing,
 	},
 	weights::{Weight, WeightToFee as WeightToFeeT},
 };
@@ -41,15 +41,15 @@ use sp_runtime::traits::Zero;
 use xcm::v4::prelude::*;
 use xcm_builder::{
 	AccountId32Aliases, AllowExplicitUnpaidExecutionFrom, AllowKnownQueryResponses, AllowSubscriptionsFrom,
-	AllowTopLevelPaidExecutionFrom, CreateMatcher, DenyReserveTransferToRelayChain, DenyThenTry, EnsureXcmOrigin,
-	FixedWeightBounds, FrameTransactionalProcessor, FungibleAdapter, FungiblesAdapter, IsConcrete, MatchXcm,
+	AllowTopLevelPaidExecutionFrom, DenyReserveTransferToRelayChain, DenyThenTry, EnsureXcmOrigin,
+	FixedWeightBounds, FrameTransactionalProcessor, FungibleAdapter, FungiblesAdapter, IsConcrete,
 	MatchedConvertedConcreteId, MintLocation, NoChecking, ParentIsPreset, RelayChainAsNative, SiblingParachainAsNative,
 	SiblingParachainConvertsVia, SignedAccountId32AsNative, SignedToAccountId32, SovereignSignedViaLocation,
 	StartsWith, StartsWithExplicitGlobalConsensus, TakeRevenue, TakeWeightCredit, TrailingSetTopicAsId,
 	WithComputedOrigin,
 };
 use xcm_executor::{
-	traits::{JustTry, Properties, ShouldExecute, WeightTrader},
+	traits::{JustTry, WeightTrader},
 	AssetsInHolding, XcmExecutor,
 };
 
@@ -256,8 +256,6 @@ pub type Barrier = TrailingSetTopicAsId<
 			// Allow XCMs with some computed origins to pass through.
 			WithComputedOrigin<
 				(
-					// HRMP notifications from relay get free pass
-					AllowHrmpNotifications<ParentOrParentsExecutivePlurality>,
 					// If the message is one that immediately attemps to pay for execution, then allow it.
 					AllowTopLevelPaidExecutionFrom<Everything>,
 					// Common Good Assets parachain, parent and its exec plurality get free execution
@@ -479,29 +477,6 @@ impl cumulus_pallet_xcm::Config for Runtime {
 	type XcmExecutor = XcmExecutor<XcmConfig>;
 }
 
-pub struct AllowHrmpNotifications<T>(PhantomData<T>);
-impl<T: Contains<Location>> ShouldExecute for AllowHrmpNotifications<T> {
-	fn should_execute<Call>(
-		origin: &Location,
-		instructions: &mut [Instruction<Call>],
-		max_weight: Weight,
-		_weight_credit: &mut Properties,
-	) -> Result<(), ProcessMessageError> {
-		log::trace!(
-			target: "xcm::barriers",
-			"AllowHrmpNotifications origin: {:?}, instructions: {:?}, max_weight: {:?}, weight_credit: {:?}",
-			origin, instructions, max_weight, _weight_credit,
-		);
-		ensure!(T::contains(origin), ProcessMessageError::Unsupported);
-		instructions.matcher().assert_remaining_insts(1)?.match_next_inst(|inst| match inst {
-			HrmpNewChannelOpenRequest { .. } => Ok(()),
-			HrmpChannelAccepted { .. } => Ok(()),
-			HrmpChannelClosing { .. } => Ok(()),
-			_ => Err(ProcessMessageError::Unsupported),
-		})?;
-		Ok(())
-	}
-}
 
 impl cumulus_pallet_xcmp_queue::migration::v5::V5Config for Runtime {
 	// This must be the same as the `ChannelInfo` from the `Config`:

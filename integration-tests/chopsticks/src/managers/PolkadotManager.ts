@@ -44,10 +44,12 @@ export class PolkadotManager extends BaseChainManager {
       case Asset.USDC:
         // Placeholder
         return AssetSourceRelation.Self;
-      case Asset.WETH:
+      case Asset.ETH:
         // Placeholder
         return AssetSourceRelation.Self;
     }
+
+    return AssetSourceRelation.Self;
   }
 
   async getAssetBalanceOf(account: Accounts, asset: Asset): Promise<bigint> {

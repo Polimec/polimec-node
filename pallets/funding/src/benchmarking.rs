@@ -35,9 +35,9 @@ use frame_support::{
 use itertools::Itertools;
 use parity_scale_codec::{Decode, Encode};
 use polimec_common::{
-	assets::AcceptedFundingAsset::{DOT, USDC, USDT, WETH},
-	credentials::InvestorType,
-	ProvideAssetPrice, USD_DECIMALS, USD_UNIT,
+    assets::AcceptedFundingAsset::{DOT, USDC, USDT, ETH},
+    credentials::InvestorType,
+    ProvideAssetPrice, USD_DECIMALS, USD_UNIT,
 };
 use polimec_common_test_utils::{generate_did_from_account, get_mock_jwt_with_cid};
 use sp_arithmetic::Percent;
@@ -75,7 +75,7 @@ where
 			retail: TicketSize::new(10u128 * USD_UNIT, None),
 			phantom: Default::default(),
 		},
-		participation_currencies: vec![USDT, USDC, DOT, WETH].try_into().unwrap(),
+		participation_currencies: vec![USDT, USDC, DOT, ETH].try_into().unwrap(),
 		funding_destination_account: issuer,
 		policy_ipfs_cid: Some(metadata_hash.into()),
 		participants_account_type: ParticipantsAccountType::Polkadot,
@@ -622,7 +622,7 @@ mod benchmarks {
 		let mut inst = BenchInstantiator::<T>::new(None);
 		<T as Config>::SetPrices::set_prices();
 
-		let weth_price = PriceProviderOf::<T>::get_price(WETH.id()).unwrap();
+		let weth_price = PriceProviderOf::<T>::get_price(ETH.id()).unwrap();
 		log::info!("weth_price: {:?}", weth_price);
 
 		// We can't see events at block 0

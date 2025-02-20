@@ -23,7 +23,7 @@ use parachains_common::DAYS;
 use polimec_common::{
 	assets::{
 		AcceptedFundingAsset,
-		AcceptedFundingAsset::{DOT, USDC, USDT, WETH},
+		AcceptedFundingAsset::{DOT, USDC, USDT, ETH},
 	},
 	ProvideAssetPrice, USD_DECIMALS, USD_UNIT,
 };
@@ -103,7 +103,7 @@ const fn default_accounts() -> [AccountId; 18] {
 
 pub mod defaults {
 	use super::*;
-	use polimec_common::assets::AcceptedFundingAsset::{DOT, USDC, USDT, WETH};
+	use polimec_common::assets::AcceptedFundingAsset::{DOT, USDC, USDT, ETH};
 
 	pub fn default_token_information() -> CurrencyMetadata<BoundedVec<u8, StringLimitOf<TestRuntime>>> {
 		CurrencyMetadata { name: bounded_name(), symbol: bounded_symbol(), decimals: CT_DECIMALS }
@@ -130,7 +130,7 @@ pub mod defaults {
 				retail: TicketSize::new(100 * USD_UNIT, None),
 				phantom: Default::default(),
 			},
-			participation_currencies: vec![USDT, USDC, DOT, WETH].try_into().unwrap(),
+			participation_currencies: vec![USDT, USDC, DOT, ETH].try_into().unwrap(),
 			funding_destination_account: issuer,
 			policy_ipfs_cid: Some(metadata_hash),
 			participants_account_type: ParticipantsAccountType::Polkadot,

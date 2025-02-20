@@ -23,20 +23,15 @@ const dot_location = {
   },
 };
 
-export const weth_location = {
+export const eth_location = {
   parents: 2,
   interior: {
-    x2: [
+    x1: [
       {
         globalConsensus: {
           ethereum: {
             chainId: 1n,
           },
-        },
-      },
-      {
-        accountKey20: {
-          key: WETH_ADDRESS,
         },
       },
     ],
@@ -81,7 +76,7 @@ export const polimec_storage = {
     // Note: We can remove Asset and Metadata from the storage override as soon we set them on-chain.
     Asset: [
       [
-        [weth_location],
+        [eth_location],
         {
           owner: Accounts.ALICE,
           issuer: Accounts.ALICE,
@@ -98,8 +93,6 @@ export const polimec_storage = {
         },
       ],
     ],
-    Metadata: [
-      [[weth_location], { symbol: 'Wrapped Ether', name: 'WETH', decimals: 18, isFrozen: false }],
-    ],
+    Metadata: [[[eth_location], { symbol: 'Ether', name: 'ETH', decimals: 18, isFrozen: false }]],
   },
 } as const;

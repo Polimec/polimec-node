@@ -47,7 +47,7 @@ export class PolimecManager extends BaseChainManager {
         return AssetSourceRelation.Sibling;
       case Asset.USDC:
         return AssetSourceRelation.Sibling;
-      case Asset.WETH:
+      case Asset.ETH:
         // Placeholder
         return AssetSourceRelation.Self;
       case Asset.PLMC:

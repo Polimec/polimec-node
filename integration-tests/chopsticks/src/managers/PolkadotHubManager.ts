@@ -43,7 +43,7 @@ export class PolkadotHubManager extends BaseChainManager {
         return AssetSourceRelation.Self;
       case Asset.USDC:
         return AssetSourceRelation.Self;
-      case Asset.WETH:
+      case Asset.ETH:
         // This is not actually used, so we use Self as a placeholder
         return AssetSourceRelation.Self;
       case Asset.PLMC:

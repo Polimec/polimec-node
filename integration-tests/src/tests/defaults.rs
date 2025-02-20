@@ -23,8 +23,8 @@ use pallet_funding::{
 
 use macros::generate_accounts;
 use polimec_common::{
-	assets::AcceptedFundingAsset::{DOT, USDC, USDT, WETH},
-	ProvideAssetPrice, USD_DECIMALS, USD_UNIT,
+    assets::AcceptedFundingAsset::{DOT, USDC, USDT, ETH},
+    ProvideAssetPrice, USD_DECIMALS, USD_UNIT,
 };
 use polimec_runtime::AccountId;
 use sp_runtime::traits::ConstU32;
@@ -71,7 +71,7 @@ pub fn default_project_metadata(issuer: AccountId) -> ProjectMetadataOf<polimec_
 			retail: TicketSize::new(100 * USD_UNIT, None),
 			phantom: Default::default(),
 		},
-		participation_currencies: vec![USDT, USDC, DOT, WETH].try_into().unwrap(),
+		participation_currencies: vec![USDT, USDC, DOT, ETH].try_into().unwrap(),
 		funding_destination_account: issuer,
 		policy_ipfs_cid: Some(ipfs_hash()),
 		participants_account_type: ParticipantsAccountType::Polkadot,
