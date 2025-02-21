@@ -1,0 +1,33 @@
+db: ./db.sqlite
+mock-signature-host: true
+endpoint: wss://hydration.ibp.network
+runtime-log-level: 5
+import-storage:
+  System:
+    Account:
+      # Alice 1000 HDX
+      - - - "0xb4697e4552d829f9f2b70120085b0aee7ae891c2030bf88013bcf1c3b00ca364"
+        - providers: 1
+          data:
+            free: "1000000000000000"
+
+  Tokens:
+    Accounts:
+      [
+        [
+          # 1000 USDT
+          ["0xb4697e4552d829f9f2b70120085b0aee7ae891c2030bf88013bcf1c3b00ca364", 10],
+          { free: 1000000000 },
+        ],
+        [
+          # 1000 USDC
+          ["0xb4697e4552d829f9f2b70120085b0aee7ae891c2030bf88013bcf1c3b00ca364", 22],
+          { free: 1000000000 },
+        ],
+        [
+          # 1000 DOT
+          ["0xb4697e4552d829f9f2b70120085b0aee7ae891c2030bf88013bcf1c3b00ca364", 5],
+          { free: 10000000000000 },
+        ],
+      ]
+

@@ -1,6 +1,8 @@
 db: ./db.sqlite
 mock-signature-host: true
 endpoint: wss://statemint-rpc.dwellir.com
+wasm-override: ./scripts/chopsticks/assethub-transfers/assethub-1.4.compact.compressed.wasm
+runtime-log-level: 5
 import-storage:
   System:
     Account:
@@ -14,11 +16,20 @@ import-storage:
         - providers: 1
           data:
             free: "10000000000000000"
+      # ALICE
+      - - - "0x7c998d65e41ac13dcecfeddab93fd40869a69d79eea523b1f946f2731b30a11f"
+        - providers: 1
+          data:
+            free: "10000000000000000"
   Assets:
     Account:
       [
         [
           [1984, 15CyvMWHKwbAPQ3ekqRFWLyq3kcjU8ypMuuGfsMnxanW85WZ],
+          { balance: 1000000000 },
+        ],
+        [
+          [1984, "0x7c998d65e41ac13dcecfeddab93fd40869a69d79eea523b1f946f2731b30a11f" ],
           { balance: 1000000000 },
         ],
         [

@@ -1,6 +1,8 @@
 db: ./db.sqlite
 mock-signature-host: true
 endpoint: wss://rpc.polimec.org
+wasm-override: ./target/release/wbuild/polimec-runtime/polimec_runtime.compact.compressed.wasm
+runtime-log-level: 5
 import-storage:
   System:
     Account:
