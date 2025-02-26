@@ -25,14 +25,14 @@ use xcm::v4::Location;
 #[cfg(feature = "instant-mode")]
 pub const EVALUATION_ROUND_DURATION: BlockNumber = 7;
 #[cfg(feature = "fast-mode")]
-pub const EVALUATION_ROUND_DURATION: BlockNumber = 10 * crate::MINUTES;
+pub const EVALUATION_ROUND_DURATION: BlockNumber = 30 * crate::MINUTES;
 #[cfg(not(any(feature = "fast-mode", feature = "instant-mode")))]
 pub const EVALUATION_ROUND_DURATION: BlockNumber = 7 * crate::DAYS;
 
 #[cfg(feature = "instant-mode")]
 pub const AUCTION_ROUND_DURATION: BlockNumber = 7;
 #[cfg(feature = "fast-mode")]
-pub const AUCTION_ROUND_DURATION: BlockNumber = 30 * crate::MINUTES;
+pub const AUCTION_ROUND_DURATION: BlockNumber = 120 * crate::MINUTES;
 #[cfg(not(any(feature = "fast-mode", feature = "instant-mode")))]
 pub const AUCTION_ROUND_DURATION: BlockNumber = 7 * crate::DAYS;
 

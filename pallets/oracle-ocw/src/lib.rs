@@ -157,15 +157,15 @@ pub mod pallet {
 							(AssetName::USDC, Zero::zero()),
 							(AssetName::DOT, Zero::zero()),
 							(AssetName::PLMC, Zero::zero()),
-							(AssetName::WETH, Zero::zero()),
+							(AssetName::ETH, Zero::zero()),
 						]),
 					};
 					log::trace!(target: LOG_TARGET, "Last send for assets: {:?}", last_send_for_assets);
 
 					// Fix for missing PLMC in last_send_for_assets for old nodes, that did not have PLMC in the list.
 					last_send_for_assets.entry(AssetName::PLMC).or_insert_with(Zero::zero);
-					// Fix for missing WETH in last_send_for_assets for old nodes, that did not have PLMC in the list.
-					last_send_for_assets.entry(AssetName::WETH).or_insert_with(Zero::zero);
+					// Fix for missing ETH in last_send_for_assets for old nodes, that did not have PLMC in the list.
+					last_send_for_assets.entry(AssetName::ETH).or_insert_with(Zero::zero);
 
 					let assets = last_send_for_assets
 						.iter()

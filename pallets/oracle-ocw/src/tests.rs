@@ -54,7 +54,7 @@ fn call_offchain_worker() {
 }
 
 fn test_fetcher_against_real_api<F: FetchPrice>() {
-	for asset in [AssetName::DOT, AssetName::USDC, AssetName::USDT, AssetName::PLMC, AssetName::WETH] {
+	for asset in [AssetName::DOT, AssetName::USDC, AssetName::USDT, AssetName::PLMC, AssetName::ETH] {
 		let url = F::get_url(asset);
 		if url.is_empty() {
 			continue;

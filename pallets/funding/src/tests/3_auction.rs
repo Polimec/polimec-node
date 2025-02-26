@@ -320,6 +320,7 @@ mod bid_extrinsic {
 	#[cfg(test)]
 	mod success {
 		use super::*;
+		use frame_support::pallet_prelude::DispatchResultWithPostInfo;
 
 		#[test]
 		fn evaluation_bond_counts_towards_bid() {
@@ -495,7 +496,7 @@ mod bid_extrinsic {
 			bidder: AccountIdOf<TestRuntime>,
 			investor_type: InvestorType,
 			u8_multiplier: u8,
-		) -> DispatchResult {
+		) -> DispatchResultWithPostInfo {
 			let project_policy = inst.get_project_metadata(project_id).policy_ipfs_cid.unwrap();
 			let jwt = get_mock_jwt_with_cid(bidder, investor_type, generate_did_from_account(BIDDER_1), project_policy);
 			let amount = 1000 * CT_UNIT;

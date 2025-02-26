@@ -23,8 +23,8 @@ use pallet_funding::{
 
 use macros::generate_accounts;
 use polimec_common::{
-    assets::AcceptedFundingAsset::{DOT, USDC, USDT, ETH},
-    ProvideAssetPrice, USD_DECIMALS, USD_UNIT,
+	assets::AcceptedFundingAsset::{DOT, ETH, USDC, USDT},
+	ProvideAssetPrice, USD_DECIMALS, USD_UNIT,
 };
 use polimec_runtime::AccountId;
 use sp_runtime::traits::ConstU32;
@@ -76,4 +76,12 @@ pub fn default_project_metadata(issuer: AccountId) -> ProjectMetadataOf<polimec_
 		policy_ipfs_cid: Some(ipfs_hash()),
 		participants_account_type: ParticipantsAccountType::Polkadot,
 	}
+}
+
+#[test]
+fn sandbox() {
+	use pallet_funding::WeightInfo;
+
+	let bid_weight = polimec_runtime::weights::pallet_funding::WeightInfo::<PolimecRuntime>::bid(0);
+	dbg!(bid_weight);
 }

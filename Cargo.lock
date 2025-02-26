@@ -6901,7 +6901,6 @@ dependencies = [
  "pallet-linear-release",
  "pallet-proxy-bonding",
  "pallet-timestamp",
- "pallet-xcm",
  "parachains-common",
  "parity-scale-codec",
  "polimec-common",

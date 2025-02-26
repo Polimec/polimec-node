@@ -26,14 +26,13 @@ use frame_support::{
 	construct_runtime, derive_impl,
 	pallet_prelude::Weight,
 	parameter_types,
-	traits::{AsEnsureOriginWithArg, ConstU16, ConstU32, ConstU64, Everything, OriginTrait, WithdrawReasons},
+	traits::{AsEnsureOriginWithArg, ConstU16, ConstU32, ConstU64, OriginTrait, WithdrawReasons},
 	PalletId,
 };
 use frame_system as system;
 use frame_system::{EnsureRoot, RawOrigin as SystemRawOrigin};
 use functions::runtime_api::{ExtrinsicHelpers, Leaderboards, ProjectInformation, UserInformation};
 use polimec_common::{assets::AcceptedFundingAsset, credentials::EnsureInvestor, ProvideAssetPrice, USD_UNIT};
-use polimec_common_test_utils::DummyXcmSender;
 use polkadot_parachain_primitives::primitives::Sibling;
 use sp_arithmetic::{Perbill, Percent};
 use sp_core::{
@@ -49,7 +48,7 @@ use sp_std::collections::btree_map::BTreeMap;
 use std::{cell::RefCell, marker::PhantomData};
 use system::EnsureSigned;
 use xcm::v4::PalletInfo as XcmPalletInfo;
-use xcm_builder::{EnsureXcmOrigin, FixedWeightBounds, ParentIsPreset, SiblingParachainConvertsVia};
+use xcm_builder::{ParentIsPreset, SiblingParachainConvertsVia};
 use xcm_executor::traits::XcmAssetTransfers;
 
 pub const PLMC: Balance = 10u128.pow(PLMC_DECIMALS as u32);
@@ -143,36 +142,6 @@ impl ExecuteXcm<RuntimeCall> for MockXcmExecutor {
 	fn charge_fees(_location: impl Into<Location>, _fees: Assets) -> XcmResult {
 		Ok(())
 	}
-}
-
-impl pallet_xcm::Config for TestRuntime {
-	type AdminOrigin = EnsureRoot<AccountId>;
-	// ^ Override for AdvertisedXcmVersion default
-	type AdvertisedXcmVersion = pallet_xcm::CurrentXcmVersion;
-	type Currency = Balances;
-	type CurrencyMatcher = ();
-	type ExecuteXcmOrigin = EnsureXcmOrigin<RuntimeOrigin, LocalOriginToLocation>;
-	type MaxLockers = ConstU32<8>;
-	type MaxRemoteLockConsumers = ConstU32<0>;
-	type RemoteLockConsumerIdentifier = ();
-	type RuntimeCall = RuntimeCall;
-	type RuntimeEvent = RuntimeEvent;
-	type RuntimeOrigin = RuntimeOrigin;
-	type SendXcmOrigin = EnsureXcmOrigin<RuntimeOrigin, LocalOriginToLocation>;
-	type SovereignAccountOf = LocationToAccountId;
-	type TrustedLockers = ();
-	type UniversalLocation = UniversalLocation;
-	type Weigher = FixedWeightBounds<UnitWeightCost, RuntimeCall, MaxInstructions>;
-	type WeightInfo = pallet_xcm::TestWeightInfo;
-	type XcmExecuteFilter = Everything;
-	// ^ Disable dispatchable execute on the XCM pallet.
-	// Needs to be `Everything` for local testing.
-	type XcmExecutor = MockXcmExecutor;
-	type XcmReserveTransferFilter = Everything;
-	type XcmRouter = DummyXcmSender;
-	type XcmTeleportFilter = Everything;
-
-	const VERSION_DISCOVERY_QUEUE_SIZE: u32 = 100;
 }
 
 parameter_types! {
@@ -367,7 +336,7 @@ thread_local! {
 		(AcceptedFundingAsset::DOT.id(), FixedU128::from_float(69f64)), // DOT
 		(AcceptedFundingAsset::USDC.id(), FixedU128::from_float(0.97f64)), // USDC
 		(AcceptedFundingAsset::USDT.id(), FixedU128::from_float(1.0f64)), // USDT
-		(AcceptedFundingAsset::ETH.id(), FixedU128::from_float(3619.451f64)), // WETH
+		(AcceptedFundingAsset::ETH.id(), FixedU128::from_float(3619.451f64)), // ETH
 		(Location::here(), FixedU128::from_float(8.4f64)), // PLMC
 	]));
 }
@@ -463,7 +432,6 @@ construct_runtime!(
 		LinearRelease: pallet_linear_release,
 		ContributionTokens: pallet_assets::<Instance1>::{Pallet, Call, Storage, Event<T>},
 		ForeignAssets: pallet_assets::<Instance2>::{Pallet, Call, Storage, Event<T>, Config<T>},
-		PolkadotXcm: pallet_xcm,
 		PolimecFunding: pallet_funding::{Pallet, Call, Storage, Event<T>, HoldReason}  = 52,
 		ProxyBonding: pallet_proxy_bonding,
 	}
@@ -509,7 +477,7 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
 					AcceptedFundingAsset::ETH.id(),
 					<TestRuntime as Config>::PalletId::get().into_account_truncating(),
 					true,
-					// 0.07 USD = .000041WETH at this moment
+					// 0.07 USD = .000041ETH at this moment
 					0_000_041_000_000_000_000,
 				),
 			],
@@ -517,7 +485,7 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
 				(AcceptedFundingAsset::USDT.id(), "USDT".as_bytes().to_vec(), "USDT".as_bytes().to_vec(), 6),
 				(AcceptedFundingAsset::USDC.id(), "USDC".as_bytes().to_vec(), "USDC".as_bytes().to_vec(), 6),
 				(AcceptedFundingAsset::DOT.id(), "DOT".as_bytes().to_vec(), "DOT".as_bytes().to_vec(), 10),
-				(AcceptedFundingAsset::ETH.id(), "WETH".as_bytes().to_vec(), "WETH".as_bytes().to_vec(), 18),
+				(AcceptedFundingAsset::ETH.id(), "ETH".as_bytes().to_vec(), "ETH".as_bytes().to_vec(), 18),
 			],
 			accounts: vec![],
 		},

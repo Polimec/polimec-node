@@ -104,7 +104,7 @@ use xcm::{v4::Location, VersionedAssetId};
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmark_helpers;
 pub mod custom_migrations;
-mod weights;
+pub mod weights;
 pub mod xcm_config;
 
 /// Alias to 512-bit hash when used in the context of a transaction signature on the chain.
@@ -169,11 +169,7 @@ pub type Migrations = migrations::Unreleased;
 /// The runtime migrations per release.
 #[allow(missing_docs)]
 pub mod migrations {
-	use crate::{parameter_types, Runtime};
-
-	parameter_types! {
-		pub const RandomPalletName: &'static str = "Random";
-	}
+	use crate::Runtime;
 
 	/// Unreleased migrations. Add new ones here:
 	#[allow(unused_parens)]

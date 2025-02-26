@@ -86,7 +86,7 @@ impl Convert<(AssetName, FixedU128), (Location, Price)> for AssetPriceConverter 
 			AssetName::USDC => (AcceptedFundingAsset::USDC.id(), price),
 			AssetName::USDT => (AcceptedFundingAsset::USDT.id(), price),
 			AssetName::PLMC => (Location::here(), price),
-			AssetName::WETH => (AcceptedFundingAsset::ETH.id(), price),
+			AssetName::ETH => (AcceptedFundingAsset::ETH.id(), price),
 		}
 	}
 }
