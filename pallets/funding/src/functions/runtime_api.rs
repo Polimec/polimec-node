@@ -23,10 +23,16 @@ sp_api::decl_runtime_apis! {
 		fn top_projects_by_usd_target_percent_reached(amount: u32) -> Vec<(ProjectId, ProjectMetadataOf<T>, ProjectDetailsOf<T>)>;
 	}
 
-	#[api_version(1)]
+	#[api_version(2)]
 	pub trait UserInformation<T: Config> {
-		/// Get all the contribution token balances for the participated projects
+		/// Get all the contribution token balances for the participated projects.
 		fn contribution_tokens(account: AccountIdOf<T>) -> Vec<(ProjectId, Balance)>;
+
+		/// Get all the `EvaluationInfoOf` made by a single account, for a specific project if provided.
+		fn evaluations_of(account: AccountIdOf<T>, project_id: Option<ProjectId>) -> Vec<EvaluationInfoOf<T>>;
+
+		/// Get all the `BidInfoOf` made by a single account, for a specific project if provided.
+		fn participations_of(account: AccountIdOf<T>, project_id: Option<ProjectId>) -> Vec<BidInfoOf<T>>;
 	}
 
 	#[api_version(1)]
@@ -80,6 +86,30 @@ impl<T: Config> Pallet<T> {
 			})
 			.take(amount as usize)
 			.collect_vec()
+	}
+
+	pub fn participations_of(account: AccountIdOf<T>, project_id: Option<ProjectId>) -> Vec<BidInfoOf<T>> {
+		match project_id {
+			Some(id) => Bids::<T>::iter_prefix_values(id).filter(|bid| bid.bidder == account).collect_vec(),
+			None => Bids::<T>::iter_values().filter(|bid| bid.bidder == account).collect_vec(),
+		}
+	}
+
+	pub fn evaluations_of(account: AccountIdOf<T>, project_id: Option<ProjectId>) -> Vec<EvaluationInfoOf<T>> {
+		match project_id {
+			Some(id) => {
+				// Use both project ID and account as prefix
+				let prefix = (id, account);
+				Evaluations::<T>::iter_prefix_values(prefix).collect_vec()
+			},
+			None => {
+				// If no project is specified, iterate over all projects for this account
+				Evaluations::<T>::iter()
+					.filter(|((_, evaluator, _), _)| *evaluator == account)
+					.map(|(_, value)| value)
+					.collect_vec()
+			},
+		}
 	}
 
 	pub fn top_projects_by_usd_raised(amount: u32) -> Vec<(ProjectId, ProjectMetadataOf<T>, ProjectDetailsOf<T>)> {

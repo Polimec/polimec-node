@@ -244,29 +244,30 @@ pub struct BaseCallFilter;
 impl Contains<RuntimeCall> for BaseCallFilter {
 	fn contains(c: &RuntimeCall) -> bool {
 		match c {
-			RuntimeCall::Funding(call) =>
+			RuntimeCall::Funding(call) => {
 				if cfg!(feature = "development-settings") {
 					true
 				} else {
 					matches!(
 						call,
-						pallet_funding::Call::create_project { .. } |
-							pallet_funding::Call::remove_project { .. } |
-							pallet_funding::Call::edit_project { .. } |
-							pallet_funding::Call::start_evaluation { .. } |
-							pallet_funding::Call::evaluate { .. } |
-							pallet_funding::Call::end_evaluation { .. } |
-							pallet_funding::Call::bid { .. } |
-							pallet_funding::Call::end_funding { .. } |
-							pallet_funding::Call::start_settlement { .. } |
-							pallet_funding::Call::settle_evaluation { .. } |
-							pallet_funding::Call::settle_bid { .. } |
-							pallet_funding::Call::mark_project_as_settled { .. } |
-							pallet_funding::Call::start_offchain_migration { .. } |
-							pallet_funding::Call::confirm_offchain_migration { .. } |
-							pallet_funding::Call::mark_project_ct_migration_as_finished { .. }
+						pallet_funding::Call::create_project { .. }
+							| pallet_funding::Call::remove_project { .. }
+							| pallet_funding::Call::edit_project { .. }
+							| pallet_funding::Call::start_evaluation { .. }
+							| pallet_funding::Call::evaluate { .. }
+							| pallet_funding::Call::end_evaluation { .. }
+							| pallet_funding::Call::bid { .. }
+							| pallet_funding::Call::end_funding { .. }
+							| pallet_funding::Call::start_settlement { .. }
+							| pallet_funding::Call::settle_evaluation { .. }
+							| pallet_funding::Call::settle_bid { .. }
+							| pallet_funding::Call::mark_project_as_settled { .. }
+							| pallet_funding::Call::start_offchain_migration { .. }
+							| pallet_funding::Call::confirm_offchain_migration { .. }
+							| pallet_funding::Call::mark_project_ct_migration_as_finished { .. }
 					)
-				},
+				}
+			},
 			_ => true,
 		}
 	}
@@ -300,19 +301,20 @@ impl InstanceFilter<RuntimeCall> for Type {
 			),
 			proxy::Type::Governance => matches!(
 				c,
-				RuntimeCall::Treasury(..) |
-					RuntimeCall::Democracy(..) |
-					RuntimeCall::Council(..) |
-					RuntimeCall::TechnicalCommittee(..) |
-					RuntimeCall::Elections(..) |
-					RuntimeCall::Preimage(..) |
-					RuntimeCall::Scheduler(..)
+				RuntimeCall::Treasury(..)
+					| RuntimeCall::Democracy(..)
+					| RuntimeCall::Council(..)
+					| RuntimeCall::TechnicalCommittee(..)
+					| RuntimeCall::Elections(..)
+					| RuntimeCall::Preimage(..)
+					| RuntimeCall::Scheduler(..)
 			),
 			proxy::Type::Staking => {
 				matches!(c, RuntimeCall::ParachainStaking(..))
 			},
-			proxy::Type::IdentityJudgement =>
-				matches!(c, RuntimeCall::Identity(pallet_identity::Call::provide_judgement { .. })),
+			proxy::Type::IdentityJudgement => {
+				matches!(c, RuntimeCall::Identity(pallet_identity::Call::provide_judgement { .. }))
+			},
 		}
 	}
 
@@ -1501,6 +1503,15 @@ impl_runtime_apis! {
 	impl pallet_funding::functions::runtime_api::UserInformation<Block, Runtime> for Runtime {
 		fn contribution_tokens(account: AccountId) -> Vec<(ProjectId, Balance)> {
 			Funding::contribution_tokens(account)
+		}
+
+		fn evaluations_of(account: AccountId, project_id: Option<ProjectId>) -> Vec<EvaluationInfoOf<Runtime>> {
+			Funding::evaluations_of(account, project_id)
+		}
+
+
+		fn participations_of(account: AccountId, project_id: Option<ProjectId>) -> Vec<BidInfoOf<Runtime>> {
+			Funding::participations_of(account, project_id)
 		}
 	}
 

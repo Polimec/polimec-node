@@ -4,10 +4,10 @@ default:
 
 # Build the "Base" Runtime using srtool
 build-polimec-polkadot-srtool:
-    srtool build --root -p polimec-runtime --profile production --runtime-dir runtimes/polimec --build-opts="--features=on-chain-release-build" --no-wasm-std
+    srtool build --root -p polimec-runtime --profile production --runtime-dir runtimes/polimec --build-opts="--features=on-chain-release-build"
 
 build-polimec-paseo-srtool:
-    srtool build --root -p polimec-runtime --profile production --runtime-dir runtimes/polimec --build-opts="--features=on-chain-release-build,fast-mode" --no-wasm-std
+    srtool build --root -p polimec-runtime --profile production --runtime-dir runtimes/polimec --build-opts="--features=on-chain-release-build,fast-mode"
 
 # Test the runtimes features
 test-runtime-features runtime="polimec-runtime":
