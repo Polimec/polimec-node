@@ -155,6 +155,7 @@ parameter_types! {
 	pub const ApprovalDeposit: Balance = EXISTENTIAL_DEPOSIT;
 
 }
+
 impl pallet_assets::Config<ContributionTokensInstance> for TestRuntime {
 	type ApprovalDeposit = ApprovalDeposit;
 	type AssetAccountDeposit = ZeroAssetAccountDeposit;
@@ -180,12 +181,14 @@ impl pallet_assets::Config<ContributionTokensInstance> for TestRuntime {
 
 #[cfg(feature = "runtime-benchmarks")]
 pub struct PalletAssetsBenchmarkHelper;
+
 #[cfg(feature = "runtime-benchmarks")]
 impl pallet_assets::BenchmarkHelper<Location> for PalletAssetsBenchmarkHelper {
 	fn create_asset_id_parameter(id: u32) -> Location {
 		(Parent, Parachain(id)).into()
 	}
 }
+
 impl pallet_assets::Config<ForeignAssetsInstance> for TestRuntime {
 	type ApprovalDeposit = ApprovalDeposit;
 	type AssetAccountDeposit = AssetAccountDeposit;
@@ -208,6 +211,7 @@ impl pallet_assets::Config<ForeignAssetsInstance> for TestRuntime {
 	type StringLimit = AssetsStringLimit;
 	type WeightInfo = ();
 }
+
 parameter_types! {
 	pub const BlockHashCount: u32 = 250;
 }
@@ -281,10 +285,6 @@ parameter_types! {
 	pub const MinVestedTransfer: u64 = 256 * 2;
 	pub UnvestedFundsAllowedWithdrawReasons: WithdrawReasons =
 		WithdrawReasons::except(WithdrawReasons::TRANSFER | WithdrawReasons::RESERVE);
-	pub PolimecReceiverInfo: XcmPalletInfo = XcmPalletInfo::new(
-		51, "PolimecReceiver".into(), "polimec_receiver".into(), 0, 1, 0
-	).unwrap();
-}
 
 #[cfg(feature = "runtime-benchmarks")]
 parameter_types! {
@@ -406,6 +406,7 @@ parameter_types! {
 	pub const FeeRecipient: AccountId = 80085;
 	pub const RootId: PalletId = PalletId(*b"treasury");
 }
+
 impl pallet_proxy_bonding::Config for TestRuntime {
 	type BondingToken = Balances;
 	type BondingTokenDecimals = ConstU8<PLMC_DECIMALS>;
