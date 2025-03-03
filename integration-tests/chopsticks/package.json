@@ -7,9 +7,9 @@
     "test": "env LOG_LEVEL=error bun test"
   },
   "devDependencies": {
-    "@acala-network/chopsticks": "1.0.2",
+    "@acala-network/chopsticks": "1.0.3",
     "@biomejs/biome": "1.9.4",
-    "@polkadot-labs/hdkd": "0.0.11",
+    "@polkadot-labs/hdkd": "0.0.12",
     "@types/bun": "latest"
   },
   "peerDependencies": {
@@ -17,6 +17,6 @@
   },
   "dependencies": {
     "@polkadot-api/descriptors": "file:.papi/descriptors",
-    "polkadot-api": "^1.9.0"
+    "polkadot-api": "^1.9.3"
   }
 }

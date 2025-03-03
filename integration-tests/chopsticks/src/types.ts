@@ -10,8 +10,7 @@ import {
   type polimec,
   type polkadot,
 } from '@polkadot-api/descriptors';
-import { FixedSizeBinary, type PolkadotClient, type TypedApi } from 'polkadot-api';
-import { ETH_ADDRESS } from './constants';
+import type { PolkadotClient, TypedApi } from 'polkadot-api';
 
 type Polimec = typeof polimec;
 type PolkadotHub = typeof pah;

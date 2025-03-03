@@ -64,7 +64,6 @@ export abstract class BaseTransferTest {
   protected async verifyExecution() {
     const events = await this.destManager.getMessageQueueEvents();
 
-    console.dir(events, { depth: null });
     expect(events).not.toBeEmpty();
     expect(events).toBeArray();
     expect(events).toHaveLength(1);

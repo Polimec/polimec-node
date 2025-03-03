@@ -1,5 +1,4 @@
 import { expect } from 'bun:test';
-import { INITIAL_BALANCES } from '@/constants';
 import type { PolimecManager } from '@/managers/PolimecManager';
 import type { PolkadotHubManager } from '@/managers/PolkadotHubManager';
 import {
@@ -46,7 +45,6 @@ export class PolimecToHubTransfer extends BaseTransferTest {
       .getXcmPallet()
       .transfer_assets(data)
       .signAndSubmit(this.sourceManager.getSigner(account));
-    console.dir(res, { depth: null });
 
     expect(res.ok).toBeTrue();
     return { sourceBlock, destBlock };

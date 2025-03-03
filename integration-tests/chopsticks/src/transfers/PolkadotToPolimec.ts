@@ -121,8 +121,8 @@ export class PolkadotToPolimecTransfer extends BaseTransferTest {
       toChain: Chains.PolkadotHub,
       assets: versioned_assets,
       recv: transferOptions.account,
+      fee_asset_item: transferOptions.fee_asset_item ?? 0,
     });
-    console.dir(transferData, { depth: null, colors: true });
 
     let remoteFeeAssetId: XcmVersionedAssetId;
     const lastAsset = unwrap(transferOptions.assets[0]);
