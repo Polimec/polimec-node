@@ -123,9 +123,8 @@ pub mod pallet {
 		/// Overarching hold reason.
 		type RuntimeHoldReason: Parameter + MaxEncodedLen + Copy;
 
-		type Currency: InspectHold<AccountIdOf<Self>, Balance = BalanceOf<Self>>
-			+ MutateHold<AccountIdOf<Self>, Balance = BalanceOf<Self>, Reason = Self::RuntimeHoldReason>
-			+ BalancedHold<AccountIdOf<Self>, Balance = BalanceOf<Self>>
+		type Currency: MutateHold<AccountIdOf<Self>, Balance = BalanceOf<Self>, Reason = Self::RuntimeHoldReason>
+			+ BalancedHold<AccountIdOf<Self>, Balance = BalanceOf<Self>, Reason = Self::RuntimeHoldReason>
 			+ Mutate<AccountIdOf<Self>, Balance = BalanceOf<Self>>;
 
 		/// Convert the block number into a balance.

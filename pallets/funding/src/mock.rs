@@ -47,7 +47,6 @@ use sp_runtime::{
 use sp_std::collections::btree_map::BTreeMap;
 use std::{cell::RefCell, marker::PhantomData};
 use system::EnsureSigned;
-use xcm::v4::PalletInfo as XcmPalletInfo;
 use xcm_builder::{ParentIsPreset, SiblingParachainConvertsVia};
 use xcm_executor::traits::XcmAssetTransfers;
 
@@ -153,7 +152,6 @@ parameter_types! {
 	pub const MetadataDepositBase: Balance = free_deposit();
 	pub const MetadataDepositPerByte: Balance = free_deposit();
 	pub const ApprovalDeposit: Balance = EXISTENTIAL_DEPOSIT;
-
 }
 
 impl pallet_assets::Config<ContributionTokensInstance> for TestRuntime {
@@ -236,6 +234,7 @@ impl system::Config for TestRuntime {
 parameter_types! {
 	pub const ExistentialDeposit: Balance = EXISTENTIAL_DEPOSIT;
 }
+
 impl pallet_balances::Config for TestRuntime {
 	type AccountStore = System;
 	type Balance = Balance;
@@ -285,6 +284,7 @@ parameter_types! {
 	pub const MinVestedTransfer: u64 = 256 * 2;
 	pub UnvestedFundsAllowedWithdrawReasons: WithdrawReasons =
 		WithdrawReasons::except(WithdrawReasons::TRANSFER | WithdrawReasons::RESERVE);
+}
 
 #[cfg(feature = "runtime-benchmarks")]
 parameter_types! {
