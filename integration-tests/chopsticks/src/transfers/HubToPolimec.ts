@@ -27,7 +27,7 @@ export class HubToPolimecTransfer extends BaseTransferTest {
     super(sourceManager, destManager);
   }
 
-  async executeTransfer({ account, assets }: TransferOptions) {
+  async executeTransfer({ account, assets, fee_asset_item }: TransferOptions) {
     const [sourceBlock, destBlock] = await Promise.all([
       this.sourceManager.getBlockNumber(),
       this.destManager.getBlockNumber(),
@@ -39,6 +39,7 @@ export class HubToPolimecTransfer extends BaseTransferTest {
       toChain: Chains.Polimec,
       assets: versioned_assets,
       recv: account,
+      fee_asset_item: fee_asset_item ?? 0,
     });
 
     const api = this.sourceManager.getApi(Chains.PolkadotHub);
@@ -113,6 +114,7 @@ export class HubToPolimecTransfer extends BaseTransferTest {
       toChain: Chains.Polimec,
       assets: versioned_assets,
       recv: transferOptions.account,
+      fee_asset_item: transferOptions.fee_asset_item ?? 0,
     });
 
     let remoteFeeAssetId: XcmVersionedAssetId;

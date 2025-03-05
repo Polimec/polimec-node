@@ -1,5 +1,5 @@
 import { expect } from 'bun:test';
-import { DEFAULT_TOPIC, ETH_AMOUNT, FEE_AMOUNT, ETH_ADDRESS } from '@/constants';
+import { DEFAULT_TOPIC, ETH_ADDRESS, ETH_AMOUNT, FEE_AMOUNT } from '@/constants';
 import type { BridgerHubManagaer } from '@/managers/BridgeHubManager';
 import type { PolimecManager } from '@/managers/PolimecManager';
 import type { PolkadotHubManager } from '@/managers/PolkadotHubManager';
@@ -101,9 +101,6 @@ export class BridgeToPolimecTransfer extends BaseTransferTest {
     const issuedEventsOnDest = dryRunOnDest.value.emitted_events.filter(
       (event) => event.type === 'ForeignAssets' && event.value.type === 'Issued',
     );
-
-    console.log('Issued Events on Destination: \n');
-    console.dir(issuedEventsOnDest, { depth: null });
 
     // TODO: Check why we have 3 events instead of 2 (ETH + DOT). Curently we have 3 events (ETH + DOT + DOT)
     expect(issuedEventsOnDest.length).toBe(3);

@@ -100,7 +100,6 @@ export class ChainSetup {
       'wasm-override': POLIMEC_WASM,
       'import-storage': polimec_storage,
       'build-block-mode': BuildBlockMode.Instant,
-      'runtime-log-level': 5,
     });
   }
 

@@ -74,9 +74,8 @@ export class PolimecManager extends BaseChainManager {
   async getXcmFee() {
     const api = this.getApi(Chains.Polimec);
     const events = await api.event.PolkadotXcm.FeesPaid.pull();
-    console.dir(events, { depth: null });
 
-    return events[0]?.payload.fees?.[0]?.fun?.value ?? 0n;
+    return (events[0]?.payload.fees?.[0]?.fun?.value as bigint) ?? 0n;
   }
 
   async getTransactionFee() {

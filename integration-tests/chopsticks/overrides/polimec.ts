@@ -1,4 +1,4 @@
-import { INITIAL_BALANCES, ETH_ADDRESS } from '@/constants';
+import { INITIAL_BALANCES } from '@/constants';
 import { Accounts } from '@/types';
 
 export const POLIMEC_WASM =
