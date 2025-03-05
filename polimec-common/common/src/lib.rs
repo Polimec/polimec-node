@@ -135,7 +135,6 @@ pub mod migration_types {
 	pub enum ParticipationType {
 		Evaluation,
 		Bid,
-		Contribution,
 	}
 
 	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]

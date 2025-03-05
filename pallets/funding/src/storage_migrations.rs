@@ -1,7 +1,7 @@
 //! A module that is responsible for migration of storage.
 use crate::{
-	AccountIdOf, BiddingTicketSizes, Config, ContributingTicketSizes, CurrencyMetadata, FixedPointNumber,
-	ParticipantsAccountType, PriceOf, ProjectMetadataOf, StringLimitOf,
+	AccountIdOf, BiddingTicketSizes, Config, CurrencyMetadata, FixedPointNumber, ParticipantsAccountType, PriceOf,
+	ProjectMetadataOf, StringLimitOf,
 };
 use core::marker::PhantomData;
 use frame_support::traits::{StorageVersion, UncheckedOnRuntimeUpgrade};
@@ -36,8 +36,6 @@ pub mod v5_storage_items {
 		pub minimum_price: Price,
 		/// Maximum and minimum ticket sizes for auction round
 		pub bidding_ticket_sizes: BiddingTicketSizes<Price>,
-		/// Maximum and minimum ticket sizes for community/remainder rounds
-		pub contributing_ticket_sizes: ContributingTicketSizes<Price>,
 		/// Participation currencies (e.g stablecoin, DOT, KSM)
 		/// e.g. https://github.com/paritytech/substrate/blob/427fd09bcb193c1e79dec85b1e207c718b686c35/frame/uniques/src/types.rs#L110
 		/// For now is easier to handle the case where only just one Currency is accepted
@@ -100,10 +98,8 @@ pub mod v6 {
 					token_information: item.token_information,
 					mainnet_token_max_supply: item.mainnet_token_max_supply,
 					total_allocation_size: item.total_allocation_size,
-					auction_round_allocation_percentage: item.auction_round_allocation_percentage,
 					minimum_price: item.minimum_price,
 					bidding_ticket_sizes: item.bidding_ticket_sizes,
-					contributing_ticket_sizes: item.contributing_ticket_sizes,
 					participation_currencies: item.participation_currencies,
 					funding_destination_account: item.funding_destination_account,
 					policy_ipfs_cid: item.policy_ipfs_cid,
