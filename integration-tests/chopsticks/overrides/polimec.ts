@@ -1,4 +1,4 @@
-import { INITIAL_BALANCES, WETH_ADDRESS } from '@/constants';
+import { INITIAL_BALANCES, ETH_ADDRESS } from '@/constants';
 import { Accounts } from '@/types';
 
 export const POLIMEC_WASM =
@@ -82,7 +82,7 @@ export const polimec_storage = {
           issuer: Accounts.ALICE,
           admin: Accounts.ALICE,
           freezer: Accounts.ALICE,
-          supply: 100n * INITIAL_BALANCES.WETH,
+          supply: 100n * INITIAL_BALANCES.ETH,
           deposit: 0n,
           min_balance: 15000000000000n,
           is_sufficient: true,

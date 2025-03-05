@@ -528,7 +528,7 @@ fn get_funding_asset_min_max_amounts() {
 	ConstPriceProvider::set_price(AcceptedFundingAsset::ETH.id(), PriceOf::<TestRuntime>::from_float(100.0f64));
 	ConstPriceProvider::set_price(Location::here(), PriceOf::<TestRuntime>::from_float(0.5f64));
 	const DOT_UNIT: u128 = 10u128.pow(10u32);
-	const WETH_UNIT: u128 = 10u128.pow(18u32);
+	const ETH_UNIT: u128 = 10u128.pow(18u32);
 
 	let mut project_metadata = default_project_metadata(ISSUER_1);
 	let min_price = PriceProviderOf::<TestRuntime>::calculate_decimals_aware_price(
@@ -556,8 +556,8 @@ fn get_funding_asset_min_max_amounts() {
 	// This max is set by the total allocation size instead of the unlimited institutional max.
 	const BIDDER_INSTITUTIONAL_USDT_MAX: u128 = 2_500_000 * USD_UNIT;
 
-	const BIDDER_RETAIL_WETH_MIN: u128 = 1 * WETH_UNIT;
-	const BIDDER_RETAIL_WETH_MAX: u128 = 250 * WETH_UNIT;
+	const BIDDER_RETAIL_ETH_MIN: u128 = 1 * ETH_UNIT;
+	const BIDDER_RETAIL_ETH_MAX: u128 = 250 * ETH_UNIT;
 
 	let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 
@@ -601,18 +601,18 @@ fn get_funding_asset_min_max_amounts() {
 	let (min, max) = inst
 		.execute(|| {
 			TestRuntime::get_funding_asset_min_max_amounts(
-                &TestRuntime,
-                block_hash,
-                project_id,
-                generate_did_from_account(BIDDER_1),
-                AcceptedFundingAsset::ETH,
-                InvestorType::Retail,
+				&TestRuntime,
+				block_hash,
+				project_id,
+				generate_did_from_account(BIDDER_1),
+				AcceptedFundingAsset::ETH,
+				InvestorType::Retail,
 			)
 		})
 		.unwrap()
 		.unwrap();
-	assert_eq!(min, BIDDER_RETAIL_WETH_MIN);
-	assert_eq!(max, BIDDER_RETAIL_WETH_MAX);
+	assert_eq!(min, BIDDER_RETAIL_ETH_MIN);
+	assert_eq!(max, BIDDER_RETAIL_ETH_MAX);
 }
 
 #[test]

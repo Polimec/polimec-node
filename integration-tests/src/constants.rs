@@ -70,7 +70,7 @@ pub struct Prices {
 	pub usdc: FixedU128,
 	pub usdt: FixedU128,
 	pub plmc: FixedU128,
-	pub weth: FixedU128,
+	pub eth: FixedU128,
 }
 
 // PricesBuilder for optional fields before building Prices
@@ -80,13 +80,13 @@ pub struct PricesBuilder {
 	usdc: Option<FixedU128>,
 	usdt: Option<FixedU128>,
 	plmc: Option<FixedU128>,
-	weth: Option<FixedU128>,
+	eth: Option<FixedU128>,
 }
 
 impl PricesBuilder {
 	// Initialize a new builder with None for each field
 	pub fn new() -> Self {
-		Self { dot: None, usdc: None, usdt: None, plmc: None, weth: None }
+		Self { dot: None, usdc: None, usdt: None, plmc: None, eth: None }
 	}
 
 	pub fn default_prices() -> Prices {
@@ -95,7 +95,7 @@ impl PricesBuilder {
 			usdc: FixedU128::from_rational(1, 1),
 			usdt: FixedU128::from_rational(1, 1),
 			plmc: FixedU128::from_rational(840, 100),
-			weth: FixedU128::from_rational(3620, 1),
+			eth: FixedU128::from_rational(3620, 1),
 		}
 	}
 
@@ -120,8 +120,8 @@ impl PricesBuilder {
 		self
 	}
 
-	pub fn weth(&mut self, price: FixedU128) -> &mut Self {
-		self.weth = Some(price);
+	pub fn eth(&mut self, price: FixedU128) -> &mut Self {
+		self.eth = Some(price);
 		self
 	}
 
@@ -132,7 +132,7 @@ impl PricesBuilder {
 			usdc: self.usdc.unwrap_or(FixedU128::from_rational(1, 1)), // Default USDC price
 			usdt: self.usdt.unwrap_or(FixedU128::from_rational(1, 1)), // Default USDT price
 			plmc: self.plmc.unwrap_or(FixedU128::from_rational(840, 100)), // Default PLMC price
-			weth: self.weth.unwrap_or(FixedU128::from_rational(3620, 1)), // Default WETH price
+			eth: self.eth.unwrap_or(FixedU128::from_rational(3620, 1)), // Default ETH price
 		}
 	}
 }
@@ -318,10 +318,10 @@ pub mod polimec {
 			let usdc = (AcceptedFundingAsset::USDC.id(), prices.usdc);
 			let usdt = (AcceptedFundingAsset::USDT.id(), prices.usdt);
 			let plmc = (Location::here(), prices.plmc);
-			let weth = (AcceptedFundingAsset::ETH.id(), prices.weth);
+			let eth = (AcceptedFundingAsset::ETH.id(), prices.eth);
 
 			let values: BoundedVec<(Location, FixedU128), <PolimecRuntime as orml_oracle::Config>::MaxFeedValues> =
-				vec![dot, usdc, usdt, plmc, weth].try_into().expect("benchmarks can panic");
+				vec![dot, usdc, usdt, plmc, eth].try_into().expect("benchmarks can panic");
 			let alice: [u8; 32] = [
 				212, 53, 147, 199, 21, 253, 211, 28, 97, 20, 26, 189, 4, 169, 159, 214, 130, 44, 133, 88, 133, 76, 205,
 				227, 154, 86, 132, 231, 165, 109, 162, 125,
@@ -356,7 +356,7 @@ pub mod polimec {
 		let dot_asset_id = AcceptedFundingAsset::DOT.id();
 		let usdt_asset_id = AcceptedFundingAsset::USDT.id();
 		let usdc_asset_id = AcceptedFundingAsset::USDC.id();
-		let weth_asset_id = AcceptedFundingAsset::ETH.id();
+		let eth_asset_id = AcceptedFundingAsset::ETH.id();
 
 		let mut funded_accounts = vec![(
 			PolimecNet::sovereign_account_id_of((Parent, xcm::prelude::Parachain(1000)).into()),
@@ -384,13 +384,13 @@ pub mod polimec {
 					(dot_asset_id.clone(), alice_account.clone(), true, 100_000_000),
 					(usdt_asset_id.clone(), alice_account.clone(), true, 70_000),
 					(usdc_asset_id.clone(), alice_account.clone(), true, 70_000),
-					(weth_asset_id.clone(), alice_account.clone(), true, 0_000_041_000_000_000_000),
+					(eth_asset_id.clone(), alice_account.clone(), true, 0_000_041_000_000_000_000),
 				],
 				metadata: vec![
 					(dot_asset_id, "Local DOT".as_bytes().to_vec(), "DOT".as_bytes().to_vec(), 10),
 					(usdt_asset_id, "Local USDT".as_bytes().to_vec(), "USDT".as_bytes().to_vec(), 6),
 					(usdc_asset_id.clone(), "Local USDC".as_bytes().to_vec(), "USDC".as_bytes().to_vec(), 6),
-					(weth_asset_id, "Local WETH".as_bytes().to_vec(), "WETH".as_bytes().to_vec(), 18),
+					(eth_asset_id, "Local ETH".as_bytes().to_vec(), "ETH".as_bytes().to_vec(), 18),
 				],
 				accounts: vec![],
 			},

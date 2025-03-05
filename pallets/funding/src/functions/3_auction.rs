@@ -4,7 +4,7 @@ use super::*;
 impl<T: Config> Pallet<T> {
 	/// Place a bid on a project in the auction round
 	#[transactional]
-	pub fn do_bid(params: DoBidParams<T>) -> DispatchResult {
+	pub fn do_bid(params: DoBidParams<T>) -> DispatchResultWithPostInfo {
 		// * Get variables *
 		let DoBidParams {
 			bidder,
@@ -29,8 +29,6 @@ impl<T: Config> Pallet<T> {
 		// User will spend at least this amount of USD for his bid(s). More if the bid gets split into different buckets
 		let min_total_ticket_size =
 			current_bucket.current_price.checked_mul_int(ct_amount).ok_or(Error::<T>::BadMath)?;
-		// weight return variables
-		let mut perform_bid_calls = 0;
 
 		let metadata_ticket_size_bounds = match investor_type {
 			InvestorType::Institutional => project_metadata.bidding_ticket_sizes.institutional,
@@ -70,8 +68,12 @@ impl<T: Config> Pallet<T> {
 			Error::<T>::UnsupportedReceiverAccountJunction
 		);
 
+		let mut perform_bid_calls = 0u8;
+
 		// While there's a remaining amount to bid for
 		while !amount_to_bid.is_zero() {
+			perform_bid_calls.saturating_accrue(1);
+
 			let ct_amount = if amount_to_bid <= current_bucket.amount_left {
 				// Simple case, the bucket has enough to cover the bid
 				amount_to_bid
@@ -117,7 +119,10 @@ impl<T: Config> Pallet<T> {
 		// Note: If the bucket has been exhausted, the 'update' function has already made the 'current_bucket' point to the next one.
 		Buckets::<T>::insert(project_id, current_bucket);
 
-		Ok(())
+		Ok(PostDispatchInfo {
+			actual_weight: Some(<T as Config>::WeightInfo::bid(perform_bid_calls as u32)),
+			pays_fee: Pays::No,
+		})
 	}
 
 	/// Inner function to perform bids within a bucket. do_bid makes sure to split the bid into buckets and call this as
@@ -242,9 +247,11 @@ impl<T: Config> Pallet<T> {
 		}
 
 		// Save state changes
-		Bids::<T>::insert(project_id, bid.id, bid);
+		Bids::<T>::insert(project_id, bid.id, bid.clone());
 		OutbidBidsCutoffs::<T>::set(project_id, Some(current_cutoff));
 		CTAmountOversubscribed::<T>::insert(project_id, ct_amount_oversubscribed);
+
+		Self::deposit_event(Event::OversubscribedBidProcessed { project_id, bid_id: bid.id });
 
 		Ok(())
 	}

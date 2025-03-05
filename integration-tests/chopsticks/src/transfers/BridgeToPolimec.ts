@@ -1,5 +1,5 @@
 import { expect } from 'bun:test';
-import { DEFAULT_TOPIC, ETH_AMOUNT, FEE_AMOUNT, WETH_ADDRESS } from '@/constants';
+import { DEFAULT_TOPIC, ETH_AMOUNT, FEE_AMOUNT, ETH_ADDRESS } from '@/constants';
 import type { BridgerHubManagaer } from '@/managers/BridgeHubManager';
 import type { PolimecManager } from '@/managers/PolimecManager';
 import type { PolkadotHubManager } from '@/managers/PolkadotHubManager';

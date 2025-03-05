@@ -289,8 +289,7 @@ pub mod pallet {
 		type RuntimeHoldReason: From<HoldReason> + Parameter + MaxEncodedLen + Copy;
 
 		/// The origin enum constructed by the construct_runtime macro
-		type RuntimeOrigin: IsType<<Self as frame_system::Config>::RuntimeOrigin>
-			+ Into<Result<pallet_xcm::Origin, <Self as Config>::RuntimeOrigin>>;
+		type RuntimeOrigin: IsType<<Self as frame_system::Config>::RuntimeOrigin>;
 
 		/// test and benchmarking helper to set the prices of assets
 		#[cfg(feature = "runtime-benchmarks")]
@@ -434,6 +433,8 @@ pub mod pallet {
 			plmc_bond: Balance,
 			mode: ParticipationMode,
 		},
+		/// An oversubscribed bid has been marked as rejected, and can now be settled early and release the funds back to the user.
+		OversubscribedBidProcessed { project_id: ProjectId, bid_id: u32 },
 		/// An evaluation was settled. PLMC has been unbonded with either a CT reward or a PLMC slash depending on the project outcome.
 		EvaluationSettled {
 			project_id: ProjectId,
@@ -625,6 +626,7 @@ pub mod pallet {
 			Self::do_create_project(&account, project, did)
 		}
 
+		/// Removes a project that hasn't started the evaluation round yet
 		#[pallet::call_index(1)]
 		#[pallet::weight(WeightInfoOf::<T>::remove_project())]
 		pub fn remove_project(
@@ -638,7 +640,7 @@ pub mod pallet {
 			Self::do_remove_project(account, project_id, did)
 		}
 
-		/// Change the metadata hash of a project
+		/// Change the metadata of a project
 		#[pallet::call_index(2)]
 		#[pallet::weight(WeightInfoOf::<T>::edit_project())]
 		pub fn edit_project(
@@ -653,7 +655,7 @@ pub mod pallet {
 			Self::do_edit_project(account, project_id, new_project_metadata)
 		}
 
-		/// Starts the evaluation round of a project. It needs to be called by the project issuer.
+		/// Starts the evaluation round of a project.
 		#[pallet::call_index(3)]
 		#[pallet::weight(WeightInfoOf::<T>::start_evaluation())]
 		pub fn start_evaluation(
@@ -669,8 +671,7 @@ pub mod pallet {
 
 		/// Bond PLMC for a project in the evaluation stage
 		#[pallet::call_index(4)]
-		#[pallet::weight(WeightInfoOf::<T>::start_settlement())]
-		// TODO: Change weight after benchmarks
+		#[pallet::weight(WeightInfoOf::<T>::evaluate())]
 		pub fn evaluate(
 			origin: OriginFor<T>,
 			jwt: UntrustedToken,
@@ -688,9 +689,8 @@ pub mod pallet {
 			Self::do_evaluate(&account, project_id, usd_amount, did, whitelisted_policy, receiving_account)
 		}
 
-		#[pallet::call_index(40)]
-		#[pallet::weight(WeightInfoOf::<T>::start_settlement())]
-		// TODO: Change weight after benchmarks
+		#[pallet::call_index(5)]
+		#[pallet::weight(WeightInfoOf::<T>::evaluate())]
 		pub fn evaluate_with_receiving_account(
 			origin: OriginFor<T>,
 			jwt: UntrustedToken,
@@ -707,7 +707,7 @@ pub mod pallet {
 			Self::do_evaluate(&account, project_id, usd_amount, did, whitelisted_policy, receiving_account)
 		}
 
-		#[pallet::call_index(5)]
+		#[pallet::call_index(6)]
 		#[pallet::weight(WeightInfoOf::<T>::end_evaluation_failure())]
 		pub fn end_evaluation(origin: OriginFor<T>, project_id: ProjectId) -> DispatchResult {
 			ensure_signed(origin)?;
@@ -716,8 +716,7 @@ pub mod pallet {
 
 		/// Bid for a project in the Auction round
 		#[pallet::call_index(7)]
-		#[pallet::weight(WeightInfoOf::<T>::start_settlement())]
-		// TODO: Change weight after benchmarks
+		#[pallet::weight(WeightInfoOf::<T>::bid(10))]
 		pub fn bid(
 			origin: OriginFor<T>,
 			jwt: UntrustedToken,
@@ -725,7 +724,7 @@ pub mod pallet {
 			#[pallet::compact] ct_amount: Balance,
 			mode: ParticipationMode,
 			funding_asset: AcceptedFundingAsset,
-		) -> DispatchResult {
+		) -> DispatchResultWithPostInfo {
 			let (bidder, did, investor_type, whitelisted_policy) =
 				T::InvestorOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get())?;
 
@@ -749,9 +748,8 @@ pub mod pallet {
 			Self::do_bid(params)
 		}
 
-		#[pallet::call_index(70)]
-		#[pallet::weight(WeightInfoOf::<T>::start_settlement())]
-		// TODO: Change weight after benchmarks
+		#[pallet::call_index(8)]
+		#[pallet::weight(WeightInfoOf::<T>::bid(10))]
 		pub fn bid_with_receiving_account(
 			origin: OriginFor<T>,
 			jwt: UntrustedToken,
@@ -761,7 +759,7 @@ pub mod pallet {
 			funding_asset: AcceptedFundingAsset,
 			receiving_account: Junction,
 			signature_bytes: [u8; 65],
-		) -> DispatchResult {
+		) -> DispatchResultWithPostInfo {
 			let (bidder, did, investor_type, whitelisted_policy) =
 				T::InvestorOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get())?;
 
@@ -782,8 +780,8 @@ pub mod pallet {
 			Self::do_bid(params)
 		}
 
-		#[pallet::call_index(15)]
-		#[pallet::weight(WeightInfoOf::<T>::settle_accepted_bid_with_refund())]
+		#[pallet::call_index(9)]
+		#[pallet::weight(WeightInfoOf::<T>::process_next_oversubscribed_bid())]
 		pub fn process_next_oversubscribed_bid(origin: OriginFor<T>, project_id: ProjectId) -> DispatchResult {
 			let _caller = ensure_signed(origin)?;
 			Self::do_process_next_oversubscribed_bid(project_id)
@@ -824,14 +822,14 @@ pub mod pallet {
 			Self::do_settle_bid(project_id, bid_id)
 		}
 
-		#[pallet::call_index(18)]
+		#[pallet::call_index(14)]
 		#[pallet::weight(WeightInfoOf::<T>::mark_project_as_settled())]
 		pub fn mark_project_as_settled(origin: OriginFor<T>, project_id: ProjectId) -> DispatchResult {
 			let _caller = ensure_signed(origin)?;
 			Self::do_mark_project_as_settled(project_id)
 		}
 
-		#[pallet::call_index(19)]
+		#[pallet::call_index(15)]
 		#[pallet::weight(WeightInfoOf::<T>::start_offchain_migration())]
 		pub fn start_offchain_migration(
 			origin: OriginFor<T>,
@@ -845,7 +843,7 @@ pub mod pallet {
 			Self::do_start_offchain_migration(project_id, account)
 		}
 
-		#[pallet::call_index(20)]
+		#[pallet::call_index(16)]
 		#[pallet::weight(WeightInfoOf::<T>::start_offchain_migration())]
 		pub fn confirm_offchain_migration(
 			origin: OriginFor<T>,
@@ -857,7 +855,7 @@ pub mod pallet {
 			Self::do_confirm_offchain_migration(project_id, caller, participant)
 		}
 
-		#[pallet::call_index(26)]
+		#[pallet::call_index(17)]
 		#[pallet::weight(WeightInfoOf::<T>::mark_project_ct_migration_as_finished())]
 		pub fn mark_project_ct_migration_as_finished(origin: OriginFor<T>, project_id: ProjectId) -> DispatchResult {
 			let _caller = ensure_signed(origin)?;
@@ -876,7 +874,7 @@ pub mod pallet {
 
 			let mut weight_consumed = <T as frame_system::Config>::DbWeight::get().reads(1);
 			let read_weight = <T as frame_system::Config>::DbWeight::get().reads(1);
-			let process_weight = <T as frame_system::Config>::DbWeight::get().reads_writes(1, 1);
+			let process_weight = <T as Config>::WeightInfo::process_next_oversubscribed_bid();
 
 			// Iterate over all projects in auction round
 			for (project_id, _) in ProjectsInAuctionRound::<T>::iter() {

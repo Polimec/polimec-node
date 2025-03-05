@@ -11,7 +11,6 @@ use crate::{
 use defaults::*;
 use frame_support::{
 	assert_err, assert_noop, assert_ok,
-	dispatch::DispatchResult,
 	traits::{
 		fungible::{InspectFreeze, MutateFreeze, MutateHold},
 		fungibles::{metadata::Inspect as MetadataInspect, Inspect, Mutate},
@@ -23,7 +22,7 @@ use parachains_common::DAYS;
 use polimec_common::{
 	assets::{
 		AcceptedFundingAsset,
-		AcceptedFundingAsset::{DOT, USDC, USDT, ETH},
+		AcceptedFundingAsset::{DOT, ETH, USDC, USDT},
 	},
 	ProvideAssetPrice, USD_DECIMALS, USD_UNIT,
 };
@@ -103,7 +102,7 @@ const fn default_accounts() -> [AccountId; 18] {
 
 pub mod defaults {
 	use super::*;
-	use polimec_common::assets::AcceptedFundingAsset::{DOT, USDC, USDT, ETH};
+	use polimec_common::assets::AcceptedFundingAsset::{DOT, ETH, USDC, USDT};
 
 	pub fn default_token_information() -> CurrencyMetadata<BoundedVec<u8, StringLimitOf<TestRuntime>>> {
 		CurrencyMetadata { name: bounded_name(), symbol: bounded_symbol(), decimals: CT_DECIMALS }

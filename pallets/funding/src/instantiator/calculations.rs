@@ -4,7 +4,7 @@ use itertools::{izip, GroupBy};
 #[allow(clippy::wildcard_imports)]
 use polimec_common::assets::AcceptedFundingAsset;
 use polimec_common::{
-	assets::AcceptedFundingAsset::{DOT, USDC, USDT, ETH},
+	assets::AcceptedFundingAsset::{DOT, ETH, USDC, USDT},
 	ProvideAssetPrice, USD_DECIMALS,
 };
 use sp_core::{blake2_256, ecdsa, hexdisplay::AsBytesRef, keccak_256, sr25519, Pair};

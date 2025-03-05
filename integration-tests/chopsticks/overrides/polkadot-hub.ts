@@ -37,7 +37,7 @@ export const polkadot_hub_storage = {
       [
         [eth_location, Accounts.POLIMEC],
         {
-          balance: INITIAL_BALANCES.WETH,
+          balance: INITIAL_BALANCES.ETH,
         },
       ],
     ],

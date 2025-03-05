@@ -21,17 +21,17 @@ use sp_runtime::{bounded_vec, BoundedVec, FixedU128};
 use std::collections::BTreeMap;
 use tests::defaults::*;
 
-use AcceptedFundingAsset::{DOT, USDC, USDT, ETH};
+use AcceptedFundingAsset::{DOT, ETH, USDC, USDT};
 
 fn values(
 	values: [f64; 5],
 ) -> BoundedVec<(Location, FixedU128), <polimec_runtime::Runtime as orml_oracle::Config<()>>::MaxFeedValues> {
-	let [dot, usdc, usdt, weth, plmc] = values;
+	let [dot, usdc, usdt, eth, plmc] = values;
 	bounded_vec![
 		(DOT.id(), FixedU128::from_float(dot)),
 		(USDC.id(), FixedU128::from_float(usdc)),
 		(USDT.id(), FixedU128::from_float(usdt)),
-		(ETH.id(), FixedU128::from_float(weth)),
+		(ETH.id(), FixedU128::from_float(eth)),
 		(Location::here(), FixedU128::from_float(plmc))
 	]
 }
