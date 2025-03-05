@@ -3,16 +3,19 @@
   "descriptorPath": ".papi/descriptors",
   "entries": {
     "polimec": {
-      "wsUrl": "ws://127.0.0.1:8000",
       "metadata": ".papi/metadata/polimec.scale"
     },
     "polkadot": {
-      "wsUrl": "ws://localhost:8002",
+      "wsUrl": "wss://rpc.ibp.network/polkadot",
       "metadata": ".papi/metadata/polkadot.scale"
     },
     "pah": {
-      "wsUrl": "ws://localhost:8001",
+      "wsUrl": "wss://sys.ibp.network/statemint",
       "metadata": ".papi/metadata/pah.scale"
+    },
+    "bridge": {
+      "wsUrl": "wss://sys.ibp.network/bridgehub-polkadot",
+      "metadata": ".papi/metadata/bridge.scale"
     }
   }
 }

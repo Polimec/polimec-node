@@ -1,4 +1,5 @@
 import { Chains } from '@/types';
+import { BridgerHubManagaer } from './BridgeHubManager';
 import { PolimecManager } from './PolimecManager';
 import { PolkadotHubManager } from './PolkadotHubManager';
 import { PolkadotManager } from './PolkadotManager';
@@ -7,7 +8,11 @@ const chainManagerMap = {
   [Chains.PolkadotHub]: PolkadotHubManager,
   [Chains.Polimec]: PolimecManager,
   [Chains.Polkadot]: PolkadotManager,
-} satisfies Record<Chains, new () => PolkadotHubManager | PolimecManager | PolkadotManager>;
+  [Chains.BridgeHub]: BridgerHubManagaer,
+} satisfies Record<
+  Chains,
+  new () => PolkadotHubManager | PolimecManager | PolkadotManager | BridgerHubManagaer
+>;
 
 export function createChainManager<T extends Chains>(
   chain: T,

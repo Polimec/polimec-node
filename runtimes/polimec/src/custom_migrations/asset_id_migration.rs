@@ -9,12 +9,20 @@ use frame_support::{
 use itertools::Itertools;
 use pallet_assets::{Approval, AssetAccount, AssetDetails, AssetMetadata};
 use polimec_common::assets::AcceptedFundingAsset;
-use sp_api::runtime_decl_for_core::CoreV5;
 use sp_runtime::BoundedVec;
 use xcm::v4::Location;
 
-// Storage items of pallet-assets are set to private for some reason. So we have to redefine them to get the same storage
-// encoding and call the `translate` methods. -_-'
+#[cfg(feature = "try-runtime")]
+use frame_support::migrations::VersionedPostUpgradeData;
+
+#[cfg(feature = "try-runtime")]
+use parity_scale_codec::Encode;
+
+#[cfg(feature = "try-runtime")]
+use sp_std::vec::Vec;
+
+// Storage items of pallet-assets are private.
+// So we have to redefine them to get the same storage encoding and call the `translate` methods.
 pub mod pallet_assets_storage_items {
 	use super::*;
 
@@ -115,80 +123,91 @@ impl OnRuntimeUpgrade for FromOldAssetIdMigration {
 
 	fn on_runtime_upgrade() -> frame_support::weights::Weight {
 		let version = Funding::on_chain_storage_version();
-		log::info!("funding version: {:?}", version);
+		let runtime_version = <Runtime as frame_system::Config>::Version::get();
 		if version != 5 {
-			log::info!("funding version is not 5");
-			return frame_support::weights::Weight::zero();
+			log::info!("AssetId Migration can be removed");
+			return <Runtime as frame_system::Config>::DbWeight::get().reads(1)
 		}
-		let runtime_version = Runtime::version();
 		let mut items = 0;
 		if runtime_version.spec_version == 1_000_000 {
+			log::info!("Running AssetId Migration...");
 			let id_map = BTreeMap::from([
-				(1984, AcceptedFundingAsset::USDT.id()),
-				(1337, AcceptedFundingAsset::USDC.id()),
 				(10, AcceptedFundingAsset::DOT.id()),
+				(1337, AcceptedFundingAsset::USDC.id()),
+				(1984, AcceptedFundingAsset::USDT.id()),
 				(3344, Location::here()),
 			]);
 
 			let old_account_iterator = pallet_assets_storage_items::old_types::Account::iter().collect_vec();
 			for (old_asset_id, account, account_info) in old_account_iterator {
-				items += 1;
-				log::info!("old_account item {:?}", items);
-				pallet_assets_storage_items::new_types::Account::insert(
-					id_map.get(&old_asset_id).unwrap(),
-					account.clone(),
-					account_info,
-				);
-				pallet_assets_storage_items::old_types::Account::remove(old_asset_id, account);
+				if let Some(new_asset_id) = id_map.get(&old_asset_id) {
+					items += 1;
+					log::info!("old_account item {:?}", items);
+
+					pallet_assets_storage_items::new_types::Account::insert(
+						new_asset_id,
+						account.clone(),
+						account_info,
+					);
+					pallet_assets_storage_items::old_types::Account::remove(old_asset_id, account);
+				}
 			}
 
 			let old_asset_iterator = pallet_assets_storage_items::old_types::Asset::iter().collect_vec();
 			for (old_asset_id, asset_info) in old_asset_iterator {
-				items += 1;
-				log::info!("old_asset item {:?}", items);
-				pallet_assets_storage_items::new_types::Asset::insert(id_map.get(&old_asset_id).unwrap(), asset_info);
-				pallet_assets_storage_items::old_types::Asset::remove(old_asset_id);
+				if let Some(new_asset_id) = id_map.get(&old_asset_id) {
+					items += 1;
+					log::info!("old_asset item {:?}", items);
+					pallet_assets_storage_items::new_types::Asset::insert(new_asset_id, asset_info);
+					pallet_assets_storage_items::old_types::Asset::remove(old_asset_id);
+				}
 			}
 
 			let old_approvals_iterator = pallet_assets_storage_items::old_types::Approvals::iter().collect_vec();
 			for ((old_asset_id, owner, delegate), approval) in old_approvals_iterator {
-				items += 1;
-				log::info!("old_approvals item {:?}", items);
-				pallet_assets_storage_items::new_types::Approvals::insert(
-					(id_map.get(&old_asset_id).unwrap(), owner.clone(), delegate.clone()),
-					approval,
-				);
-				pallet_assets_storage_items::old_types::Approvals::remove((old_asset_id, owner, delegate));
+				if let Some(new_asset_id) = id_map.get(&old_asset_id) {
+					items += 1;
+					log::info!("old_approvals item {:?}", items);
+					pallet_assets_storage_items::new_types::Approvals::insert(
+						(new_asset_id, owner.clone(), delegate.clone()),
+						approval,
+					);
+					pallet_assets_storage_items::old_types::Approvals::remove((old_asset_id, owner, delegate));
+				}
 			}
 
 			let old_metadata_iterator = pallet_assets_storage_items::old_types::Metadata::iter().collect_vec();
 			for (old_asset_id, metadata) in old_metadata_iterator {
-				items += 1;
-				log::info!("old_metadata item {:?}", items);
-				pallet_assets_storage_items::new_types::Metadata::insert(id_map.get(&old_asset_id).unwrap(), metadata);
-				pallet_assets_storage_items::old_types::Metadata::remove(old_asset_id);
+				if let Some(new_asset_id) = id_map.get(&old_asset_id) {
+					items += 1;
+					log::info!("old_metadata item {:?}", items);
+					pallet_assets_storage_items::new_types::Metadata::insert(new_asset_id, metadata);
+					pallet_assets_storage_items::old_types::Metadata::remove(old_asset_id);
+				}
 			}
 
 			let old_oracle_raw_values_iterator = orml_oracle_storage_items::old_types::RawValues::iter().collect_vec();
 			for (account, old_asset_id, raw_values) in old_oracle_raw_values_iterator {
-				items += 1;
-				log::info!("old_oracle_raw_values item {:?}", items);
-				orml_oracle::RawValues::<Runtime>::insert(
-					account.clone(),
-					id_map.get(&old_asset_id).unwrap(),
-					raw_values,
-				);
-				orml_oracle_storage_items::old_types::RawValues::remove(account, old_asset_id);
+				if let Some(new_asset_id) = id_map.get(&old_asset_id) {
+					items += 1;
+					log::info!("old_oracle_raw_values item {:?}", items);
+					orml_oracle::RawValues::<Runtime>::insert(account.clone(), new_asset_id, raw_values);
+					orml_oracle_storage_items::old_types::RawValues::remove(account, old_asset_id);
+				}
 			}
 
 			let old_oracle_values_iterator = orml_oracle_storage_items::old_types::Values::iter().collect_vec();
 			for (old_asset_id, value) in old_oracle_values_iterator {
-				items += 1;
-				log::info!("old_oracle_values item {:?}", items);
-				orml_oracle::Values::<Runtime>::insert(id_map.get(&old_asset_id).unwrap(), value);
-				orml_oracle_storage_items::old_types::Values::remove(old_asset_id);
+				if let Some(new_asset_id) = id_map.get(&old_asset_id) {
+					items += 1;
+					log::info!("old_oracle_values item {:?}", items);
+					orml_oracle::Values::<Runtime>::insert(new_asset_id, value);
+					orml_oracle_storage_items::old_types::Values::remove(old_asset_id);
+				}
 			}
 		}
+
+		log::info!("Total items migrated: {:?}", items);
 
 		<Runtime as frame_system::Config>::DbWeight::get().reads_writes(items, items)
 	}

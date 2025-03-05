@@ -1,8 +1,15 @@
 import { DERIVE_PATHS } from '@/constants';
-import type { Accounts, ChainClient, ChainToDefinition, Chains } from '@/types';
+import type {
+  Accounts,
+  Asset,
+  AssetSourceRelation,
+  ChainClient,
+  ChainToDefinition,
+  Chains,
+} from '@/types';
 import { sr25519CreateDerive } from '@polkadot-labs/hdkd';
 import { DEV_PHRASE, entropyToMiniSecret, mnemonicToEntropy } from '@polkadot-labs/hdkd-helpers';
-import type { PolkadotSigner, TypedApi } from 'polkadot-api';
+import type { PolkadotClient, PolkadotSigner, TypedApi } from 'polkadot-api';
 import { getPolkadotSigner } from 'polkadot-api/signer';
 import { filter, firstValueFrom, take } from 'rxjs';
 
@@ -34,13 +41,19 @@ export abstract class BaseChainManager {
     return client.api as TypedApi<ChainToDefinition[T]>;
   }
 
+  getClient<T extends Chains>(chain: T): PolkadotClient {
+    const client = this.clients.get(chain);
+    if (!client) throw new Error(`Chain ${chain} not initialized`);
+    return client.client;
+  }
+
   getSigner(account: Accounts) {
     const signer = this.signers.get(account);
     if (!signer) throw new Error(`Signer for ${account} not found`);
     return signer;
   }
 
-  async waitForNextBlock(currentBlock: number) {
+  waitForNextBlock(currentBlock: number) {
     const api = this.getApi(this.getChainType());
     return firstValueFrom(
       api.query.System.Number.watchValue().pipe(
@@ -53,10 +66,12 @@ export abstract class BaseChainManager {
   async getBlockNumber() {
     const chain = this.getChainType();
     const api = this.getApi(chain);
+    // Note: Not sure why this is needed, but without it we cannot retrieve the block number.
+    await api.compatibilityToken;
     return api.query.System.Number.getValue();
   }
 
-  async getMessageQueueEvents() {
+  getMessageQueueEvents() {
     const api = this.getApi(this.getChainType());
     return api.event.MessageQueue.Processed.pull();
   }
@@ -67,18 +82,14 @@ export abstract class BaseChainManager {
     return events[0]?.payload.actual_fee || 0n;
   }
 
-  async getNativeBalanceOf(account: Accounts) {
-    const api = this.getApi(this.getChainType());
-    const balance = await api.query.System.Account.getValue(account);
-    return balance.data.free;
-  }
+  abstract getAssetSourceRelation(asset: Asset): AssetSourceRelation;
+
+  abstract getAssetBalanceOf(account: Accounts, asset: Asset): Promise<bigint>;
 
   // @ts-expect-error - TODO: Not sure which is the correct type for this
   abstract getXcmPallet();
 
   abstract getChainType(): Chains;
-
-  abstract getAssetBalanceOf(account: Accounts, asset: number): Promise<bigint>;
 
   abstract connect(): void;
 

@@ -1,19 +1,19 @@
 import { afterAll, beforeAll, beforeEach, describe, test } from 'bun:test';
 import { TRANSFER_AMOUNTS } from '@/constants';
 import { createChainManager } from '@/managers/Factory';
+import { polimec_storage } from '@/polimec';
 import { ChainSetup } from '@/setup';
-import { PolkadotToPolimecTransfer } from '@/transfers/PolkadotToPolimec';
+import { BridgeToPolimecTransfer } from '@/transfers/BridgeToPolimec';
 import { Accounts, Asset, AssetSourceRelation, Chains } from '@/types';
 
-describe('Polkadot -> Polimec Transfer Tests', () => {
+describe('Bridge Hub -> Polimec Transfer Tests', () => {
+  const sourceManager = createChainManager(Chains.BridgeHub);
+  const hopManager = createChainManager(Chains.PolkadotHub);
+  const destManager = createChainManager(Chains.Polimec);
+  const transferTest = new BridgeToPolimecTransfer(sourceManager, hopManager, destManager);
   const chainSetup = new ChainSetup();
 
-  const sourceManager = createChainManager(Chains.Polkadot);
-  const destManager = createChainManager(Chains.Polimec);
-  const hopManager = createChainManager(Chains.PolkadotHub);
-  const transferTest = new PolkadotToPolimecTransfer(sourceManager, destManager, hopManager);
-
-  beforeAll(async () => await chainSetup.initialize());
+  beforeAll(async () => await chainSetup.initialize(polimec_storage));
   beforeEach(() => {
     sourceManager.connect();
     hopManager.connect();
@@ -22,11 +22,11 @@ describe('Polkadot -> Polimec Transfer Tests', () => {
   afterAll(async () => await chainSetup.cleanup());
 
   test(
-    'Send DOT to Polimec, via AH',
+    'Send WETH to Polimec',
     () =>
       transferTest.testTransfer({
         account: Accounts.ALICE,
-        assets: [[Asset.DOT, TRANSFER_AMOUNTS.NATIVE, AssetSourceRelation.Self]],
+        assets: [[Asset.WETH, TRANSFER_AMOUNTS.BRIDGED, AssetSourceRelation.Self]],
       }),
     { timeout: 25000 },
   );
