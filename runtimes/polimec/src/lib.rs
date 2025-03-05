@@ -32,7 +32,7 @@ use frame_support::{
 		fungible::{Credit, HoldConsideration, Inspect},
 		fungibles,
 		tokens::{self, ConversionToAssetBalance, PayFromAccount, UnityAssetBalanceConversion},
-		AsEnsureOriginWithArg, ConstU32, Contains, EitherOfDiverse, InstanceFilter, LinearStoragePrice, PrivilegeCmp,
+		AsEnsureOriginWithArg, ConstU32, EitherOfDiverse, Everything, InstanceFilter, LinearStoragePrice, PrivilegeCmp,
 		TransformOrigin,
 	},
 	weights::{ConstantMultiplier, Weight},
@@ -225,7 +225,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_version: 1_000_000,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
-	transaction_version: 6,
+	transaction_version: 7,
 	state_version: 1,
 };
 
@@ -238,38 +238,6 @@ pub fn native_version() -> NativeVersion {
 parameter_types! {
 	pub const Version: RuntimeVersion = VERSION;
 	pub const SS58Prefix: u16 = 41;
-}
-
-pub struct BaseCallFilter;
-impl Contains<RuntimeCall> for BaseCallFilter {
-	fn contains(c: &RuntimeCall) -> bool {
-		match c {
-			RuntimeCall::Funding(call) =>
-				if cfg!(feature = "development-settings") {
-					true
-				} else {
-					matches!(
-						call,
-						pallet_funding::Call::create_project { .. } |
-							pallet_funding::Call::remove_project { .. } |
-							pallet_funding::Call::edit_project { .. } |
-							pallet_funding::Call::start_evaluation { .. } |
-							pallet_funding::Call::evaluate { .. } |
-							pallet_funding::Call::end_evaluation { .. } |
-							pallet_funding::Call::bid { .. } |
-							pallet_funding::Call::end_funding { .. } |
-							pallet_funding::Call::start_settlement { .. } |
-							pallet_funding::Call::settle_evaluation { .. } |
-							pallet_funding::Call::settle_bid { .. } |
-							pallet_funding::Call::mark_project_as_settled { .. } |
-							pallet_funding::Call::start_offchain_migration { .. } |
-							pallet_funding::Call::confirm_offchain_migration { .. } |
-							pallet_funding::Call::mark_project_ct_migration_as_finished { .. }
-					)
-				},
-			_ => true,
-		}
-	}
 }
 
 impl InstanceFilter<RuntimeCall> for Type {
@@ -308,9 +276,7 @@ impl InstanceFilter<RuntimeCall> for Type {
 					RuntimeCall::Preimage(..) |
 					RuntimeCall::Scheduler(..)
 			),
-			proxy::Type::Staking => {
-				matches!(c, RuntimeCall::ParachainStaking(..))
-			},
+			proxy::Type::Staking => matches!(c, RuntimeCall::ParachainStaking(..)),
 			proxy::Type::IdentityJudgement =>
 				matches!(c, RuntimeCall::Identity(pallet_identity::Call::provide_judgement { .. })),
 		}
@@ -334,7 +300,7 @@ impl frame_system::Config for Runtime {
 	/// The identifier used to distinguish between accounts.
 	type AccountId = AccountId;
 	/// The basic call filter to use in dispatchable.
-	type BaseCallFilter = BaseCallFilter;
+	type BaseCallFilter = Everything;
 	/// The block type.
 	type Block = Block;
 	/// Maximum number of block number to block hash mappings to keep (oldest pruned first).
@@ -1501,6 +1467,15 @@ impl_runtime_apis! {
 	impl pallet_funding::functions::runtime_api::UserInformation<Block, Runtime> for Runtime {
 		fn contribution_tokens(account: AccountId) -> Vec<(ProjectId, Balance)> {
 			Funding::contribution_tokens(account)
+		}
+
+		fn evaluations_of(account: AccountId, project_id: Option<ProjectId>) -> Vec<EvaluationInfoOf<Runtime>> {
+			Funding::evaluations_of(account, project_id)
+		}
+
+
+		fn participations_of(account: AccountId, project_id: Option<ProjectId>) -> Vec<BidInfoOf<Runtime>> {
+			Funding::participations_of(account, project_id)
 		}
 	}
 
