@@ -21,7 +21,7 @@ use sp_runtime::{bounded_vec, BoundedVec, FixedU128};
 use std::collections::BTreeMap;
 use tests::defaults::*;
 
-use AcceptedFundingAsset::{DOT, USDC, USDT, WETH};
+use AcceptedFundingAsset::{DOT, USDC, USDT, ETH};
 
 fn values(
 	values: [f64; 5],
@@ -31,7 +31,7 @@ fn values(
 		(DOT.id(), FixedU128::from_float(dot)),
 		(USDC.id(), FixedU128::from_float(usdc)),
 		(USDT.id(), FixedU128::from_float(usdt)),
-		(WETH.id(), FixedU128::from_float(weth)),
+		(ETH.id(), FixedU128::from_float(weth)),
 		(Location::here(), FixedU128::from_float(plmc))
 	]
 }
@@ -56,7 +56,7 @@ fn members_can_feed_data() {
 			(DOT.id(), FixedU128::from_float(4.84)),
 			(USDC.id(), FixedU128::from_float(1.0)),
 			(USDT.id(), FixedU128::from_float(1.0)),
-			(WETH.id(), FixedU128::from_float(2500.0)),
+			(ETH.id(), FixedU128::from_float(2500.0)),
 			(Location::here(), FixedU128::from_float(0.4)),
 		]);
 
@@ -102,7 +102,7 @@ fn data_is_correctly_combined() {
 			(DOT.id(), FixedU128::from_float(2.0)),
 			(USDC.id(), FixedU128::from_float(1.0)),
 			(USDT.id(), FixedU128::from_float(1.1)),
-			(WETH.id(), FixedU128::from_float(2500.0)),
+			(ETH.id(), FixedU128::from_float(2500.0)),
 			(Location::here(), FixedU128::from_float(0.22222)),
 		]);
 

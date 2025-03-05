@@ -23,4 +23,4 @@ export const DERIVE_PATHS = {
 export const WETH_ADDRESS = '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2';
 export const DEFAULT_TOPIC = FixedSizeBinary.fromArray(Array(32).fill(1));
 export const FEE_AMOUNT = 40_000_000_000n;
-export const WETH_AMOUNT = 15_000_000_000_000n;
+export const ETH_AMOUNT = 15_000_000_000_000n;

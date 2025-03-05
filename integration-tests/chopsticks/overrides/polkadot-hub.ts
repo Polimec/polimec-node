@@ -1,6 +1,6 @@
 import { INITIAL_BALANCES } from '@/constants';
 import { Accounts, Asset } from '@/types';
-import { weth_location } from './polimec';
+import { eth_location } from './polimec';
 
 export const polkadot_hub_storage = {
   System: {
@@ -35,7 +35,7 @@ export const polkadot_hub_storage = {
   ForeignAssets: {
     Account: [
       [
-        [weth_location, Accounts.POLIMEC],
+        [eth_location, Accounts.POLIMEC],
         {
           balance: INITIAL_BALANCES.WETH,
         },

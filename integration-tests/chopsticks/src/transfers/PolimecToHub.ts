@@ -64,26 +64,6 @@ export class PolimecToHubTransfer extends BaseTransferTest {
     return { asset_balances: [{ source, destination }] };
   }
 
-  // verifyFinalBalances(
-  //   initialBalances: BalanceCheck[],
-  //   finalBalances: BalanceCheck[],
-  //   options: TransferOptions,
-  // ) {
-  //   // TODO: At the moment we exclude fees from the balance check since the PAPI team is wotking on some utilies to calculate fees.
-  //   const initialBalance =
-  //     options.assets[0][0] === Asset.DOT
-  //       ? INITIAL_BALANCES.DOT
-  //       : options.assets[0][0] === Asset.USDT
-  //         ? INITIAL_BALANCES.USDT
-  //         : INITIAL_BALANCES.USDC;
-  //   for (let i = 0; i < options.assets.length; i++) {
-  //     expect(initialBalances[i].destination).toBe(0n);
-  //     expect(initialBalances[i].source).toBe(initialBalance);
-  //     expect(finalBalances[i].source).toBeLessThan(initialBalances[i].source);
-  //     expect(finalBalances[i].destination).toBeGreaterThan(initialBalances[i].destination);
-  //   }
-  // }
-
   async verifyFinalBalances(
     assetInitialBalances: PolimecBalanceCheck[],
     assetFinalBalances: PolimecBalanceCheck[],

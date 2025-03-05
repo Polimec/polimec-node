@@ -318,7 +318,7 @@ pub mod polimec {
 			let usdc = (AcceptedFundingAsset::USDC.id(), prices.usdc);
 			let usdt = (AcceptedFundingAsset::USDT.id(), prices.usdt);
 			let plmc = (Location::here(), prices.plmc);
-			let weth = (AcceptedFundingAsset::WETH.id(), prices.weth);
+			let weth = (AcceptedFundingAsset::ETH.id(), prices.weth);
 
 			let values: BoundedVec<(Location, FixedU128), <PolimecRuntime as orml_oracle::Config>::MaxFeedValues> =
 				vec![dot, usdc, usdt, plmc, weth].try_into().expect("benchmarks can panic");
@@ -356,7 +356,7 @@ pub mod polimec {
 		let dot_asset_id = AcceptedFundingAsset::DOT.id();
 		let usdt_asset_id = AcceptedFundingAsset::USDT.id();
 		let usdc_asset_id = AcceptedFundingAsset::USDC.id();
-		let weth_asset_id = AcceptedFundingAsset::WETH.id();
+		let weth_asset_id = AcceptedFundingAsset::ETH.id();
 
 		let mut funded_accounts = vec![(
 			PolimecNet::sovereign_account_id_of((Parent, xcm::prelude::Parachain(1000)).into()),

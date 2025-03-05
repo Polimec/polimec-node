@@ -82,7 +82,7 @@ mod round_flow {
 				AcceptedFundingAsset::USDT => usdt_price,
 				AcceptedFundingAsset::USDC => usdc_price,
 				AcceptedFundingAsset::DOT => dot_price,
-				AcceptedFundingAsset::WETH => todo!(),
+				AcceptedFundingAsset::ETH => todo!(),
 			};
 
 			let mut project_metadata = default_project_metadata.clone();

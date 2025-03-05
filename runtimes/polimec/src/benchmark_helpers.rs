@@ -14,7 +14,7 @@ impl SetPrices for SetOraclePrices {
 		let dot = (AcceptedFundingAsset::DOT.id(), FixedU128::from_rational(69, 1));
 		let usdc = (AcceptedFundingAsset::USDC.id(), FixedU128::from_rational(1, 1));
 		let usdt = (AcceptedFundingAsset::USDT.id(), FixedU128::from_rational(1, 1));
-		let weth = (AcceptedFundingAsset::WETH.id(), FixedU128::from_rational(20_000, 1));
+		let weth = (AcceptedFundingAsset::ETH.id(), FixedU128::from_rational(20_000, 1));
 		let plmc = (Location::here(), FixedU128::from_rational(840, 100));
 
 		let values: BoundedVec<(Location, FixedU128), <Runtime as orml_oracle::Config>::MaxFeedValues> =

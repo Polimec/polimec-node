@@ -115,10 +115,12 @@ fn evaluator_slash_reduces_vesting_schedules() {
 		assert_eq!(ProjectStatus::AuctionRound, inst.go_to_next_state(project_id));
 		assert_eq!(ProjectStatus::FundingFailed, inst.go_to_next_state(project_id));
 		assert_eq!(ProjectStatus::SettlementStarted(FundingOutcome::Failure), inst.go_to_next_state(project_id));
-		assert_eq!(inst.current_block(), BlockNumberFor::<PolimecRuntime>::from(25u32));
 
-		// All schedules start at block 5, and funding ended at block 25
-		const TIME_PASSED: u128 = 20u128;
+		const END_BLOCK: u32 = 18;
+		assert_eq!(inst.current_block(), BlockNumberFor::<PolimecRuntime>::from(END_BLOCK));
+
+		// All schedules start at block 5, and funding ended at block 18
+		const TIME_PASSED: u128 = 13u128;
 
 		let alice_account_data = Account::<PolimecRuntime>::get(&alice.clone()).data;
 		assert_eq!(
@@ -177,9 +179,9 @@ fn evaluator_slash_reduces_vesting_schedules() {
 		assert_eq!(
 			alice_schedules,
 			vec![
-				VestingInfo::new(new_lock_1, new_per_block_1, 25),
-				VestingInfo::new(new_lock_3, new_per_block_3, 25),
-				VestingInfo::new(new_lock_4, new_per_block_4, 25),
+				VestingInfo::new(new_lock_1, new_per_block_1, END_BLOCK),
+				VestingInfo::new(new_lock_3, new_per_block_3, END_BLOCK),
+				VestingInfo::new(new_lock_4, new_per_block_4, END_BLOCK),
 			]
 		);
 		assert_eq!(alice_account_data, AccountData { free, reserved, frozen, flags: Default::default() });
