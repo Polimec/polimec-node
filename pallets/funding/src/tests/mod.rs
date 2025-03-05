@@ -1,35 +1,56 @@
 use super::*;
 use crate::{
-	instantiator::*, mock::*, traits::VestingDurationCalculation, CurrencyMetadata, Error, ProjectMetadata, TicketSize,
+	functions::runtime_api::{ExtrinsicHelpers, Leaderboards, ProjectInformation, UserInformation},
+	instantiator::*,
+	mock::*,
+	traits::VestingDurationCalculation,
+	CurrencyMetadata, Error,
+	ParticipationMode::*,
+	ProjectMetadata, TicketSize,
 };
 use defaults::*;
 use frame_support::{
 	assert_err, assert_noop, assert_ok,
-	traits::fungible::{MutateFreeze, MutateHold},
+	dispatch::DispatchResult,
+	traits::{
+		fungible::{InspectFreeze, MutateFreeze, MutateHold},
+		fungibles::{metadata::Inspect as MetadataInspect, Inspect, Mutate},
+	},
 };
 use itertools::Itertools;
+use pallet_balances::AccountData;
 use parachains_common::DAYS;
-use polimec_common::{ProvideAssetPrice, USD_DECIMALS, USD_UNIT};
-use polimec_common_test_utils::{generate_did_from_account, get_mock_jwt_with_cid};
+use polimec_common::{
+	assets::{
+		AcceptedFundingAsset,
+		AcceptedFundingAsset::{DOT, USDC, USDT, WETH},
+	},
+	ProvideAssetPrice, USD_DECIMALS, USD_UNIT,
+};
+use polimec_common_test_utils::{generate_did_from_account, get_mock_jwt, get_mock_jwt_with_cid};
 use sp_arithmetic::{traits::Zero, Percent, Perquintill};
-use sp_runtime::{traits::Convert, TokenError};
+use sp_runtime::{bounded_vec, traits::Convert, PerThing, TokenError};
 use sp_std::cell::RefCell;
-use std::iter::zip;
+use std::{
+	collections::{BTreeSet, HashSet},
+	iter::zip,
+};
+use xcm::v4::MaxPalletNameLen;
 use InvestorType::{self, *};
 
 #[path = "1_application.rs"]
 mod application;
 #[path = "3_auction.rs"]
 mod auction;
-#[path = "7_ct_migration.rs"]
+#[path = "6_ct_migration.rs"]
 mod ct_migration;
 #[path = "2_evaluation.rs"]
 mod evaluation;
-#[path = "5_funding_end.rs"]
+#[path = "4_funding_end.rs"]
 mod funding_end;
 mod misc;
 mod runtime_api;
-#[path = "6_settlement.rs"]
+#[path = "5_settlement.rs"]
 mod settlement;
 
 pub type MockInstantiator =

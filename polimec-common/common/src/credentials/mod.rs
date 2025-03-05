@@ -166,9 +166,8 @@ where
 		state.serialize_field("iss", &self.issuer)?;
 		state.serialize_field("investor_type", &self.investor_type)?;
 		// Serialize the `ipfs_cid` and `did` fields as strings.
-		state
-			.serialize_field("aud", core::str::from_utf8(&self.ipfs_cid).map_err(|e| serde::ser::Error::custom(e))?)?;
-		state.serialize_field("did", core::str::from_utf8(&self.did).map_err(|e| serde::ser::Error::custom(e))?)?;
+		state.serialize_field("aud", core::str::from_utf8(&self.ipfs_cid).map_err(serde::ser::Error::custom)?)?;
+		state.serialize_field("did", core::str::from_utf8(&self.did).map_err(serde::ser::Error::custom)?)?;
 		state.end()
 	}
 }

@@ -31,12 +31,14 @@ const QUERY_RESPONSE_TIME_WINDOW_BLOCKS: u32 = 20u32;
 mod application;
 #[path = "3_auction.rs"]
 mod auction;
-#[path = "7_ct_migration.rs"]
+#[path = "6_ct_migration.rs"]
 mod ct_migration;
 #[path = "2_evaluation.rs"]
 mod evaluation;
-#[path = "5_funding_end.rs"]
+#[path = "4_funding_end.rs"]
 mod funding_end;
 pub mod misc;
-#[path = "6_settlement.rs"]
+#[path = "5_settlement.rs"]
 mod settlement;
+
+pub mod runtime_api;

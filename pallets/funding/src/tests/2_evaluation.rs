@@ -4,237 +4,222 @@ use super::*;
 mod round_flow {
 	use super::*;
 
-	#[cfg(test)]
-	mod success {
-		use super::*;
-		use std::collections::HashSet;
+	#[test]
+	fn evaluation_round_completed() {
+		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+		let issuer = ISSUER_1;
+		let project_metadata = default_project_metadata(issuer);
+		let evaluations = inst.generate_successful_evaluations(project_metadata.clone(), 5);
 
-		#[test]
-		fn evaluation_round_completed() {
-			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
-			let issuer = ISSUER_1;
-			let project_metadata = default_project_metadata(issuer);
-			let evaluations = inst.generate_successful_evaluations(project_metadata.clone(), 5);
+		inst.create_auctioning_project(project_metadata, issuer, None, evaluations);
+	}
 
-			inst.create_auctioning_project(project_metadata, issuer, None, evaluations);
-		}
+	#[test]
+	fn multiple_evaluating_projects() {
+		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+		let project1 = default_project_metadata(ISSUER_1);
+		let project2 = default_project_metadata(ISSUER_2);
+		let project3 = default_project_metadata(ISSUER_3);
+		let project4 = default_project_metadata(ISSUER_4);
+		let evaluations = inst.generate_successful_evaluations(project1.clone(), 5);
 
-		#[test]
-		fn multiple_evaluating_projects() {
-			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
-			let project1 = default_project_metadata(ISSUER_1);
-			let project2 = default_project_metadata(ISSUER_2);
-			let project3 = default_project_metadata(ISSUER_3);
-			let project4 = default_project_metadata(ISSUER_4);
-			let evaluations = inst.generate_successful_evaluations(project1.clone(), 5);
+		inst.create_auctioning_project(project1, ISSUER_1, None, evaluations.clone());
+		inst.create_auctioning_project(project2, ISSUER_2, None, evaluations.clone());
+		inst.create_auctioning_project(project3, ISSUER_3, None, evaluations.clone());
+		inst.create_auctioning_project(project4, ISSUER_4, None, evaluations);
+	}
 
-			inst.create_auctioning_project(project1, ISSUER_1, None, evaluations.clone());
-			inst.create_auctioning_project(project2, ISSUER_2, None, evaluations.clone());
-			inst.create_auctioning_project(project3, ISSUER_3, None, evaluations.clone());
-			inst.create_auctioning_project(project4, ISSUER_4, None, evaluations);
-		}
+	#[test]
+	fn plmc_price_change_doesnt_affect_evaluation_end() {
+		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+		let project_metadata = default_project_metadata(ISSUER_1);
 
-		#[test]
-		fn plmc_price_change_doesnt_affect_evaluation_end() {
-			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
-			let project_metadata = default_project_metadata(ISSUER_1);
+		// Decreasing the price before the end doesn't make a project over the threshold fail.
+		let target_funding = project_metadata.minimum_price.saturating_mul_int(project_metadata.total_allocation_size);
+		let target_evaluation_usd = Percent::from_percent(10) * target_funding;
 
-			// Decreasing the price before the end doesn't make a project over the threshold fail.
-			let target_funding =
-				project_metadata.minimum_price.saturating_mul_int(project_metadata.total_allocation_size);
-			let target_evaluation_usd = Percent::from_percent(10) * target_funding;
+		let evaluations = vec![(EVALUATOR_1, target_evaluation_usd).into()];
+		let evaluation_plmc = inst.calculate_evaluation_plmc_spent(evaluations.clone());
 
-			let evaluations = vec![(EVALUATOR_1, target_evaluation_usd).into()];
-			let evaluation_plmc = inst.calculate_evaluation_plmc_spent(evaluations.clone());
+		inst.mint_plmc_ed_if_required(evaluations.accounts());
+		inst.mint_plmc_to(evaluation_plmc);
 
-			inst.mint_plmc_ed_if_required(evaluations.accounts());
-			inst.mint_plmc_to(evaluation_plmc);
+		let project_id = inst.create_evaluating_project(project_metadata.clone(), ISSUER_1, None);
+		inst.evaluate_for_users(project_id, evaluations.clone()).unwrap();
 
-			let project_id = inst.create_evaluating_project(project_metadata.clone(), ISSUER_1, None);
-			inst.evaluate_for_users(project_id, evaluations.clone()).unwrap();
+		let old_price = <TestRuntime as Config>::PriceProvider::get_price(Location::here()).unwrap();
+		PRICE_MAP.with_borrow_mut(|map| map.insert(Location::here(), old_price / 2.into()));
 
-			let old_price = <TestRuntime as Config>::PriceProvider::get_price(Location::here()).unwrap();
-			PRICE_MAP.with_borrow_mut(|map| map.insert(Location::here(), old_price / 2.into()));
+		assert_eq!(inst.go_to_next_state(project_id), ProjectStatus::AuctionRound);
 
-			assert_eq!(inst.go_to_next_state(project_id), ProjectStatus::AuctionRound);
+		// Increasing the price before the end doesn't make a project under the threshold succeed.
+		let evaluations = vec![(EVALUATOR_1, target_evaluation_usd / 2).into()];
+		let evaluation_plmc = inst.calculate_evaluation_plmc_spent(evaluations.clone());
+		inst.mint_plmc_to(evaluation_plmc);
 
-			// Increasing the price before the end doesn't make a project under the threshold succeed.
-			let evaluations = vec![(EVALUATOR_1, target_evaluation_usd / 2).into()];
-			let evaluation_plmc = inst.calculate_evaluation_plmc_spent(evaluations.clone());
-			inst.mint_plmc_to(evaluation_plmc);
+		let project_id = inst.create_evaluating_project(project_metadata.clone(), ISSUER_2, None);
+		inst.evaluate_for_users(project_id, evaluations.clone()).unwrap();
 
-			let project_id = inst.create_evaluating_project(project_metadata.clone(), ISSUER_2, None);
-			inst.evaluate_for_users(project_id, evaluations.clone()).unwrap();
+		let old_price = <TestRuntime as Config>::PriceProvider::get_price(Location::here()).unwrap();
+		PRICE_MAP.with_borrow_mut(|map| map.insert(Location::here(), old_price * 2.into()));
 
-			let old_price = <TestRuntime as Config>::PriceProvider::get_price(Location::here()).unwrap();
-			PRICE_MAP.with_borrow_mut(|map| map.insert(Location::here(), old_price * 2.into()));
+		assert_eq!(inst.go_to_next_state(project_id), ProjectStatus::FundingFailed);
+		assert_eq!(inst.go_to_next_state(project_id), ProjectStatus::SettlementStarted(FundingOutcome::Failure));
+	}
 
-			assert_eq!(inst.go_to_next_state(project_id), ProjectStatus::FundingFailed);
-			assert_eq!(inst.go_to_next_state(project_id), ProjectStatus::SettlementStarted(FundingOutcome::Failure));
-		}
-
-		#[test]
-		fn different_decimals_ct_works_as_expected() {
-			// Setup some base values to compare different decimals
-			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
-			let ed = inst.get_ed();
-			let default_project_metadata = default_project_metadata(ISSUER_1);
-			let original_decimal_aware_price = default_project_metadata.minimum_price;
-			let original_price = <TestRuntime as Config>::PriceProvider::convert_back_to_normal_price(
-				original_decimal_aware_price,
+	#[test]
+	fn different_decimals_ct_works_as_expected() {
+		// Setup some base values to compare different decimals
+		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+		let ed = inst.get_ed();
+		let default_project_metadata = default_project_metadata(ISSUER_1);
+		let original_decimal_aware_price = default_project_metadata.minimum_price;
+		let original_price = <TestRuntime as Config>::PriceProvider::convert_back_to_normal_price(
+			original_decimal_aware_price,
+			USD_DECIMALS,
+			default_project_metadata.token_information.decimals,
+		)
+		.unwrap();
+		let min_evaluation_amount_usd = <TestRuntime as Config>::MinUsdPerEvaluation::get();
+		let stored_plmc_price =
+			inst.execute(|| <TestRuntime as Config>::PriceProvider::get_price(Location::here()).unwrap());
+		let usable_plmc_price = inst.execute(|| {
+			<TestRuntime as Config>::PriceProvider::get_decimals_aware_price(
+				Location::here(),
 				USD_DECIMALS,
-				default_project_metadata.token_information.decimals,
+				PLMC_DECIMALS,
+			)
+			.unwrap()
+		});
+		let min_evaluation_amount_plmc =
+			usable_plmc_price.reciprocal().unwrap().checked_mul_int(min_evaluation_amount_usd).unwrap();
+
+		// Test independent of CT decimals - Right PLMC conversion is stored.
+		// We move comma 4 places to the left since PLMC has 4 more decimals than USD.
+		assert_eq!(stored_plmc_price, FixedU128::from_float(8.4));
+		assert_eq!(usable_plmc_price, FixedU128::from_float(0.00084));
+
+		let mut evaluation_ct_thresholds = Vec::new();
+		let mut evaluation_usd_thresholds = Vec::new();
+		let mut evaluation_plmc_thresholds = Vec::new();
+
+		let mut decimal_test = |decimals: u8| {
+			let mut project_metadata = default_project_metadata.clone();
+			project_metadata.token_information.decimals = decimals;
+			project_metadata.minimum_price = <TestRuntime as Config>::PriceProvider::calculate_decimals_aware_price(
+				original_price,
+				USD_DECIMALS,
+				decimals,
 			)
 			.unwrap();
-			let min_evaluation_amount_usd = <TestRuntime as Config>::MinUsdPerEvaluation::get();
-			let stored_plmc_price =
-				inst.execute(|| <TestRuntime as Config>::PriceProvider::get_price(Location::here()).unwrap());
-			let usable_plmc_price = inst.execute(|| {
-				<TestRuntime as Config>::PriceProvider::get_decimals_aware_price(
-					Location::here(),
-					USD_DECIMALS,
-					PLMC_DECIMALS,
-				)
-				.unwrap()
-			});
-			let min_evaluation_amount_plmc =
-				usable_plmc_price.reciprocal().unwrap().checked_mul_int(min_evaluation_amount_usd).unwrap();
+			project_metadata.total_allocation_size = 1_000_000 * 10u128.pow(decimals as u32);
+			project_metadata.mainnet_token_max_supply = project_metadata.total_allocation_size;
 
-			// Test independent of CT decimals - Right PLMC conversion is stored.
-			// We move comma 4 places to the left since PLMC has 4 more decimals than USD.
-			assert_eq!(stored_plmc_price, FixedU128::from_float(8.4));
-			assert_eq!(usable_plmc_price, FixedU128::from_float(0.00084));
+			let issuer: AccountIdOf<TestRuntime> = (10_000 + inst.get_new_nonce()).try_into().unwrap();
+			let project_id = inst.create_evaluating_project(project_metadata.clone(), issuer, None);
 
-			let mut evaluation_ct_thresholds = Vec::new();
-			let mut evaluation_usd_thresholds = Vec::new();
-			let mut evaluation_plmc_thresholds = Vec::new();
+			let evaluation_threshold = inst.execute(<TestRuntime as Config>::EvaluationSuccessThreshold::get);
+			let evaluation_threshold_ct = evaluation_threshold * project_metadata.total_allocation_size;
+			evaluation_ct_thresholds.push(evaluation_threshold_ct);
 
-			let mut decimal_test = |decimals: u8| {
-				let mut project_metadata = default_project_metadata.clone();
-				project_metadata.token_information.decimals = decimals;
-				project_metadata.minimum_price =
-					<TestRuntime as Config>::PriceProvider::calculate_decimals_aware_price(
-						original_price,
-						USD_DECIMALS,
-						decimals,
-					)
-					.unwrap();
-				project_metadata.total_allocation_size = 1_000_000 * 10u128.pow(decimals as u32);
-				project_metadata.mainnet_token_max_supply = project_metadata.total_allocation_size;
+			let evaluation_threshold_usd = project_metadata.minimum_price.saturating_mul_int(evaluation_threshold_ct);
+			evaluation_usd_thresholds.push(evaluation_threshold_usd);
 
-				let issuer: AccountIdOf<TestRuntime> = (10_000 + inst.get_new_nonce()).try_into().unwrap();
-				let project_id = inst.create_evaluating_project(project_metadata.clone(), issuer, None);
+			let evaluation_threshold_plmc =
+				usable_plmc_price.reciprocal().unwrap().checked_mul_int(evaluation_threshold_usd).unwrap();
+			evaluation_plmc_thresholds.push(evaluation_threshold_plmc);
 
-				let evaluation_threshold = inst.execute(<TestRuntime as Config>::EvaluationSuccessThreshold::get);
-				let evaluation_threshold_ct = evaluation_threshold * project_metadata.total_allocation_size;
-				evaluation_ct_thresholds.push(evaluation_threshold_ct);
+			// CT price should be multiplied or divided by the amount of decimal difference with USD.
+			let decimal_abs_diff = USD_DECIMALS.abs_diff(decimals);
+			let original_price_as_usd = original_price.saturating_mul_int(10u128.pow(USD_DECIMALS as u32));
+			let min_price_as_usd = project_metadata.minimum_price.saturating_mul_int(USD_UNIT);
+			if decimals < USD_DECIMALS {
+				assert_eq!(min_price_as_usd, original_price_as_usd * 10u128.pow(decimal_abs_diff as u32));
+			} else {
+				assert_eq!(min_price_as_usd, original_price_as_usd / 10u128.pow(decimal_abs_diff as u32));
+			}
 
-				let evaluation_threshold_usd =
-					project_metadata.minimum_price.saturating_mul_int(evaluation_threshold_ct);
-				evaluation_usd_thresholds.push(evaluation_threshold_usd);
+			// A minimum evaluation goes through. This is a fixed USD/PLMC value, so independent of CT decimals.
+			inst.mint_plmc_to(vec![UserToPLMCBalance::new(EVALUATOR_1, min_evaluation_amount_plmc + ed)]);
+			assert_ok!(inst.execute(|| PolimecFunding::evaluate(
+				RuntimeOrigin::signed(EVALUATOR_1),
+				get_mock_jwt_with_cid(
+					EVALUATOR_1,
+					InvestorType::Retail,
+					generate_did_from_account(EVALUATOR_1),
+					project_metadata.clone().policy_ipfs_cid.unwrap()
+				),
+				project_id,
+				min_evaluation_amount_usd
+			)));
 
-				let evaluation_threshold_plmc =
-					usable_plmc_price.reciprocal().unwrap().checked_mul_int(evaluation_threshold_usd).unwrap();
-				evaluation_plmc_thresholds.push(evaluation_threshold_plmc);
-
-				// CT price should be multiplied or divided by the amount of decimal difference with USD.
-				let decimal_abs_diff = USD_DECIMALS.abs_diff(decimals);
-				let original_price_as_usd = original_price.saturating_mul_int(10u128.pow(USD_DECIMALS as u32));
-				let min_price_as_usd = project_metadata.minimum_price.saturating_mul_int(USD_UNIT);
-				if decimals < USD_DECIMALS {
-					assert_eq!(min_price_as_usd, original_price_as_usd * 10u128.pow(decimal_abs_diff as u32));
-				} else {
-					assert_eq!(min_price_as_usd, original_price_as_usd / 10u128.pow(decimal_abs_diff as u32));
-				}
-
-				// A minimum evaluation goes through. This is a fixed USD/PLMC value, so independent of CT decimals.
-				inst.mint_plmc_to(vec![UserToPLMCBalance::new(EVALUATOR_1, min_evaluation_amount_plmc + ed)]);
-				assert_ok!(inst.execute(|| PolimecFunding::evaluate(
-					RuntimeOrigin::signed(EVALUATOR_1),
-					get_mock_jwt_with_cid(
-						EVALUATOR_1,
-						InvestorType::Retail,
-						generate_did_from_account(EVALUATOR_1),
-						project_metadata.clone().policy_ipfs_cid.unwrap()
-					),
-					project_id,
-					min_evaluation_amount_usd
-				)));
-
-				// Try bonding up to the threshold with a second evaluation
-				inst.mint_plmc_to(vec![UserToPLMCBalance::new(
+			// Try bonding up to the threshold with a second evaluation
+			inst.mint_plmc_to(vec![UserToPLMCBalance::new(
+				EVALUATOR_2,
+				evaluation_threshold_plmc + ed - min_evaluation_amount_plmc,
+			)]);
+			assert_ok!(inst.execute(|| PolimecFunding::evaluate(
+				RuntimeOrigin::signed(EVALUATOR_2),
+				get_mock_jwt_with_cid(
 					EVALUATOR_2,
-					evaluation_threshold_plmc + ed - min_evaluation_amount_plmc,
-				)]);
-				assert_ok!(inst.execute(|| PolimecFunding::evaluate(
-					RuntimeOrigin::signed(EVALUATOR_2),
-					get_mock_jwt_with_cid(
-						EVALUATOR_2,
-						InvestorType::Retail,
-						generate_did_from_account(EVALUATOR_2),
-						project_metadata.clone().policy_ipfs_cid.unwrap()
-					),
-					project_id,
-					evaluation_threshold_usd - min_evaluation_amount_usd
-				)));
+					InvestorType::Retail,
+					generate_did_from_account(EVALUATOR_2),
+					project_metadata.clone().policy_ipfs_cid.unwrap()
+				),
+				project_id,
+				evaluation_threshold_usd - min_evaluation_amount_usd
+			)));
 
-				// The evaluation should succeed when we bond the threshold PLMC amount in total.
-				assert_eq!(inst.go_to_next_state(project_id), ProjectStatus::AuctionRound);
-			};
+			// The evaluation should succeed when we bond the threshold PLMC amount in total.
+			assert_eq!(inst.go_to_next_state(project_id), ProjectStatus::AuctionRound);
+		};
 
-			for decimals in 6..=18 {
-				decimal_test(decimals);
-			}
+		for decimals in 6..=18 {
+			decimal_test(decimals);
+		}
 
-			// Since we use the same original price and allocation size and adjust for decimals,
-			// the USD and PLMC amounts should be the same
-			assert!(evaluation_usd_thresholds.iter().all(|x| *x == evaluation_usd_thresholds[0]));
-			assert!(evaluation_plmc_thresholds.iter().all(|x| *x == evaluation_plmc_thresholds[0]));
+		// Since we use the same original price and allocation size and adjust for decimals,
+		// the USD and PLMC amounts should be the same
+		assert!(evaluation_usd_thresholds.iter().all(|x| *x == evaluation_usd_thresholds[0]));
+		assert!(evaluation_plmc_thresholds.iter().all(|x| *x == evaluation_plmc_thresholds[0]));
 
-			// CT amounts however should be different from each other
-			let mut hash_set = HashSet::new();
-			for amount in evaluation_ct_thresholds {
-				assert!(!hash_set.contains(&amount));
-				hash_set.insert(amount);
-			}
+		// CT amounts however should be different from each other
+		let mut hash_set = HashSet::new();
+		for amount in evaluation_ct_thresholds {
+			assert!(!hash_set.contains(&amount));
+			hash_set.insert(amount);
 		}
 	}
 
-	#[cfg(test)]
-	mod failure {
-		use super::*;
+	#[test]
+	fn round_fails_after_not_enough_bonds() {
+		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+		let issuer = ISSUER_1;
+		let project_metadata = default_project_metadata(issuer);
+		let evaluations = inst.generate_failing_evaluations(project_metadata.clone(), 5);
+		let plmc_eval_deposits: Vec<UserToPLMCBalance<_>> = inst.calculate_evaluation_plmc_spent(evaluations.clone());
+		let plmc_existential_deposits = plmc_eval_deposits.accounts().existential_deposits();
 
-		#[test]
-		fn round_fails_after_not_enough_bonds() {
-			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
-			let issuer = ISSUER_1;
-			let project_metadata = default_project_metadata(issuer);
-			let evaluations = inst.generate_failing_evaluations(project_metadata.clone(), 5);
-			let plmc_eval_deposits: Vec<UserToPLMCBalance<_>> =
-				inst.calculate_evaluation_plmc_spent(evaluations.clone());
-			let plmc_existential_deposits = plmc_eval_deposits.accounts().existential_deposits();
+		let expected_evaluator_balances = inst.generic_map_operation(
+			vec![plmc_eval_deposits.clone(), plmc_existential_deposits.clone()],
+			MergeOperation::Add,
+		);
 
-			let expected_evaluator_balances = inst.generic_map_operation(
-				vec![plmc_eval_deposits.clone(), plmc_existential_deposits.clone()],
-				MergeOperation::Add,
-			);
+		inst.mint_plmc_to(plmc_eval_deposits.clone());
+		inst.mint_plmc_to(plmc_existential_deposits.clone());
 
-			inst.mint_plmc_to(plmc_eval_deposits.clone());
-			inst.mint_plmc_to(plmc_existential_deposits.clone());
+		let project_id = inst.create_evaluating_project(project_metadata, issuer, None);
 
-			let project_id = inst.create_evaluating_project(project_metadata, issuer, None);
+		inst.evaluate_for_users(project_id, evaluations).expect("Bonding should work");
 
-			inst.evaluate_for_users(project_id, evaluations).expect("Bonding should work");
+		inst.do_free_plmc_assertions(plmc_existential_deposits);
+		inst.do_reserved_plmc_assertions(plmc_eval_deposits, HoldReason::Evaluation.into());
 
-			inst.do_free_plmc_assertions(plmc_existential_deposits);
-			inst.do_reserved_plmc_assertions(plmc_eval_deposits, HoldReason::Evaluation.into());
+		assert_eq!(inst.go_to_next_state(project_id), ProjectStatus::FundingFailed);
+		assert_eq!(inst.go_to_next_state(project_id), ProjectStatus::SettlementStarted(FundingOutcome::Failure));
 
-			assert_eq!(inst.go_to_next_state(project_id), ProjectStatus::FundingFailed);
-			assert_eq!(inst.go_to_next_state(project_id), ProjectStatus::SettlementStarted(FundingOutcome::Failure));
-
-			inst.settle_project(project_id, true);
-			inst.do_free_plmc_assertions(expected_evaluator_balances);
-		}
+		inst.settle_project(project_id, true);
+		inst.do_free_plmc_assertions(expected_evaluator_balances);
 	}
 }
 
@@ -318,7 +303,6 @@ mod start_evaluation_extrinsic {
 	#[cfg(test)]
 	mod failure {
 		use super::*;
-		use polimec_common_test_utils::get_mock_jwt;
 
 		#[test]
 		fn non_institutional_jwt() {
@@ -455,8 +439,6 @@ mod evaluate_extrinsic {
 	#[cfg(test)]
 	mod success {
 		use super::*;
-		use frame_support::traits::fungible::InspectFreeze;
-		use pallet_balances::AccountData;
 
 		#[test]
 		fn all_investor_types() {
@@ -470,10 +452,8 @@ mod evaluate_extrinsic {
 				(EVALUATOR_2, 1000 * USD_UNIT).into(),
 				(EVALUATOR_3, 20_000 * USD_UNIT).into(),
 			];
-			let necessary_plmc = inst.calculate_evaluation_plmc_spent(evaluations.clone());
 
-			inst.mint_plmc_ed_if_required(evaluations.accounts());
-			inst.mint_plmc_to(necessary_plmc);
+			inst.mint_necessary_tokens_for_evaluations(evaluations.clone());
 
 			assert_ok!(inst.execute(|| PolimecFunding::evaluate(
 				RuntimeOrigin::signed(evaluations[0].account),
@@ -632,9 +612,7 @@ mod evaluate_extrinsic {
 			});
 
 			let new_evaluations = inst.generate_successful_evaluations(project_metadata.clone(), 5);
-			let new_plmc_required = inst.calculate_evaluation_plmc_spent(new_evaluations.clone());
-			inst.mint_plmc_ed_if_required(new_plmc_required.accounts());
-			inst.mint_plmc_to(new_plmc_required.clone());
+			inst.mint_necessary_tokens_for_evaluations(new_evaluations.clone());
 			inst.evaluate_for_users(project_id, new_evaluations).unwrap();
 
 			assert_eq!(inst.go_to_next_state(project_id), ProjectStatus::AuctionRound);
