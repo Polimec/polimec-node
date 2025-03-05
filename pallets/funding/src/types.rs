@@ -42,6 +42,7 @@ pub mod config {
 	#[allow(clippy::wildcard_imports)]
 	use super::*;
 	use crate::Balance;
+
 	use sp_core::parameter_types;
 	use xcm::v4::Location;
 
@@ -342,7 +343,9 @@ pub mod storage {
 
 	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
 	pub struct BidInfo<ProjectId, Did, Price: FixedPointNumber, AccountId, BlockNumber> {
+		// Check
 		pub id: u32,
+		// Check
 		pub project_id: ProjectId,
 		pub bidder: AccountId,
 		pub did: Did,
@@ -356,17 +359,6 @@ pub mod storage {
 		pub plmc_bond: Balance,
 		pub when: BlockNumber,
 		pub receiving_account: Junction,
-	}
-	impl<ProjectId, Did, Price: FixedPointNumber, AccountId, BlockNumber>
-		BidInfo<ProjectId, Did, Price, AccountId, BlockNumber>
-	{
-		pub fn final_ct_amount(&self) -> Balance {
-			match self.status {
-				BidStatus::Accepted => self.original_ct_amount,
-				BidStatus::PartiallyAccepted(amount) => amount,
-				_ => Zero::zero(),
-			}
-		}
 	}
 
 	impl<ProjectId: Eq, Did: Eq, Price: FixedPointNumber, AccountId: Eq, BlockNumber: Eq + Ord> Ord
@@ -432,12 +424,13 @@ pub mod storage {
 			Self { amount_left, current_price: initial_price, initial_price, delta_price, delta_amount }
 		}
 
-		/// Update the bucket
-		pub fn update(&mut self, removed_amount: Balance) {
+		/// Update the bucket, return the new price.
+		pub fn update(&mut self, removed_amount: Balance) -> Price {
 			self.amount_left.saturating_reduce(removed_amount);
 			if self.amount_left.is_zero() {
 				self.next();
 			}
+			self.current_price
 		}
 
 		/// Updates the bucket to represent the next one in the sequence. This involves:
@@ -474,6 +467,17 @@ pub mod storage {
 				.map(|x| <Price as FixedPointNumber>::saturating_from_rational(x.0, sum).saturating_mul(x.1))
 				.fold(Price::zero(), |acc: Price, p: Price| acc.saturating_add(p))
 		}
+	}
+
+	#[derive(Clone, Copy, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
+	pub struct BidBucketBounds {
+		pub first_bid_index: u32,
+		pub last_bid_index: u32,
+	}
+	#[derive(Clone, Copy, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
+	pub struct OutbidBidsCutoff<Price> {
+		pub bid_price: Price,
+		pub bid_index: u32,
 	}
 }
 
@@ -654,6 +658,8 @@ pub mod inner {
 		/// The bid is rejected because the ct tokens ran out
 		Rejected,
 		/// The bid is partially accepted as there were not enough tokens to fill the full bid
+		/// First item is how many contribution tokens are still accepted,
+		/// Second item is how many contribution tokens were refunded to the bidder (i.e. PLMC and Funding Asset released)
 		PartiallyAccepted(Balance),
 	}
 
@@ -804,9 +810,8 @@ pub mod extrinsic {
 		pub now: BlockNumberFor<T>,
 		pub did: Did,
 		pub metadata_ticket_size_bounds: TicketSize,
-		pub total_bids_by_bidder: u32,
-		pub total_bids_for_project: u32,
 		pub receiving_account: Junction,
+		pub auction_oversubscribed: bool,
 	}
 
 	pub struct DoContributeParams<T: Config> {

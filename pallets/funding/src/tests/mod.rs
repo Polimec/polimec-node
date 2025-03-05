@@ -5,10 +5,7 @@ use crate::{
 use defaults::*;
 use frame_support::{
 	assert_err, assert_noop, assert_ok,
-	traits::{
-		fungible::{MutateFreeze, MutateHold},
-		Get,
-	},
+	traits::fungible::{MutateFreeze, MutateHold},
 };
 use itertools::Itertools;
 use parachains_common::DAYS;
@@ -108,9 +105,9 @@ pub mod defaults {
 			total_allocation_size: 500_000 * CT_UNIT,
 			minimum_price: decimal_aware_price,
 			bidding_ticket_sizes: BiddingTicketSizes {
-				professional: TicketSize::new(10 * USD_UNIT, None),
-				institutional: TicketSize::new(10 * USD_UNIT, None),
-				retail: TicketSize::new(10 * USD_UNIT, None),
+				professional: TicketSize::new(100 * USD_UNIT, None),
+				institutional: TicketSize::new(100 * USD_UNIT, None),
+				retail: TicketSize::new(100 * USD_UNIT, None),
 				phantom: Default::default(),
 			},
 			participation_currencies: vec![USDT, USDC, DOT, WETH].try_into().unwrap(),
@@ -157,7 +154,7 @@ pub mod defaults {
 		// Used only to generate values, not for chain interactions
 		let inst = MockInstantiator::new(None);
 		let project_metadata = default_project_metadata(ISSUER_1);
-		inst.generate_bids_from_total_ct_percent(project_metadata, percent, 5)
+		inst.generate_bids_from_total_ct_percent(project_metadata, percent, 10)
 	}
 }
 
@@ -166,19 +163,13 @@ pub fn create_project_with_funding_percentage(percentage: u8, start_settlement: 
 	let mut project_metadata = default_project_metadata(ISSUER_1);
 	project_metadata.total_allocation_size = 1_000_000 * CT_UNIT;
 	let evaluations = inst.generate_successful_evaluations(project_metadata.clone(), 5);
-	let bids = inst.generate_bids_from_total_ct_percent(project_metadata.clone(), percentage, 5);
+	let bids = inst.generate_bids_from_total_ct_percent(project_metadata.clone(), percentage, 30);
 
 	let project_id = inst.create_finished_project(project_metadata, ISSUER_1, None, evaluations, bids);
 
 	if start_settlement {
 		assert!(matches!(inst.go_to_next_state(project_id), ProjectStatus::SettlementStarted(_)));
 	}
-
-	// Sanity check
-	let project_details = inst.get_project_details(project_id);
-	let percent_reached =
-		Perquintill::from_rational(project_details.funding_amount_reached_usd, project_details.fundraising_target_usd);
-	assert_eq!(percent_reached, Perquintill::from_percent(percentage as u64));
 
 	(inst, project_id)
 }

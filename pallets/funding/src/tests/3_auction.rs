@@ -1,4 +1,5 @@
 use super::*;
+use crate::ParticipationMode::*;
 use frame_support::traits::{fungible::InspectFreeze, fungibles::metadata::Inspect};
 use polimec_common::assets::{AcceptedFundingAsset, AcceptedFundingAsset::USDT};
 use sp_core::bounded_vec;
@@ -19,7 +20,7 @@ mod round_flow {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 			let project_metadata = default_project_metadata(ISSUER_1);
 			let evaluations = inst.generate_successful_evaluations(project_metadata.clone(), 5);
-			let bids = inst.generate_bids_from_total_ct_percent(project_metadata.clone(), 60, 5);
+			let bids = inst.generate_bids_from_total_ct_percent(project_metadata.clone(), 60, 10);
 			let _project_id = inst.create_finished_project(project_metadata, ISSUER_1, None, evaluations, bids);
 		}
 
@@ -31,47 +32,12 @@ mod round_flow {
 			let project3 = default_project_metadata(ISSUER_3);
 			let project4 = default_project_metadata(ISSUER_4);
 			let evaluations = inst.generate_successful_evaluations(project1.clone(), 5);
-			let bids = inst.generate_bids_from_total_ct_percent(project1.clone(), 60, 5);
+			let bids = inst.generate_bids_from_total_ct_percent(project1.clone(), 60, 10);
 
 			inst.create_finished_project(project1, ISSUER_1, None, evaluations.clone(), bids.clone());
 			inst.create_finished_project(project2, ISSUER_2, None, evaluations.clone(), bids.clone());
 			inst.create_finished_project(project3, ISSUER_3, None, evaluations.clone(), bids.clone());
 			inst.create_finished_project(project4, ISSUER_4, None, evaluations, bids);
-		}
-
-		#[test]
-		fn auction_gets_percentage_of_ct_total_allocation() {
-			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
-			let project_metadata = default_project_metadata(ISSUER_1);
-			let evaluations = inst.generate_successful_evaluations(project_metadata.clone(), 5);
-			let total_allocation = project_metadata.total_allocation_size;
-			let auction_allocation = total_allocation;
-
-			let bids = vec![(BIDDER_1, Retail, auction_allocation).into()];
-			let project_id =
-				inst.create_finished_project(project_metadata.clone(), ISSUER_1, None, evaluations.clone(), bids);
-			let mut bid_infos = Bids::<TestRuntime>::iter_prefix_values((project_id,));
-			let bid_info = inst.execute(|| bid_infos.next().unwrap());
-			assert!(inst.execute(|| bid_infos.next().is_none()));
-			assert_eq!(bid_info.original_ct_amount, auction_allocation);
-
-			let project_metadata = default_project_metadata(ISSUER_2);
-			let bids =
-				vec![(BIDDER_1, Retail, auction_allocation).into(), (BIDDER_1, Institutional, 1000 * CT_UNIT).into()];
-			let project_id =
-				inst.create_finished_project(project_metadata.clone(), ISSUER_2, None, evaluations.clone(), bids);
-			let project_details = inst.get_project_details(project_id);
-
-			let bid_info_1 = inst.execute(|| Bids::<TestRuntime>::get((project_id, BIDDER_1, 1)).unwrap());
-			let bid_info_2 = inst.execute(|| Bids::<TestRuntime>::get((project_id, BIDDER_1, 2)).unwrap());
-			assert!(inst.execute(|| bid_infos.next().is_none()));
-			assert_eq!(
-				bid_info_1.status,
-				BidStatus::PartiallyAccepted(auction_allocation - 1000 * CT_UNIT),
-				"Should not be able to buy more than auction allocation"
-			);
-			assert_eq!(bid_info_2.status, BidStatus::Accepted, "Should outbid the previous bid");
-			assert_eq!(project_details.remaining_contribution_tokens, total_allocation - auction_allocation);
 		}
 
 		#[test]
@@ -229,50 +195,14 @@ mod round_flow {
 		}
 
 		#[test]
-		fn all_bids_but_one_have_price_higher_than_wap() {
-			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
-			let total_allocation = 10_000_000 * CT_UNIT;
-			let min_bid_ct = 500 * CT_UNIT; // 5k USD at 10USD/CT
-			let max_bids_per_project: u32 = <TestRuntime as Config>::MaxBidsPerProject::get();
-			let big_bid: BidParams<TestRuntime> = (BIDDER_1, Institutional, total_allocation).into();
-			let small_bids: Vec<BidParams<TestRuntime>> =
-				(0..max_bids_per_project - 1).map(|i| (i as u64 + BIDDER_1, Retail, min_bid_ct).into()).collect();
-			let all_bids = vec![vec![big_bid.clone()], small_bids.clone()].into_iter().flatten().collect_vec();
-
-			let mut project_metadata = default_project_metadata(ISSUER_1);
-			project_metadata.mainnet_token_max_supply = total_allocation;
-			project_metadata.total_allocation_size = total_allocation;
-
-			let project_id = inst.create_finished_project(
-				project_metadata.clone(),
-				ISSUER_1,
-				None,
-				inst.generate_successful_evaluations(project_metadata.clone(), 5),
-				all_bids,
-			);
-
-			let wap = inst.get_project_details(project_id).weighted_average_price.unwrap();
-
-			let all_bids = inst.execute(|| Bids::<TestRuntime>::iter_prefix_values((project_id,)).collect_vec());
-
-			let higher_than_wap_bids = all_bids.iter().filter(|bid| bid.original_ct_usd_price > wap).collect_vec();
-			assert_eq!(higher_than_wap_bids.len(), (max_bids_per_project - 1u32) as usize);
-		}
-
-		#[test]
 		fn auction_oversubscription() {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 			let project_metadata = default_project_metadata(ISSUER_1);
-			let auction_allocation = project_metadata.total_allocation_size;
-			let bucket_size = Percent::from_percent(10) * auction_allocation;
-			let bids = vec![
-				(BIDDER_1, auction_allocation).into(),
-				(BIDDER_2, bucket_size).into(),
-				(BIDDER_3, bucket_size).into(),
-				(BIDDER_4, bucket_size).into(),
-				(BIDDER_5, bucket_size).into(),
-				(BIDDER_6, bucket_size).into(),
-			];
+			let bucket = Pallet::<TestRuntime>::create_bucket_from_metadata(&project_metadata).unwrap();
+			let bids = inst.generate_bids_that_take_price_to(
+				project_metadata.clone(),
+				project_metadata.minimum_price + bucket.delta_price * FixedU128::from_float(3.0),
+			);
 
 			let project_id = inst.create_finished_project(
 				project_metadata.clone(),
@@ -285,6 +215,130 @@ mod round_flow {
 			let wap = inst.get_project_details(project_id).weighted_average_price.unwrap();
 			assert!(wap > project_metadata.minimum_price);
 		}
+
+		#[test]
+		fn on_idle_clears_oversubscribed_bids() {
+			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+			let project_metadata = default_project_metadata(ISSUER_1);
+			let evaluations = inst.generate_successful_evaluations(project_metadata.clone(), 5);
+			let bids = inst.generate_bids_from_total_ct_percent(project_metadata.clone(), 100, 10);
+
+			let project_id = inst.create_auctioning_project(project_metadata.clone(), ISSUER_1, None, evaluations);
+			inst.mint_necessary_tokens_for_bids(project_id, bids.clone());
+			inst.bid_for_users(project_id, bids.clone()).unwrap();
+
+			// Check full rejection of one bid by another
+			let last_bid_amount = bids[9].amount;
+			let oversubscribed_bid =
+				BidParams::<TestRuntime>::from((BIDDER_1, Retail, last_bid_amount, Classic(1u8), USDT));
+			inst.mint_necessary_tokens_for_bids(project_id, vec![oversubscribed_bid.clone()]);
+			inst.bid_for_users(project_id, vec![oversubscribed_bid.clone()]).unwrap();
+			assert_eq!(inst.execute(|| CTAmountOversubscribed::<TestRuntime>::get(project_id)), last_bid_amount);
+			inst.advance_time(1);
+			let rejected_bid = inst.execute(|| Bids::<TestRuntime>::get(project_id, 9)).unwrap();
+			assert_eq!(inst.execute(|| CTAmountOversubscribed::<TestRuntime>::get(project_id)), Zero::zero());
+			assert_eq!(rejected_bid.status, BidStatus::Rejected);
+			let yet_unknown_bid = inst.execute(|| Bids::<TestRuntime>::get(project_id, 8)).unwrap();
+			assert_eq!(yet_unknown_bid.status, BidStatus::YetUnknown);
+
+			// Check multiple bid rejections by one bid
+			let multiple_bids_amount = bids[8].amount + bids[7].amount + bids[6].amount;
+			let multiple_bids =
+				BidParams::<TestRuntime>::from((BIDDER_1, Retail, multiple_bids_amount, Classic(1u8), USDT));
+			inst.mint_necessary_tokens_for_bids(project_id, vec![multiple_bids.clone()]);
+			inst.bid_for_users(project_id, vec![multiple_bids.clone()]).unwrap();
+			assert_eq!(inst.execute(|| CTAmountOversubscribed::<TestRuntime>::get(project_id)), multiple_bids_amount);
+			inst.advance_time(1);
+			let rejected_bid_1 = inst.execute(|| Bids::<TestRuntime>::get(project_id, 8)).unwrap();
+			let rejected_bid_2 = inst.execute(|| Bids::<TestRuntime>::get(project_id, 7)).unwrap();
+			let rejected_bid_3 = inst.execute(|| Bids::<TestRuntime>::get(project_id, 6)).unwrap();
+			assert_eq!(inst.execute(|| CTAmountOversubscribed::<TestRuntime>::get(project_id)), Zero::zero());
+			assert_eq!(rejected_bid_1.status, BidStatus::Rejected);
+			assert_eq!(rejected_bid_2.status, BidStatus::Rejected);
+			assert_eq!(rejected_bid_3.status, BidStatus::Rejected);
+			let yet_unknown_bid = inst.execute(|| Bids::<TestRuntime>::get(project_id, 5)).unwrap();
+			assert_eq!(yet_unknown_bid.status, BidStatus::YetUnknown);
+
+			// Check partial rejection of one bid by another
+			let partial_bid_amount = last_bid_amount / 2;
+			let partial_bid =
+				BidParams::<TestRuntime>::from((BIDDER_1, Retail, partial_bid_amount, Classic(1u8), USDT));
+			inst.mint_necessary_tokens_for_bids(project_id, vec![partial_bid.clone()]);
+			inst.bid_for_users(project_id, vec![partial_bid.clone()]).unwrap();
+			assert_eq!(inst.execute(|| CTAmountOversubscribed::<TestRuntime>::get(project_id)), partial_bid_amount);
+			inst.advance_time(1);
+			let rejected_bid = inst.execute(|| Bids::<TestRuntime>::get(project_id, 5)).unwrap();
+			assert_eq!(inst.execute(|| CTAmountOversubscribed::<TestRuntime>::get(project_id)), Zero::zero());
+			assert_eq!(rejected_bid.status, BidStatus::PartiallyAccepted(last_bid_amount - partial_bid_amount));
+			let yet_unknown_bid = inst.execute(|| Bids::<TestRuntime>::get(project_id, 4)).unwrap();
+			assert_eq!(yet_unknown_bid.status, BidStatus::YetUnknown);
+		}
+
+		#[test]
+		fn on_idle_clears_multiple_oversubscribed_projects() {
+			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+
+			// Create two projects with different metadata
+			let project_metadata_1 = default_project_metadata(ISSUER_1);
+			let project_metadata_2 = default_project_metadata(ISSUER_2);
+
+			// Generate evaluations and bids for both projects
+			let evaluations_1 = inst.generate_successful_evaluations(project_metadata_1.clone(), 5);
+			let evaluations_2 = inst.generate_successful_evaluations(project_metadata_2.clone(), 5);
+			let bids_1 = inst.generate_bids_from_total_ct_percent(project_metadata_1.clone(), 100, 5);
+			let bids_2 = inst.generate_bids_from_total_ct_percent(project_metadata_2.clone(), 100, 5);
+
+			// Create two projects in auctioning state
+			let project_id_1 =
+				inst.create_auctioning_project(project_metadata_1.clone(), ISSUER_1, None, evaluations_1);
+			let project_id_2 =
+				inst.create_auctioning_project(project_metadata_2.clone(), ISSUER_2, None, evaluations_2);
+
+			// Place initial bids for both projects
+			inst.mint_necessary_tokens_for_bids(project_id_1, bids_1.clone());
+			inst.mint_necessary_tokens_for_bids(project_id_2, bids_2.clone());
+			inst.bid_for_users(project_id_1, bids_1.clone()).unwrap();
+			inst.bid_for_users(project_id_2, bids_2.clone()).unwrap();
+
+			// Create oversubscribed bids for both projects
+			let oversubscribed_bid_1 =
+				BidParams::<TestRuntime>::from((BIDDER_1, Retail, bids_1[4].amount, Classic(1u8), USDT));
+			let oversubscribed_bid_2 =
+				BidParams::<TestRuntime>::from((BIDDER_2, Retail, bids_2[4].amount, Classic(1u8), USDT));
+
+			// Place oversubscribed bids
+			inst.mint_necessary_tokens_for_bids(project_id_1, vec![oversubscribed_bid_1.clone()]);
+			inst.mint_necessary_tokens_for_bids(project_id_2, vec![oversubscribed_bid_2.clone()]);
+			inst.bid_for_users(project_id_1, vec![oversubscribed_bid_1.clone()]).unwrap();
+			inst.bid_for_users(project_id_2, vec![oversubscribed_bid_2.clone()]).unwrap();
+
+			// Verify both projects are oversubscribed
+			assert_eq!(inst.execute(|| CTAmountOversubscribed::<TestRuntime>::get(project_id_1)), bids_1[4].amount);
+			assert_eq!(inst.execute(|| CTAmountOversubscribed::<TestRuntime>::get(project_id_2)), bids_2[4].amount);
+
+			// Advance time to trigger on_idle
+			inst.advance_time(1);
+
+			// Verify oversubscribed amounts are cleared for both projects
+			assert_eq!(inst.execute(|| CTAmountOversubscribed::<TestRuntime>::get(project_id_1)), Zero::zero());
+			assert_eq!(inst.execute(|| CTAmountOversubscribed::<TestRuntime>::get(project_id_2)), Zero::zero());
+
+			// Verify bid statuses for both projects
+			let rejected_bid_1 = inst.execute(|| Bids::<TestRuntime>::get(project_id_1, 4)).unwrap();
+			let rejected_bid_2 = inst.execute(|| Bids::<TestRuntime>::get(project_id_2, 9)).unwrap();
+			assert_eq!(rejected_bid_1.status, BidStatus::Rejected);
+			assert_eq!(rejected_bid_2.status, BidStatus::Rejected);
+
+			let yet_unknown_bid_1 = inst.execute(|| Bids::<TestRuntime>::get(project_id_1, 3)).unwrap();
+			let yet_unknown_bid_2 = inst.execute(|| Bids::<TestRuntime>::get(project_id_2, 8)).unwrap();
+			assert_eq!(yet_unknown_bid_1.status, BidStatus::YetUnknown);
+			assert_eq!(yet_unknown_bid_2.status, BidStatus::YetUnknown);
+
+			inst.go_to_next_state(project_id_1);
+			inst.go_to_next_state(project_id_2);
+
+			assert!(inst.execute(|| ProjectsInAuctionRound::<TestRuntime>::get()).to_vec().is_empty())
+		}
 	}
 }
 
@@ -295,7 +349,7 @@ mod bid_extrinsic {
 	#[cfg(test)]
 	mod success {
 		use super::*;
-		use frame_support::pallet_prelude::DispatchResultWithPostInfo;
+		use frame_support::dispatch::DispatchResult;
 
 		#[test]
 		fn evaluation_bond_counts_towards_bid() {
@@ -350,8 +404,7 @@ mod bid_extrinsic {
 			assert_eq!(evaluation_items.len(), 1);
 			assert_eq!(evaluation_items[0].current_plmc_bond, already_bonded_plmc - usable_evaluation_plmc);
 
-			let bid_items =
-				inst.execute(|| Bids::<TestRuntime>::iter_prefix_values((project_id, evaluator_bidder)).collect_vec());
+			let bid_items = inst.execute(|| Bids::<TestRuntime>::iter_prefix_values(project_id).collect_vec());
 			assert_eq!(bid_items.len(), 1);
 			assert_eq!(bid_items[0].plmc_bond, necessary_plmc_for_bid);
 
@@ -472,7 +525,7 @@ mod bid_extrinsic {
 			bidder: AccountIdOf<TestRuntime>,
 			investor_type: InvestorType,
 			u8_multiplier: u8,
-		) -> DispatchResultWithPostInfo {
+		) -> DispatchResult {
 			let project_policy = inst.get_project_metadata(project_id).policy_ipfs_cid.unwrap();
 			let jwt = get_mock_jwt_with_cid(bidder, investor_type, generate_did_from_account(BIDDER_1), project_policy);
 			let amount = 1000 * CT_UNIT;
@@ -581,11 +634,11 @@ mod bid_extrinsic {
 			inst.mint_funding_asset_to(necessary_usdt.clone());
 
 			inst.bid_for_users(project_id, bid_90_percent.clone()).unwrap();
-			let stored_bids = inst.execute(|| Bids::<TestRuntime>::iter_prefix_values((project_id,)).collect_vec());
+			let stored_bids = inst.execute(|| Bids::<TestRuntime>::iter_prefix_values(project_id).collect_vec());
 			assert_eq!(stored_bids.len(), 1);
 
 			inst.bid_for_users(project_id, bid_33_percent.clone()).unwrap();
-			let mut stored_bids = inst.execute(|| Bids::<TestRuntime>::iter_prefix_values((project_id,)).collect_vec());
+			let mut stored_bids = inst.execute(|| Bids::<TestRuntime>::iter_prefix_values(project_id).collect_vec());
 			stored_bids.sort_by(|a, b| a.id.cmp(&b.id));
 			// 90% + 10% + 10% + 10% + 3% = 5 total bids
 			assert_eq!(stored_bids.len(), 5);
@@ -702,7 +755,7 @@ mod bid_extrinsic {
 			assert_eq!(inst.go_to_next_state(project_id), ProjectStatus::SettlementStarted(FundingOutcome::Failure));
 
 			inst.execute(|| {
-				PolimecFunding::settle_bid(RuntimeOrigin::signed(BIDDER_4), project_id, BIDDER_4, 0).unwrap();
+				PolimecFunding::settle_bid(RuntimeOrigin::signed(BIDDER_4), project_id, 0).unwrap();
 			});
 
 			let free_balance = inst.get_free_plmc_balance_for(BIDDER_4);
@@ -718,7 +771,16 @@ mod bid_extrinsic {
 		fn can_bid_with_frozen_tokens_funding_success() {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 			let issuer = ISSUER_1;
-			let project_metadata = default_project_metadata(issuer);
+			let mut project_metadata = default_project_metadata(issuer);
+			let base_price = PriceOf::<TestRuntime>::from_float(1.0);
+			let decimal_aware_price = <TestRuntime as Config>::PriceProvider::calculate_decimals_aware_price(
+				base_price,
+				USD_DECIMALS,
+				CT_DECIMALS,
+			)
+			.unwrap();
+			project_metadata.minimum_price = decimal_aware_price;
+
 			let evaluations = inst.generate_successful_evaluations(project_metadata.clone(), 5);
 			let project_id = inst.create_auctioning_project(project_metadata.clone(), issuer, None, evaluations);
 
@@ -786,7 +848,7 @@ mod bid_extrinsic {
 			assert_eq!(frozen_balance, frozen_amount);
 
 			inst.execute(|| {
-				PolimecFunding::settle_bid(RuntimeOrigin::signed(BIDDER_4), project_id, BIDDER_4, 0).unwrap();
+				PolimecFunding::settle_bid(RuntimeOrigin::signed(BIDDER_4), project_id, 0).unwrap();
 			});
 
 			let free_balance = inst.get_free_plmc_balance_for(BIDDER_4);
@@ -856,17 +918,17 @@ mod bid_extrinsic {
 					USDT_PARTICIPATION,
 				)
 			});
+
 			// USDT has the same decimals and price as our baseline USD
 			let expected_plmc_bond =
 				<Pallet<TestRuntime>>::calculate_plmc_bond(USDT_PARTICIPATION, otm_multiplier).unwrap();
 
-			let otm_escrow_account =
-				<TestRuntime as pallet_proxy_bonding::Config>::RootId::get().into_sub_account_truncating(project_id);
+			let otm_escrow_account = pallet_proxy_bonding::Pallet::<TestRuntime>::get_bonding_account(project_id);
 			let otm_treasury_account = <TestRuntime as pallet_proxy_bonding::Config>::Treasury::get();
 			let otm_fee_recipient_account = <TestRuntime as pallet_proxy_bonding::Config>::FeeRecipient::get();
 			let funding_project_escrow = PolimecFunding::fund_account_id(project_id);
 
-			assert!(funding_project_escrow != otm_escrow_account);
+			assert_ne!(funding_project_escrow, otm_escrow_account);
 
 			let pre_participation_treasury_free_plmc = inst.get_free_plmc_balance_for(otm_treasury_account);
 			let pre_participation_otm_escrow_held_plmc =
@@ -892,6 +954,39 @@ mod bid_extrinsic {
 					AcceptedFundingAsset::USDT
 				));
 			});
+
+			let post_participation_treasury_free_plmc = inst.get_free_plmc_balance_for(otm_treasury_account);
+			let post_participation_otm_escrow_held_plmc =
+				inst.get_reserved_plmc_balance_for(otm_escrow_account, HoldReason::Participation.into());
+			let post_participation_otm_escrow_usdt =
+				inst.get_free_funding_asset_balance_for(usdt_id.clone(), otm_escrow_account);
+			let post_participation_otm_fee_recipient_usdt =
+				inst.get_free_funding_asset_balance_for(usdt_id.clone(), otm_fee_recipient_account);
+			let post_participation_buyer_usdt = inst.get_free_funding_asset_balance_for(usdt_id.clone(), BIDDER_1);
+
+			assert_eq!(
+				post_participation_treasury_free_plmc,
+				pre_participation_treasury_free_plmc - expected_plmc_bond - inst.get_ed()
+			);
+			assert_eq!(
+				post_participation_otm_escrow_held_plmc,
+				pre_participation_otm_escrow_held_plmc + expected_plmc_bond
+			);
+			assert_close_enough!(
+				post_participation_otm_escrow_usdt,
+				pre_participation_otm_escrow_usdt + otm_usdt_fee,
+				Perquintill::from_float(0.999)
+			);
+			assert_close_enough!(
+				post_participation_otm_fee_recipient_usdt,
+				pre_participation_otm_fee_recipient_usdt,
+				Perquintill::from_float(0.999)
+			);
+			assert_close_enough!(
+				post_participation_buyer_usdt,
+				pre_participation_buyer_usdt - USDT_PARTICIPATION - otm_usdt_fee,
+				Perquintill::from_float(0.999)
+			);
 
 			let post_participation_treasury_free_plmc = inst.get_free_plmc_balance_for(otm_treasury_account);
 			let post_participation_otm_escrow_held_plmc =
@@ -1331,222 +1426,6 @@ mod bid_extrinsic {
 						receiving_account: polkadot_junction!(BIDDER_2)
 					}),
 					Error::<TestRuntime>::IncorrectRound
-				);
-			});
-		}
-
-		#[test]
-		fn cannot_bid_more_than_project_limit_count() {
-			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
-			let mut project_metadata = default_project_metadata(ISSUER_1);
-			project_metadata.mainnet_token_max_supply = 1_000_000_000 * CT_UNIT;
-			project_metadata.total_allocation_size = 100_000_000 * CT_UNIT;
-
-			let evaluations = inst.generate_successful_evaluations(project_metadata.clone(), 5);
-			let max_bids_per_project: u32 = <TestRuntime as Config>::MaxBidsPerProject::get();
-			let bids = (0u32..max_bids_per_project - 1).map(|i| (i as u64 + 420, 5000 * CT_UNIT).into()).collect_vec();
-
-			let project_id = inst.create_auctioning_project(project_metadata.clone(), ISSUER_1, None, evaluations);
-
-			let plmc_for_bidding =
-				inst.calculate_auction_plmc_charged_with_given_price(&bids.clone(), project_metadata.minimum_price);
-			let usdt_for_bidding = inst.calculate_auction_funding_asset_charged_with_given_price(
-				&bids.clone(),
-				project_metadata.minimum_price,
-			);
-
-			inst.mint_plmc_ed_if_required(bids.accounts());
-			inst.mint_plmc_to(plmc_for_bidding.clone());
-
-			inst.mint_funding_asset_ed_if_required(bids.to_account_asset_map());
-			inst.mint_funding_asset_to(usdt_for_bidding.clone());
-
-			inst.bid_for_users(project_id, bids.clone()).unwrap();
-
-			let current_bucket = inst.execute(|| Buckets::<TestRuntime>::get(project_id)).unwrap();
-			let remaining_ct = current_bucket.amount_left;
-
-			// This bid should be split in 2, but the second one should fail, making the whole extrinsic fail and roll back storage
-			let failing_bid = BidParams::<TestRuntime>::from((
-				BIDDER_1,
-				Retail,
-				remaining_ct + 5000 * CT_UNIT,
-				ParticipationMode::Classic(1u8),
-				AcceptedFundingAsset::USDT,
-			));
-			let plmc_for_failing_bid = inst.calculate_auction_plmc_charged_from_all_bids_made_or_with_bucket(
-				&vec![failing_bid.clone()],
-				project_metadata.clone(),
-				Some(current_bucket),
-			);
-
-			let usdt_for_bidding = inst.calculate_auction_funding_asset_charged_from_all_bids_made_or_with_bucket(
-				&vec![failing_bid.clone()],
-				project_metadata.clone(),
-				Some(current_bucket),
-			);
-
-			inst.mint_plmc_to(plmc_for_failing_bid.clone());
-			inst.mint_funding_asset_to(usdt_for_bidding.clone());
-
-			inst.execute(|| {
-				assert_noop!(
-					PolimecFunding::bid(
-						RuntimeOrigin::signed(failing_bid.bidder),
-						get_mock_jwt_with_cid(
-							failing_bid.bidder,
-							InvestorType::Professional,
-							generate_did_from_account(failing_bid.bidder),
-							project_metadata.clone().policy_ipfs_cid.unwrap()
-						),
-						project_id,
-						failing_bid.amount,
-						failing_bid.mode,
-						failing_bid.asset
-					),
-					Error::<TestRuntime>::TooManyProjectParticipations
-				);
-			});
-
-			// Now we test that after reaching the limit, just one bid is also not allowed
-			inst.execute(|| {
-				assert_ok!(PolimecFunding::bid(
-					RuntimeOrigin::signed(failing_bid.bidder),
-					get_mock_jwt_with_cid(
-						failing_bid.bidder,
-						InvestorType::Professional,
-						generate_did_from_account(failing_bid.bidder),
-						project_metadata.clone().policy_ipfs_cid.unwrap()
-					),
-					project_id,
-					remaining_ct,
-					failing_bid.mode,
-					failing_bid.asset
-				));
-			});
-			inst.execute(|| {
-				assert_noop!(
-					PolimecFunding::bid(
-						RuntimeOrigin::signed(failing_bid.bidder),
-						get_mock_jwt_with_cid(
-							failing_bid.bidder,
-							InvestorType::Professional,
-							generate_did_from_account(failing_bid.bidder),
-							project_metadata.clone().policy_ipfs_cid.unwrap()
-						),
-						project_id,
-						5000 * CT_UNIT,
-						failing_bid.mode,
-						failing_bid.asset
-					),
-					Error::<TestRuntime>::TooManyProjectParticipations
-				);
-			});
-		}
-
-		#[test]
-		fn cannot_bid_more_than_user_limit_count() {
-			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
-			let mut project_metadata = default_project_metadata(ISSUER_1);
-			project_metadata.mainnet_token_max_supply = 1_000_000_000 * CT_UNIT;
-			project_metadata.total_allocation_size = 100_000_000 * CT_UNIT;
-
-			let evaluations = inst.generate_successful_evaluations(project_metadata.clone(), 5);
-			let max_bids_per_user: u32 = <TestRuntime as Config>::MaxBidsPerUser::get();
-			let bids = (0u32..max_bids_per_user - 1u32).map(|_| (BIDDER_1, 5000 * CT_UNIT).into()).collect_vec();
-
-			let project_id = inst.create_auctioning_project(project_metadata.clone(), ISSUER_1, None, evaluations);
-
-			let plmc_for_bidding =
-				inst.calculate_auction_plmc_charged_with_given_price(&bids.clone(), project_metadata.minimum_price);
-			let usdt_for_bidding = inst.calculate_auction_funding_asset_charged_with_given_price(
-				&bids.clone(),
-				project_metadata.minimum_price,
-			);
-
-			inst.mint_plmc_ed_if_required(bids.accounts());
-			inst.mint_plmc_to(plmc_for_bidding.clone());
-
-			inst.mint_funding_asset_ed_if_required(bids.to_account_asset_map());
-			inst.mint_funding_asset_to(usdt_for_bidding.clone());
-
-			inst.bid_for_users(project_id, bids.clone()).unwrap();
-
-			let current_bucket = inst.execute(|| Buckets::<TestRuntime>::get(project_id)).unwrap();
-			let remaining_ct = current_bucket.amount_left;
-
-			// This bid should be split in 2, but the second one should fail, making the whole extrinsic fail and roll back storage
-			let failing_bid = BidParams::<TestRuntime>::from((
-				BIDDER_1,
-				Retail,
-				remaining_ct + 5000 * CT_UNIT,
-				ParticipationMode::Classic(1u8),
-				AcceptedFundingAsset::USDT,
-			));
-			let plmc_for_failing_bid = inst.calculate_auction_plmc_charged_from_all_bids_made_or_with_bucket(
-				&vec![failing_bid.clone()],
-				project_metadata.clone(),
-				Some(current_bucket),
-			);
-			let usdt_for_bidding = inst.calculate_auction_funding_asset_charged_from_all_bids_made_or_with_bucket(
-				&vec![failing_bid.clone()],
-				project_metadata.clone(),
-				Some(current_bucket),
-			);
-			inst.mint_plmc_to(plmc_for_failing_bid.clone());
-			inst.mint_funding_asset_to(usdt_for_bidding.clone());
-
-			inst.execute(|| {
-				assert_noop!(
-					PolimecFunding::bid(
-						RuntimeOrigin::signed(failing_bid.bidder),
-						get_mock_jwt_with_cid(
-							failing_bid.bidder,
-							InvestorType::Professional,
-							generate_did_from_account(failing_bid.bidder),
-							project_metadata.clone().policy_ipfs_cid.unwrap()
-						),
-						project_id,
-						failing_bid.amount,
-						failing_bid.mode,
-						failing_bid.asset
-					),
-					Error::<TestRuntime>::TooManyUserParticipations
-				);
-			});
-
-			// Now we test that after reaching the limit, just one bid is also not allowed
-			inst.execute(|| {
-				assert_ok!(PolimecFunding::bid(
-					RuntimeOrigin::signed(failing_bid.bidder),
-					get_mock_jwt_with_cid(
-						failing_bid.bidder,
-						InvestorType::Professional,
-						generate_did_from_account(failing_bid.bidder),
-						project_metadata.clone().policy_ipfs_cid.unwrap()
-					),
-					project_id,
-					remaining_ct,
-					failing_bid.mode,
-					failing_bid.asset
-				));
-			});
-			inst.execute(|| {
-				assert_noop!(
-					PolimecFunding::bid(
-						RuntimeOrigin::signed(failing_bid.bidder),
-						get_mock_jwt_with_cid(
-							failing_bid.bidder,
-							InvestorType::Professional,
-							generate_did_from_account(failing_bid.bidder),
-							project_metadata.clone().policy_ipfs_cid.unwrap()
-						),
-						project_id,
-						5000 * CT_UNIT,
-						failing_bid.mode,
-						failing_bid.asset
-					),
-					Error::<TestRuntime>::TooManyUserParticipations
 				);
 			});
 		}
@@ -2080,7 +1959,7 @@ mod end_auction_extrinsic {
 				AcceptedFundingAsset::USDC,
 			));
 			let bid_3 = BidParams::from((
-				BIDDER_1,
+				BIDDER_5,
 				Professional,
 				10_000 * CT_UNIT,
 				ParticipationMode::Classic(5u8),
@@ -2101,8 +1980,8 @@ mod end_auction_extrinsic {
 				AcceptedFundingAsset::DOT,
 			));
 			// post bucketing, the bids look like this:
-			// (BIDDER_1, 5k) - (BIDDER_2, 40k) - (BIDDER_1, 5k) - (BIDDER_1, 5k) - (BIDDER_3 - 5k) - (BIDDER_3 - 1k) - (BIDDER_4 - 2k)
-			// | -------------------- 10USD ----------------------|---- 11 USD ---|---- 12 USD ----|----------- 13 USD -------------|
+			// (BIDDER_1, 5k) - (BIDDER_2, 40k) - (BIDDER_5, 5k)   - (BIDDER_5, 5k) - (BIDDER_3 - 5k) - (BIDDER_3 - 1k) - (BIDDER_4 - 2k)
+			// | -------------------- 10 USD ----------------------|---- 11 USD ---|---- 12 USD ----|----------- 13 USD -------------|
 			// post wap ~ 1.0557252:
 			// (Accepted, 5k) - (Partially, 32k) - (Rejected, 5k) - (Accepted, 5k) - (Accepted - 5k) - (Accepted - 1k) - (Accepted - 2k)
 
@@ -2140,11 +2019,25 @@ mod end_auction_extrinsic {
 
 			assert!(matches!(inst.go_to_next_state(project_id), ProjectStatus::FundingSuccessful));
 
+			let bidder_5_rejected_bid = inst.execute(|| Bids::<TestRuntime>::get(project_id, 2)).unwrap();
+			let _bidder_5_accepted_bid = inst.execute(|| Bids::<TestRuntime>::get(project_id, 3)).unwrap();
+			let bidder_5_plmc_pre_balance = inst.get_free_plmc_balance_for(bidder_5_rejected_bid.bidder);
+			let bidder_5_funding_asset_pre_balance = inst.get_free_funding_asset_balance_for(
+				bidder_5_rejected_bid.funding_asset.id(),
+				bidder_5_rejected_bid.bidder,
+			);
+
+			assert!(matches!(
+				inst.go_to_next_state(project_id),
+				ProjectStatus::SettlementStarted(FundingOutcome::Success)
+			));
+			inst.settle_project(project_id, true);
+
 			let wap = inst.get_project_details(project_id).weighted_average_price.unwrap();
 			let returned_auction_plmc =
 				inst.calculate_auction_plmc_returned_from_all_bids_made(&bids, project_metadata.clone(), wap);
 			let returned_funding_assets =
-				inst.calculate_auction_funding_asset_returned_from_all_bids_made(&bids, project_metadata, wap);
+				inst.calculate_auction_funding_asset_returned_from_all_bids_made(&bids, project_metadata.clone(), wap);
 
 			let expected_free_plmc = inst
 				.generic_map_operation(vec![returned_auction_plmc.clone(), prev_plmc_balances], MergeOperation::Add);
@@ -2152,47 +2045,36 @@ mod end_auction_extrinsic {
 				vec![returned_funding_assets.clone(), prev_funding_asset_balances],
 				MergeOperation::Add,
 			);
-			let expected_reserved_plmc =
-				inst.generic_map_operation(vec![plmc_amounts.clone(), returned_auction_plmc], MergeOperation::Subtract);
+			let expected_reserved_plmc = inst.generic_map_operation(
+				vec![plmc_amounts.clone(), returned_auction_plmc.clone()],
+				MergeOperation::Subtract,
+			);
 			let expected_final_funding_spent = inst.generic_map_operation(
-				vec![funding_asset_amounts.clone(), returned_funding_assets],
+				vec![funding_asset_amounts.clone(), returned_funding_assets.clone()],
 				MergeOperation::Subtract,
 			);
 			let expected_issuer_funding = inst.sum_funding_asset_mappings(vec![expected_final_funding_spent]);
 
 			// Assertions about rejected bid
-			let rejected_bid = inst.execute(|| Bids::<TestRuntime>::get((project_id, BIDDER_1, 2)).unwrap());
-			assert_eq!(rejected_bid.status, BidStatus::Rejected);
-			let bidder_plmc_pre_balance = inst.get_free_plmc_balance_for(rejected_bid.bidder);
-			let bidder_funding_asset_pre_balance =
-				inst.get_free_funding_asset_balance_for(rejected_bid.funding_asset.id(), rejected_bid.bidder);
-			inst.execute(|| {
-				PolimecFunding::settle_bid(
-					RuntimeOrigin::signed(rejected_bid.bidder),
-					project_id,
-					rejected_bid.bidder,
-					2,
-				)
-			})
-			.unwrap();
-			let bidder_plmc_post_balance = inst.get_free_plmc_balance_for(rejected_bid.bidder);
-			let bidder_funding_asset_post_balance =
-				inst.get_free_funding_asset_balance_for(rejected_bid.funding_asset.id(), rejected_bid.bidder);
-			assert!(inst.execute(|| Bids::<TestRuntime>::get((project_id, BIDDER_1, 2))).is_none());
-			assert_eq!(bidder_plmc_post_balance, bidder_plmc_pre_balance + rejected_bid.plmc_bond);
-			assert_eq!(
-				bidder_funding_asset_post_balance,
-				bidder_funding_asset_pre_balance + rejected_bid.funding_asset_amount_locked
+			let bidder_5_plmc_post_balance = inst.get_free_plmc_balance_for(bidder_5_rejected_bid.bidder);
+			let bidder_5_funding_asset_post_balance = inst.get_free_funding_asset_balance_for(
+				bidder_5_rejected_bid.funding_asset.id(),
+				bidder_5_rejected_bid.bidder,
 			);
 
-			// Any refunds on bids that were accepted/partially accepted will be done at the settlement once funding finishes
-			assert_eq!(
-				inst.execute(|| Bids::<TestRuntime>::get((project_id, BIDDER_2, 1)).unwrap()).status,
-				BidStatus::PartiallyAccepted(32_000 * CT_UNIT)
-			);
-			assert_eq!(inst.go_to_next_state(project_id), ProjectStatus::SettlementStarted(FundingOutcome::Success));
+			// Bidder 5's accepted bid should have some refunds due to paying the wap in the end instead of the bucket price.
+			// Bidder 5's rejected bid should have a full refund
+			let bidder_5_returned_plmc =
+				returned_auction_plmc.iter().find(|x| x.account == BIDDER_5).unwrap().plmc_amount;
+			let bidder_5_returned_funding_asset =
+				returned_funding_assets.iter().find(|x| x.account == BIDDER_5).unwrap().asset_amount;
 
-			inst.settle_project(project_id, true);
+			assert!(inst.execute(|| Bids::<TestRuntime>::get(project_id, 2)).is_none());
+			assert_eq!(bidder_5_plmc_post_balance, bidder_5_plmc_pre_balance + bidder_5_returned_plmc);
+			assert_eq!(
+				bidder_5_funding_asset_post_balance,
+				bidder_5_funding_asset_pre_balance + bidder_5_returned_funding_asset
+			);
 
 			inst.do_free_plmc_assertions(expected_free_plmc);
 			inst.do_reserved_plmc_assertions(expected_reserved_plmc, HoldReason::Participation.into());
@@ -2283,6 +2165,113 @@ mod end_auction_extrinsic {
 				normalized_wap.saturating_mul_int(USD_UNIT),
 				desired_price.saturating_mul_int(USD_UNIT),
 				Perquintill::from_float(0.99)
+			);
+		}
+
+		#[test]
+		fn oversubscribed_bid_can_get_refund_and_bid_again_in_auction_round() {
+			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+			let project_metadata = default_project_metadata(ISSUER_1);
+			let evaluations = inst.generate_successful_evaluations(project_metadata.clone(), 5);
+			let bids = inst.generate_bids_from_total_ct_percent(project_metadata.clone(), 100, 10);
+
+			let project_id = inst.create_auctioning_project(project_metadata.clone(), ISSUER_1, None, evaluations);
+
+			inst.mint_necessary_tokens_for_bids(project_id, bids.clone());
+			inst.bid_for_users(project_id, bids.clone()).unwrap();
+
+			// First bid is OTM
+			let first_bid_to_refund = bids[9].clone();
+			// Second is classic
+			let second_bid_to_refund = bids[8].clone();
+
+			let oversubscribing_bids = vec![
+				(
+					BIDDER_1,
+					Retail,
+					first_bid_to_refund.amount + 200 * CT_UNIT,
+					ParticipationMode::Classic(1),
+					AcceptedFundingAsset::USDT,
+				)
+					.into(),
+				(
+					BIDDER_2,
+					Retail,
+					second_bid_to_refund.amount,
+					ParticipationMode::Classic(1),
+					AcceptedFundingAsset::USDT,
+				)
+					.into(),
+			];
+
+			inst.mint_necessary_tokens_for_bids(project_id, oversubscribing_bids.clone());
+			inst.bid_for_users(project_id, vec![oversubscribing_bids[0].clone()]).unwrap();
+
+			inst.process_oversubscribed_bids(project_id);
+
+			let pre_first_refund_bidder_plmc_balance = inst.get_free_plmc_balance_for(first_bid_to_refund.bidder);
+			let pre_first_refund_bidder_funding_asset_balance =
+				inst.get_free_funding_asset_balance_for(first_bid_to_refund.asset.id(), first_bid_to_refund.bidder);
+
+			let first_bid = inst.execute(|| Bids::<TestRuntime>::get(project_id, 9)).unwrap();
+			assert!(matches!(first_bid.status, BidStatus::Rejected));
+			let second_bid = inst.execute(|| Bids::<TestRuntime>::get(project_id, 8)).unwrap();
+			assert!(matches!(second_bid.status, BidStatus::PartiallyAccepted(_)));
+
+			inst.execute(|| {
+				assert_ok!(Pallet::<TestRuntime>::do_settle_bid(project_id, 9));
+				assert_noop!(
+					Pallet::<TestRuntime>::do_settle_bid(project_id, 8),
+					Error::<TestRuntime>::SettlementNotStarted
+				);
+			});
+
+			let post_first_refund_bidder_plmc_balance = inst.get_free_plmc_balance_for(first_bid_to_refund.bidder);
+			let post_first_refund_bidder_funding_asset_balance =
+				inst.get_free_funding_asset_balance_for(first_bid_to_refund.asset.id(), first_bid_to_refund.bidder);
+
+			// OTM bid doesnt give PLMC refund to bidder
+			assert_eq!(post_first_refund_bidder_plmc_balance, pre_first_refund_bidder_plmc_balance);
+			let mut funding_asset_refund = first_bid.funding_asset_amount_locked;
+			let usd_ticket = first_bid.original_ct_usd_price.saturating_mul_int(first_bid.original_ct_amount);
+			inst.add_otm_fee_to(&mut funding_asset_refund, usd_ticket, first_bid_to_refund.asset);
+			assert_eq!(
+				post_first_refund_bidder_funding_asset_balance,
+				pre_first_refund_bidder_funding_asset_balance + funding_asset_refund
+			);
+
+			inst.bid_for_users(project_id, vec![oversubscribing_bids[1].clone()]).unwrap();
+
+			inst.process_oversubscribed_bids(project_id);
+			let pre_second_refund_bidder_plmc_balance = inst.get_free_plmc_balance_for(second_bid_to_refund.bidder);
+			let pre_second_refund_bidder_funding_asset_balance =
+				inst.get_free_funding_asset_balance_for(second_bid_to_refund.asset.id(), second_bid_to_refund.bidder);
+
+			let second_bid = inst.execute(|| Bids::<TestRuntime>::get(project_id, 8)).unwrap();
+			assert!(matches!(second_bid.status, BidStatus::Rejected));
+			let third_bid = inst.execute(|| Bids::<TestRuntime>::get(project_id, 7)).unwrap();
+			assert!(matches!(third_bid.status, BidStatus::PartiallyAccepted(_)));
+
+			inst.execute(|| {
+				assert_ok!(Pallet::<TestRuntime>::do_settle_bid(project_id, 8));
+				assert_noop!(
+					Pallet::<TestRuntime>::do_settle_bid(project_id, 7),
+					Error::<TestRuntime>::SettlementNotStarted
+				);
+			});
+
+			let post_second_refund_bidder_plmc_balance = inst.get_free_plmc_balance_for(second_bid_to_refund.bidder);
+			let post_second_refund_bidder_funding_asset_balance =
+				inst.get_free_funding_asset_balance_for(second_bid_to_refund.asset.id(), second_bid_to_refund.bidder);
+
+			// Classic bid
+			assert_eq!(
+				post_second_refund_bidder_plmc_balance,
+				pre_second_refund_bidder_plmc_balance + second_bid.plmc_bond
+			);
+			assert_eq!(
+				post_second_refund_bidder_funding_asset_balance,
+				pre_second_refund_bidder_funding_asset_balance + second_bid.funding_asset_amount_locked
 			);
 		}
 	}
