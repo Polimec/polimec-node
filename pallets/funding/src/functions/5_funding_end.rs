@@ -26,8 +26,6 @@ impl<T: Config> Pallet<T> {
 		ProjectsInAuctionRound::<T>::put(WeakBoundedVec::force_from(project_ids, None));
 
 		let auction_allocation_size = project_metadata.total_allocation_size;
-		let weighted_average_price = bucket.calculate_wap(auction_allocation_size);
-		project_details.weighted_average_price = Some(weighted_average_price);
 
 		let bucket_price_higher_than_initial = bucket.current_price > bucket.initial_price;
 		let sold_percent =
@@ -39,7 +37,7 @@ impl<T: Config> Pallet<T> {
 
 		DidWithActiveProjects::<T>::set(issuer_did, None);
 
-		let usd_raised = Self::calculate_usd_sold_from_bucket(bucket.clone(), project_metadata.total_allocation_size);
+		let usd_raised = bucket.calculate_usd_raised(auction_allocation_size);
 		project_details.funding_amount_reached_usd = usd_raised;
 		project_details.remaining_contribution_tokens =
 			if bucket.current_price == bucket.initial_price { bucket.amount_left } else { Zero::zero() };
