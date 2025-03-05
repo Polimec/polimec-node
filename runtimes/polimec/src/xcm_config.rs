@@ -276,6 +276,23 @@ pub type Barrier = TrailingSetTopicAsId<
 /// for the following assets: DOT, USDT and USDC.
 pub type Reserves = AssetHubAssetsAsReserve;
 
+pub struct PLMCToHubTeleport;
+impl ContainsPair<Asset, Location> for PLMCToHubTeleport {
+	fn contains(asset: &Asset, location: &Location) -> bool {
+		// We only allow teleportation of PLMC to the AssetHub parachain.
+		asset.id.0 == Location::here() && location == &AssetHubLocation::get()
+	}
+}
+
+pub struct TeleportFilter;
+impl Contains<(Location, Vec<Asset>)> for TeleportFilter {
+	fn contains(item: &(Location, Vec<Asset>)) -> bool {
+		// We only allow teleportation of PLMC, but anyone can do it
+		let (_loc, assets) = item;
+		assets.iter().all(|asset| asset.id.0 == Location::here())
+	}
+}
+
 /// Means for transacting assets on this chain.
 /// FungibleTransactor is a FungibleAdapter that allows for transacting PLMC.
 /// ForeignAssetsAdapter is a FungiblesAdapter that allows for transacting foreign assets.
@@ -306,8 +323,7 @@ impl xcm_executor::Config for XcmConfig {
 	type HrmpNewChannelOpenRequestHandler = ();
 	/// Locations that we trust to act as reserves for specific assets.
 	type IsReserve = Reserves;
-	/// Currently we do not support teleportation of PLMC or other assets.
-	type IsTeleporter = ();
+	type IsTeleporter = PLMCToHubTeleport;
 	type MaxAssetsIntoHolding = MaxAssetsIntoHolding;
 	type MessageExporter = ();
 	type OriginConverter = XcmOriginToTransactDispatchOrigin;
@@ -453,7 +469,7 @@ impl pallet_xcm::Config for Runtime {
 	type XcmReserveTransferFilter = AssetHubAssetsAsReserve;
 	type XcmRouter = XcmRouter;
 	// We do not allow teleportation of PLMC or other assets.
-	type XcmTeleportFilter = Nothing;
+	type XcmTeleportFilter = TeleportFilter;
 
 	const VERSION_DISCOVERY_QUEUE_SIZE: u32 = 100;
 }

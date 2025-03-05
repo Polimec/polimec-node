@@ -13,6 +13,7 @@ import { sleep } from 'bun';
 export interface TransferOptions {
   account: Accounts;
   assets: [Asset, bigint, AssetSourceRelation][];
+  fee_asset_item?: number;
 }
 
 export abstract class BaseTransferTest {
@@ -63,6 +64,7 @@ export abstract class BaseTransferTest {
   protected async verifyExecution() {
     const events = await this.destManager.getMessageQueueEvents();
 
+    console.dir(events, { depth: null });
     expect(events).not.toBeEmpty();
     expect(events).toBeArray();
     expect(events).toHaveLength(1);

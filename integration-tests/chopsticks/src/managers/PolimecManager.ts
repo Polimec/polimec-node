@@ -50,6 +50,8 @@ export class PolimecManager extends BaseChainManager {
       case Asset.WETH:
         // Placeholder
         return AssetSourceRelation.Self;
+      case Asset.PLMC:
+        return AssetSourceRelation.Self;
     }
   }
 
@@ -69,12 +71,17 @@ export class PolimecManager extends BaseChainManager {
     return 0n;
   }
 
-  async getLocalXcmFee() {
+  async getXcmFee() {
     const api = this.getApi(Chains.Polimec);
     const events = await api.event.PolkadotXcm.FeesPaid.pull();
-    if (!events.length) return 0n;
-    const fees = events[0]?.payload?.fees;
-    if (!fees?.length) return 0n;
-    return (fees[0]?.fun?.value as bigint) || 0n;
+    console.dir(events, { depth: null });
+
+    return events[0]?.payload.fees?.[0]?.fun?.value ?? 0n;
+  }
+
+  async getTransactionFee() {
+    const api = this.getApi(Chains.Polimec);
+    const events = await api.event.TransactionPayment.TransactionFeePaid.pull();
+    return (events[0]?.payload.actual_fee as bigint) || 0n;
   }
 }

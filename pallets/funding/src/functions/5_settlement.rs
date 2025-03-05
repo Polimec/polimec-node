@@ -320,6 +320,7 @@ impl<T: Config> Pallet<T> {
 		T::FundingCurrency::transfer(asset.id(), &project_pot, participant, amount, Preservation::Expendable)?;
 		Ok(())
 	}
+
 	/// Helper function to release the PLMC bond to the participant
 	fn release_participation_bond_for(participant: &AccountIdOf<T>, amount: Balance) -> DispatchResult {
 		if amount.is_zero() {
