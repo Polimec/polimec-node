@@ -160,7 +160,7 @@ pub mod migration_types {
 	}
 
 	impl Migration {
-		pub fn new(origin: MigrationOrigin, info: MigrationInfo) -> Self {
+		pub const fn new(origin: MigrationOrigin, info: MigrationInfo) -> Self {
 			Self { origin, info }
 		}
 	}
@@ -174,7 +174,7 @@ pub mod migration_types {
 	}
 
 	impl Migrations {
-		pub fn new() -> Self {
+		pub const fn new() -> Self {
 			Self(Vec::new())
 		}
 

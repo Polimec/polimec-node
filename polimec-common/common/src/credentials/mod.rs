@@ -37,11 +37,11 @@ pub enum InvestorType {
 
 impl InvestorType {
 	#[must_use]
-	pub fn as_str(&self) -> &'static str {
+	pub const fn as_str(&self) -> &'static str {
 		match self {
-			InvestorType::Retail => "retail",
-			InvestorType::Professional => "professional",
-			InvestorType::Institutional => "institutional",
+			Self::Retail => "retail",
+			Self::Professional => "professional",
+			Self::Institutional => "institutional",
 		}
 	}
 }
