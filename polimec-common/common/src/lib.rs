@@ -16,13 +16,15 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
+extern crate alloc;
+
+use alloc::vec::Vec;
 use frame_support::{pallet_prelude::*, traits::tokens::fungible};
 use sp_runtime::{
 	traits::{CheckedDiv, CheckedMul},
 	FixedPointNumber, RuntimeDebug,
 };
-use sp_std::prelude::*;
-pub use xcm::v4::{opaque::Xcm, Assets, Location, QueryId, SendError, SendResult, SendXcm, XcmHash};
+pub use xcm::v5::{opaque::Xcm, Assets, Location, QueryId, SendError, SendResult, SendXcm, XcmHash};
 
 pub mod assets;
 pub mod credentials;
@@ -108,7 +110,7 @@ pub trait ReleaseSchedule<AccountId, Reason> {
 pub mod migration_types {
 	#[allow(clippy::wildcard_imports)]
 	use super::*;
-	use xcm::v4::Junction;
+	use xcm::v5::Junction;
 
 	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
 	pub struct MigrationOrigin {

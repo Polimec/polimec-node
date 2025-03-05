@@ -69,7 +69,7 @@ fn lock_voting_should_work() {
 		// 4 should now be able to reap and unlock
 		assert_ok!(Democracy::remove_other_vote(RuntimeOrigin::signed(1), 4, r));
 		assert_ok!(Democracy::unlock(RuntimeOrigin::signed(1), 4));
-		assert_eq!(Balances::locks(4), vec![]);
+		assert_eq!(Balances::locks(&4), vec![]);
 
 		fast_forward_to(13);
 		assert_noop!(Democracy::remove_other_vote(RuntimeOrigin::signed(1), 3, r), Error::<Test>::NoPermission);
@@ -78,7 +78,7 @@ fn lock_voting_should_work() {
 		fast_forward_to(14);
 		assert_ok!(Democracy::remove_other_vote(RuntimeOrigin::signed(1), 3, r));
 		assert_ok!(Democracy::unlock(RuntimeOrigin::signed(1), 3));
-		assert_eq!(Balances::locks(3), vec![]);
+		assert_eq!(Balances::locks(&3), vec![]);
 
 		// 2 doesn't need to reap_vote here because it was already done before.
 		fast_forward_to(25);
@@ -102,7 +102,7 @@ fn no_locks_without_conviction_should_work() {
 		assert_eq!(Balances::free_balance(42), 2);
 		assert_ok!(Democracy::remove_other_vote(RuntimeOrigin::signed(2), 1, r));
 		assert_ok!(Democracy::unlock(RuntimeOrigin::signed(2), 1));
-		assert_eq!(Balances::locks(1), vec![]);
+		assert_eq!(Balances::locks(&1), vec![]);
 	});
 }
 

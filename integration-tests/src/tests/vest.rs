@@ -24,8 +24,8 @@ use macros::generate_accounts;
 use pallet_funding::assert_close_enough;
 use pallet_vesting::VestingInfo;
 use polimec_runtime::{Balances, BlockchainOperationTreasury, ParachainStaking, RuntimeOrigin, Vesting, PLMC};
+use sp_core::crypto::get_public_from_string_or_panic;
 use sp_runtime::Perquintill;
-use xcm_emulator::helpers::get_account_id_from_seed;
 
 generate_accounts!(PEPE, CARLOS);
 
@@ -33,8 +33,8 @@ generate_accounts!(PEPE, CARLOS);
 fn base_vested_can_stake() {
 	PolimecNet::execute_with(|| {
 		let alice = PolimecNet::account_id_of(ALICE);
-		let coll_1 = get_account_id_from_seed::<sr25519::Public>("COLL_1");
-		let new_account = get_account_id_from_seed::<sr25519::Public>("NEW_ACCOUNT");
+		let coll_1: AccountId = get_public_from_string_or_panic::<sr25519::Public>("COLL_1").into();
+		let new_account = get_public_from_string_or_panic::<sr25519::Public>("NEW_ACCOUNT").into();
 
 		// Initially the NEW_ACCOUNT has no PLMC
 		assert_eq!(Balances::balance(&new_account), 0 * PLMC);
@@ -82,7 +82,7 @@ fn base_vested_can_stake() {
 #[test]
 fn base_can_withdraw_when_free_is_below_frozen_with_hold() {
 	PolimecNet::execute_with(|| {
-		let coll_1 = get_account_id_from_seed::<sr25519::Public>("COLL_1");
+		let coll_1 = get_public_from_string_or_panic::<sr25519::Public>("COLL_1").into();
 		Balances::set_balance(&PEPE.into(), 2_020 * PLMC + ED * 2);
 		Balances::set_balance(&CARLOS.into(), 0);
 
@@ -151,8 +151,8 @@ fn base_can_withdraw_when_free_is_below_frozen_with_hold() {
 fn dust_to_treasury() {
 	PolimecNet::execute_with(|| {
 		// Create two new accounts: a sender and a receiver.
-		let sender = get_account_id_from_seed::<sr25519::Public>("SENDER");
-		let receiver = get_account_id_from_seed::<sr25519::Public>("RECEIVER");
+		let sender = get_public_from_string_or_panic::<sr25519::Public>("SENDER").into();
+		let receiver = get_public_from_string_or_panic::<sr25519::Public>("RECEIVER").into();
 
 		// Set the sender's initial balance to 1 PLMC.
 		let initial_sender_balance = 1 * PLMC;

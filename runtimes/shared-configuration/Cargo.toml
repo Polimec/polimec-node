@@ -30,7 +30,6 @@ frame-system.workspace = true
 frame-support.workspace = true
 sp-arithmetic.workspace = true
 parachains-common.workspace = true
-sp-std.workspace = true
 sp-runtime.workspace = true
 pallet-funding.workspace = true
 orml-traits.workspace = true
@@ -64,7 +63,6 @@ std = [
 	"scale-info/std",
 	"sp-arithmetic/std",
 	"sp-runtime/std",
-	"sp-std/std",
 	"xcm/std",
 ]
 runtime-benchmarks = [
@@ -79,6 +77,7 @@ runtime-benchmarks = [
 	"parachains-common/runtime-benchmarks",
 	"polimec-common/runtime-benchmarks",
 	"sp-runtime/runtime-benchmarks",
+	"pallet-transaction-payment/runtime-benchmarks"
 ]
 try-runtime = [
 	"frame-support/try-runtime",

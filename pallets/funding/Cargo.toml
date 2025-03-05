@@ -30,7 +30,6 @@ pallet-proxy-bonding.workspace = true
 # Substrate dependencies
 frame-support.workspace = true
 frame-system.workspace = true
-sp-std.workspace = true
 sp-runtime.workspace = true
 sp-arithmetic.workspace = true
 polimec-common.workspace = true
@@ -90,7 +89,6 @@ std = [
 	"sp-core/std",
 	"sp-io/std",
 	"sp-runtime/std",
-	"sp-std/std",
 	"xcm-builder/std",
 	"xcm-executor/std",
 	"xcm/std",

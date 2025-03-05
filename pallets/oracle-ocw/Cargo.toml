@@ -29,13 +29,13 @@ orml-oracle.workspace = true
 sp-core.workspace = true
 sp-io.workspace = true
 sp-runtime.workspace = true
-sp-std.workspace = true
 substrate-fixed = {workspace = true}
 
 [dev-dependencies]
 pallet-balances = { workspace = true, features = ["std"] }
 sp-keystore = { workspace = true, features = ["std"] }
-parking_lot = "0.12.1"
+sp-keyring = { workspace = true, features = ["std"] }
+parking_lot.workspace = true
 polimec-common-test-utils.workspace = true
 
 [features]
@@ -55,7 +55,6 @@ std = [
 	"sp-io/std",
 	"sp-keystore/std",
 	"sp-runtime/std",
-	"sp-std/std",
 	"substrate-fixed/std",
 ]
 

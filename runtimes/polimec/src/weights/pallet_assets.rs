@@ -4,11 +4,11 @@
 //! THIS FILE WAS AUTO-GENERATED USING THE SUBSTRATE BENCHMARK CLI VERSION 39.0.0
 //! DATE: 2025-02-17, STEPS: `50`, REPEAT: `20`, LOW RANGE: `[]`, HIGH RANGE: `[]`
 //! WORST CASE MAP SIZE: `1000000`
-//! HOSTNAME: `ip-172-31-23-147`, CPU: `AMD EPYC 9R14`
+//! HOSTNAME: `MacBook-Pro-2.local`, CPU: `<UNKNOWN>`
 //! WASM-EXECUTION: `Compiled`, CHAIN: `Some("polimec-paseo-local")`, DB CACHE: 1024
 
 // Executed Command:
-// ./target/production/polimec-node
+// ./polimec-node
 // benchmark
 // pallet
 // --chain=polimec-paseo-local
@@ -32,6 +32,8 @@ pub struct WeightInfo<T>(PhantomData<T>);
 impl<T: frame_system::Config> pallet_assets::WeightInfo for WeightInfo<T> {
 	/// Storage: `ContributionTokens::Asset` (r:1 w:1)
 	/// Proof: `ContributionTokens::Asset` (`max_values`: None, `max_size`: Some(210), added: 2685, mode: `MaxEncodedLen`)
+	/// Storage: `ContributionTokens::NextAssetId` (r:1 w:0)
+	/// Proof: `ContributionTokens::NextAssetId` (`max_values`: Some(1), `max_size`: Some(4), added: 499, mode: `MaxEncodedLen`)
 	/// Storage: `System::Account` (r:1 w:1)
 	/// Proof: `System::Account` (`max_values`: None, `max_size`: Some(128), added: 2603, mode: `MaxEncodedLen`)
 	fn create() -> Weight {
@@ -41,11 +43,13 @@ impl<T: frame_system::Config> pallet_assets::WeightInfo for WeightInfo<T> {
 		// Minimum execution time: 20_830_000 picoseconds.
 		Weight::from_parts(21_490_000, 0)
 			.saturating_add(Weight::from_parts(0, 3675))
-			.saturating_add(T::DbWeight::get().reads(2))
+			.saturating_add(T::DbWeight::get().reads(3))
 			.saturating_add(T::DbWeight::get().writes(2))
 	}
 	/// Storage: `ContributionTokens::Asset` (r:1 w:1)
 	/// Proof: `ContributionTokens::Asset` (`max_values`: None, `max_size`: Some(210), added: 2685, mode: `MaxEncodedLen`)
+	/// Storage: `ContributionTokens::NextAssetId` (r:1 w:0)
+	/// Proof: `ContributionTokens::NextAssetId` (`max_values`: Some(1), `max_size`: Some(4), added: 499, mode: `MaxEncodedLen`)
 	fn force_create() -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `109`
@@ -53,7 +57,7 @@ impl<T: frame_system::Config> pallet_assets::WeightInfo for WeightInfo<T> {
 		// Minimum execution time: 7_650_000 picoseconds.
 		Weight::from_parts(7_990_000, 0)
 			.saturating_add(Weight::from_parts(0, 3675))
-			.saturating_add(T::DbWeight::get().reads(1))
+			.saturating_add(T::DbWeight::get().reads(2))
 			.saturating_add(T::DbWeight::get().writes(1))
 	}
 	/// Storage: `ContributionTokens::Asset` (r:1 w:1)
@@ -505,5 +509,21 @@ impl<T: frame_system::Config> pallet_assets::WeightInfo for WeightInfo<T> {
 			.saturating_add(Weight::from_parts(0, 3675))
 			.saturating_add(T::DbWeight::get().reads(2))
 			.saturating_add(T::DbWeight::get().writes(1))
+	}
+	/// Storage: `ContributionTokens::Asset` (r:1 w:1)
+	/// Proof: `ContributionTokens::Asset` (`max_values`: None, `max_size`: Some(210), added: 2685, mode: `MaxEncodedLen`)
+	/// Storage: `ContributionTokens::Account` (r:2 w:2)
+	/// Proof: `ContributionTokens::Account` (`max_values`: None, `max_size`: Some(134), added: 2609, mode: `MaxEncodedLen`)
+	/// Storage: `System::Account` (r:1 w:1)
+	/// Proof: `System::Account` (`max_values`: None, `max_size`: Some(128), added: 2603, mode: `MaxEncodedLen`)
+	fn transfer_all() -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `507`
+		//  Estimated: `6208`
+		// Minimum execution time: 49_000_000 picoseconds.
+		Weight::from_parts(50_000_000, 0)
+			.saturating_add(Weight::from_parts(0, 6208))
+			.saturating_add(T::DbWeight::get().reads(4))
+			.saturating_add(T::DbWeight::get().writes(4))
 	}
 }

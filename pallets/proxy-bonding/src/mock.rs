@@ -17,7 +17,7 @@ use sp_runtime::{
 use std::{cell::RefCell, collections::BTreeMap};
 use xcm::{
 	prelude::Parachain,
-	v4::{Location, Parent},
+	v5::{Location, Parent},
 };
 
 pub const NATIVE_DECIMALS: u8 = 10;
@@ -206,6 +206,7 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
 				MOCK_FEE_ASSET_DECIMALS,
 			)],
 			accounts: vec![],
+			next_asset_id: None,
 		},
 		..Default::default()
 	}

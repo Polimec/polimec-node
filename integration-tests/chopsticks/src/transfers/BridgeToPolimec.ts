@@ -1,10 +1,15 @@
-import { expect } from 'bun:test';
-import { DEFAULT_TOPIC, ETH_ADDRESS, ETH_AMOUNT, FEE_AMOUNT } from '@/constants';
-import type { BridgerHubManagaer } from '@/managers/BridgeHubManager';
-import type { PolimecManager } from '@/managers/PolimecManager';
-import type { PolkadotHubManager } from '@/managers/PolkadotHubManager';
-import { Accounts, type BalanceCheck, Chains, ParaId } from '@/types';
-import { unwrap_api } from '@/utils';
+import { expect } from "bun:test";
+import {
+  DEFAULT_TOPIC,
+  ETH_ADDRESS,
+  ETH_AMOUNT,
+  FEE_AMOUNT,
+} from "@/constants";
+import type { BridgerHubManagaer } from "@/managers/BridgeHubManager";
+import type { PolimecManager } from "@/managers/PolimecManager";
+import type { PolkadotHubManager } from "@/managers/PolkadotHubManager";
+import { Accounts, type BalanceCheck, Chains, ParaId } from "@/types";
+import { unwrap_api } from "@/utils";
 import {
   DispatchRawOrigin,
   XcmV3Instruction,
@@ -18,25 +23,27 @@ import {
   XcmV3WeightLimit,
   XcmVersionedLocation,
   XcmVersionedXcm,
-} from '@polkadot-api/descriptors';
-import { FixedSizeBinary } from 'polkadot-api';
-import { BaseTransferTest, type TransferOptions } from './BaseTransfer';
+} from "@polkadot-api/descriptors";
+import { FixedSizeBinary } from "polkadot-api";
+import { BaseTransferTest, type TransferOptions } from "./BaseTransfer";
 
 export class BridgeToPolimecTransfer extends BaseTransferTest {
-  getBalances(_options: TransferOptions): Promise<{ asset_balances: BalanceCheck[] }> {
-    throw new Error('Method not allowed.');
+  getBalances(
+    _options: TransferOptions
+  ): Promise<{ asset_balances: BalanceCheck[] }> {
+    throw new Error("Method not allowed.");
   }
   verifyFinalBalances(
     _initialBalances: BalanceCheck[],
     _finalBalances: BalanceCheck[],
-    _options: TransferOptions,
+    _options: TransferOptions
   ): void {
-    throw new Error('Method not allowed.');
+    throw new Error("Method not allowed.");
   }
   constructor(
     protected override sourceManager: BridgerHubManagaer,
     protected hopManager: PolkadotHubManager,
-    protected override destManager: PolimecManager,
+    protected override destManager: PolimecManager
   ) {
     super(sourceManager, destManager);
     this.hopManager = hopManager;
@@ -52,14 +59,18 @@ export class BridgeToPolimecTransfer extends BaseTransferTest {
 
     const dest: XcmVersionedLocation = XcmVersionedLocation.V4({
       parents: 1,
-      interior: XcmV3Junctions.X1(XcmV3Junction.Parachain(ParaId[Chains.PolkadotHub])),
+      interior: XcmV3Junctions.X1(
+        XcmV3Junction.Parachain(ParaId[Chains.PolkadotHub])
+      ),
     });
 
     const messageFromEthereum = this.getEthereumMessage(Chains.PolkadotHub);
 
     const origin = XcmVersionedLocation.V4({
       parents: 1,
-      interior: XcmV3Junctions.X1(XcmV3Junction.Parachain(ParaId[Chains.BridgeHub])),
+      interior: XcmV3Junctions.X1(
+        XcmV3Junction.Parachain(ParaId[Chains.BridgeHub])
+      ),
     });
 
     // Execute the XCM message
@@ -67,22 +78,29 @@ export class BridgeToPolimecTransfer extends BaseTransferTest {
       dest,
       message: messageFromEthereum,
     }).decodedCall;
-    const rootOrigin = { type: 'system' as const, value: DispatchRawOrigin.Root() };
+    const rootOrigin = {
+      type: "system" as const,
+      value: DispatchRawOrigin.Root(),
+    };
 
     // Parallelize dry run calls
     const [dryRunOnSource, dryRunOnHop] = await Promise.all([
-      sourceApi.apis.DryRunApi.dry_run_call(rootOrigin, xcm_res).then(unwrap_api),
-      hopApi.apis.DryRunApi.dry_run_xcm(origin, messageFromEthereum).then(unwrap_api),
+      sourceApi.apis.DryRunApi.dry_run_call(rootOrigin, xcm_res).then(
+        unwrap_api
+      ),
+      hopApi.apis.DryRunApi.dry_run_xcm(origin, messageFromEthereum).then(
+        unwrap_api
+      ),
     ]);
 
     // Validate results
     expect(dryRunOnSource.success).toBeTrue();
     expect(dryRunOnSource.value.execution_result.success).toBeTrue();
     expect(dryRunOnHop.success).toBeTrue();
-    expect(dryRunOnHop.value.execution_result.type).toBe('Complete');
+    expect(dryRunOnHop.value.execution_result.type).toBe("Complete");
 
     const issuedEvents = dryRunOnHop.value.emitted_events.filter(
-      (event) => event.type === 'ForeignAssets' && event.value.type === 'Issued',
+      (event) => event.type === "ForeignAssets" && event.value.type === "Issued"
     );
     expect(issuedEvents.length).toBe(1);
 
@@ -90,16 +108,19 @@ export class BridgeToPolimecTransfer extends BaseTransferTest {
 
     const hopOrigin = XcmVersionedLocation.V4({
       parents: 1,
-      interior: XcmV3Junctions.X1(XcmV3Junction.Parachain(ParaId[Chains.PolkadotHub])),
+      interior: XcmV3Junctions.X1(
+        XcmV3Junction.Parachain(ParaId[Chains.PolkadotHub])
+      ),
     });
 
-    const dryRunOnDest = await destApi.apis.DryRunApi.dry_run_xcm(hopOrigin, messageOnPolimec).then(
-      unwrap_api,
-    );
+    const dryRunOnDest = await destApi.apis.DryRunApi.dry_run_xcm(
+      hopOrigin,
+      messageOnPolimec
+    ).then(unwrap_api);
     expect(dryRunOnDest.success).toBeTrue();
 
     const issuedEventsOnDest = dryRunOnDest.value.emitted_events.filter(
-      (event) => event.type === 'ForeignAssets' && event.value.type === 'Issued',
+      (event) => event.type === "ForeignAssets" && event.value.type === "Issued"
     );
 
     // TODO: Check why we have 3 events instead of 2 (ETH + DOT). Curently we have 3 events (ETH + DOT + DOT)
@@ -135,11 +156,15 @@ export class BridgeToPolimecTransfer extends BaseTransferTest {
         }),
 
         // 3. Descend Origin
-        XcmV3Instruction.DescendOrigin(XcmV3Junctions.X1(XcmV3Junction.PalletInstance(80))),
+        XcmV3Instruction.DescendOrigin(
+          XcmV3Junctions.X1(XcmV3Junction.PalletInstance(80))
+        ),
 
         // 4. Universal Origin
         XcmV3Instruction.UniversalOrigin(
-          XcmV3Junction.GlobalConsensus(XcmV3JunctionNetworkId.Ethereum({ chain_id: 1n })),
+          XcmV3Junction.GlobalConsensus(
+            XcmV3JunctionNetworkId.Ethereum({ chain_id: 1n })
+          )
         ),
 
         // 5. Reserve Asset Deposited
@@ -148,7 +173,9 @@ export class BridgeToPolimecTransfer extends BaseTransferTest {
             id: XcmV3MultiassetAssetId.Concrete({
               parents: 2,
               interior: XcmV3Junctions.X1(
-                XcmV3Junction.GlobalConsensus(XcmV3JunctionNetworkId.Ethereum({ chain_id: 1n })),
+                XcmV3Junction.GlobalConsensus(
+                  XcmV3JunctionNetworkId.Ethereum({ chain_id: 1n })
+                )
               ),
             }),
             fun: XcmV3MultiassetFungibility.Fungible(ETH_AMOUNT),
@@ -162,12 +189,14 @@ export class BridgeToPolimecTransfer extends BaseTransferTest {
         XcmV3Instruction.SetAppendix([
           XcmV3Instruction.DepositAsset({
             assets: XcmV3MultiassetMultiAssetFilter.Wild(
-              XcmV3MultiassetWildMultiAsset.AllCounted(2),
+              XcmV3MultiassetWildMultiAsset.AllCounted(2)
             ),
             beneficiary: {
               parents: 2,
               interior: XcmV3Junctions.X1(
-                XcmV3Junction.GlobalConsensus(XcmV3JunctionNetworkId.Ethereum({ chain_id: 1n })),
+                XcmV3Junction.GlobalConsensus(
+                  XcmV3JunctionNetworkId.Ethereum({ chain_id: 1n })
+                )
               ),
             },
           }),
@@ -187,7 +216,9 @@ export class BridgeToPolimecTransfer extends BaseTransferTest {
               id: XcmV3MultiassetAssetId.Concrete({
                 parents: 2,
                 interior: XcmV3Junctions.X1(
-                  XcmV3Junction.GlobalConsensus(XcmV3JunctionNetworkId.Ethereum({ chain_id: 1n })),
+                  XcmV3Junction.GlobalConsensus(
+                    XcmV3JunctionNetworkId.Ethereum({ chain_id: 1n })
+                  )
                 ),
               }),
               fun: XcmV3MultiassetFungibility.Fungible(ETH_AMOUNT),
@@ -195,7 +226,9 @@ export class BridgeToPolimecTransfer extends BaseTransferTest {
           ]),
           dest: {
             parents: 1,
-            interior: XcmV3Junctions.X1(XcmV3Junction.Parachain(ParaId[Chains.Polimec])),
+            interior: XcmV3Junctions.X1(
+              XcmV3Junction.Parachain(ParaId[Chains.Polimec])
+            ),
           },
           xcm: [
             XcmV3Instruction.BuyExecution({
@@ -210,7 +243,7 @@ export class BridgeToPolimecTransfer extends BaseTransferTest {
             }),
             XcmV3Instruction.DepositAsset({
               assets: XcmV3MultiassetMultiAssetFilter.Wild(
-                XcmV3MultiassetWildMultiAsset.AllCounted(2),
+                XcmV3MultiassetWildMultiAsset.AllCounted(2)
               ),
               beneficiary: {
                 parents: 0,
@@ -218,7 +251,7 @@ export class BridgeToPolimecTransfer extends BaseTransferTest {
                   XcmV3Junction.AccountId32({
                     network: undefined,
                     id: FixedSizeBinary.fromAccountId32(Accounts.ALICE),
-                  }),
+                  })
                 ),
               },
             }),
@@ -243,7 +276,9 @@ export class BridgeToPolimecTransfer extends BaseTransferTest {
             id: XcmV3MultiassetAssetId.Concrete({
               parents: 2,
               interior: XcmV3Junctions.X1(
-                XcmV3Junction.GlobalConsensus(XcmV3JunctionNetworkId.Ethereum({ chain_id: 1n })),
+                XcmV3Junction.GlobalConsensus(
+                  XcmV3JunctionNetworkId.Ethereum({ chain_id: 1n })
+                )
               ),
             }),
             fun: XcmV3MultiassetFungibility.Fungible(ETH_AMOUNT),
@@ -267,14 +302,16 @@ export class BridgeToPolimecTransfer extends BaseTransferTest {
 
         // Deposit Asset
         XcmV3Instruction.DepositAsset({
-          assets: XcmV3MultiassetMultiAssetFilter.Wild(XcmV3MultiassetWildMultiAsset.AllCounted(2)),
+          assets: XcmV3MultiassetMultiAssetFilter.Wild(
+            XcmV3MultiassetWildMultiAsset.AllCounted(2)
+          ),
           beneficiary: {
             parents: 0,
             interior: XcmV3Junctions.X1(
               XcmV3Junction.AccountId32({
                 network: undefined,
                 id: FixedSizeBinary.fromAccountId32(Accounts.ALICE),
-              }),
+              })
             ),
           },
         }),
@@ -282,6 +319,6 @@ export class BridgeToPolimecTransfer extends BaseTransferTest {
         // Set Topic
         XcmV3Instruction.SetTopic(DEFAULT_TOPIC),
       ]);
-    throw new Error('Unsupported chain');
+    throw new Error("Unsupported chain");
   }
 }

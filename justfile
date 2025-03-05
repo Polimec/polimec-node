@@ -54,12 +54,7 @@ benchmark-runtime:
     cargo run --features runtime-benchmarks --profile=production -p polimec-node benchmark pallet
     # Load all pallet names in an array.
     pallets=($(
-      ${benchmarkCommand} --list --chain=${chainSpec}  |\
-        tail -n+2 |\
-        cut -d',' -f1 |\
-        sort |\
-        uniq
-    ))
+      ${benchmarkCommand} --list=pallets --chain=${chainSpec}))
 
     echo "[+] Benchmarking ${#pallets[@]} pallets"
 
@@ -71,7 +66,7 @@ benchmark-runtime:
             --chain=${chainSpec} \
             --wasm-execution=compiled \
             --pallet=$pallet  \
-            --extrinsic='*' \
+            --extrinsic="*" \
             --steps=$steps  \
             --repeat=$repeat \
         --output=$weightsDir/$output_pallet.rs

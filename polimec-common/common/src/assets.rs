@@ -1,13 +1,9 @@
-use serde::{Deserialize, Serialize};
-use xcm::{
-	prelude::Parachain,
-	v4::prelude::{Ethereum, GeneralIndex, GlobalConsensus, Location, PalletInstance},
-};
-
 use parity_scale_codec::{Decode, Encode, MaxEncodedLen};
 use scale_info::TypeInfo;
+use serde::{Deserialize, Serialize};
 use sp_runtime::RuntimeDebug;
 use variant_count::VariantCount;
+use xcm::v5::prelude::{Ethereum, GeneralIndex, GlobalConsensus, Location, PalletInstance, Parachain};
 extern crate alloc;
 use alloc::{vec, vec::*};
 
@@ -40,7 +36,8 @@ pub enum AcceptedFundingAsset {
 impl AcceptedFundingAsset {
 	pub fn id(&self) -> Location {
 		match self {
-			AcceptedFundingAsset::USDT => Location::new(1, [Parachain(1000), PalletInstance(50), GeneralIndex(1984)]),
+			AcceptedFundingAsset::USDT =>
+				Location::new(1, [Parachain(1000), PalletInstance(50), GeneralIndex(1984)]).into(),
 			AcceptedFundingAsset::DOT => Location::parent(),
 			AcceptedFundingAsset::USDC => Location::new(1, [Parachain(1000), PalletInstance(50), GeneralIndex(1337)]),
 			AcceptedFundingAsset::ETH => Location::new(2, [GlobalConsensus(Ethereum { chain_id: 1 })]),

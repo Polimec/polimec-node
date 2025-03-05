@@ -17,9 +17,8 @@
 use crate::Balance;
 use frame_support::parameter_types;
 use pallet_oracle_ocw::types::AssetName;
-use polimec_common::assets::AcceptedFundingAsset;
+use polimec_common::{assets::AcceptedFundingAsset, Location};
 use sp_runtime::{traits::Convert, FixedU128};
-use xcm::v4::Location;
 
 /// One PLMC
 pub const PLMC: Balance = 10u128.pow(10);

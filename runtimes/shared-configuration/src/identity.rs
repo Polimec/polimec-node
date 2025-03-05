@@ -16,13 +16,17 @@
 
 use crate::{deposit, Balance, PLMC};
 use frame_support::parameter_types;
-use parachains_common::AccountId;
+use parachains_common::{AccountId, BlockNumber};
 
 parameter_types! {
 	/// The basic deposit to create an identity.
 	pub const BasicDeposit: Balance = 20 * PLMC;
 	/// Deposit for each additional field.
 	pub const ByteDeposit: Balance = deposit(0, 1);
+	/// Username deposit for identity
+	pub const UsernameDeposit: Balance = deposit(0, 10);
+	/// Username grace period
+	pub const UsernameGracePeriod: BlockNumber = 10;
 	/// The number of blocks within which a username grant must be accepted.
 	pub const PendingUsernameExpiration: u32 = 0;
 	/// The deposit needed to create a sub-account.

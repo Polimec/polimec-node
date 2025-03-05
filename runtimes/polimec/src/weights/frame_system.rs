@@ -4,11 +4,11 @@
 //! THIS FILE WAS AUTO-GENERATED USING THE SUBSTRATE BENCHMARK CLI VERSION 39.0.0
 //! DATE: 2025-02-17, STEPS: `50`, REPEAT: `20`, LOW RANGE: `[]`, HIGH RANGE: `[]`
 //! WORST CASE MAP SIZE: `1000000`
-//! HOSTNAME: `ip-172-31-23-147`, CPU: `AMD EPYC 9R14`
+//! HOSTNAME: `MacBook-Pro-2.local`, CPU: `<UNKNOWN>`
 //! WASM-EXECUTION: `Compiled`, CHAIN: `Some("polimec-paseo-local")`, DB CACHE: 1024
 
 // Executed Command:
-// ./target/production/polimec-node
+// ./polimec-node
 // benchmark
 // pallet
 // --chain=polimec-paseo-local
@@ -52,8 +52,6 @@ impl<T: frame_system::Config> frame_system::WeightInfo for WeightInfo<T> {
 			// Standard Error: 8
 			.saturating_add(Weight::from_parts(1_342, 0).saturating_mul(b.into()))
 	}
-	/// Storage: `System::Digest` (r:1 w:1)
-	/// Proof: `System::Digest` (`max_values`: Some(1), `max_size`: None, mode: `Measured`)
 	/// Storage: UNKNOWN KEY `0x3a686561707061676573` (r:0 w:1)
 	/// Proof: UNKNOWN KEY `0x3a686561707061676573` (r:0 w:1)
 	fn set_heap_pages() -> Weight {
@@ -121,7 +119,7 @@ impl<T: frame_system::Config> frame_system::WeightInfo for WeightInfo<T> {
 	/// The range of component `p` is `[0, 1000]`.
 	fn kill_prefix(p: u32, ) -> Weight {
 		// Proof Size summary in bytes:
-		//  Measured:  `61 + p * (69 ±0)`
+		//  Measured:  `63 + p * (69 ±0)`
 		//  Estimated: `74 + p * (70 ±0)`
 		// Minimum execution time: 2_720_000 picoseconds.
 		Weight::from_parts(2_840_000, 0)

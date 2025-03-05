@@ -17,11 +17,15 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 //! # Migrations
-//!
+
+extern crate alloc;
+
 #[allow(unused_imports)]
 use crate::*;
 
 // Substrate
+#[allow(unused_imports)]
+use alloc::vec::Vec;
 use frame_support::traits::{
 	fungible::{InspectHold, MutateHold},
 	Currency, Get, LockIdentifier, LockableCurrency, ReservableCurrency,
@@ -33,8 +37,6 @@ use parity_scale_codec::Encode;
 use sp_core::hexdisplay::HexDisplay;
 #[cfg(feature = "try-runtime")]
 use sp_runtime::DispatchError;
-#[allow(unused_imports)]
-use sp_std::vec::Vec;
 
 // Lock Identifiers used in the old version of the pallet.
 const COLLATOR_LOCK_ID: LockIdentifier = *b"stkngcol";
@@ -48,7 +50,7 @@ where
 		+ Currency<<T as frame_system::Config>::AccountId>
 		+ ReservableCurrency<<T as frame_system::Config>::AccountId>,
 {
-	_phantom: sp_std::marker::PhantomData<(T, OldCurrency)>,
+	_phantom: core::marker::PhantomData<(T, OldCurrency)>,
 }
 
 impl<T, OldCurrency> frame_support::traits::OnRuntimeUpgrade for CustomOnRuntimeUpgrade<T, OldCurrency>

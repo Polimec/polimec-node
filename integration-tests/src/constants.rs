@@ -27,10 +27,10 @@ use sp_arithmetic::{FixedU128, Percent};
 use sp_authority_discovery::AuthorityId as AuthorityDiscoveryId;
 use sp_consensus_babe::AuthorityId as BabeId;
 use sp_consensus_beefy::ecdsa_crypto::AuthorityId as BeefyId;
-use sp_core::{sr25519, storage::Storage, Pair, Public};
+use sp_core::{crypto::get_public_from_string_or_panic, sr25519, storage::Storage};
 use sp_runtime::{bounded_vec, BuildStorage, Perbill};
 pub use xcm;
-use xcm_emulator::{helpers::get_account_id_from_seed, Chain, Parachain};
+use xcm_emulator::{Chain, Parachain};
 
 pub const XCM_V2: u32 = 3;
 pub const XCM_V3: u32 = 2;
@@ -58,11 +58,6 @@ fn polimec_inflation_config() -> polimec_runtime::pallet_parachain_staking::Infl
 		annual,
 		round: to_round_inflation(annual),
 	}
-}
-
-/// Helper function to generate a crypto pair from seed
-fn get_from_seed<TPublic: Public>(seed: &str) -> <TPublic::Pair as Pair>::Public {
-	TPublic::Pair::from_string(&format!("//{}", seed), None).expect("static values are valid; qed").public()
 }
 
 pub struct Prices {
@@ -153,20 +148,7 @@ pub mod accounts {
 	pub const FERDIE_STASH: &str = "Ferdie//stash";
 
 	pub fn init_balances() -> Vec<AccountId> {
-		vec![
-			get_account_id_from_seed::<sr25519::Public>(ALICE),
-			get_account_id_from_seed::<sr25519::Public>(BOB),
-			get_account_id_from_seed::<sr25519::Public>(CHARLIE),
-			get_account_id_from_seed::<sr25519::Public>(DAVE),
-			get_account_id_from_seed::<sr25519::Public>(EVE),
-			get_account_id_from_seed::<sr25519::Public>(FERDIE),
-			get_account_id_from_seed::<sr25519::Public>(ALICE_STASH),
-			get_account_id_from_seed::<sr25519::Public>(BOB_STASH),
-			get_account_id_from_seed::<sr25519::Public>(CHARLIE_STASH),
-			get_account_id_from_seed::<sr25519::Public>(DAVE_STASH),
-			get_account_id_from_seed::<sr25519::Public>(EVE_STASH),
-			get_account_id_from_seed::<sr25519::Public>(FERDIE_STASH),
-		]
+		sp_keyring::AccountKeyring::iter().map(|a| a.to_account_id()).collect()
 	}
 }
 
@@ -175,22 +157,34 @@ pub mod collators {
 
 	pub fn invulnerables_asset_hub() -> Vec<(AccountId, AssetHubPolkadotAuraId)> {
 		vec![
-			(get_account_id_from_seed::<sr25519::Public>("Alice"), get_from_seed::<AssetHubPolkadotAuraId>("Alice")),
-			(get_account_id_from_seed::<sr25519::Public>("Bob"), get_from_seed::<AssetHubPolkadotAuraId>("Bob")),
+			(
+				sp_keyring::AccountKeyring::Alice.to_account_id(),
+				get_public_from_string_or_panic::<AssetHubPolkadotAuraId>("Alice"),
+			),
+			(
+				sp_keyring::AccountKeyring::Bob.to_account_id(),
+				get_public_from_string_or_panic::<AssetHubPolkadotAuraId>("Bob"),
+			),
 		]
 	}
 
 	pub fn invulnerables() -> Vec<(AccountId, AuraId)> {
 		vec![
-			(get_account_id_from_seed::<sr25519::Public>("Alice"), get_from_seed::<AuraId>("Alice")),
-			(get_account_id_from_seed::<sr25519::Public>("Bob"), get_from_seed::<AuraId>("Bob")),
+			(sp_keyring::AccountKeyring::Alice.to_account_id(), get_public_from_string_or_panic::<AuraId>("Alice")),
+			(sp_keyring::AccountKeyring::Bob.to_account_id(), get_public_from_string_or_panic::<AuraId>("Bob")),
 		]
 	}
 
 	pub fn initial_authorities() -> Vec<(AccountId, AuraId)> {
 		vec![
-			(get_account_id_from_seed::<sr25519::Public>("COLL_1"), get_from_seed::<AuraId>("COLL_1")),
-			(get_account_id_from_seed::<sr25519::Public>("COLL_2"), get_from_seed::<AuraId>("COLL_2")),
+			(
+				get_public_from_string_or_panic::<sr25519::Public>("COLL_1").into(),
+				get_public_from_string_or_panic::<AuraId>("COLL_1"),
+			),
+			(
+				get_public_from_string_or_panic::<sr25519::Public>("COLL_2").into(),
+				get_public_from_string_or_panic::<AuraId>("COLL_2"),
+			),
 		]
 	}
 }
@@ -212,15 +206,15 @@ pub mod validators {
 	)> {
 		let seed = "Alice";
 		vec![(
-			get_account_id_from_seed::<sr25519::Public>(&format!("{}//stash", seed)),
-			get_account_id_from_seed::<sr25519::Public>(seed),
-			get_from_seed::<BabeId>(seed),
-			get_from_seed::<GrandpaId>(seed),
-			get_from_seed::<ImOnlineId>(seed),
-			get_from_seed::<ValidatorId>(seed),
-			get_from_seed::<AssignmentId>(seed),
-			get_from_seed::<AuthorityDiscoveryId>(seed),
-			get_from_seed::<BeefyId>(seed),
+			sp_keyring::AccountKeyring::AliceStash.to_account_id(),
+			sp_keyring::AccountKeyring::Alice.to_account_id(),
+			get_public_from_string_or_panic::<BabeId>(seed),
+			get_public_from_string_or_panic::<GrandpaId>(seed),
+			get_public_from_string_or_panic::<ImOnlineId>(seed),
+			get_public_from_string_or_panic::<ValidatorId>(seed),
+			get_public_from_string_or_panic::<AssignmentId>(seed),
+			get_public_from_string_or_panic::<AuthorityDiscoveryId>(seed),
+			get_public_from_string_or_panic::<BeefyId>(seed),
 		)]
 	}
 }
@@ -282,6 +276,7 @@ pub mod polkadot {
 						)
 					})
 					.collect::<Vec<_>>(),
+				..Default::default()
 			},
 			babe: rococo_runtime::BabeConfig {
 				authorities: Default::default(),
@@ -301,7 +296,7 @@ pub mod polimec {
 	use super::*;
 	use crate::{PolimecNet, PolimecOrigin, PolimecRuntime};
 	use polimec_runtime::{BlockchainOperationTreasury, TreasuryAccount};
-	use xcm::v4::{Location, Parent};
+	use xcm::v5::{Location, Parent};
 	use xcm_emulator::TestExt;
 
 	pub const PARA_ID: u32 = 3344;
@@ -393,6 +388,7 @@ pub mod polimec {
 					(eth_asset_id, "Local ETH".as_bytes().to_vec(), "ETH".as_bytes().to_vec(), 18),
 				],
 				accounts: vec![],
+				next_asset_id: None,
 			},
 			parachain_info: polimec_runtime::ParachainInfoConfig { parachain_id: PARA_ID.into(), ..Default::default() },
 			session: polimec_runtime::SessionConfig {
@@ -406,6 +402,7 @@ pub mod polimec {
 						)
 					})
 					.collect(),
+				..Default::default()
 			},
 			aura: Default::default(),
 			aura_ext: Default::default(),

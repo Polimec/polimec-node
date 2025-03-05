@@ -20,8 +20,7 @@
 
 use super::*;
 use crate::{instantiator::*, traits::SetPrices};
-use polimec_common::assets::AcceptedFundingAsset;
-
+use alloc::{vec, vec::Vec};
 use frame_benchmarking::v2::*;
 use frame_support::{
 	assert_ok,
@@ -35,7 +34,10 @@ use frame_support::{
 use itertools::Itertools;
 use parity_scale_codec::{Decode, Encode};
 use polimec_common::{
-	assets::AcceptedFundingAsset::{DOT, ETH, USDC, USDT},
+	assets::{
+		AcceptedFundingAsset,
+		AcceptedFundingAsset::{DOT, ETH, USDC, USDT},
+	},
 	credentials::InvestorType,
 	ProvideAssetPrice, USD_DECIMALS, USD_UNIT,
 };
@@ -95,11 +97,11 @@ pub fn string_account<AccountId: Decode>(
 
 #[benchmarks(
 	where
-	T: Config + frame_system::Config<RuntimeEvent = <T as Config>::RuntimeEvent> + pallet_balances::Config<Balance = Balance> + sp_std::fmt::Debug,
+	T: Config + frame_system::Config<RuntimeEvent = <T as Config>::RuntimeEvent> + pallet_balances::Config<Balance = Balance> + core::fmt::Debug,
 	<T as Config>::RuntimeEvent: TryInto<Event<T>> + Parameter + Member,
 	<T as Config>::Price: From<u128>,
 	T::Hash: From<H256>,
-	<T as frame_system::Config>::AccountId: Into<<<T as frame_system::Config>::RuntimeOrigin as OriginTrait>::AccountId> + sp_std::fmt::Debug,
+	<T as frame_system::Config>::AccountId: Into<<<T as frame_system::Config>::RuntimeOrigin as OriginTrait>::AccountId> + core::fmt::Debug,
 	<T as pallet_balances::Config>::Balance: Into<Balance>,
 )]
 mod benchmarks {

@@ -29,7 +29,6 @@ use frame_support::{dispatch::DispatchResultWithPostInfo, ensure, traits::Get};
 use parity_scale_codec::{Decode, Encode};
 use scale_info::TypeInfo;
 use sp_runtime::{traits::Saturating, BoundedVec, Percent, RuntimeDebug};
-use sp_std::prelude::*;
 
 /// Represents the auto-compounding amount for a delegation.
 #[derive(Clone, Eq, PartialEq, Encode, Decode, RuntimeDebug, TypeInfo, PartialOrd, Ord)]

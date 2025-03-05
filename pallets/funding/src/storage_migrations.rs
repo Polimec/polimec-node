@@ -13,7 +13,7 @@ use sp_runtime::{BoundedVec, Percent};
 extern crate alloc;
 use alloc::vec::Vec;
 use polimec_common::migration_types::{MigrationInfo, ParticipationType};
-use xcm::v4::Location;
+use xcm::v5::Location;
 
 /// The current storage version
 pub const STORAGE_VERSION: StorageVersion = StorageVersion::new(6);

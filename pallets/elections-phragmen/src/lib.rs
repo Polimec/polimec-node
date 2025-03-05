@@ -94,6 +94,9 @@
 // Needed due to empty sections raising the warning
 #![allow(unreachable_patterns)]
 
+extern crate alloc;
+
+use alloc::{vec, vec::Vec};
 use frame_support::{
 	pallet_prelude::DispatchResult,
 	traits::{
@@ -112,7 +115,6 @@ use sp_runtime::{
 	DispatchError, Perbill, RuntimeDebug,
 };
 use sp_staking::currency_to_vote::CurrencyToVote;
-use sp_std::prelude::*;
 
 #[cfg(any(feature = "try-runtime", test))]
 use sp_runtime::TryRuntimeError;
@@ -1230,6 +1232,7 @@ mod tests {
 	impl pallet_balances::Config for Test {
 		type AccountStore = frame_system::Pallet<Test>;
 		type Balance = u64;
+		type DoneSlashHandler = ();
 		type DustRemoval = ();
 		type ExistentialDeposit = ConstU64<1>;
 		type FreezeIdentifier = RuntimeFreezeReason;
@@ -1324,7 +1327,7 @@ mod tests {
 	}
 
 	pub type Block = sp_runtime::generic::Block<Header, UncheckedExtrinsic>;
-	pub type UncheckedExtrinsic = sp_runtime::generic::UncheckedExtrinsic<u32, u64, RuntimeCall, ()>;
+	pub type UncheckedExtrinsic = sp_runtime::generic::UncheckedExtrinsic<u32, RuntimeCall, u64, ()>;
 
 	frame_support::construct_runtime!(
 		pub enum Test

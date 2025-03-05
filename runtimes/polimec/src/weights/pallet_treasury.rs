@@ -4,19 +4,20 @@
 //! THIS FILE WAS AUTO-GENERATED USING THE SUBSTRATE BENCHMARK CLI VERSION 39.0.0
 //! DATE: 2025-02-17, STEPS: `50`, REPEAT: `20`, LOW RANGE: `[]`, HIGH RANGE: `[]`
 //! WORST CASE MAP SIZE: `1000000`
-//! HOSTNAME: `ip-172-31-23-147`, CPU: `AMD EPYC 9R14`
+//! HOSTNAME: `MacBook-Pro-2.local`, CPU: `<UNKNOWN>`
 //! WASM-EXECUTION: `Compiled`, CHAIN: `Some("polimec-paseo-local")`, DB CACHE: 1024
 
 // Executed Command:
-// ./target/production/polimec-node
+// ./polimec-node
 // benchmark
 // pallet
 // --chain=polimec-paseo-local
-// --wasm-execution=compiled
-// --pallet=pallet_treasury
-// --extrinsic=*
 // --steps=50
 // --repeat=20
+// --pallet=pallet-treasury
+// --extrinsic=*
+// --wasm-execution=compiled
+// --heap-pages=4096
 // --output=./runtimes/polimec/src/weights/pallet_treasury.rs
 
 #![cfg_attr(rustfmt, rustfmt_skip)]
@@ -46,51 +47,6 @@ impl<T: frame_system::Config> pallet_treasury::WeightInfo for WeightInfo<T> {
 			.saturating_add(T::DbWeight::get().reads(2))
 			.saturating_add(T::DbWeight::get().writes(3))
 	}
-	/// Storage: `Treasury::ProposalCount` (r:1 w:1)
-	/// Proof: `Treasury::ProposalCount` (`max_values`: Some(1), `max_size`: Some(4), added: 499, mode: `MaxEncodedLen`)
-	/// Storage: `Treasury::Proposals` (r:0 w:1)
-	/// Proof: `Treasury::Proposals` (`max_values`: None, `max_size`: Some(108), added: 2583, mode: `MaxEncodedLen`)
-	fn propose_spend() -> Weight {
-		// Proof Size summary in bytes:
-		//  Measured:  `144`
-		//  Estimated: `1489`
-		// Minimum execution time: 19_040_000 picoseconds.
-		Weight::from_parts(19_551_000, 0)
-			.saturating_add(Weight::from_parts(0, 1489))
-			.saturating_add(T::DbWeight::get().reads(1))
-			.saturating_add(T::DbWeight::get().writes(2))
-	}
-	/// Storage: `Treasury::Proposals` (r:1 w:1)
-	/// Proof: `Treasury::Proposals` (`max_values`: None, `max_size`: Some(108), added: 2583, mode: `MaxEncodedLen`)
-	/// Storage: `System::Account` (r:2 w:2)
-	/// Proof: `System::Account` (`max_values`: None, `max_size`: Some(128), added: 2603, mode: `MaxEncodedLen`)
-	fn reject_proposal() -> Weight {
-		// Proof Size summary in bytes:
-		//  Measured:  `405`
-		//  Estimated: `6196`
-		// Minimum execution time: 28_470_000 picoseconds.
-		Weight::from_parts(29_450_000, 0)
-			.saturating_add(Weight::from_parts(0, 6196))
-			.saturating_add(T::DbWeight::get().reads(3))
-			.saturating_add(T::DbWeight::get().writes(3))
-	}
-	/// Storage: `Treasury::Proposals` (r:1 w:0)
-	/// Proof: `Treasury::Proposals` (`max_values`: None, `max_size`: Some(108), added: 2583, mode: `MaxEncodedLen`)
-	/// Storage: `Treasury::Approvals` (r:1 w:1)
-	/// Proof: `Treasury::Approvals` (`max_values`: Some(1), `max_size`: Some(402), added: 897, mode: `MaxEncodedLen`)
-	/// The range of component `p` is `[0, 99]`.
-	fn approve_proposal(p: u32, ) -> Weight {
-		// Proof Size summary in bytes:
-		//  Measured:  `470 + p * (8 ±0)`
-		//  Estimated: `3573`
-		// Minimum execution time: 6_820_000 picoseconds.
-		Weight::from_parts(9_397_656, 0)
-			.saturating_add(Weight::from_parts(0, 3573))
-			// Standard Error: 1_100
-			.saturating_add(Weight::from_parts(46_309, 0).saturating_mul(p.into()))
-			.saturating_add(T::DbWeight::get().reads(2))
-			.saturating_add(T::DbWeight::get().writes(1))
-	}
 	/// Storage: `Treasury::Approvals` (r:1 w:1)
 	/// Proof: `Treasury::Approvals` (`max_values`: Some(1), `max_size`: Some(402), added: 897, mode: `MaxEncodedLen`)
 	fn remove_approval() -> Weight {
@@ -107,10 +63,8 @@ impl<T: frame_system::Config> pallet_treasury::WeightInfo for WeightInfo<T> {
 	/// Proof: `System::Account` (`max_values`: None, `max_size`: Some(128), added: 2603, mode: `MaxEncodedLen`)
 	/// Storage: `Treasury::Deactivated` (r:1 w:1)
 	/// Proof: `Treasury::Deactivated` (`max_values`: Some(1), `max_size`: Some(16), added: 511, mode: `MaxEncodedLen`)
-	/// Storage: `Treasury::Approvals` (r:1 w:1)
-	/// Proof: `Treasury::Approvals` (`max_values`: Some(1), `max_size`: Some(402), added: 897, mode: `MaxEncodedLen`)
-	/// Storage: `Treasury::Proposals` (r:99 w:0)
-	/// Proof: `Treasury::Proposals` (`max_values`: None, `max_size`: Some(108), added: 2583, mode: `MaxEncodedLen`)
+	/// Storage: `Treasury::LastSpendPeriod` (r:1 w:1)
+	/// Proof: `Treasury::LastSpendPeriod` (`max_values`: Some(1), `max_size`: Some(4), added: 499, mode: `MaxEncodedLen`)
 	/// The range of component `p` is `[0, 99]`.
 	fn on_initialize_proposals(p: u32, ) -> Weight {
 		// Proof Size summary in bytes:
@@ -122,9 +76,7 @@ impl<T: frame_system::Config> pallet_treasury::WeightInfo for WeightInfo<T> {
 			// Standard Error: 5_644
 			.saturating_add(Weight::from_parts(2_911_854, 0).saturating_mul(p.into()))
 			.saturating_add(T::DbWeight::get().reads(3))
-			.saturating_add(T::DbWeight::get().reads((1_u64).saturating_mul(p.into())))
 			.saturating_add(T::DbWeight::get().writes(2))
-			.saturating_add(Weight::from_parts(0, 2583).saturating_mul(p.into()))
 	}
 	/// Storage: `Treasury::SpendCount` (r:1 w:1)
 	/// Proof: `Treasury::SpendCount` (`max_values`: Some(1), `max_size`: Some(4), added: 499, mode: `MaxEncodedLen`)

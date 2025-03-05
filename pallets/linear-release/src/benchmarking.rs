@@ -69,7 +69,7 @@ fn add_vesting_schedules<T: Config>(
 #[benchmarks(
 	where
 	T: Config + frame_system::Config<RuntimeEvent = <T as Config>::RuntimeEvent> + crate::Config,
-    <T as frame_system::Config>::AccountId: Into<<<T as frame_system::Config>::RuntimeOrigin as OriginTrait>::AccountId> + sp_std::fmt::Debug,
+    <T as frame_system::Config>::AccountId: Into<<<T as frame_system::Config>::RuntimeOrigin as OriginTrait>::AccountId> + core::fmt::Debug,
 )]
 mod benches {
 	use super::*;

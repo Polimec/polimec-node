@@ -17,23 +17,15 @@
 // If you feel like getting in touch with us, you can do so at info@polimec.org
 
 use cumulus_primitives_core::ParaId;
-use polimec_runtime::{AccountId, Signature};
-use polkadot_primitives::v7::LOWEST_PUBLIC_ID;
+use polkadot_primitives::v8::LOWEST_PUBLIC_ID;
 use sc_chain_spec::{ChainSpecExtension, ChainSpecGroup};
 use sc_service::Properties;
 use serde::{Deserialize, Serialize};
-use sp_core::{Pair, Public};
-use sp_runtime::traits::{IdentifyAccount, Verify};
 
 pub mod common;
 pub mod polimec_paseo;
 
 const DEFAULT_PARA_ID: ParaId = LOWEST_PUBLIC_ID;
-
-/// Helper function to generate a crypto pair from seed
-pub fn get_from_seed<TPublic: Public>(seed: &str) -> <TPublic::Pair as Pair>::Public {
-	TPublic::Pair::from_string(&format!("//{}", seed), None).expect("static values are valid; qed").public()
-}
 
 /// The extensions for the [`ChainSpec`].
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, ChainSpecGroup, ChainSpecExtension)]
@@ -55,16 +47,6 @@ impl Extensions {
 
 /// Generic chain spec for all the Polimec runtimes
 pub type GenericChainSpec = sc_service::GenericChainSpec<Extensions>;
-
-type AccountPublic = <Signature as Verify>::Signer;
-
-/// Helper function to generate an account ID from seed
-pub fn get_account_id_from_seed<TPublic: Public>(seed: &str) -> AccountId
-where
-	AccountPublic: From<<TPublic::Pair as Pair>::Public>,
-{
-	AccountPublic::from(get_from_seed::<TPublic>(seed)).into_account()
-}
 
 pub fn get_properties(symbol: &str, decimals: u32, ss58format: u32) -> Properties {
 	let mut properties = sc_chain_spec::Properties::new();
