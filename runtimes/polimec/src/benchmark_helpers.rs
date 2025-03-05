@@ -6,7 +6,7 @@ use frame_support::instances::Instance1;
 use pallet_funding::traits::SetPrices;
 use polimec_common::assets::AcceptedFundingAsset;
 use sp_runtime::{BoundedVec, FixedU128};
-use xcm::v4::Location;
+use xcm::v5::Location;
 
 pub struct SetOraclePrices;
 impl SetPrices for SetOraclePrices {

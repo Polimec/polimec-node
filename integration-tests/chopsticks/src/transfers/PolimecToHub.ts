@@ -45,6 +45,7 @@ export class PolimecToHubTransfer extends BaseTransferTest {
       .getXcmPallet()
       .transfer_assets(data)
       .signAndSubmit(this.sourceManager.getSigner(account));
+    console.dir(res, { depth: null });
 
     expect(res.ok).toBeTrue();
     return { sourceBlock, destBlock };

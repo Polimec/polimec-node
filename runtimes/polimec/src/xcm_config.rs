@@ -36,7 +36,7 @@ use polimec_common_test_utils::DummyXcmSender;
 use polkadot_parachain_primitives::primitives::Sibling;
 use polkadot_runtime_common::xcm_sender::NoPriceForMessageDelivery;
 use sp_runtime::traits::Zero;
-use xcm::v4::prelude::*;
+use xcm::v5::prelude::*;
 use xcm_builder::{
 	AccountId32Aliases, AllowExplicitUnpaidExecutionFrom, AllowKnownQueryResponses, AllowSubscriptionsFrom,
 	AllowTopLevelPaidExecutionFrom, DenyReserveTransferToRelayChain, DenyThenTry, EnsureXcmOrigin, FixedWeightBounds,
@@ -127,7 +127,7 @@ pub type ForeignAssetsConvertedConcreteId = assets_common::ForeignAssetsConverte
 		StartsWithExplicitGlobalConsensus<UniversalLocationNetworkId>,
 	),
 	Balance,
-	xcm::v4::Location,
+	xcm::v5::Location,
 >;
 
 /// `AssetId`/`Balance` converter for `ContributionTokens`.

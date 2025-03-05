@@ -68,7 +68,7 @@ pub struct PolimecPayload<AccountId> {
 pub type Did = BoundedVec<u8, ConstU32<64>>;
 pub type Cid = BoundedVec<u8, ConstU32<96>>;
 
-pub struct EnsureInvestor<T>(sp_std::marker::PhantomData<T>);
+pub struct EnsureInvestor<T>(core::marker::PhantomData<T>);
 impl<T> EnsureOriginWithCredentials<T::RuntimeOrigin> for EnsureInvestor<T>
 where
 	T: frame_system::Config + pallet_timestamp::Config,

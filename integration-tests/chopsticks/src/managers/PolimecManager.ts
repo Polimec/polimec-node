@@ -1,10 +1,16 @@
-import { type Accounts, Asset, AssetLocation, AssetSourceRelation, Chains } from '@/types';
-import { flatObject } from '@/utils.ts';
-import { polimec } from '@polkadot-api/descriptors';
-import { createClient } from 'polkadot-api';
-import { withPolkadotSdkCompat } from 'polkadot-api/polkadot-sdk-compat';
-import { getWsProvider } from 'polkadot-api/ws-provider/web';
-import { BaseChainManager } from './BaseManager';
+import {
+  type Accounts,
+  Asset,
+  AssetLocation,
+  AssetSourceRelation,
+  Chains,
+} from "@/types";
+import { flatObject } from "@/utils.ts";
+import { polimec } from "@polkadot-api/descriptors";
+import { createClient } from "polkadot-api";
+import { withPolkadotSdkCompat } from "polkadot-api/polkadot-sdk-compat";
+import { getWsProvider } from "polkadot-api/ws-provider/web";
+import { BaseChainManager } from "./BaseManager";
 
 export class PolimecManager extends BaseChainManager {
   private chain = Chains.Polimec;
@@ -36,7 +42,7 @@ export class PolimecManager extends BaseChainManager {
   }
 
   getTreasuryAccount() {
-    return '58kXueYKLr5b8yCeY3Gd1nLQX2zSJLXjfMzTAuksNq25CFEL' as Accounts;
+    return "58kXueYKLr5b8yCeY3Gd1nLQX2zSJLXjfMzTAuksNq25CFEL" as Accounts;
   }
 
   getAssetSourceRelation(asset: Asset): AssetSourceRelation {
@@ -59,8 +65,12 @@ export class PolimecManager extends BaseChainManager {
     const api = this.getApi(Chains.Polimec);
     const asset_source_relation = this.getAssetSourceRelation(asset);
     const asset_location = AssetLocation(asset, asset_source_relation).value;
-    const account_balances_result = await api.apis.FungiblesApi.query_account_balances(account);
-    if (account_balances_result.success === true && account_balances_result.value.type === 'V4') {
+    const account_balances_result =
+      await api.apis.FungiblesApi.query_account_balances(account);
+    if (
+      account_balances_result.success === true &&
+      account_balances_result.value.type === "V4"
+    ) {
       const assets = account_balances_result.value.value;
       for (const asset of assets) {
         if (Bun.deepEquals(flatObject(asset.id), flatObject(asset_location))) {

@@ -19,6 +19,8 @@
 // Needed due to empty sections raising the warning
 #![allow(unreachable_patterns)]
 
+extern crate alloc;
+
 use crate::{
 	traits::FetchPrice,
 	types::{
@@ -26,6 +28,7 @@ use crate::{
 		OpenCloseVolume, XTFetcher,
 	},
 };
+use alloc::{collections::btree_map::BTreeMap, vec, vec::Vec};
 use core::ops::Rem;
 use frame_support::{pallet_prelude::*, traits::Contains};
 use frame_system::{
@@ -43,7 +46,6 @@ use sp_runtime::{
 	traits::{Convert, IdentifyAccount, Saturating, Zero},
 	FixedU128, RuntimeAppPublic,
 };
-use sp_std::{collections::btree_map::BTreeMap, vec, vec::Vec};
 
 mod mock;
 mod tests;

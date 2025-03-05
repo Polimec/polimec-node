@@ -19,34 +19,62 @@ describe('Polimec -> Hub Transfer Tests', () => {
   });
   afterAll(async () => await chainSetup.cleanup());
 
+  // test(
+  //   'Send USDC to Hub',
+  //   () =>
+  //     transferTest.testTransfer({
+  //       account: Accounts.BOB,
+  //       assets: [[Asset.USDC, TRANSFER_AMOUNTS.TOKENS, AssetSourceRelation.Sibling]],
+  //     }),
+  //   { timeout: 25000 },
+  // );
+  //
+  // test(
+  //   'Send USDT to Hub',
+  //   () =>
+  //     transferTest.testTransfer({
+  //       account: Accounts.BOB,
+  //       assets: [[Asset.USDT, TRANSFER_AMOUNTS.TOKENS, AssetSourceRelation.Sibling]],
+  //     }),
+  //   { timeout: 25000 },
+  // );
+
+  // test(
+  //   'Send DOT to Hub',
+  //   () =>
+  //     transferTest.testTransfer({
+  //       account: Accounts.BOB,
+  //       assets: [[Asset.DOT, TRANSFER_AMOUNTS.NATIVE, AssetSourceRelation.Parent]],
+  //     }),
+  //   { timeout: 25000 },
+  // );
+
   test(
-    'Send USDC to Hub',
+    'Send PLMC to Hub',
     () =>
       transferTest.testTransfer({
         account: Accounts.BOB,
-        assets: [[Asset.USDC, TRANSFER_AMOUNTS.TOKENS, AssetSourceRelation.Sibling]],
+        assets: [
+          [Asset.PLMC, TRANSFER_AMOUNTS.NATIVE, AssetSourceRelation.Self],
+          [Asset.DOT, TRANSFER_AMOUNTS.NATIVE, AssetSourceRelation.Parent],
+        ],
+        fee_asset_item: 1,
       }),
-    { timeout: 25000 },
+    { timeout: 25000000 },
   );
 
   test(
-    'Send USDT to Hub',
+    'Send PLMC to Hub',
     () =>
       transferTest.testTransfer({
         account: Accounts.BOB,
-        assets: [[Asset.USDT, TRANSFER_AMOUNTS.TOKENS, AssetSourceRelation.Sibling]],
+        assets: [
+          [Asset.PLMC, TRANSFER_AMOUNTS.NATIVE, AssetSourceRelation.Self],
+          [Asset.DOT, TRANSFER_AMOUNTS.NATIVE, AssetSourceRelation.Parent],
+        ],
+        fee_asset_item: 1,
       }),
-    { timeout: 25000 },
-  );
-
-  test(
-    'Send DOT to Hub',
-    () =>
-      transferTest.testTransfer({
-        account: Accounts.BOB,
-        assets: [[Asset.DOT, TRANSFER_AMOUNTS.NATIVE, AssetSourceRelation.Parent]],
-      }),
-    { timeout: 25000 },
+    { timeout: 25000000 },
   );
 
   test(

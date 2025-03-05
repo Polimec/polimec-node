@@ -148,6 +148,9 @@
 // Needed due to empty sections raising the warning
 #![allow(unreachable_patterns)]
 
+extern crate alloc;
+
+use alloc::{vec, vec::Vec};
 use frame_support::{
 	ensure,
 	error::BadOrigin,
@@ -166,8 +169,6 @@ use sp_runtime::{
 	traits::{Bounded as ArithBounded, One, Saturating, StaticLookup, Zero},
 	ArithmeticError, DispatchError, DispatchResult,
 };
-
-use sp_std::prelude::*;
 
 mod conviction;
 mod traits;
@@ -435,7 +436,7 @@ pub mod pallet {
 	#[derive(frame_support::DefaultNoBound)]
 	pub struct GenesisConfig<T: Config> {
 		#[serde(skip)]
-		_config: sp_std::marker::PhantomData<T>,
+		_config: core::marker::PhantomData<T>,
 	}
 
 	#[pallet::genesis_build]
@@ -1374,7 +1375,7 @@ impl<T: Config> Pallet<T> {
 				delegations: Default::default(),
 				prior: Default::default(),
 			};
-			sp_std::mem::swap(&mut old, voting);
+			core::mem::swap(&mut old, voting);
 			match old {
 				Voting::Delegating { balance, target, conviction, delegations, mut prior, .. } => {
 					// remove any delegation votes to our current target.
@@ -1407,7 +1408,7 @@ impl<T: Config> Pallet<T> {
 	fn try_undelegate(who: T::AccountId) -> Result<u32, DispatchError> {
 		let votes = VotingOf::<T>::try_mutate(&who, |voting| -> Result<u32, DispatchError> {
 			let mut old = Voting::default();
-			sp_std::mem::swap(&mut old, voting);
+			core::mem::swap(&mut old, voting);
 			match old {
 				Voting::Delegating { balance, target, conviction, delegations, mut prior } => {
 					// remove any delegation votes to our current target.
