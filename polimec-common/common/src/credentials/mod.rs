@@ -19,7 +19,7 @@ use pallet_timestamp::Now;
 use parity_scale_codec::{Decode, Encode};
 use scale_info::{prelude::string::String, TypeInfo};
 use serde::{de::Error, ser::SerializeStruct, Serializer};
-use sp_runtime::{traits::BadOrigin, DeserializeOwned, RuntimeDebug};
+use sp_runtime::{traits::BadOrigin, DeserializeOwned};
 
 pub use jwt_compact::{
 	alg::{Ed25519, VerifyingKey},
@@ -27,9 +27,7 @@ pub use jwt_compact::{
 };
 use serde::Deserializer;
 
-#[derive(
-	Clone, Encode, Decode, Eq, PartialEq, Ord, PartialOrd, RuntimeDebug, TypeInfo, Deserialize, Serialize, MaxEncodedLen,
-)]
+#[derive(Clone, Copy, Encode, Decode, Eq, PartialEq, TypeInfo, Deserialize, Serialize, MaxEncodedLen, RuntimeDebug)]
 #[serde(rename_all = "lowercase")]
 pub enum InvestorType {
 	Retail,
@@ -54,8 +52,8 @@ parameter_types! {
 	pub const Institutional: InvestorType = InvestorType::Institutional;
 }
 
-#[derive(Clone, Encode, Decode, Eq, PartialEq, Ord, PartialOrd, RuntimeDebug, TypeInfo, Deserialize)]
-pub struct SampleClaims<AccountId> {
+#[derive(Clone, Encode, Decode, Eq, PartialEq, TypeInfo, Deserialize)]
+pub struct PolimecPayload<AccountId> {
 	#[serde(rename = "sub")]
 	pub subject: AccountId,
 	#[serde(rename = "iss")]
@@ -75,7 +73,7 @@ impl<T> EnsureOriginWithCredentials<T::RuntimeOrigin> for EnsureInvestor<T>
 where
 	T: frame_system::Config + pallet_timestamp::Config,
 {
-	type Claims = SampleClaims<T::AccountId>;
+	type Claims = PolimecPayload<T::AccountId>;
 	type Success = (T::AccountId, Did, InvestorType, Cid);
 
 	fn try_origin(
@@ -86,19 +84,14 @@ where
 		let Some(who) = origin.clone().into_signer() else { return Err(origin) };
 		let Ok(token) = Self::verify_token(token, verifying_key) else { return Err(origin) };
 		let claims = token.claims();
-		// Get the current timestamp from the pallet_timestamp. It is in milliseconds.
+		// Get current timestamp from pallet_timestamp (milliseconds)
 		let Ok(now) = Now::<T>::get().try_into() else { return Err(origin) };
 		let Some(date_time) = claims.expiration else { return Err(origin) };
 
 		let timestamp: u64 = date_time.timestamp_millis().try_into().map_err(|_| origin.clone())?;
 
 		if claims.custom.subject == who && timestamp >= now {
-			return Ok((
-				who,
-				claims.custom.did.clone(),
-				claims.custom.investor_type.clone(),
-				claims.custom.ipfs_cid.clone(),
-			));
+			return Ok((who, claims.custom.did.clone(), claims.custom.investor_type, claims.custom.ipfs_cid.clone()));
 		}
 
 		Err(origin)
@@ -111,7 +104,7 @@ where
 	OuterOrigin: OriginTrait,
 {
 	type Success;
-	type Claims: Clone + Encode + Decode + Eq + PartialEq + Ord + PartialOrd + TypeInfo + DeserializeOwned;
+	type Claims: Clone + Encode + Decode + Eq + PartialEq + TypeInfo + DeserializeOwned;
 
 	fn try_origin(
 		origin: OuterOrigin,
@@ -142,8 +135,8 @@ where
 	D: Deserializer<'de>,
 {
 	String::deserialize(deserializer)
-		.map(|string| string.as_bytes().to_vec())
-		.and_then(|vec| vec.try_into().map_err(|_| Error::custom("failed to deserialize")))
+		.map(|string| string.into_bytes())
+		.and_then(|vec| BoundedVec::try_from(vec).map_err(|_| Error::custom("DID exceeds length limit")))
 }
 
 pub fn from_bounded_cid<'de, D>(deserializer: D) -> Result<Cid, D::Error>
@@ -151,40 +144,31 @@ where
 	D: Deserializer<'de>,
 {
 	String::deserialize(deserializer)
-		.map(|string| string.as_bytes().to_vec())
-		.and_then(|vec| vec.try_into().map_err(|_| Error::custom("failed to deserialize")))
+		.map(|string| string.into_bytes())
+		.and_then(|vec| BoundedVec::try_from(vec).map_err(|_| Error::custom("CID exceeds length limit")))
 }
 
-impl<AccountId> Serialize for SampleClaims<AccountId>
+// Key corrected serialization implementation
+impl<AccountId> Serialize for PolimecPayload<AccountId>
 where
-	AccountId: Serialize, // Ensure AccountId can be serialized
+	AccountId: Serialize,
 {
 	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
 	where
 		S: Serializer,
 	{
 		// Define how many fields we are serializing.
-		let mut state = serializer.serialize_struct("SampleClaims", 5)?;
+		let mut state = serializer.serialize_struct("PolimecPayload", 5)?;
 
 		// Serialize each field.
 		// Fields like `subject`, `issuer`, and `investor_type` can be serialized directly.
 		state.serialize_field("sub", &self.subject)?;
 		state.serialize_field("iss", &self.issuer)?;
-		// For the `ipfs_cid_string` field, you'd use your custom logic to convert it to a string or another format suitable for serialization.
-		// Assuming `cid` is a `BoundedVec<u8, ConstU32<96>>` and you're encoding it as a UTF-8 string.
-		let ipfs_cid_bytes: scale_info::prelude::vec::Vec<u8> = self.ipfs_cid.clone().into(); // Convert BoundedVec to Vec<u8>
-		let ipfs_cid_string = String::from_utf8_lossy(&ipfs_cid_bytes); // Convert Vec<u8> to String
-		state.serialize_field("aud", &ipfs_cid_string)?;
-
 		state.serialize_field("investor_type", &self.investor_type)?;
-
-		// For the `did` field, you'd use your custom logic to convert it to a string or another format suitable for serialization.
-		// Assuming `did` is a `BoundedVec<u8, ConstU32<57>>` and you're encoding it as a UTF-8 string.
-		let did_bytes: scale_info::prelude::vec::Vec<u8> = self.did.clone().into(); // Convert BoundedVec to Vec<u8>
-		let did_string = String::from_utf8_lossy(&did_bytes); // Convert Vec<u8> to String
-		state.serialize_field("did", &did_string)?;
-
-		// End the serialization
+		// Serialize the `ipfs_cid` and `did` fields as strings.
+		state
+			.serialize_field("aud", core::str::from_utf8(&self.ipfs_cid).map_err(|e| serde::ser::Error::custom(e))?)?;
+		state.serialize_field("did", core::str::from_utf8(&self.did).map_err(|e| serde::ser::Error::custom(e))?)?;
 		state.end()
 	}
 }
