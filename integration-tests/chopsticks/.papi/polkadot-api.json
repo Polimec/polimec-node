@@ -1,0 +1,24 @@
+{
+  "version": 0,
+  "descriptorPath": ".papi/descriptors",
+  "entries": {
+    "polkadot": {
+      "wsUrl": "wss://rpc.ibp.network/polkadot",
+      "metadata": ".papi/metadata/polkadot.scale",
+      "genesis": "0x91b171bb158e2d3848fa23a9f1c25182fb8e20313b2c1eb49219da7a70ce90c3"
+    },
+    "bridge": {
+      "wsUrl": "wss://sys.ibp.network/bridgehub-polkadot",
+      "metadata": ".papi/metadata/bridge.scale",
+      "genesis": "0xdcf691b5a3fbe24adc99ddc959c0561b973e329b1aef4c4b22e7bb2ddecb4464"
+    },
+    "pah": {
+      "wsUrl": "wss://sys.ibp.network/statemint",
+      "metadata": ".papi/metadata/pah.scale",
+      "genesis": "0x68d56f15f85d3136970ec16946040bc1752654e906147f7e43e9d539d7c3de2f"
+    },
+    "polimec": {
+      "metadata": ".papi/metadata/polimec.scale"
+    }
+  }
+}

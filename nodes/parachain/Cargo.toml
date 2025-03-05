@@ -103,3 +103,18 @@ try-runtime = [
 ]
 on-chain-release-build = [ "polimec-runtime/on-chain-release-build" ]
 development-settings = [ "polimec-runtime/development-settings" ]
+std = [
+	"cumulus-primitives-core/std",
+	"frame-benchmarking/std",
+	"log/std",
+	"pallet-funding/std",
+	"polimec-common/std",
+	"polkadot-primitives/std",
+	"serde/std",
+	"sp-api/std",
+	"sp-block-builder/std",
+	"sp-consensus-aura/std",
+	"sp-core/std",
+	"sp-runtime/std",
+	"xcm/std"
+]

@@ -73,7 +73,7 @@ macros-tests = { path = "macros/tests" }
 # External pallets (with default disabled)
 orml-oracle = { version = "0.13.0", default-features = false }
 orml-traits = { version = "0.13.0", default-features = false }
-jwt-compact = { git = "https://github.com/lrazovic/jwt-compact", default-features = false }
+jwt-compact = { version = "0.9.0-beta.0", package = "jwt-compact-frame", default-features = false }
 
 # Internal support (with default disabled)
 shared-configuration = { path = "runtimes/shared-configuration", default-features = false }
@@ -81,7 +81,7 @@ polimec-common = { path = "polimec-common/common", default-features = false }
 polimec-common-test-utils = { path = "polimec-common/test-utils", default-features = false }
 
 # External support (with default disabled)
-substrate-fixed = { git = "https://github.com/encointer/substrate-fixed", default-features = false }
+substrate-fixed = { version = "0.5.9", default-features = false }
 
 # External (without extra features and with default disabled if necessary)
 parity-scale-codec = { version = "3.6.12", default-features = false }

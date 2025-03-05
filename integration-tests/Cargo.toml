@@ -149,6 +149,7 @@ std = [
 	"xcm-executor/std",
 	"xcm-fee-payment-runtime-api/std",
 	"xcm/std",
+	"assets-common/std"
 ]
 development-settings = [ "polimec-runtime/development-settings" ]
 runtime-benchmarks = [

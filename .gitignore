@@ -22,5 +22,5 @@ genesis-wasm
 fly.toml
 bin/
 integration-tests/chopsticks/db/*
-/integration-tests/chopsticks/node_modules/*
-/integration-tests/chopsticks/.papi/*
+integration-tests/chopsticks/node_modules/*
+integration-tests/chopsticks/.papi/descriptors/*
