@@ -81,7 +81,6 @@ use frame_support::{
 };
 use frame_system::pallet_prelude::BlockNumberFor;
 pub use pallet::*;
-use pallet_xcm::ensure_response;
 use polimec_common::{
 	credentials::{Cid, Did, EnsureOriginWithCredentials, InvestorType, UntrustedToken},
 	migration_types::{Migration, MigrationStatus},
@@ -92,7 +91,7 @@ use sp_arithmetic::traits::{One, Saturating};
 use sp_runtime::{traits::AccountIdConversion, FixedPointNumber, FixedU128};
 use sp_std::prelude::*;
 pub use types::*;
-use xcm::v4::{prelude::*, SendXcm};
+use xcm::v4::prelude::*;
 
 pub mod functions;
 pub mod storage_migrations;
@@ -145,7 +144,6 @@ pub mod pallet {
 	#[allow(clippy::wildcard_imports)]
 	use super::*;
 	use crate::traits::{BondingRequirementCalculation, VestingDurationCalculation};
-	use core::ops::RangeInclusive;
 	use frame_support::{
 		pallet_prelude::*,
 		storage::KeyPrefixIterator,
@@ -174,7 +172,6 @@ pub mod pallet {
 	pub trait Config:
 		frame_system::Config<Nonce = u32>
 		+ pallet_balances::Config<Balance = Balance>
-		+ pallet_xcm::Config
 		+ pallet_linear_release::Config<Balance = Balance, RuntimeHoldReason = RuntimeHoldReasonOf<Self>>
 		+ pallet_proxy_bonding::Config<
 			RuntimeHoldReason = RuntimeHoldReasonOf<Self>,
@@ -200,10 +197,6 @@ pub mod pallet {
 
 		/// BlockNumber used for PLMC vesting durations on this chain, and CT vesting durations on funded chains.
 		type BlockNumber: IsType<BlockNumberFor<Self>> + Into<u64>;
-
-		/// The length (expressed in number of blocks) of the Community Round.
-		#[pallet::constant]
-		type CommunityRoundDuration: Get<BlockNumberFor<Self>>;
 
 		/// The currency used for minting contribution tokens as fungible assets (i.e pallet-assets)
 		type ContributionTokenCurrency: fungibles::Create<AccountIdOf<Self>, AssetId = ProjectId, Balance = Balance>
@@ -257,16 +250,8 @@ pub mod pallet {
 			Success = (AccountIdOf<Self>, Did, InvestorType, Cid),
 		>;
 
-		/// Range of max_capacity_thresholds values for the hrmp config where we accept the incoming channel request
-		#[pallet::constant]
-		type MaxCapacityThresholds: Get<RangeInclusive<u32>>;
-
 		#[pallet::constant]
 		type MinUsdPerEvaluation: Get<Balance>;
-
-		/// RangeInclusive of max_message_size values for the hrmp config where we accept the incoming channel request
-		#[pallet::constant]
-		type MaxMessageSizeThresholds: Get<RangeInclusive<u32>>;
 
 		/// Multiplier type that decides how much PLMC needs to be bonded for a token buy/bid
 		type Multiplier: Parameter
@@ -295,21 +280,6 @@ pub mod pallet {
 
 		/// Method to get the price of an asset like USDT or PLMC. Likely to come from an oracle
 		type PriceProvider: ProvideAssetPrice<AssetId = AssetIdOf<Self>, Price = Self::Price>;
-
-		/// The length (expressed in number of blocks) of the Remainder Round.
-		#[pallet::constant]
-		type RemainderRoundDuration: Get<BlockNumberFor<Self>>;
-
-		/// max_capacity config required for the channel from polimec to the project
-		#[pallet::constant]
-		type RequiredMaxCapacity: Get<u32>;
-
-		/// max_message_size config required for the channel from polimec to the project
-		#[pallet::constant]
-		type RequiredMaxMessageSize: Get<u32>;
-
-		/// The runtime enum constructed by the construct_runtime macro
-		type RuntimeCall: Parameter + IsType<<Self as pallet_xcm::Config>::RuntimeCall> + From<Call<Self>>;
 
 		/// The event enum constructed by the construct_runtime macro
 		type RuntimeEvent: From<Event<Self>>
@@ -656,6 +626,8 @@ pub mod pallet {
 		SettlementNotComplete,
 		/// Tried to mark a project's CT migration as finished but there are still migrations to be confirmed
 		MigrationsStillPending,
+		/// Tried to confirm an already confirmed user CT migration
+		MigrationAlreadyConfirmed,
 	}
 
 	#[pallet::call]
@@ -895,8 +867,7 @@ pub mod pallet {
 		}
 
 		#[pallet::call_index(20)]
-		#[pallet::weight(WeightInfoOf::<T>::start_settlement())]
-		// TODO: Change weight after benchmarks
+		#[pallet::weight(WeightInfoOf::<T>::start_offchain_migration())]
 		pub fn confirm_offchain_migration(
 			origin: OriginFor<T>,
 			project_id: ProjectId,
@@ -905,73 +876,6 @@ pub mod pallet {
 			let caller = ensure_signed(origin)?;
 
 			Self::do_confirm_offchain_migration(project_id, caller, participant)
-		}
-
-		#[pallet::call_index(21)]
-		#[pallet::weight(WeightInfoOf::<T>::start_pallet_migration())]
-		pub fn start_pallet_migration(
-			origin: OriginFor<T>,
-			jwt: UntrustedToken,
-			project_id: ProjectId,
-			para_id: ParaId,
-		) -> DispatchResultWithPostInfo {
-			let (account, _did, investor_type, _cid) =
-				T::InvestorOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get())?;
-			ensure!(investor_type == InvestorType::Institutional, Error::<T>::WrongInvestorType);
-
-			Self::do_start_pallet_migration(&account, project_id, para_id)
-		}
-
-		#[pallet::call_index(22)]
-		#[pallet::weight(WeightInfoOf::<T>::start_pallet_migration_readiness_check())]
-		pub fn start_pallet_migration_readiness_check(
-			origin: OriginFor<T>,
-			jwt: UntrustedToken,
-			project_id: ProjectId,
-		) -> DispatchResultWithPostInfo {
-			let (account, _did, investor_type, _cid) =
-				T::InvestorOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get())?;
-			ensure!(investor_type == InvestorType::Institutional, Error::<T>::WrongInvestorType);
-			Self::do_start_pallet_migration_readiness_check(&account, project_id)
-		}
-
-		/// Called only by other chains through a query response xcm message
-		#[pallet::call_index(23)]
-		#[pallet::weight(WeightInfoOf::<T>::pallet_migration_readiness_response_pallet_info()
-		.max(WeightInfoOf::<T>::pallet_migration_readiness_response_holding()))]
-		pub fn pallet_migration_readiness_response(
-			origin: OriginFor<T>,
-			query_id: QueryId,
-			response: Response,
-		) -> DispatchResult {
-			let location = ensure_response(<T as Config>::RuntimeOrigin::from(origin))?;
-
-			Self::do_pallet_migration_readiness_response(location, query_id, response)
-		}
-
-		#[pallet::call_index(24)]
-		#[pallet::weight(WeightInfoOf::<T>::start_settlement())]
-		// TODO: Change weight after benchmarks
-		pub fn send_pallet_migration_for(
-			origin: OriginFor<T>,
-			project_id: ProjectId,
-			participant: AccountIdOf<T>,
-		) -> DispatchResult {
-			let _caller = ensure_signed(origin)?;
-			Self::do_send_pallet_migration_for(project_id, participant)
-		}
-
-		#[pallet::call_index(25)]
-		#[pallet::weight(WeightInfoOf::<T>::start_settlement())]
-		// TODO: Change weight after benchmarks
-		pub fn confirm_pallet_migrations(
-			origin: OriginFor<T>,
-			query_id: QueryId,
-			response: Response,
-		) -> DispatchResult {
-			let location = ensure_response(<T as Config>::RuntimeOrigin::from(origin))?;
-
-			Self::do_confirm_pallet_migrations(location, query_id, response)
 		}
 
 		#[pallet::call_index(26)]
@@ -1022,24 +926,6 @@ pub mod pallet {
 			}
 
 			weight_consumed
-		}
-	}
-}
-
-pub mod xcm_executor_impl {
-	#[allow(clippy::wildcard_imports)]
-	use super::*;
-	use xcm_executor::traits::{HandleHrmpChannelAccepted, HandleHrmpNewChannelOpenRequest};
-
-	impl<T: Config> HandleHrmpChannelAccepted for Pallet<T> {
-		fn handle(recipient: u32) -> XcmResult {
-			<Pallet<T>>::do_handle_channel_accepted(recipient)
-		}
-	}
-
-	impl<T: Config> HandleHrmpNewChannelOpenRequest for Pallet<T> {
-		fn handle(sender: u32, max_message_size: u32, max_capacity: u32) -> XcmResult {
-			<Pallet<T>>::do_handle_channel_open_request(sender, max_message_size, max_capacity)
 		}
 	}
 }

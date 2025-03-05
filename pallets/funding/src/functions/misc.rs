@@ -236,70 +236,6 @@ impl<T: Config> Pallet<T> {
 		Ok((liquidity_pools_reward_pot, long_term_holder_reward_pot))
 	}
 
-	pub fn migrations_per_xcm_message_allowed() -> u32 {
-		const MAX_WEIGHT: Weight = Weight::from_parts(20_000_000_000, 1_000_000);
-
-		let one_migration_bytes = (0u128, 0u64).encode().len() as u32;
-
-		// our encoded call starts with pallet index 51, and call index 0
-		let mut encoded_call = vec![51u8, 0];
-		let encoded_first_param = [0u8; 32].encode();
-		let encoded_second_param = Vec::<MigrationInfo>::new().encode();
-		// we append the encoded parameters, with our migrations vec being empty for now
-		encoded_call.extend_from_slice(encoded_first_param.as_slice());
-		encoded_call.extend_from_slice(encoded_second_param.as_slice());
-
-		let base_xcm_message: Xcm<()> = Xcm(vec![
-			UnpaidExecution { weight_limit: WeightLimit::Unlimited, check_origin: None },
-			Transact { origin_kind: OriginKind::Native, require_weight_at_most: MAX_WEIGHT, call: encoded_call.into() },
-			ReportTransactStatus(QueryResponseInfo {
-				destination: Parachain(3344).into(),
-				query_id: 0,
-				max_weight: MAX_WEIGHT,
-			}),
-		]);
-		let xcm_size = base_xcm_message.encode().len();
-
-		let available_bytes_for_migration_per_message =
-			T::RequiredMaxMessageSize::get().saturating_sub(xcm_size as u32);
-
-		available_bytes_for_migration_per_message.saturating_div(one_migration_bytes)
-	}
-
-	// /// Check if the user has no participations (left) in the project.
-	// pub fn user_has_no_participations(project_id: ProjectId, user: AccountIdOf<T>) -> bool {
-	// 	Evaluations::<T>::iter_prefix_values((project_id, user.clone())).next().is_none() &&
-	// 		Bids::<T>::iter_prefix_values((project_id, user.clone())).next().is_none()
-	// }
-
-	pub fn construct_migration_xcm_message(
-		migrations: WeakBoundedVec<Migration, ConstU32<10_000>>,
-		query_id: QueryId,
-		pallet_index: PalletIndex,
-	) -> Xcm<()> {
-		// TODO: adjust this as benchmarks for polimec-receiver are written
-		const MAX_WEIGHT: Weight = Weight::from_parts(10_000, 0);
-		const MAX_RESPONSE_WEIGHT: Weight = Weight::from_parts(700_000_000, 50_000);
-		let migrations_item = Migrations::from(migrations.to_vec());
-
-		// First byte is the pallet index, second byte is the call index
-		let mut encoded_call = vec![pallet_index, 0];
-
-		// migrations_item can contain a Maximum of MaxParticipationsPerUser migrations which
-		// is 48. So we know that there is an upper limit to this encoded call, namely 48 *
-		// Migration encode size.
-		encoded_call.extend_from_slice(migrations_item.encode().as_slice());
-		Xcm(vec![
-			UnpaidExecution { weight_limit: WeightLimit::Unlimited, check_origin: None },
-			Transact { origin_kind: OriginKind::Native, require_weight_at_most: MAX_WEIGHT, call: encoded_call.into() },
-			ReportTransactStatus(QueryResponseInfo {
-				destination: ParentThen(Parachain(POLIMEC_PARA_ID).into()).into(),
-				query_id,
-				max_weight: MAX_RESPONSE_WEIGHT,
-			}),
-		])
-	}
-
 	pub fn change_migration_status(
 		project_id: ProjectId,
 		user: T::AccountId,
@@ -309,22 +245,9 @@ impl<T: Config> Pallet<T> {
 		let (current_status, migrations) =
 			UserMigrations::<T>::get((project_id, user.clone())).ok_or(Error::<T>::NoMigrationsFound)?;
 
-		let status = match status {
-			MigrationStatus::Sent(_)
-				if matches!(current_status, MigrationStatus::NotStarted | MigrationStatus::Failed) =>
-				status,
-			MigrationStatus::Confirmed
-				if matches!(project_details.migration_type, Some(MigrationType::Offchain)) ||
-					(matches!(project_details.migration_type, Some(MigrationType::Pallet(_))) &&
-						matches!(current_status, MigrationStatus::Sent(_))) =>
-			{
-				UnmigratedCounter::<T>::mutate(project_id, |counter| *counter = counter.saturating_sub(1));
-				status
-			},
-			MigrationStatus::Failed if matches!(current_status, MigrationStatus::Sent(_)) => status,
+		ensure!(current_status == MigrationStatus::NotStarted, Error::<T>::MigrationAlreadyConfirmed);
 
-			_ => return Err(Error::<T>::NotAllowed.into()),
-		};
+		UnmigratedCounter::<T>::mutate(project_id, |counter| *counter = counter.saturating_sub(1));
 		UserMigrations::<T>::insert((project_id, user), (status, migrations));
 		ProjectsDetails::<T>::insert(project_id, project_details);
 

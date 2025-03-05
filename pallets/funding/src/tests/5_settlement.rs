@@ -331,7 +331,7 @@ mod settle_evaluation_extrinsic {
 
 			let evals = vec![(EVALUATOR_1, EVAL_1_REWARD), (EVALUATOR_2, EVAL_2_REWARD), (EVALUATOR_3, EVAL_3_REWARD)];
 
-			for (index, (evaluator, expected_reward)) in evals.into_iter().enumerate() {
+			for (_index, (evaluator, expected_reward)) in evals.into_iter().enumerate() {
 				let evaluation_locked_plmc =
 					inst.get_reserved_plmc_balance_for(evaluator, HoldReason::Evaluation.into());
 				let free_plmc = inst.get_free_plmc_balance_for(evaluator);
@@ -349,7 +349,6 @@ mod settle_evaluation_extrinsic {
 					project_id,
 					evaluator,
 					expected_reward,
-					index as u32,
 					ParticipationType::Evaluation,
 					polkadot_junction!(evaluator),
 					true,
@@ -559,7 +558,6 @@ mod settle_bid_extrinsic {
 				project_id,
 				BIDDER_1,
 				auction_allocation - 2000 * CT_UNIT,
-				0,
 				ParticipationType::Bid,
 				polkadot_junction!(BIDDER_1),
 				true,
@@ -638,7 +636,6 @@ mod settle_bid_extrinsic {
 				project_id,
 				BIDDER_1,
 				auction_allocation / 2,
-				0,
 				ParticipationType::Bid,
 				polkadot_junction!(BIDDER_1),
 				true,

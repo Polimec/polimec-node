@@ -528,8 +528,6 @@ fn e2e_test() {
 		);
 
 		for (user, ct_rewarded, plmc_bonded) in final_payouts() {
-			let names = names();
-
 			let user: PolimecAccountId = user.into();
 			let ct_rewarded = FixedU128::from_float(ct_rewarded).saturating_mul_int(CT_UNIT);
 			let plmc_bonded = FixedU128::from_float(plmc_bonded).saturating_mul_int(PLMC);

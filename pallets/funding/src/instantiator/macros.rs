@@ -41,6 +41,17 @@ macro_rules! assert_close_enough {
 }
 
 #[macro_export]
+macro_rules! is_close_enough {
+	($real:expr, $desired:expr, $min_percentage:expr) => {{
+		if $real <= $desired {
+			Perquintill::from_rational($real, $desired) >= $min_percentage
+		} else {
+			Perquintill::from_rational($desired, $real) >= $min_percentage
+		}
+	}};
+}
+
+#[macro_export]
 macro_rules! find_event {
     ($runtime:ty, $pattern:pat, $($field_name:ident == $field_value:expr),+) => {
 	    {

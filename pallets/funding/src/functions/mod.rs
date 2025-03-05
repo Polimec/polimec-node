@@ -9,7 +9,7 @@ use frame_support::{
 		fungible::{Mutate, MutateHold as FungibleMutateHold},
 		fungibles::{
 			metadata::{Inspect as MetadataInspect, Mutate as MetadataMutate},
-			Create, Inspect as FungibleInspect, Mutate as FungiblesMutate,
+			Create, Mutate as FungiblesMutate,
 		},
 		tokens::{Precision, Preservation},
 		Get,
@@ -19,14 +19,11 @@ use frame_support::{
 use frame_system::pallet_prelude::BlockNumberFor;
 use polimec_common::{
 	credentials::{Did, InvestorType},
-	migration_types::{MigrationInfo, Migrations},
 	USD_DECIMALS,
 };
 use sp_arithmetic::{traits::Zero, Percent, Perquintill};
 use sp_runtime::traits::Convert;
 
-const POLIMEC_PARA_ID: u32 = 3344u32;
-const QUERY_RESPONSE_TIME_WINDOW_BLOCKS: u32 = 20u32;
 #[path = "1_application.rs"]
 mod application;
 #[path = "3_auction.rs"]

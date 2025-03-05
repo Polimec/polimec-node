@@ -405,7 +405,6 @@ impl Config for TestRuntime {
 	type AuctionRoundDuration = AuctionRoundDuration;
 	type BlockNumber = BlockNumber;
 	type BlockchainOperationTreasury = BlockchainOperationTreasuryAccount;
-	type CommunityRoundDuration = CommunityRoundDuration;
 	type ContributionTokenCurrency = ContributionTokens;
 	type ContributionTreasury = ContributionTreasury;
 	type DaysToBlocks = DaysToBlocks;
@@ -416,8 +415,6 @@ impl Config for TestRuntime {
 	type FundingCurrency = ForeignAssets;
 	type FundingSuccessThreshold = FundingSuccessThreshold;
 	type InvestorOrigin = EnsureInvestor<TestRuntime>;
-	type MaxCapacityThresholds = MaxCapacityThresholds;
-	type MaxMessageSizeThresholds = MaxMessageSizeThresholds;
 	type MinUsdPerEvaluation = MinUsdPerEvaluation;
 	type Multiplier = Multiplier;
 	type NativeCurrency = Balances;
@@ -425,10 +422,6 @@ impl Config for TestRuntime {
 	type PalletId = FundingPalletId;
 	type Price = FixedU128;
 	type PriceProvider = ConstPriceProvider;
-	type RemainderRoundDuration = RemainderRoundDuration;
-	type RequiredMaxCapacity = RequiredMaxCapacity;
-	type RequiredMaxMessageSize = RequiredMaxMessageSize;
-	type RuntimeCall = RuntimeCall;
 	type RuntimeEvent = RuntimeEvent;
 	type RuntimeHoldReason = RuntimeHoldReason;
 	type RuntimeOrigin = RuntimeOrigin;
