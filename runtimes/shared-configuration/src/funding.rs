@@ -34,7 +34,7 @@ pub const AUCTION_ROUND_DURATION: BlockNumber = 7;
 #[cfg(feature = "fast-mode")]
 pub const AUCTION_ROUND_DURATION: BlockNumber = 120 * crate::MINUTES;
 #[cfg(not(any(feature = "fast-mode", feature = "instant-mode")))]
-pub const AUCTION_ROUND_DURATION: BlockNumber = 7 * crate::DAYS;
+pub const AUCTION_ROUND_DURATION: BlockNumber = 14 * crate::DAYS;
 
 pub type ProjectIdentifier = u32;
 

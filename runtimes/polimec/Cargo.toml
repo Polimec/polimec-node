@@ -1,6 +1,6 @@
 [package]
 name = "polimec-runtime"
-description = "Base runtime for Polimec on Polkadot."
+description = "Runtime for Polimec on Polkadot."
 authors.workspace = true
 documentation.workspace = true
 edition.workspace = true
@@ -17,18 +17,16 @@ workspace = true
 substrate-wasm-builder = { workspace = true, optional = true }
 
 [dependencies]
-parity-scale-codec = { workspace= true,  default-features = false, features = [
-	"derive",
+parity-scale-codec = { workspace = true, default-features = false, features = [
+    "derive",
 ] }
 log.workspace = true
-scale-info = { workspace= true, default-features = false, features = [
-	"derive",
+scale-info = { workspace = true, default-features = false, features = [
+    "derive",
 ] }
 
-lazy_static = "1.5.0"
-
 # Uncomment this and the std feature below to see variables instead of <wasm:stripped> in the console output
-sp-debug-derive = { workspace = true, features = ["force-debug"]}
+# sp-debug-derive = { workspace = true, features = ["force-debug"]}
 
 # Polimec specific
 pallet-dispenser.workspace = true
@@ -40,7 +38,8 @@ polimec-common.workspace = true
 polimec-common-test-utils = { workspace = true, optional = true }
 pallet-parachain-staking.workspace = true
 pallet-proxy-bonding.workspace = true
-hex-literal = { workspace = true }
+hex-literal.workspace = true
+itertools.workspace = true
 
 # Substrate
 assets-common.workspace = true
@@ -112,7 +111,6 @@ parachains-common.workspace = true
 # ORML
 orml-oracle.workspace = true
 
-itertools.workspace = true
 [features]
 default = [ "std" ]
 fast-mode = [ "shared-configuration/fast-mode" ]
@@ -180,7 +178,7 @@ std = [
 	"sp-block-builder/std",
 	"sp-consensus-aura/std",
 	"sp-core/std",
-		"sp-debug-derive/std",
+	# "sp-debug-derive/std",
 	"sp-genesis-builder/std",
 	"sp-inherents/std",
 	"sp-offchain/std",
