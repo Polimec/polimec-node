@@ -109,6 +109,7 @@ impl pallet_linear_release::Config for TestRuntime {
 	type Balance = <TestRuntime as pallet_balances::Config>::Balance;
 	#[cfg(feature = "runtime-benchmarks")]
 	type BenchmarkReason = BenchmarkReason;
+	type BlockNumberProvider = System;
 	type BlockNumberToBalance = Identity;
 	type Currency = Balances;
 	type MinVestedTransfer = MinVestedTransfer;

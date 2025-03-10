@@ -14,9 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use crate::{Balance, Config, ProjectId};
+use crate::{Balance, BlockNumberFor, Config, ProjectId};
 use frame_support::weights::Weight;
-use frame_system::pallet_prelude::BlockNumberFor;
 use sp_runtime::DispatchError;
 
 pub trait BondingRequirementCalculation {

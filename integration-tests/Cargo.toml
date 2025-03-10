@@ -51,6 +51,7 @@ pallet-elections-phragmen.workspace = true
 pallet-message-queue.workspace = true
 cumulus-primitives-core.workspace = true
 cumulus-pallet-xcm.workspace = true
+cumulus-pallet-parachain-system.workspace = true
 
 parachain-info.workspace = true
 parachains-common.workspace = true

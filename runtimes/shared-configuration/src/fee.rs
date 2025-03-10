@@ -37,7 +37,7 @@ use frame_support::{
 };
 use pallet_asset_tx_payment::{HandleCredit, OnChargeAssetTransaction};
 use pallet_transaction_payment::OnChargeTransaction;
-use parachains_common::{impls::AccountIdOf, AccountId, SLOT_DURATION};
+use parachains_common::{impls::AccountIdOf, AccountId};
 use scale_info::prelude::vec;
 use smallvec::smallvec;
 use sp_arithmetic::Perbill;
@@ -103,7 +103,6 @@ impl WeightToFeePolynomial for ProofSizeToFee {
 }
 
 parameter_types! {
-	pub const MinimumPeriod: u64 = SLOT_DURATION / 2;
 	pub const MaxAuthorities: u32 = 75;
 }
 

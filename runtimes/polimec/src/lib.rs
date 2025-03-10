@@ -22,7 +22,7 @@
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 extern crate alloc;
 use assets_common::fungible_conversion::{convert, convert_balance};
-use cumulus_pallet_parachain_system::RelayNumberMonotonicallyIncreases;
+use cumulus_pallet_parachain_system::{RelayNumberMonotonicallyIncreases, RelaychainDataProvider};
 use cumulus_primitives_core::{AggregateMessageOrigin, ParaId};
 use frame_support::{
 	construct_runtime,
@@ -351,7 +351,7 @@ impl frame_system::Config for Runtime {
 }
 
 impl pallet_timestamp::Config for Runtime {
-	type MinimumPeriod = MinimumPeriod;
+	type MinimumPeriod = ConstU64<{ SLOT_DURATION / 2 }>;
 	/// A timestamp: milliseconds since the unix epoch.
 	type Moment = u64;
 	type OnTimestampSet = Aura;
@@ -541,11 +541,11 @@ impl pallet_session::Config for Runtime {
 }
 
 impl pallet_aura::Config for Runtime {
-	type AllowMultipleBlocksPerSlot = frame_support::traits::ConstBool<false>;
+	type AllowMultipleBlocksPerSlot = frame_support::traits::ConstBool<true>;
 	type AuthorityId = AuraId;
 	type DisabledValidators = ();
 	type MaxAuthorities = MaxAuthorities;
-	type SlotDuration = ConstU64<12_000>;
+	type SlotDuration = ConstU64<SLOT_DURATION>;
 }
 
 pub struct ToTreasury;
@@ -661,6 +661,7 @@ impl GetElectorate<Balance> for Electorate {
 
 impl pallet_democracy::Config for Runtime {
 	type BlacklistOrigin = EnsureRoot<AccountId>;
+	type BlockNumberProvider = System;
 	// To cancel a proposal before it has been passed, the technical committee must be unanimous or
 	// Root must agree.
 	type CancelProposalOrigin = EitherOfDiverse<
@@ -1022,6 +1023,7 @@ impl pallet_funding::Config for Runtime {
 	type AllPalletsWithoutSystem = (Balances, ContributionTokens, ForeignAssets, Oracle, Funding, LinearRelease);
 	type AuctionRoundDuration = AuctionRoundDuration;
 	type BlockNumber = BlockNumber;
+	type BlockNumberProvider = RelaychainDataProvider<Runtime>;
 	type BlockchainOperationTreasury = BlockchainOperationTreasury;
 	type ContributionTokenCurrency = ContributionTokens;
 	type ContributionTreasury = ContributionTreasuryAccount;
@@ -1086,6 +1088,7 @@ impl pallet_linear_release::Config for Runtime {
 	type Balance = Balance;
 	#[cfg(feature = "runtime-benchmarks")]
 	type BenchmarkReason = BenchmarkReason;
+	type BlockNumberProvider = RelaychainDataProvider<Runtime>;
 	type BlockNumberToBalance = ConvertInto;
 	type Currency = Balances;
 	type MinVestedTransfer = shared_configuration::vesting::MinVestedTransfer;
@@ -1297,7 +1300,7 @@ impl_runtime_apis! {
 
 	impl sp_consensus_aura::AuraApi<Block, AuraId> for Runtime {
 		fn slot_duration() -> sp_consensus_aura::SlotDuration {
-			sp_consensus_aura::SlotDuration::from_millis(parachains_common::SLOT_DURATION)
+			sp_consensus_aura::SlotDuration::from_millis(SLOT_DURATION)
 		}
 
 		fn authorities() -> Vec<AuraId> {

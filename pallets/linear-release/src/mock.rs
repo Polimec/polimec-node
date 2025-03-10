@@ -67,6 +67,7 @@ impl Config for Test {
 	type Balance = u64;
 	#[cfg(feature = "runtime-benchmarks")]
 	type BenchmarkReason = BenchmarkReason;
+	type BlockNumberProvider = System;
 	type BlockNumberToBalance = Identity;
 	type Currency = Balances;
 	// TODO: Use the type from Balances.
