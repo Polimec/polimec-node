@@ -46,7 +46,7 @@ std = [
 	"serde/std",
 	"sp-io/std",
 	"sp-runtime/std",
-	"xcm/std"
+	"xcm/std",
 ]
 
 try-runtime = [

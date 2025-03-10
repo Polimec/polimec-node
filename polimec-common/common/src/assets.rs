@@ -9,7 +9,7 @@ use scale_info::TypeInfo;
 use sp_runtime::RuntimeDebug;
 use variant_count::VariantCount;
 extern crate alloc;
-use alloc::{vec, vec::*};
+use alloc::{vec, vec::Vec};
 
 #[derive(
 	VariantCount,
@@ -40,10 +40,10 @@ pub enum AcceptedFundingAsset {
 impl AcceptedFundingAsset {
 	pub fn id(&self) -> Location {
 		match self {
-			AcceptedFundingAsset::USDT => Location::new(1, [Parachain(1000), PalletInstance(50), GeneralIndex(1984)]),
-			AcceptedFundingAsset::DOT => Location::parent(),
-			AcceptedFundingAsset::USDC => Location::new(1, [Parachain(1000), PalletInstance(50), GeneralIndex(1337)]),
-			AcceptedFundingAsset::ETH => Location::new(2, [GlobalConsensus(Ethereum { chain_id: 1 })]),
+			Self::USDT => Location::new(1, [Parachain(1000), PalletInstance(50), GeneralIndex(1984)]),
+			Self::DOT => Location::parent(),
+			Self::USDC => Location::new(1, [Parachain(1000), PalletInstance(50), GeneralIndex(1337)]),
+			Self::ETH => Location::new(2, [GlobalConsensus(Ethereum { chain_id: 1 })]),
 		}
 	}
 

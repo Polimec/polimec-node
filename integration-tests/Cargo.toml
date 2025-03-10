@@ -91,6 +91,7 @@ polimec-runtime.workspace = true
 default = [ "development-settings", "instant-mode", "std" ]
 instant-mode = [ "polimec-runtime/instant-mode" ]
 std = [
+	"assets-common/std",
 	"cumulus-pallet-xcm/std",
 	"cumulus-primitives-core/std",
 	"frame-metadata-hash-extension/std",
@@ -132,6 +133,8 @@ std = [
 	"polkadot-parachain-primitives/std",
 	"polkadot-primitives/std",
 	"polkadot-runtime-parachains/std",
+	"rococo-runtime-constants/std",
+	"rococo-runtime/std",
 	"scale-info/std",
 	"serde/std",
 	"sp-arithmetic/std",
@@ -143,16 +146,14 @@ std = [
 	"sp-io/std",
 	"sp-runtime/std",
 	"sp-std/std",
-	"rococo-runtime-constants/std",
-	"rococo-runtime/std",
 	"xcm-builder/std",
 	"xcm-executor/std",
 	"xcm-fee-payment-runtime-api/std",
 	"xcm/std",
-	"assets-common/std"
 ]
 development-settings = [ "polimec-runtime/development-settings" ]
 runtime-benchmarks = [
+	"assets-common/runtime-benchmarks",
 	"cumulus-primitives-core/runtime-benchmarks",
 	"frame-support/runtime-benchmarks",
 	"frame-system/runtime-benchmarks",
@@ -185,8 +186,8 @@ runtime-benchmarks = [
 	"polkadot-primitives/runtime-benchmarks",
 	"polkadot-runtime-parachains/runtime-benchmarks",
 	"polkadot-service/runtime-benchmarks",
-	"sp-runtime/runtime-benchmarks",
 	"rococo-runtime/runtime-benchmarks",
+	"sp-runtime/runtime-benchmarks",
 	"xcm-builder/runtime-benchmarks",
 	"xcm-executor/runtime-benchmarks",
 	"xcm-fee-payment-runtime-api/runtime-benchmarks",
