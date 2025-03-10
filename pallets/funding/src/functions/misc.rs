@@ -263,7 +263,7 @@ impl<T: Config> Pallet<T> {
 		skip_end_check: bool,
 	) -> DispatchResult {
 		/* Verify */
-		let now = <frame_system::Pallet<T>>::block_number();
+		let now = <T as Config>::BlockNumberProvider::current_block_number();
 		ensure!(project_details.status == current_round, Error::<T>::IncorrectRound);
 		ensure!(project_details.round_duration.ended(now) || skip_end_check, Error::<T>::TooEarlyForRound);
 

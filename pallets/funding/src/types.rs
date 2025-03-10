@@ -22,7 +22,6 @@ use crate::traits::BondingRequirementCalculation;
 pub use config::*;
 pub use extrinsic::*;
 use frame_support::pallet_prelude::*;
-use frame_system::pallet_prelude::BlockNumberFor;
 pub use inner::*;
 use parachains_common::DAYS;
 use polimec_common::USD_DECIMALS;
@@ -40,7 +39,7 @@ use sp_runtime::traits::Zero;
 pub mod config {
 	#[allow(clippy::wildcard_imports)]
 	use super::*;
-	use crate::Balance;
+	use crate::{Balance, BlockNumberFor};
 
 	use sp_core::parameter_types;
 	use xcm::v4::Location;
@@ -706,8 +705,7 @@ pub mod inner {
 
 pub mod extrinsic {
 	use super::*;
-	use crate::{AccountIdOf, Balance, Config, ParticipationMode, PriceOf, ProjectId, TicketSize};
-	use frame_system::pallet_prelude::BlockNumberFor;
+	use crate::{AccountIdOf, Balance, BlockNumberFor, Config, ParticipationMode, PriceOf, ProjectId, TicketSize};
 	use polimec_common::credentials::{Cid, Did, InvestorType};
 	use xcm::v4::Junction;
 

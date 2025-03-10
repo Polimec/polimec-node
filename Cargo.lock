@@ -12540,6 +12540,7 @@ dependencies = [
 name = "shared-configuration"
 version = "0.9.0"
 dependencies = [
+ "cumulus-primitives-core",
  "frame-support",
  "frame-system",
  "orml-traits",

@@ -22,7 +22,7 @@ impl<T: Config> Pallet<T> {
 
 		// Fetch current bucket details and other required info
 		let mut current_bucket = Buckets::<T>::get(project_id).ok_or(Error::<T>::BucketNotFound)?;
-		let now = <frame_system::Pallet<T>>::block_number();
+		let now = <T as Config>::BlockNumberProvider::current_block_number();
 		let mut amount_to_bid = ct_amount;
 		let project_policy = project_metadata.policy_ipfs_cid.ok_or(Error::<T>::ImpossibleState)?;
 

@@ -84,7 +84,7 @@ impl<T: Config> Pallet<T> {
 		// * Get variables *
 		let project_metadata = ProjectsMetadata::<T>::get(project_id).ok_or(Error::<T>::ProjectMetadataNotFound)?;
 		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
-		let now = <frame_system::Pallet<T>>::block_number();
+		let now = <T as Config>::BlockNumberProvider::current_block_number();
 		let evaluation_id = NextEvaluationId::<T>::get();
 		let plmc_usd_price =
 			<PriceProviderOf<T>>::get_decimals_aware_price(Location::here(), USD_DECIMALS, PLMC_DECIMALS)
