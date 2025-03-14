@@ -21,8 +21,9 @@ mod tests;
 pub use constants::{accounts::*, polimec, polkadot};
 pub use frame_support::{assert_noop, assert_ok, pallet_prelude::Weight, parameter_types, traits::Hooks};
 pub use parachains_common::{AccountId, AssetHubPolkadotAuraId, AuraId, Balance, BlockNumber};
+use polkadot_primitives::runtime_api::runtime_decl_for_parachain_host::ParachainHostV12;
 pub use sp_core::{sr25519, storage::Storage, Encode, Get};
-pub use xcm::prelude::*;
+pub use xcm::v4::*;
 pub use xcm_emulator::{
 	assert_expected_events, bx, decl_test_networks, decl_test_parachains, decl_test_relay_chains,
 	helpers::{weight_within_threshold, within_threshold},

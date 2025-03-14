@@ -1,6 +1,6 @@
 #[allow(clippy::wildcard_imports)]
 use crate::{traits::BondingRequirementCalculation, *};
-use alloc::{collections::BTreeMap, string::String};
+use alloc::{collections::BTreeMap, string::String, vec::Vec};
 use frame_support::traits::fungibles::{Inspect, InspectEnumerable};
 use itertools::Itertools;
 use polimec_common::{assets::AcceptedFundingAsset, credentials::InvestorType, ProvideAssetPrice, USD_DECIMALS};

@@ -17,9 +17,10 @@
 // If you feel like getting in touch with us, you can do so at info@polimec.org
 
 //! Types for Funding pallet.
-
 use crate::traits::BondingRequirementCalculation;
+use alloc::{vec, vec::Vec};
 pub use config::*;
+use core::cmp::Eq;
 pub use extrinsic::*;
 use frame_support::pallet_prelude::*;
 use frame_system::pallet_prelude::BlockNumberFor;
@@ -29,7 +30,6 @@ use polimec_common::USD_DECIMALS;
 use serde::{Deserialize, Serialize};
 use sp_arithmetic::{traits::Saturating, FixedPointNumber, FixedU128};
 use sp_runtime::traits::{Convert, One};
-use sp_std::{cmp::Eq, prelude::*};
 pub use storage::*;
 
 use crate::{traits::VestingDurationCalculation, Config};
@@ -330,9 +330,9 @@ pub mod storage {
 	impl<ProjectId: Eq, Did: Eq, Price: FixedPointNumber, AccountId: Eq, BlockNumber: Eq + Ord> Ord
 		for BidInfo<ProjectId, Did, Price, AccountId, BlockNumber>
 	{
-		fn cmp(&self, other: &Self) -> sp_std::cmp::Ordering {
+		fn cmp(&self, other: &Self) -> core::cmp::Ordering {
 			match self.original_ct_usd_price.cmp(&other.original_ct_usd_price) {
-				sp_std::cmp::Ordering::Equal => Ord::cmp(&other.id, &self.id),
+				core::cmp::Ordering::Equal => Ord::cmp(&other.id, &self.id),
 				other => other,
 			}
 		}
@@ -341,7 +341,7 @@ pub mod storage {
 	impl<ProjectId: Eq, Did: Eq, Price: FixedPointNumber, AccountId: Eq, BlockNumber: Eq + Ord> PartialOrd
 		for BidInfo<ProjectId, Did, Price, AccountId, BlockNumber>
 	{
-		fn partial_cmp(&self, other: &Self) -> Option<sp_std::cmp::Ordering> {
+		fn partial_cmp(&self, other: &Self) -> Option<core::cmp::Ordering> {
 			Some(self.cmp(other))
 		}
 	}
@@ -587,7 +587,7 @@ pub mod inner {
 		pub end: Option<BlockNumber>,
 	}
 
-	impl<BlockNumber: Copy + sp_std::cmp::PartialOrd> BlockNumberPair<BlockNumber> {
+	impl<BlockNumber: Copy + core::cmp::PartialOrd> BlockNumberPair<BlockNumber> {
 		pub const fn new(start: Option<BlockNumber>, end: Option<BlockNumber>) -> Self {
 			Self { start, end }
 		}

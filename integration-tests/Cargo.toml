@@ -29,8 +29,8 @@ sp-arithmetic.workspace = true
 frame-system.workspace = true
 frame-support.workspace = true
 pallet-balances.workspace = true
-sp-std.workspace = true
 sp-core.workspace = true
+sp-keyring.workspace = true
 sp-runtime.workspace = true
 sp-io.workspace = true
 pallet-dispenser.workspace = true
@@ -78,7 +78,7 @@ pallet-aura.workspace = true
 pallet-session.workspace = true
 pallet-proxy-bonding.workspace = true
 pallet-skip-feeless-payment.workspace = true
-xcm-fee-payment-runtime-api.workspace = true
+xcm-runtime-apis.workspace = true
 hex-literal.workspace = true
 hex.workspace = true
 assets-common.workspace = true
@@ -145,10 +145,11 @@ std = [
 	"sp-core/std",
 	"sp-io/std",
 	"sp-runtime/std",
-	"sp-std/std",
+	"rococo-runtime-constants/std",
+	"rococo-runtime/std",
 	"xcm-builder/std",
 	"xcm-executor/std",
-	"xcm-fee-payment-runtime-api/std",
+	"xcm-runtime-apis/std",
 	"xcm/std",
 ]
 development-settings = [ "polimec-runtime/development-settings" ]
@@ -190,5 +191,7 @@ runtime-benchmarks = [
 	"sp-runtime/runtime-benchmarks",
 	"xcm-builder/runtime-benchmarks",
 	"xcm-executor/runtime-benchmarks",
-	"xcm-fee-payment-runtime-api/runtime-benchmarks",
+	"xcm-runtime-apis/runtime-benchmarks",
+	"assets-common/runtime-benchmarks",
+	"pallet-transaction-payment/runtime-benchmarks"
 ]

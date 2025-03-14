@@ -28,7 +28,6 @@ pub enum Type {
 	NonTransfer,
 	Governance,
 	Staking,
-	IdentityJudgement,
 }
 impl Default for Type {
 	fn default() -> Self {

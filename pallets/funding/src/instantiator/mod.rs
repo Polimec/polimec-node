@@ -14,7 +14,11 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #[allow(clippy::wildcard_imports)]
+extern crate alloc;
+
 use crate::{traits::*, *};
+use alloc::collections::{btree_map::BTreeMap, btree_set::BTreeSet};
+use core::{cell::RefCell, iter::zip, marker::PhantomData};
 use frame_support::{
 	pallet_prelude::*,
 	traits::{
@@ -37,12 +41,6 @@ use sp_arithmetic::{
 	FixedPointNumber, Percent, Perquintill,
 };
 use sp_runtime::traits::{Convert, Member, One};
-use sp_std::{
-	cell::RefCell,
-	collections::{btree_map::BTreeMap, btree_set::BTreeSet},
-	iter::zip,
-	marker::PhantomData,
-};
 
 #[cfg(any(test, feature = "std", feature = "runtime-benchmarks"))]
 use polimec_common_test_utils::generate_did_from_account;

@@ -23,8 +23,8 @@ use jwt_compact::{alg::Ed25519, AlgorithmExt, Header};
 use parity_scale_codec::alloc::string::ToString;
 use polimec_common::credentials::{Did, InvestorType, PolimecPayload, UntrustedToken};
 use xcm::{
-	opaque::{v4::Xcm, VersionedXcm},
-	v4::{Assets, Location, SendError, SendResult, SendXcm, XcmHash},
+	opaque::{v5::Xcm, VersionedXcm},
+	v5::{Assets, Location, SendError, SendResult, SendXcm, XcmHash},
 	VersionedLocation,
 };
 
@@ -164,6 +164,10 @@ mod dummy_xcm_sender {
 	impl xcm_builder::InspectMessageQueues for DummyXcmSender {
 		fn get_messages() -> Vec<(VersionedLocation, Vec<VersionedXcm>)> {
 			vec![]
+		}
+
+		fn clear_messages() {
+			// TODO: impl clearing messages
 		}
 	}
 }

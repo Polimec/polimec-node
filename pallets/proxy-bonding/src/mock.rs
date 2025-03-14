@@ -15,10 +15,7 @@ use sp_runtime::{
 	BuildStorage, FixedU128, Perbill,
 };
 use std::{cell::RefCell, collections::BTreeMap};
-use xcm::{
-	prelude::Parachain,
-	v4::{Location, Parent},
-};
+use xcm::v4::{Junction::Parachain, Location, Parent};
 
 pub const NATIVE_DECIMALS: u8 = 10;
 pub const NATIVE_UNIT: u64 = 1 * 10u64.pow(NATIVE_DECIMALS as u32);
@@ -206,6 +203,7 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
 				MOCK_FEE_ASSET_DECIMALS,
 			)],
 			accounts: vec![],
+			next_asset_id: None,
 		},
 		..Default::default()
 	}

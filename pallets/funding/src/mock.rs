@@ -40,11 +40,11 @@ use sp_core::{
 	ConstU8, H256,
 };
 
+use alloc::collections::btree_map::BTreeMap;
 use sp_runtime::{
 	traits::{BlakeTwo256, Convert, ConvertBack, ConvertInto, Get, IdentityLookup, TryConvert},
 	BuildStorage, Perquintill,
 };
-use sp_std::collections::btree_map::BTreeMap;
 use std::{cell::RefCell, marker::PhantomData};
 use system::EnsureSigned;
 use xcm_builder::{ParentIsPreset, SiblingParachainConvertsVia};
@@ -238,6 +238,7 @@ parameter_types! {
 impl pallet_balances::Config for TestRuntime {
 	type AccountStore = System;
 	type Balance = Balance;
+	type DoneSlashHandler = ();
 	type DustRemoval = ();
 	type ExistentialDeposit = ExistentialDeposit;
 	type FreezeIdentifier = ();
@@ -489,6 +490,7 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
 				(AcceptedFundingAsset::ETH.id(), "ETH".as_bytes().to_vec(), "ETH".as_bytes().to_vec(), 18),
 			],
 			accounts: vec![],
+			next_asset_id: None,
 		},
 		..Default::default()
 	}

@@ -18,10 +18,14 @@
 
 //! Types for parachain-staking
 
+extern crate alloc;
+
 use crate::{
 	auto_compound::AutoCompoundDelegations, set::OrderedSet, BalanceOf, BottomDelegations, CandidateInfo, Config,
 	DelegatorState, Error, Event, HoldReason, Pallet, Round, RoundIndex, TopDelegations, Total,
 };
+use alloc::{collections::btree_map::BTreeMap, vec, vec::Vec};
+use core::cmp::Ordering;
 use frame_support::{
 	pallet_prelude::*,
 	traits::{
@@ -34,7 +38,6 @@ use sp_runtime::{
 	traits::{AtLeast32BitUnsigned, Saturating, Zero},
 	Perbill, Percent, RuntimeDebug,
 };
-use sp_std::{cmp::Ordering, collections::btree_map::BTreeMap, prelude::*};
 
 pub struct CountedDelegations<T: Config> {
 	pub uncounted_stake: BalanceOf<T>,
@@ -248,7 +251,7 @@ impl<A, B: Default> Default for Delegations<A, B> {
 	}
 }
 
-impl<AccountId, Balance: Copy + Ord + sp_std::ops::AddAssign + Zero + Saturating> Delegations<AccountId, Balance> {
+impl<AccountId, Balance: Copy + Ord + core::ops::AddAssign + Zero + Saturating> Delegations<AccountId, Balance> {
 	pub fn sort_greatest_to_least(&mut self) {
 		self.delegations.sort_by(|a, b| b.amount.cmp(&a.amount));
 	}
@@ -356,10 +359,10 @@ impl<
 		Balance: Copy
 			+ Zero
 			+ PartialOrd
-			+ sp_std::ops::AddAssign
-			+ sp_std::ops::SubAssign
-			+ sp_std::ops::Sub<Output = Balance>
-			+ sp_std::fmt::Debug
+			+ core::ops::AddAssign
+			+ core::ops::SubAssign
+			+ core::ops::Sub<Output = Balance>
+			+ core::fmt::Debug
 			+ Saturating,
 	> CandidateMetadata<Balance>
 {
@@ -1110,8 +1113,8 @@ pub enum DelegatorAdded<B> {
 }
 
 impl<
-		A: Ord + Clone + sp_std::fmt::Debug,
-		B: AtLeast32BitUnsigned + Ord + Copy + sp_std::ops::AddAssign + sp_std::ops::SubAssign + sp_std::fmt::Debug,
+		A: Ord + Clone + core::fmt::Debug,
+		B: AtLeast32BitUnsigned + Ord + Copy + core::ops::AddAssign + core::ops::SubAssign + core::fmt::Debug,
 	> CollatorCandidate<A, B>
 {
 	pub fn is_active(&self) -> bool {
@@ -1182,10 +1185,10 @@ impl<A: PartialEq, B: PartialEq> PartialEq for Delegator<A, B> {
 impl<
 		AccountId: Ord + Clone,
 		Balance: Copy
-			+ sp_std::ops::AddAssign
-			+ sp_std::ops::Add<Output = Balance>
-			+ sp_std::ops::SubAssign
-			+ sp_std::ops::Sub<Output = Balance>
+			+ core::ops::AddAssign
+			+ core::ops::Add<Output = Balance>
+			+ core::ops::SubAssign
+			+ core::ops::Sub<Output = Balance>
 			+ Ord
 			+ Zero
 			+ Default
@@ -1444,10 +1447,10 @@ pub mod deprecated {
 				+ Ord
 				+ Copy
 				+ Clone
-				+ sp_std::ops::AddAssign
-				+ sp_std::ops::Add<Output = B>
-				+ sp_std::ops::SubAssign
-				+ sp_std::ops::Sub<Output = B>
+				+ core::ops::AddAssign
+				+ core::ops::Add<Output = B>
+				+ core::ops::SubAssign
+				+ core::ops::Sub<Output = B>
 				+ Saturating,
 		> PendingDelegationRequests<A, B>
 	{
@@ -1558,7 +1561,7 @@ pub struct RoundInfo<BlockNumber> {
 	/// The length of the current round in number of blocks
 	pub length: u32,
 }
-impl<B: Copy + sp_std::ops::Add<Output = B> + sp_std::ops::Sub<Output = B> + From<u32> + PartialOrd> RoundInfo<B> {
+impl<B: Copy + core::ops::Add<Output = B> + core::ops::Sub<Output = B> + From<u32> + PartialOrd> RoundInfo<B> {
 	pub fn new(current: RoundIndex, first: B, length: u32) -> RoundInfo<B> {
 		RoundInfo { current, first, length }
 	}
@@ -1574,7 +1577,7 @@ impl<B: Copy + sp_std::ops::Add<Output = B> + sp_std::ops::Sub<Output = B> + Fro
 		self.first = now;
 	}
 }
-impl<B: Copy + sp_std::ops::Add<Output = B> + sp_std::ops::Sub<Output = B> + From<u32> + PartialOrd> Default
+impl<B: Copy + core::ops::Add<Output = B> + core::ops::Sub<Output = B> + From<u32> + PartialOrd> Default
 	for RoundInfo<B>
 {
 	fn default() -> RoundInfo<B> {

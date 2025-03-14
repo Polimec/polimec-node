@@ -21,7 +21,6 @@ parity-scale-codec = { workspace = true, features = ["derive"] }
 scale-info = { workspace = true, features = ["derive"] }
 frame-support.workspace = true
 frame-system.workspace = true
-sp-std.workspace = true
 sp-runtime.workspace = true
 polimec-common.workspace = true
 frame-benchmarking = { workspace = true, optional = true }
@@ -42,7 +41,6 @@ std = [
 	"scale-info/std",
 	"sp-io/std",
 	"sp-runtime/std",
-	"sp-std/std",
 ]
 runtime-benchmarks = [
 	"frame-benchmarking/runtime-benchmarks",

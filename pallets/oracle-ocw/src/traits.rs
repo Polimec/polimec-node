@@ -59,7 +59,7 @@ pub(crate) trait FetchPrice {
 			})
 			.filter_map(|(asset, response)| {
 				let body = response.body().collect::<Vec<u8>>();
-				if let Ok(body_str) = sp_std::str::from_utf8(&body) {
+				if let Ok(body_str) = core::str::from_utf8(&body) {
 					if let Some(ocv_data) = Self::parse_body(body_str) {
 						return Some((asset, ocv_data));
 					}

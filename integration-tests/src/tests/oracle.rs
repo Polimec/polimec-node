@@ -20,7 +20,6 @@ use polimec_runtime::{Oracle, RuntimeOrigin};
 use sp_runtime::{bounded_vec, BoundedVec, FixedU128};
 use std::collections::BTreeMap;
 use tests::defaults::*;
-
 use AcceptedFundingAsset::{DOT, ETH, USDC, USDT};
 
 fn values(

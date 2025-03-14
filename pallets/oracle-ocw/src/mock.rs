@@ -19,6 +19,7 @@
 use super::*;
 use crate as pallet_oracle_ocw;
 
+use core::cell::RefCell;
 use frame_support::{
 	construct_runtime, derive_impl, parameter_types,
 	traits::{ConstU32, ConstU64, Hooks, IsInVec, Time},
@@ -30,21 +31,18 @@ use sp_core::{
 		OffchainDbExt, OffchainWorkerExt, TransactionPoolExt,
 	},
 	sr25519::Signature,
-	Pair, Public,
 };
 use sp_keystore::{testing::MemoryKeystore, Keystore, KeystoreExt};
 use sp_runtime::{
 	testing::TestXt,
-	traits::{Extrinsic as ExtrinsicT, IdentifyAccount, IdentityLookup, Verify},
+	traits::{IdentifyAccount, IdentityLookup, Verify},
 	BuildStorage,
 };
-use sp_std::cell::RefCell;
 use std::sync::Arc;
 
 type Block = frame_system::mocking::MockBlock<Test>;
 pub type Extrinsic = TestXt<RuntimeCall, ()>;
 pub type AccountId = <<Signature as Verify>::Signer as IdentifyAccount>::AccountId;
-pub type AccountPublic = <Signature as Verify>::Signer;
 type OracleKey = u64;
 type OracleValue = FixedU128;
 
@@ -112,9 +110,9 @@ impl Convert<(AssetName, FixedU128), (OracleKey, OracleValue)> for AssetPriceCon
 
 parameter_types! {
 	pub static Members: Vec<AccountId> = vec![
-		get_account_id_from_seed::<crate::crypto::AuthorityId>("Alice"),
-		get_account_id_from_seed::<crate::crypto::AuthorityId>("Bob"),
-		get_account_id_from_seed::<crate::crypto::AuthorityId>("Charlie"),
+		sp_keyring::AccountKeyring::Alice.to_raw_public().into(),
+		sp_keyring::AccountKeyring::Bob.to_raw_public().into(),
+		sp_keyring::AccountKeyring::Charlie.to_raw_public().into(),
 	];
 }
 impl Config for Test {
@@ -131,25 +129,26 @@ impl frame_system::offchain::SigningTypes for Test {
 	type Signature = Signature;
 }
 
-impl<LocalCall> frame_system::offchain::SendTransactionTypes<LocalCall> for Test
+impl<C> frame_system::offchain::CreateTransactionBase<C> for Test
 where
-	RuntimeCall: From<LocalCall>,
+	RuntimeCall: From<C>,
 {
 	type Extrinsic = Extrinsic;
-	type OverarchingCall = RuntimeCall;
+	type RuntimeCall = RuntimeCall;
 }
 
 impl<LocalCall> frame_system::offchain::CreateSignedTransaction<LocalCall> for Test
 where
 	RuntimeCall: From<LocalCall>,
 {
-	fn create_transaction<C: frame_system::offchain::AppCrypto<Self::Public, Self::Signature>>(
+	fn create_signed_transaction<C: frame_system::offchain::AppCrypto<Self::Public, Self::Signature>>(
 		call: RuntimeCall,
 		_public: <Signature as Verify>::Signer,
 		_account: AccountId,
-		nonce: u64,
-	) -> Option<(RuntimeCall, <Extrinsic as ExtrinsicT>::SignaturePayload)> {
-		Some((call, (nonce, ())))
+		_nonce: u64,
+	) -> Option<Extrinsic> {
+		let tx = Extrinsic::new_signed(call, 0, (), ());
+		Some(tx)
 	}
 }
 
@@ -247,18 +246,6 @@ pub fn run_to_block(n: u64) {
 		System::set_block_number(System::block_number() + 1);
 		Oracle::on_initialize(System::block_number());
 	}
-}
-
-/// Helper function to generate a crypto pair from seed
-pub fn get_from_seed<TPublic: Public>(seed: &str) -> <TPublic::Pair as Pair>::Public {
-	TPublic::Pair::from_string(&format!("//{}", seed), None).expect("static values are valid; qed").public()
-}
-
-pub fn get_account_id_from_seed<TPublic: Public>(seed: &str) -> AccountId
-where
-	AccountPublic: From<<TPublic::Pair as Pair>::Public>,
-{
-	AccountPublic::from(get_from_seed::<TPublic>(seed)).into_account()
 }
 
 pub fn assert_close_enough(a: FixedU128, b: FixedU128) {

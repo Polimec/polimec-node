@@ -1,6 +1,7 @@
 #[allow(clippy::wildcard_imports)]
 use super::*;
 use crate::ParticipationMode;
+use alloc::{boxed::Box, vec::Vec};
 use frame_support::{Deserialize, Serialize};
 use polimec_common::assets::AcceptedFundingAsset;
 

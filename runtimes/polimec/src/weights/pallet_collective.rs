@@ -4,11 +4,11 @@
 //! THIS FILE WAS AUTO-GENERATED USING THE SUBSTRATE BENCHMARK CLI VERSION 39.0.0
 //! DATE: 2025-02-17, STEPS: `50`, REPEAT: `20`, LOW RANGE: `[]`, HIGH RANGE: `[]`
 //! WORST CASE MAP SIZE: `1000000`
-//! HOSTNAME: `ip-172-31-23-147`, CPU: `AMD EPYC 9R14`
+//! HOSTNAME: `MacBook-Pro-2.local`, CPU: `<UNKNOWN>`
 //! WASM-EXECUTION: `Compiled`, CHAIN: `Some("polimec-paseo-local")`, DB CACHE: 1024
 
 // Executed Command:
-// ./target/production/polimec-node
+// ./polimec-node
 // benchmark
 // pallet
 // --chain=polimec-paseo-local
@@ -301,5 +301,46 @@ impl<T: frame_system::Config> pallet_collective::WeightInfo for WeightInfo<T> {
 			.saturating_add(T::DbWeight::get().reads(1))
 			.saturating_add(T::DbWeight::get().writes(3))
 			.saturating_add(Weight::from_parts(0, 32).saturating_mul(p.into()))
+	}
+	/// Storage: `TechnicalCommittee::ProposalOf` (r:1 w:1)
+	/// Proof: `TechnicalCommittee::ProposalOf` (`max_values`: None, `max_size`: None, mode: `Measured`)
+	/// Storage: `TechnicalCommittee::CostOf` (r:1 w:0)
+	/// Proof: `TechnicalCommittee::CostOf` (`max_values`: None, `max_size`: None, mode: `Measured`)
+	/// Storage: `TechnicalCommittee::Proposals` (r:1 w:1)
+	/// Proof: `TechnicalCommittee::Proposals` (`max_values`: Some(1), `max_size`: None, mode: `Measured`)
+	/// Storage: `TechnicalCommittee::Voting` (r:0 w:1)
+	/// Proof: `TechnicalCommittee::Voting` (`max_values`: None, `max_size`: None, mode: `Measured`)
+	/// The range of component `d` is `[0, 1]`.
+	/// The range of component `p` is `[1, 7]`.
+	/// The range of component `d` is `[0, 1]`.
+	/// The range of component `p` is `[1, 7]`.
+	fn kill(d: u32, p: u32, ) -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `1210 + p * (58 ±0)`
+		//  Estimated: `4677 + d * (18 ±0) + p * (58 ±0)`
+		// Minimum execution time: 17_000_000 picoseconds.
+		Weight::from_parts(16_326_329, 0)
+			.saturating_add(Weight::from_parts(0, 4677))
+			// Standard Error: 63_770
+			.saturating_add(Weight::from_parts(1_528_763, 0).saturating_mul(d.into()))
+			// Standard Error: 14_843
+			.saturating_add(Weight::from_parts(674_810, 0).saturating_mul(p.into()))
+			.saturating_add(T::DbWeight::get().reads(3))
+			.saturating_add(T::DbWeight::get().writes(3))
+			.saturating_add(Weight::from_parts(0, 18).saturating_mul(d.into()))
+			.saturating_add(Weight::from_parts(0, 58).saturating_mul(p.into()))
+	}
+	/// Storage: `TechnicalCommittee::ProposalOf` (r:1 w:0)
+	/// Proof: `TechnicalCommittee::ProposalOf` (`max_values`: None, `max_size`: None, mode: `Measured`)
+	/// Storage: `TechnicalCommittee::CostOf` (r:1 w:0)
+	/// Proof: `TechnicalCommittee::CostOf` (`max_values`: None, `max_size`: None, mode: `Measured`)
+	fn release_proposal_cost() -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `337`
+		//  Estimated: `3802`
+		// Minimum execution time: 9_000_000 picoseconds.
+		Weight::from_parts(10_000_000, 0)
+			.saturating_add(Weight::from_parts(0, 3802))
+			.saturating_add(T::DbWeight::get().reads(2))
 	}
 }

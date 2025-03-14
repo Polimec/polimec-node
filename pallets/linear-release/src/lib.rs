@@ -19,10 +19,13 @@
 // Needed due to empty sections raising the warning
 #![allow(unreachable_patterns)]
 #![allow(clippy::type_complexity)]
+extern crate alloc;
 
 mod benchmarking;
 pub mod weights;
 
+use alloc::{vec, vec::Vec};
+use core::marker::PhantomData;
 use frame_support::{
 	dispatch::DispatchResult,
 	ensure,
@@ -37,7 +40,6 @@ use frame_system::pallet_prelude::*;
 use parity_scale_codec::MaxEncodedLen;
 use polimec_common::ReleaseSchedule;
 use sp_runtime::traits::{Convert, One, Saturating, Zero};
-use sp_std::{marker::PhantomData, prelude::*};
 
 // Re-export pallet items so that they can be accessed from the crate namespace.
 pub use pallet::*;
