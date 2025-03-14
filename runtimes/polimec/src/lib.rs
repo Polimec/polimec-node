@@ -189,8 +189,9 @@ pub mod migrations {
 	pub type Unreleased = (
 		super::custom_migrations::asset_id_migration::FromOldAssetIdMigration,
 		super::custom_migrations::linear_release::LinearReleaseVestingMigration,
-		pallet_funding::storage_migrations::v6::MigrationToV6<Runtime>,
+		pallet_funding::migrations::storage_migrations::v6::MigrationToV6<Runtime>,
 		RemovePallet<IdentityPalletName, RuntimeDbWeight>,
+		pallet_funding::migrations::vesting_info::v7::MigrationToV8<Runtime>,
 	);
 }
 
