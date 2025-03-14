@@ -148,6 +148,7 @@ impl GetElectorate<BalanceOf<Test>> for Electorate {
 
 impl Config for Test {
 	type BlacklistOrigin = EnsureRoot<u64>;
+	type BlockNumberProvider = System;
 	type CancelProposalOrigin = EnsureRoot<u64>;
 	type CancellationOrigin = EnsureSignedBy<Four, u64>;
 	type CooloffPeriod = ConstU64<2>;

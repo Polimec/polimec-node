@@ -583,7 +583,7 @@ fn e2e_test() {
 		assert_close_enough!(sub_account_held_plmc, plmc_balance, Perquintill::from_float(0.999));
 
 		let otm_duration = Multiplier::force_new(5).calculate_vesting_duration::<PolimecRuntime>();
-		let now = PolimecSystem::block_number();
+		let now = PolkadotSystem::block_number();
 		inst.jump_to_block(now + otm_duration);
 
 		let treasury_account = <PolimecRuntime as pallet_proxy_bonding::Config>::Treasury::get();

@@ -237,7 +237,7 @@ impl<T: Config> Pallet<T> {
 			.enumerate()
 			// Filter out schedules with future starting blocks before collecting them into a vector.
 			.filter_map(|(i, schedule)| {
-				if schedule.starting_block > <frame_system::Pallet<T>>::block_number() {
+				if schedule.starting_block > <T as Config>::BlockNumberProvider::current_block_number() {
 					None
 				} else {
 					Some((i, schedule.ending_block_as_balance::<BlockNumberToBalanceOf<T>>()))

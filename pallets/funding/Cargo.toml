@@ -51,6 +51,8 @@ hex.workspace = true
 # Used in the instantiator.
 itertools.workspace = true
 sp-io.workspace = true
+cumulus-pallet-parachain-system.workspace = true
+cumulus-primitives-core.workspace = true
 
 [dev-dependencies]
 pallet-timestamp.workspace = true

@@ -6,7 +6,7 @@ use polimec_common::assets::AcceptedFundingAsset;
 
 // general chain interactions
 impl<
-		T: Config + pallet_balances::Config<Balance = Balance>,
+		T: Config + pallet_balances::Config<Balance = Balance> + cumulus_pallet_parachain_system::Config,
 		AllPalletsWithoutSystem: OnFinalize<BlockNumberFor<T>> + OnIdle<BlockNumberFor<T>> + OnInitialize<BlockNumberFor<T>>,
 		RuntimeEvent: From<Event<T>> + TryInto<Event<T>> + Parameter + Member + IsType<<T as frame_system::Config>::RuntimeEvent>,
 	> Instantiator<T, AllPalletsWithoutSystem, RuntimeEvent>
@@ -144,13 +144,13 @@ impl<
 	}
 
 	pub fn current_block(&mut self) -> BlockNumberFor<T> {
-		self.execute(|| frame_system::Pallet::<T>::block_number())
+		self.execute(|| <T as Config>::BlockNumberProvider::current_block_number())
 	}
 
 	pub fn advance_time(&mut self, amount: BlockNumberFor<T>) {
 		self.execute(|| {
 			for _block in 0u32..amount.saturated_into() {
-				let mut current_block = frame_system::Pallet::<T>::block_number();
+				let mut current_block = <T as Config>::BlockNumberProvider::current_block_number();
 
 				<AllPalletsWithoutSystem as OnFinalize<BlockNumberFor<T>>>::on_finalize(current_block);
 				<frame_system::Pallet<T> as OnFinalize<BlockNumberFor<T>>>::on_finalize(current_block);
@@ -164,13 +164,21 @@ impl<
 				<frame_system::Pallet<T> as OnInitialize<BlockNumberFor<T>>>::on_initialize(current_block);
 				<AllPalletsWithoutSystem as OnInitialize<BlockNumberFor<T>>>::on_initialize(current_block);
 			}
-		})
+		});
+
+		let current_block = self.current_block();
+		// in case we are relying on parachain system
+		self.set_relay_chain_block_number(current_block + amount);
 	}
 
 	pub fn jump_to_block(&mut self, block: BlockNumberFor<T>) {
 		let current_block = self.current_block();
 		if block > current_block {
-			self.execute(|| frame_system::Pallet::<T>::set_block_number(block - One::one()));
+			self.execute(|| {
+				frame_system::Pallet::<T>::set_block_number(block - One::one());
+			});
+			self.set_relay_chain_block_number(block - One::one());
+
 			self.advance_time(One::one());
 		} else {
 			// panic!("Cannot jump to a block in the present or past")
@@ -216,11 +224,35 @@ impl<
 			});
 		}
 	}
+
+	/// NOTE: this is a workaround function to advance relaychain's block number, since
+	/// `<T as Config>::BlockNumberProvider::set_block_number` is not working in tests
+	///
+	/// It is cloned version of the above trait function implementation in [`cumulus_pallet_parachain_system::RelaychainDataProvider`]
+	///
+	/// TODO: remove this function once the issue is fixed
+	pub fn set_relay_chain_block_number(&mut self, to: BlockNumberFor<T>) {
+		use cumulus_pallet_parachain_system::ValidationData;
+		use cumulus_primitives_core::PersistedValidationData;
+
+		self.execute(|| {
+			let mut validation_data = ValidationData::<T>::get().unwrap_or_else(||
+				// PersistedValidationData does not impl default in non-std
+				PersistedValidationData {
+					parent_head: vec![].into(),
+					relay_parent_number: Default::default(),
+					max_pov_size: Default::default(),
+					relay_parent_storage_root: Default::default(),
+				});
+			validation_data.relay_parent_number = to.saturated_into();
+			ValidationData::<T>::put(validation_data)
+		});
+	}
 }
 
 // assertions
 impl<
-		T: Config + pallet_balances::Config<Balance = Balance>,
+		T: Config + pallet_balances::Config<Balance = Balance> + cumulus_pallet_parachain_system::Config,
 		AllPalletsWithoutSystem: OnFinalize<BlockNumberFor<T>> + OnIdle<BlockNumberFor<T>> + OnInitialize<BlockNumberFor<T>>,
 		RuntimeEvent: From<Event<T>> + TryInto<Event<T>> + Parameter + Member + IsType<<T as frame_system::Config>::RuntimeEvent>,
 	> Instantiator<T, AllPalletsWithoutSystem, RuntimeEvent>
@@ -327,7 +359,7 @@ impl<
 
 // project chain interactions
 impl<
-		T: Config + pallet_balances::Config<Balance = Balance>,
+		T: Config + pallet_balances::Config<Balance = Balance> + cumulus_pallet_parachain_system::Config,
 		AllPalletsWithoutSystem: OnFinalize<BlockNumberFor<T>> + OnIdle<BlockNumberFor<T>> + OnInitialize<BlockNumberFor<T>>,
 		RuntimeEvent: From<Event<T>> + TryInto<Event<T>> + Parameter + Member + IsType<<T as frame_system::Config>::RuntimeEvent>,
 	> Instantiator<T, AllPalletsWithoutSystem, RuntimeEvent>

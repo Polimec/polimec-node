@@ -79,7 +79,6 @@ use frame_support::{
 	},
 	BoundedVec, PalletId, WeakBoundedVec,
 };
-use frame_system::pallet_prelude::BlockNumberFor;
 pub use pallet::*;
 use polimec_common::{
 	credentials::{Cid, Did, EnsureOriginWithCredentials, InvestorType, UntrustedToken},
@@ -88,7 +87,10 @@ use polimec_common::{
 };
 use polkadot_parachain_primitives::primitives::Id as ParaId;
 use sp_arithmetic::traits::{One, Saturating};
-use sp_runtime::{traits::AccountIdConversion, FixedPointNumber, FixedU128};
+use sp_runtime::{
+	traits::{AccountIdConversion, BlockNumberProvider},
+	FixedPointNumber, FixedU128,
+};
 use sp_std::prelude::*;
 pub use types::*;
 use xcm::v4::prelude::*;
@@ -135,9 +137,11 @@ pub type VestingOf<T> = pallet_linear_release::Pallet<T>;
 pub type BlockNumberToBalanceOf<T> = <T as pallet_linear_release::Config>::BlockNumberToBalance;
 pub type RuntimeHoldReasonOf<T> = <T as Config>::RuntimeHoldReason;
 pub type PriceProviderOf<T> = <T as Config>::PriceProvider;
+pub type BlockNumberFor<T> = <<T as Config>::BlockNumberProvider as BlockNumberProvider>::BlockNumber;
 
 #[frame_support::pallet]
 pub mod pallet {
+	use super::BlockNumberFor;
 	#[allow(clippy::wildcard_imports)]
 	use super::*;
 	use crate::traits::{BondingRequirementCalculation, VestingDurationCalculation};
@@ -316,6 +320,9 @@ pub mod pallet {
 
 		/// Callbacks for dealing with an evaluator slash on other pallets
 		type OnSlash: OnSlash<AccountIdOf<Self>, Balance>;
+
+		/// Provider for block number
+		type BlockNumberProvider: BlockNumberProvider<BlockNumber = frame_system::pallet_prelude::BlockNumberFor<Self>>;
 	}
 
 	#[pallet::storage]

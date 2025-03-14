@@ -55,7 +55,7 @@ pub mod pallet {
 		pallet_prelude::{ValueQuery, *},
 		PalletId,
 	};
-	use frame_system::pallet_prelude::*;
+	use frame_system::pallet_prelude::{BlockNumberFor, *};
 	use sp_runtime::{
 		traits::{AccountIdConversion, CheckedDiv},
 		Saturating,
@@ -115,6 +115,9 @@ pub mod pallet {
 		/// The Whitelisted policy for the dispenser. Users' credentials should have the same
 		/// policy to be eligible for token dispensing.
 		type WhitelistedPolicy: Get<Cid>;
+
+		// /// Block number provider.
+		// type BlockNumberProvider: BlockNumberProvider<BlockNumber = BlockNumberFor<Self>>;
 	}
 
 	#[pallet::pallet]

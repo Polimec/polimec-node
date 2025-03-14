@@ -26,7 +26,7 @@ use frame_support::{
 	construct_runtime, derive_impl,
 	pallet_prelude::Weight,
 	parameter_types,
-	traits::{AsEnsureOriginWithArg, ConstU16, ConstU32, ConstU64, OriginTrait, WithdrawReasons},
+	traits::{AsEnsureOriginWithArg, ConstU16, ConstU32, ConstU64, EnqueueWithOrigin, OriginTrait, WithdrawReasons},
 	PalletId,
 };
 use frame_system as system;
@@ -227,8 +227,25 @@ impl system::Config for TestRuntime {
 	type Hashing = BlakeTwo256;
 	type Lookup = IdentityLookup<Self::AccountId>;
 	type MaxConsumers = frame_support::traits::ConstU32<16>;
+	type OnSetCode = cumulus_pallet_parachain_system::ParachainSetCode<Self>;
 	type PalletInfo = PalletInfo;
 	type SS58Prefix = ConstU16<41>;
+}
+
+// NOTE: this is not used in the mock runtime at all, but it is required to satisfy type bound of [`crate::instantiator::Instantiator`]
+// TODO: should be removed and `<T as crate::Config>::BlockNumberProvider::set_block_number` should be used instead
+impl cumulus_pallet_parachain_system::Config for TestRuntime {
+	type CheckAssociatedRelayNumber = cumulus_pallet_parachain_system::AnyRelayNumber;
+	type ConsensusHook = cumulus_pallet_parachain_system::ExpectParentIncluded;
+	type DmpQueue = EnqueueWithOrigin<(), sp_core::ConstU8<0>>;
+	type OnSystemEvent = ();
+	type OutboundXcmpMessageSource = ();
+	type ReservedDmpWeight = ();
+	type ReservedXcmpWeight = ();
+	type RuntimeEvent = RuntimeEvent;
+	type SelfParaId = ();
+	type WeightInfo = ();
+	type XcmpMessageHandler = ();
 }
 
 parameter_types! {
@@ -294,6 +311,7 @@ impl pallet_linear_release::Config for TestRuntime {
 	type Balance = Balance;
 	#[cfg(feature = "runtime-benchmarks")]
 	type BenchmarkReason = BenchmarkReason;
+	type BlockNumberProvider = System;
 	type BlockNumberToBalance = ConvertInto;
 	type Currency = Balances;
 	type MinVestedTransfer = MinVestedTransfer;
@@ -371,6 +389,7 @@ impl Config for TestRuntime {
 	type AllPalletsWithoutSystem = (Balances, ContributionTokens, ForeignAssets, PolimecFunding, LinearRelease);
 	type AuctionRoundDuration = AuctionRoundDuration;
 	type BlockNumber = BlockNumber;
+	type BlockNumberProvider = System;
 	type BlockchainOperationTreasury = BlockchainOperationTreasuryAccount;
 	type ContributionTokenCurrency = ContributionTokens;
 	type ContributionTreasury = ContributionTreasury;
@@ -435,6 +454,9 @@ construct_runtime!(
 		ForeignAssets: pallet_assets::<Instance2>::{Pallet, Call, Storage, Event<T>, Config<T>},
 		PolimecFunding: pallet_funding::{Pallet, Call, Storage, Event<T>, HoldReason}  = 52,
 		ProxyBonding: pallet_proxy_bonding,
+
+		// NOTE: this pallet is only necessary to satisfy type bound of [`crate::instantiator::Instantiator`]
+		ParachainSystem: cumulus_pallet_parachain_system,
 	}
 );
 
