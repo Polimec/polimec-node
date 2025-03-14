@@ -163,10 +163,10 @@ use frame_support::{
 	},
 	weights::Weight,
 };
-use frame_system::pallet_prelude::{BlockNumberFor, OriginFor};
+use frame_system::pallet_prelude::OriginFor;
 use parity_scale_codec::{Decode, Encode};
 use sp_runtime::{
-	traits::{Bounded as ArithBounded, One, Saturating, StaticLookup, Zero},
+	traits::{BlockNumberProvider, Bounded as ArithBounded, One, Saturating, StaticLookup, Zero},
 	ArithmeticError, DispatchError, DispatchResult,
 };
 
@@ -199,11 +199,12 @@ pub type CreditOf<T> = Credit<<T as frame_system::Config>::AccountId, <T as Conf
 
 pub type CallOf<T> = <T as frame_system::Config>::RuntimeCall;
 pub type BoundedCallOf<T> = Bounded<CallOf<T>, <T as frame_system::Config>::Hashing>;
+pub type BlockNumberFor<T> = <<T as Config>::BlockNumberProvider as BlockNumberProvider>::BlockNumber;
 type AccountIdLookupOf<T> = <<T as frame_system::Config>::Lookup as StaticLookup>::Source;
 
 #[frame_support::pallet]
 pub mod pallet {
-	use super::{DispatchResult, *};
+	use super::{BlockNumberFor, DispatchResult, *};
 	use frame_support::{
 		pallet_prelude::*,
 		traits::{
@@ -212,6 +213,7 @@ pub mod pallet {
 		},
 	};
 	use frame_system::pallet_prelude::*;
+	use sp_runtime::traits::BlockNumberProvider;
 	/// The current storage version.
 	const STORAGE_VERSION: StorageVersion = StorageVersion::new(1);
 
@@ -350,6 +352,9 @@ pub mod pallet {
 
 		/// Type returning the total electorate.
 		type Electorate: GetElectorate<BalanceOf<Self>>;
+
+		/// Block number provider.
+		type BlockNumberProvider: BlockNumberProvider<BlockNumber = frame_system::pallet_prelude::BlockNumberFor<Self>>;
 	}
 
 	/// The number of (public) proposals that have been made so far.
@@ -610,7 +615,7 @@ pub mod pallet {
 			let proposal_hash = proposal.hash();
 
 			if let Some((until, _)) = <Blacklist<T>>::get(proposal_hash) {
-				ensure!(<frame_system::Pallet<T>>::block_number() >= until, Error::<T>::ProposalBlacklisted,);
+				ensure!(T::BlockNumberProvider::current_block_number() >= until, Error::<T>::ProposalBlacklisted,);
 			}
 
 			T::Fungible::hold(&HoldReason::Proposal.into(), &who, value)?;
@@ -700,7 +705,7 @@ pub mod pallet {
 			T::ExternalOrigin::ensure_origin(origin)?;
 			ensure!(!<NextExternal<T>>::exists(), Error::<T>::DuplicateProposal);
 			if let Some((until, _)) = <Blacklist<T>>::get(proposal.hash()) {
-				ensure!(<frame_system::Pallet<T>>::block_number() >= until, Error::<T>::ProposalBlacklisted,);
+				ensure!(T::BlockNumberProvider::current_block_number() >= until, Error::<T>::ProposalBlacklisted,);
 			}
 			<NextExternal<T>>::put((proposal, VoteThreshold::SuperMajorityApprove));
 			Ok(())
@@ -790,7 +795,7 @@ pub mod pallet {
 			ensure!(proposal_hash == ext_proposal.hash(), Error::<T>::InvalidHash);
 
 			<NextExternal<T>>::kill();
-			let now = <frame_system::Pallet<T>>::block_number();
+			let now = T::BlockNumberProvider::current_block_number();
 			let ref_index = Self::inject_referendum(now.saturating_add(voting_period), ext_proposal, threshold, delay);
 			Self::transfer_metadata(MetadataOwner::External, MetadataOwner::Referendum(ref_index));
 			Ok(())
@@ -820,7 +825,7 @@ pub mod pallet {
 			let insert_position = existing_vetoers.binary_search(&who).err().ok_or(Error::<T>::AlreadyVetoed)?;
 			existing_vetoers.try_insert(insert_position, who.clone()).map_err(|_| Error::<T>::TooMany)?;
 
-			let until = <frame_system::Pallet<T>>::block_number().saturating_add(T::CooloffPeriod::get());
+			let until = T::BlockNumberProvider::current_block_number().saturating_add(T::CooloffPeriod::get());
 			<Blacklist<T>>::insert(&proposal_hash, (until, existing_vetoers));
 
 			Self::deposit_event(Event::<T>::Vetoed { who, proposal_hash, until });
@@ -1196,7 +1201,7 @@ impl<T: Config> Pallet<T> {
 		delay: BlockNumberFor<T>,
 	) -> ReferendumIndex {
 		<Pallet<T>>::inject_referendum(
-			<frame_system::Pallet<T>>::block_number().saturating_add(T::VotingPeriod::get()),
+			T::BlockNumberProvider::current_block_number().saturating_add(T::VotingPeriod::get()),
 			proposal,
 			threshold,
 			delay,
@@ -1291,7 +1296,7 @@ impl<T: Config> Pallet<T> {
 						if let Some((lock_periods, balance)) = votes[i].1.locked_if(approved) {
 							let unlock_at =
 								end.saturating_add(T::VoteLockingPeriod::get().saturating_mul(lock_periods.into()));
-							let now = frame_system::Pallet::<T>::block_number();
+							let now = T::BlockNumberProvider::current_block_number();
 							if now < unlock_at {
 								ensure!(matches!(scope, UnvoteScope::Any), Error::<T>::NoPermission);
 								prior.accumulate(unlock_at, balance)
@@ -1380,7 +1385,7 @@ impl<T: Config> Pallet<T> {
 				Voting::Delegating { balance, target, conviction, delegations, mut prior, .. } => {
 					// remove any delegation votes to our current target.
 					Self::reduce_upstream_delegation(&target, conviction.votes(balance));
-					let now = frame_system::Pallet::<T>::block_number();
+					let now = T::BlockNumberProvider::current_block_number();
 					let lock_periods = conviction.lock_periods().into();
 					let unlock_block = now.saturating_add(T::VoteLockingPeriod::get().saturating_mul(lock_periods));
 					prior.accumulate(unlock_block, balance);
@@ -1413,7 +1418,7 @@ impl<T: Config> Pallet<T> {
 				Voting::Delegating { balance, target, conviction, delegations, mut prior } => {
 					// remove any delegation votes to our current target.
 					let votes = Self::reduce_upstream_delegation(&target, conviction.votes(balance));
-					let now = frame_system::Pallet::<T>::block_number();
+					let now = T::BlockNumberProvider::current_block_number();
 					let lock_periods = conviction.lock_periods().into();
 					let unlock_block = now.saturating_add(T::VoteLockingPeriod::get().saturating_mul(lock_periods));
 					prior.accumulate(unlock_block, balance);
@@ -1432,7 +1437,7 @@ impl<T: Config> Pallet<T> {
 	/// a security hole) but may be reduced from what they are currently.
 	fn update_lock(who: &T::AccountId) -> DispatchResult {
 		let lock_needed = VotingOf::<T>::mutate(who, |voting| {
-			voting.rejig(frame_system::Pallet::<T>::block_number());
+			voting.rejig(T::BlockNumberProvider::current_block_number());
 			voting.locked_balance()
 		});
 		if lock_needed.is_zero() {

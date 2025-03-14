@@ -4953,6 +4953,7 @@ name = "integration-tests"
 version = "1.0.0"
 dependencies = [
  "assets-common",
+ "cumulus-pallet-parachain-system",
  "cumulus-pallet-xcm",
  "cumulus-primitives-core",
  "frame-metadata-hash-extension",
@@ -8090,6 +8091,8 @@ dependencies = [
 name = "pallet-funding"
 version = "1.0.0"
 dependencies = [
+ "cumulus-pallet-parachain-system",
+ "cumulus-primitives-core",
  "frame-benchmarking",
  "frame-support",
  "frame-system",
@@ -13993,6 +13996,7 @@ dependencies = [
 name = "shared-configuration"
 version = "1.0.0"
 dependencies = [
+ "cumulus-primitives-core",
  "frame-support",
  "frame-system",
  "orml-traits",

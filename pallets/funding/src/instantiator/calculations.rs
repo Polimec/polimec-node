@@ -13,7 +13,7 @@ use sp_runtime::traits::TrailingZeroInput;
 use InvestorType::{self, *};
 
 impl<
-		T: Config,
+		T: Config + cumulus_pallet_parachain_system::Config,
 		AllPalletsWithoutSystem: OnFinalize<BlockNumberFor<T>> + OnIdle<BlockNumberFor<T>> + OnInitialize<BlockNumberFor<T>>,
 		RuntimeEvent: From<Event<T>> + TryInto<Event<T>> + Parameter + Member + IsType<<T as frame_system::Config>::RuntimeEvent>,
 	> Instantiator<T, AllPalletsWithoutSystem, RuntimeEvent>

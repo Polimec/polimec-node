@@ -97,7 +97,7 @@ pub fn string_account<AccountId: Decode>(
 
 #[benchmarks(
 	where
-	T: Config + frame_system::Config<RuntimeEvent = <T as Config>::RuntimeEvent> + pallet_balances::Config<Balance = Balance> + core::fmt::Debug,
+	T: Config + frame_system::Config<RuntimeEvent = <T as Config>::RuntimeEvent> + pallet_balances::Config<Balance = Balance> + cumulus_pallet_parachain_system::Config + sp_std::fmt::Debug,
 	<T as Config>::RuntimeEvent: TryInto<Event<T>> + Parameter + Member,
 	<T as Config>::Price: From<u128>,
 	T::Hash: From<H256>,
