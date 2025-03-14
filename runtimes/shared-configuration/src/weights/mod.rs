@@ -23,13 +23,23 @@ pub mod rocksdb_weights;
 
 pub use block_weights::constants::BlockExecutionWeight;
 pub use extrinsic_weights::constants::ExtrinsicBaseWeight;
-use frame_support::{dispatch::DispatchClass, parameter_types, weights::Weight};
-use parachains_common::{AVERAGE_ON_INITIALIZE_RATIO, MAXIMUM_BLOCK_WEIGHT};
+use frame_support::{
+	dispatch::DispatchClass,
+	parameter_types,
+	weights::{constants::WEIGHT_REF_TIME_PER_SECOND, Weight},
+};
+use parachains_common::AVERAGE_ON_INITIALIZE_RATIO;
 pub use paritydb_weights::constants::ParityDbWeight;
 pub use rocksdb_weights::constants::RocksDbWeight;
 
 use frame_system::limits::{BlockLength, BlockWeights};
 use sp_arithmetic::Perbill;
+
+/// We allow for 2 seconds of compute with a 6 second average block.
+pub const MAXIMUM_BLOCK_WEIGHT: Weight = Weight::from_parts(
+	WEIGHT_REF_TIME_PER_SECOND.saturating_mul(2),
+	cumulus_primitives_core::relay_chain::MAX_POV_SIZE as u64,
+);
 
 /// We allow `Normal` extrinsics to fill up the block up to 85%, the rest can be used by operational  extrinsics.
 pub const NORMAL_DISPATCH_RATIO: Perbill = Perbill::from_percent(85);

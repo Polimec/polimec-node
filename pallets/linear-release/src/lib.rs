@@ -39,7 +39,7 @@ use frame_support::{
 use frame_system::pallet_prelude::*;
 use parity_scale_codec::MaxEncodedLen;
 use polimec_common::ReleaseSchedule;
-use sp_runtime::traits::{Convert, One, Saturating, Zero};
+use sp_runtime::traits::{BlockNumberProvider, Convert, One, Saturating, Zero};
 
 // Re-export pallet items so that they can be accessed from the crate namespace.
 pub use pallet::*;
@@ -62,6 +62,7 @@ pub type BalanceOf<T> = <T as Config>::Balance;
 pub type ReasonOf<T> = <T as Config>::RuntimeHoldReason;
 pub type AccountIdOf<T> = <T as frame_system::Config>::AccountId;
 pub type VestingInfoOf<T> = VestingInfo<BalanceOf<T>, BlockNumberFor<T>>;
+pub type BlockNumberFor<T> = <<T as Config>::BlockNumberProvider as BlockNumberProvider>::BlockNumber;
 
 /// Actions to take against a user's `Vesting` storage entry.
 #[derive(Clone, Copy)]
@@ -144,6 +145,9 @@ pub mod pallet {
 
 		/// Weight information for extrinsics in this pallet.
 		type WeightInfo: WeightInfo;
+
+		/// Block number provider for this pallet
+		type BlockNumberProvider: BlockNumberProvider<BlockNumber = frame_system::pallet_prelude::BlockNumberFor<Self>>;
 
 		/// Reason used when running benchmarks
 		#[cfg(feature = "runtime-benchmarks")]

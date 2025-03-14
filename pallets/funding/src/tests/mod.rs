@@ -13,6 +13,7 @@ use defaults::*;
 use frame_support::{
 	assert_err, assert_noop, assert_ok,
 	dispatch::DispatchResult,
+	pallet_prelude::DispatchResultWithPostInfo,
 	traits::{
 		fungible::{InspectFreeze, MutateFreeze, MutateHold},
 		fungibles::{metadata::Inspect as MetadataInspect, Inspect, Mutate},

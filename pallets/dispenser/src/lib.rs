@@ -55,7 +55,7 @@ pub mod pallet {
 		pallet_prelude::{ValueQuery, *},
 		PalletId,
 	};
-	use frame_system::pallet_prelude::*;
+	use frame_system::pallet_prelude::{BlockNumberFor, *};
 	use sp_runtime::{
 		traits::{AccountIdConversion, CheckedDiv},
 		Saturating,
