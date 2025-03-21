@@ -14,20 +14,34 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use crate::{polimec::ED, *};
 /// Tests for the oracle pallet integration.
 /// Alice, Bob, Charlie are members of the OracleProvidersMembers.
 /// Only members should be able to feed data into the oracle.
-use frame_support::traits::fungible::Inspect;
-use frame_support::traits::fungible::Mutate;
+use crate::{polimec::ED, *};
+use cumulus_pallet_parachain_system::ValidationData;
+use cumulus_primitives_core::PersistedValidationData;
+use frame_support::traits::fungible::{Inspect, Mutate};
 use macros::generate_accounts;
 use pallet_funding::assert_close_enough;
 use pallet_vesting::VestingInfo;
 use polimec_runtime::{Balances, BlockchainOperationTreasury, ParachainStaking, RuntimeOrigin, Vesting, PLMC};
 use sp_core::crypto::get_public_from_string_or_panic;
-use sp_runtime::Perquintill;
+use sp_runtime::{Perquintill, SaturatedConversion};
 
 generate_accounts!(PEPE, CARLOS);
+
+fn set_relay_chain_block_number<T: cumulus_pallet_parachain_system::Config>(to: u32) {
+	let mut validation_data = ValidationData::<T>::get().unwrap_or_else(||
+		// PersistedValidationData does not impl default in non-std
+		PersistedValidationData {
+			parent_head: vec![].into(),
+			relay_parent_number: Default::default(),
+			max_pov_size: Default::default(),
+			relay_parent_storage_root: Default::default(),
+		});
+	validation_data.relay_parent_number = to.saturated_into();
+	ValidationData::<T>::put(validation_data)
+}
 
 #[test]
 fn base_vested_can_stake() {
@@ -89,10 +103,7 @@ fn base_can_withdraw_when_free_is_below_frozen_with_hold() {
 		// Vesting schedule for PEPE of 20k PLMC + ED, which should have start date before it is applied
 		let vesting_schedule = VestingInfo::new(2_020 * PLMC, 10 * PLMC, 0);
 
-		assert_eq!(Balances::free_balance(&CARLOS.into()), 0);
-		// We need some free balance at the time of the vested transfer
-		// Otherwise the user will never have free balance to pay for the "vest" extrinsic
-		PolimecSystem::set_block_number(1u32);
+		set_relay_chain_block_number::<PolimecRuntime>(1);
 
 		// The actual vested transfer
 		assert_ok!(Vesting::vested_transfer(
@@ -101,7 +112,7 @@ fn base_can_withdraw_when_free_is_below_frozen_with_hold() {
 			vesting_schedule
 		));
 
-		// Vested transfer didnt start with the full amount locked, since start date was befire execution
+		// Vested transfer didnt start with the full amount locked, since start date was before execution
 		assert_eq!(Balances::usable_balance(&CARLOS.into()), 10 * PLMC);
 
 		let carlos_acc: AccountId = CARLOS.into();
@@ -123,7 +134,7 @@ fn base_can_withdraw_when_free_is_below_frozen_with_hold() {
 		assert_eq!(Balances::usable_balance(&CARLOS.into()), 10 * PLMC);
 
 		// Be able to vest 10 more PLMC for this example description
-		PolimecSystem::set_block_number(2u32);
+		set_relay_chain_block_number::<PolimecRuntime>(2);
 
 		// This should pass if the fee is correctly deducted with the new fee struct
 		assert_ok!(Vesting::vest(RuntimeOrigin::signed(CARLOS.into())));

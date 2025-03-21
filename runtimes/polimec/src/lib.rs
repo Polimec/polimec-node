@@ -187,12 +187,10 @@ pub mod migrations {
 	/// Unreleased migrations. Add new ones here:
 	#[allow(unused_parens)]
 	pub type Unreleased = (
-		super::custom_migrations::asset_id_migration::FromOldAssetIdMigration,
-		// super::custom_migrations::linear_release::unversioned::LinearReleaseVestingMigration,
-		pallet_funding::migrations::storage_migrations::v6::MigrationToV6<Runtime>,
 		RemovePallet<IdentityPalletName, RuntimeDbWeight>,
 		pallet_funding::migrations::vesting_info::v7::MigrationToV8<Runtime>,
 		pallet_linear_release::migrations::LinearReleaseVestingMigrationV1<Runtime>,
+		super::custom_migrations::vesting::v1::UncheckedMigrationToV1<Runtime>,
 	);
 }
 
@@ -935,7 +933,7 @@ where
 }
 
 impl pallet_vesting::Config for Runtime {
-	type BlockNumberProvider = System;
+	type BlockNumberProvider = RelaychainDataProvider<Runtime>;
 	type BlockNumberToBalance = ConvertInto;
 	type Currency = Balances;
 	type MinVestedTransfer = shared_configuration::vesting::MinVestedTransfer;
