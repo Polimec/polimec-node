@@ -118,5 +118,7 @@ pub mod shortcuts {
 
 	pub type PolkadotSystem = <PolkaNet as Chain>::System;
 	pub type PolimecSystem = <PolimecNet as Chain>::System;
+
+	pub type PolimecParachainSystem = <PolimecNet as PolimecParaPallet>::ParachainSystem;
 }
 pub use shortcuts::*;
