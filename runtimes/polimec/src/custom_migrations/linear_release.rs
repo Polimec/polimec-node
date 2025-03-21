@@ -15,7 +15,7 @@ pub type Values = BoundedVec<VestingInfo<Balance, BlockNumber>, MaxVestingSchedu
 pub struct LinearReleaseVestingMigration;
 impl OnRuntimeUpgrade for LinearReleaseVestingMigration {
 	#[cfg(feature = "try-runtime")]
-	fn pre_upgrade() -> Result<alloc::vec::Vec<u8>, sp_runtime::TryRuntimeError> {
+	fn pre_upgrade() -> Result<sp_std::vec::Vec<u8>, sp_runtime::TryRuntimeError> {
 		use crate::LinearRelease;
 
 		let funding_on_chain_version = LinearRelease::on_chain_storage_version();
@@ -94,7 +94,9 @@ impl OnRuntimeUpgrade for LinearReleaseVestingMigration {
 	}
 
 	#[cfg(feature = "try-runtime")]
-	fn post_upgrade(versioned_post_upgrade_data_bytes: alloc::vec::Vec<u8>) -> Result<(), sp_runtime::TryRuntimeError> {
+	fn post_upgrade(
+		versioned_post_upgrade_data_bytes: sp_std::vec::Vec<u8>,
+	) -> Result<(), sp_runtime::TryRuntimeError> {
 		let storage = pallet_linear_release::Vesting::<Runtime>::iter().collect_vec();
 		ensure!(storage.len() == 15, "LinearReleaseVestingMigration: Invalid storage length in post_upgrade");
 

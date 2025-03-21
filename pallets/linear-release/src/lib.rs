@@ -22,6 +22,7 @@
 extern crate alloc;
 
 mod benchmarking;
+pub mod migrations;
 pub mod weights;
 
 use alloc::{vec, vec::Vec};
@@ -33,7 +34,7 @@ use frame_support::{
 	traits::{
 		fungible::{BalancedHold, Inspect, InspectHold, Mutate, MutateHold},
 		tokens::{Balance, Precision},
-		Get, WithdrawReasons,
+		Get, StorageVersion, WithdrawReasons,
 	},
 };
 use frame_system::pallet_prelude::*;
@@ -110,6 +111,9 @@ impl<T: Config> Get<u32> for MaxVestingSchedulesGet<T> {
 	}
 }
 
+/// Current storage version
+pub const STORAGE_VERSION: StorageVersion = StorageVersion::new(1);
+
 /// Enable `dev_mode` for this pallet.
 #[frame_support::pallet(dev_mode)]
 pub mod pallet {
@@ -172,6 +176,7 @@ pub mod pallet {
 	// Simple declaration of the `Pallet` type. It is placeholder we use to implement traits and
 	// method.
 	#[pallet::pallet]
+	#[pallet::storage_version(STORAGE_VERSION)]
 	pub struct Pallet<T>(_);
 
 	#[pallet::event]

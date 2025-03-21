@@ -106,9 +106,9 @@ mod tests {
 		mock::{new_test_ext, TestRuntime as Test},
 		UserMigrations,
 	};
-	use cumulus_primitives_core::Junction;
 	use polimec_common::migration_types::MigrationOrigin;
 	use v7::{UncheckedMigrationToV7, MAX_PARTICIPATIONS_PER_USER};
+	use xcm::v4::Junction;
 
 	#[test]
 	fn migration_to_v7() {
