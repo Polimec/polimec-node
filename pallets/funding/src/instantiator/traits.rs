@@ -1,5 +1,4 @@
 use super::{Config, UserToPLMCBalance};
-use crate::Balance;
 use alloc::vec::Vec;
 
 pub trait Deposits<T: Config> {
@@ -45,11 +44,11 @@ pub trait AccountMerge:
 	}
 }
 
-pub trait Total {
+pub trait Total<Balance> {
 	fn total(&self) -> Balance;
 }
 
-pub trait Totals {
+pub trait Totals<Balance> {
 	type AssetId;
 	fn totals(&self) -> Vec<(Self::AssetId, Balance)>;
 }

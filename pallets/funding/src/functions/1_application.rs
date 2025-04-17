@@ -38,7 +38,7 @@ impl<T: Config> Pallet<T> {
 			status: ProjectStatus::Application,
 			round_duration: BlockNumberPair::new(None, None),
 			remaining_contribution_tokens: project_metadata.total_allocation_size,
-			funding_amount_reached_usd: Balance::zero(),
+			funding_amount_reached_usd: BalanceOf::<T>::zero(),
 			evaluation_round_info: EvaluationRoundInfo {
 				total_bonded_usd: Zero::zero(),
 				total_bonded_plmc: Zero::zero(),
@@ -73,10 +73,10 @@ impl<T: Config> Pallet<T> {
 		// This should be paid by the issuer.
 		let escrow_account = Self::fund_account_id(project_id);
 		// transfer ED from issuer to escrow
-		T::NativeCurrency::transfer(
+		NativeCurrencyOf::<T>::transfer(
 			issuer,
 			&escrow_account,
-			<T as pallet_balances::Config>::ExistentialDeposit::get(),
+			NativeCurrencyOf::<T>::minimum_balance(),
 			Preservation::Preserve,
 		)
 		.map_err(|_| Error::<T>::IssuerNotEnoughFunds)?;

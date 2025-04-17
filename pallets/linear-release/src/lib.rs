@@ -33,7 +33,7 @@ use frame_support::{
 	pallet_prelude::*,
 	traits::{
 		fungible::{BalancedHold, Inspect, InspectHold, Mutate, MutateHold},
-		tokens::{Balance, Precision},
+		tokens::Precision,
 		Get, StorageVersion, WithdrawReasons,
 	},
 };
@@ -56,10 +56,8 @@ mod impls;
 mod types;
 
 // TODO: Find a way to use
-// 1. type BalanceOf<T> = <<T as Config>::Currency as fungible::Inspect<<T as frame_system::Config>::AccountId>>::Balance;
-// 2. type ReasonOf<T> = <<T as Config>::Currency as InspectHold<<T as frame_system::Config>::AccountId>>::Reason;
-// So we can remove the `Balance` and the `Reason` type from the pallet's config.
-pub type BalanceOf<T> = <T as Config>::Balance;
+// `type ReasonOf<T> = <<T as Config>::Currency as InspectHold<<T as frame_system::Config>::AccountId>>::Reason;`
+pub type BalanceOf<T> = <<T as Config>::Currency as Inspect<<T as frame_system::Config>::AccountId>>::Balance;
 pub type ReasonOf<T> = <T as Config>::RuntimeHoldReason;
 pub type AccountIdOf<T> = <T as frame_system::Config>::AccountId;
 pub type VestingInfoOf<T> = VestingInfo<BalanceOf<T>, BlockNumberFor<T>>;
@@ -125,14 +123,12 @@ pub mod pallet {
 		/// The overarching event type.
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
-		type Balance: Balance + MaybeSerializeDeserialize + From<u64>;
-
 		/// Overarching hold reason.
 		type RuntimeHoldReason: Parameter + MaxEncodedLen + Copy;
 
-		type Currency: MutateHold<AccountIdOf<Self>, Balance = BalanceOf<Self>, Reason = Self::RuntimeHoldReason>
-			+ BalancedHold<AccountIdOf<Self>, Balance = BalanceOf<Self>, Reason = Self::RuntimeHoldReason>
-			+ Mutate<AccountIdOf<Self>, Balance = BalanceOf<Self>>;
+		type Currency: MutateHold<AccountIdOf<Self>, Reason = Self::RuntimeHoldReason>
+			+ BalancedHold<AccountIdOf<Self>, Reason = Self::RuntimeHoldReason>
+			+ Mutate<AccountIdOf<Self>>;
 
 		/// Convert the block number into a balance.
 		type BlockNumberToBalance: Convert<BlockNumberFor<Self>, BalanceOf<Self>>;
@@ -155,7 +151,7 @@ pub mod pallet {
 
 		/// Reason used when running benchmarks
 		#[cfg(feature = "runtime-benchmarks")]
-		type BenchmarkReason: Get<Self::RuntimeHoldReason>;
+		type BenchmarkReason: Get<ReasonOf<Self>>;
 	}
 
 	#[pallet::extra_constants]
@@ -247,7 +243,7 @@ pub mod pallet {
 			Self::do_vest(who, reason)
 		}
 
-		/// Unlock any vested funds of a `target` account, for the given `reason`.
+		/// Unlock any vested funds of a `target` account, for the given `reason` permissionlessly.
 		///
 		/// The dispatch origin for this call must be _Signed_.
 		///

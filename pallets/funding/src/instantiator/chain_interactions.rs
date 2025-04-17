@@ -7,7 +7,7 @@ use polimec_common::assets::AcceptedFundingAsset;
 
 // general chain interactions
 impl<
-		T: Config + pallet_balances::Config<Balance = Balance> + cumulus_pallet_parachain_system::Config,
+		T: Config + cumulus_pallet_parachain_system::Config,
 		AllPalletsWithoutSystem: OnFinalize<BlockNumberFor<T>> + OnIdle<BlockNumberFor<T>> + OnInitialize<BlockNumberFor<T>>,
 		RuntimeEvent: From<Event<T>> + TryInto<Event<T>> + Parameter + Member + IsType<<T as frame_system::Config>::RuntimeEvent>,
 	> Instantiator<T, AllPalletsWithoutSystem, RuntimeEvent>
@@ -38,7 +38,7 @@ impl<
 		self.execute(|| {
 			let mut balances: Vec<UserToPLMCBalance<T>> = Vec::new();
 			for account in user_keys {
-				let plmc_amount = <T as Config>::NativeCurrency::balance(&account);
+				let plmc_amount = NativeCurrencyOf::<T>::balance(&account);
 				balances.push(UserToPLMCBalance { account, plmc_amount });
 			}
 			balances.sort_by_key(|a| a.account.clone());
@@ -46,8 +46,8 @@ impl<
 		})
 	}
 
-	pub fn get_free_plmc_balance_for(&mut self, user: AccountIdOf<T>) -> Balance {
-		self.execute(|| <T as Config>::NativeCurrency::balance(&user))
+	pub fn get_free_plmc_balance_for(&mut self, user: AccountIdOf<T>) -> BalanceOf<T> {
+		self.execute(|| NativeCurrencyOf::<T>::balance(&user))
 	}
 
 	pub fn get_reserved_plmc_balances_for(
@@ -58,7 +58,7 @@ impl<
 		self.execute(|| {
 			let mut balances: Vec<UserToPLMCBalance<T>> = Vec::new();
 			for account in user_keys {
-				let plmc_amount = <T as Config>::NativeCurrency::balance_on_hold(&lock_type, &account);
+				let plmc_amount = NativeCurrencyOf::<T>::balance_on_hold(&lock_type, &account);
 				balances.push(UserToPLMCBalance { account, plmc_amount });
 			}
 			balances.sort_by(|a, b| a.account.cmp(&b.account));
@@ -70,8 +70,8 @@ impl<
 		&mut self,
 		user: AccountIdOf<T>,
 		lock_type: <T as Config>::RuntimeHoldReason,
-	) -> Balance {
-		self.execute(|| <T as Config>::NativeCurrency::balance_on_hold(&lock_type, &user))
+	) -> BalanceOf<T> {
+		self.execute(|| NativeCurrencyOf::<T>::balance_on_hold(&lock_type, &user))
 	}
 
 	pub fn get_free_funding_asset_balances_for(
@@ -89,13 +89,17 @@ impl<
 		})
 	}
 
-	pub fn get_free_funding_asset_balance_for(&mut self, asset_id: AssetIdOf<T>, user: AccountIdOf<T>) -> Balance {
+	pub fn get_free_funding_asset_balance_for(&mut self, asset_id: AssetIdOf<T>, user: AccountIdOf<T>) -> BalanceOf<T> {
 		self.execute(|| <T as Config>::FundingCurrency::balance(asset_id, &user))
 	}
 
-	pub fn get_ct_asset_balances_for(&mut self, project_id: ProjectId, user_keys: Vec<AccountIdOf<T>>) -> Vec<Balance> {
+	pub fn get_ct_asset_balances_for(
+		&mut self,
+		project_id: ProjectId,
+		user_keys: Vec<AccountIdOf<T>>,
+	) -> Vec<BalanceOf<T>> {
 		self.execute(|| {
-			let mut balances: Vec<Balance> = Vec::new();
+			let mut balances: Vec<BalanceOf<T>> = Vec::new();
 			for account in user_keys {
 				let asset_amount = <T as Config>::ContributionTokenCurrency::balance(project_id, &account);
 				balances.push(asset_amount);
@@ -104,12 +108,12 @@ impl<
 		})
 	}
 
-	pub fn get_ct_asset_balance_for(&mut self, project_id: ProjectId, user: AccountIdOf<T>) -> Balance {
+	pub fn get_ct_asset_balance_for(&mut self, project_id: ProjectId, user: AccountIdOf<T>) -> BalanceOf<T> {
 		self.execute(|| <T as Config>::ContributionTokenCurrency::balance(project_id, &user))
 	}
 
-	pub fn get_plmc_total_supply(&mut self) -> Balance {
-		self.execute(<T as Config>::NativeCurrency::total_issuance)
+	pub fn get_plmc_total_supply(&mut self) -> BalanceOf<T> {
+		self.execute(NativeCurrencyOf::<T>::total_issuance)
 	}
 
 	pub fn do_reserved_plmc_assertions(
@@ -119,7 +123,7 @@ impl<
 	) {
 		for UserToPLMCBalance { account, plmc_amount } in correct_funds {
 			self.execute(|| {
-				let reserved = <T as Config>::NativeCurrency::balance_on_hold(&reserve_type, &account);
+				let reserved = NativeCurrencyOf::<T>::balance_on_hold(&reserve_type, &account);
 				assert_eq!(reserved, plmc_amount, "account {:?} has unexpected reserved plmc balance", account);
 			});
 		}
@@ -129,7 +133,7 @@ impl<
 		self.execute(|| {
 			for UserToPLMCBalance { account, plmc_amount } in mapping {
 				if plmc_amount > Zero::zero() {
-					<T as Config>::NativeCurrency::mint_into(&account, plmc_amount).expect("Minting should work");
+					NativeCurrencyOf::<T>::mint_into(&account, plmc_amount).expect("Minting should work");
 				}
 			}
 		});
@@ -189,7 +193,7 @@ impl<
 	pub fn do_free_plmc_assertions(&mut self, correct_funds: Vec<UserToPLMCBalance<T>>) {
 		for UserToPLMCBalance { account, plmc_amount } in correct_funds {
 			self.execute(|| {
-				let free = <T as Config>::NativeCurrency::balance(&account);
+				let free = NativeCurrencyOf::<T>::balance(&account);
 				assert_eq!(free, plmc_amount, "account has unexpected free plmc balance");
 			});
 		}
@@ -208,8 +212,8 @@ impl<
 		let ed = self.get_ed();
 		for account in accounts {
 			self.execute(|| {
-				if <T as Config>::NativeCurrency::balance(&account) < ed {
-					<T as Config>::NativeCurrency::mint_into(&account, ed).expect("Minting should work");
+				if NativeCurrencyOf::<T>::balance(&account) < ed {
+					NativeCurrencyOf::<T>::mint_into(&account, ed).expect("Minting should work");
 				}
 			});
 		}
@@ -253,7 +257,7 @@ impl<
 
 // assertions
 impl<
-		T: Config + pallet_balances::Config<Balance = Balance> + cumulus_pallet_parachain_system::Config,
+		T: Config + cumulus_pallet_parachain_system::Config,
 		AllPalletsWithoutSystem: OnFinalize<BlockNumberFor<T>> + OnIdle<BlockNumberFor<T>> + OnInitialize<BlockNumberFor<T>>,
 		RuntimeEvent: From<Event<T>> + TryInto<Event<T>> + Parameter + Member + IsType<<T as frame_system::Config>::RuntimeEvent>,
 	> Instantiator<T, AllPalletsWithoutSystem, RuntimeEvent>
@@ -305,7 +309,7 @@ impl<
 				.checked_mul_int(expected_metadata.total_allocation_size)
 				.unwrap(),
 			remaining_contribution_tokens: expected_metadata.total_allocation_size,
-			funding_amount_reached_usd: Balance::zero(),
+			funding_amount_reached_usd: BalanceOf::<T>::zero(),
 			evaluation_round_info: EvaluationRoundInfo {
 				total_bonded_usd: Zero::zero(),
 				total_bonded_plmc: Zero::zero(),
@@ -323,7 +327,7 @@ impl<
 		project_id: ProjectId,
 		expected_free_plmc_balances: Vec<UserToPLMCBalance<T>>,
 		expected_held_plmc_balances: Vec<UserToPLMCBalance<T>>,
-		expected_total_plmc_supply: Balance,
+		expected_total_plmc_supply: BalanceOf<T>,
 	) {
 		let project_details = self.get_project_details(project_id);
 
@@ -337,7 +341,7 @@ impl<
 		self.do_reserved_plmc_assertions(expected_reserved_plmc_balances, HoldReason::Evaluation.into());
 	}
 
-	pub fn assert_plmc_free_balance(&mut self, account_id: AccountIdOf<T>, expected_balance: Balance) {
+	pub fn assert_plmc_free_balance(&mut self, account_id: AccountIdOf<T>, expected_balance: BalanceOf<T>) {
 		let real_balance = self.get_free_plmc_balance_for(account_id.clone());
 		assert_eq!(real_balance, expected_balance, "Unexpected PLMC balance for user {:?}", account_id);
 	}
@@ -346,13 +350,18 @@ impl<
 		&mut self,
 		account_id: AccountIdOf<T>,
 		asset_id: AssetIdOf<T>,
-		expected_balance: Balance,
+		expected_balance: BalanceOf<T>,
 	) {
 		let real_balance = self.get_free_funding_asset_balance_for(asset_id, account_id.clone());
 		assert_eq!(real_balance, expected_balance, "Unexpected funding asset balance for user {:?}", account_id);
 	}
 
-	pub fn assert_ct_balance(&mut self, project_id: ProjectId, account_id: AccountIdOf<T>, expected_balance: Balance) {
+	pub fn assert_ct_balance(
+		&mut self,
+		project_id: ProjectId,
+		account_id: AccountIdOf<T>,
+		expected_balance: BalanceOf<T>,
+	) {
 		let real_balance = self.get_ct_asset_balance_for(project_id, account_id.clone());
 		assert_eq!(real_balance, expected_balance, "Unexpected CT balance for user {:?}", account_id);
 	}
@@ -360,7 +369,7 @@ impl<
 
 // project chain interactions
 impl<
-		T: Config + pallet_balances::Config<Balance = Balance> + cumulus_pallet_parachain_system::Config,
+		T: Config + cumulus_pallet_parachain_system::Config,
 		AllPalletsWithoutSystem: OnFinalize<BlockNumberFor<T>> + OnIdle<BlockNumberFor<T>> + OnInitialize<BlockNumberFor<T>>,
 		RuntimeEvent: From<Event<T>> + TryInto<Event<T>> + Parameter + Member + IsType<<T as frame_system::Config>::RuntimeEvent>,
 	> Instantiator<T, AllPalletsWithoutSystem, RuntimeEvent>
@@ -504,10 +513,10 @@ impl<
 	// Used to check all the USDT/USDC/DOT was paid to the issuer funding account
 	pub fn assert_total_funding_paid_out(&mut self, project_id: ProjectId, bids: Vec<BidInfoOf<T>>) {
 		let project_metadata = self.get_project_metadata(project_id);
-		let mut total_expected_dot: Balance = Zero::zero();
-		let mut total_expected_usdt: Balance = Zero::zero();
-		let mut total_expected_usdc: Balance = Zero::zero();
-		let mut total_expected_eth: Balance = Zero::zero();
+		let mut total_expected_dot: BalanceOf<T> = Zero::zero();
+		let mut total_expected_usdt: BalanceOf<T> = Zero::zero();
+		let mut total_expected_usdc: BalanceOf<T> = Zero::zero();
+		let mut total_expected_eth: BalanceOf<T> = Zero::zero();
 
 		for bid in bids {
 			match bid.funding_asset {
@@ -628,7 +637,7 @@ impl<
 		&mut self,
 		project_id: ProjectId,
 		account: AccountIdOf<T>,
-		amount: Balance,
+		amount: BalanceOf<T>,
 		participation_type: ParticipationType,
 		receiving_account: Junction,
 		should_exist: bool,
@@ -824,7 +833,7 @@ impl<
 		let auction_bought_tokens = bids
 			.iter()
 			.map(|bid| bid.amount)
-			.fold(Balance::zero(), |acc, item| item + acc)
+			.fold(BalanceOf::<T>::zero(), |acc, item| item + acc)
 			.min(project_metadata.total_allocation_size);
 
 		assert_eq!(

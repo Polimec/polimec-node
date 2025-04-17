@@ -24,11 +24,13 @@ pub mod v5_storage_items {
 		Failed,
 	}
 	use super::*;
-	use crate::{Balance, BlockNumberPair, FundingOutcome, Pallet, ProjectId, TicketSize};
+	use crate::{BlockNumberPair, FundingOutcome, Pallet, ProjectId, TicketSize};
 	use frame_support::{pallet_prelude::NMapKey, storage_alias, Blake2_128Concat};
 	use polimec_common::migration_types::MigrationStatus;
 	use polkadot_parachain_primitives::primitives::Id as ParaId;
 	use xcm::v4::QueryId;
+
+	type Balance = u128;
 
 	#[derive(Clone, Copy, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
 	pub struct HRMPChannelStatus {
@@ -113,18 +115,18 @@ pub mod v5_storage_items {
 	#[derive(
 		Clone, Copy, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo, Serialize, Deserialize,
 	)]
-	pub struct OldBiddingTicketSizes<Price: FixedPointNumber> {
-		pub professional: TicketSize,
-		pub institutional: TicketSize,
+	pub struct OldBiddingTicketSizes<Price: FixedPointNumber, Balance> {
+		pub professional: TicketSize<Balance>,
+		pub institutional: TicketSize<Balance>,
 		pub phantom: PhantomData<(Price, Balance)>,
 	}
 	#[derive(
 		Clone, Copy, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo, Serialize, Deserialize,
 	)]
-	pub struct OldContributingTicketSizes<Price: FixedPointNumber> {
-		pub retail: TicketSize,
-		pub professional: TicketSize,
-		pub institutional: TicketSize,
+	pub struct OldContributingTicketSizes<Price: FixedPointNumber, Balance> {
+		pub retail: TicketSize<Balance>,
+		pub professional: TicketSize<Balance>,
+		pub institutional: TicketSize<Balance>,
 		pub phantom: PhantomData<(Price, Balance)>,
 	}
 
@@ -141,7 +143,7 @@ pub mod v5_storage_items {
 		/// The minimum price per token in USD, decimal-aware. See [`calculate_decimals_aware_price()`](crate::traits::ProvideAssetPrice::calculate_decimals_aware_price) for more information.
 		pub minimum_price: Price,
 		/// Maximum and minimum ticket sizes for auction round
-		pub bidding_ticket_sizes: OldBiddingTicketSizes<Price>,
+		pub bidding_ticket_sizes: OldBiddingTicketSizes<Price, Balance>,
 		pub contributing_ticket_sizes: OldContributingTicketSizes<Price>,
 		/// Participation currencies (e.g stablecoin, DOT, KSM)
 		/// e.g. https://github.com/paritytech/substrate/blob/427fd09bcb193c1e79dec85b1e207c718b686c35/frame/uniques/src/types.rs#L110
@@ -209,9 +211,11 @@ pub mod v6 {
 	};
 	use sp_runtime::WeakBoundedVec;
 
+	type Balance = u128;
+
 	type OldProjectMetadataOf<T> = super::v5_storage_items::OldProjectMetadata<
 		BoundedVec<u8, StringLimitOf<T>>,
-		<T as pallet_balances::Config>::Balance,
+		Balance,
 		PriceOf<T>,
 		AccountIdOf<T>,
 		Cid,

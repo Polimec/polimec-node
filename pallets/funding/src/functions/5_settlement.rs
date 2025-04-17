@@ -1,6 +1,6 @@
 #[allow(clippy::wildcard_imports)]
 use super::*;
-use crate::{traits::VestingDurationCalculation, Balance};
+use crate::{traits::VestingDurationCalculation, BalanceOf};
 use frame_support::{
 	dispatch::DispatchResult,
 	ensure,
@@ -115,7 +115,7 @@ impl<T: Config> Pallet<T> {
 			Error::<T>::SettlementNotStarted
 		);
 
-		let (plmc_released, ct_rewarded): (Balance, Balance) =
+		let (plmc_released, ct_rewarded): (BalanceOf<T>, BalanceOf<T>) =
 			match project_details.evaluation_round_info.evaluators_outcome {
 				Some(EvaluatorsOutcome::Slashed) => (Self::slash_evaluator(&evaluation)?, Zero::zero()),
 				Some(EvaluatorsOutcome::Rewarded(info)) => Self::reward_evaluator(project_id, &evaluation, &info)?,
@@ -123,7 +123,7 @@ impl<T: Config> Pallet<T> {
 			};
 
 		// Release the held PLMC bond
-		T::NativeCurrency::release(
+		NativeCurrencyOf::<T>::release(
 			&HoldReason::Evaluation.into(),
 			&evaluation.evaluator,
 			plmc_released,
@@ -183,7 +183,7 @@ impl<T: Config> Pallet<T> {
 		Self::release_funding_asset(project_id, &bid.bidder, refunded_funding_asset_amount, bid.funding_asset)?;
 
 		if bid.mode == ParticipationMode::OTM {
-			if refunded_plmc > T::NativeCurrency::minimum_balance() {
+			if refunded_plmc > NativeCurrencyOf::<T>::minimum_balance() {
 				<pallet_proxy_bonding::Pallet<T>>::refund_fee(
 					project_id,
 					&bid.bidder,
@@ -297,7 +297,7 @@ impl<T: Config> Pallet<T> {
 	fn mint_contribution_tokens(
 		project_id: ProjectId,
 		participant: &AccountIdOf<T>,
-		amount: Balance,
+		amount: BalanceOf<T>,
 	) -> DispatchResult {
 		if !T::ContributionTokenCurrency::contains(&project_id, participant) {
 			T::ContributionTokenCurrency::touch(project_id, participant, participant)?;
@@ -310,7 +310,7 @@ impl<T: Config> Pallet<T> {
 	fn release_funding_asset(
 		project_id: ProjectId,
 		participant: &AccountIdOf<T>,
-		amount: Balance,
+		amount: BalanceOf<T>,
 		asset: AcceptedFundingAsset,
 	) -> DispatchResult {
 		if amount.is_zero() {
@@ -322,19 +322,19 @@ impl<T: Config> Pallet<T> {
 	}
 
 	/// Helper function to release the PLMC bond to the participant
-	fn release_participation_bond_for(participant: &AccountIdOf<T>, amount: Balance) -> DispatchResult {
+	fn release_participation_bond_for(participant: &AccountIdOf<T>, amount: BalanceOf<T>) -> DispatchResult {
 		if amount.is_zero() {
 			return Ok(());
 		}
 		// Release the held PLMC bond
-		T::NativeCurrency::release(&HoldReason::Participation.into(), participant, amount, Precision::Exact)?;
+		NativeCurrencyOf::<T>::release(&HoldReason::Participation.into(), participant, amount, Precision::Exact)?;
 		Ok(())
 	}
 
 	/// Set the PLMC release schedule if mode was `Classic`. Return the schedule either way.
 	fn set_plmc_bond_release_with_mode(
 		participant: AccountIdOf<T>,
-		plmc_amount: Balance,
+		plmc_amount: BalanceOf<T>,
 		mode: ParticipationMode,
 		funding_end_block: BlockNumberFor<T>,
 	) -> Result<BlockNumberFor<T>, DispatchError> {
@@ -349,7 +349,7 @@ impl<T: Config> Pallet<T> {
 	/// Calculate the vesting info and add the PLMC release schedule to the user, or fully release the funds if possible.
 	fn set_release_schedule_for(
 		participant: &AccountIdOf<T>,
-		plmc_amount: Balance,
+		plmc_amount: BalanceOf<T>,
 		multiplier: MultiplierOf<T>,
 		funding_end_block: BlockNumberFor<T>,
 	) -> Result<BlockNumberFor<T>, DispatchError> {
@@ -372,7 +372,7 @@ impl<T: Config> Pallet<T> {
 	}
 
 	/// Slash an evaluator and transfer funds to the treasury.
-	fn slash_evaluator(evaluation: &EvaluationInfoOf<T>) -> Result<Balance, DispatchError> {
+	fn slash_evaluator(evaluation: &EvaluationInfoOf<T>) -> Result<BalanceOf<T>, DispatchError> {
 		let slash_percentage = T::EvaluatorSlash::get();
 		let treasury_account = T::BlockchainOperationTreasury::get();
 
@@ -380,7 +380,7 @@ impl<T: Config> Pallet<T> {
 		// We need to make sure that the current PLMC bond is always >= than the slash amount.
 		let slashed_amount = slash_percentage * evaluation.original_plmc_bond;
 
-		T::NativeCurrency::transfer_on_hold(
+		NativeCurrencyOf::<T>::transfer_on_hold(
 			&HoldReason::Evaluation.into(),
 			&evaluation.evaluator,
 			&treasury_account,
@@ -400,14 +400,14 @@ impl<T: Config> Pallet<T> {
 		project_id: ProjectId,
 		evaluation: &EvaluationInfoOf<T>,
 		info: &RewardInfo,
-	) -> Result<(Balance, Balance), DispatchError> {
+	) -> Result<(BalanceOf<T>, BalanceOf<T>), DispatchError> {
 		let reward = Self::calculate_evaluator_reward(evaluation, info);
 		Self::mint_contribution_tokens(project_id, &evaluation.evaluator, reward)?;
 
 		Ok((evaluation.current_plmc_bond, reward))
 	}
 
-	pub fn calculate_evaluator_reward(evaluation: &EvaluationInfoOf<T>, info: &RewardInfo) -> Balance {
+	pub fn calculate_evaluator_reward(evaluation: &EvaluationInfoOf<T>, info: &RewardInfo) -> BalanceOf<T> {
 		let early_reward_weight =
 			Perquintill::from_rational(evaluation.early_usd_amount, info.early_evaluator_total_bonded_usd);
 		let normal_reward_weight = Perquintill::from_rational(
@@ -423,7 +423,7 @@ impl<T: Config> Pallet<T> {
 		project_id: ProjectId,
 		origin: &AccountIdOf<T>,
 		participation_type: ParticipationType,
-		ct_amount: Balance,
+		ct_amount: BalanceOf<T>,
 		vesting_time: BlockNumberFor<T>,
 		receiving_account: Junction,
 	) -> DispatchResult {

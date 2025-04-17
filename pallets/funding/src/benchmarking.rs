@@ -97,12 +97,11 @@ pub fn string_account<AccountId: Decode>(
 
 #[benchmarks(
 	where
-	T: Config + frame_system::Config<RuntimeEvent = <T as Config>::RuntimeEvent> + pallet_balances::Config<Balance = Balance> + cumulus_pallet_parachain_system::Config + core::fmt::Debug,
+	T: Config + frame_system::Config<RuntimeEvent = <T as Config>::RuntimeEvent> + cumulus_pallet_parachain_system::Config + core::fmt::Debug,
 	<T as Config>::RuntimeEvent: TryInto<Event<T>> + Parameter + Member,
 	<T as Config>::Price: From<u128>,
 	T::Hash: From<H256>,
 	<T as frame_system::Config>::AccountId: Into<<<T as frame_system::Config>::RuntimeOrigin as OriginTrait>::AccountId> + core::fmt::Debug,
-	<T as pallet_balances::Config>::Balance: Into<Balance>,
 )]
 mod benchmarks {
 	use super::*;

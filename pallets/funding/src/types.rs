@@ -22,7 +22,7 @@ use alloc::{vec, vec::Vec};
 pub use config::*;
 use core::cmp::Eq;
 pub use extrinsic::*;
-use frame_support::pallet_prelude::*;
+use frame_support::{pallet_prelude::*, traits::tokens::Balance as BalanceT};
 pub use inner::*;
 use parachains_common::DAYS;
 use polimec_common::USD_DECIMALS;
@@ -39,7 +39,7 @@ use sp_runtime::traits::Zero;
 pub mod config {
 	#[allow(clippy::wildcard_imports)]
 	use super::*;
-	use crate::{Balance, BlockNumberFor};
+	use crate::{BalanceOf, BlockNumberFor};
 
 	use sp_core::parameter_types;
 	use xcm::v4::Location;
@@ -68,8 +68,8 @@ pub mod config {
 	}
 
 	impl BondingRequirementCalculation for Multiplier {
-		fn calculate_usd_bonding_requirement<T: Config>(&self, usd_ticket_size: Balance) -> Option<Balance> {
-			let balance_multiplier = Balance::from(self.0);
+		fn calculate_usd_bonding_requirement<T: Config>(&self, usd_ticket_size: BalanceOf<T>) -> Option<BalanceOf<T>> {
+			let balance_multiplier = BalanceOf::<T>::from(self.0);
 			usd_ticket_size.checked_div(balance_multiplier)
 		}
 	}
@@ -160,11 +160,10 @@ pub mod config {
 pub mod storage {
 	#[allow(clippy::wildcard_imports)]
 	use super::*;
-	use crate::Balance;
 	use xcm::v4::Junction;
 
 	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo, Serialize, Deserialize)]
-	pub struct ProjectMetadata<BoundedString, Price: FixedPointNumber, AccountId, Cid> {
+	pub struct ProjectMetadata<BoundedString, Price: FixedPointNumber, AccountId, Cid, Balance> {
 		/// Token Metadata
 		pub token_information: CurrencyMetadata<BoundedString>,
 		/// Mainnet Token Max Supply
@@ -186,7 +185,9 @@ pub mod storage {
 		pub participants_account_type: ParticipantsAccountType,
 	}
 
-	impl<BoundedString, Price: FixedPointNumber, AccountId, Cid> ProjectMetadata<BoundedString, Price, AccountId, Cid> {
+	impl<BoundedString, Price: FixedPointNumber, AccountId, Cid, Balance: BalanceT>
+		ProjectMetadata<BoundedString, Price, AccountId, Cid, Balance>
+	{
 		/// Validate issuer metadata for the following checks:
 		/// - Minimum price is not zero
 		/// - Minimum bidding ticket sizes are higher than 5k USD
@@ -251,12 +252,12 @@ pub mod storage {
 		}
 	}
 
-	pub struct Bound {
+	pub struct Bound<Balance> {
 		pub lower: Balance,
 		pub upper: Option<Balance>,
 	}
 
-	impl From<(Balance, Option<Balance>)> for Bound {
+	impl<Balance: BalanceT> From<(Balance, Option<Balance>)> for Bound<Balance> {
 		fn from(value: (Balance, Option<Balance>)) -> Self {
 			Self { lower: value.0, upper: value.1 }
 		}
@@ -269,7 +270,7 @@ pub mod storage {
 	}
 
 	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
-	pub struct ProjectDetails<AccountId, Did, BlockNumber, EvaluationRoundInfo> {
+	pub struct ProjectDetails<AccountId, Did, BlockNumber, EvaluationRoundInfo, Balance> {
 		pub issuer_account: AccountId,
 		pub issuer_did: Did,
 		/// Whether the project is frozen, so no `metadata` changes are allowed.
@@ -292,7 +293,7 @@ pub mod storage {
 		pub funding_end_block: Option<BlockNumber>,
 	}
 	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen, Ord, PartialOrd)]
-	pub struct EvaluationInfo<Id, Did, ProjectId, AccountId, BlockNumber> {
+	pub struct EvaluationInfo<Id, Did, ProjectId, AccountId, BlockNumber, Balance> {
 		pub id: Id,
 		pub did: Did,
 		pub project_id: ProjectId,
@@ -307,7 +308,7 @@ pub mod storage {
 	}
 
 	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
-	pub struct BidInfo<ProjectId, Did, Price: FixedPointNumber, AccountId, BlockNumber> {
+	pub struct BidInfo<ProjectId, Did, Price: FixedPointNumber, AccountId, BlockNumber, Balance> {
 		// Check
 		pub id: u32,
 		// Check
@@ -326,8 +327,8 @@ pub mod storage {
 		pub receiving_account: Junction,
 	}
 
-	impl<ProjectId: Eq, Did: Eq, Price: FixedPointNumber, AccountId: Eq, BlockNumber: Eq + Ord> Ord
-		for BidInfo<ProjectId, Did, Price, AccountId, BlockNumber>
+	impl<ProjectId: Eq, Did: Eq, Price: FixedPointNumber, AccountId: Eq, BlockNumber: Eq + Ord, Balance: Eq + Ord> Ord
+		for BidInfo<ProjectId, Did, Price, AccountId, BlockNumber, Balance>
 	{
 		fn cmp(&self, other: &Self) -> core::cmp::Ordering {
 			match self.original_ct_usd_price.cmp(&other.original_ct_usd_price) {
@@ -337,8 +338,8 @@ pub mod storage {
 		}
 	}
 
-	impl<ProjectId: Eq, Did: Eq, Price: FixedPointNumber, AccountId: Eq, BlockNumber: Eq + Ord> PartialOrd
-		for BidInfo<ProjectId, Did, Price, AccountId, BlockNumber>
+	impl<ProjectId: Eq, Did: Eq, Price: FixedPointNumber, AccountId: Eq, BlockNumber: Eq + Ord, Balance: Eq + Ord>
+		PartialOrd for BidInfo<ProjectId, Did, Price, AccountId, BlockNumber, Balance>
 	{
 		fn partial_cmp(&self, other: &Self) -> Option<core::cmp::Ordering> {
 			Some(self.cmp(other))
@@ -349,7 +350,7 @@ pub mod storage {
 	/// Each bucket has a unique ID, an amount of tokens left, a current price, an initial price,
 	/// and constants to define price and amount increments for the next buckets.
 	#[derive(Clone, Copy, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
-	pub struct Bucket<Price> {
+	pub struct Bucket<Price, Balance> {
 		/// The amount of tokens left in this bucket.
 		pub amount_left: Balance,
 		/// The current price of tokens in this bucket.
@@ -362,7 +363,7 @@ pub mod storage {
 		pub delta_amount: Balance,
 	}
 
-	impl<Price: FixedPointNumber> Bucket<Price> {
+	impl<Price: FixedPointNumber, Balance: BalanceT> Bucket<Price, Balance> {
 		/// Creates a new bucket with the given parameters.
 		pub const fn new(
 			amount_left: Balance,
@@ -444,7 +445,6 @@ pub mod storage {
 pub mod inner {
 	#[allow(clippy::wildcard_imports)]
 	use super::*;
-	use crate::Balance;
 	use xcm::v4::Junction;
 
 	pub enum MetadataError {
@@ -486,11 +486,11 @@ pub mod inner {
 	#[derive(
 		Clone, Copy, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo, Serialize, Deserialize,
 	)]
-	pub struct TicketSize {
+	pub struct TicketSize<Balance> {
 		pub usd_minimum_per_participation: Balance,
 		pub usd_maximum_per_did: Option<Balance>,
 	}
-	impl TicketSize {
+	impl<Balance: BalanceT> TicketSize<Balance> {
 		pub fn new(usd_minimum_per_participation: Balance, usd_maximum_per_did: Option<Balance>) -> Self {
 			Self { usd_minimum_per_participation, usd_maximum_per_did }
 		}
@@ -530,7 +530,7 @@ pub mod inner {
 	#[derive(
 		Clone, Copy, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo, Serialize, Deserialize,
 	)]
-	pub struct BiddingTicketSizes<Price: FixedPointNumber> {
+	pub struct BiddingTicketSizes<Price: FixedPointNumber, Balance> {
 		pub professional: TicketSize,
 		pub institutional: TicketSize,
 		pub retail: TicketSize,
@@ -609,7 +609,7 @@ pub mod inner {
 	}
 
 	#[derive(Default, Clone, Copy, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
-	pub enum BidStatus {
+	pub enum BidStatus<Balance> {
 		/// The bid is not yet accepted or rejected
 		#[default]
 		YetUnknown,
@@ -624,14 +624,14 @@ pub mod inner {
 	}
 
 	#[derive(Clone, Copy, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
-	pub struct VestingInfo<BlockNumber> {
+	pub struct VestingInfo<BlockNumber, Balance> {
 		pub total_amount: Balance,
 		pub amount_per_block: Balance,
 		pub duration: BlockNumber,
 	}
 
 	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
-	pub struct EvaluationRoundInfo {
+	pub struct EvaluationRoundInfo<Balance> {
 		pub total_bonded_usd: Balance,
 		pub total_bonded_plmc: Balance,
 		pub evaluators_outcome: Option<EvaluatorsOutcome>,
@@ -644,7 +644,7 @@ pub mod inner {
 	}
 
 	#[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
-	pub struct RewardInfo {
+	pub struct RewardInfo<Balance> {
 		// Total "Early Evaluators" rewards amount in Contribution Tokens
 		pub early_evaluator_reward_pot: Balance,
 		// Total "Normal Evaluators" rewards amount in Contribution Tokens
@@ -705,14 +705,14 @@ pub mod inner {
 
 pub mod extrinsic {
 	use super::*;
-	use crate::{AccountIdOf, Balance, BlockNumberFor, Config, ParticipationMode, PriceOf, ProjectId, TicketSize};
+	use crate::{AccountIdOf, BalanceOf, BlockNumberFor, Config, ParticipationMode, PriceOf, ProjectId, TicketSize};
 	use polimec_common::credentials::{Cid, Did, InvestorType};
 	use xcm::v4::Junction;
 
 	pub struct DoBidParams<T: Config> {
 		pub bidder: AccountIdOf<T>,
 		pub project_id: ProjectId,
-		pub ct_amount: Balance,
+		pub ct_amount: BalanceOf<T>,
 		pub mode: ParticipationMode,
 		pub funding_asset: AcceptedFundingAsset,
 		pub did: Did,
@@ -724,7 +724,7 @@ pub mod extrinsic {
 	pub struct DoPerformBidParams<T: Config> {
 		pub bidder: AccountIdOf<T>,
 		pub project_id: ProjectId,
-		pub ct_amount: Balance,
+		pub ct_amount: BalanceOf<T>,
 		pub ct_usd_price: PriceOf<T>,
 		pub mode: ParticipationMode,
 		pub funding_asset: AcceptedFundingAsset,
@@ -739,7 +739,7 @@ pub mod extrinsic {
 	pub struct DoContributeParams<T: Config> {
 		pub contributor: AccountIdOf<T>,
 		pub project_id: ProjectId,
-		pub ct_amount: Balance,
+		pub ct_amount: BalanceOf<T>,
 		pub mode: ParticipationMode,
 		pub funding_asset: AcceptedFundingAsset,
 		pub did: Did,
@@ -748,7 +748,7 @@ pub mod extrinsic {
 		pub receiving_account: Junction,
 	}
 
-	pub struct BidRefund {
+	pub struct BidRefund<Balance> {
 		pub final_ct_amount: Balance,
 		pub refunded_plmc: Balance,
 		pub refunded_funding_asset_amount: Balance,

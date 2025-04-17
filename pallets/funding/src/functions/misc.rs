@@ -36,7 +36,10 @@ impl<T: Config> Pallet<T> {
 		Ok(bucket)
 	}
 
-	pub fn calculate_plmc_bond(ticket_size: Balance, multiplier: MultiplierOf<T>) -> Result<Balance, DispatchError> {
+	pub fn calculate_plmc_bond(
+		ticket_size: BalanceOf<T>,
+		multiplier: MultiplierOf<T>,
+	) -> Result<BalanceOf<T>, DispatchError> {
 		let plmc_usd_price =
 			<PriceProviderOf<T>>::get_decimals_aware_price(Location::here(), USD_DECIMALS, PLMC_DECIMALS)
 				.ok_or(Error::<T>::PriceNotFound)?;
@@ -49,9 +52,9 @@ impl<T: Config> Pallet<T> {
 	}
 
 	pub fn calculate_funding_asset_amount(
-		ticket_size: Balance,
+		ticket_size: BalanceOf<T>,
 		asset_id: AcceptedFundingAsset,
-	) -> Result<Balance, DispatchError> {
+	) -> Result<BalanceOf<T>, DispatchError> {
 		let asset_id = asset_id.id();
 		let asset_decimals = T::FundingCurrency::decimals(asset_id.clone());
 		let asset_usd_price = <PriceProviderOf<T>>::get_decimals_aware_price(asset_id, USD_DECIMALS, asset_decimals)
@@ -67,7 +70,7 @@ impl<T: Config> Pallet<T> {
 	pub fn calculate_vesting_info(
 		_caller: &AccountIdOf<T>,
 		multiplier: MultiplierOf<T>,
-		bonded_amount: Balance,
+		bonded_amount: BalanceOf<T>,
 	) -> Result<VestingInfo<BlockNumberFor<T>>, DispatchError> {
 		let duration: BlockNumberFor<T> = multiplier.calculate_vesting_duration::<T>();
 		let duration_as_balance = T::BlockNumberToBalance::convert(duration);
@@ -83,7 +86,7 @@ impl<T: Config> Pallet<T> {
 	pub fn bond_plmc_with_mode(
 		who: &T::AccountId,
 		project_id: ProjectId,
-		amount: Balance,
+		amount: BalanceOf<T>,
 		mode: ParticipationMode,
 		asset: AcceptedFundingAsset,
 	) -> DispatchResult {
@@ -99,7 +102,11 @@ impl<T: Config> Pallet<T> {
 		}
 	}
 
-	pub fn try_plmc_participation_lock(who: &T::AccountId, project_id: ProjectId, amount: Balance) -> DispatchResult {
+	pub fn try_plmc_participation_lock(
+		who: &T::AccountId,
+		project_id: ProjectId,
+		amount: BalanceOf<T>,
+	) -> DispatchResult {
 		// Check if the user has already locked tokens in the evaluation period
 		let user_evaluations = Evaluations::<T>::iter_prefix_values((project_id, who));
 
@@ -113,14 +120,14 @@ impl<T: Config> Pallet<T> {
 			let converted = to_convert.min(available_to_convert);
 			evaluation.current_plmc_bond = evaluation.current_plmc_bond.saturating_sub(converted);
 			Evaluations::<T>::insert((project_id, who, evaluation.id), evaluation);
-			T::NativeCurrency::release(&HoldReason::Evaluation.into(), who, converted, Precision::Exact)
+			NativeCurrencyOf::<T>::release(&HoldReason::Evaluation.into(), who, converted, Precision::Exact)
 				.map_err(|_| Error::<T>::ImpossibleState)?;
-			T::NativeCurrency::hold(&HoldReason::Participation.into(), who, converted)
+			NativeCurrencyOf::<T>::hold(&HoldReason::Participation.into(), who, converted)
 				.map_err(|_| Error::<T>::ImpossibleState)?;
 			to_convert = to_convert.saturating_sub(converted)
 		}
 
-		T::NativeCurrency::hold(&HoldReason::Participation.into(), who, to_convert)
+		NativeCurrencyOf::<T>::hold(&HoldReason::Participation.into(), who, to_convert)
 			.map_err(|_| Error::<T>::ParticipantNotEnoughFunds)?;
 
 		Ok(())
@@ -130,7 +137,7 @@ impl<T: Config> Pallet<T> {
 	pub fn try_funding_asset_hold(
 		who: &T::AccountId,
 		project_id: ProjectId,
-		amount: Balance,
+		amount: BalanceOf<T>,
 		asset_id: AssetIdOf<T>,
 	) -> DispatchResult {
 		let fund_account = Self::fund_account_id(project_id);
@@ -142,7 +149,7 @@ impl<T: Config> Pallet<T> {
 	}
 
 	// Calculate the total fee allocation for a project, based on the funding reached.
-	fn calculate_fee_allocation(project_id: ProjectId) -> Result<Balance, DispatchError> {
+	fn calculate_fee_allocation(project_id: ProjectId) -> Result<BalanceOf<T>, DispatchError> {
 		let project_metadata = ProjectsMetadata::<T>::get(project_id).ok_or(Error::<T>::ProjectMetadataNotFound)?;
 		let bucket = Buckets::<T>::get(project_id).ok_or(Error::<T>::BucketNotFound)?;
 		// Fetching the necessary data for a specific project.
@@ -164,23 +171,27 @@ impl<T: Config> Pallet<T> {
 	}
 
 	/// Computes the total fee from all defined fee brackets.
-	fn compute_total_fee_from_brackets(funding_reached: Balance) -> Balance {
+	fn compute_total_fee_from_brackets(funding_reached: BalanceOf<T>) -> BalanceOf<T> {
 		let mut remaining_for_fee = funding_reached;
 
 		T::FeeBrackets::get()
 			.into_iter()
 			.map(|(fee, limit)| Self::compute_fee_for_bracket(&mut remaining_for_fee, fee, limit))
-			.fold(Balance::zero(), |acc, fee| acc.saturating_add(fee))
+			.fold(BalanceOf::<T>::zero(), |acc, fee| acc.saturating_add(fee))
 	}
 
 	/// Calculate the fee for a particular bracket.
-	fn compute_fee_for_bracket(remaining_for_fee: &mut Balance, fee: Percent, limit: Balance) -> Balance {
+	fn compute_fee_for_bracket(
+		remaining_for_fee: &mut BalanceOf<T>,
+		fee: Percent,
+		limit: BalanceOf<T>,
+	) -> BalanceOf<T> {
 		if let Some(amount_to_bid) = remaining_for_fee.checked_sub(limit) {
 			*remaining_for_fee = amount_to_bid;
 			fee * limit
 		} else {
 			let fee_for_this_bracket = fee * *remaining_for_fee;
-			*remaining_for_fee = Balance::zero();
+			*remaining_for_fee = BalanceOf::<T>::zero();
 			fee_for_this_bracket
 		}
 	}
@@ -224,7 +235,7 @@ impl<T: Config> Pallet<T> {
 
 	pub fn generate_liquidity_pools_and_long_term_holder_rewards(
 		project_id: ProjectId,
-	) -> Result<(Balance, Balance), DispatchError> {
+	) -> Result<(BalanceOf<T>, BalanceOf<T>), DispatchError> {
 		let total_fee_allocation = Self::calculate_fee_allocation(project_id)?;
 
 		let liquidity_pools_percentage = Perquintill::from_percent(50);

@@ -50,10 +50,10 @@ use system::EnsureSigned;
 use xcm_builder::{ParentIsPreset, SiblingParachainConvertsVia};
 use xcm_executor::traits::XcmAssetTransfers;
 
-pub const PLMC: Balance = 10u128.pow(PLMC_DECIMALS as u32);
-pub const MILLI_PLMC: Balance = PLMC / 10u128.pow(3);
-pub const MICRO_PLMC: Balance = PLMC / 10u128.pow(6);
-pub const EXISTENTIAL_DEPOSIT: Balance = 10 * MILLI_PLMC;
+pub const PLMC: BalanceOf<Test> = 10u128.pow(PLMC_DECIMALS as u32);
+pub const MILLI_PLMC: BalanceOf<Test> = PLMC / 10u128.pow(3);
+pub const MICRO_PLMC: BalanceOf<Test> = PLMC / 10u128.pow(6);
+pub const EXISTENTIAL_DEPOSIT: BalanceOf<Test> = 10 * MILLI_PLMC;
 pub type Block = frame_system::mocking::MockBlock<TestRuntime>;
 pub type AccountId = u64;
 pub type BlockNumber = u64;
@@ -63,11 +63,11 @@ pub type ContributionTokensInstance = pallet_assets::Instance1;
 pub type ForeignAssetsInstance = pallet_assets::Instance2;
 pub type AssetId = u32;
 
-pub const fn deposit(items: u32, bytes: u32) -> Balance {
-	items as Balance * 15 * MICRO_PLMC + (bytes as Balance) * 6 * MICRO_PLMC
+pub const fn deposit(items: u32, bytes: u32) -> BalanceOf<Test> {
+	items as BalanceOf<Test> * 15 * MICRO_PLMC + (bytes as BalanceOf<Test>) * 6 * MICRO_PLMC
 }
 
-pub const fn free_deposit() -> Balance {
+pub const fn free_deposit() -> BalanceOf<Test> {
 	0 * MICRO_PLMC
 }
 

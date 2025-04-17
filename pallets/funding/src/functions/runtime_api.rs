@@ -26,7 +26,7 @@ sp_api::decl_runtime_apis! {
 	#[api_version(2)]
 	pub trait UserInformation<T: Config> {
 		/// Get all the contribution token balances for the participated projects.
-		fn contribution_tokens(account: AccountIdOf<T>) -> Vec<(ProjectId, Balance)>;
+		fn contribution_tokens(account: AccountIdOf<T>) -> Vec<(ProjectId, BalanceOf<T>)>;
 
 		/// Get all the `EvaluationInfoOf` made by a single account, for a specific project if provided.
 		fn evaluations_of(account: AccountIdOf<T>, project_id: Option<ProjectId>) -> Vec<EvaluationInfoOf<T>>;
@@ -48,20 +48,20 @@ sp_api::decl_runtime_apis! {
 	pub trait ExtrinsicHelpers<T: Config> {
 		/// Get the current price of a contribution token (either current bucket in the auction, or WAP in contribution phase),
 		/// and calculate the amount of tokens that can be bought with the given amount USDT/USDC/DOT.
-		fn funding_asset_to_ct_amount_classic(project_id: ProjectId, funding_asset: AcceptedFundingAsset, funding_asset_amount: Balance) -> Balance;
+		fn funding_asset_to_ct_amount_classic(project_id: ProjectId, funding_asset: AcceptedFundingAsset, funding_asset_amount: BalanceOf<T>) -> BalanceOf<T>;
 
 		/// Calculate how many CTs and what the OTM fee is for a given project and funding asset amount.
-		fn funding_asset_to_ct_amount_otm(project_id: ProjectId, funding_asset: AcceptedFundingAsset, funding_asset_amount: Balance) -> (Balance, Balance);
+		fn funding_asset_to_ct_amount_otm(project_id: ProjectId, funding_asset: AcceptedFundingAsset, funding_asset_amount: BalanceOf<T>) -> (BalanceOf<T>, BalanceOf<T>);
 
 		/// Get the indexes of vesting schedules that are good candidates to be merged.
 		/// Schedules that have not yet started are de-facto bad candidates.
-		fn get_next_vesting_schedule_merge_candidates(account_id: AccountIdOf<T>, hold_reason: <T as Config>::RuntimeHoldReason, end_max_delta: Balance) -> Option<(u32, u32)>;
+		fn get_next_vesting_schedule_merge_candidates(account_id: AccountIdOf<T>, hold_reason: <T as Config>::RuntimeHoldReason, end_max_delta: BalanceOf<T>) -> Option<(u32, u32)>;
 
 		/// Calculate the OTM fee for a project, using a given asset and amount.
-		fn calculate_otm_fee(funding_asset: AcceptedFundingAsset, funding_asset_amount: Balance) -> Option<Balance>;
+		fn calculate_otm_fee(funding_asset: AcceptedFundingAsset, funding_asset_amount: BalanceOf<T>) -> Option<BalanceOf<T>>;
 
 		/// Gets the minimum and maximum amount of FundingAsset a user can input in the UI.
-		fn get_funding_asset_min_max_amounts(project_id: ProjectId, did: Did, funding_asset: AcceptedFundingAsset, investor_type: InvestorType) -> Option<(Balance, Balance)>;
+		fn get_funding_asset_min_max_amounts(project_id: ProjectId, did: Did, funding_asset: AcceptedFundingAsset, investor_type: InvestorType) -> Option<(BalanceOf<T>, BalanceOf<T>)>;
 
 		/// Gets the hex encoded bytes of the message needed to be signed by the receiving account to participate in the project.
 		/// The message will first be prefixed with a blockchain-dependent string, then hashed, and then signed.
@@ -142,7 +142,7 @@ impl<T: Config> Pallet<T> {
 			.collect_vec()
 	}
 
-	pub fn contribution_tokens(account: AccountIdOf<T>) -> Vec<(ProjectId, Balance)> {
+	pub fn contribution_tokens(account: AccountIdOf<T>) -> Vec<(ProjectId, BalanceOf<T>)> {
 		let asset_ids = <T as Config>::ContributionTokenCurrency::asset_ids();
 		asset_ids
 			.filter_map(|asset_id| {
@@ -160,13 +160,13 @@ impl<T: Config> Pallet<T> {
 	pub fn funding_asset_to_ct_amount_classic(
 		project_id: ProjectId,
 		asset: AcceptedFundingAsset,
-		asset_amount: Balance,
-	) -> Balance {
+		asset_amount: BalanceOf<T>,
+	) -> BalanceOf<T> {
 		let funding_asset_usd_price =
 			Pallet::<T>::get_decimals_aware_funding_asset_price(&asset).expect("Price not found");
 		let usd_ticket_size = funding_asset_usd_price.saturating_mul_int(asset_amount);
 
-		let mut ct_amount = Balance::zero();
+		let mut ct_amount = BalanceOf::<T>::zero();
 
 		let mut usd_to_spend = usd_ticket_size;
 		let mut current_bucket = Buckets::<T>::get(project_id).expect("Bucket not found");
@@ -190,8 +190,8 @@ impl<T: Config> Pallet<T> {
 	pub fn funding_asset_to_ct_amount_otm(
 		project_id: ProjectId,
 		funding_asset: AcceptedFundingAsset,
-		total_funding_asset_amount: Balance,
-	) -> (Balance, Balance) {
+		total_funding_asset_amount: BalanceOf<T>,
+	) -> (BalanceOf<T>, BalanceOf<T>) {
 		let funding_asset_usd_price =
 			Pallet::<T>::get_decimals_aware_funding_asset_price(&funding_asset).expect("Price not found");
 		let otm_multiplier = ParticipationMode::OTM.multiplier();
@@ -206,7 +206,7 @@ impl<T: Config> Pallet<T> {
 		let participating_usd_ticket_size =
 			funding_asset_usd_price.saturating_mul_int(participating_funding_asset_amount);
 
-		let mut ct_amount = Balance::zero();
+		let mut ct_amount = BalanceOf::<T>::zero();
 
 		let mut usd_to_spend = participating_usd_ticket_size;
 		let mut current_bucket = Buckets::<T>::get(project_id).expect("Bucket not found");
@@ -230,7 +230,7 @@ impl<T: Config> Pallet<T> {
 	pub fn get_next_vesting_schedule_merge_candidates(
 		account_id: AccountIdOf<T>,
 		hold_reason: <T as Config>::RuntimeHoldReason,
-		end_max_delta: Balance,
+		end_max_delta: BalanceOf<T>,
 	) -> Option<(u32, u32)> {
 		let schedules = pallet_linear_release::Vesting::<T>::get(account_id, hold_reason)?
 			.into_iter()
@@ -262,7 +262,10 @@ impl<T: Config> Pallet<T> {
 		None
 	}
 
-	pub fn calculate_otm_fee(funding_asset: AcceptedFundingAsset, funding_asset_amount: Balance) -> Option<Balance> {
+	pub fn calculate_otm_fee(
+		funding_asset: AcceptedFundingAsset,
+		funding_asset_amount: BalanceOf<T>,
+	) -> Option<BalanceOf<T>> {
 		let plmc_price = <PriceProviderOf<T>>::get_decimals_aware_price(Location::here(), USD_DECIMALS, PLMC_DECIMALS)
 			.expect("Price not found");
 		let funding_asset_usd_price = Pallet::<T>::get_decimals_aware_funding_asset_price(&funding_asset).unwrap();
@@ -278,7 +281,7 @@ impl<T: Config> Pallet<T> {
 		did: Did,
 		funding_asset: AcceptedFundingAsset,
 		investor_type: InvestorType,
-	) -> Option<(Balance, Balance)> {
+	) -> Option<(BalanceOf<T>, BalanceOf<T>)> {
 		let project_metadata = ProjectsMetadata::<T>::get(project_id)?;
 		let funding_asset_price = Pallet::<T>::get_decimals_aware_funding_asset_price(&funding_asset)?;
 

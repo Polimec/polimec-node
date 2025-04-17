@@ -20,7 +20,7 @@ pub type OptionalExternalities = Option<RefCell<sp_io::TestExternalities>>;
 pub type OptionalExternalities = Option<()>;
 
 pub struct Instantiator<
-	T: Config + pallet_balances::Config<Balance = Balance> + cumulus_pallet_parachain_system::Config,
+	T: Config + cumulus_pallet_parachain_system::Config,
 	AllPalletsWithoutSystem: OnFinalize<BlockNumberFor<T>> + OnIdle<BlockNumberFor<T>> + OnInitialize<BlockNumberFor<T>>,
 	RuntimeEvent: From<Event<T>> + TryInto<Event<T>> + Parameter + Member + IsType<<T as frame_system::Config>::RuntimeEvent>,
 > {
@@ -29,10 +29,10 @@ pub struct Instantiator<
 	pub _marker: PhantomData<(T, AllPalletsWithoutSystem, RuntimeEvent)>,
 }
 
-impl<T: Config + pallet_balances::Config> Deposits<T> for Vec<AccountIdOf<T>> {
+impl<T: Config> Deposits<T> for Vec<AccountIdOf<T>> {
 	fn existential_deposits(&self) -> Vec<UserToPLMCBalance<T>> {
 		self.iter()
-			.map(|x| UserToPLMCBalance::new(x.clone(), <T as pallet_balances::Config>::ExistentialDeposit::get()))
+			.map(|x| UserToPLMCBalance::new(x.clone(), NativeCurrencyOf::<T>::minimum_balance()))
 			.collect::<Vec<_>>()
 	}
 }
@@ -40,10 +40,10 @@ impl<T: Config + pallet_balances::Config> Deposits<T> for Vec<AccountIdOf<T>> {
 #[derive(Clone, PartialEq, Debug)]
 pub struct UserToPLMCBalance<T: Config> {
 	pub account: AccountIdOf<T>,
-	pub plmc_amount: Balance,
+	pub plmc_amount: BalanceOf<T>,
 }
 impl<T: Config> UserToPLMCBalance<T> {
-	pub fn new(account: AccountIdOf<T>, plmc_amount: Balance) -> Self {
+	pub fn new(account: AccountIdOf<T>, plmc_amount: BalanceOf<T>) -> Self {
 		Self { account, plmc_amount }
 	}
 }
@@ -58,8 +58,8 @@ impl<T: Config> Accounts for Vec<UserToPLMCBalance<T>> {
 		btree.into_iter().collect_vec()
 	}
 }
-impl<T: Config> From<(AccountIdOf<T>, Balance)> for UserToPLMCBalance<T> {
-	fn from((account, plmc_amount): (AccountIdOf<T>, Balance)) -> Self {
+impl<T: Config> From<(AccountIdOf<T>, BalanceOf<T>)> for UserToPLMCBalance<T> {
+	fn from((account, plmc_amount): (AccountIdOf<T>, BalanceOf<T>)) -> Self {
 		UserToPLMCBalance::<T>::new(account, plmc_amount)
 	}
 }
@@ -75,7 +75,7 @@ impl<T: Config> AccountMerge for Vec<UserToPLMCBalance<T>> {
 		for UserToPLMCBalance { account, plmc_amount } in self.iter() {
 			btree
 				.entry(account.clone())
-				.and_modify(|e: &mut Balance| {
+				.and_modify(|e: &mut BalanceOf<T>| {
 					*e = match ops {
 						MergeOperation::Add => e.saturating_add(*plmc_amount),
 						MergeOperation::Subtract => e.saturating_sub(*plmc_amount),
@@ -88,7 +88,7 @@ impl<T: Config> AccountMerge for Vec<UserToPLMCBalance<T>> {
 }
 
 impl<T: Config> Total for Vec<UserToPLMCBalance<T>> {
-	fn total(&self) -> Balance {
+	fn total(&self) -> BalanceOf<T> {
 		self.iter().map(|x| x.plmc_amount).sum()
 	}
 }
@@ -97,21 +97,21 @@ impl<T: Config> Total for Vec<UserToPLMCBalance<T>> {
 #[serde(rename_all = "camelCase", deny_unknown_fields, bound(serialize = ""), bound(deserialize = ""))]
 pub struct EvaluationParams<T: Config> {
 	pub account: AccountIdOf<T>,
-	pub usd_amount: Balance,
+	pub usd_amount: BalanceOf<T>,
 	pub receiving_account: Junction,
 }
 impl<T: Config> EvaluationParams<T> {
-	pub fn new(account: AccountIdOf<T>, usd_amount: Balance, receiving_account: Junction) -> Self {
+	pub fn new(account: AccountIdOf<T>, usd_amount: BalanceOf<T>, receiving_account: Junction) -> Self {
 		EvaluationParams::<T> { account, usd_amount, receiving_account }
 	}
 }
-impl<T: Config> From<(AccountIdOf<T>, Balance, Junction)> for EvaluationParams<T> {
-	fn from((account, usd_amount, receiving_account): (AccountIdOf<T>, Balance, Junction)) -> Self {
+impl<T: Config> From<(AccountIdOf<T>, BalanceOf<T>, Junction)> for EvaluationParams<T> {
+	fn from((account, usd_amount, receiving_account): (AccountIdOf<T>, BalanceOf<T>, Junction)) -> Self {
 		EvaluationParams::<T>::new(account, usd_amount, receiving_account)
 	}
 }
-impl<T: Config> From<(AccountIdOf<T>, Balance)> for EvaluationParams<T> {
-	fn from((account, usd_amount): (AccountIdOf<T>, Balance)) -> Self {
+impl<T: Config> From<(AccountIdOf<T>, BalanceOf<T>)> for EvaluationParams<T> {
+	fn from((account, usd_amount): (AccountIdOf<T>, BalanceOf<T>)) -> Self {
 		let receiving_account = Junction::AccountId32 {
 			network: Some(NetworkId::Polkadot),
 			id: T::AccountId32Conversion::convert(account.clone()),
@@ -134,15 +134,15 @@ impl<T: Config> Accounts for Vec<EvaluationParams<T>> {
 #[derive(Clone, PartialEq)]
 pub struct UserToUSDAmount<T: Config> {
 	pub account: AccountIdOf<T>,
-	pub usd_amount: Balance,
+	pub usd_amount: BalanceOf<T>,
 }
 impl<T: Config> UserToUSDAmount<T> {
-	pub fn new(account: AccountIdOf<T>, usd_amount: Balance) -> Self {
+	pub fn new(account: AccountIdOf<T>, usd_amount: BalanceOf<T>) -> Self {
 		Self { account, usd_amount }
 	}
 }
-impl<T: Config> From<(AccountIdOf<T>, Balance)> for UserToUSDAmount<T> {
-	fn from((account, usd_amount): (AccountIdOf<T>, Balance)) -> Self {
+impl<T: Config> From<(AccountIdOf<T>, BalanceOf<T>)> for UserToUSDAmount<T> {
+	fn from((account, usd_amount): (AccountIdOf<T>, BalanceOf<T>)) -> Self {
 		UserToUSDAmount::<T>::new(account, usd_amount)
 	}
 }
@@ -169,7 +169,7 @@ impl<T: Config> AccountMerge for Vec<UserToUSDAmount<T>> {
 		for UserToUSDAmount { account, usd_amount } in self.iter() {
 			btree
 				.entry(account.clone())
-				.and_modify(|stored_usd_amount: &mut Balance| match ops {
+				.and_modify(|stored_usd_amount: &mut BalanceOf<T>| match ops {
 					MergeOperation::Add => {
 						*stored_usd_amount = stored_usd_amount.saturating_add(*usd_amount);
 					},
@@ -183,7 +183,7 @@ impl<T: Config> AccountMerge for Vec<UserToUSDAmount<T>> {
 	}
 }
 impl<T: Config> Total for Vec<UserToUSDAmount<T>> {
-	fn total(&self) -> Balance {
+	fn total(&self) -> BalanceOf<T> {
 		self.iter().map(|x| x.usd_amount).sum()
 	}
 }
@@ -191,21 +191,21 @@ impl<T: Config> Total for Vec<UserToUSDAmount<T>> {
 #[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
 pub struct UserToFundingAsset<T: Config> {
 	pub account: AccountIdOf<T>,
-	pub asset_amount: Balance,
+	pub asset_amount: BalanceOf<T>,
 	pub asset_id: AssetIdOf<T>,
 }
 impl<T: Config> UserToFundingAsset<T> {
-	pub fn new(account: AccountIdOf<T>, asset_amount: Balance, asset_id: AssetIdOf<T>) -> Self {
+	pub fn new(account: AccountIdOf<T>, asset_amount: BalanceOf<T>, asset_id: AssetIdOf<T>) -> Self {
 		Self { account, asset_amount, asset_id }
 	}
 }
-impl<T: Config> From<(AccountIdOf<T>, Balance, AssetIdOf<T>)> for UserToFundingAsset<T> {
-	fn from((account, asset_amount, asset_id): (AccountIdOf<T>, Balance, AssetIdOf<T>)) -> Self {
+impl<T: Config> From<(AccountIdOf<T>, BalanceOf<T>, AssetIdOf<T>)> for UserToFundingAsset<T> {
+	fn from((account, asset_amount, asset_id): (AccountIdOf<T>, BalanceOf<T>, AssetIdOf<T>)) -> Self {
 		UserToFundingAsset::<T>::new(account, asset_amount, asset_id)
 	}
 }
-impl<T: Config> From<(AccountIdOf<T>, Balance)> for UserToFundingAsset<T> {
-	fn from((account, asset_amount): (AccountIdOf<T>, Balance)) -> Self {
+impl<T: Config> From<(AccountIdOf<T>, BalanceOf<T>)> for UserToFundingAsset<T> {
+	fn from((account, asset_amount): (AccountIdOf<T>, BalanceOf<T>)) -> Self {
 		UserToFundingAsset::<T>::new(account, asset_amount, AcceptedFundingAsset::USDT.id())
 	}
 }
@@ -232,7 +232,7 @@ impl<T: Config> AccountMerge for Vec<UserToFundingAsset<T>> {
 		for UserToFundingAsset { account, asset_amount, asset_id } in self.iter() {
 			btree
 				.entry((account.clone(), asset_id))
-				.and_modify(|e: &mut Balance| {
+				.and_modify(|e: &mut BalanceOf<T>| {
 					*e = match ops {
 						MergeOperation::Add => e.saturating_add(*asset_amount),
 						MergeOperation::Subtract => e.saturating_sub(*asset_amount),
@@ -263,12 +263,12 @@ impl<T: Config> AccountMerge for Vec<UserToFundingAsset<T>> {
 impl<T: Config> Totals for Vec<UserToFundingAsset<T>> {
 	type AssetId = AssetIdOf<T>;
 
-	fn totals(&self) -> Vec<(Self::AssetId, Balance)> {
+	fn totals(&self) -> Vec<(Self::AssetId, BalanceOf<T>)> {
 		let mut btree = BTreeMap::new();
 		for UserToFundingAsset { account: _, asset_amount, asset_id } in self.iter() {
 			btree
 				.entry(asset_id.clone())
-				.and_modify(|e: &mut Balance| *e = e.saturating_add(*asset_amount))
+				.and_modify(|e: &mut BalanceOf<T>| *e = e.saturating_add(*asset_amount))
 				.or_insert(*asset_amount);
 		}
 		btree.into_iter().collect_vec()
@@ -292,7 +292,7 @@ impl<T: Config> Conversions for Vec<UserToFundingAsset<T>> {
 pub struct BidParams<T: Config> {
 	pub bidder: AccountIdOf<T>,
 	pub investor_type: InvestorType,
-	pub amount: Balance,
+	pub amount: BalanceOf<T>,
 	pub mode: ParticipationMode,
 	pub asset: AcceptedFundingAsset,
 	pub receiving_account: Junction,
@@ -301,7 +301,7 @@ impl<T: Config> BidParams<T> {
 	pub fn new(
 		bidder: AccountIdOf<T>,
 		investor_type: InvestorType,
-		amount: Balance,
+		amount: BalanceOf<T>,
 		mode: ParticipationMode,
 		asset: AcceptedFundingAsset,
 		receiving_account: Junction,
@@ -309,8 +309,8 @@ impl<T: Config> BidParams<T> {
 		Self { bidder, investor_type, amount, mode, asset, receiving_account }
 	}
 }
-impl<T: Config> From<(AccountIdOf<T>, Balance)> for BidParams<T> {
-	fn from((bidder, amount): (AccountIdOf<T>, Balance)) -> Self {
+impl<T: Config> From<(AccountIdOf<T>, BalanceOf<T>)> for BidParams<T> {
+	fn from((bidder, amount): (AccountIdOf<T>, BalanceOf<T>)) -> Self {
 		Self {
 			bidder: bidder.clone(),
 			investor_type: InvestorType::Retail,
@@ -324,8 +324,8 @@ impl<T: Config> From<(AccountIdOf<T>, Balance)> for BidParams<T> {
 		}
 	}
 }
-impl<T: Config> From<(AccountIdOf<T>, InvestorType, Balance)> for BidParams<T> {
-	fn from((bidder, investor_type, amount): (AccountIdOf<T>, InvestorType, Balance)) -> Self {
+impl<T: Config> From<(AccountIdOf<T>, InvestorType, BalanceOf<T>)> for BidParams<T> {
+	fn from((bidder, investor_type, amount): (AccountIdOf<T>, InvestorType, BalanceOf<T>)) -> Self {
 		Self {
 			bidder: bidder.clone(),
 			investor_type,
@@ -339,8 +339,10 @@ impl<T: Config> From<(AccountIdOf<T>, InvestorType, Balance)> for BidParams<T> {
 		}
 	}
 }
-impl<T: Config> From<(AccountIdOf<T>, InvestorType, Balance, ParticipationMode)> for BidParams<T> {
-	fn from((bidder, investor_type, amount, mode): (AccountIdOf<T>, InvestorType, Balance, ParticipationMode)) -> Self {
+impl<T: Config> From<(AccountIdOf<T>, InvestorType, BalanceOf<T>, ParticipationMode)> for BidParams<T> {
+	fn from(
+		(bidder, investor_type, amount, mode): (AccountIdOf<T>, InvestorType, BalanceOf<T>, ParticipationMode),
+	) -> Self {
 		Self {
 			bidder: bidder.clone(),
 			investor_type,
@@ -354,9 +356,9 @@ impl<T: Config> From<(AccountIdOf<T>, InvestorType, Balance, ParticipationMode)>
 		}
 	}
 }
-impl<T: Config> From<(AccountIdOf<T>, InvestorType, Balance, AcceptedFundingAsset)> for BidParams<T> {
+impl<T: Config> From<(AccountIdOf<T>, InvestorType, BalanceOf<T>, AcceptedFundingAsset)> for BidParams<T> {
 	fn from(
-		(bidder, investor_type, amount, asset): (AccountIdOf<T>, InvestorType, Balance, AcceptedFundingAsset),
+		(bidder, investor_type, amount, asset): (AccountIdOf<T>, InvestorType, BalanceOf<T>, AcceptedFundingAsset),
 	) -> Self {
 		Self {
 			bidder: bidder.clone(),
@@ -371,14 +373,14 @@ impl<T: Config> From<(AccountIdOf<T>, InvestorType, Balance, AcceptedFundingAsse
 		}
 	}
 }
-impl<T: Config> From<(AccountIdOf<T>, InvestorType, Balance, ParticipationMode, AcceptedFundingAsset)>
+impl<T: Config> From<(AccountIdOf<T>, InvestorType, BalanceOf<T>, ParticipationMode, AcceptedFundingAsset)>
 	for BidParams<T>
 {
 	fn from(
 		(bidder, investor_type, amount, mode, asset): (
 			AccountIdOf<T>,
 			InvestorType,
-			Balance,
+			BalanceOf<T>,
 			ParticipationMode,
 			AcceptedFundingAsset,
 		),
@@ -396,12 +398,12 @@ impl<T: Config> From<(AccountIdOf<T>, InvestorType, Balance, ParticipationMode, 
 		}
 	}
 }
-impl<T: Config> From<(AccountIdOf<T>, InvestorType, Balance, AcceptedFundingAsset, Junction)> for BidParams<T> {
+impl<T: Config> From<(AccountIdOf<T>, InvestorType, BalanceOf<T>, AcceptedFundingAsset, Junction)> for BidParams<T> {
 	fn from(
 		(bidder, investor_type, amount, asset, receiving_account): (
 			AccountIdOf<T>,
 			InvestorType,
-			Balance,
+			BalanceOf<T>,
 			AcceptedFundingAsset,
 			Junction,
 		),
@@ -409,14 +411,14 @@ impl<T: Config> From<(AccountIdOf<T>, InvestorType, Balance, AcceptedFundingAsse
 		Self { bidder, investor_type, amount, mode: ParticipationMode::Classic(1u8), asset, receiving_account }
 	}
 }
-impl<T: Config> From<(AccountIdOf<T>, InvestorType, Balance, ParticipationMode, AcceptedFundingAsset, Junction)>
+impl<T: Config> From<(AccountIdOf<T>, InvestorType, BalanceOf<T>, ParticipationMode, AcceptedFundingAsset, Junction)>
 	for BidParams<T>
 {
 	fn from(
 		(bidder, investor_type, amount, mode, asset, receiving_account): (
 			AccountIdOf<T>,
 			InvestorType,
-			Balance,
+			BalanceOf<T>,
 			ParticipationMode,
 			AcceptedFundingAsset,
 			Junction,

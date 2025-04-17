@@ -117,26 +117,29 @@ pub mod benchmarking;
 
 pub type AccountIdOf<T> = <T as frame_system::Config>::AccountId;
 pub type ProjectId = u32;
-pub type Balance = u128;
+pub type BalanceOf<T> = <NativeCurrencyOf<T> as fungible::Inspect<AccountIdOf<T>>>::Balance;
 pub type MultiplierOf<T> = <T as Config>::Multiplier;
 
 pub type PriceOf<T> = <T as Config>::Price;
 pub type StringLimitOf<T> = <T as Config>::StringLimit;
 pub type AssetIdOf<T> =
 	<<T as Config>::FundingCurrency as fungibles::Inspect<<T as frame_system::Config>::AccountId>>::AssetId;
-pub type VestingInfoOf<T> = VestingInfo<BlockNumberFor<T>>;
+pub type VestingInfoOf<T> = VestingInfo<BlockNumberFor<T>, BalanceOf<T>>;
 
-pub type ProjectMetadataOf<T> = ProjectMetadata<BoundedVec<u8, StringLimitOf<T>>, PriceOf<T>, AccountIdOf<T>, Cid>;
-pub type ProjectDetailsOf<T> = ProjectDetails<AccountIdOf<T>, Did, BlockNumberFor<T>, EvaluationRoundInfo>;
-pub type EvaluationInfoOf<T> = EvaluationInfo<u32, Did, ProjectId, AccountIdOf<T>, BlockNumberFor<T>>;
-pub type BidInfoOf<T> = BidInfo<ProjectId, Did, PriceOf<T>, AccountIdOf<T>, BlockNumberFor<T>>;
-pub type BucketOf<T> = Bucket<PriceOf<T>>;
+pub type ProjectMetadataOf<T> =
+	ProjectMetadata<BoundedVec<u8, StringLimitOf<T>>, PriceOf<T>, AccountIdOf<T>, Cid, BalanceOf<T>>;
+pub type ProjectDetailsOf<T> =
+	ProjectDetails<AccountIdOf<T>, Did, BlockNumberFor<T>, EvaluationRoundInfo<BalanceOf<T>>, BalanceOf<T>>;
+pub type EvaluationInfoOf<T> = EvaluationInfo<u32, Did, ProjectId, AccountIdOf<T>, BlockNumberFor<T>, BalanceOf<T>>;
+pub type BidInfoOf<T> = BidInfo<ProjectId, Did, PriceOf<T>, AccountIdOf<T>, BlockNumberFor<T>, BalanceOf<T>>;
+pub type BucketOf<T> = Bucket<PriceOf<T>, BalanceOf<T>>;
 pub type WeightInfoOf<T> = <T as Config>::WeightInfo;
 pub type VestingOf<T> = pallet_linear_release::Pallet<T>;
 pub type BlockNumberToBalanceOf<T> = <T as pallet_linear_release::Config>::BlockNumberToBalance;
 pub type RuntimeHoldReasonOf<T> = <T as Config>::RuntimeHoldReason;
 pub type PriceProviderOf<T> = <T as Config>::PriceProvider;
 pub type BlockNumberFor<T> = <<T as Config>::BlockNumberProvider as BlockNumberProvider>::BlockNumber;
+pub type NativeCurrencyOf<T> = <T as pallet_linear_release::Config>::Currency;
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -172,11 +175,9 @@ pub mod pallet {
 	#[pallet::config]
 	pub trait Config:
 		frame_system::Config<Nonce = u32>
-		+ pallet_balances::Config<Balance = Balance>
-		+ pallet_linear_release::Config<Balance = Balance, RuntimeHoldReason = RuntimeHoldReasonOf<Self>>
+		+ pallet_linear_release::Config<RuntimeHoldReason = RuntimeHoldReasonOf<Self>>
 		+ pallet_proxy_bonding::Config<
 			RuntimeHoldReason = RuntimeHoldReasonOf<Self>,
-			BondingToken = Self::NativeCurrency,
 			BondingTokenDecimals = ConstU8<PLMC_DECIMALS>,
 			BondingTokenId = HereLocationGetter,
 			UsdDecimals = ConstU8<USD_DECIMALS>,
@@ -196,22 +197,19 @@ pub mod pallet {
 			+ OnIdle<BlockNumberFor<Self>>
 			+ OnInitialize<BlockNumberFor<Self>>;
 
-		/// BlockNumber used for PLMC vesting durations on this chain, and CT vesting durations on funded chains.
-		type BlockNumber: IsType<BlockNumberFor<Self>> + Into<u64>;
-
 		/// The currency used for minting contribution tokens as fungible assets (i.e pallet-assets)
-		type ContributionTokenCurrency: fungibles::Create<AccountIdOf<Self>, AssetId = ProjectId, Balance = Balance>
-			+ fungibles::Destroy<AccountIdOf<Self>, AssetId = ProjectId, Balance = Balance>
+		type ContributionTokenCurrency: fungibles::Create<AccountIdOf<Self>, AssetId = ProjectId, Balance = BalanceOf<Self>>
+			+ fungibles::Destroy<AccountIdOf<Self>, AssetId = ProjectId, Balance = BalanceOf<Self>>
 			+ fungibles::InspectEnumerable<
 				AccountIdOf<Self>,
-				Balance = Balance,
+				Balance = BalanceOf<Self>,
 				AssetsIterator = KeyPrefixIterator<ProjectId>,
 			> + fungibles::metadata::Inspect<AccountIdOf<Self>>
 			+ fungibles::metadata::Mutate<AccountIdOf<Self>>
-			+ fungibles::metadata::MetadataDeposit<Balance>
-			+ fungibles::Mutate<AccountIdOf<Self>, Balance = Balance>
+			+ fungibles::metadata::MetadataDeposit<BalanceOf<Self>>
+			+ fungibles::Mutate<AccountIdOf<Self>, Balance = BalanceOf<Self>>
 			+ fungibles::roles::Inspect<AccountIdOf<Self>>
-			+ AccountTouch<ProjectId, AccountIdOf<Self>, Balance = Balance>
+			+ AccountTouch<ProjectId, AccountIdOf<Self>, Balance = BalanceOf<Self>>
 			+ ContainsPair<ProjectId, AccountIdOf<Self>>;
 
 		/// Convert 24 hours as FixedU128, to the corresponding amount of blocks in the same type as frame_system
@@ -235,13 +233,13 @@ pub mod pallet {
 
 		/// The fee brackets for the project's funding
 		#[pallet::constant]
-		type FeeBrackets: Get<Vec<(Percent, Balance)>>;
+		type FeeBrackets: Get<Vec<(Percent, BalanceOf<Self>)>>;
 
 		/// The currency used for funding projects in bids and contributions
-		type FundingCurrency: fungibles::InspectEnumerable<AccountIdOf<Self>, Balance = Balance, AssetId = Location>
+		type FundingCurrency: fungibles::InspectEnumerable<AccountIdOf<Self>, Balance = BalanceOf<Self>, AssetId = Location>
 			+ fungibles::metadata::Inspect<AccountIdOf<Self>, AssetId = Location>
 			+ fungibles::metadata::Mutate<AccountIdOf<Self>, AssetId = Location>
-			+ fungibles::Mutate<AccountIdOf<Self>, Balance = Balance>;
+			+ fungibles::Mutate<AccountIdOf<Self>, Balance = BalanceOf<Self>>;
 
 		type FundingSuccessThreshold: Get<Perquintill>;
 
@@ -252,7 +250,7 @@ pub mod pallet {
 		>;
 
 		#[pallet::constant]
-		type MinUsdPerEvaluation: Get<Balance>;
+		type MinUsdPerEvaluation: Get<BalanceOf<Self>>;
 
 		/// Multiplier type that decides how much PLMC needs to be bonded for a token buy/bid
 		type Multiplier: Parameter
@@ -264,13 +262,6 @@ pub mod pallet {
 			+ Into<u8>
 			+ MaxEncodedLen
 			+ MaybeSerializeDeserialize;
-
-		/// The chains native currency
-		type NativeCurrency: fungible::InspectHold<AccountIdOf<Self>, Balance = Balance>
-			+ fungible::MutateHold<AccountIdOf<Self>, Balance = Balance, Reason = RuntimeHoldReasonOf<Self>>
-			+ fungible::BalancedHold<AccountIdOf<Self>, Balance = Balance>
-			+ fungible::Mutate<AccountIdOf<Self>, Balance = Balance>
-			+ fungible::Inspect<AccountIdOf<Self>, Balance = Balance>;
 
 		/// System account for the funding pallet. Used to derive project escrow accounts.
 		#[pallet::constant]
@@ -319,7 +310,7 @@ pub mod pallet {
 		type WeightInfo: weights::WeightInfo;
 
 		/// Callbacks for dealing with an evaluator slash on other pallets
-		type OnSlash: OnSlash<AccountIdOf<Self>, Balance>;
+		type OnSlash: OnSlash<AccountIdOf<Self>, BalanceOf<Self>>;
 
 		/// Provider for block number
 		type BlockNumberProvider: BlockNumberProvider<BlockNumber = frame_system::pallet_prelude::BlockNumberFor<Self>>;
@@ -389,12 +380,16 @@ pub mod pallet {
 	/// Used to knwo when to call `do_process_next_oversubscribed_bid`. When a new bid comes in on an oversubscribed project,
 	/// we add their bid amount to this value.
 	#[pallet::storage]
-	pub type CTAmountOversubscribed<T: Config> = StorageMap<_, Blake2_128Concat, ProjectId, Balance, ValueQuery>;
+	pub type CTAmountOversubscribed<T: Config> = StorageMap<_, Blake2_128Concat, ProjectId, BalanceOf<T>, ValueQuery>;
 
 	/// Stores the total usd amount participated by a user on a project. Used to track the ticket sizes when its capped.
 	#[pallet::storage]
-	pub type AuctionBoughtUSD<T: Config> =
-		StorageNMap<_, (NMapKey<Blake2_128Concat, ProjectId>, NMapKey<Blake2_128Concat, Did>), Balance, ValueQuery>;
+	pub type AuctionBoughtUSD<T: Config> = StorageNMap<
+		_,
+		(NMapKey<Blake2_128Concat, ProjectId>, NMapKey<Blake2_128Concat, Did>),
+		BalanceOf<T>,
+		ValueQuery,
+	>;
 
 	/// Stores the CT amounts and vesting schedules for users with successful bids. Will be used by issuers to mint
 	/// their tokens on TGE
@@ -427,17 +422,17 @@ pub mod pallet {
 		/// Project transitioned to a new phase.
 		ProjectPhaseTransition { project_id: ProjectId, phase: ProjectStatus },
 		/// A `bonder` bonded an `amount` of PLMC for `project_id`.
-		Evaluation { project_id: ProjectId, evaluator: AccountIdOf<T>, id: u32, plmc_amount: Balance },
+		Evaluation { project_id: ProjectId, evaluator: AccountIdOf<T>, id: u32, plmc_amount: BalanceOf<T> },
 		/// A bid was made for a project
 		Bid {
 			project_id: ProjectId,
 			bidder: AccountIdOf<T>,
 			id: u32,
-			ct_amount: Balance,
+			ct_amount: BalanceOf<T>,
 			ct_price: T::Price,
 			funding_asset: AcceptedFundingAsset,
-			funding_amount: Balance,
-			plmc_bond: Balance,
+			funding_amount: BalanceOf<T>,
+			plmc_bond: BalanceOf<T>,
 			mode: ParticipationMode,
 		},
 		/// An oversubscribed bid has been marked as rejected, and can now be settled early and release the funds back to the user.
@@ -447,8 +442,8 @@ pub mod pallet {
 			project_id: ProjectId,
 			account: AccountIdOf<T>,
 			id: u32,
-			ct_rewarded: Balance,
-			plmc_released: Balance,
+			ct_rewarded: BalanceOf<T>,
+			plmc_released: BalanceOf<T>,
 		},
 		/// A bid was settled. On Funding Success the PLMC has been unbonded/locked with a vesting schedule and the funding assets have been transferred to the issuer.
 		/// Some funds and PLMC might have been returned to the bidder if they paid a higher price than the final CT price.
@@ -457,8 +452,8 @@ pub mod pallet {
 			project_id: ProjectId,
 			account: AccountIdOf<T>,
 			id: u32,
-			status: BidStatus,
-			final_ct_amount: Balance,
+			status: BidStatus<BalanceOf<T>>,
+			final_ct_amount: BalanceOf<T>,
 		},
 		/// Issuer started the CT migration to mainnet tokens using the pallet migration method
 		PalletMigrationStarted { project_id: ProjectId, para_id: ParaId },
@@ -683,7 +678,7 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			jwt: UntrustedToken,
 			project_id: ProjectId,
-			#[pallet::compact] usd_amount: Balance,
+			#[pallet::compact] usd_amount: BalanceOf<T>,
 		) -> DispatchResult {
 			let (account, did, _investor_type, whitelisted_policy) =
 				T::InvestorOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get())?;
@@ -702,7 +697,7 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			jwt: UntrustedToken,
 			project_id: ProjectId,
-			#[pallet::compact] usd_amount: Balance,
+			#[pallet::compact] usd_amount: BalanceOf<T>,
 			receiving_account: Junction,
 			signature_bytes: [u8; 65],
 		) -> DispatchResult {
@@ -728,7 +723,7 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			jwt: UntrustedToken,
 			project_id: ProjectId,
-			#[pallet::compact] ct_amount: Balance,
+			#[pallet::compact] ct_amount: BalanceOf<T>,
 			mode: ParticipationMode,
 			funding_asset: AcceptedFundingAsset,
 		) -> DispatchResultWithPostInfo {
@@ -761,7 +756,7 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			jwt: UntrustedToken,
 			project_id: ProjectId,
-			#[pallet::compact] ct_amount: Balance,
+			#[pallet::compact] ct_amount: BalanceOf<T>,
 			mode: ParticipationMode,
 			funding_asset: AcceptedFundingAsset,
 			receiving_account: Junction,

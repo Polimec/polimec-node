@@ -14,12 +14,12 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use crate::{Balance, BlockNumberFor, Config, ProjectId};
+use crate::{BalanceOf, BlockNumberFor, Config, ProjectId};
 use frame_support::weights::Weight;
 use sp_runtime::DispatchError;
 
 pub trait BondingRequirementCalculation {
-	fn calculate_usd_bonding_requirement<T: Config>(&self, ticket_size: Balance) -> Option<Balance>;
+	fn calculate_usd_bonding_requirement<T: Config>(&self, ticket_size: BalanceOf<T>) -> Option<BalanceOf<T>>;
 }
 
 pub trait VestingDurationCalculation {
