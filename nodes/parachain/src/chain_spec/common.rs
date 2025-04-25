@@ -175,7 +175,7 @@ pub fn genesis_config(genesis_config_params: GenesisConfigParams) -> serde_json:
 			}).collect::<Vec<_>>()
 		},
 		"polkadotXcm": {
-			"safeXcmVersion": SAFE_XCM_VERSION
+			"safeXcmVersion": Some(SAFE_XCM_VERSION)
 		},
 		"oracleProvidersMembership": OracleProvidersMembershipConfig {
 			members:  oracle_members.try_into().unwrap(),

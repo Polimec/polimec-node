@@ -39,7 +39,7 @@ pub fn get_local_chain_spec() -> GenericChainSpec {
 	let endowed_accounts =
 		endowed_accounts.iter().map(|x| (x.clone(), MinCandidateStk::get() * 20)).collect::<Vec<_>>();
 	let genesis_config_params = GenesisConfigParams {
-		stakers: vec![alice(), bob()],
+		stakers: vec![alice(), bob(), charlie()],
 		council_members: vec![alice()],
 		technical_committee_members: vec![alice()],
 		oracle_members: vec![
