@@ -184,6 +184,8 @@ impl Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type RuntimeHoldReason = RuntimeHoldReason;
 	type WeightInfo = ();
+
+	const BLOCKS_PER_YEAR: u32 = 365 * 24 * 60 * 60 / 12;
 }
 
 pub(crate) struct ExtBuilder {

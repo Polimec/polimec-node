@@ -25,13 +25,9 @@ use serde::{Deserialize, Serialize};
 use sp_runtime::{PerThing, Perbill, RuntimeDebug};
 use substrate_fixed::{transcendental::pow as floatpow, types::I64F64};
 
-const SECONDS_PER_YEAR: u32 = 31557600;
-const SECONDS_PER_BLOCK: u32 = 12;
-pub const BLOCKS_PER_YEAR: u32 = SECONDS_PER_YEAR / SECONDS_PER_BLOCK;
-
 fn rounds_per_year<T: Config>() -> u32 {
 	let blocks_per_round = <Pallet<T>>::round().length;
-	BLOCKS_PER_YEAR / blocks_per_round
+	T::BLOCKS_PER_YEAR / blocks_per_round
 }
 
 #[derive(
@@ -99,8 +95,8 @@ impl<Balance> InflationInfo<Balance> {
 	}
 
 	/// Reset round inflation rate based on changes to round length
-	pub fn reset_round(&mut self, new_length: u32) {
-		let periods = BLOCKS_PER_YEAR / new_length;
+	pub fn reset_round<T: Config>(&mut self, new_length: u32) {
+		let periods = T::BLOCKS_PER_YEAR / new_length;
 		self.round = perbill_annual_to_perbill_round(self.annual, periods);
 	}
 

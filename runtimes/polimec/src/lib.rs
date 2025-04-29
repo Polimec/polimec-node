@@ -785,6 +785,9 @@ impl pallet_preimage::Config for Runtime {
 	type WeightInfo = weights::pallet_preimage::WeightInfo<Runtime>;
 }
 
+/// Number of blocks in one year
+pub const BLOCKS_PER_YEAR: BlockNumber = DAYS * 365;
+
 impl pallet_parachain_staking::Config for Runtime {
 	type Balance = Balance;
 	type CandidateBondLessDelay = CandidateBondLessDelay;
@@ -811,6 +814,8 @@ impl pallet_parachain_staking::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type RuntimeHoldReason = RuntimeHoldReason;
 	type WeightInfo = weights::pallet_parachain_staking::WeightInfo<Runtime>;
+
+	const BLOCKS_PER_YEAR: BlockNumber = BLOCKS_PER_YEAR;
 }
 
 impl pallet_membership::Config<pallet_membership::Instance1> for Runtime {

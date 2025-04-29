@@ -200,6 +200,9 @@ pub mod pallet {
 		type OnNewRound: OnNewRound;
 		/// Weight information for extrinsics in this pallet.
 		type WeightInfo: WeightInfo;
+
+		/// Blocks per one year
+		const BLOCKS_PER_YEAR: u32;
 	}
 
 	#[pallet::error]
@@ -883,7 +886,7 @@ pub mod pallet {
 			round.length = new;
 			// update per-round inflation given new rounds per year
 			let mut inflation_config = <InflationConfig<T>>::get();
-			inflation_config.reset_round(new);
+			inflation_config.reset_round::<T>(new);
 			<Round<T>>::put(round);
 			Self::deposit_event(Event::BlocksPerRoundSet {
 				current_round: now,
