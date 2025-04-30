@@ -51,7 +51,7 @@ codegen-units = 1
 
 [workspace.dependencies]
 # Build deps
-substrate-wasm-builder = { version = "25.0.0" }
+substrate-wasm-builder = { version = "25.0.1" }
 
 # Internal pallets (with default disabled)
 pallet-dispenser = { path = "pallets/dispenser", default-features = false }
@@ -85,28 +85,28 @@ substrate-fixed = { version = "0.5.9", default-features = false }
 
 # External (without extra features and with default disabled if necessary)
 parity-scale-codec = { version = "3.6.12", default-features = false }
-clap = { version = "4.5.3" }
+clap = { version = "4.5.13" }
 futures = { version = "0.3.31" }
-scale-info = { version = "2.11.3", default-features = false, features = [
+scale-info = { version = "2.11.1", default-features = false, features = [
     "derive",
 ] }
 jsonrpsee = { version = "0.24.3", features = ["server"] }
 hex-literal = "0.4.1"
 hex = { version = "0.4.3", default-features = false, features = ["alloc"] }
-serde = { version = "1.0.204", default-features = false }
-serde_json = "1.0.120"
-smallvec = "1.13.2"
+serde = { version = "1.0.214", default-features = false }
+serde_json = "1.0.132"
+smallvec = "1.11.0"
 log = { version = "0.4.22", default-features = false }
 itertools = { version = "0.11", default-features = false, features = [
     "use_alloc",
 ] }
-array-bytes = { version = "6.2.3", default-features = false }
+array-bytes = { version = "6.2.2", default-features = false }
 serde-json-core = { version = '0.5.1', default-features = false }
 heapless = { version = "0.8", default-features = false }
-color-print = "0.3.6"
+color-print = "0.3.4"
 k256 = { version = "0.13.4", default-features = false, features = ["ecdsa"] }
 variant_count = "1.1.0"
-parking_lot = "0.12.1"
+parking_lot = { version = "0.12.1", default-features = false }
 
 # Emulations
 xcm-emulator = { version = "0.17.1", default-features = false }
@@ -125,11 +125,10 @@ frame-metadata-hash-extension = { version = "0.7.0", default-features = false }
 sp-api = { version = "35.0.0", default-features = false }
 sp-debug-derive = { version = "14.0.0", default-features = false }
 sp-staking = { version = "37.0.0", default-features = false }
-# sp-runtime v38.0.1 takes out core from runtime_string file and calls "alloc" directly which errors out
 sp-runtime = { version = "40.1.0", default-features = false }
 sp-arithmetic = { version = "26.0.0", default-features = false }
 sp-core = { version = "35.0.0", default-features = false, features = ["serde"] }
-sp-io = { version = "39.0.0", default-features = false }
+sp-io = { version = "39.0.1", default-features = false }
 sp-storage = { version = "22.0.0", default-features = false }
 sp-blockchain = { version = "38.0.0", default-features = false }
 sp-consensus-aura = { version = "0.41.0", default-features = false }
@@ -153,7 +152,7 @@ sp-weights = { version = "31.0.0", default-features = false }
 sp-application-crypto = { version = "39.0.0", default-features = false }
 
 # FRAME
-assets-common = { version = "0.19.0", default-features = false }
+assets-common = { version = "0.19.1", default-features = false }
 pallet-aura = { version = "38.1.0", default-features = false }
 pallet-balances = { version = "40.1.0", default-features = false }
 pallet-assets = { version = "41.1.0", default-features = false }
@@ -168,7 +167,7 @@ pallet-transaction-payment-rpc-runtime-api = { version = "39.0.0", default-featu
 pallet-treasury = { version = "38.1.0", default-features = false }
 pallet-utility = { version = "39.1.0", default-features = false }
 pallet-membership = { version = "39.0.0", default-features = false }
-pallet-multisig = { version = "39.1.0", default-features = false }
+pallet-multisig = { version = "39.1.1", default-features = false }
 pallet-preimage = { version = "39.1.0", default-features = false }
 pallet-grandpa = { version = "39.1.0", default-features = false }
 pallet-transaction-payment-rpc = { version = "42.0.0", default-features = false }
@@ -184,12 +183,12 @@ pallet-collator-selection = { version = "20.1.0", default-features = false }
 polkadot-parachain-primitives = { version = "15.0.0", default-features = false }
 polkadot-runtime-parachains = { version = "18.1.0", default-features = false }
 polkadot-core-primitives = { version = "16.0.0", default-features = false }
-xcm = { version = "15.0.2", package = 'staging-xcm', default-features = false }
-xcm-builder = { version = "18.1.0", package = 'staging-xcm-builder', default-features = false }
+xcm = { version = "15.0.3", package = 'staging-xcm', default-features = false }
+xcm-builder = { version = "18.2.0", package = 'staging-xcm-builder', default-features = false }
 xcm-executor = { version = "18.0.2", package = 'staging-xcm-executor', default-features = false }
 polkadot-runtime-common = { version = "18.1.0", default-features = false }
 polkadot-primitives = { version = "17.1.0", default-features = false }
-xcm-runtime-apis = { version = "0.5.1", default-features = false }
+xcm-runtime-apis = { version = "0.5.2", default-features = false }
 
 # Cumulus (with default disabled)
 cumulus-pallet-aura-ext = { version = "0.18.0", default-features = false }
@@ -229,7 +228,6 @@ sc-executor = { version = "0.41.0" }
 sc-keystore = { version = "34.0.0" }
 sp-consensus = { version = "0.41.0" }
 sp-keyring = { version = "40.0.0" }
-sc-rpc = { version = "43.0.0" }
 sc-service = { version = "0.49.0" }
 sc-sysinfo = { version = "41.0.0" }
 sc-telemetry = { version = "28.0.0" }

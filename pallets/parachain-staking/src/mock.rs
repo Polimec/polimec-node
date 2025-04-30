@@ -95,7 +95,7 @@ impl pallet_aura::Config for Test {
 	type AuthorityId = AuthorityId;
 	type DisabledValidators = ();
 	type MaxAuthorities = MaxCollatorCandidates;
-	type SlotDuration = sp_core::ConstU64<12_000>;
+	type SlotDuration = sp_core::ConstU64<6_000>;
 }
 
 impl pallet_authorship::Config for Test {
@@ -140,9 +140,6 @@ impl_opaque_keys! {
 	}
 }
 
-parameter_types! {
-	pub const DisabledValidatorsThreshold: Perbill = Perbill::from_percent(17);
-}
 use sp_runtime::{
 	impl_opaque_keys,
 	traits::{ConvertInto, OpaqueKeys},

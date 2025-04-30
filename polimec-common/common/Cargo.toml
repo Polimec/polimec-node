@@ -19,14 +19,13 @@ scale-info = { workspace = true, features = ["derive"] }
 serde = { workspace = true, features = ["derive"] }
 jwt-compact = { workspace = true, features = ["ed25519-dalek"] }
 variant_count = "1.1.0"
-
 frame-benchmarking = { workspace = true, optional = true }
 frame-support.workspace = true
 frame-system.workspace = true
 pallet-timestamp.workspace = true
 sp-runtime.workspace = true
 xcm.workspace = true
-hex-literal.workspace = true
+
 [features]
 default = [ "std" ]
 std = [

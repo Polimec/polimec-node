@@ -106,6 +106,7 @@ mod tests {
 		mock::{new_test_ext, TestRuntime as Test},
 		UserMigrations,
 	};
+	use frame_support::weights::RuntimeDbWeight;
 	use polimec_common::migration_types::MigrationOrigin;
 	use v7::{UncheckedMigrationToV7, MAX_PARTICIPATIONS_PER_USER};
 	use xcm::v4::Junction;
@@ -136,13 +137,17 @@ mod tests {
 			let weight = UncheckedMigrationToV7::<Test>::on_runtime_upgrade();
 			assert_eq!(UserMigrations::<Test>::iter().count(), 1);
 
-			for (_, (_, migrations)) in UserMigrations::<Test>::iter() {
-				for (i, migration) in migrations.iter().enumerate() {
-					assert_eq!(migration.info.vesting_time, i as u64 * 2);
-				}
+			let (_, (_, post_migrations)) = UserMigrations::<Test>::iter().next().unwrap();
+			assert_eq!(post_migrations.len() as u32, MAX_PARTICIPATIONS_PER_USER); // Verify count matches test items
+			for (i, migration) in post_migrations.iter().enumerate() {
+				// Original vesting_time was `i`, expected is `i * 2`
+				assert_eq!(migration.info.vesting_time, i as u64 * 2, "Vesting time mismatch at index {}", i);
 			}
-
-			assert!(weight.is_zero());
+			let db_weight: RuntimeDbWeight = <Test as frame_system::Config>::DbWeight::get();
+			// Weight is based on the number of *individual migration entries* processed
+			let expected_weight =
+				db_weight.reads_writes(MAX_PARTICIPATIONS_PER_USER as u64, MAX_PARTICIPATIONS_PER_USER as u64);
+			assert_eq!(weight, expected_weight, "Weight should match items processed");
 		});
 	}
 }

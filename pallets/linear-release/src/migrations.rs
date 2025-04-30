@@ -1,10 +1,7 @@
 use super::*;
-use crate::{AccountIdOf, ReasonOf};
 use core::marker::PhantomData;
 use frame_support::{migrations::VersionedMigration, traits::UncheckedOnRuntimeUpgrade};
 use sp_runtime::{traits::BlockNumberProvider, Saturating, Weight};
-
-pub type Values<T> = BoundedVec<VestingInfoOf<T>, MaxVestingSchedulesGet<T>>;
 
 const LOG: &str = "linear_release::migration::v1";
 pub struct LinearReleaseVestingInfoMigration;
@@ -24,43 +21,58 @@ impl<T: crate::Config> UncheckedOnRuntimeUpgrade for UncheckedMigrationToV1<T> {
 
 	fn on_runtime_upgrade() -> Weight {
 		let mut items = 0u64;
-		let translate_vesting_info =
-			|_: AccountIdOf<T>, _: ReasonOf<T>, vesting_info: Values<T>| -> Option<Values<T>> {
-				let migrated: Vec<_> = vesting_info
-					.iter()
-					.map(|vesting| {
-						items = items.saturating_add(1);
+		// Fetch block numbers once per entry for consistency
+		let relay_chain_now = T::BlockNumberProvider::current_block_number();
+		let polimec_now = frame_system::Pallet::<T>::current_block_number();
 
-						// adjust starting block to relay chain block number
-						let relay_chain_now = T::BlockNumberProvider::current_block_number();
+		// Define constants with explicit types
+		let two_bn: BlockNumberFor<T> = 2u32.into();
+		let two_balance: BalanceOf<T> = 2u32.into();
 
-						let polimec_now = frame_system::Pallet::<T>::current_block_number();
-						let two = 2_u32.into();
+		let translate_vesting_info = |vesting_info: EntriesOf<T>| -> Option<EntriesOf<T>> {
+			let migrated: Vec<_> = vesting_info
+				.iter()
+				.map(|vesting| {
+					items = items.saturating_add(1);
 
-						let relay_chain_starting_block = if polimec_now < vesting.starting_block() {
-							let blocks_diff = vesting.starting_block().saturating_sub(polimec_now);
-							relay_chain_now.saturating_add(blocks_diff.saturating_mul(two))
-						} else {
-							let blocks_passed = polimec_now.saturating_sub(vesting.starting_block());
-							relay_chain_now.saturating_sub(blocks_passed.saturating_mul(two))
-						};
+					let relay_chain_starting_block = if polimec_now < vesting.starting_block {
+						let blocks_diff = vesting.starting_block.saturating_sub(polimec_now);
+						relay_chain_now.saturating_add(blocks_diff.saturating_mul(two_bn))
+					} else {
+						let blocks_passed = polimec_now.saturating_sub(vesting.starting_block);
+						relay_chain_now.saturating_sub(blocks_passed.saturating_mul(two_bn))
+					};
 
-						let adjusted_per_block = vesting.per_block.saturating_mul(2_u32.into());
+					let adjusted_per_block = vesting
+						.per_block
+						.checked_div(&two_balance)
+						// Division by constant 2 is safe.
+						// unwrap_or_default handles Balance=0 and Balance=1 correctly (result 0).
+						.unwrap_or_default();
 
-						VestingInfo {
-							locked: vesting.locked,
-							per_block: adjusted_per_block,
-							starting_block: relay_chain_starting_block,
-						}
-					})
-					.collect();
+					if adjusted_per_block.is_zero() && !vesting.per_block.is_zero() {
+						log::warn!(
+							target: LOG,
+							"Vesting schedule per_block reduced to zero due to division. Original: {:?}",
+							vesting.per_block
+						);
+					}
+					VestingInfo {
+						locked: vesting.locked,
+						per_block: adjusted_per_block,
+						starting_block: relay_chain_starting_block,
+					}
+				})
+				.collect();
 
-				Values::<T>::try_from(migrated).ok()
-			};
+			log::info!(target: LOG, "Vesting schedules migrated: {:?}", migrated);
+
+			EntriesOf::<T>::try_from(migrated).ok()
+		};
 
 		log::info!(target: LOG, "Starting linear release vesting time migration to V1");
 
-		crate::Vesting::<T>::translate(translate_vesting_info);
+		crate::Vesting::<T>::translate_values(translate_vesting_info);
 
 		log::info!(target: LOG, "Migrated {} linear release vesting entries", items);
 
@@ -69,40 +81,46 @@ impl<T: crate::Config> UncheckedOnRuntimeUpgrade for UncheckedMigrationToV1<T> {
 
 	#[cfg(feature = "try-runtime")]
 	fn post_upgrade(pre_state: Vec<u8>) -> Result<(), DispatchError> {
-		let (pre_migration_count, pre_vestings): (u32, Vec<((AccountIdOf<T>, ReasonOf<T>), Values<T>)>) =
+		let (pre_migration_count, pre_vestings): (u32, Vec<((AccountIdOf<T>, ReasonOf<T>), EntriesOf<T>)>) =
 			Decode::decode(&mut &pre_state[..]).expect("Failed to decode pre-migration state");
 
 		let post_migration_count = crate::Vesting::<T>::iter().count() as u32;
 
-		if pre_migration_count != post_migration_count {
-			return Err("Migration count mismatch".into());
-		}
+		ensure!(pre_migration_count == post_migration_count, "Migration count mismatch");
 
-		for ((account, reason), pre_vesting) in pre_vestings {
-			let post_vesting = crate::Vesting::<T>::get(&account, &reason).unwrap_or_default();
+		// Define two_balance for the check
+		let two_balance: BalanceOf<T> = 2u32.into();
 
-			// check that the starting block has been adjusted
-			let relay_chain_now = T::BlockNumberProvider::current_block_number();
+		for ((account, reason), pre_vesting_schedules) in pre_vestings {
+			let post_vesting_schedules =
+				crate::Vesting::<T>::get(&account, &reason).expect("Vesting entry should still exist post-migration");
 
-			for (pre_vesting_info, post_vesting_info) in pre_vesting.iter().zip(post_vesting.iter()) {
-				assert_ne!(
-					pre_vesting_info.starting_block, post_vesting_info.starting_block,
-					"Starting block not adjusted"
-				);
-				assert!(
-					post_vesting_info.starting_block <= relay_chain_now.try_into().ok().expect("safe to convert; qed"),
-					"Starting block not adjusted correctly"
-				);
+			ensure!(
+				pre_vesting_schedules.len() == post_vesting_schedules.len(),
+				"Vesting schedule count mismatch for account/reason"
+			);
 
-				assert!(
-					post_vesting_info.per_block ==
-						pre_vesting_info
-							.per_block
-							.saturating_mul(2_u32.try_into().ok().expect("safe to convert; qed")),
-					"Per block not adjusted"
-				);
+			for (pre_info, post_info) in pre_vesting_schedules.iter().zip(post_vesting_schedules.iter()) {
+				// Check starting block changed (if not originally zero)
+				// Precise check is hard without knowing migration block numbers.
+				if !pre_info.starting_block.is_zero() {
+					assert_ne!(
+						pre_info.starting_block, post_info.starting_block,
+						"Starting block should have been adjusted"
+					);
+				}
+				// Removed the potentially incorrect check: post_info.starting_block <= relay_chain_now
+
+				let expected_post_per_block = pre_info.per_block.checked_div(&two_balance).unwrap_or_default();
+
+				assert_eq!(post_info.per_block, expected_post_per_block, "Per block not adjusted correctly (halved)");
+
+				// Check locked amount remains the same
+				assert_eq!(pre_info.locked, post_info.locked, "Locked amount changed during migration");
 			}
 		}
+
+		log::info!(target: LOG, "Post-upgrade checks passed for linear release migration.");
 
 		Ok(())
 	}
@@ -117,10 +135,10 @@ mod test {
 	use crate::{
 		mock::{ExtBuilder, MockRuntimeHoldReason, System, Test},
 		pallet::Vesting,
-		AccountIdOf, BalanceOf, BlockNumberFor,
+		AccountIdOf, BalanceOf, BlockNumberFor, VestingInfo,
 	};
 	use frame_support::weights::RuntimeDbWeight;
-	use sp_runtime::bounded_vec;
+	use sp_runtime::{bounded_vec, traits::BlockNumberProvider};
 
 	// Helper to calculate expected results concisely
 	// Now takes the *actual* polimec_now and the *fixed* relay_chain_now from the mock provider
@@ -129,21 +147,20 @@ mod test {
 		polimec_now: BlockNumberFor<Test>,
 		relay_chain_now: BlockNumberFor<Test>,
 	) -> VestingInfo<BalanceOf<Test>, BlockNumberFor<Test>> {
-		let two: BlockNumberFor<Test> = 2u32.into();
+		let two_bn: BlockNumberFor<Test> = 2u32.into();
+		let two_balance: BalanceOf<Test> = 2u32.into();
+
 		let expected_relay_start = if polimec_now < vesting.starting_block {
 			let blocks_diff = vesting.starting_block.saturating_sub(polimec_now);
-			relay_chain_now.saturating_add(blocks_diff.saturating_mul(two))
+			relay_chain_now.saturating_add(blocks_diff.saturating_mul(two_bn))
 		} else {
 			let blocks_passed = polimec_now.saturating_sub(vesting.starting_block);
-			relay_chain_now.saturating_sub(blocks_passed.saturating_mul(two))
+			relay_chain_now.saturating_sub(blocks_passed.saturating_mul(two_bn))
 		};
-		let expected_per_block = vesting.per_block.saturating_mul(two);
 
-		VestingInfo {
-			locked: vesting.locked, // Stays the same
-			per_block: expected_per_block,
-			starting_block: expected_relay_start,
-		}
+		let expected_per_block = vesting.per_block.checked_div(two_balance).unwrap_or_default();
+
+		VestingInfo { locked: vesting.locked, per_block: expected_per_block, starting_block: expected_relay_start }
 	}
 
 	#[test]
@@ -152,16 +169,26 @@ mod test {
 			let polimec_now: BlockNumberFor<Test> = 100;
 			System::set_block_number(polimec_now);
 
-			// The relay chain block number is now fixed by the mock provider
-			let relay_chain_now: BlockNumberFor<Test> = polimec_now;
+			let relay_chain_now: BlockNumberFor<Test> = <Test as Config>::BlockNumberProvider::current_block_number();
+			assert_eq!(relay_chain_now, polimec_now, "Test assumes relay_chain_now == polimec_now from provider");
 
 			let account1: AccountIdOf<Test> = 3;
 			let account2: AccountIdOf<Test> = 4;
+			let default_account1: AccountIdOf<Test> = 1;
+			let default_account2: AccountIdOf<Test> = 2;
+			let default_account12: AccountIdOf<Test> = 12;
 
 			let reason1 = MockRuntimeHoldReason::Reason;
 			let reason2 = MockRuntimeHoldReason::Reason2;
 
-			// Schedule starting in the past relative to polimec_now
+			let default_schedules1_pre =
+				Vesting::<Test>::get(default_account1, reason1.clone()).expect("Default schedule 1 missing");
+			let default_schedules2_pre =
+				Vesting::<Test>::get(default_account2, reason1.clone()).expect("Default schedule 2 missing");
+			let default_schedules12_pre =
+				Vesting::<Test>::get(default_account12, reason1.clone()).expect("Default schedule 12 missing");
+
+			// Test schedules setup (remains the same)
 			let v_past = VestingInfo { locked: 1000, per_block: 10, starting_block: 50 };
 			// Schedule starting in the future relative to polimec_now
 			let v_future = VestingInfo { locked: 2000, per_block: 20, starting_block: 150 };
@@ -171,34 +198,41 @@ mod test {
 			let v_zero = VestingInfo { locked: 100, per_block: 1, starting_block: 0 };
 
 			// Entry 1: Acc1, Reason1 -> Multiple schedules, covering past and future
-			let schedules1: Values<Test> = bounded_vec![v_past.clone(), v_future.clone()];
+			let schedules1: EntriesOf<Test> = bounded_vec![v_past.clone(), v_future.clone()];
 			Vesting::<Test>::insert(account1, reason1.clone(), schedules1.clone());
 
 			// Entry 2: Acc2, Reason1 -> Single schedule, covering 'now' case
-			let schedules2: Values<Test> = bounded_vec![v_now.clone()];
+			let schedules2: EntriesOf<Test> = bounded_vec![v_now.clone()];
 			Vesting::<Test>::insert(account2, reason1.clone(), schedules2.clone());
 
 			// Entry 3: Acc1, Reason2 -> Single schedule, edge case start block
-			let schedules3: Values<Test> = bounded_vec![v_zero.clone()];
+			let schedules3: EntriesOf<Test> = bounded_vec![v_zero.clone()];
 			Vesting::<Test>::insert(account1, reason2.clone(), schedules3.clone());
 
-			// Verify initial counts
-			let initial_storage_entries = Vesting::<Test>::iter_keys().count(); // Counts distinct (Acc, Reason) pairs
+			// Genesis adds 3 entries (1, 2, 12). Test adds 3 more (3/R1, 4/R1, 3/R2). Total = 6.
+			let initial_storage_entries = Vesting::<Test>::iter_keys().count();
+			assert_eq!(initial_storage_entries, 6, "Check 3 default genesis + 3 added entries");
+
+			// Genesis adds 3 schedules. Test adds 4 more (2+1+1). Total = 7.
 			let initial_schedules_count: u64 = Vesting::<Test>::iter_values().map(|v| v.len() as u64).sum();
-			assert_eq!(initial_storage_entries, 6); // default already adds 3 entries
-			assert_eq!(initial_schedules_count, 7); // 3 from default, 4 from our setup
+			assert_eq!(initial_schedules_count, 7, "Check 3 default schedules + 4 added schedules");
 
 			let weight = UncheckedMigrationToV1::<Test>::on_runtime_upgrade();
 
+			// Check counts remain consistent
 			assert_eq!(
 				Vesting::<Test>::iter_keys().count(),
 				initial_storage_entries,
-				"Number of storage entries should not change"
+				"Number of storage entries should not change post-migration"
+			);
+			let post_schedules_count: u64 = Vesting::<Test>::iter_values().map(|v| v.len() as u64).sum();
+			assert_eq!(
+				post_schedules_count, initial_schedules_count,
+				"Number of schedules should not change post-migration"
 			);
 
 			let migrated1 = Vesting::<Test>::get(account1, reason1.clone()).unwrap();
 			assert_eq!(migrated1.len(), 2);
-
 			assert_eq!(migrated1[0], calculate_expected(&v_past, polimec_now, relay_chain_now));
 			assert_eq!(migrated1[1], calculate_expected(&v_future, polimec_now, relay_chain_now));
 
@@ -208,33 +242,40 @@ mod test {
 
 			let migrated3 = Vesting::<Test>::get(account1, reason2.clone()).unwrap();
 			assert_eq!(migrated3.len(), 1);
-			assert_eq!(migrated3[0], calculate_expected(&v_zero, polimec_now, relay_chain_now));
+			let expected_zero = calculate_expected(&v_zero, polimec_now, relay_chain_now);
+			assert_eq!(expected_zero.per_block, 0, "Expected per_block to become 0 for v_zero");
+			assert_eq!(migrated3[0], expected_zero);
+
+			let default_migrated1 = Vesting::<Test>::get(default_account1, reason1.clone()).unwrap();
+			assert_eq!(default_migrated1.len(), 1);
+			assert_eq!(
+				default_migrated1[0],
+				// Use the fetched pre-migration state
+				calculate_expected(&default_schedules1_pre[0], polimec_now, relay_chain_now),
+				"Default schedule 1 migrated incorrectly"
+			);
+
+			let default_migrated2 = Vesting::<Test>::get(default_account2, reason1.clone()).unwrap();
+			assert_eq!(default_migrated2.len(), 1);
+			assert_eq!(
+				default_migrated2[0],
+				// Use the fetched pre-migration state
+				calculate_expected(&default_schedules2_pre[0], polimec_now, relay_chain_now),
+				"Default schedule 2 migrated incorrectly"
+			);
+			let default_migrated12 = Vesting::<Test>::get(default_account12, reason1.clone()).unwrap();
+			assert_eq!(default_migrated12.len(), 1);
+			assert_eq!(
+				default_migrated12[0],
+				// Use the fetched pre-migration state
+				calculate_expected(&default_schedules12_pre[0], polimec_now, relay_chain_now),
+				"Default schedule 12 migrated incorrectly"
+			);
 
 			let db_weight: RuntimeDbWeight = <Test as frame_system::Config>::DbWeight::get();
+			// Weight based on number of *schedules* processed (initial_schedules_count = 7)
 			let expected_weight = db_weight.reads_writes(initial_schedules_count, initial_schedules_count);
-
-			assert_eq!(weight, expected_weight, "Weight should match items processed");
-
-			// also verify default vesting entries that are migrated
-			let default_vesting = Vesting::<Test>::get(1, MockRuntimeHoldReason::Reason).unwrap();
-			assert_eq!(
-				default_vesting[0],
-				calculate_expected(
-					&VestingInfo { starting_block: 0, per_block: 128, locked: 5 * 256 },
-					polimec_now,
-					relay_chain_now
-				),
-			);
-
-			let default_vesting_2 = Vesting::<Test>::get(2, MockRuntimeHoldReason::Reason).unwrap();
-			assert_eq!(
-				default_vesting_2[0],
-				calculate_expected(
-					&VestingInfo { starting_block: 10, per_block: 256, locked: 20 * 256 },
-					polimec_now,
-					relay_chain_now
-				),
-			);
+			assert_eq!(weight, expected_weight, "Weight should match total schedules processed");
 		});
 	}
 }

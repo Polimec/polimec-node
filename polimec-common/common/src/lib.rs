@@ -29,6 +29,20 @@ pub use xcm::v4::{opaque::Xcm, Assets, Location, QueryId, SendError, SendResult,
 pub mod assets;
 pub mod credentials;
 
+/// This determines the average expected block time that we are targeting.
+/// Blocks will be produced at a minimum duration defined by `SLOT_DURATION`.
+/// `SLOT_DURATION` is picked up by `pallet_timestamp` which is in turn picked
+/// up by `pallet_aura` to implement `fn slot_duration()`.
+///
+/// Change this to adjust the block time.
+pub const MILLISECS_PER_BLOCK: u64 = 6000;
+pub const SLOT_DURATION: u64 = MILLISECS_PER_BLOCK;
+
+// Time is measured by number of blocks.
+pub const MINUTES: u32 = 60_000 / (MILLISECS_PER_BLOCK as u32);
+pub const HOURS: u32 = MINUTES * 60;
+pub const DAYS: u32 = HOURS * 24;
+
 /// A release schedule over a fungible. This allows a particular fungible to have release limits
 /// applied to it.
 pub trait ReleaseSchedule<AccountId, Reason> {

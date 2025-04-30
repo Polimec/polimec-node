@@ -21,8 +21,7 @@ use crate::{
 use core::marker::PhantomData;
 use frame_support::{parameter_types, PalletId};
 use orml_traits::DataProvider;
-use parachains_common::DAYS;
-use polimec_common::{credentials::Cid, ProvideAssetPrice};
+use polimec_common::{credentials::Cid, ProvideAssetPrice, DAYS};
 use sp_arithmetic::FixedPointNumber;
 
 parameter_types! {

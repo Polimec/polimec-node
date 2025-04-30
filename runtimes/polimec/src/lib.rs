@@ -20,7 +20,9 @@
 // Make the WASM binary available.
 #[cfg(feature = "std")]
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
+
 extern crate alloc;
+
 use assets_common::fungible_conversion::{convert, convert_balance};
 use core::cmp::Ordering;
 use cumulus_pallet_parachain_system::{RelayNumberMonotonicallyIncreases, RelaychainDataProvider};
@@ -54,7 +56,7 @@ use parity_scale_codec::Encode;
 use polimec_common::{
 	assets::AcceptedFundingAsset,
 	credentials::{Did, EnsureInvestor, InvestorType},
-	ProvideAssetPrice, USD_UNIT,
+	ProvideAssetPrice, DAYS, PLMC_DECIMALS, SLOT_DURATION, USD_DECIMALS, USD_UNIT,
 };
 use polkadot_runtime_common::{BlockHashCount, CurrencyToVote, SlowAdjustingFeeUpdate};
 use shared_configuration::proxy;
@@ -171,6 +173,7 @@ pub type UncheckedExtrinsic = generic::UncheckedExtrinsic<Address, RuntimeCall, 
 /// Extrinsic type that has already been checked.
 pub type CheckedExtrinsic = generic::CheckedExtrinsic<AccountId, RuntimeCall, TxExtension>;
 
+/// Migrations to apply on runtime upgrade.
 pub type Migrations = migrations::Unreleased;
 
 /// The runtime migrations per release.
@@ -185,12 +188,14 @@ pub mod migrations {
 	}
 
 	/// Unreleased migrations. Add new ones here:
-	#[allow(unused_parens)]
 	pub type Unreleased = (
+		// permanent
+		pallet_xcm::migration::MigrateToLatestXcmVersion<Runtime>,
+		// temporary
 		RemovePallet<IdentityPalletName, RuntimeDbWeight>,
 		pallet_funding::migrations::vesting_info::v7::MigrationToV8<Runtime>,
 		pallet_linear_release::migrations::LinearReleaseVestingMigrationV1<Runtime>,
-		super::custom_migrations::vesting::v1::UncheckedMigrationToV1<Runtime>,
+		super::custom_migrations::vesting::v1::UncheckedMigrationToAsyncBacking<Runtime>,
 	);
 }
 
@@ -1034,8 +1039,6 @@ impl pallet_funding::Config for Runtime {
 	type VerifierPublicKey = VerifierPublicKey;
 	type WeightInfo = weights::pallet_funding::WeightInfo<Runtime>;
 }
-
-use polimec_common::{PLMC_DECIMALS, USD_DECIMALS};
 
 parameter_types! {
 	// Fee is defined as 1.5% of the usd_amount. Since fee is applied to the plmc amount, and that is always 5 times

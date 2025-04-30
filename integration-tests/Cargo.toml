@@ -93,6 +93,7 @@ default = [ "development-settings", "instant-mode", "std" ]
 instant-mode = [ "polimec-runtime/instant-mode" ]
 std = [
 	"assets-common/std",
+	"cumulus-pallet-parachain-system/std",
 	"cumulus-pallet-xcm/std",
 	"cumulus-primitives-core/std",
 	"frame-metadata-hash-extension/std",
@@ -146,17 +147,15 @@ std = [
 	"sp-core/std",
 	"sp-io/std",
 	"sp-runtime/std",
-	"rococo-runtime-constants/std",
-	"rococo-runtime/std",
 	"xcm-builder/std",
 	"xcm-executor/std",
 	"xcm-runtime-apis/std",
 	"xcm/std",
-	"cumulus-pallet-parachain-system/std"
 ]
 development-settings = [ "polimec-runtime/development-settings" ]
 runtime-benchmarks = [
 	"assets-common/runtime-benchmarks",
+	"cumulus-pallet-parachain-system/runtime-benchmarks",
 	"cumulus-primitives-core/runtime-benchmarks",
 	"frame-support/runtime-benchmarks",
 	"frame-system/runtime-benchmarks",
@@ -178,6 +177,7 @@ runtime-benchmarks = [
 	"pallet-scheduler/runtime-benchmarks",
 	"pallet-skip-feeless-payment/runtime-benchmarks",
 	"pallet-staking/runtime-benchmarks",
+	"pallet-transaction-payment/runtime-benchmarks",
 	"pallet-treasury/runtime-benchmarks",
 	"pallet-vesting/runtime-benchmarks",
 	"pallet-xcm/runtime-benchmarks",
@@ -194,7 +194,4 @@ runtime-benchmarks = [
 	"xcm-builder/runtime-benchmarks",
 	"xcm-executor/runtime-benchmarks",
 	"xcm-runtime-apis/runtime-benchmarks",
-	"assets-common/runtime-benchmarks",
-	"pallet-transaction-payment/runtime-benchmarks",
-	"cumulus-pallet-parachain-system/runtime-benchmarks"
 ]

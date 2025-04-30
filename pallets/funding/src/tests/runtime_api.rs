@@ -437,7 +437,7 @@ fn get_next_vesting_schedule_merge_candidates() {
 		)
 		.unwrap()
 		.unwrap();
-		assert_eq!((idx_1, idx_2), (0, 1));
+		assert_eq!((idx_1, idx_2), (1, 2));
 
 		// Merging the two schedules deletes them and creates a new one at the end of the vec.
 		LinearRelease::merge_schedules(RuntimeOrigin::signed(BIDDER_1), idx_1, idx_2, hold_reason).unwrap();

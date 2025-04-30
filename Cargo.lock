@@ -8107,7 +8107,6 @@ dependencies = [
  "pallet-linear-release",
  "pallet-proxy-bonding",
  "pallet-timestamp",
- "parachains-common",
  "parity-scale-codec",
  "polimec-common",
  "polimec-common-test-utils",
@@ -8293,9 +8292,9 @@ dependencies = [
 
 [[package]]
 name = "pallet-multisig"
-version = "39.1.0"
+version = "39.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1e0cc99d268440cfea88aa04d79a68f7364792f7941b07614d9fe31afbf25889"
+checksum = "f05c6e97d290f1e03b3fed63244b8a2a22c575e842d2362bd2fef929cf17cace"
 dependencies = [
  "log",
  "parity-scale-codec",
@@ -9313,7 +9312,6 @@ dependencies = [
  "frame-benchmarking",
  "frame-support",
  "frame-system",
- "hex-literal",
  "jwt-compact-frame",
  "pallet-timestamp",
  "parity-scale-codec",
@@ -9374,7 +9372,6 @@ dependencies = [
  "sc-network",
  "sc-network-sync",
  "sc-offchain",
- "sc-rpc",
  "sc-service",
  "sc-sysinfo",
  "sc-telemetry",
@@ -14782,9 +14779,9 @@ dependencies = [
 
 [[package]]
 name = "sp-io"
-version = "39.0.0"
+version = "39.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "86554fd101635b388e41ce83c28754ee30078e6a93480e1310914b4b09a67130"
+checksum = "594a1c12ec7a1514caa878c2370902d116e6d7606a449c805bc91a4e62ef1ecf"
 dependencies = [
  "bytes",
  "docify",
@@ -15285,9 +15282,9 @@ dependencies = [
 
 [[package]]
 name = "staging-xcm"
-version = "15.0.2"
+version = "15.0.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0da1cd9035c55d89bd68c1dee872f17d18165685746fe13342937e70b67e5795"
+checksum = "b570c175519cb507fd7c16d69c43f77e87853cc7cc0d88bf4aabca028775363b"
 dependencies = [
  "array-bytes",
  "bounded-collections",
@@ -15307,9 +15304,9 @@ dependencies = [
 
 [[package]]
 name = "staging-xcm-builder"
-version = "18.1.0"
+version = "18.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a294dac930786c5d2b4c2113dc8891dd5095bf0e04537e0262206e09726b0ff1"
+checksum = "bb41713b55123a0ec0d2690899cce5cd7354217455650f3bc80c75dd39ad8f02"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -15533,9 +15530,9 @@ dependencies = [
 
 [[package]]
 name = "substrate-wasm-builder"
-version = "25.0.0"
+version = "25.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cfebe406eca8d18abd10bb29d7c6af2d656fa60b5d4a8033afd80b97795b9efb"
+checksum = "de2b928140f5fb21da28b219c88d8e83459e4b0ae858933b65a5c09ceac90ae8"
 dependencies = [
  "array-bytes",
  "build-helper",
