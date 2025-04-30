@@ -28,10 +28,13 @@ use sp_authority_discovery::AuthorityId as AuthorityDiscoveryId;
 use sp_consensus_babe::AuthorityId as BabeId;
 use sp_consensus_beefy::ecdsa_crypto::AuthorityId as BeefyId;
 use sp_core::{crypto::get_public_from_string_or_panic, sr25519, storage::Storage};
+use sp_keyring::Sr25519Keyring as Keyring;
 use sp_runtime::{bounded_vec, BuildStorage, Perbill};
 pub use xcm;
 use xcm_emulator::{Chain, Parachain};
 
+// Cumulus
+use emulated_integration_tests_common::{build_genesis_storage, RESERVABLE_ASSET_ID, USDT_ID};
 pub const REF_TIME_THRESHOLD: u64 = 33;
 pub const PROOF_SIZE_THRESHOLD: u64 = 33;
 pub const INITIAL_DEPOSIT: u128 = 420_0_000_000_000;
@@ -225,7 +228,7 @@ const SAFE_XCM_VERSION: u32 = xcm::prelude::XCM_VERSION;
 // Polkadot
 pub mod polkadot {
 	use super::*;
-	pub const ED: Balance = rococo_runtime_constants::currency::EXISTENTIAL_DEPOSIT;
+	pub const ED: Balance = westend_runtime_constants::currency::EXISTENTIAL_DEPOSIT;
 
 	pub fn get_host_config() -> HostConfiguration<BlockNumber> {
 		HostConfiguration {
@@ -246,16 +249,16 @@ pub mod polkadot {
 		para_assignment: AssignmentId,
 		authority_discovery: AuthorityDiscoveryId,
 		beefy: BeefyId,
-	) -> rococo_runtime::SessionKeys {
-		rococo_runtime::SessionKeys { babe, grandpa, para_validator, para_assignment, authority_discovery, beefy }
+	) -> westend_runtime::SessionKeys {
+		westend_runtime::SessionKeys { babe, grandpa, para_validator, para_assignment, authority_discovery, beefy }
 	}
 
 	pub fn genesis() -> Storage {
-		let genesis_config = rococo_runtime::RuntimeGenesisConfig {
-			balances: rococo_runtime::BalancesConfig {
+		let genesis_config = westend_runtime::RuntimeGenesisConfig {
+			balances: westend_runtime::BalancesConfig {
 				balances: accounts::init_balances().iter().cloned().map(|k| (k, INITIAL_DEPOSIT)).collect(),
 			},
-			session: rococo_runtime::SessionConfig {
+			session: westend_runtime::SessionConfig {
 				keys: validators::initial_authorities()
 					.iter()
 					.map(|x| {
@@ -276,12 +279,12 @@ pub mod polkadot {
 					.collect::<Vec<_>>(),
 				..Default::default()
 			},
-			babe: rococo_runtime::BabeConfig {
+			babe: westend_runtime::BabeConfig {
 				authorities: Default::default(),
-				epoch_config: rococo_runtime::BABE_GENESIS_EPOCH_CONFIG,
+				epoch_config: westend_runtime::BABE_GENESIS_EPOCH_CONFIG,
 				..Default::default()
 			},
-			configuration: rococo_runtime::ConfigurationConfig { config: get_host_config() },
+			configuration: westend_runtime::ConfigurationConfig { config: get_host_config() },
 			..Default::default()
 		};
 
@@ -453,5 +456,67 @@ pub mod polimec {
 		};
 
 		genesis_config.build_storage().unwrap()
+	}
+}
+
+pub mod asset_hub {
+	use super::*;
+	use frame_support::parameter_types;
+	use westend_runtime_constants::currency::EXISTENTIAL_DEPOSIT;
+
+	pub const PARA_ID: u32 = 1000;
+	pub const ED: Balance = EXISTENTIAL_DEPOSIT;
+
+	parameter_types! {
+		pub AssetHubWestendAssetOwner: AccountId = Keyring::Alice.to_account_id();
+	}
+
+	pub fn genesis() -> Storage {
+		let genesis_config = asset_hub_westend_runtime::RuntimeGenesisConfig {
+			system: asset_hub_westend_runtime::SystemConfig::default(),
+			balances: asset_hub_westend_runtime::BalancesConfig {
+				balances: accounts::init_balances().iter().cloned().map(|k| (k, ED * 4096 * 4096)).collect(),
+			},
+			parachain_info: asset_hub_westend_runtime::ParachainInfoConfig {
+				parachain_id: PARA_ID.into(),
+				..Default::default()
+			},
+			collator_selection: asset_hub_westend_runtime::CollatorSelectionConfig {
+				invulnerables: collators::invulnerables().iter().cloned().map(|(acc, _)| acc).collect(),
+				candidacy_bond: ED * 16,
+				..Default::default()
+			},
+			session: asset_hub_westend_runtime::SessionConfig {
+				keys: collators::invulnerables()
+					.into_iter()
+					.map(|(acc, aura)| {
+						(
+							acc.clone(),                                     // account id
+							acc,                                             // validator id
+							asset_hub_westend_runtime::SessionKeys { aura }, // session keys
+						)
+					})
+					.collect(),
+				..Default::default()
+			},
+			polkadot_xcm: asset_hub_westend_runtime::PolkadotXcmConfig {
+				safe_xcm_version: Some(SAFE_XCM_VERSION),
+				..Default::default()
+			},
+			assets: asset_hub_westend_runtime::AssetsConfig {
+				assets: vec![
+					(RESERVABLE_ASSET_ID, AssetHubWestendAssetOwner::get(), false, ED),
+					(USDT_ID, AssetHubWestendAssetOwner::get(), true, ED),
+				],
+				..Default::default()
+			},
+			foreign_assets: asset_hub_westend_runtime::ForeignAssetsConfig { ..Default::default() },
+			..Default::default()
+		};
+
+		build_genesis_storage(
+			&genesis_config,
+			asset_hub_westend_runtime::WASM_BINARY.expect("WASM binary was not built, please build it!"),
+		)
 	}
 }

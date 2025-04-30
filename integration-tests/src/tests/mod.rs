@@ -23,5 +23,6 @@ mod governance;
 mod oracle;
 mod otm_edge_cases;
 mod runtime_apis;
+mod transact;
 mod transaction_payment;
 mod vest;
