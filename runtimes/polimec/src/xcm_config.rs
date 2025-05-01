@@ -266,6 +266,7 @@ pub type Barrier = TrailingSetTopicAsId<
 		DenyReserveTransferToRelayChain,
 		(
 			TakeWeightCredit,
+			// Allow DescendOrigin(AccountId32) from Asset Hub
 			AllowPaidDescendFromAssetHub,
 			// Expected responses are OK.
 			AllowKnownQueryResponses<PolkadotXcm>,
@@ -371,7 +372,6 @@ pub type XcmRouter = (
 
 impl pallet_xcm::Config for Runtime {
 	type AdminOrigin = EnsureRoot<AccountId>;
-	// ^ Override for AdvertisedXcmVersion default
 	type AdvertisedXcmVersion = pallet_xcm::CurrentXcmVersion;
 	type Currency = Balances;
 	type CurrencyMatcher = ();
@@ -391,7 +391,7 @@ impl pallet_xcm::Config for Runtime {
 	type WeightInfo = crate::weights::pallet_xcm::WeightInfo<Runtime>;
 	type XcmExecuteFilter = Everything;
 	type XcmExecutor = XcmExecutor<XcmConfig>;
-	// We only allow reserve based transfers of AssetHub reserve assets back to AssetHub.
+	// We only allow reserve based transfers of Asset Hub reserve assets back to Asset Hub.
 	type XcmReserveTransferFilter = AssetHubAssetsAsReserve;
 	type XcmRouter = XcmRouter;
 	// We allow teleportation of PLMC to Polkadot Asset Hub.

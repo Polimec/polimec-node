@@ -1,13 +1,10 @@
-extern crate alloc;
-use alloc::sync::Arc;
-
 use crate::{
 	asset_hub, polimec, AssetHubEvent, AssetHubOrigin, AssetHubRuntime, AssetHubWestendNet, AssetHubXcmPallet,
 	PolimecAccountId, PolimecEvent, PolimecNet, PolimecRuntime, ALICE,
-}; // Make sure ALICE and BOB are pub in accounts
+};
 use parity_scale_codec::Encode;
 use sp_runtime::traits::Hash;
-use xcm::{v4::prelude::*, DoubleEncoded};
+use xcm::{v4::prelude::*, DoubleEncoded, VersionedLocation, VersionedXcm};
 use xcm_emulator::{Chain, ConvertLocation, TestExt};
 
 fn polimec_location() -> Location {
@@ -28,14 +25,10 @@ fn transact_from_asset_hub_to_polimec_works() {
 
 		AssetHubXcmPallet::send(
 			AssetHubOrigin::signed(AssetHubWestendNet::account_id_of(ALICE)),
-			Box::new(xcm::VersionedLocation::V4(polimec_location())),
-			Box::new(xcm::VersionedXcm::V4(Xcm(vec![
+			Box::new(VersionedLocation::V4(polimec_location())),
+			Box::new(VersionedXcm::V4(Xcm(vec![
 				Instruction::BuyExecution {
-					fees: Asset {
-						id: Location { parents: 1, interior: Here.into() }.into(),
-						fun: Fungibility::Fungible(1_000_000_000),
-					}
-					.into(),
+					fees: Asset { id: Location::parent().into(), fun: Fungibility::Fungible(1_000_000_000) }.into(),
 					weight_limit: WeightLimit::Unlimited,
 				},
 				Instruction::Transact {
@@ -66,12 +59,11 @@ fn transact_from_asset_hub_to_polimec_works() {
 		let sender_sovereign_account: PolimecAccountId =
 			polimec_runtime::xcm_config::LocationToAccountId::convert_location(&Location {
 				parents: 1,
-				interior: Junctions::X2(Arc::new([
-					Parachain(asset_hub::PARA_ID),
-					AccountId32 { network: None, id: alice_westend.encode()[..].try_into().unwrap() },
-				])),
+				interior: Junctions::X2(
+					[Parachain(asset_hub::PARA_ID), AccountId32 { network: None, id: alice_westend.into() }].into(),
+				),
 			})
-			.expect("Failed to convert location to account id");
+			.expect("Failed to convert Location to AccountId32");
 
 		let expected_hash = <AssetHubRuntime as frame_system::Config>::Hashing::hash(&MESSAGE);
 
@@ -84,6 +76,6 @@ fn transact_from_asset_hub_to_polimec_works() {
 			)
 		});
 
-		assert!(contains_remark, "Expected a remark event in PolimecNet events");
+		assert!(contains_remark, "Expected a remark event in Polimec events");
 	});
 }

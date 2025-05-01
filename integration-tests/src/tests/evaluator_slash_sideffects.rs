@@ -116,11 +116,11 @@ fn evaluator_slash_reduces_vesting_schedules() {
 		assert_eq!(ProjectStatus::FundingFailed, inst.go_to_next_state(project_id));
 		assert_eq!(ProjectStatus::SettlementStarted(FundingOutcome::Failure), inst.go_to_next_state(project_id));
 
-		const END_BLOCK: u32 = 18;
+		const END_BLOCK: u32 = 19;
 		assert_eq!(inst.current_block(), BlockNumberFor::<PolimecRuntime>::from(END_BLOCK));
 
 		// All schedules start at block 5, and funding ended at block 18
-		const TIME_PASSED: u128 = 13u128;
+		const TIME_PASSED: u128 = 14u128;
 
 		let alice_account_data = Account::<PolimecRuntime>::get(&alice.clone()).data;
 		assert_eq!(

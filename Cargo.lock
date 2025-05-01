@@ -5346,7 +5346,7 @@ dependencies = [
 
 [[package]]
 name = "integration-tests"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "asset-hub-westend-runtime",
  "assets-common",
@@ -5367,9 +5367,9 @@ dependencies = [
  "pallet-aura",
  "pallet-balances",
  "pallet-collective",
- "pallet-democracy 1.0.0",
+ "pallet-democracy 1.1.0",
  "pallet-dispenser",
- "pallet-elections-phragmen 1.0.0",
+ "pallet-elections-phragmen 1.1.0",
  "pallet-funding",
  "pallet-im-online",
  "pallet-linear-release",
@@ -7039,7 +7039,7 @@ dependencies = [
 
 [[package]]
 name = "macros"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "quote",
  "sp-core",
@@ -7048,7 +7048,7 @@ dependencies = [
 
 [[package]]
 name = "macros-tests"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "macros",
 ]
@@ -7798,7 +7798,7 @@ dependencies = [
 
 [[package]]
 name = "on-slash-vesting"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -8412,7 +8412,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-democracy"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -8447,7 +8447,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-dispenser"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -8502,7 +8502,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-elections-phragmen"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -8558,7 +8558,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-funding"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "cumulus-pallet-parachain-system",
  "cumulus-primitives-core",
@@ -8671,7 +8671,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-linear-release"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -8927,7 +8927,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-oracle-ocw"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -8951,7 +8951,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-parachain-staking"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -9022,7 +9022,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-proxy-bonding"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -9918,7 +9918,7 @@ checksum = "7edddbd0b52d732b21ad9a5fab5c704c14cd949e5e9a1ec5929a24fded1b904c"
 
 [[package]]
 name = "polimec-common"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -9935,7 +9935,7 @@ dependencies = [
 
 [[package]]
 name = "polimec-common-test-utils"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "chrono",
  "frame-support",
@@ -9949,7 +9949,7 @@ dependencies = [
 
 [[package]]
 name = "polimec-node"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "clap",
  "color-print",
@@ -10008,7 +10008,7 @@ dependencies = [
 
 [[package]]
 name = "polimec-runtime"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "assets-common",
  "cumulus-pallet-aura-ext",
@@ -10037,9 +10037,9 @@ dependencies = [
  "pallet-authorship",
  "pallet-balances",
  "pallet-collective",
- "pallet-democracy 1.0.0",
+ "pallet-democracy 1.1.0",
  "pallet-dispenser",
- "pallet-elections-phragmen 1.0.0",
+ "pallet-elections-phragmen 1.1.0",
  "pallet-funding",
  "pallet-linear-release",
  "pallet-membership",
@@ -14624,7 +14624,7 @@ dependencies = [
 
 [[package]]
 name = "shared-configuration"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "cumulus-primitives-core",
  "frame-support",
