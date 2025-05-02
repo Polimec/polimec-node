@@ -95,7 +95,7 @@ pub use types::*;
 use xcm::v4::prelude::*;
 
 pub mod functions;
-pub mod storage_migrations;
+pub mod migrations;
 pub mod traits;
 pub mod types;
 pub mod weights;
@@ -166,7 +166,7 @@ pub mod pallet {
 	}
 
 	#[pallet::pallet]
-	#[pallet::storage_version(storage_migrations::STORAGE_VERSION)]
+	#[pallet::storage_version(migrations::STORAGE_VERSION)]
 	pub struct Pallet<T>(_);
 
 	#[pallet::config]

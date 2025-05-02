@@ -4,7 +4,7 @@ use crate::{
 	ProjectMetadataOf, StringLimitOf,
 };
 use core::marker::PhantomData;
-use frame_support::traits::{StorageVersion, UncheckedOnRuntimeUpgrade};
+use frame_support::traits::UncheckedOnRuntimeUpgrade;
 use polimec_common::{assets::AcceptedFundingAsset, credentials::Cid};
 use scale_info::TypeInfo;
 use serde::{Deserialize, Serialize};
@@ -14,10 +14,6 @@ extern crate alloc;
 use alloc::vec::Vec;
 use polimec_common::migration_types::{MigrationInfo, ParticipationType};
 use xcm::v4::Location;
-
-/// The current storage version
-pub const STORAGE_VERSION: StorageVersion = StorageVersion::new(6);
-pub const LOG: &str = "runtime::funding::migration";
 
 pub mod v5_storage_items {
 
@@ -200,11 +196,11 @@ pub mod v5_storage_items {
 }
 
 pub mod v6 {
-	use super::*;
-	use crate::{
-		storage_migrations::v5_storage_items::{OldMigration, OldProjectStatus, MAX_PARTICIPATIONS_PER_USER},
-		EvaluationRoundInfo, ProjectDetailsOf, ProjectStatus, TicketSize,
+	use super::{
+		v5_storage_items::{OldMigration, OldProjectStatus, MAX_PARTICIPATIONS_PER_USER},
+		*,
 	};
+	use crate::{EvaluationRoundInfo, ProjectDetailsOf, ProjectStatus, TicketSize};
 	use frame_system::pallet_prelude::BlockNumberFor;
 	use polimec_common::{
 		credentials::Did,
