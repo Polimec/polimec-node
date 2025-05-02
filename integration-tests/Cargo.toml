@@ -62,7 +62,7 @@ polkadot-service.workspace = true
 sp-authority-discovery.workspace = true
 sp-consensus-babe.workspace = true
 sp-consensus-beefy.workspace = true
-rococo-runtime-constants.workspace = true
+westend-runtime-constants.workspace = true
 pallet-staking.workspace = true
 pallet-membership.workspace = true
 orml-oracle.workspace = true
@@ -85,8 +85,12 @@ hex.workspace = true
 assets-common.workspace = true
 
 # Runtimes
-rococo-runtime.workspace = true
+westend-runtime.workspace = true
+asset-hub-westend-runtime.workspace = true
 polimec-runtime.workspace = true
+
+# Testing utils
+emulated-integration-tests-common.workspace = true
 
 [features]
 default = [ "development-settings", "instant-mode", "std" ]
@@ -135,8 +139,8 @@ std = [
 	"polkadot-parachain-primitives/std",
 	"polkadot-primitives/std",
 	"polkadot-runtime-parachains/std",
-	"rococo-runtime-constants/std",
-	"rococo-runtime/std",
+	"westend-runtime-constants/std",
+	"westend-runtime/std",
 	"scale-info/std",
 	"serde/std",
 	"sp-arithmetic/std",
@@ -189,7 +193,7 @@ runtime-benchmarks = [
 	"polkadot-primitives/runtime-benchmarks",
 	"polkadot-runtime-parachains/runtime-benchmarks",
 	"polkadot-service/runtime-benchmarks",
-	"rococo-runtime/runtime-benchmarks",
+	"westend-runtime/runtime-benchmarks",
 	"sp-runtime/runtime-benchmarks",
 	"xcm-builder/runtime-benchmarks",
 	"xcm-executor/runtime-benchmarks",

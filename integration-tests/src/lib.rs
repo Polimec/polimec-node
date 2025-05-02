@@ -18,7 +18,11 @@ pub mod constants;
 #[cfg(test)]
 mod tests;
 
-pub use constants::{accounts::*, polimec, polkadot};
+pub use constants::{accounts::*, asset_hub, polimec, polkadot};
+use emulated_integration_tests_common::{
+	impl_accounts_helpers_for_parachain, impl_assert_events_helpers_for_parachain, impl_assets_helpers_for_parachain,
+	impl_foreign_assets_helpers_for_parachain, impl_xcm_helpers_for_parachain,
+};
 pub use frame_support::{assert_noop, assert_ok, pallet_prelude::Weight, parameter_types, traits::Hooks};
 pub use parachains_common::{AccountId, AssetHubPolkadotAuraId, AuraId, Balance, BlockNumber};
 use polkadot_primitives::runtime_api::runtime_decl_for_parachain_host::ParachainHostV12;
@@ -35,16 +39,16 @@ decl_test_relay_chains! {
 	pub struct PolkadotRelay {
 			genesis = polkadot::genesis(),
 			on_init = {
-				rococo_runtime::System::set_block_number(1);
+				westend_runtime::System::set_block_number(1);
 			},
-			runtime = rococo_runtime,
+			runtime = westend_runtime,
 			core = {
-				SovereignAccountOf: rococo_runtime::xcm_config::LocationConverter,
+				SovereignAccountOf: westend_runtime::xcm_config::LocationConverter,
 			},
 			pallets = {
-				System: rococo_runtime::System,
-				Balances: rococo_runtime::Balances,
-				XcmPallet: rococo_runtime::XcmPallet,
+				System: westend_runtime::System,
+				Balances: westend_runtime::Balances,
+				XcmPallet: westend_runtime::XcmPallet,
 			}
 		}
 }
@@ -72,11 +76,44 @@ decl_test_parachains! {
 	}
 }
 
+// AssetHubWestend Parachain declaration
+decl_test_parachains! {
+	pub struct AssetHubWestend {
+		genesis = asset_hub::genesis(),
+		on_init = {
+			asset_hub_westend_runtime::AuraExt::on_initialize(1);
+		},
+		runtime = asset_hub_westend_runtime,
+		core = {
+			XcmpMessageHandler: asset_hub_westend_runtime::XcmpQueue,
+			LocationToAccountId: asset_hub_westend_runtime::xcm_config::LocationToAccountId,
+			ParachainInfo: asset_hub_westend_runtime::ParachainInfo,
+			MessageOrigin: cumulus_primitives_core::AggregateMessageOrigin,
+		},
+		pallets = {
+			PolkadotXcm: asset_hub_westend_runtime::PolkadotXcm,
+			Assets: asset_hub_westend_runtime::Assets,
+			ForeignAssets: asset_hub_westend_runtime::ForeignAssets,
+			PoolAssets: asset_hub_westend_runtime::PoolAssets,
+			AssetConversion: asset_hub_westend_runtime::AssetConversion,
+			Balances: asset_hub_westend_runtime::Balances,
+		}
+	},
+}
+
+// AssetHubWestend implementation
+impl_accounts_helpers_for_parachain!(AssetHubWestend);
+impl_assert_events_helpers_for_parachain!(AssetHubWestend);
+impl_assets_helpers_for_parachain!(AssetHubWestend);
+impl_foreign_assets_helpers_for_parachain!(AssetHubWestend, xcm::v5::Location);
+impl_xcm_helpers_for_parachain!(AssetHubWestend);
+
 decl_test_networks! {
 	pub struct PolkadotNet {
 		relay_chain = PolkadotRelay,
 		parachains = vec![
 			Polimec,
+			AssetHubWestend,
 		],
 		bridge = ()
 	}
@@ -84,13 +121,18 @@ decl_test_networks! {
 
 /// Shortcuts to reduce boilerplate on runtime types
 pub mod shortcuts {
-	use super::{Chain, Polimec, PolimecParaPallet, PolkadotNet, PolkadotRelay as Polkadot, PolkadotRelayRelayPallet};
+	use super::{
+		AssetHubWestend, AssetHubWestendParaPallet, Chain, Polimec, PolimecParaPallet, PolkadotNet,
+		PolkadotRelay as Polkadot, PolkadotRelayRelayPallet,
+	};
 
 	pub type PolkaNet = Polkadot<PolkadotNet>;
 	pub type PolimecNet = Polimec<PolkadotNet>;
+	pub type AssetHubWestendNet = AssetHubWestend<PolkadotNet>;
 
 	pub type PolkadotRuntime = <PolkaNet as Chain>::Runtime;
 	pub type PolimecRuntime = <PolimecNet as Chain>::Runtime;
+	pub type AssetHubRuntime = <AssetHubWestendNet as Chain>::Runtime;
 
 	pub type PolimecFunding = <PolimecNet as PolimecParaPallet>::Funding;
 	pub type PolimecDispenser = <PolimecNet as PolimecParaPallet>::Dispenser;
@@ -98,26 +140,33 @@ pub mod shortcuts {
 
 	pub type PolkadotXcmPallet = <PolkaNet as PolkadotRelayRelayPallet>::XcmPallet;
 	pub type PolimecXcmPallet = <PolimecNet as PolimecParaPallet>::PolkadotXcm;
+	pub type AssetHubXcmPallet = <AssetHubWestendNet as AssetHubWestendParaPallet>::PolkadotXcm;
 
 	pub type PolkadotBalances = <PolkaNet as PolkadotRelayRelayPallet>::Balances;
 	pub type PolimecBalances = <PolimecNet as PolimecParaPallet>::Balances;
+	pub type AssetHubBalances = <AssetHubWestendNet as AssetHubWestendParaPallet>::Balances;
 
 	pub type PolimecForeignAssets = <PolimecNet as PolimecParaPallet>::ForeignAssets;
 
 	pub type PolkadotOrigin = <PolkaNet as Chain>::RuntimeOrigin;
 	pub type PolimecOrigin = <PolimecNet as Chain>::RuntimeOrigin;
+	pub type AssetHubOrigin = <AssetHubWestendNet as Chain>::RuntimeOrigin;
 
 	pub type PolkadotCall = <PolkaNet as Chain>::RuntimeCall;
 	pub type PolimecCall = <PolimecNet as Chain>::RuntimeCall;
+	pub type AssetHubCall = <AssetHubWestendNet as Chain>::RuntimeCall;
 
 	pub type PolkadotAccountId = <PolkadotRuntime as frame_system::Config>::AccountId;
 	pub type PolimecAccountId = <PolimecRuntime as frame_system::Config>::AccountId;
+	pub type AssetHubAccountId = <AssetHubRuntime as frame_system::Config>::AccountId;
 
 	pub type PolkadotEvent = <PolkaNet as Chain>::RuntimeEvent;
 	pub type PolimecEvent = <PolimecNet as Chain>::RuntimeEvent;
+	pub type AssetHubEvent = <AssetHubWestendNet as Chain>::RuntimeEvent;
 
 	pub type PolkadotSystem = <PolkaNet as Chain>::System;
 	pub type PolimecSystem = <PolimecNet as Chain>::System;
+	pub type AssetHubSystem = <AssetHubWestendNet as Chain>::System;
 
 	pub type PolimecParachainSystem = <PolimecNet as PolimecParaPallet>::ParachainSystem;
 }

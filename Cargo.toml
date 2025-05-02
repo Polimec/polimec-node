@@ -247,5 +247,9 @@ cumulus-pallet-session-benchmarking = { version = "20.0.0", default-features = f
 
 # Runtimes
 polimec-runtime = { path = "runtimes/polimec" }
-rococo-runtime-constants = { version = "18.0.0" }
-rococo-runtime = { version = "21.1.0" }
+westend-runtime-constants = { version = "18.0.0" }
+westend-runtime = { version = "21.1.0" }
+asset-hub-westend-runtime = { version = "0.27.2" }
+
+# tests
+emulated-integration-tests-common = { version = "19.0.2" }
