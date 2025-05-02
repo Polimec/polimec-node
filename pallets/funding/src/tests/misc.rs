@@ -135,6 +135,7 @@ mod helper_functions {
 // logic of small functions that extrinsics use to process data or interact with storage
 mod inner_functions {
 	use super::*;
+	use polimec_common::DAYS;
 
 	#[test]
 	fn calculate_vesting_duration() {

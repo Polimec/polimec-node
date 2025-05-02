@@ -32,8 +32,6 @@ use sp_runtime::{bounded_vec, BuildStorage, Perbill};
 pub use xcm;
 use xcm_emulator::{Chain, Parachain};
 
-pub const XCM_V2: u32 = 3;
-pub const XCM_V3: u32 = 2;
 pub const REF_TIME_THRESHOLD: u64 = 33;
 pub const PROOF_SIZE_THRESHOLD: u64 = 33;
 pub const INITIAL_DEPOSIT: u128 = 420_0_000_000_000;

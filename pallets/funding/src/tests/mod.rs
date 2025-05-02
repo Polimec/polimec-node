@@ -19,7 +19,6 @@ use frame_support::{
 };
 use itertools::Itertools;
 use pallet_balances::AccountData;
-use parachains_common::DAYS;
 use polimec_common::{
 	assets::{
 		AcceptedFundingAsset,

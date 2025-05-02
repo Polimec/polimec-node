@@ -21,9 +21,9 @@ use crate::{
 use frame_support::{parameter_types, PalletId};
 use parachains_common::BlockNumber;
 #[cfg(not(any(feature = "fast-mode", feature = "instant-mode")))]
-use parachains_common::{DAYS, HOURS};
+use polimec_common::{DAYS, HOURS};
 #[cfg(feature = "fast-mode")]
-use parachains_common::{HOURS, MINUTES};
+use polimec_common::{HOURS, MINUTES};
 use sp_arithmetic::Permill;
 
 #[cfg(feature = "runtime-benchmarks")]

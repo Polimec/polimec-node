@@ -64,6 +64,7 @@ pub type ReasonOf<T> = <T as Config>::RuntimeHoldReason;
 pub type AccountIdOf<T> = <T as frame_system::Config>::AccountId;
 pub type VestingInfoOf<T> = VestingInfo<BalanceOf<T>, BlockNumberFor<T>>;
 pub type BlockNumberFor<T> = <<T as Config>::BlockNumberProvider as BlockNumberProvider>::BlockNumber;
+pub type EntriesOf<T> = BoundedVec<VestingInfoOf<T>, MaxVestingSchedulesGet<T>>;
 
 /// Actions to take against a user's `Vesting` storage entry.
 #[derive(Clone, Copy)]
@@ -218,14 +219,8 @@ pub mod pallet {
 	/// Information regarding the vesting of a given account.
 	#[pallet::storage]
 	#[pallet::getter(fn vesting)]
-	pub type Vesting<T: Config> = StorageDoubleMap<
-		_,
-		Blake2_128Concat,
-		AccountIdOf<T>,
-		Blake2_128Concat,
-		ReasonOf<T>,
-		BoundedVec<VestingInfoOf<T>, MaxVestingSchedulesGet<T>>,
-	>;
+	pub type Vesting<T: Config> =
+		StorageDoubleMap<_, Blake2_128Concat, AccountIdOf<T>, Blake2_128Concat, ReasonOf<T>, EntriesOf<T>>;
 
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
