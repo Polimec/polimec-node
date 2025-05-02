@@ -28,7 +28,7 @@ impl<T: Config> Pallet<T> {
 		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 		let token_information =
 			ProjectsMetadata::<T>::get(project_id).ok_or(Error::<T>::ProjectMetadataNotFound)?.token_information;
-		let now = <frame_system::Pallet<T>>::block_number();
+		let now = <T as Config>::BlockNumberProvider::current_block_number();
 
 		project_details.funding_end_block = Some(now);
 
@@ -38,7 +38,7 @@ impl<T: Config> Pallet<T> {
 				let multiplier: MultiplierOf<T> =
 					ParticipationMode::OTM.multiplier().try_into().map_err(|_| Error::<T>::ImpossibleState)?;
 				let duration = multiplier.calculate_vesting_duration::<T>();
-				let now = <frame_system::Pallet<T>>::block_number();
+				let now = <T as Config>::BlockNumberProvider::current_block_number();
 				ReleaseType::Locked(duration.saturating_add(now))
 			};
 			<pallet_proxy_bonding::Pallet<T>>::set_release_type(

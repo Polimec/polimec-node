@@ -124,7 +124,7 @@ impl<T: Config> Pallet<T> {
 		schedules: Vec<VestingInfoOf<T>>,
 		action: VestingAction,
 	) -> (Vec<VestingInfoOf<T>>, BalanceOf<T>) {
-		let now = <frame_system::Pallet<T>>::block_number();
+		let now = T::BlockNumberProvider::current_block_number();
 
 		let mut total_releasable: BalanceOf<T> = Zero::zero();
 		let filtered_schedules = action
@@ -208,7 +208,7 @@ impl<T: Config> Pallet<T> {
 				// (assuming initial state was valid).
 				let (mut schedules, mut locked_now) = Self::report_schedule_updates(schedules.to_vec(), action);
 
-				let now = <frame_system::Pallet<T>>::block_number();
+				let now = T::BlockNumberProvider::current_block_number();
 				if let Some(new_schedule) = Self::merge_vesting_info(now, schedule1, schedule2) {
 					// Merging created a new schedule so we:
 					// 1) need to add it to the accounts vesting schedule collection,
@@ -239,7 +239,7 @@ impl<T: Config> ReleaseSchedule<AccountIdOf<T>, ReasonOf<T>> for Pallet<T> {
 	/// Get the amount that is possible to vest (i.e release) at this block.
 	fn vesting_balance(who: &T::AccountId, reason: ReasonOf<T>) -> Option<BalanceOf<T>> {
 		Self::vesting(who, reason).map(|v| {
-			let now = <frame_system::Pallet<T>>::block_number();
+			let now = T::BlockNumberProvider::current_block_number();
 			let total_releasable = v.iter().fold(Zero::zero(), |total, schedule| {
 				schedule.releaseble_at::<T::BlockNumberToBalance>(now).saturating_add(total)
 			});

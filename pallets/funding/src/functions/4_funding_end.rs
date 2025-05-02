@@ -9,7 +9,7 @@ impl<T: Config> Pallet<T> {
 		let project_metadata = ProjectsMetadata::<T>::get(project_id).ok_or(Error::<T>::ProjectMetadataNotFound)?;
 		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 		let bucket = Buckets::<T>::get(project_id).ok_or(Error::<T>::BucketNotFound)?;
-		let now = <frame_system::Pallet<T>>::block_number();
+		let now = <T as Config>::BlockNumberProvider::current_block_number();
 		let issuer_did = project_details.issuer_did.clone();
 		let ct_amount_oversubscribed = CTAmountOversubscribed::<T>::get(project_id);
 

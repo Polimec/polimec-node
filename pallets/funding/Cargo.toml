@@ -50,6 +50,8 @@ hex.workspace = true
 # Used in the instantiator.
 itertools.workspace = true
 sp-io.workspace = true
+cumulus-pallet-parachain-system.workspace = true
+cumulus-primitives-core.workspace = true
 
 [dev-dependencies]
 pallet-timestamp.workspace = true
@@ -92,6 +94,8 @@ std = [
 	"xcm-builder/std",
 	"xcm-executor/std",
 	"xcm/std",
+	"cumulus-pallet-parachain-system/std",
+	"cumulus-primitives-core/std"
 ]
 runtime-benchmarks = [
 	"frame-benchmarking/runtime-benchmarks",
@@ -112,6 +116,8 @@ runtime-benchmarks = [
 	"sp-runtime/runtime-benchmarks",
 	"xcm-builder/runtime-benchmarks",
 	"xcm-executor/runtime-benchmarks",
+	"cumulus-pallet-parachain-system/runtime-benchmarks",
+	"cumulus-primitives-core/runtime-benchmarks"
 ]
 try-runtime = [
 	"frame-support/try-runtime",
@@ -124,5 +130,6 @@ try-runtime = [
 	"polimec-common-test-utils?/try-runtime",
 	"polimec-common/try-runtime",
 	"sp-runtime/try-runtime",
+	"cumulus-pallet-parachain-system/try-runtime"
 ]
 on-chain-release-build = []

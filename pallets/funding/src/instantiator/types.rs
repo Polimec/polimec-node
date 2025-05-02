@@ -20,7 +20,7 @@ pub type OptionalExternalities = Option<RefCell<sp_io::TestExternalities>>;
 pub type OptionalExternalities = Option<()>;
 
 pub struct Instantiator<
-	T: Config + pallet_balances::Config<Balance = Balance>,
+	T: Config + pallet_balances::Config<Balance = Balance> + cumulus_pallet_parachain_system::Config,
 	AllPalletsWithoutSystem: OnFinalize<BlockNumberFor<T>> + OnIdle<BlockNumberFor<T>> + OnInitialize<BlockNumberFor<T>>,
 	RuntimeEvent: From<Event<T>> + TryInto<Event<T>> + Parameter + Member + IsType<<T as frame_system::Config>::RuntimeEvent>,
 > {
