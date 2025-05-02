@@ -61,6 +61,7 @@ impl pallet_balances::Config for Test {
 
 parameter_types! {
 	pub BenchmarkReason: MockRuntimeHoldReason = MockRuntimeHoldReason::Reason;
+
 }
 
 impl Config for Test {
