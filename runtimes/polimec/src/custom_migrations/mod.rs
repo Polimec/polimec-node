@@ -18,3 +18,5 @@
 #![allow(clippy::all)]
 
 pub mod asset_id_migration;
+
+pub mod vesting;
