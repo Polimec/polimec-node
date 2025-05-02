@@ -139,8 +139,6 @@ std = [
 	"polkadot-parachain-primitives/std",
 	"polkadot-primitives/std",
 	"polkadot-runtime-parachains/std",
-	"westend-runtime-constants/std",
-	"westend-runtime/std",
 	"scale-info/std",
 	"serde/std",
 	"sp-arithmetic/std",
@@ -151,6 +149,8 @@ std = [
 	"sp-core/std",
 	"sp-io/std",
 	"sp-runtime/std",
+	"westend-runtime-constants/std",
+	"westend-runtime/std",
 	"xcm-builder/std",
 	"xcm-executor/std",
 	"xcm-runtime-apis/std",
@@ -158,6 +158,7 @@ std = [
 ]
 development-settings = [ "polimec-runtime/development-settings" ]
 runtime-benchmarks = [
+	"asset-hub-westend-runtime/runtime-benchmarks",
 	"assets-common/runtime-benchmarks",
 	"cumulus-pallet-parachain-system/runtime-benchmarks",
 	"cumulus-primitives-core/runtime-benchmarks",
@@ -193,9 +194,10 @@ runtime-benchmarks = [
 	"polkadot-primitives/runtime-benchmarks",
 	"polkadot-runtime-parachains/runtime-benchmarks",
 	"polkadot-service/runtime-benchmarks",
-	"westend-runtime/runtime-benchmarks",
 	"sp-runtime/runtime-benchmarks",
+	"westend-runtime/runtime-benchmarks",
 	"xcm-builder/runtime-benchmarks",
 	"xcm-executor/runtime-benchmarks",
 	"xcm-runtime-apis/runtime-benchmarks",
 ]
+

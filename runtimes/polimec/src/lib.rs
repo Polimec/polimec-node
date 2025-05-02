@@ -242,10 +242,10 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: Cow::Borrowed("polimec-mainnet"),
 	impl_name: Cow::Borrowed("polimec-mainnet"),
 	authoring_version: 1,
-	spec_version: 1_000_000,
+	spec_version: 1_001_000,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
-	transaction_version: 7,
+	transaction_version: 8,
 	system_version: 1,
 };
 
@@ -906,7 +906,7 @@ where
 		let signature = raw_payload.using_encoded(|payload| C::sign(payload, public))?;
 		let (call, extra, _) = raw_payload.deconstruct();
 		let address = <Runtime as frame_system::Config>::Lookup::unlookup(account);
-		let transaction = generic::UncheckedExtrinsic::new_signed(call, address, signature, extra).into();
+		let transaction = generic::UncheckedExtrinsic::new_signed(call, address, signature, extra);
 
 		Some(transaction)
 	}

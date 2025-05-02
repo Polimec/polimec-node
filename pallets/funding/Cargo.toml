@@ -128,5 +128,6 @@ try-runtime = [
 	"polimec-common-test-utils?/try-runtime",
 	"polimec-common/try-runtime",
 	"sp-runtime/try-runtime",
+	"on-slash-vesting/try-runtime"
 ]
 on-chain-release-build = []
