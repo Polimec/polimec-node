@@ -477,38 +477,8 @@ parameter_types! {
 	pub const RelayOrigin: AggregateMessageOrigin = AggregateMessageOrigin::Parent;
 }
 
-// TODO: remove after upgrading pallet-xcm.
-// We need this mock for now which is used on parity's parachains that use our version of pallet-xcm.
-// This is due to the channel to AssetHub not being ready at genesis, and requiring a complex setup that is not relevant for benchmarking.
-pub struct MockedChannelInfo;
-impl cumulus_primitives_core::GetChannelInfo for MockedChannelInfo {
-	fn get_channel_status(id: ParaId) -> cumulus_primitives_core::ChannelStatus {
-		if id == 1000.into() {
-			return cumulus_primitives_core::ChannelStatus::Ready(usize::MAX, usize::MAX);
-		}
-
-		ParachainSystem::get_channel_status(id)
-	}
-
-	fn get_channel_info(id: ParaId) -> Option<cumulus_primitives_core::ChannelInfo> {
-		if id == 1000.into() {
-			return Some(cumulus_primitives_core::ChannelInfo {
-				max_capacity: u32::MAX,
-				max_total_size: u32::MAX,
-				max_message_size: u32::MAX,
-				msg_count: 0,
-				total_size: 0,
-			});
-		}
-
-		ParachainSystem::get_channel_info(id)
-	}
-}
 impl cumulus_pallet_xcmp_queue::Config for Runtime {
-	#[cfg(not(feature = "runtime-benchmarks"))]
 	type ChannelInfo = ParachainSystem;
-	#[cfg(feature = "runtime-benchmarks")]
-	type ChannelInfo = MockedChannelInfo;
 	type ControllerOrigin = EnsureRoot<AccountId>;
 	type ControllerOriginConverter = XcmOriginToTransactDispatchOrigin;
 	type MaxActiveOutboundChannels = ConstU32<128>;
@@ -1107,7 +1077,7 @@ impl pallet_linear_release::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type RuntimeHoldReason = RuntimeHoldReason;
 	type UnvestedFundsAllowedWithdrawReasons = shared_configuration::vesting::UnvestedFundsAllowedWithdrawReasons;
-	type WeightInfo = pallet_linear_release::weights::SubstrateWeight<Runtime>;
+	type WeightInfo = weights::pallet_linear_release::WeightInfo<Runtime>;
 
 	const MAX_VESTING_SCHEDULES: u32 = 100;
 }
@@ -1585,6 +1555,9 @@ impl_runtime_apis! {
 		) -> Result<Vec<frame_benchmarking::BenchmarkBatch>, alloc::string::String> {
 			use frame_benchmarking::{BenchmarkError, Benchmarking, BenchmarkBatch};
 			use frame_system_benchmarking::Pallet as SystemBench;
+			use cumulus_pallet_session_benchmarking::Pallet as SessionBench;
+			use xcm::latest::prelude::*;
+
 			impl frame_system_benchmarking::Config for Runtime {
 				fn setup_set_code_requirements(code: &alloc::vec::Vec<u8>) -> Result<(), BenchmarkError> {
 					ParachainSystem::initialize_for_set_code_benchmark(code.len() as u32);
@@ -1598,10 +1571,6 @@ impl_runtime_apis! {
 
 			impl cumulus_pallet_session_benchmarking::Config for Runtime {}
 
-			use cumulus_pallet_session_benchmarking::Pallet as SessionBench;
-			use xcm::latest::prelude::*;
-			// TODO: Update these benchmarks once we enable PLMC Teleportation and upgrade pallet_xcm. New version has
-			// a better and quite different trait
 			parameter_types! {
 				pub ExistentialDepositAsset: Option<Asset> = Some((
 					xcm_config::HereLocation::get(),
@@ -1635,24 +1604,22 @@ impl_runtime_apis! {
 				}
 
 				fn reachable_dest() -> Option<Location> {
-					PolkadotXcm::force_xcm_version(
-						RuntimeOrigin::root(),
-						alloc::boxed::Box::new(crate::xcm_config::AssetHubLocation::get()),
-						xcm::prelude::XCM_VERSION
-					).unwrap();
-					Some(crate::xcm_config::AssetHubLocation::get())
+					Some(Parent.into())
+				}
+
+				fn teleportable_asset_and_dest() -> Option<(Asset, Location)> {
+					// PLMC can be teleported between Polimec and Asset Hub.
+					Some((
+						Asset { fun: Fungible(ExistentialDeposit::get()), id: AssetId(Here.into()) },
+						crate::xcm_config::AssetHubLocation::get(),
+					))
 				}
 
 				fn reserve_transferable_asset_and_dest() -> Option<(Asset, Location)> {
-					PolkadotXcm::force_xcm_version(
-						RuntimeOrigin::root(),
-						alloc::boxed::Box::new(crate::xcm_config::AssetHubLocation::get()),
-						xcm::prelude::XCM_VERSION
-					).unwrap();
 					Some((
 						Asset {
 							fun: Fungible(ExistentialDeposit::get()),
-							id: AssetId(Here.into())
+							id: AssetId(Parent.into())
 						},
 						crate::xcm_config::AssetHubLocation::get(),
 					))

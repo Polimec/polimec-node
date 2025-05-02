@@ -14,16 +14,25 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-#[cfg(all(feature = "std", feature = "metadata-hash"))]
+// Case 1: Production build with std and metadata-hash
+#[cfg(all(feature = "std", feature = "metadata-hash", not(feature = "fast-mode")))]
 fn main() {
 	substrate_wasm_builder::WasmBuilder::init_with_defaults().enable_metadata_hash("PLMC", 10).build();
 }
 
+// Case 2: Test build with std and metadata-hash (fast-mode)
+#[cfg(all(feature = "std", feature = "metadata-hash", feature = "fast-mode"))]
+fn main() {
+	substrate_wasm_builder::WasmBuilder::init_with_defaults().enable_metadata_hash("TPLMC", 10).build();
+}
+
+// Case 3: std, NOT metadata-hash
 #[cfg(all(feature = "std", not(feature = "metadata-hash")))]
 fn main() {
 	substrate_wasm_builder::WasmBuilder::build_using_defaults();
 }
 
+// Case 4: NOT std
 /// The wasm builder is deactivated when compiling
 /// this crate for wasm to speed up the compilation.
 #[cfg(not(feature = "std"))]

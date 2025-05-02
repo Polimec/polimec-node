@@ -4,106 +4,96 @@ provider = "native"
 
 [relaychain]
 default_command = "polkadot"
-chain = "polkadot-local"
+chain = "rococo-local"
 
 
-    [[relaychain.nodes]]
-    name = "alice"
-    ws_port = 6969
-    args = ["-lerror", "-lxcm::process_instruction=trace", "-lxcm::execute_xcm_in_credit=trace", "-lxcm::barriers=trace", "-lpallet_funding::hrmp=trace", "-lpallet_funding::test=trace", "--execution=native", ]
-    [[relaychain.nodes]]
-    name = "bob"
+[[relaychain.nodes]]
+name = "alice"
+rpc_port = 6969
+validator = true
 
-    [[relaychain.nodes]]
-    name = "charlie"
+[[relaychain.nodes]]
+name = "bob"
+validator = true
 
-    [[relaychain.nodes]]
-    name = "dave"
+[[relaychain.nodes]]
+name = "charlie"
+validator = true
 
-    [[relaychain.nodes]]
-    name = "eve"
+[[relaychain.nodes]]
+name = "dave"
+validator = true
 
-    [[relaychain.nodes]]
-    name = "ferdie"
+[[relaychain.nodes]]
+name = "eve"
+validator = true
+
+[[relaychain.nodes]]
+name = "ferdie"
+validator = true
+
 
 [[parachains]]
 id = 1000
 chain = "asset-hub-rococo-dev"
 
-	[[parachains.collators]]
-	name = "statemint-dev"
-	command = "../polkadot-sdk/target/release/polkadot-parachain"
-    args = ["-lerror", "-lxcm::process_instruction=trace", "-lxcm::execute_xcm_in_credit=trace", "-lxcm::barriers=trace", "-lpallet_funding::hrmp=trace", "-lpallet_funding::test=trace", "--execution=native", ]
-    ws_port = 7777
+[[parachains.collators]]
+name = "statemint-dev"
+command = "../polkadot-sdk/target/release/polkadot-parachain"
+args = [
+    "--discover-local",
+    "-lerror",
+    "-lxcm::process_instruction=trace",
+    "-lxcm::execute_xcm_in_credit=trace",
+    "-lxcm::barriers=trace",
+    "-lpallet_funding::hrmp=trace",
+    "-lpallet_funding::test=trace",
+]
+rpc_port = 7777
 
 
 [[parachains]]
 id = 3344
-chain = "polimec-polkadot-local"
-    [[parachains.collators]]
-    name = "collator1"
-    command = "./target/release/polimec-node"
-    args = ["--offchain-worker when-authority", "-lerror", "-lxcm::process_instruction=trace", "-lxcm::execute_xcm_in_credit=trace", "-lxcm::barriers=trace", "-lpallet_funding::hrmp=trace", "-lpallet_funding::test=trace", "--execution=native"]
-    # ss58 key: 5Do5UoayFvDrHroGS1YMqxTVUysSkrhNwVMzmj1foVb3vzzb
-    keystore_key_types = ["aura", "plmc_sr"]
-    ws_port = 8888
+chain = "polimec-paseo-local"
+
+[[parachains.collators]]
+name = "collator1"
+command = "./target/release/polimec-node"
+args = [
+    "--offchain-worker when-authority",
+    "-lerror",
+    "-lxcm=trace",
+    "-lxcm::execute_xcm_in_credit=trace",
+    "-lxcm::barriers=trace",
+    "-lpallet_funding::hrmp=trace",
+    "-lpallet_funding::test=trace",
+]
+# ss58 key: 5Do5UoayFvDrHroGS1YMqxTVUysSkrhNwVMzmj1foVb3vzzb
+keystore_key_types = ["aura", "plmc_sr"]
+rpc_port = 8888
 
 
-    [[parachains.collators]]
-    name = "collator2"
-    command = "./bin/polimec-node"
-    # ss58 key: 5E5E37FNZD9KVHyGgSHt8pc2kq8e3VUS5rf8GmrxCa7ySs8s
-    keystore_key_types = ["aura", "plmc_sr"]
+[[parachains.collators]]
+name = "collator2"
+command = "./target/release/polimec-node"
+# ss58 key: 5E5E37FNZD9KVHyGgSHt8pc2kq8e3VUS5rf8GmrxCa7ySs8s
+keystore_key_types = ["aura", "plmc_sr"]
 
-    [[parachains.collators]]
-    name = "collator3"
-    command = "./bin/polimec-node"
-    # ss58 key: 5ELLzYckeuomgTnv4Pf1aT4itxu35cn1KWNCGcftzv5N2x7o
-    keystore_key_types = ["aura", "plmc_sr"]
-
-[[parachains]]
-id = 3000
-chain = "penpal-rococo-3000"
-	[[parachains.collators]]
-	name = "penpal-collator"
-	command = "../polkadot-sdk/target/release/polkadot-parachain"
-    args = ["-lerror", "-lxcm::process_instruction=trace", "-lxcm::execute_xcm_in_credit=trace", "-lxcm::barriers=trace", "-lpallet_funding::hrmp=trace", "-lpallet_funding::test=trace", "--execution=native", ]
-    ws_port = 9999
+[[parachains.collators]]
+name = "collator3"
+command = "./target/release/polimec-node"
+# ss58 key: 5ELLzYckeuomgTnv4Pf1aT4itxu35cn1KWNCGcftzv5N2x7o
+keystore_key_types = ["aura", "plmc_sr"]
 
 
+# [[hrmp_channels]]
+# sender = 1000
+# recipient = 3344
+# max_capacity = 8
+# max_message_size = 8000
 
-[[hrmp_channels]]
-sender = 1000
-recipient = 3344
-max_capacity = 8
-max_message_size = 8000
-
-[[hrmp_channels]]
-sender = 3344
-recipient = 1000
-max_capacity = 8
-max_message_size = 8000
-
-[[hrmp_channels]]
-sender = 1000
-recipient = 3000
-max_capacity = 8
-max_message_size = 8000
-
-[[hrmp_channels]]
-sender = 3000
-recipient = 1000
-max_capacity = 8
-max_message_size = 8000
-
-[[hrmp_channels]]
-sender = 3344
-recipient = 3000
-max_capacity = 8
-max_message_size = 8000
-
-[[hrmp_channels]]
-sender = 3000
-recipient = 3344
-max_capacity = 8
-max_message_size = 8000
+# [[hrmp_channels]]
+# sender = 3344
+# recipient = 1000
+# max_capacity = 8
+# max_message_size = 8000
