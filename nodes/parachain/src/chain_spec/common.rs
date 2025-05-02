@@ -6,12 +6,9 @@ use polimec_common::assets::AcceptedFundingAsset;
 #[cfg(not(feature = "runtime-benchmarks"))]
 use polimec_runtime::MinCandidateStk;
 use polimec_runtime::{
-	pallet_parachain_staking::{
-		inflation::{perbill_annual_to_perbill_round, BLOCKS_PER_YEAR},
-		InflationInfo, Range,
-	},
+	pallet_parachain_staking::{inflation::perbill_annual_to_perbill_round, InflationInfo, Range},
 	AccountId, AuraId as AuthorityId, Balance, BlockchainOperationTreasury, ContributionTreasuryAccount,
-	ExistentialDeposit, FeeRecipient, OracleProvidersMembershipConfig, Runtime, TreasuryAccount, PLMC,
+	ExistentialDeposit, FeeRecipient, OracleProvidersMembershipConfig, Runtime, TreasuryAccount, BLOCKS_PER_YEAR, PLMC,
 };
 use sp_core::crypto::UncheckedInto;
 use sp_runtime::{traits::AccountIdConversion, Perbill, Percent};
