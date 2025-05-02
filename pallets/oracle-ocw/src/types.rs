@@ -13,7 +13,10 @@
 
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
+extern crate alloc;
+
 use super::{FetchPrice, FixedU128, LOG_TARGET, NUMBER_OF_CANDLES};
+use alloc::vec::Vec;
 use core::{ops::Mul, str::FromStr};
 use heapless::{LinearMap, Vec as HVec};
 use parity_scale_codec::{Decode, Encode};
@@ -21,7 +24,6 @@ use scale_info::TypeInfo;
 use serde::Deserialize;
 use sp_core::{offchain::HttpRequestId as RequestId, RuntimeDebug};
 use sp_runtime::{FixedPointNumber, Saturating};
-use sp_std::vec::Vec;
 use substrate_fixed::{traits::ToFixed, types::U100F28};
 
 #[derive(Debug, Clone, Copy, Eq, Hash, PartialEq, PartialOrd, Ord, Encode, Decode, TypeInfo)]

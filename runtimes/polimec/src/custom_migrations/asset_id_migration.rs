@@ -18,9 +18,6 @@ use frame_support::migrations::VersionedPostUpgradeData;
 #[cfg(feature = "try-runtime")]
 use parity_scale_codec::Encode;
 
-#[cfg(feature = "try-runtime")]
-use sp_std::vec::Vec;
-
 // Storage items of pallet-assets are private.
 // So we have to redefine them to get the same storage encoding and call the `translate` methods.
 pub mod pallet_assets_storage_items {
@@ -112,10 +109,10 @@ pub mod orml_oracle_storage_items {
 pub struct FromOldAssetIdMigration;
 impl OnRuntimeUpgrade for FromOldAssetIdMigration {
 	#[cfg(feature = "try-runtime")]
-	fn pre_upgrade() -> Result<sp_std::vec::Vec<u8>, sp_runtime::TryRuntimeError> {
+	fn pre_upgrade() -> Result<alloc::vec::Vec<u8>, sp_runtime::TryRuntimeError> {
 		let funding_on_chain_version = Funding::on_chain_storage_version();
 		if funding_on_chain_version == 5 {
-			Ok(VersionedPostUpgradeData::MigrationExecuted(Vec::new()).encode())
+			Ok(VersionedPostUpgradeData::MigrationExecuted(alloc::vec::Vec::new()).encode())
 		} else {
 			Ok(VersionedPostUpgradeData::Noop.encode())
 		}
@@ -213,9 +210,7 @@ impl OnRuntimeUpgrade for FromOldAssetIdMigration {
 	}
 
 	#[cfg(feature = "try-runtime")]
-	fn post_upgrade(
-		versioned_post_upgrade_data_bytes: sp_std::vec::Vec<u8>,
-	) -> Result<(), sp_runtime::TryRuntimeError> {
+	fn post_upgrade(versioned_post_upgrade_data_bytes: alloc::vec::Vec<u8>) -> Result<(), sp_runtime::TryRuntimeError> {
 		use parity_scale_codec::DecodeAll;
 		match <VersionedPostUpgradeData>::decode_all(&mut &versioned_post_upgrade_data_bytes[..])
 			.map_err(|_| "VersionedMigration post_upgrade failed to decode PreUpgradeData")?

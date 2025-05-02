@@ -319,8 +319,9 @@ mod bid_extrinsic {
 
 	#[cfg(test)]
 	mod success {
+		use frame_support::dispatch::DispatchResultWithPostInfo;
+
 		use super::*;
-		use frame_support::pallet_prelude::DispatchResultWithPostInfo;
 
 		#[test]
 		fn evaluation_bond_counts_towards_bid() {

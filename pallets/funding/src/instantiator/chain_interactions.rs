@@ -2,6 +2,7 @@
 
 #[allow(clippy::wildcard_imports)]
 use super::*;
+use alloc::{vec, vec::Vec};
 use polimec_common::assets::AcceptedFundingAsset;
 
 // general chain interactions

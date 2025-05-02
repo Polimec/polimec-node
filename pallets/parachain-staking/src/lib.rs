@@ -52,6 +52,8 @@
 // Needed due to empty sections raising the warning
 #![allow(unreachable_patterns)]
 
+extern crate alloc;
+
 mod auto_compound;
 mod delegation_requests;
 pub mod inflation;
@@ -88,6 +90,7 @@ pub mod pallet {
 		types::*,
 		AutoCompoundConfig, AutoCompoundDelegations, InflationInfo, Range, WeightInfo,
 	};
+	use alloc::{collections::btree_map::BTreeMap, vec, vec::Vec};
 	use frame_support::{
 		pallet_prelude::*,
 		traits::{
@@ -102,7 +105,6 @@ pub mod pallet {
 		Perbill, Percent, Permill,
 	};
 	use sp_staking::SessionIndex;
-	use sp_std::{collections::btree_map::BTreeMap, prelude::*};
 
 	/// Pallet for parachain staking
 	#[pallet::pallet]

@@ -89,7 +89,6 @@ use polimec_common::{
 use polkadot_parachain_primitives::primitives::Id as ParaId;
 use sp_arithmetic::traits::{One, Saturating};
 use sp_runtime::{traits::AccountIdConversion, FixedPointNumber, FixedU128};
-use sp_std::prelude::*;
 pub use types::*;
 use xcm::v4::prelude::*;
 
@@ -141,6 +140,7 @@ pub mod pallet {
 	#[allow(clippy::wildcard_imports)]
 	use super::*;
 	use crate::traits::{BondingRequirementCalculation, VestingDurationCalculation};
+	use alloc::vec::Vec;
 	use frame_support::{
 		pallet_prelude::*,
 		storage::KeyPrefixIterator,

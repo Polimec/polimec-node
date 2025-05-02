@@ -4,7 +4,11 @@ use crate::{
 };
 use frame_support::{
 	dispatch::GetDispatchInfo,
-	traits::{fungible::Mutate as FungibleMutate, fungibles, fungibles::Mutate as FungiblesMutate},
+	pallet_prelude::TransactionSource,
+	traits::{
+		fungible::Mutate as FungibleMutate,
+		fungibles::{self, Mutate as FungiblesMutate},
+	},
 };
 use macros::generate_accounts;
 use pallet_funding::PriceProviderOf;
@@ -15,7 +19,7 @@ use polimec_runtime::Header;
 use sp_arithmetic::{FixedPointNumber, FixedU128};
 use sp_core::H256;
 use sp_runtime::{
-	traits::{Dispatchable, Header as HeaderT, SignedExtension},
+	traits::{Dispatchable, Header as HeaderT, TransactionExtension, TxBaseImplication},
 	DigestItem,
 };
 use xcm_emulator::TestExt;
@@ -88,10 +92,9 @@ fn fee_paid_with_foreign_assets() {
 
 		// Tips are always defined in the native asset, and then converted to the fee asset if the second field is `Some`.
 		// Here a user wants to tip 10 PLMC in USDT.
-		let signed_extension = pallet_asset_tx_payment::ChargeAssetTxPayment::<PolimecRuntime>::from(
-			10 * plmc_unit,
-			Some(usdt_multilocation),
-		);
+		let tip = 10 * plmc_unit;
+		let signed_extension =
+			pallet_asset_tx_payment::ChargeAssetTxPayment::<PolimecRuntime>::from(tip, Some(usdt_multilocation));
 
 		let dispatch_info = paid_call.get_dispatch_info();
 		let FeeDetails { inclusion_fee, tip } = polimec_runtime::TransactionPayment::compute_fee_details(
@@ -123,10 +126,31 @@ fn fee_paid_with_foreign_assets() {
 		// Dispatches the `paid_call` signed by `alice` and ensures it executes successfully.
 		// Runs the `post_dispatch` logic to verify correct post-transaction handling,
 		// including fee calculation and cleanup using the `TxPaymentExtension`.
-		let pre = signed_extension.pre_dispatch(&alice, &paid_call, &dispatch_info, paid_call_len).unwrap();
-		let post_info = paid_call.clone().dispatch(PolimecOrigin::signed(alice.clone())).expect("call dispatch failed");
+		let (_, val, _) = signed_extension
+			.validate(
+				polimec_runtime::RuntimeOrigin::signed(alice.clone()),
+				&paid_call,
+				&dispatch_info,
+				paid_call_len,
+				signed_extension.implicit().unwrap(),
+				&TxBaseImplication(()),
+				TransactionSource::Local,
+			)
+			.expect("tx extension validation failed");
 
-		TxPaymentExtension::post_dispatch(Some(pre), &dispatch_info, &post_info, paid_call_len, &Ok(())).unwrap();
+		let pre = signed_extension
+			.prepare(
+				val,
+				&polimec_runtime::RuntimeOrigin::signed(alice.clone()),
+				&paid_call,
+				&dispatch_info,
+				paid_call_len,
+			)
+			.expect("shouldn't fail here; qed");
+		let mut post_info =
+			paid_call.clone().dispatch(PolimecOrigin::signed(alice.clone())).expect("call dispatch failed");
+
+		TxPaymentExtension::post_dispatch(pre, &dispatch_info, &mut post_info, paid_call_len, &Ok(())).unwrap();
 
 		let post_alice_usdt_balance = PolimecForeignAssets::balance(usdt_id.clone(), alice.clone());
 		let post_alice_plmc_balance = PolimecBalances::balance(&alice);
@@ -155,8 +179,8 @@ fn fee_paid_with_foreign_assets() {
 		// Block author doesn't need to have any balance, as the tip is bigger than ED.
 
 		// Now we set the fee asset to None, so the fee is paid with PLMC
-		let signed_extension =
-			pallet_asset_tx_payment::ChargeAssetTxPayment::<PolimecRuntime>::from(10 * plmc_unit, None);
+		let tip = 10 * plmc_unit;
+		let signed_extension = pallet_asset_tx_payment::ChargeAssetTxPayment::<PolimecRuntime>::from(tip, None);
 
 		let prev_alice_usdt_balance = PolimecForeignAssets::balance(usdt_id.clone(), alice.clone());
 		let prev_alice_plmc_balance = PolimecBalances::balance(&alice);
@@ -167,10 +191,30 @@ fn fee_paid_with_foreign_assets() {
 		let prev_block_author_usdt_balance = PolimecForeignAssets::balance(usdt_id.clone(), block_author.clone());
 		let prev_block_author_plmc_balance = PolimecBalances::balance(&block_author.clone());
 
-		let pre = signed_extension.pre_dispatch(&alice, &paid_call, &dispatch_info, paid_call_len).unwrap();
-		let post_info = paid_call.dispatch(PolimecOrigin::signed(alice.clone())).expect("call dispatch failed");
+		let (_, val, _) = signed_extension
+			.validate(
+				polimec_runtime::RuntimeOrigin::signed(alice.clone()),
+				&paid_call,
+				&dispatch_info,
+				paid_call_len,
+				signed_extension.implicit().unwrap(),
+				&TxBaseImplication(()),
+				TransactionSource::Local,
+			)
+			.expect("tx extension validation failed");
 
-		TxPaymentExtension::post_dispatch(Some(pre), &dispatch_info, &post_info, paid_call_len, &Ok(())).unwrap();
+		let pre = signed_extension
+			.prepare(
+				val,
+				&polimec_runtime::RuntimeOrigin::signed(alice.clone()),
+				&paid_call,
+				&dispatch_info,
+				paid_call_len,
+			)
+			.unwrap();
+		let mut post_info = paid_call.dispatch(PolimecOrigin::signed(alice.clone())).expect("call dispatch failed");
+
+		TxPaymentExtension::post_dispatch(pre, &dispatch_info, &mut post_info, paid_call_len, &Ok(())).unwrap();
 
 		let post_alice_usdt_balance = PolimecForeignAssets::balance(usdt_id.clone(), alice.clone());
 		let post_alice_plmc_balance = PolimecBalances::balance(&alice);

@@ -1,5 +1,6 @@
 #[allow(clippy::wildcard_imports)]
 use super::{traits::*, *};
+use alloc::vec;
 use core::ops::Not;
 use frame_support::{
 	dispatch::{DispatchResult, DispatchResultWithPostInfo, PostDispatchInfo},

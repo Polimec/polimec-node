@@ -36,7 +36,7 @@ use polimec_common_test_utils::DummyXcmSender;
 use polkadot_parachain_primitives::primitives::Sibling;
 use polkadot_runtime_common::xcm_sender::NoPriceForMessageDelivery;
 use sp_runtime::traits::Zero;
-use xcm::v4::prelude::*;
+use xcm::v5::prelude::*;
 use xcm_builder::{
 	AccountId32Aliases, AllowExplicitUnpaidExecutionFrom, AllowKnownQueryResponses, AllowSubscriptionsFrom,
 	AllowTopLevelPaidExecutionFrom, DenyReserveTransferToRelayChain, DenyThenTry, EnsureXcmOrigin, FixedWeightBounds,
@@ -50,18 +50,6 @@ use xcm_executor::{
 	traits::{JustTry, WeightTrader},
 	AssetsInHolding, XcmExecutor,
 };
-
-// DOT from Polkadot Asset Hub
-const DOT_PER_SECOND_EXECUTION: u128 = 0_2_000_000_000; // 0.2 DOT per second of execution time
-const DOT_PER_MB_PROOF: u128 = 0_2_000_000_000; // 0.0000001 DOT per Megabyte of proof size
-
-// USDT from Polkadot Asset Hub
-const USDT_PER_SECOND_EXECUTION: u128 = 1_000_000; // 1 USDT per second of execution time
-const USDT_PER_MB_PROOF: u128 = 1_000_000; // 1 USDT per Megabyte of proof size
-
-// USDC from Polkadot Asset Hub
-const USDC_PER_SECOND_EXECUTION: u128 = 1_000_000; // 1 USDC per second of execution time
-const USDC_PER_MB_PROOF: u128 = 1_000_000; // 1 USDC per Megabyte of proof size
 
 parameter_types! {
 	pub const RelayLocation: Location = Location::parent();
@@ -83,10 +71,6 @@ parameter_types! {
 
 	pub ContributionTokensPalletIndex: u8 = <ContributionTokens as PalletInfoAccess>::index() as u8;
 	pub ContributionTokensPalletLocation: Location = PalletInstance(ContributionTokensPalletIndex::get()).into();
-
-	pub DotTraderParams: (AssetId, u128, u128) = (AcceptedFundingAsset::DOT.id().into(), DOT_PER_SECOND_EXECUTION, DOT_PER_MB_PROOF);
-	pub UsdtTraderParams: (AssetId, u128, u128) = (AcceptedFundingAsset::USDT.id().into(), USDT_PER_SECOND_EXECUTION, USDT_PER_MB_PROOF);
-	pub UsdcTraderParams: (AssetId, u128, u128) = (AcceptedFundingAsset::USDC.id().into(), USDC_PER_SECOND_EXECUTION, USDC_PER_MB_PROOF);
 }
 
 /// Type for specifying how a `Location` can be converted into an `AccountId`. This is used
@@ -140,7 +124,14 @@ pub struct SupportedAssets;
 impl frame_support::traits::Contains<Location> for SupportedAssets {
 	fn contains(l: &Location) -> bool {
 		let funding_assets = AcceptedFundingAsset::all_ids();
-		funding_assets.contains(l)
+
+		let maybe_l_v4: Option<xcm::v4::Location> = l.clone().try_into().ok();
+
+		if let Some(l) = maybe_l_v4 {
+			funding_assets.contains(&l)
+		} else {
+			false
+		}
 	}
 }
 
@@ -150,7 +141,7 @@ pub type ForeignAssetsAdapter = FungiblesAdapter<
 	// Use this fungibles implementation:
 	ForeignAssets,
 	// Use this currency when it is a fungible asset matching the given location or name:
-	MatchedConvertedConcreteId<Location, Balance, SupportedAssets, JustTry, JustTry>,
+	MatchedConvertedConcreteId<xcm::v4::Location, Balance, SupportedAssets, JustTry, JustTry>,
 	// Convert an XCM Location into a local account id:
 	LocationToAccountId,
 	// Our chain's account ID type (we can't get away without mentioning it explicitly):
@@ -501,12 +492,16 @@ impl<Payee: TakeRevenue> WeightTrader for AssetTrader<Payee> {
 		log::trace!(target: "xcm::weight", "AssetsTrader::buy_weight weight: {:?}, payment: {:?}, context: {:?}", weight, payment, context);
 		let native_amount = WeightToFee::weight_to_fee(&weight);
 		let mut acceptable_assets = AcceptedFundingAsset::all_ids();
-		acceptable_assets.push(Location::here());
+		acceptable_assets.push(xcm::v4::Location::here());
 
 		// We know the executor always sends just one asset to pay for weight, even if the struct supports multiple.
 		let payment_fun = payment.fungible.clone();
 		let (asset_id, asset_amount) = payment_fun.first_key_value().ok_or(XcmError::FeesNotMet)?;
-		ensure!(acceptable_assets.contains(&asset_id.0), XcmError::FeesNotMet);
+
+		let asset_id_v4: polimec_common::Location =
+			asset_id.0.clone().try_into().map_err(|_| XcmError::UnhandledXcmVersion)?;
+
+		ensure!(acceptable_assets.contains(&asset_id_v4), XcmError::FeesNotMet);
 
 		// If the trader was used already in this xcm execution, make sure we continue trading with the same asset
 		let old_amount = if let Some(asset) = &self.asset_spent {
@@ -520,8 +515,8 @@ impl<Payee: TakeRevenue> WeightTrader for AssetTrader<Payee> {
 			Zero::zero()
 		};
 
-		let required_asset_amount = PLMCToAssetBalance::to_asset_balance(native_amount, asset_id.0.clone())
-			.map_err(|_| XcmError::FeesNotMet)?;
+		let required_asset_amount =
+			PLMCToAssetBalance::to_asset_balance(native_amount, asset_id_v4).map_err(|_| XcmError::FeesNotMet)?;
 		ensure!(*asset_amount >= required_asset_amount, XcmError::FeesNotMet);
 
 		let required = (AssetId(asset_id.0.clone()), required_asset_amount).into();
@@ -541,7 +536,8 @@ impl<Payee: TakeRevenue> WeightTrader for AssetTrader<Payee> {
 
 		let native_amount = WeightToFee::weight_to_fee(&weight_refunded);
 		let asset_id = self.asset_spent.clone()?.id;
-		let asset_amount = PLMCToAssetBalance::to_asset_balance(native_amount, asset_id.0.clone()).ok()?;
+		let asset_id_v4 = asset_id.0.clone().try_into().ok()?;
+		let asset_amount = PLMCToAssetBalance::to_asset_balance(native_amount, asset_id_v4).ok()?;
 		log::trace!(target: "xcm::weight", "AssetTrader::refund_weight amount to refund: {:?}", asset_amount);
 
 		if let Fungibility::Fungible(amount) = self.asset_spent.clone()?.fun {
