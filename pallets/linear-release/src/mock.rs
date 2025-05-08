@@ -81,7 +81,20 @@ impl Config for Test {
 	const MAX_VESTING_SCHEDULES: u32 = 3;
 }
 
-#[derive(Encode, Decode, Copy, Clone, PartialEq, Eq, RuntimeDebug, MaxEncodedLen, TypeInfo, Ord, PartialOrd)]
+#[derive(
+	Encode,
+	Decode,
+	Copy,
+	Clone,
+	PartialEq,
+	Eq,
+	RuntimeDebug,
+	MaxEncodedLen,
+	TypeInfo,
+	Ord,
+	PartialOrd,
+	DecodeWithMemTracking,
+)]
 pub enum MockRuntimeHoldReason {
 	Reason,
 	Reason2,
@@ -115,6 +128,7 @@ impl ExtBuilder {
 				(13, 9999 * self.existential_deposit),
 				(14, 2000 * self.existential_deposit),
 			],
+			dev_accounts: None,
 		}
 		.assimilate_storage(&mut t)
 		.unwrap();

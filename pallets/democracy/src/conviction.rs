@@ -13,7 +13,7 @@
 
 use crate::types::Delegations;
 use core::result::Result;
-use parity_scale_codec::{Decode, Encode, MaxEncodedLen};
+use parity_scale_codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 use scale_info::TypeInfo;
 use sp_runtime::{
 	traits::{Bounded, CheckedDiv, CheckedMul, Zero},
@@ -21,7 +21,20 @@ use sp_runtime::{
 };
 
 /// A value denoting the strength of conviction of a vote.
-#[derive(Encode, MaxEncodedLen, Decode, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, RuntimeDebug, TypeInfo)]
+#[derive(
+	Encode,
+	MaxEncodedLen,
+	Decode,
+	Copy,
+	Clone,
+	Eq,
+	PartialEq,
+	Ord,
+	PartialOrd,
+	RuntimeDebug,
+	TypeInfo,
+	DecodeWithMemTracking,
+)]
 pub enum Conviction {
 	/// 0.1x votes, unlocked.
 	None,

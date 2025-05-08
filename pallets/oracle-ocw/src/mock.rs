@@ -110,9 +110,9 @@ impl Convert<(AssetName, FixedU128), (OracleKey, OracleValue)> for AssetPriceCon
 
 parameter_types! {
 	pub static Members: Vec<AccountId> = vec![
-		sp_keyring::AccountKeyring::Alice.to_raw_public().into(),
-		sp_keyring::AccountKeyring::Bob.to_raw_public().into(),
-		sp_keyring::AccountKeyring::Charlie.to_raw_public().into(),
+		sp_keyring::Sr25519Keyring::Alice.to_raw_public().into(),
+		sp_keyring::Sr25519Keyring::Bob.to_raw_public().into(),
+		sp_keyring::Sr25519Keyring::Charlie.to_raw_public().into(),
 	];
 }
 impl Config for Test {

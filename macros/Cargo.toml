@@ -13,10 +13,9 @@ proc-macro = true
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-quote = "1.0.33"
-syn = {  version = "2.0.39", features = ["extra-traits"]}
+quote = "1.0.38"
+syn = { version = "2.0.98", features = ["extra-traits"] }
 sp-core.workspace = true
-
 
 
 [features]

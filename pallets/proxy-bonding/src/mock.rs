@@ -5,7 +5,7 @@ use frame_support::{
 	PalletId,
 };
 use frame_system::{mocking::MockBlock, GenesisConfig};
-use parity_scale_codec::{Decode, Encode};
+use parity_scale_codec::{Decode, DecodeWithMemTracking, Encode};
 use polimec_common::ProvideAssetPrice;
 use scale_info::TypeInfo;
 use serde::{Deserialize, Serialize};
@@ -163,6 +163,7 @@ impl ConstPriceProvider {
 	PartialOrd,
 	Serialize,
 	Deserialize,
+	DecodeWithMemTracking,
 )]
 pub enum MockRuntimeHoldReason {
 	Reason,

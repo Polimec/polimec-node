@@ -47,19 +47,19 @@ pub fn get_polimec_session_keys(keys: AuthorityId) -> polimec_runtime::SessionKe
 }
 
 pub fn alice() -> polimec_runtime::AccountId {
-	sp_keyring::AccountKeyring::Alice.to_account_id()
+	sp_keyring::Sr25519Keyring::Alice.to_account_id()
 }
 pub fn bob() -> polimec_runtime::AccountId {
-	sp_keyring::AccountKeyring::Bob.to_account_id()
+	sp_keyring::Sr25519Keyring::Bob.to_account_id()
 }
 pub fn charlie() -> polimec_runtime::AccountId {
-	sp_keyring::AccountKeyring::Charlie.to_account_id()
+	sp_keyring::Sr25519Keyring::Charlie.to_account_id()
 }
 pub fn dave() -> polimec_runtime::AccountId {
-	sp_keyring::AccountKeyring::Dave.to_account_id()
+	sp_keyring::Sr25519Keyring::Dave.to_account_id()
 }
 pub fn eve() -> polimec_runtime::AccountId {
-	sp_keyring::AccountKeyring::Eve.to_account_id()
+	sp_keyring::Sr25519Keyring::Eve.to_account_id()
 }
 
 pub fn acc_from_ss58(string: &str) -> polimec_runtime::AccountId {

@@ -16,11 +16,23 @@
 
 use crate::{deposit, Balance};
 use frame_support::parameter_types;
-use parity_scale_codec::{Decode, Encode, MaxEncodedLen};
+use parity_scale_codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
+use scale_info::TypeInfo;
 use sp_runtime::RuntimeDebug;
 
 #[derive(
-	Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Encode, Decode, RuntimeDebug, MaxEncodedLen, scale_info::TypeInfo,
+	Copy,
+	Clone,
+	Eq,
+	PartialEq,
+	Ord,
+	PartialOrd,
+	Encode,
+	Decode,
+	RuntimeDebug,
+	MaxEncodedLen,
+	TypeInfo,
+	DecodeWithMemTracking,
 )]
 pub enum Type {
 	/// Fully permissioned proxy. Can execute any call on behalf of _proxied_.

@@ -129,7 +129,7 @@ impl ExtBuilder {
 			Dispenser::dispense_account(),
 			self.dispensing_accounts * <Test as crate::Config>::InitialDispenseAmount::get(),
 		)];
-		pallet_balances::GenesisConfig::<Test> { balances: dispenser_filled }
+		pallet_balances::GenesisConfig::<Test> { balances: dispenser_filled, dev_accounts: None }
 			.assimilate_storage(&mut t)
 			.expect("Pallet balances storage can be assimilated");
 

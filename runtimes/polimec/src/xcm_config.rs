@@ -26,7 +26,8 @@ use frame_support::{
 	pallet_prelude::*,
 	parameter_types,
 	traits::{
-		tokens::ConversionToAssetBalance, ConstU32, Contains, ContainsPair, Everything, Nothing, ProcessMessageError,
+		tokens::ConversionToAssetBalance, ConstU32, Contains, ContainsPair, Disabled, Everything, Nothing,
+		ProcessMessageError,
 	},
 	weights::{Weight, WeightToFee as WeightToFeeT},
 };
@@ -353,6 +354,7 @@ impl xcm_executor::Config for XcmConfig {
 	type UniversalAliases = Nothing;
 	type UniversalLocation = UniversalLocation;
 	type Weigher = FixedWeightBounds<UnitWeightCost, RuntimeCall, MaxInstructions>;
+	type XcmEventEmitter = PolkadotXcm;
 	type XcmRecorder = PolkadotXcm;
 	type XcmSender = XcmRouter;
 }
@@ -373,6 +375,7 @@ pub type XcmRouter = (
 impl pallet_xcm::Config for Runtime {
 	type AdminOrigin = EnsureRoot<AccountId>;
 	type AdvertisedXcmVersion = pallet_xcm::CurrentXcmVersion;
+	type AuthorizedAliasConsideration = Disabled;
 	type Currency = Balances;
 	type CurrencyMatcher = ();
 	type ExecuteXcmOrigin = EnsureXcmOrigin<RuntimeOrigin, LocalSignedOriginToLocation>;

@@ -230,6 +230,8 @@ fn start_consensus(
 		collator_service,
 		authoring_duration: Duration::from_millis(2000),
 		reinitialize: false,
+		// TODO: Use a proper value for this. None should be a good default (85%)
+		max_pov_percentage: None,
 	};
 
 	let fut = aura::run::<Block, sp_consensus_aura::sr25519::AuthorityPair, _, _, _, _, _, _, _, _>(params);
@@ -280,19 +282,18 @@ pub async fn start_parachain_node(
 
 	// NOTE: because we use Aura here explicitly, we can use `CollatorSybilResistance::Resistant`
 	// when starting the network.
-	let (network, system_rpc_tx, tx_handler_controller, start_network, sync_service) =
-		build_network(BuildNetworkParams {
-			parachain_config: &parachain_config,
-			net_config,
-			client: client.clone(),
-			transaction_pool: transaction_pool.clone(),
-			para_id,
-			spawn_handle: task_manager.spawn_handle(),
-			relay_chain_interface: relay_chain_interface.clone(),
-			import_queue: params.import_queue,
-			sybil_resistance_level: CollatorSybilResistance::Resistant, // because of Aura
-		})
-		.await?;
+	let (network, system_rpc_tx, tx_handler_controller, sync_service) = build_network(BuildNetworkParams {
+		parachain_config: &parachain_config,
+		net_config,
+		client: client.clone(),
+		transaction_pool: transaction_pool.clone(),
+		para_id,
+		spawn_handle: task_manager.spawn_handle(),
+		relay_chain_interface: relay_chain_interface.clone(),
+		import_queue: params.import_queue,
+		sybil_resistance_level: CollatorSybilResistance::Resistant, // because of Aura
+	})
+	.await?;
 
 	if parachain_config.offchain_worker.enabled {
 		use futures::FutureExt;
@@ -405,8 +406,6 @@ pub async fn start_parachain_node(
 			announce_block,
 		)?;
 	}
-
-	start_network.start_network();
 
 	Ok((task_manager, client))
 }

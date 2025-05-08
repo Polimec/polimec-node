@@ -341,4 +341,12 @@ impl<T: frame_system::Config> pallet_xcm::WeightInfo for WeightInfo<T> {
 			.saturating_add(T::DbWeight::get().reads(1))
 			.saturating_add(T::DbWeight::get().writes(1))
 	}
+	
+	fn add_authorized_alias() -> Weight {
+			todo!()
+		}
+	
+	fn remove_authorized_alias() -> Weight {
+			todo!()
+		}
 }

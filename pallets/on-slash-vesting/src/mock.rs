@@ -4,7 +4,7 @@ use frame_support::{
 	sp_runtime::{traits::IdentityLookup, BuildStorage},
 	traits::{VariantCount, WithdrawReasons},
 };
-use parity_scale_codec::{Decode, Encode, MaxEncodedLen};
+use parity_scale_codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 use scale_info::TypeInfo;
 use serde::{Deserialize, Serialize};
 use sp_runtime::traits::ConvertInto;
@@ -32,6 +32,7 @@ type Block = frame_system::mocking::MockBlock<TestRuntime>;
 	PartialOrd,
 	Serialize,
 	Deserialize,
+	DecodeWithMemTracking,
 )]
 pub enum MockRuntimeHoldReason {
 	Reason,
@@ -92,6 +93,7 @@ impl ExtBuilder {
 				(3, self.existential_deposit),
 				(4, self.existential_deposit),
 			],
+			dev_accounts: None,
 		}
 		.assimilate_storage(&mut t)
 		.unwrap();

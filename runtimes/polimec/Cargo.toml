@@ -18,11 +18,11 @@ substrate-wasm-builder = { workspace = true, optional = true }
 
 [dependencies]
 parity-scale-codec = { workspace = true, default-features = false, features = [
-    "derive",
+  "derive",
 ] }
 log.workspace = true
 scale-info = { workspace = true, default-features = false, features = [
-    "derive",
+  "derive",
 ] }
 
 # Uncomment this and the std feature below to see variables instead of <wasm:stripped> in the console output
@@ -240,6 +240,7 @@ runtime-benchmarks = [
 	"xcm-builder/runtime-benchmarks",
 	"xcm-executor/runtime-benchmarks",
 	"xcm-runtime-apis/runtime-benchmarks",
+	"xcm/runtime-benchmarks",
 ]
 
 try-runtime = [

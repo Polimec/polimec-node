@@ -41,13 +41,13 @@ chain = "asset-hub-rococo-dev"
 name = "statemint-dev"
 command = "../polkadot-sdk/target/release/polkadot-parachain"
 args = [
-    "--discover-local",
-    "-lerror",
-    "-lxcm::process_instruction=trace",
-    "-lxcm::execute_xcm_in_credit=trace",
-    "-lxcm::barriers=trace",
-    "-lpallet_funding::hrmp=trace",
-    "-lpallet_funding::test=trace",
+  "--discover-local",
+  "-lerror",
+  "-lxcm::process_instruction=trace",
+  "-lxcm::execute_xcm_in_credit=trace",
+  "-lxcm::barriers=trace",
+  "-lpallet_funding::hrmp=trace",
+  "-lpallet_funding::test=trace",
 ]
 rpc_port = 7777
 
@@ -60,13 +60,13 @@ chain = "polimec-paseo-local"
 name = "collator1"
 command = "./target/release/polimec-node"
 args = [
-    "--offchain-worker when-authority",
-    "-lerror",
-    "-lxcm=trace",
-    "-lxcm::execute_xcm_in_credit=trace",
-    "-lxcm::barriers=trace",
-    "-lpallet_funding::hrmp=trace",
-    "-lpallet_funding::test=trace",
+  "--offchain-worker when-authority",
+  "-lerror",
+  "-lxcm=trace",
+  "-lxcm::execute_xcm_in_credit=trace",
+  "-lxcm::barriers=trace",
+  "-lpallet_funding::hrmp=trace",
+  "-lpallet_funding::test=trace",
 ]
 # ss58 key: 5Do5UoayFvDrHroGS1YMqxTVUysSkrhNwVMzmj1foVb3vzzb
 keystore_key_types = ["aura", "plmc_sr"]

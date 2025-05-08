@@ -41,7 +41,7 @@ construct_runtime!(
 		System: frame_system::{Pallet, Call, Config<T>, Storage, Event<T>},
 		Balances: pallet_balances::{Pallet, Call, Storage, Config<T>, Event<T>},
 		Aura: pallet_aura::{Pallet, Storage},
-		Session: pallet_session::{Pallet, Call, Storage, Event, Config<T>},
+		Session: pallet_session::{Pallet, Call, Storage, Event<T>, Config<T>},
 		ParachainStaking: pallet_parachain_staking::{Pallet, Call, Storage, Config<T>, Event<T>, HoldReason},
 		Authorship: pallet_authorship::{Pallet, Storage},
 	}
@@ -146,6 +146,7 @@ use sp_runtime::{
 };
 
 impl pallet_session::Config for Test {
+	type DisablingStrategy = ();
 	type Keys = MockSessionKeys;
 	type NextSessionRotation = ParachainStaking;
 	type RuntimeEvent = RuntimeEvent;
@@ -156,6 +157,7 @@ impl pallet_session::Config for Test {
 	type ValidatorIdOf = ConvertInto;
 	type WeightInfo = ();
 }
+
 impl Config for Test {
 	type Balance = Balance;
 	type CandidateBondLessDelay = CandidateBondLessDelay;
@@ -263,7 +265,7 @@ impl ExtBuilder {
 			.into_iter()
 			.map(|(account, balance)| (account, balance + <Test as pallet_balances::Config>::ExistentialDeposit::get()))
 			.collect::<Vec<(AccountId, Balance)>>();
-		pallet_balances::GenesisConfig::<Test> { balances: balances_with_ed }
+		pallet_balances::GenesisConfig::<Test> { balances: balances_with_ed, dev_accounts: None }
 			.assimilate_storage(&mut t)
 			.expect("Pallet balances storage can be assimilated");
 		pallet_parachain_staking::GenesisConfig::<Test> {

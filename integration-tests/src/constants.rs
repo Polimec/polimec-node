@@ -149,7 +149,7 @@ pub mod accounts {
 	pub const FERDIE_STASH: &str = "Ferdie//stash";
 
 	pub fn init_balances() -> Vec<AccountId> {
-		sp_keyring::AccountKeyring::iter().map(|a| a.to_account_id()).collect()
+		sp_keyring::Sr25519Keyring::iter().map(|a| a.to_account_id()).collect()
 	}
 }
 
@@ -159,11 +159,11 @@ pub mod collators {
 	pub fn invulnerables_asset_hub() -> Vec<(AccountId, AssetHubPolkadotAuraId)> {
 		vec![
 			(
-				sp_keyring::AccountKeyring::Alice.to_account_id(),
+				sp_keyring::Sr25519Keyring::Alice.to_account_id(),
 				get_public_from_string_or_panic::<AssetHubPolkadotAuraId>("Alice"),
 			),
 			(
-				sp_keyring::AccountKeyring::Bob.to_account_id(),
+				sp_keyring::Sr25519Keyring::Bob.to_account_id(),
 				get_public_from_string_or_panic::<AssetHubPolkadotAuraId>("Bob"),
 			),
 		]
@@ -171,8 +171,8 @@ pub mod collators {
 
 	pub fn invulnerables() -> Vec<(AccountId, AuraId)> {
 		vec![
-			(sp_keyring::AccountKeyring::Alice.to_account_id(), get_public_from_string_or_panic::<AuraId>("Alice")),
-			(sp_keyring::AccountKeyring::Bob.to_account_id(), get_public_from_string_or_panic::<AuraId>("Bob")),
+			(sp_keyring::Sr25519Keyring::Alice.to_account_id(), get_public_from_string_or_panic::<AuraId>("Alice")),
+			(sp_keyring::Sr25519Keyring::Bob.to_account_id(), get_public_from_string_or_panic::<AuraId>("Bob")),
 		]
 	}
 
@@ -207,8 +207,8 @@ pub mod validators {
 	)> {
 		let seed = "Alice";
 		vec![(
-			sp_keyring::AccountKeyring::AliceStash.to_account_id(),
-			sp_keyring::AccountKeyring::Alice.to_account_id(),
+			sp_keyring::Sr25519Keyring::AliceStash.to_account_id(),
+			sp_keyring::Sr25519Keyring::Alice.to_account_id(),
 			get_public_from_string_or_panic::<BabeId>(seed),
 			get_public_from_string_or_panic::<GrandpaId>(seed),
 			get_public_from_string_or_panic::<ImOnlineId>(seed),
@@ -225,8 +225,8 @@ const SAFE_XCM_VERSION: u32 = xcm::prelude::XCM_VERSION;
 
 // Helper functions to calculate chain accounts
 
-// Polkadot
-pub mod polkadot {
+// Relay Chain
+pub mod westend {
 	use super::*;
 	pub const ED: Balance = westend_runtime_constants::currency::EXISTENTIAL_DEPOSIT;
 
@@ -257,6 +257,7 @@ pub mod polkadot {
 		let genesis_config = westend_runtime::RuntimeGenesisConfig {
 			balances: westend_runtime::BalancesConfig {
 				balances: accounts::init_balances().iter().cloned().map(|k| (k, INITIAL_DEPOSIT)).collect(),
+				dev_accounts: None,
 			},
 			session: westend_runtime::SessionConfig {
 				keys: validators::initial_authorities()
@@ -265,7 +266,7 @@ pub mod polkadot {
 						(
 							x.0.clone(),
 							x.0.clone(),
-							polkadot::session_keys(
+							westend::session_keys(
 								x.2.clone(),
 								x.3.clone(),
 								x.4.clone(),
@@ -374,7 +375,7 @@ pub mod polimec {
 
 		let genesis_config = polimec_runtime::RuntimeGenesisConfig {
 			system: Default::default(),
-			balances: polimec_runtime::BalancesConfig { balances: funded_accounts },
+			balances: polimec_runtime::BalancesConfig { balances: funded_accounts, dev_accounts: None },
 			contribution_tokens: Default::default(),
 			foreign_assets: polimec_runtime::ForeignAssetsConfig {
 				assets: vec![
@@ -476,6 +477,7 @@ pub mod asset_hub {
 			system: asset_hub_westend_runtime::SystemConfig::default(),
 			balances: asset_hub_westend_runtime::BalancesConfig {
 				balances: accounts::init_balances().iter().cloned().map(|k| (k, ED * 4096 * 4096)).collect(),
+				dev_accounts: None,
 			},
 			parachain_info: asset_hub_westend_runtime::ParachainInfoConfig {
 				parachain_id: PARA_ID.into(),

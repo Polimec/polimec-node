@@ -4,7 +4,7 @@ use crate::{polimec::ED, *};
 /// Only members should be able to feed data into the oracle.
 use frame_support::traits::{
 	fungible::{BalancedHold, Inspect, MutateFreeze, MutateHold, Unbalanced},
-	Hooks, WithdrawReasons,
+	WithdrawReasons,
 };
 use macros::generate_accounts;
 use sp_runtime::Digest;
@@ -161,12 +161,9 @@ fn democracy_works() {
 		assert_eq!(Democracy::referendum_info(0).unwrap(), ReferendumInfo::Finished { approved: true, end: 6u32 });
 		assert!(pallet_scheduler::Agenda::<polimec_runtime::Runtime>::get(8u32).len() == 1);
 
-		run_gov_n_blocks(2);
+		run_gov_n_blocks(3);
 
-		assert_eq!(
-			Balances::balance(&get_public_from_string_or_panic::<sr25519::Public>("NEW_ACCOUNT").into()),
-			1000u128 * PLMC
-		);
+		assert_eq!(Balances::free_balance(account), 1000u128 * PLMC);
 	});
 }
 

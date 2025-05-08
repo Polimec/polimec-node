@@ -1106,7 +1106,7 @@ impl<A: PartialEq, B: PartialEq> PartialEq for CollatorCandidate<A, B> {
 
 /// Convey relevant information describing if a delegator was added to the top or bottom
 /// Delegations added to the top yield a new total
-#[derive(Clone, Copy, PartialEq, Encode, Decode, RuntimeDebug, TypeInfo)]
+#[derive(Clone, Copy, PartialEq, Encode, Decode, RuntimeDebug, TypeInfo, DecodeWithMemTracking)]
 pub enum DelegatorAdded<B> {
 	AddedToTop { new_total: B },
 	AddedToBottom,

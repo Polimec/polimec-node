@@ -90,6 +90,7 @@ impl pallet_preimage::Config for Test {
 }
 
 impl pallet_scheduler::Config for Test {
+	type BlockNumberProvider = System;
 	type MaxScheduledPerBlock = ConstU32<100>;
 	type MaximumWeight = MaximumSchedulerWeight;
 	type OriginPrivilegeCmp = EqualPrivilegeOnly;
@@ -185,9 +186,12 @@ impl Config for Test {
 
 pub fn new_test_ext() -> sp_io::TestExternalities {
 	let mut t = frame_system::GenesisConfig::<Test>::default().build_storage().unwrap();
-	pallet_balances::GenesisConfig::<Test> { balances: vec![(1, 10), (2, 20), (3, 30), (4, 40), (5, 50), (6, 60)] }
-		.assimilate_storage(&mut t)
-		.unwrap();
+	pallet_balances::GenesisConfig::<Test> {
+		balances: vec![(1, 10), (2, 20), (3, 30), (4, 40), (5, 50), (6, 60)],
+		dev_accounts: None,
+	}
+	.assimilate_storage(&mut t)
+	.unwrap();
 	pallet_democracy::GenesisConfig::<Test>::default().assimilate_storage(&mut t).unwrap();
 	let mut ext = sp_io::TestExternalities::new(t);
 	ext.execute_with(|| System::set_block_number(1));

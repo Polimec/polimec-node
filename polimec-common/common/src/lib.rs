@@ -163,7 +163,19 @@ pub mod migration_types {
 		}
 	}
 
-	#[derive(Clone, Encode, Decode, Eq, PartialEq, Ord, PartialOrd, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+	#[derive(
+		Clone,
+		Encode,
+		Decode,
+		Eq,
+		PartialEq,
+		Ord,
+		PartialOrd,
+		RuntimeDebug,
+		TypeInfo,
+		MaxEncodedLen,
+		DecodeWithMemTracking,
+	)]
 	pub enum MigrationStatus {
 		NotStarted,
 		Confirmed,
