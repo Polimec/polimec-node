@@ -136,6 +136,7 @@ pub type VestingOf<T> = pallet_linear_release::Pallet<T>;
 pub type BlockNumberToBalanceOf<T> = <T as pallet_linear_release::Config>::BlockNumberToBalance;
 pub type RuntimeHoldReasonOf<T> = <T as Config>::RuntimeHoldReason;
 pub type PriceProviderOf<T> = <T as Config>::PriceProvider;
+pub type BlockProviderFor<T> = <T as Config>::BlockNumberProvider;
 pub type BlockNumberFor<T> = <<T as Config>::BlockNumberProvider as BlockNumberProvider>::BlockNumber;
 
 #[frame_support::pallet]
@@ -683,7 +684,7 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			jwt: UntrustedToken,
 			project_id: ProjectId,
-			#[pallet::compact] usd_amount: Balance,
+			#[pallet::compact] plmc_bond: Balance,
 		) -> DispatchResult {
 			let (account, did, _investor_type, whitelisted_policy) =
 				T::InvestorOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get())?;
@@ -693,7 +694,7 @@ pub mod pallet {
 				id: T::AccountId32Conversion::convert(account.clone()),
 			};
 
-			Self::do_evaluate(&account, project_id, usd_amount, did, whitelisted_policy, receiving_account)
+			Self::do_evaluate(&account, project_id, plmc_bond, did, whitelisted_policy, receiving_account)
 		}
 
 		#[pallet::call_index(5)]
@@ -702,7 +703,7 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			jwt: UntrustedToken,
 			project_id: ProjectId,
-			#[pallet::compact] usd_amount: Balance,
+			#[pallet::compact] plmc_bond: Balance,
 			receiving_account: Junction,
 			signature_bytes: [u8; 65],
 		) -> DispatchResult {
@@ -711,7 +712,7 @@ pub mod pallet {
 
 			Self::verify_receiving_account_signature(&account, project_id, &receiving_account, signature_bytes)?;
 
-			Self::do_evaluate(&account, project_id, usd_amount, did, whitelisted_policy, receiving_account)
+			Self::do_evaluate(&account, project_id, plmc_bond, did, whitelisted_policy, receiving_account)
 		}
 
 		#[pallet::call_index(6)]

@@ -78,22 +78,17 @@ mod end_funding_extrinsic {
 		fn evaluator_outcome_bounds() {
 			let try_for_percentage = |percentage: u8, should_slash: bool| {
 				let (mut inst, project_id) = create_project_with_funding_percentage(percentage.into(), true);
+				let project_details = inst.get_project_details(project_id);
 				if should_slash {
+					assert_eq!(project_details.status, ProjectStatus::SettlementStarted(FundingOutcome::Failure));
 					assert_eq!(
-						inst.get_project_details(project_id).status,
-						ProjectStatus::SettlementStarted(FundingOutcome::Failure)
-					);
-					assert_eq!(
-						inst.get_project_details(project_id).evaluation_round_info.evaluators_outcome,
+						project_details.evaluation_round_info.evaluators_outcome,
 						Some(EvaluatorsOutcome::Slashed)
 					);
 				} else {
-					assert_eq!(
-						inst.get_project_details(project_id).status,
-						ProjectStatus::SettlementStarted(FundingOutcome::Success)
-					);
+					assert_eq!(project_details.status, ProjectStatus::SettlementStarted(FundingOutcome::Success));
 					assert!(matches!(
-						inst.get_project_details(project_id).evaluation_round_info.evaluators_outcome,
+						project_details.evaluation_round_info.evaluators_outcome,
 						Some(EvaluatorsOutcome::Rewarded(..))
 					));
 				}

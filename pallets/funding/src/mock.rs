@@ -279,8 +279,6 @@ impl pallet_timestamp::Config for TestRuntime {
 	type WeightInfo = ();
 }
 
-pub const HOURS: BlockNumber = 300u64;
-
 // REMARK: In the production configuration we use DAYS instead of HOURS.
 // We need all durations to use different times to catch bugs in the tests.
 parameter_types! {

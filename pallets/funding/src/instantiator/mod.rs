@@ -18,7 +18,7 @@ extern crate alloc;
 
 use crate::{traits::*, *};
 use alloc::collections::{btree_map::BTreeMap, btree_set::BTreeSet};
-use core::{cell::RefCell, iter::zip, marker::PhantomData};
+use core::{cell::RefCell, marker::PhantomData};
 use frame_support::{
 	pallet_prelude::*,
 	traits::{

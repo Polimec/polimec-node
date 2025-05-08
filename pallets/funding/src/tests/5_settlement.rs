@@ -53,17 +53,17 @@ mod round_flow {
 			let evaluations = vec![
 				EvaluationParams::from((
 					EVALUATOR_1,
-					500_000 * USD_UNIT,
+					500_000 * PLMC_UNIT,
 					Junction::AccountKey20 { network: Some(Ethereum { chain_id: 1 }), key: [0u8; 20] },
 				)),
 				EvaluationParams::from((
 					EVALUATOR_2,
-					250_000 * USD_UNIT,
+					250_000 * PLMC_UNIT,
 					Junction::AccountKey20 { network: Some(Ethereum { chain_id: 1 }), key: [1u8; 20] },
 				)),
 				EvaluationParams::from((
 					EVALUATOR_3,
-					300_000 * USD_UNIT,
+					300_000 * PLMC_UNIT,
 					Junction::AccountKey20 { network: Some(Ethereum { chain_id: 1 }), key: [2u8; 20] },
 				)),
 			];
@@ -120,9 +120,9 @@ mod round_flow {
 			project_metadata.minimum_price = decimal_aware_price;
 
 			let evaluations = vec![
-				EvaluationParams::from((EVALUATOR_1, 500_000 * USD_UNIT, polkadot_junction!(EVALUATOR_1 + 420))),
-				EvaluationParams::from((EVALUATOR_2, 250_000 * USD_UNIT, polkadot_junction!([1u8; 32]))),
-				EvaluationParams::from((EVALUATOR_3, 300_000 * USD_UNIT, polkadot_junction!([2u8; 32]))),
+				EvaluationParams::from((EVALUATOR_1, 500_000 * PLMC_UNIT, polkadot_junction!(EVALUATOR_1 + 420))),
+				EvaluationParams::from((EVALUATOR_2, 250_000 * PLMC_UNIT, polkadot_junction!([1u8; 32]))),
+				EvaluationParams::from((EVALUATOR_3, 300_000 * PLMC_UNIT, polkadot_junction!([2u8; 32]))),
 			];
 			let bids = vec![
 				BidParams::from((
@@ -255,14 +255,23 @@ mod settle_evaluation_extrinsic {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 			let mut project_metadata = default_project_metadata(ISSUER_1);
 			project_metadata.total_allocation_size = 1_000_000 * CT_UNIT;
+			let plmc_usd_price =
+				<PriceProviderOf<TestRuntime>>::get_decimals_aware_price(&Location::here(), PLMC_DECIMALS).unwrap();
+			let price_reciprocal = plmc_usd_price.reciprocal().unwrap();
+			let eval1_target_usd = 500_000 * USD_UNIT;
+			let eval2_target_usd = 250_000 * USD_UNIT;
+			let eval3_target_usd = 320_000 * USD_UNIT;
+			let eval1_plmc_to_bond = price_reciprocal.checked_mul_int(eval1_target_usd).unwrap();
+			let eval2_plmc_to_bond = price_reciprocal.checked_mul_int(eval2_target_usd).unwrap();
+			let eval3_plmc_to_bond = price_reciprocal.checked_mul_int(eval3_target_usd).unwrap();
 			let project_id = inst.create_finished_project(
 				project_metadata.clone(),
 				ISSUER_1,
 				None,
 				vec![
-					EvaluationParams::from((EVALUATOR_1, 500_000 * USD_UNIT)),
-					EvaluationParams::from((EVALUATOR_2, 250_000 * USD_UNIT)),
-					EvaluationParams::from((EVALUATOR_3, 320_000 * USD_UNIT)),
+					EvaluationParams::from((EVALUATOR_1, eval1_plmc_to_bond)),
+					EvaluationParams::from((EVALUATOR_2, eval2_plmc_to_bond)),
+					EvaluationParams::from((EVALUATOR_3, eval3_plmc_to_bond)),
 				],
 				inst.generate_bids_from_total_ct_percent(project_metadata.clone(), 100, 30),
 			);
@@ -390,7 +399,7 @@ mod settle_evaluation_extrinsic {
 		fn evaluation_round_failed() {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 			let project_metadata = default_project_metadata(ISSUER_1);
-			let evaluation = EvaluationParams::from((EVALUATOR_1, 1_000 * USD_UNIT));
+			let evaluation = EvaluationParams::from((EVALUATOR_1, 1_000 * PLMC_UNIT));
 			let project_id = inst.create_evaluating_project(project_metadata.clone(), ISSUER_1, None);
 
 			let evaluation_plmc = inst.calculate_evaluation_plmc_spent(vec![evaluation.clone()]);

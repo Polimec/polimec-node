@@ -26,7 +26,7 @@ fn one_schedule() {
 
 		// Slash 30
 		let _ = <PalletBalances as BalancedHold<u64>>::slash(&MockRuntimeHoldReason::Reason, &1u64, 30u128);
-		<PalletVesting as OnSlash<u64, u128>>::on_slash(&1, 30);
+		<PalletVesting as OnSlash<u64, u128>>::on_slash(&1, &30);
 
 		// After calling on_slash, the previously unlocked 20 should be available again
 		assert_eq!(PalletBalances::usable_balance(1), 20);
@@ -66,7 +66,7 @@ fn multiple_schedules() {
 		assert_eq!(PalletBalances::usable_balance(1), 200);
 
 		let _ = <PalletBalances as BalancedHold<u64>>::slash(&MockRuntimeHoldReason::Reason, &1u64, 65u128);
-		<PalletVesting as OnSlash<u64, u128>>::on_slash(&1, 65);
+		<PalletVesting as OnSlash<u64, u128>>::on_slash(&1, &65);
 
 		let schedules = <pallet_vesting::Vesting<TestRuntime>>::get(1).unwrap().to_vec();
 
