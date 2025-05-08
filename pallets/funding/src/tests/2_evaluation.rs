@@ -38,7 +38,7 @@ mod round_flow {
 		let target_funding = project_metadata.minimum_price.saturating_mul_int(project_metadata.total_allocation_size);
 		let target_evaluation_usd = Percent::from_percent(10) * target_funding;
 
-		let evaluations = vec![(EVALUATOR_1, target_evaluation_usd).into()];
+		let evaluations = vec![(EVALUATOR_1, 60_000 * PLMC_UNIT).into()];
 		let evaluation_plmc = inst.calculate_evaluation_plmc_spent(evaluations.clone());
 
 		inst.mint_plmc_ed_if_required(evaluations.accounts());
@@ -87,7 +87,7 @@ mod round_flow {
 			<TestRuntime as Config>::PriceProvider::get_decimals_aware_price(&Location::here(), PLMC_DECIMALS).unwrap()
 		});
 		let min_evaluation_amount_plmc =
-			usable_plmc_price.reciprocal().unwrap().checked_mul_int(min_evaluation_amount_usd).unwrap();
+			usable_plmc_price.reciprocal().unwrap().checked_mul_int(min_evaluation_amount_usd).unwrap() + 1;
 
 		// Test independent of CT decimals - Right PLMC conversion is stored.
 		// We move comma 4 places to the left since PLMC has 4 more decimals than USD.
@@ -145,14 +145,11 @@ mod round_flow {
 					project_metadata.clone().policy_ipfs_cid.unwrap()
 				),
 				project_id,
-				min_evaluation_amount_usd
+				min_evaluation_amount_plmc
 			)));
 
 			// Try bonding up to the threshold with a second evaluation
-			inst.mint_plmc_to(vec![UserToPLMCBalance::new(
-				EVALUATOR_2,
-				evaluation_threshold_plmc + ed - min_evaluation_amount_plmc,
-			)]);
+			inst.mint_plmc_to(vec![UserToPLMCBalance::new(EVALUATOR_2, 200_000 * PLMC_UNIT + ed)]);
 			assert_ok!(inst.execute(|| PolimecFunding::evaluate(
 				RuntimeOrigin::signed(EVALUATOR_2),
 				get_mock_jwt_with_cid(
@@ -162,7 +159,7 @@ mod round_flow {
 					project_metadata.clone().policy_ipfs_cid.unwrap()
 				),
 				project_id,
-				evaluation_threshold_usd - min_evaluation_amount_usd
+				200_000 * PLMC_UNIT,
 			)));
 
 			// The evaluation should succeed when we bond the threshold PLMC amount in total.
@@ -442,9 +439,9 @@ mod evaluate_extrinsic {
 			let project_id = inst.create_evaluating_project(project_metadata.clone(), issuer, None);
 
 			let evaluations = vec![
-				(EVALUATOR_1, 500 * USD_UNIT).into(),
-				(EVALUATOR_2, 1000 * USD_UNIT).into(),
-				(EVALUATOR_3, 20_000 * USD_UNIT).into(),
+				(EVALUATOR_1, 500 * PLMC_UNIT).into(),
+				(EVALUATOR_2, 1000 * PLMC_UNIT).into(),
+				(EVALUATOR_3, 20_000 * PLMC_UNIT).into(),
 			];
 
 			inst.mint_necessary_tokens_for_evaluations(evaluations.clone());
@@ -458,7 +455,7 @@ mod evaluate_extrinsic {
 					project_metadata.clone().policy_ipfs_cid.unwrap()
 				),
 				project_id,
-				evaluations[0].usd_amount,
+				evaluations[0].plmc_amount,
 			)));
 
 			assert_ok!(inst.execute(|| PolimecFunding::evaluate(
@@ -470,7 +467,7 @@ mod evaluate_extrinsic {
 					project_metadata.clone().policy_ipfs_cid.unwrap()
 				),
 				project_id,
-				evaluations[1].usd_amount,
+				evaluations[1].plmc_amount,
 			)));
 
 			assert_ok!(inst.execute(|| PolimecFunding::evaluate(
@@ -482,7 +479,7 @@ mod evaluate_extrinsic {
 					project_metadata.clone().policy_ipfs_cid.unwrap()
 				),
 				project_id,
-				evaluations[2].usd_amount,
+				evaluations[2].plmc_amount,
 			)));
 		}
 
@@ -493,7 +490,7 @@ mod evaluate_extrinsic {
 			let project_metadata = default_project_metadata(issuer);
 			let project_id = inst.create_evaluating_project(project_metadata.clone(), issuer, None);
 
-			let evaluation = EvaluationParams::from((EVALUATOR_1, 500 * USD_UNIT));
+			let evaluation = EvaluationParams::from((EVALUATOR_1, 500 * PLMC_UNIT));
 			let necessary_plmc = inst.calculate_evaluation_plmc_spent(vec![evaluation.clone()]);
 
 			inst.mint_plmc_ed_if_required(necessary_plmc.accounts());
@@ -512,7 +509,7 @@ mod evaluate_extrinsic {
 					project_metadata.clone().policy_ipfs_cid.unwrap()
 				),
 				project_id,
-				evaluation.usd_amount
+				evaluation.plmc_amount
 			)));
 		}
 
@@ -521,7 +518,7 @@ mod evaluate_extrinsic {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 			let project_metadata = default_project_metadata(ISSUER_1);
 			let project_id = inst.create_evaluating_project(project_metadata.clone(), ISSUER_1, None);
-			let evaluation = EvaluationParams::from((EVALUATOR_1, 500 * USD_UNIT));
+			let evaluation = EvaluationParams::from((EVALUATOR_1, 500 * PLMC_UNIT));
 			let necessary_plmc = inst.calculate_evaluation_plmc_spent(vec![evaluation.clone()]);
 			let plmc_existential_deposits = necessary_plmc.accounts().existential_deposits();
 
@@ -543,8 +540,12 @@ mod evaluate_extrinsic {
 					project_metadata.clone().policy_ipfs_cid.unwrap()
 				),
 				project_id,
-				evaluation.usd_amount
+				evaluation.plmc_amount
 			)));
+
+			let plmc_usd_price =
+				<PriceProviderOf<TestRuntime>>::get_decimals_aware_price(&Location::here(), PLMC_DECIMALS).unwrap();
+			let derived_usd_amount = plmc_usd_price.checked_mul_int(necessary_plmc[0].plmc_amount).unwrap();
 
 			inst.execute(|| {
 				let evaluations = Evaluations::<TestRuntime>::iter_prefix_values((project_id,)).collect_vec();
@@ -557,7 +558,7 @@ mod evaluate_extrinsic {
 					evaluator: EVALUATOR_1,
 					original_plmc_bond: necessary_plmc[0].plmc_amount,
 					current_plmc_bond: necessary_plmc[0].plmc_amount,
-					early_usd_amount: evaluation.usd_amount,
+					early_usd_amount: derived_usd_amount,
 					late_usd_amount: 0,
 					when: 1,
 					receiving_account: polkadot_junction!(EVALUATOR_1),
@@ -572,7 +573,7 @@ mod evaluate_extrinsic {
 			let issuer = ISSUER_1;
 			let project_metadata = default_project_metadata(issuer);
 
-			let evaluation = EvaluationParams::from((EVALUATOR_4, 1_000_000 * USD_UNIT));
+			let evaluation = EvaluationParams::from((EVALUATOR_4, 1_000_000 * PLMC_UNIT));
 			let plmc_required = inst.calculate_evaluation_plmc_spent(vec![evaluation.clone()]);
 			let frozen_amount = plmc_required[0].plmc_amount;
 
@@ -601,7 +602,7 @@ mod evaluate_extrinsic {
 						project_metadata.clone().policy_ipfs_cid.unwrap()
 					),
 					project_id,
-					evaluation.usd_amount
+					evaluation.plmc_amount
 				));
 			});
 
@@ -676,7 +677,7 @@ mod evaluate_extrinsic {
 			let (eth_acc, eth_sig) = inst.eth_key_and_sig_from("//EVALUATOR1", project_id, EVALUATOR_1);
 
 			let plmc =
-				inst.calculate_evaluation_plmc_spent(vec![EvaluationParams::from((EVALUATOR_1, 500 * USD_UNIT))]);
+				inst.calculate_evaluation_plmc_spent(vec![EvaluationParams::from((EVALUATOR_1, 500 * PLMC_UNIT))]);
 			inst.mint_plmc_ed_if_required(plmc.accounts());
 			inst.mint_plmc_to(plmc.clone());
 
@@ -685,7 +686,7 @@ mod evaluate_extrinsic {
 					RuntimeOrigin::signed(EVALUATOR_1),
 					jwt,
 					project_id,
-					500 * USD_UNIT,
+					500 * PLMC_UNIT,
 					eth_acc,
 					eth_sig,
 				)
@@ -708,7 +709,7 @@ mod evaluate_extrinsic {
 
 			let (dot_acc, dot_sig) = inst.dot_key_and_sig_from("//EVALUATOR1", project_id, EVALUATOR_1);
 			let plmc =
-				inst.calculate_evaluation_plmc_spent(vec![EvaluationParams::from((EVALUATOR_1, 500 * USD_UNIT))]);
+				inst.calculate_evaluation_plmc_spent(vec![EvaluationParams::from((EVALUATOR_1, 500 * PLMC_UNIT))]);
 			inst.mint_plmc_ed_if_required(plmc.accounts());
 			inst.mint_plmc_to(plmc.clone());
 
@@ -717,7 +718,7 @@ mod evaluate_extrinsic {
 					RuntimeOrigin::signed(EVALUATOR_1),
 					jwt,
 					project_id,
-					500 * USD_UNIT,
+					500 * PLMC_UNIT,
 					dot_acc,
 					dot_sig,
 				)
@@ -752,7 +753,7 @@ mod evaluate_extrinsic {
 							project_metadata.clone().policy_ipfs_cid.unwrap()
 						),
 						project_id,
-						500 * USD_UNIT,
+						500 * PLMC_UNIT,
 					),
 					Error::<TestRuntime>::IncorrectRound
 				);
@@ -787,7 +788,7 @@ mod evaluate_extrinsic {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 			let issuer = ISSUER_1;
 			let project_metadata = default_project_metadata(issuer);
-			let evaluations = vec![EvaluationParams::from((EVALUATOR_1, 1000 * USD_UNIT))];
+			let evaluations = vec![EvaluationParams::from((EVALUATOR_1, 1000 * PLMC_UNIT))];
 			let evaluating_plmc = inst.calculate_evaluation_plmc_spent(evaluations.clone());
 			let mut plmc_insufficient_existential_deposit = evaluating_plmc.accounts().existential_deposits();
 
@@ -809,7 +810,7 @@ mod evaluate_extrinsic {
 			let project_metadata = default_project_metadata(issuer);
 			let project_id = inst.create_evaluating_project(project_metadata.clone(), issuer, None);
 
-			let evaluation = EvaluationParams::from((EVALUATOR_1, 500 * USD_UNIT));
+			let evaluation = EvaluationParams::from((EVALUATOR_1, 500 * PLMC_UNIT));
 			let necessary_plmc = inst.calculate_evaluation_plmc_spent(vec![evaluation.clone()]);
 			let ed = necessary_plmc.accounts().existential_deposits();
 
@@ -836,7 +837,7 @@ mod evaluate_extrinsic {
 							project_metadata.clone().policy_ipfs_cid.unwrap()
 						),
 						project_id,
-						evaluation.usd_amount,
+						evaluation.plmc_amount,
 					),
 					TokenError::FundsUnavailable
 				);
@@ -853,7 +854,7 @@ mod evaluate_extrinsic {
 				inst.execute(|| crate::Pallet::<TestRuntime>::do_evaluate(
 					&(&ISSUER_1 + 1),
 					project_id,
-					500 * USD_UNIT,
+					500 * PLMC_UNIT,
 					generate_did_from_account(ISSUER_1),
 					project_metadata.clone().policy_ipfs_cid.unwrap(),
 					polkadot_junction!(ISSUER_1 + 1)
@@ -869,7 +870,7 @@ mod evaluate_extrinsic {
 			let project_metadata = default_project_metadata(issuer);
 			let project_id = inst.create_evaluating_project(project_metadata.clone(), issuer, None);
 
-			let evaluation = EvaluationParams::from((EVALUATOR_1, 500 * USD_UNIT));
+			let evaluation = EvaluationParams::from((EVALUATOR_1, 500 * PLMC_UNIT));
 			let necessary_plmc = inst.calculate_evaluation_plmc_spent(vec![evaluation.clone()]);
 
 			inst.mint_plmc_ed_if_required(necessary_plmc.accounts());
@@ -885,7 +886,7 @@ mod evaluate_extrinsic {
 						project_metadata.clone().policy_ipfs_cid.unwrap()
 					),
 					project_id,
-					evaluation.usd_amount,
+					evaluation.plmc_amount,
 				));
 			});
 
@@ -900,7 +901,7 @@ mod evaluate_extrinsic {
 							project_metadata.clone().policy_ipfs_cid.unwrap()
 						),
 						project_id,
-						evaluation.usd_amount,
+						evaluation.plmc_amount,
 					),
 					TokenError::FundsUnavailable
 				);
@@ -938,7 +939,7 @@ mod evaluate_extrinsic {
 						RuntimeOrigin::signed(evaluator),
 						jwt.clone(),
 						project_id,
-						99 * USD_UNIT
+						10 * PLMC_UNIT
 					),
 					Error::<TestRuntime>::TooLow
 				);
@@ -962,7 +963,7 @@ mod evaluate_extrinsic {
 							"wrong_cid".as_bytes().to_vec().try_into().unwrap()
 						),
 						project_id,
-						500 * USD_UNIT,
+						500 * PLMC_UNIT,
 					),
 					Error::<TestRuntime>::PolicyMismatch
 				);
@@ -990,7 +991,7 @@ mod evaluate_extrinsic {
 							project_metadata.clone().policy_ipfs_cid.unwrap()
 						),
 						project_id,
-						500 * USD_UNIT,
+						500 * PLMC_UNIT,
 					),
 					Error::<TestRuntime>::IncorrectRound
 				);

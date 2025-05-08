@@ -30,17 +30,7 @@ impl<
 		&mut self,
 		evaluations: Vec<EvaluationParams<T>>,
 	) -> Vec<UserToPLMCBalance<T>> {
-		let plmc_usd_price =
-			self.execute(|| <PriceProviderOf<T>>::get_decimals_aware_price(&Location::here(), PLMC_DECIMALS).unwrap());
-
-		let mut output = Vec::new();
-		for eval in evaluations {
-			let usd_bond = eval.usd_amount;
-			let plmc_bond = plmc_usd_price.reciprocal().unwrap().saturating_mul_int(usd_bond);
-
-			output.push(UserToPLMCBalance::new(eval.account, plmc_bond));
-		}
-		output
+		evaluations.into_iter().map(|eval| UserToPLMCBalance::new(eval.account, eval.plmc_amount)).collect()
 	}
 
 	// A single bid can be split into multiple buckets. This function splits the bid into multiple ones at different prices.
@@ -353,32 +343,30 @@ impl<
 		output
 	}
 
-	pub fn generate_evaluations_from_total_usd(
+	pub fn generate_evaluations_from_total_plmc(
 		&self,
-		usd_amount: Balance,
+		total_plmc_amount: Balance, // This is the total PLMC to be distributed
 		evaluations_count: u8,
 	) -> Vec<EvaluationParams<T>> {
-		// Even distribution of weights totaling 100% among bids.
-		let weights = {
-			if evaluations_count == 0 {
-				return vec![];
-			}
-			let base = 100 / evaluations_count;
-			let remainder = 100 % evaluations_count;
-			let mut result = vec![base; evaluations_count as usize];
-			for i in 0..remainder {
-				result[i as usize] += 1;
-			}
-			result
-		};
+		if evaluations_count == 0 {
+			return vec![];
+		}
 
-		let evaluators = (0..evaluations_count as u32).map(|i| self.account_from_u32(i, "EVALUATOR")).collect_vec();
-		zip(evaluators, weights)
-			.map(|(evaluator, weight)| {
-				let ticket_size = Percent::from_percent(weight) * usd_amount;
-				(evaluator, ticket_size).into()
-			})
-			.collect()
+		let mut evaluations = Vec::with_capacity(evaluations_count as usize);
+		let base_weight = 100 / evaluations_count;
+		let remainder = 100 % evaluations_count;
+
+		for i in 0..evaluations_count {
+			let evaluator_account = self.account_from_u32(i as u32, "EVALUATOR");
+			let weight_for_evaluator = base_weight + if i < remainder { 1 } else { 0 };
+
+			// Calculate PLMC amount for this evaluator based on weight
+			let plmc_for_evaluator = Percent::from_percent(weight_for_evaluator) * total_plmc_amount;
+
+			evaluations.push(EvaluationParams::from((evaluator_account, plmc_for_evaluator)));
+		}
+
+		evaluations
 	}
 
 	pub fn generate_successful_evaluations(
@@ -386,12 +374,23 @@ impl<
 		project_metadata: ProjectMetadataOf<T>,
 		evaluations_count: u8,
 	) -> Vec<EvaluationParams<T>> {
-		let funding_target = project_metadata.minimum_price.saturating_mul_int(project_metadata.total_allocation_size);
+		let funding_target_usd =
+			project_metadata.minimum_price.saturating_mul_int(project_metadata.total_allocation_size);
 		// if we use just the threshold, then for big usd targets we lose the evaluation due to PLMC conversion errors in `evaluation_end`
-		let evaluation_success_threshold = 100;
-		let usd_threshold = Percent::from_percent(evaluation_success_threshold) * funding_target;
+		let target_usd_for_success = Percent::from_percent(100) * funding_target_usd;
 
-		self.generate_evaluations_from_total_usd(usd_threshold, evaluations_count)
+		let plmc_usd_price = <PriceProviderOf<T>>::get_decimals_aware_price(&Location::here(), PLMC_DECIMALS).unwrap();
+		// We want to find PLMC amount such that: PLMC_amount * price_of_plmc_in_usd = target_usd_for_success
+		// So, PLMC_amount = target_usd_for_success / price_of_plmc_in_usd
+		// Which is target_usd_for_success * (1 / price_of_plmc_in_usd)
+		let price_reciprocal =
+			plmc_usd_price.reciprocal().expect("Price reciprocal failed in test; price cannot be zero");
+
+		let total_plmc_for_success = price_reciprocal
+			.checked_mul_int(target_usd_for_success)
+			.expect("Failed to calculate total PLMC for success in test (multiplication error)");
+
+		self.generate_evaluations_from_total_plmc(total_plmc_for_success, evaluations_count)
 	}
 
 	pub fn generate_failing_evaluations(
@@ -404,8 +403,15 @@ impl<
 		let evaluation_fail_percent = <T as Config>::EvaluationSuccessThreshold::get().deconstruct() / 2;
 
 		let usd_threshold = Percent::from_percent(evaluation_fail_percent) * funding_target;
+		let plmc_usd_price = <PriceProviderOf<T>>::get_decimals_aware_price(&Location::here(), PLMC_DECIMALS).unwrap();
+		let price_reciprocal =
+			plmc_usd_price.reciprocal().expect("Price reciprocal failed in test; price cannot be zero");
 
-		self.generate_evaluations_from_total_usd(usd_threshold, evaluations_count)
+		let total_plmc_for_failure = price_reciprocal
+			.checked_mul_int(usd_threshold)
+			.expect("Failed to calculate total PLMC for failure in test (multiplication error)");
+
+		self.generate_evaluations_from_total_plmc(total_plmc_for_failure, evaluations_count)
 	}
 
 	pub fn generate_bids_from_total_ct_amount(&self, bids_count: u32, total_ct_bid: Balance) -> Vec<BidParams<T>> {

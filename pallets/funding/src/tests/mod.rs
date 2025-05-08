@@ -24,15 +24,12 @@ use polimec_common::{
 		AcceptedFundingAsset,
 		AcceptedFundingAsset::{DOT, ETH, USDC, USDT},
 	},
-	ProvideAssetPrice, USD_DECIMALS, USD_UNIT,
+	ProvideAssetPrice, PLMC_UNIT, USD_DECIMALS, USD_UNIT,
 };
 use polimec_common_test_utils::{generate_did_from_account, get_mock_jwt, get_mock_jwt_with_cid};
 use sp_arithmetic::{traits::Zero, Percent, Perquintill};
 use sp_runtime::{bounded_vec, traits::Convert, PerThing, TokenError};
-use std::{
-	collections::{BTreeSet, HashSet},
-	iter::zip,
-};
+use std::collections::{BTreeSet, HashSet};
 use InvestorType::{self, *};
 
 #[path = "1_application.rs"]

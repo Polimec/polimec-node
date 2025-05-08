@@ -410,12 +410,12 @@ impl<
 
 	pub fn evaluate_for_users(&mut self, project_id: ProjectId, bonds: Vec<EvaluationParams<T>>) -> DispatchResult {
 		let project_policy = self.get_project_metadata(project_id).policy_ipfs_cid.unwrap();
-		for EvaluationParams { account, usd_amount, receiving_account } in bonds {
+		for EvaluationParams { account, plmc_amount, receiving_account } in bonds {
 			self.execute(|| {
 				crate::Pallet::<T>::do_evaluate(
 					&account.clone(),
 					project_id,
-					usd_amount,
+					plmc_amount,
 					generate_did_from_account(account.clone()),
 					project_policy.clone(),
 					receiving_account,

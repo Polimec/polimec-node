@@ -326,7 +326,7 @@ mod bid_extrinsic {
 			let mut evaluations = inst.generate_successful_evaluations(project_metadata.clone(), 5);
 
 			let evaluator_bidder = 69u64;
-			let evaluation_amount = 420 * USD_UNIT;
+			let evaluation_amount = 420 * PLMC_UNIT;
 			let evaluator_bid = BidParams::from((
 				evaluator_bidder,
 				Retail,
@@ -1281,7 +1281,7 @@ mod bid_extrinsic {
 			let project_metadata = default_project_metadata(issuer);
 			let mut evaluations = inst.generate_successful_evaluations(project_metadata.clone(), 5);
 			let evaluator_bidder = 69;
-			let evaluation_amount = 420 * USD_UNIT;
+			let evaluation_amount = 420 * PLMC_UNIT;
 			let evaluator_bid = BidParams::from((
 				evaluator_bidder,
 				Retail,
@@ -1316,7 +1316,7 @@ mod bid_extrinsic {
 			let evaluations_2 = evaluations_1.clone();
 
 			let evaluator_bidder = 69;
-			let evaluation_amount = 420 * USD_UNIT;
+			let evaluation_amount = 420 * PLMC_UNIT;
 			let evaluator_bid = BidParams::from((
 				evaluator_bidder,
 				Retail,
