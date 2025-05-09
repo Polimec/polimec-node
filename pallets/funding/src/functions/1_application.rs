@@ -31,8 +31,8 @@ impl<T: Config> Pallet<T> {
 			project_metadata.minimum_price.checked_mul_int(total_allocation_size).ok_or(Error::<T>::BadMath)?;
 
 		let project_details = ProjectDetails {
-			issuer_account: issuer.clone(),
-			issuer_did: did.clone(),
+			issuer_account: issuer,
+			issuer_did: did,
 			is_frozen: false,
 			fundraising_target_usd: fundraising_target,
 			status: ProjectStatus::Application,
@@ -110,7 +110,7 @@ impl<T: Config> Pallet<T> {
 
 		// * Calculate new variables *
 		let (project_details, bucket) =
-			Self::project_validation(&new_project_metadata, issuer.clone(), project_details.issuer_did.clone())?;
+			Self::project_validation(&new_project_metadata, issuer.clone(), project_details.issuer_did)?;
 
 		// * Update storage *
 		ProjectsMetadata::<T>::insert(project_id, new_project_metadata.clone());

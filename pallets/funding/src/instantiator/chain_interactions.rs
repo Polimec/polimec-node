@@ -12,7 +12,7 @@ impl<
 		RuntimeEvent: From<Event<T>> + TryInto<Event<T>> + Parameter + Member + IsType<<T as frame_system::Config>::RuntimeEvent>,
 	> Instantiator<T, AllPalletsWithoutSystem, RuntimeEvent>
 {
-	pub fn new(ext: OptionalExternalities) -> Self {
+	pub const fn new(ext: OptionalExternalities) -> Self {
 		Self { ext, nonce: RefCell::new(0u64), _marker: PhantomData }
 	}
 
@@ -447,7 +447,7 @@ impl<
 	}
 
 	pub fn mint_necessary_tokens_for_evaluations(&mut self, evaluations: Vec<EvaluationParams<T>>) {
-		let plmc_required = self.calculate_evaluation_plmc_spent(evaluations.clone());
+		let plmc_required = self.calculate_evaluation_plmc_spent(evaluations);
 		self.mint_plmc_ed_if_required(plmc_required.accounts());
 		self.mint_plmc_to(plmc_required);
 	}
@@ -684,7 +684,7 @@ impl<
 		issuer: AccountIdOf<T>,
 		maybe_did: Option<Did>,
 	) -> ProjectId {
-		let project_id = self.create_new_project(project_metadata, issuer.clone(), maybe_did);
+		let project_id = self.create_new_project(project_metadata, issuer, maybe_did);
 		assert_eq!(self.go_to_next_state(project_id), ProjectStatus::EvaluationRound);
 
 		project_id
@@ -697,15 +697,14 @@ impl<
 		maybe_did: Option<Did>,
 		evaluations: Vec<EvaluationParams<T>>,
 	) -> ProjectId {
-		let project_id = self.create_evaluating_project(project_metadata, issuer.clone(), maybe_did);
+		let project_id = self.create_evaluating_project(project_metadata, issuer, maybe_did);
 
 		let evaluators = evaluations.accounts();
 		self.mint_plmc_ed_if_required(evaluators.clone());
 
 		let prev_supply = self.get_plmc_total_supply();
 		let prev_free_plmc_balances = self.get_free_plmc_balances_for(evaluators.clone());
-		let prev_held_plmc_balances =
-			self.get_reserved_plmc_balances_for(evaluators.clone(), HoldReason::Evaluation.into());
+		let prev_held_plmc_balances = self.get_reserved_plmc_balances_for(evaluators, HoldReason::Evaluation.into());
 
 		let plmc_evaluation_deposits: Vec<UserToPLMCBalance<T>> =
 			self.calculate_evaluation_plmc_spent(evaluations.clone());
@@ -716,11 +715,10 @@ impl<
 
 		let expected_free_plmc_balances = prev_free_plmc_balances;
 		let expected_held_plmc_balances = self.generic_map_operation(
-			vec![prev_held_plmc_balances.clone(), plmc_evaluation_deposits.clone()],
+			vec![prev_held_plmc_balances, plmc_evaluation_deposits.clone()],
 			MergeOperation::Add,
 		);
-		let expected_total_plmc_supply =
-			prev_supply + self.sum_balance_mappings(vec![plmc_evaluation_deposits.clone()]);
+		let expected_total_plmc_supply = prev_supply + self.sum_balance_mappings(vec![plmc_evaluation_deposits]);
 
 		self.evaluation_assertions(
 			project_id,
@@ -757,7 +755,7 @@ impl<
 		let plmc_evaluation_deposits: Vec<UserToPLMCBalance<T>> = self.calculate_evaluation_plmc_spent(evaluations);
 		let plmc_bid_deposits: Vec<UserToPLMCBalance<T>> = self
 			.calculate_auction_plmc_charged_from_all_bids_made_or_with_bucket(&bids, project_metadata.clone(), None);
-		let reducible_evaluator_balances = self.slash_evaluator_balances(plmc_evaluation_deposits.clone());
+		let reducible_evaluator_balances = self.slash_evaluator_balances(plmc_evaluation_deposits);
 
 		let necessary_plmc_mints = self.generic_map_operation(
 			vec![plmc_bid_deposits.clone(), reducible_evaluator_balances],
@@ -765,7 +763,7 @@ impl<
 		);
 		let funding_asset_deposits = self.calculate_auction_funding_asset_charged_from_all_bids_made_or_with_bucket(
 			&bids,
-			project_metadata.clone(),
+			project_metadata,
 			None,
 		);
 
@@ -774,8 +772,8 @@ impl<
 			self.generic_map_operation(vec![prev_held_plmc_balances, plmc_bid_deposits], MergeOperation::Add);
 		let expected_plmc_supply = prev_plmc_supply + necessary_plmc_mints.total();
 
-		self.mint_plmc_to(necessary_plmc_mints.clone());
-		self.mint_funding_asset_to(funding_asset_deposits.clone());
+		self.mint_plmc_to(necessary_plmc_mints);
+		self.mint_funding_asset_to(funding_asset_deposits);
 
 		self.bid_for_users(project_id, bids.clone()).unwrap();
 
@@ -805,13 +803,8 @@ impl<
 		bids: Vec<BidParams<T>>,
 		mark_as_settled: bool,
 	) -> ProjectId {
-		let project_id = self.create_finished_project(
-			project_metadata.clone(),
-			issuer.clone(),
-			maybe_did,
-			evaluations.clone(),
-			bids.clone(),
-		);
+		let project_id =
+			self.create_finished_project(project_metadata.clone(), issuer, maybe_did, evaluations, bids.clone());
 
 		assert!(matches!(self.go_to_next_state(project_id), ProjectStatus::SettlementStarted(_)));
 		self.test_ct_created_for(project_id);

@@ -330,7 +330,7 @@ impl<T: Config> Pallet<T> {
 		polimec_account: AccountIdOf<T>,
 		project_id: ProjectId,
 	) -> bool {
-		let message_to_sign = Self::get_substrate_message_to_sign(polimec_account.clone(), project_id).unwrap();
+		let message_to_sign = Self::get_substrate_message_to_sign(polimec_account, project_id).unwrap();
 		let message_bytes = message_to_sign.into_bytes();
 		let signature = SrSignature::from_slice(&signature_bytes[..64]).unwrap();
 		let public = SrPublic::from_slice(&expected_substrate_account).unwrap();

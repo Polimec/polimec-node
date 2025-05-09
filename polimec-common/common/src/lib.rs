@@ -214,7 +214,7 @@ pub mod migration_types {
 			self.0.push(migration)
 		}
 
-		pub fn from(migrations: Vec<Migration>) -> Self {
+		pub const fn from(migrations: Vec<Migration>) -> Self {
 			Self(migrations)
 		}
 
