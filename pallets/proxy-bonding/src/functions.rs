@@ -60,18 +60,13 @@ impl<T: Config> Pallet<T> {
 
 		// Ensure the sub-account has an ED by the treasury. This will be refunded after all the tokens are unlocked
 		if T::BondingToken::balance(&bonding_account) < existential_deposit {
-			T::BondingToken::transfer(
-				&treasury.clone(),
-				&bonding_account,
-				existential_deposit,
-				Preservation::Preserve,
-			)?;
+			T::BondingToken::transfer(&treasury, &bonding_account, existential_deposit, Preservation::Preserve)?;
 		}
 		// Bond the PLMC on behalf of the user
 		T::BondingToken::transfer_and_hold(
 			&hold_reason.into(),
-			&treasury.clone(),
-			&bonding_account.clone(),
+			&treasury,
+			&bonding_account,
 			bond_amount,
 			Precision::Exact,
 			Preservation::Preserve,

@@ -43,7 +43,7 @@ pub struct UserToPLMCBalance<T: Config> {
 	pub plmc_amount: Balance,
 }
 impl<T: Config> UserToPLMCBalance<T> {
-	pub fn new(account: AccountIdOf<T>, plmc_amount: Balance) -> Self {
+	pub const fn new(account: AccountIdOf<T>, plmc_amount: Balance) -> Self {
 		Self { account, plmc_amount }
 	}
 }
@@ -101,7 +101,7 @@ pub struct EvaluationParams<T: Config> {
 	pub receiving_account: Junction,
 }
 impl<T: Config> EvaluationParams<T> {
-	pub fn new(account: AccountIdOf<T>, usd_amount: Balance, receiving_account: Junction) -> Self {
+	pub const fn new(account: AccountIdOf<T>, usd_amount: Balance, receiving_account: Junction) -> Self {
 		EvaluationParams::<T> { account, usd_amount, receiving_account }
 	}
 }
@@ -137,7 +137,7 @@ pub struct UserToUSDAmount<T: Config> {
 	pub usd_amount: Balance,
 }
 impl<T: Config> UserToUSDAmount<T> {
-	pub fn new(account: AccountIdOf<T>, usd_amount: Balance) -> Self {
+	pub const fn new(account: AccountIdOf<T>, usd_amount: Balance) -> Self {
 		Self { account, usd_amount }
 	}
 }
@@ -195,7 +195,7 @@ pub struct UserToFundingAsset<T: Config> {
 	pub asset_id: AssetIdOf<T>,
 }
 impl<T: Config> UserToFundingAsset<T> {
-	pub fn new(account: AccountIdOf<T>, asset_amount: Balance, asset_id: AssetIdOf<T>) -> Self {
+	pub const fn new(account: AccountIdOf<T>, asset_amount: Balance, asset_id: AssetIdOf<T>) -> Self {
 		Self { account, asset_amount, asset_id }
 	}
 }
@@ -298,7 +298,7 @@ pub struct BidParams<T: Config> {
 	pub receiving_account: Junction,
 }
 impl<T: Config> BidParams<T> {
-	pub fn new(
+	pub const fn new(
 		bidder: AccountIdOf<T>,
 		investor_type: InvestorType,
 		amount: Balance,
@@ -319,7 +319,7 @@ impl<T: Config> From<(AccountIdOf<T>, Balance)> for BidParams<T> {
 			asset: AcceptedFundingAsset::USDT,
 			receiving_account: Junction::AccountId32 {
 				network: Some(NetworkId::Polkadot),
-				id: T::AccountId32Conversion::convert(bidder.clone()),
+				id: T::AccountId32Conversion::convert(bidder),
 			},
 		}
 	}
@@ -334,7 +334,7 @@ impl<T: Config> From<(AccountIdOf<T>, InvestorType, Balance)> for BidParams<T> {
 			asset: AcceptedFundingAsset::USDT,
 			receiving_account: Junction::AccountId32 {
 				network: Some(NetworkId::Polkadot),
-				id: T::AccountId32Conversion::convert(bidder.clone()),
+				id: T::AccountId32Conversion::convert(bidder),
 			},
 		}
 	}
@@ -349,7 +349,7 @@ impl<T: Config> From<(AccountIdOf<T>, InvestorType, Balance, ParticipationMode)>
 			asset: AcceptedFundingAsset::USDT,
 			receiving_account: Junction::AccountId32 {
 				network: Some(NetworkId::Polkadot),
-				id: T::AccountId32Conversion::convert(bidder.clone()),
+				id: T::AccountId32Conversion::convert(bidder),
 			},
 		}
 	}
@@ -366,7 +366,7 @@ impl<T: Config> From<(AccountIdOf<T>, InvestorType, Balance, AcceptedFundingAsse
 			asset,
 			receiving_account: Junction::AccountId32 {
 				network: Some(NetworkId::Polkadot),
-				id: T::AccountId32Conversion::convert(bidder.clone()),
+				id: T::AccountId32Conversion::convert(bidder),
 			},
 		}
 	}
@@ -391,7 +391,7 @@ impl<T: Config> From<(AccountIdOf<T>, InvestorType, Balance, ParticipationMode, 
 			asset,
 			receiving_account: Junction::AccountId32 {
 				network: Some(NetworkId::Polkadot),
-				id: T::AccountId32Conversion::convert(bidder.clone()),
+				id: T::AccountId32Conversion::convert(bidder),
 			},
 		}
 	}

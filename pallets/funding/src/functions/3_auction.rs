@@ -187,7 +187,7 @@ impl<T: Config> Pallet<T> {
 
 		Self::deposit_event(Event::Bid {
 			project_id,
-			bidder: bidder.clone(),
+			bidder,
 			id: bid_id,
 			ct_amount,
 			ct_price: ct_usd_price,

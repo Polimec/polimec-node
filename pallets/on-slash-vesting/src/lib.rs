@@ -14,13 +14,13 @@ use pallet_vesting::Vesting;
 use sp_runtime::{traits::BlockNumberProvider, BoundedVec};
 
 pub trait OnSlash<AccountId, Balance: Clone> {
-	fn on_slash(account: &AccountId, amount: Balance);
+	fn on_slash(account: &AccountId, amount: &Balance);
 }
 
 #[impl_trait_for_tuples::impl_for_tuples(30)]
 impl<AccountId, Balance: Clone> OnSlash<AccountId, Balance> for Tuple {
-	fn on_slash(account: &AccountId, amount: Balance) {
-		for_tuples!( #( Tuple::on_slash(account, amount.clone()); )* );
+	fn on_slash(account: &AccountId, amount: &Balance) {
+		for_tuples!( #( Tuple::on_slash(account, amount); )* );
 	}
 }
 
@@ -30,12 +30,12 @@ where
 	T: pallet_vesting::Config,
 	T::Currency: Currency<AccountIdOf<T>, Balance = u128>,
 {
-	fn on_slash(account: &AccountIdOf<T>, slashed_amount: u128) {
+	fn on_slash(account: &AccountIdOf<T>, slashed_amount: &u128) {
 		if let Some(vesting_schedules) = <Vesting<T>>::get(account) {
 			let mut new_vesting_schedules = BoundedVec::with_bounded_capacity(vesting_schedules.len());
 			let now = T::BlockNumberProvider::current_block_number();
 			for schedule in vesting_schedules {
-				let total_locked = schedule.locked_at::<T::BlockNumberToBalance>(now).saturating_sub(slashed_amount);
+				let total_locked = schedule.locked_at::<T::BlockNumberToBalance>(now).saturating_sub(*slashed_amount);
 				let start_block = T::BlockNumberToBalance::convert(now);
 				let end_block = schedule.ending_block_as_balance::<T::BlockNumberToBalance>();
 				let duration = end_block.saturating_sub(start_block);

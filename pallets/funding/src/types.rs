@@ -525,22 +525,22 @@ pub mod inner {
 		pub usd_maximum_per_did: Option<Balance>,
 	}
 	impl TicketSize {
-		pub fn new(usd_minimum_per_participation: Balance, usd_maximum_per_did: Option<Balance>) -> Self {
+		pub const fn new(usd_minimum_per_participation: Balance, usd_maximum_per_did: Option<Balance>) -> Self {
 			Self { usd_minimum_per_participation, usd_maximum_per_did }
 		}
 
-		pub fn usd_ticket_above_minimum_per_participation(&self, usd_amount: Balance) -> bool {
+		pub const fn usd_ticket_above_minimum_per_participation(&self, usd_amount: Balance) -> bool {
 			usd_amount >= self.usd_minimum_per_participation
 		}
 
-		pub fn usd_ticket_below_maximum_per_did(&self, usd_amount: Balance) -> bool {
+		pub const fn usd_ticket_below_maximum_per_did(&self, usd_amount: Balance) -> bool {
 			match self.usd_maximum_per_did {
 				Some(max) => usd_amount <= max,
 				None => true,
 			}
 		}
 
-		pub fn check_valid(&self, bound: Bound) -> bool {
+		pub const fn check_valid(&self, bound: Bound) -> bool {
 			if let (min, Some(max)) = (self.usd_minimum_per_participation, self.usd_maximum_per_did) {
 				if min > max {
 					return false
@@ -766,7 +766,7 @@ pub mod inner {
 		Classic(u8),
 	}
 	impl ParticipationMode {
-		pub fn multiplier(&self) -> u8 {
+		pub const fn multiplier(&self) -> u8 {
 			match self {
 				// OTM multiplier is fixed at 5
 				ParticipationMode::OTM => 5u8,
@@ -794,7 +794,7 @@ pub mod inner {
 		Ethereum,
 	}
 	impl ParticipantsAccountType {
-		pub fn junction_is_supported(&self, junction: &Junction) -> bool {
+		pub const fn junction_is_supported(&self, junction: &Junction) -> bool {
 			match self {
 				// This project expects users to submit a 32 byte account, and sign it with SR25519 crypto
 				ParticipantsAccountType::Polkadot => matches!(junction, Junction::AccountId32 { .. }),

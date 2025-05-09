@@ -50,7 +50,7 @@ impl<T: Config> Pallet<T> {
 			T::ContributionTokenCurrency::create(project_id, escrow_account.clone(), false, 1_u32.into())?;
 			T::ContributionTokenCurrency::set(
 				project_id,
-				&escrow_account.clone(),
+				&escrow_account,
 				token_information.name.into(),
 				token_information.symbol.into(),
 				token_information.decimals,
@@ -390,7 +390,7 @@ impl<T: Config> Pallet<T> {
 			Fortitude::Force,
 		)?;
 
-		T::OnSlash::on_slash(&evaluation.evaluator, slashed_amount);
+		T::OnSlash::on_slash(&evaluation.evaluator, &slashed_amount);
 
 		Ok(evaluation.current_plmc_bond.saturating_sub(slashed_amount))
 	}

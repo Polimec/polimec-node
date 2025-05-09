@@ -129,7 +129,7 @@ pub struct SupportedAssets;
 impl frame_support::traits::Contains<Location> for SupportedAssets {
 	fn contains(l: &Location) -> bool {
 		let funding_assets = AcceptedFundingAsset::all_ids();
-		l.clone().try_into().ok().map_or(false, |v4_location| funding_assets.contains(&v4_location))
+		l.clone().try_into().ok().is_some_and(|v4_location| funding_assets.contains(&v4_location))
 	}
 }
 
@@ -483,7 +483,7 @@ impl<Payee: TakeRevenue> WeightTrader for AssetTrader<Payee> {
 		}
 
 		if asset_amount > 0 {
-			Some((asset_id.clone(), asset_amount).into())
+			Some((asset_id, asset_amount).into())
 		} else {
 			None
 		}

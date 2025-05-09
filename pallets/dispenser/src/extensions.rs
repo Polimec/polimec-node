@@ -43,7 +43,7 @@ pub struct CheckNonce<T: Config>(#[codec(compact)] pub T::Nonce);
 
 impl<T: Config> CheckNonce<T> {
 	/// utility constructor. Used only in client/factory code.
-	pub fn from(nonce: T::Nonce) -> Self {
+	pub const fn from(nonce: T::Nonce) -> Self {
 		Self(nonce)
 	}
 }
