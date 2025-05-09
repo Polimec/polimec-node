@@ -561,9 +561,9 @@ pub mod pallet {
 		BadTokenomics,
 
 		// * Error related to an participation action. Evaluation, bid or contribution failed. *
-		/// The amount is too low.
+		/// The amount specified in the call is too low.
 		TooLow,
-		/// The amount is too high.
+		/// The amount specified in the call is too high.
 		TooHigh,
 		/// The participation currency is not accepted for this project.
 		FundingAssetNotAccepted,

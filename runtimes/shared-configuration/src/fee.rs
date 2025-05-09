@@ -184,8 +184,7 @@ where
 	FeeCreditor: HandleCredit<Runtime::AccountId, Runtime::Fungibles>,
 	TipCreditor: HandleCredit<Runtime::AccountId, Runtime::Fungibles>,
 {
-	// Note: We stick to `v3::MultiLocation`` because `v4::Location`` doesn't implement `Copy`.
-	type AssetId = xcm::v3::MultiLocation;
+	type AssetId = xcm::v4::Location;
 	type Balance = BalanceOf<Runtime>;
 	type LiquidityInfo = fungibles::Credit<Runtime::AccountId, Runtime::Fungibles>;
 
@@ -200,20 +199,14 @@ where
 		fee: Self::Balance,
 		_tip: Self::Balance,
 	) -> Result<(), TransactionValidityError> {
-		let asset_id: xcm::v4::Location =
-			asset_id.try_into().map_err(|_| TransactionValidityError::Invalid(InvalidTransaction::Payment))?;
-
 		let min_converted_fee = if fee.is_zero() { Zero::zero() } else { One::one() };
 		let converted_fee = Converter::to_asset_balance(fee, asset_id.clone())
 			.map_err(|_| TransactionValidityError::from(InvalidTransaction::Payment))?
 			.max(min_converted_fee);
 
 		// Ensure we can withdraw enough `asset_id` for the swap.
-		match <Runtime::Fungibles as fungibles::Inspect<Runtime::AccountId>>::can_withdraw(
-			asset_id.clone(),
-			who,
-			converted_fee,
-		) {
+		match <Runtime::Fungibles as fungibles::Inspect<Runtime::AccountId>>::can_withdraw(asset_id, who, converted_fee)
+		{
 			WithdrawConsequence::BalanceLow |
 			WithdrawConsequence::UnknownAsset |
 			WithdrawConsequence::Underflow |
@@ -237,9 +230,6 @@ where
 		// We don't know the precision of the underlying asset. Because the converted fee could be
 		// less than one (e.g. 0.5) but gets rounded down by integer division we introduce a minimum
 		// fee.
-		let asset_id: xcm::v4::Location =
-			asset_id.try_into().map_err(|_| TransactionValidityError::Invalid(InvalidTransaction::Payment))?;
-
 		let min_converted_fee = if fee.is_zero() { Zero::zero() } else { One::one() };
 		let converted_fee = Converter::to_asset_balance(fee, asset_id.clone())
 			.map_err(|_| TransactionValidityError::from(InvalidTransaction::Payment))?

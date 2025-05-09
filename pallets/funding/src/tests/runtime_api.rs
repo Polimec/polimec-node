@@ -289,7 +289,7 @@ fn funding_asset_to_ct_amount_otm() {
 	// We want to use a funding asset that is not equal to 1 USD
 	// Sanity check
 	assert_eq!(
-		PriceProviderOf::<TestRuntime>::get_price(AcceptedFundingAsset::DOT.id()).unwrap(),
+		PriceProviderOf::<TestRuntime>::get_price(&AcceptedFundingAsset::DOT.id()).unwrap(),
 		PriceOf::<TestRuntime>::from_float(69.0f64)
 	);
 

@@ -255,28 +255,111 @@ pub const PLMC_DECIMALS: u8 = 10;
 pub trait ProvideAssetPrice {
 	type AssetId;
 	type Price: FixedPointNumber;
-	/// Gets the price of an asset.
-	///
-	/// Returns `None` if the price is not available.
-	fn get_price(asset_id: Self::AssetId) -> Option<Self::Price>;
 
-	/// Prices define the relationship between USD/Asset. When to and from that asset, we need to be aware that they might
-	/// have different decimals. This function calculates the relationship having in mind the decimals. For example:
-	/// if the price is 2.5, our underlying USD unit has 6 decimals, and the asset has 8 decimals, the price will be
-	/// calculated like so: `(2.5USD * 10^6) / (1 * 10^8) = 0.025`. And so if we want to convert 20 of the asset to USD,
-	/// we would do `0.025(USD/Asset)FixedPointNumber * 20_000_000_00(Asset)u128 = 50_000_000` which is 50 USD with 6 decimals
+	/// Gets the nominal price of a given `asset_id`.
+	///
+	/// The nominal price is typically expressed in a standard currency (e.g., USD)
+	/// per single whole unit of the asset (e.g., 2.5 USD for 1 DOT).
+	/// This price does not yet account for the differing decimal precisions
+	/// of the asset and the pricing currency.
+	///
+	/// # Arguments
+	///
+	/// * `asset_id`: The identifier of the asset for which to fetch the price.
+	///
+	/// # Returns
+	///
+	/// Returns `Some(Self::Price)` if the price is available, containing the nominal
+	/// price as a `FixedPointNumber`.
+	/// Returns `None` if the price for the given `asset_id` is not available or
+	/// cannot be determined.
+	fn get_price(asset_id: &Self::AssetId) -> Option<Self::Price>;
+
+	/// Calculates a "decimals-aware" price from a nominal `original_price`.
+	///
+	/// The `original_price` is the commonly quoted price, e.g., "Asset X price is 2.5 USD".
+	/// This function adjusts this `original_price` to account for the differing
+	/// decimal precisions used by the asset and the pricing currency (assumed to be USD here).
+	///
+	/// The resulting "decimals-aware" price is a `FixedPointNumber` designed for direct
+	/// calculation:
+	/// `asset_amount_in_smallest_units * decimals_aware_price = usd_amount_in_smallest_units`
+	///
+	/// ### Example:
+	///
+	/// Given:
+	/// - `original_price` = 2.5 (representing 2.5 USD for 1 whole unit of the asset).
+	/// - `usd_decimals` = 6 (meaning 1 USD = 10^6 smallest USD units).
+	/// - `asset_decimals` = 8 (meaning 1 Asset = 10^8 smallest asset units).
+	///
+	/// The `original_price` (2.5 USD / 1 Asset) is equivalent to:
+	/// `(2.5 * 10^usd_decimals)` smallest USD units / `(1 * 10^asset_decimals)` smallest asset units
+	/// `(2.5 * 10^6)` smallest USD units / `(1 * 10^8)` smallest asset units.
+	///
+	/// This function calculates the `decimals_aware_price` as:
+	/// `original_price * (10^usd_decimals / 10^asset_decimals)`
+	/// which simplifies to `original_price * 10^(usd_decimals - asset_decimals)` or
+	/// `original_price / 10^(asset_decimals - usd_decimals)`.
+	///
+	/// For the example values: `2.5 / 10^(8 - 6) = 2.5 / 100 = 0.025`.
+	///
+	/// So, if you have 20 whole units of the asset:
+	/// - Amount in smallest asset units = `20 * 10^asset_decimals = 20 * 10^8`.
+	/// - Equivalent USD in smallest units = `(20 * 10^8) * 0.025 = 50 * 10^6`.
+	/// - This is `50 * 10^6 / 10^6 = 50` USD.
+	///
+	/// # Arguments
+	///
+	/// * `original_price`: The nominal price of the asset (e.g., USD per whole asset unit).
+	/// * `usd_decimals`: The number of decimal places for the USD (or pricing) currency.
+	/// * `asset_decimals`: The number of decimal places for the asset.
+	///
+	/// # Returns
+	///
+	/// Returns `Some(Self::Price)` containing the decimals-aware price if the calculation
+	/// is successful.
+	/// Returns `None` if any intermediate calculation (like power or fixed-point
+	/// conversion) fails, for example, due to overflow.
 	fn calculate_decimals_aware_price(
 		original_price: Self::Price,
 		usd_decimals: u8,
 		asset_decimals: u8,
 	) -> Option<Self::Price> {
-		let usd_unit = 10u128.checked_pow(usd_decimals.into())?;
-		let usd_price_with_decimals = original_price.checked_mul_int(usd_unit)?;
-		let asset_unit = 10u128.checked_pow(asset_decimals.into())?;
+		let diff_exponent_abs: u32 = usd_decimals.abs_diff(asset_decimals).into();
+		let scaling_factor_int = 10u128.checked_pow(diff_exponent_abs)?;
 
-		Self::Price::checked_from_rational(usd_price_with_decimals, asset_unit)
+		// Convert the integer scaling factor to the fixed-point type.
+		// This represents 10^|usd_decimals - asset_decimals|.
+		let scaling_factor_fixed = Self::Price::checked_from_rational(scaling_factor_int, 1u128)?;
+
+		if usd_decimals >= asset_decimals {
+			// Equivalent to original_price * 10^(usd_decimals - asset_decimals)
+			original_price.checked_mul(&scaling_factor_fixed)
+		} else {
+			// Equivalent to original_price / 10^(asset_decimals - usd_decimals)
+			original_price.checked_div(&scaling_factor_fixed)
+		}
 	}
 
+	/// Converts a "decimals-aware" price back to its nominal price.
+	///
+	/// This is the inverse operation of `calculate_decimals_aware_price`.
+	/// Given a `decimals_aware_price` (which relates smallest units of an asset to
+	/// smallest units of a pricing currency like USD), and the respective decimal counts,
+	/// this function calculates the nominal price (e.g., USD per whole asset unit).
+	///
+	/// # Arguments
+	///
+	/// * `decimals_aware_price`: The price adjusted for decimal differences, typically
+	///   obtained from `calculate_decimals_aware_price`.
+	/// * `usd_decimals`: The number of decimal places for the USD (or pricing) currency.
+	/// * `asset_decimals`: The number of decimal places for the asset.
+	///
+	/// # Returns
+	///
+	/// Returns `Some(Self::Price)` containing the nominal price if the calculation
+	/// is successful.
+	/// Returns `None` if any intermediate calculation fails (e.g., due to overflow).
 	fn convert_back_to_normal_price(
 		decimals_aware_price: Self::Price,
 		usd_decimals: u8,
@@ -293,8 +376,25 @@ pub trait ProvideAssetPrice {
 		}
 	}
 
-	fn get_decimals_aware_price(asset_id: Self::AssetId, usd_decimals: u8, asset_decimals: u8) -> Option<Self::Price> {
+	/// Fetches the nominal price of an asset and then calculates its "decimals-aware" price.
+	///
+	/// This is a convenience method that combines `get_price` and
+	/// `calculate_decimals_aware_price`.
+	///
+	/// # Arguments
+	///
+	/// * `asset_id`: The identifier of the asset.
+	/// * `usd_decimals`: The number of decimal places for the USD (or pricing) currency.
+	/// * `asset_decimals`: The number of decimal places for the asset.
+	///
+	/// # Returns
+	///
+	/// Returns `Some(Self::Price)` containing the decimals-aware price if both fetching
+	/// the nominal price and the subsequent calculation are successful.
+	/// Returns `None` if the nominal price cannot be fetched or if the decimals-aware
+	/// calculation fails.
+	fn get_decimals_aware_price(asset_id: &Self::AssetId, asset_decimals: u8) -> Option<Self::Price> {
 		let original_price = Self::get_price(asset_id)?;
-		Self::calculate_decimals_aware_price(original_price, usd_decimals, asset_decimals)
+		Self::calculate_decimals_aware_price(original_price, USD_DECIMALS, asset_decimals)
 	}
 }

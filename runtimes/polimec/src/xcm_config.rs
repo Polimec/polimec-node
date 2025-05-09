@@ -16,7 +16,7 @@
 
 use super::{
 	AccountId, AllPalletsWithSystem, Balance, Balances, ContributionTokens, EnsureRoot, ForeignAssets,
-	PLMCToAssetBalance, ParachainInfo, ParachainSystem, PolkadotXcm, Runtime, RuntimeCall, RuntimeEvent, RuntimeOrigin,
+	HereToForeignAsset, ParachainInfo, ParachainSystem, PolkadotXcm, Runtime, RuntimeCall, RuntimeEvent, RuntimeOrigin,
 	TreasuryAccount, Vec, WeightToFee,
 };
 use core::marker::PhantomData;
@@ -129,14 +129,7 @@ pub struct SupportedAssets;
 impl frame_support::traits::Contains<Location> for SupportedAssets {
 	fn contains(l: &Location) -> bool {
 		let funding_assets = AcceptedFundingAsset::all_ids();
-
-		let maybe_l_v4: Option<xcm::v4::Location> = l.clone().try_into().ok();
-
-		if let Some(l) = maybe_l_v4 {
-			funding_assets.contains(&l)
-		} else {
-			false
-		}
+		l.clone().try_into().ok().map_or(false, |v4_location| funding_assets.contains(&v4_location))
 	}
 }
 
@@ -292,8 +285,8 @@ pub type Barrier = TrailingSetTopicAsId<
 /// for the following assets: DOT, USDT and USDC.
 pub type Reserves = AssetHubAssetsAsReserve;
 
-pub struct PLMCToHubTeleport;
-impl ContainsPair<Asset, Location> for PLMCToHubTeleport {
+pub struct HereToHub;
+impl ContainsPair<Asset, Location> for HereToHub {
 	fn contains(asset: &Asset, location: &Location) -> bool {
 		// We only allow teleportation of PLMC to the AssetHub parachain.
 		asset.id.0 == Location::here() && location == &AssetHubLocation::get()
@@ -339,7 +332,7 @@ impl xcm_executor::Config for XcmConfig {
 	type HrmpNewChannelOpenRequestHandler = ();
 	/// Locations that we trust to act as reserves for specific assets.
 	type IsReserve = Reserves;
-	type IsTeleporter = PLMCToHubTeleport;
+	type IsTeleporter = HereToHub;
 	type MaxAssetsIntoHolding = MaxAssetsIntoHolding;
 	type MessageExporter = ();
 	type OriginConverter = XcmOriginToTransactDispatchOrigin;
@@ -433,8 +426,7 @@ impl<Payee: TakeRevenue> WeightTrader for AssetTrader<Payee> {
 	) -> Result<AssetsInHolding, XcmError> {
 		log::trace!(target: "xcm::weight", "AssetsTrader::buy_weight weight: {:?}, payment: {:?}, context: {:?}", weight, payment, context);
 		let native_amount = WeightToFee::weight_to_fee(&weight);
-		let mut acceptable_assets = AcceptedFundingAsset::all_ids();
-		acceptable_assets.push(xcm::v4::Location::here());
+		let acceptable_assets = AcceptedFundingAsset::all_ids_and_plmc();
 
 		// We know the executor always sends just one asset to pay for weight, even if the struct supports multiple.
 		let payment_fun = payment.fungible.clone();
@@ -458,7 +450,7 @@ impl<Payee: TakeRevenue> WeightTrader for AssetTrader<Payee> {
 		};
 
 		let required_asset_amount =
-			PLMCToAssetBalance::to_asset_balance(native_amount, asset_id_v4).map_err(|_| XcmError::FeesNotMet)?;
+			HereToForeignAsset::to_asset_balance(native_amount, asset_id_v4).map_err(|_| XcmError::FeesNotMet)?;
 		ensure!(*asset_amount >= required_asset_amount, XcmError::FeesNotMet);
 
 		let required = (AssetId(asset_id.0.clone()), required_asset_amount).into();
@@ -479,7 +471,7 @@ impl<Payee: TakeRevenue> WeightTrader for AssetTrader<Payee> {
 		let native_amount = WeightToFee::weight_to_fee(&weight_refunded);
 		let asset_id = self.asset_spent.clone()?.id;
 		let asset_id_v4 = asset_id.0.clone().try_into().ok()?;
-		let asset_amount = PLMCToAssetBalance::to_asset_balance(native_amount, asset_id_v4).ok()?;
+		let asset_amount = HereToForeignAsset::to_asset_balance(native_amount, asset_id_v4).ok()?;
 		log::trace!(target: "xcm::weight", "AssetTrader::refund_weight amount to refund: {:?}", asset_amount);
 
 		if let Fungibility::Fungible(amount) = self.asset_spent.clone()?.fun {

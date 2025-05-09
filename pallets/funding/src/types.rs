@@ -176,7 +176,7 @@ pub mod storage {
 		Deserialize,
 		DecodeWithMemTracking,
 	)]
-	pub struct ProjectMetadata<BoundedString, Price: FixedPointNumber, AccountId, Cid> {
+	pub struct ProjectMetadata<BoundedString, Price, AccountId, Cid> {
 		/// Token Metadata
 		pub token_information: CurrencyMetadata<BoundedString>,
 		/// Mainnet Token Max Supply
@@ -575,13 +575,13 @@ pub mod inner {
 		Deserialize,
 		DecodeWithMemTracking,
 	)]
-	pub struct BiddingTicketSizes<Price: FixedPointNumber> {
+	pub struct BiddingTicketSizes<Price> {
 		pub professional: TicketSize,
 		pub institutional: TicketSize,
 		pub retail: TicketSize,
 		pub phantom: PhantomData<(Price, Balance)>,
 	}
-	impl<Price: FixedPointNumber> BiddingTicketSizes<Price> {
+	impl<Price> BiddingTicketSizes<Price> {
 		pub fn is_valid(&self, usd_bounds: Vec<InvestorTypeUSDBounds>) -> Result<(), MetadataError> {
 			for bound in usd_bounds {
 				match bound {
