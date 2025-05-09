@@ -91,7 +91,7 @@ mod helper_functions {
 		const PLMC_PRICE: f64 = 8.4f64;
 
 		assert_eq!(
-			<TestRuntime as Config>::PriceProvider::get_price(Location::here()).unwrap(),
+			<TestRuntime as Config>::PriceProvider::get_price(&Location::here()).unwrap(),
 			PriceOf::<TestRuntime>::from_float(PLMC_PRICE)
 		);
 

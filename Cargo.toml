@@ -19,6 +19,7 @@ missing_errors_doc = "allow"
 must_use_candidate = "allow"
 identity_op = "allow"
 tabs_in_doc_comments = "allow"
+redundant_clone = "warn"
 
 [workspace.lints.rust]
 unreachable_patterns = "deny"

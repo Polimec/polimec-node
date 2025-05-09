@@ -25,10 +25,7 @@ use sp_runtime::{
 use xcm_emulator::TestExt;
 generate_accounts!(ALICE, AUTHOR);
 use frame_support::traits::fungible::Inspect;
-use xcm::{
-	v3::{Junction::*, Junctions::*, MultiLocation},
-	v4::Location,
-};
+use xcm::v4::Location;
 
 // Setup code inspired by pallet-authorship tests
 fn seal_header(mut header: Header, aura_index: u64) -> Header {
@@ -68,8 +65,6 @@ fn fee_paid_with_foreign_assets() {
 		assert_eq!(polimec_runtime::Authorship::author(), Some(block_author.clone()));
 
 		let usdt_id = AcceptedFundingAsset::USDT.id();
-		let usdt_multilocation =
-			MultiLocation { parents: 1, interior: X3(Parachain(1000), PalletInstance(50), GeneralIndex(1984)) };
 		let usdt_decimals =
 			<PolimecForeignAssets as fungibles::metadata::Inspect<PolimecAccountId>>::decimals(usdt_id.clone());
 		let usdt_unit = 10u128.pow(usdt_decimals as u32);
@@ -94,7 +89,7 @@ fn fee_paid_with_foreign_assets() {
 		// Here a user wants to tip 10 PLMC in USDT.
 		let tip = 10 * plmc_unit;
 		let signed_extension =
-			pallet_asset_tx_payment::ChargeAssetTxPayment::<PolimecRuntime>::from(tip, Some(usdt_multilocation));
+			pallet_asset_tx_payment::ChargeAssetTxPayment::<PolimecRuntime>::from(tip, Some(usdt_id.clone()));
 
 		let dispatch_info = paid_call.get_dispatch_info();
 		let FeeDetails { inclusion_fee, tip } = polimec_runtime::TransactionPayment::compute_fee_details(
@@ -106,7 +101,7 @@ fn fee_paid_with_foreign_assets() {
 		let expected_plmc_tip = tip;
 
 		let plmc_price_decimal_aware =
-			<PriceProviderOf<PolimecRuntime>>::get_decimals_aware_price(Location::here(), USD_DECIMALS, plmc_decimals)
+			<PriceProviderOf<PolimecRuntime>>::get_decimals_aware_price(&Location::here(), plmc_decimals)
 				.expect("Price irretrievable");
 
 		// USDT should be configured with the same decimals as our underlying USD unit, and we set the price to 1USD at the beginning of this test.
