@@ -61,8 +61,6 @@
 
 // Ensure we're `no_std` when compiling for Wasm.
 #![cfg_attr(not(feature = "std"), no_std)]
-// Needed due to empty sections raising the warning
-#![allow(unreachable_patterns)]
 // Needed for now because receiving account extrinsics have too many arguments
 #![allow(clippy::too_many_arguments)]
 // This recursion limit is needed because we have too many benchmarks and benchmarking will fail if
@@ -79,6 +77,7 @@ use frame_support::{
 	},
 	BoundedVec, PalletId, WeakBoundedVec,
 };
+pub use frame_system::pallet_prelude::BlockNumberFor;
 pub use pallet::*;
 use polimec_common::{
 	credentials::{Cid, Did, EnsureOriginWithCredentials, InvestorType, UntrustedToken},
@@ -128,7 +127,7 @@ pub type VestingInfoOf<T> = VestingInfo<BlockNumberFor<T>>;
 
 pub type ProjectMetadataOf<T> = ProjectMetadata<BoundedVec<u8, StringLimitOf<T>>, PriceOf<T>, AccountIdOf<T>, Cid>;
 pub type ProjectDetailsOf<T> = ProjectDetails<AccountIdOf<T>, Did, BlockNumberFor<T>, EvaluationRoundInfo>;
-pub type EvaluationInfoOf<T> = EvaluationInfo<u32, Did, ProjectId, AccountIdOf<T>, BlockNumberFor<T>>;
+pub type EvaluationInfoOf<T> = EvaluationInfo<Did, AccountIdOf<T>, BlockNumberFor<T>>;
 pub type BidInfoOf<T> = BidInfo<ProjectId, Did, PriceOf<T>, AccountIdOf<T>, BlockNumberFor<T>>;
 pub type BucketOf<T> = Bucket<PriceOf<T>>;
 pub type WeightInfoOf<T> = <T as Config>::WeightInfo;
@@ -137,11 +136,9 @@ pub type BlockNumberToBalanceOf<T> = <T as pallet_linear_release::Config>::Block
 pub type RuntimeHoldReasonOf<T> = <T as Config>::RuntimeHoldReason;
 pub type PriceProviderOf<T> = <T as Config>::PriceProvider;
 pub type BlockProviderFor<T> = <T as Config>::BlockNumberProvider;
-pub type BlockNumberFor<T> = <<T as Config>::BlockNumberProvider as BlockNumberProvider>::BlockNumber;
 
 #[frame_support::pallet]
 pub mod pallet {
-	use super::BlockNumberFor;
 	#[allow(clippy::wildcard_imports)]
 	use super::*;
 	use crate::traits::{BondingRequirementCalculation, VestingDurationCalculation};
@@ -818,9 +815,9 @@ pub mod pallet {
 			evaluation_id: u32,
 		) -> DispatchResult {
 			let _caller = ensure_signed(origin)?;
-			let bid = Evaluations::<T>::get((project_id, evaluator, evaluation_id))
+			let bond = Evaluations::<T>::get((project_id, evaluator, evaluation_id))
 				.ok_or(Error::<T>::ParticipationNotFound)?;
-			Self::do_settle_evaluation(bid, project_id)
+			Self::do_settle_evaluation(bond, project_id, evaluation_id)
 		}
 
 		#[pallet::call_index(13)]

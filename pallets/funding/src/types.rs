@@ -36,7 +36,6 @@ use polimec_common::assets::AcceptedFundingAsset;
 use sp_runtime::traits::Zero;
 
 pub mod config {
-	#[allow(clippy::wildcard_imports)]
 	use super::*;
 	use crate::{Balance, BlockNumberFor};
 
@@ -304,10 +303,8 @@ pub mod storage {
 		pub funding_end_block: Option<BlockNumber>,
 	}
 	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen, Ord, PartialOrd)]
-	pub struct EvaluationInfo<Id, Did, ProjectId, AccountId, BlockNumber> {
-		pub id: Id,
+	pub struct EvaluationInfo<Did, AccountId, BlockNumber> {
 		pub did: Did,
-		pub project_id: ProjectId,
 		pub evaluator: AccountId,
 		pub original_plmc_bond: Balance,
 		// An evaluation bond can be converted to participation bond

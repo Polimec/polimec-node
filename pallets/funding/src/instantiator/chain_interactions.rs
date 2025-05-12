@@ -481,8 +481,9 @@ impl<
 
 	pub fn settle_project(&mut self, project_id: ProjectId, mark_as_settled: bool) {
 		self.execute(|| {
-			Evaluations::<T>::iter_prefix((project_id,))
-				.for_each(|(_, evaluation)| Pallet::<T>::do_settle_evaluation(evaluation, project_id).unwrap());
+			Evaluations::<T>::iter_prefix((project_id,)).for_each(|((_, id), evaluation)| {
+				Pallet::<T>::do_settle_evaluation(evaluation, project_id, id).unwrap()
+			});
 
 			Bids::<T>::iter_prefix(project_id)
 				.for_each(|(_, bid)| Pallet::<T>::do_settle_bid(project_id, bid.id).unwrap());
@@ -493,8 +494,13 @@ impl<
 		});
 	}
 
-	pub fn get_evaluations(&mut self, project_id: ProjectId) -> Vec<EvaluationInfoOf<T>> {
-		self.execute(|| Evaluations::<T>::iter_prefix_values((project_id,)).collect())
+	pub fn get_evaluations(&mut self, project_id: ProjectId) -> Vec<(AccountIdOf<T>, u32, EvaluationInfoOf<T>)> {
+		// [AccountId, EvaluationId, Evaluation]
+		self.execute(|| {
+			Evaluations::<T>::iter_prefix((project_id,))
+				.map(|((acc_id, eval_id), evaluation_info)| (acc_id, eval_id, evaluation_info))
+				.collect::<Vec<(AccountIdOf<T>, u32, EvaluationInfoOf<T>)>>()
+		})
 	}
 
 	pub fn get_bids(&mut self, project_id: ProjectId) -> Vec<BidInfoOf<T>> {

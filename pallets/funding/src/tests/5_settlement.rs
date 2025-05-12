@@ -12,7 +12,7 @@ mod round_flow {
 		fn can_fully_settle_accepted_project() {
 			let percentage = 100u8;
 			let (mut inst, project_id) = create_project_with_funding_percentage(percentage, true);
-			let evaluations = inst.get_evaluations(project_id);
+			let evaluations = inst.get_evaluations(project_id).into_iter().map(|(_, _, x)| x).collect_vec();
 
 			let bids = inst.get_bids(project_id);
 			inst.settle_project(project_id, true);
@@ -26,7 +26,7 @@ mod round_flow {
 		fn can_fully_settle_failed_project() {
 			let percentage = 32u8;
 			let (mut inst, project_id) = create_project_with_funding_percentage(percentage, true);
-			let evaluations = inst.get_evaluations(project_id);
+			let evaluations = inst.get_evaluations(project_id).into_iter().map(|(_, _, x)| x).collect_vec();
 			let bids = inst.get_bids(project_id);
 
 			inst.settle_project(project_id, true);
@@ -89,7 +89,7 @@ mod round_flow {
 			let project_id =
 				inst.create_settled_project(project_metadata.clone(), ISSUER_1, None, evaluations, bids, false);
 
-			let evaluations = inst.get_evaluations(project_id);
+			let evaluations = inst.get_evaluations(project_id).into_iter().map(|(_, _, x)| x).collect_vec();
 			let bids = inst.get_bids(project_id);
 
 			inst.settle_project(project_id, true);
@@ -370,8 +370,7 @@ mod settle_evaluation_extrinsic {
 			let percentage = 20u8;
 			let (mut inst, project_id) = create_project_with_funding_percentage(percentage, true);
 
-			let first_evaluation = inst.get_evaluations(project_id).into_iter().next().unwrap();
-			let evaluator = first_evaluation.evaluator;
+			let (evaluator, evaluation_id, evaluation) = inst.get_evaluations(project_id).into_iter().next().unwrap();
 			let prev_balance = inst.get_free_plmc_balances_for(vec![evaluator])[0].plmc_amount;
 
 			assert_eq!(
@@ -383,7 +382,7 @@ mod settle_evaluation_extrinsic {
 				RuntimeOrigin::signed(evaluator),
 				project_id,
 				evaluator,
-				first_evaluation.id
+				evaluation_id
 			)));
 
 			let post_balance = inst.get_free_plmc_balances_for(vec![evaluator])[0].plmc_amount;
@@ -391,7 +390,7 @@ mod settle_evaluation_extrinsic {
 				post_balance,
 				prev_balance +
 					(Percent::from_percent(100) - <TestRuntime as Config>::EvaluatorSlash::get()) *
-						first_evaluation.current_plmc_bond
+						evaluation.current_plmc_bond
 			);
 		}
 
@@ -437,19 +436,19 @@ mod settle_evaluation_extrinsic {
 
 			let first_evaluation = inst.get_evaluations(project_id).into_iter().next().unwrap();
 			inst.execute(|| {
-				let evaluator = first_evaluation.evaluator;
+				let evaluator = first_evaluation.0;
 				assert_ok!(crate::Pallet::<TestRuntime>::settle_evaluation(
 					RuntimeOrigin::signed(evaluator),
 					project_id,
 					evaluator,
-					first_evaluation.id
+					first_evaluation.1
 				));
 				assert_noop!(
 					crate::Pallet::<TestRuntime>::settle_evaluation(
 						RuntimeOrigin::signed(evaluator),
 						project_id,
 						evaluator,
-						first_evaluation.id
+						first_evaluation.1
 					),
 					Error::<TestRuntime>::ParticipationNotFound
 				);
@@ -462,7 +461,7 @@ mod settle_evaluation_extrinsic {
 			let (mut inst, project_id) = create_project_with_funding_percentage(percentage, false);
 
 			let first_evaluation = inst.get_evaluations(project_id).into_iter().next().unwrap();
-			let evaluator = first_evaluation.evaluator;
+			let evaluator = first_evaluation.0;
 
 			inst.execute(|| {
 				assert_noop!(
@@ -470,7 +469,7 @@ mod settle_evaluation_extrinsic {
 						RuntimeOrigin::signed(evaluator),
 						project_id,
 						evaluator,
-						first_evaluation.id
+						first_evaluation.1
 					),
 					Error::<TestRuntime>::SettlementNotStarted
 				);
