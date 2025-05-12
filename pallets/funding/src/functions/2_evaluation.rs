@@ -113,9 +113,7 @@ impl<T: Config> Pallet<T> {
 		let early_usd_amount = usd_amount.min(remaining_for_early_reward_usd);
 		let late_usd_amount = usd_amount.checked_sub(early_usd_amount).ok_or(Error::<T>::BadMath)?;
 		let new_evaluation = EvaluationInfoOf::<T> {
-			id: evaluation_id,
 			did: did.clone(),
-			project_id,
 			evaluator: evaluator.clone(),
 			original_plmc_bond: plmc_bond,
 			current_plmc_bond: plmc_bond,

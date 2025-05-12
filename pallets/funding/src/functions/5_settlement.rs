@@ -107,7 +107,11 @@ impl<T: Config> Pallet<T> {
 	}
 
 	/// Settle an evaluation, by maybe minting CTs, and releasing the PLMC bond.
-	pub fn do_settle_evaluation(evaluation: EvaluationInfoOf<T>, project_id: ProjectId) -> DispatchResult {
+	pub fn do_settle_evaluation(
+		evaluation: EvaluationInfoOf<T>,
+		project_id: ProjectId,
+		evaluation_id: u32,
+	) -> DispatchResult {
 		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 
 		ensure!(
@@ -143,12 +147,12 @@ impl<T: Config> Pallet<T> {
 				evaluation.receiving_account,
 			)?;
 		}
-		Evaluations::<T>::remove((project_id, evaluation.evaluator.clone(), evaluation.id));
+		Evaluations::<T>::remove((project_id, evaluation.evaluator.clone(), evaluation_id));
 
 		Self::deposit_event(Event::EvaluationSettled {
 			project_id,
 			account: evaluation.evaluator,
-			id: evaluation.id,
+			id: evaluation_id,
 			plmc_released,
 			ct_rewarded,
 		});
