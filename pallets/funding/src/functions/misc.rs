@@ -23,17 +23,10 @@ impl<T: Config> Pallet<T> {
 		T::PalletId::get().into_sub_account_truncating(index.saturating_add(One::one()))
 	}
 
-	pub fn create_bucket_from_metadata(metadata: &ProjectMetadataOf<T>) -> Result<BucketOf<T>, DispatchError> {
+	pub fn create_bucket_from_metadata(metadata: &ProjectMetadataOf<T>) -> BucketOf<T> {
 		let auction_allocation_size = metadata.total_allocation_size;
-		let bucket_delta_amount = Percent::from_percent(10) * auction_allocation_size;
-		let ten_percent_in_price: <T as Config>::Price =
-			PriceOf::<T>::checked_from_rational(1, 10).ok_or(Error::<T>::BadMath)?;
-		let bucket_delta_price: <T as Config>::Price = metadata.minimum_price.saturating_mul(ten_percent_in_price);
 
-		let bucket: BucketOf<T> =
-			Bucket::new(auction_allocation_size, metadata.minimum_price, bucket_delta_price, bucket_delta_amount);
-
-		Ok(bucket)
+		Bucket::new(auction_allocation_size, metadata.minimum_price)
 	}
 
 	pub fn calculate_plmc_bond(ticket_size: Balance, multiplier: MultiplierOf<T>) -> Result<Balance, DispatchError> {

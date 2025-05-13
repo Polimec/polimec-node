@@ -784,7 +784,7 @@ mod benchmarks {
 		let increase = project_metadata.minimum_price * PriceOf::<T>::saturating_from_rational(5, 10);
 		let target_price = project_metadata.minimum_price + increase;
 
-		let mut new_bucket = Pallet::<T>::create_bucket_from_metadata(&project_metadata).unwrap();
+		let mut new_bucket = Pallet::<T>::create_bucket_from_metadata(&project_metadata);
 		new_bucket.current_price = target_price;
 		new_bucket.amount_left = new_bucket.delta_amount;
 
