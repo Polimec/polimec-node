@@ -44,7 +44,7 @@ impl<
 		let mut bucket = if let Some(bucket) = maybe_bucket {
 			bucket
 		} else {
-			Pallet::<T>::create_bucket_from_metadata(&project_metadata).unwrap()
+			Pallet::<T>::create_bucket_from_metadata(&project_metadata)
 		};
 		for bid in bids {
 			let mut amount_to_bid = bid.amount;
@@ -484,7 +484,7 @@ impl<
 		project_metadata: ProjectMetadataOf<T>,
 		usd_target: Balance,
 	) -> Vec<BidParams<T>> {
-		let mut bucket = Pallet::<T>::create_bucket_from_metadata(&project_metadata).unwrap();
+		let mut bucket = Pallet::<T>::create_bucket_from_metadata(&project_metadata);
 		bucket.update(project_metadata.total_allocation_size);
 
 		// Increase bucket price until we go past the target usd amount
@@ -535,7 +535,7 @@ impl<
 		bucket: BucketOf<T>,
 		funding_asset: AcceptedFundingAsset,
 	) -> Vec<BidParams<T>> {
-		let mut new_bucket = Pallet::<T>::create_bucket_from_metadata(&project_metadata).unwrap();
+		let mut new_bucket = Pallet::<T>::create_bucket_from_metadata(&project_metadata);
 		assert_eq!(new_bucket.delta_amount, bucket.delta_amount, "Buckets must have the same delta amount");
 		assert_eq!(new_bucket.delta_price, bucket.delta_price, "Buckets must have the same delta price");
 		assert_eq!(new_bucket.initial_price, bucket.initial_price, "Buckets must have the same initial price");

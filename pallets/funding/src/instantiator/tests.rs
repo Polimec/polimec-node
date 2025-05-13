@@ -17,7 +17,7 @@ fn generate_bids_from_bucket() {
 	let desired_bucket_price_aware =
 		PriceProviderOf::<TestRuntime>::calculate_decimals_aware_price(desired_real_wap, USD_DECIMALS, CT_DECIMALS)
 			.unwrap();
-	let mut necessary_bucket = Pallet::<TestRuntime>::create_bucket_from_metadata(&project_metadata).unwrap();
+	let mut necessary_bucket = Pallet::<TestRuntime>::create_bucket_from_metadata(&project_metadata);
 	necessary_bucket.current_price = desired_bucket_price_aware;
 	necessary_bucket.amount_left = necessary_bucket.delta_amount;
 

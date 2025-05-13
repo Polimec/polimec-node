@@ -27,7 +27,10 @@ pub use inner::*;
 use polimec_common::{DAYS, USD_DECIMALS};
 use serde::{Deserialize, Serialize};
 use sp_arithmetic::{traits::Saturating, FixedPointNumber, FixedU128};
-use sp_runtime::traits::{Convert, One};
+use sp_runtime::{
+	traits::{Convert, One},
+	Percent,
+};
 pub use storage::*;
 
 use crate::{traits::VestingDurationCalculation, Config};
@@ -373,12 +376,11 @@ pub mod storage {
 
 	impl<Price: FixedPointNumber> Bucket<Price> {
 		/// Creates a new bucket with the given parameters.
-		pub const fn new(
-			amount_left: Balance,
-			initial_price: Price,
-			delta_price: Price,
-			delta_amount: Balance,
-		) -> Self {
+		pub fn new(amount_left: Balance, initial_price: Price) -> Self {
+			let ten_percent = Percent::from_percent(10);
+			let delta_amount = ten_percent * amount_left;
+			let ten_percent_fixed = Price::checked_from_rational(1, 10).expect("10% is a valid fixed point number");
+			let delta_price = ten_percent_fixed * initial_price;
 			Self { amount_left, current_price: initial_price, initial_price, delta_price, delta_amount }
 		}
 

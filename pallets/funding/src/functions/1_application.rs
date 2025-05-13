@@ -48,7 +48,7 @@ impl<T: Config> Pallet<T> {
 			funding_end_block: None,
 		};
 
-		let bucket: BucketOf<T> = Self::create_bucket_from_metadata(project_metadata)?;
+		let bucket = Self::create_bucket_from_metadata(project_metadata);
 
 		Ok((project_details, bucket))
 	}

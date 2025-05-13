@@ -385,7 +385,6 @@ pub trait ProvideAssetPrice {
 	/// # Arguments
 	///
 	/// * `asset_id`: The identifier of the asset.
-	/// * `usd_decimals`: The number of decimal places for the USD (or pricing) currency.
 	/// * `asset_decimals`: The number of decimal places for the asset.
 	///
 	/// # Returns
