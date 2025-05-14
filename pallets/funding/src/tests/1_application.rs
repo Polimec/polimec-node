@@ -118,9 +118,11 @@ mod create_project_extrinsic {
 			);
 
 			let failing_bids =
-				vec![(BIDDER_1, Professional, 1000 * CT_UNIT).into(), (BIDDER_2, Retail, 1000 * CT_UNIT).into()];
+				vec![(BIDDER_1, Professional, 100 * USDT_UNIT).into(), (BIDDER_2, Retail, 100 * USDT_UNIT).into()];
 			let successful_evaluations = inst.generate_successful_evaluations(project_metadata.clone(), 5);
 			let successful_bids = inst.generate_bids_from_total_ct_percent(project_metadata.clone(), 90, 10);
+
+			println!("Successful bids: {:?}", successful_bids);
 
 			let accounts = vec![
 				vec![ISSUER_1],
@@ -391,7 +393,7 @@ mod create_project_extrinsic {
 			inst.execute(|| {
 				assert_noop!(
 					Pallet::<TestRuntime>::create_project(RuntimeOrigin::signed(ISSUER_1), jwt, project_metadata,),
-					Error::<TestRuntime>::IssuerNotEnoughFunds
+					TokenError::NotExpendable
 				);
 			});
 		}

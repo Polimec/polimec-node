@@ -725,8 +725,8 @@ pub mod pallet {
 		pub fn bid(
 			origin: OriginFor<T>,
 			jwt: UntrustedToken,
-			project_id: ProjectId,
-			#[pallet::compact] ct_amount: Balance,
+			#[pallet::compact] project_id: ProjectId,
+			#[pallet::compact] funding_asset_amount: Balance,
 			mode: ParticipationMode,
 			funding_asset: AcceptedFundingAsset,
 		) -> DispatchResultWithPostInfo {
@@ -741,7 +741,7 @@ pub mod pallet {
 			let params = DoBidParams::<T> {
 				bidder,
 				project_id,
-				ct_amount,
+				funding_asset_amount,
 				mode,
 				funding_asset,
 				did,
@@ -758,8 +758,8 @@ pub mod pallet {
 		pub fn bid_with_receiving_account(
 			origin: OriginFor<T>,
 			jwt: UntrustedToken,
-			project_id: ProjectId,
-			#[pallet::compact] ct_amount: Balance,
+			#[pallet::compact] project_id: ProjectId,
+			#[pallet::compact] funding_asset_amount: Balance,
 			mode: ParticipationMode,
 			funding_asset: AcceptedFundingAsset,
 			receiving_account: Junction,
@@ -773,7 +773,7 @@ pub mod pallet {
 			let params = DoBidParams::<T> {
 				bidder,
 				project_id,
-				ct_amount,
+				funding_asset_amount,
 				mode,
 				funding_asset,
 				did,

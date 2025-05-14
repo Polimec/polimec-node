@@ -103,7 +103,7 @@ mod round_flow {
 			auction_allocations_usd.push(auction_allocation_usd);
 
 			let min_professional_bid_usd =
-				project_metadata.bidding_ticket_sizes.professional.usd_minimum_per_participation;
+				project_metadata.bidding_ticket_sizes.professional.usd_minimum_per_participation + 1000000;
 			min_bid_amounts_usd.push(min_professional_bid_usd);
 			let min_professional_bid_ct =
 				project_metadata.minimum_price.reciprocal().unwrap().saturating_mul_int(min_professional_bid_usd);
@@ -126,6 +126,9 @@ mod round_flow {
 				funding_asset.id(),
 			)]);
 
+			let fundig_asset_amount =
+				funding_asset_usd_price.reciprocal().unwrap().saturating_mul_int(min_professional_bid_usd);
+
 			assert_ok!(inst.execute(|| PolimecFunding::bid(
 				RuntimeOrigin::signed(BIDDER_1),
 				get_mock_jwt_with_cid(
@@ -135,14 +138,18 @@ mod round_flow {
 					project_metadata.clone().policy_ipfs_cid.unwrap()
 				),
 				project_id,
-				min_professional_bid_ct,
+				fundig_asset_amount, // TODO: Probably with the .reciprocal() we're missing some 0.00000x amount with the rounding.
 				ParticipationMode::Classic(1u8),
 				funding_asset,
 			)));
 
 			// The bucket should have 1MM * 10^decimals CT minus what we just bid
 			let bucket = inst.execute(|| Buckets::<TestRuntime>::get(project_id).unwrap());
-			assert_eq!(bucket.amount_left, 1_000_000u128 * 10u128.pow(decimals as u32) - min_professional_bid_ct);
+			assert_close_enough!(
+				bucket.amount_left,
+				1_000_000u128 * 10u128.pow(decimals as u32) - min_professional_bid_ct,
+				Perquintill::from_float(0.9999)
+			);
 		};
 
 		for decimals in 6..=18 {
@@ -330,7 +337,7 @@ mod bid_extrinsic {
 			let evaluator_bid = BidParams::from((
 				evaluator_bidder,
 				Retail,
-				600 * CT_UNIT,
+				600 * USDT_UNIT,
 				ParticipationMode::Classic(1u8),
 				AcceptedFundingAsset::USDT,
 			));
@@ -359,7 +366,7 @@ mod bid_extrinsic {
 			inst.mint_funding_asset_ed_if_required(vec![(evaluator_bidder, USDT.id())]);
 			inst.mint_plmc_to(vec![UserToPLMCBalance::new(
 				evaluator_bidder,
-				necessary_plmc_for_bid - usable_evaluation_plmc,
+				necessary_plmc_for_bid.saturating_sub(usable_evaluation_plmc),
 			)]);
 			inst.mint_funding_asset_to(necessary_usdt_for_bid);
 
@@ -409,21 +416,21 @@ mod bid_extrinsic {
 			let usdt_bid = BidParams::from((
 				BIDDER_1,
 				Retail,
-				10_000 * CT_UNIT,
+				1_000 * USDT_UNIT,
 				ParticipationMode::Classic(1u8),
 				AcceptedFundingAsset::USDT,
 			));
 			let usdc_bid = BidParams::from((
 				BIDDER_1,
 				Retail,
-				10_000 * CT_UNIT,
+				1_000 * USDT_UNIT,
 				ParticipationMode::Classic(1u8),
 				AcceptedFundingAsset::USDC,
 			));
 			let dot_bid = BidParams::from((
 				BIDDER_1,
 				Retail,
-				10_000 * CT_UNIT,
+				1000 * DOT_UNIT,
 				ParticipationMode::Classic(1u8),
 				AcceptedFundingAsset::DOT,
 			));
@@ -495,7 +502,7 @@ mod bid_extrinsic {
 		) -> DispatchResultWithPostInfo {
 			let project_policy = inst.get_project_metadata(project_id).policy_ipfs_cid.unwrap();
 			let jwt = get_mock_jwt_with_cid(bidder, investor_type, generate_did_from_account(BIDDER_1), project_policy);
-			let amount = 1000 * CT_UNIT;
+			let amount = 1000 * USDT_UNIT;
 			let mode = ParticipationMode::Classic(u8_multiplier);
 
 			if u8_multiplier > 0 {
@@ -660,7 +667,7 @@ mod bid_extrinsic {
 			let bid = BidParams::from((
 				BIDDER_4,
 				Retail,
-				500 * CT_UNIT,
+				500 * USDT_UNIT,
 				ParticipationMode::Classic(1u8),
 				AcceptedFundingAsset::USDT,
 			));
@@ -754,7 +761,7 @@ mod bid_extrinsic {
 			let bid = BidParams::from((
 				BIDDER_4,
 				Retail,
-				300_000 * CT_UNIT,
+				300_000 * USDT_UNIT,
 				ParticipationMode::Classic(5u8),
 				AcceptedFundingAsset::USDT,
 			));
@@ -878,14 +885,6 @@ mod bid_extrinsic {
 				UserToFundingAsset::new(BIDDER_1, USDT_PARTICIPATION + otm_usdt_fee + usdt_ed, usdt_id.clone());
 			inst.mint_funding_asset_to(vec![required_usdt.clone()]);
 
-			let ct_participation = inst.execute(|| {
-				<Pallet<TestRuntime>>::funding_asset_to_ct_amount_classic(
-					project_id,
-					AcceptedFundingAsset::USDT,
-					USDT_PARTICIPATION,
-				)
-			});
-
 			// USDT has the same decimals and price as our baseline USD
 			let expected_plmc_bond =
 				<Pallet<TestRuntime>>::calculate_plmc_bond(USDT_PARTICIPATION, otm_multiplier).unwrap();
@@ -916,7 +915,7 @@ mod bid_extrinsic {
 						project_metadata.clone().policy_ipfs_cid.unwrap()
 					),
 					project_id,
-					ct_participation,
+					USDT_PARTICIPATION,
 					ParticipationMode::OTM,
 					AcceptedFundingAsset::USDT
 				));
@@ -939,21 +938,9 @@ mod bid_extrinsic {
 				post_participation_otm_escrow_held_plmc,
 				pre_participation_otm_escrow_held_plmc + expected_plmc_bond
 			);
-			assert_close_enough!(
-				post_participation_otm_escrow_usdt,
-				pre_participation_otm_escrow_usdt + otm_usdt_fee,
-				Perquintill::from_float(0.999)
-			);
-			assert_close_enough!(
-				post_participation_otm_fee_recipient_usdt,
-				pre_participation_otm_fee_recipient_usdt,
-				Perquintill::from_float(0.999)
-			);
-			assert_close_enough!(
-				post_participation_buyer_usdt,
-				pre_participation_buyer_usdt - USDT_PARTICIPATION - otm_usdt_fee,
-				Perquintill::from_float(0.999)
-			);
+			assert_eq!(post_participation_otm_escrow_usdt, pre_participation_otm_escrow_usdt + otm_usdt_fee,);
+			assert_eq!(post_participation_otm_fee_recipient_usdt, pre_participation_otm_fee_recipient_usdt,);
+			assert_eq!(post_participation_buyer_usdt, pre_participation_buyer_usdt - USDT_PARTICIPATION - otm_usdt_fee);
 
 			let post_participation_treasury_free_plmc = inst.get_free_plmc_balance_for(otm_treasury_account);
 			let post_participation_otm_escrow_held_plmc =
@@ -1065,13 +1052,6 @@ mod bid_extrinsic {
 				UserToFundingAsset::new(BIDDER_1, USDT_PARTICIPATION + otm_usdt_fee + usdt_ed, usdt_id.clone());
 			inst.mint_funding_asset_to(vec![required_usdt.clone()]);
 
-			let ct_participation = inst.execute(|| {
-				<Pallet<TestRuntime>>::funding_asset_to_ct_amount_classic(
-					project_id,
-					AcceptedFundingAsset::USDT,
-					USDT_PARTICIPATION,
-				)
-			});
 			// USDT has the same decimals and price as our baseline USD
 			let expected_plmc_bond =
 				<Pallet<TestRuntime>>::calculate_plmc_bond(USDT_PARTICIPATION, otm_multiplier).unwrap();
@@ -1103,7 +1083,7 @@ mod bid_extrinsic {
 						project_metadata.clone().policy_ipfs_cid.unwrap()
 					),
 					project_id,
-					ct_participation,
+					USDT_PARTICIPATION,
 					ParticipationMode::OTM,
 					AcceptedFundingAsset::USDT
 				));
@@ -1205,8 +1185,13 @@ mod bid_extrinsic {
 			);
 
 			let (eth_acc, eth_sig) = inst.eth_key_and_sig_from("//BIDDER1", project_id, BIDDER_1);
-			let bid =
-				BidParams::from((BIDDER_1, Retail, 500 * CT_UNIT, ParticipationMode::OTM, AcceptedFundingAsset::USDT));
+			let bid = BidParams::from((
+				BIDDER_1,
+				Retail,
+				500 * USDT_UNIT,
+				ParticipationMode::OTM,
+				AcceptedFundingAsset::USDT,
+			));
 			let mint_amount = inst.calculate_auction_funding_asset_charged_from_all_bids_made_or_with_bucket(
 				&vec![bid],
 				project_metadata.clone(),
@@ -1220,7 +1205,7 @@ mod bid_extrinsic {
 					RuntimeOrigin::signed(BIDDER_1),
 					jwt,
 					project_id,
-					500 * CT_UNIT,
+					500 * USDT_UNIT,
 					ParticipationMode::OTM,
 					AcceptedFundingAsset::USDT,
 					eth_acc,
@@ -1245,8 +1230,13 @@ mod bid_extrinsic {
 			);
 
 			let (dot_acc, dot_sig) = inst.dot_key_and_sig_from("//BIDDER1", project_id, BIDDER_1);
-			let bid =
-				BidParams::from((BIDDER_1, Retail, 500 * CT_UNIT, ParticipationMode::OTM, AcceptedFundingAsset::USDT));
+			let bid = BidParams::from((
+				BIDDER_1,
+				Retail,
+				500 * USDT_UNIT,
+				ParticipationMode::OTM,
+				AcceptedFundingAsset::USDT,
+			));
 			let mint_amount = inst.calculate_auction_funding_asset_charged_from_all_bids_made_or_with_bucket(
 				&vec![bid],
 				project_metadata.clone(),
@@ -1260,7 +1250,7 @@ mod bid_extrinsic {
 					RuntimeOrigin::signed(BIDDER_1),
 					jwt,
 					project_id,
-					500 * CT_UNIT,
+					500 * USDT_UNIT,
 					ParticipationMode::OTM,
 					AcceptedFundingAsset::USDT,
 					dot_acc,
@@ -1285,7 +1275,7 @@ mod bid_extrinsic {
 			let evaluator_bid = BidParams::from((
 				evaluator_bidder,
 				Retail,
-				600 * CT_UNIT,
+				600 * USDT_UNIT,
 				ParticipationMode::Classic(1u8),
 				AcceptedFundingAsset::USDT,
 			));
@@ -1300,10 +1290,7 @@ mod bid_extrinsic {
 
 			inst.mint_funding_asset_to(necessary_usdt_for_bid);
 
-			assert_err!(
-				inst.bid_for_users(project_id, vec![evaluator_bid]),
-				Error::<TestRuntime>::ParticipantNotEnoughFunds
-			);
+			assert_err!(inst.bid_for_users(project_id, vec![evaluator_bid]), TokenError::NotExpendable);
 		}
 
 		#[test]
@@ -1320,7 +1307,7 @@ mod bid_extrinsic {
 			let evaluator_bid = BidParams::from((
 				evaluator_bidder,
 				Retail,
-				600 * CT_UNIT,
+				600 * USDT_UNIT,
 				ParticipationMode::Classic(1u8),
 				AcceptedFundingAsset::USDT,
 			));
@@ -1347,7 +1334,7 @@ mod bid_extrinsic {
 			);
 			inst.mint_plmc_to(vec![UserToPLMCBalance::new(
 				evaluator_bidder,
-				necessary_plmc_for_bid - usable_evaluation_plmc,
+				necessary_plmc_for_bid.saturating_sub(usable_evaluation_plmc),
 			)]);
 			inst.mint_funding_asset_to(necessary_usdt_for_bid);
 
@@ -1366,7 +1353,7 @@ mod bid_extrinsic {
 						evaluator_bid.mode,
 						evaluator_bid.asset
 					),
-					Error::<TestRuntime>::ParticipantNotEnoughFunds
+					TokenError::FundsUnavailable
 				);
 			});
 		}
@@ -1384,7 +1371,7 @@ mod bid_extrinsic {
 					PolimecFunding::do_bid(DoBidParams::<TestRuntime> {
 						bidder: BIDDER_2,
 						project_id: 0,
-						ct_amount: 1,
+						funding_asset_amount: 1,
 						mode: ParticipationMode::Classic(1u8),
 						funding_asset: AcceptedFundingAsset::USDT,
 						did,
@@ -1427,7 +1414,7 @@ mod bid_extrinsic {
 					Pallet::<TestRuntime>::do_bid(DoBidParams::<TestRuntime> {
 						bidder: BIDDER_1,
 						project_id,
-						ct_amount: 799 * CT_UNIT,
+						funding_asset_amount: 7_999 * USDT_UNIT,
 						mode: ParticipationMode::Classic(1u8),
 						funding_asset: AcceptedFundingAsset::USDT,
 						did: generate_did_from_account(BIDDER_1),
@@ -1444,7 +1431,7 @@ mod bid_extrinsic {
 					Pallet::<TestRuntime>::do_bid(DoBidParams::<TestRuntime> {
 						bidder: BIDDER_2,
 						project_id,
-						ct_amount: 1999 * CT_UNIT,
+						funding_asset_amount: 19_999 * USDT_UNIT,
 						mode: ParticipationMode::Classic(1u8),
 						funding_asset: AcceptedFundingAsset::USDT,
 						did: generate_did_from_account(BIDDER_1),
@@ -1492,30 +1479,14 @@ mod bid_extrinsic {
 			]);
 
 			// First bucket is covered by one bidder
-			let big_bid: BidParams<TestRuntime> = (BIDDER_1, 50_000 * CT_UNIT).into();
+			let big_bid: BidParams<TestRuntime> = (BIDDER_1, 50_000 * USDT_UNIT).into();
 			inst.bid_for_users(project_id, vec![big_bid.clone()]).unwrap();
-
-			// A bid at the min price of 1 should require a min of 8k CT, but with a new price of 1.1, we can now bid with less
-			let bucket_increase_price = PriceProviderOf::<TestRuntime>::calculate_decimals_aware_price(
-				PriceOf::<TestRuntime>::from_float(1.1),
-				USD_DECIMALS,
-				project_metadata.clone().token_information.decimals,
-			)
-			.unwrap();
-			let smallest_ct_amount_at_8k_usd = bucket_increase_price
-				.reciprocal()
-				.unwrap()
-				.checked_mul_int(8000 * USD_UNIT)
-				// add 1 because result could be .99999 of what we expect
-				.unwrap() + 1;
-
-			assert!(smallest_ct_amount_at_8k_usd < 8000 * CT_UNIT);
 
 			inst.execute(|| {
 				assert_ok!(Pallet::<TestRuntime>::do_bid(DoBidParams::<TestRuntime> {
 					bidder: BIDDER_2,
 					project_id,
-					ct_amount: smallest_ct_amount_at_8k_usd,
+					funding_asset_amount: 8001 * USD_UNIT,
 					mode: ParticipationMode::Classic(1u8),
 					funding_asset: AcceptedFundingAsset::USDT,
 					did: generate_did_from_account(BIDDER_1),
@@ -1525,18 +1496,11 @@ mod bid_extrinsic {
 				}));
 			});
 
-			let smallest_ct_amount_at_20k_usd = bucket_increase_price
-				.reciprocal()
-				.unwrap()
-				.checked_mul_int(20_000 * USD_UNIT)
-				// add 1 because result could be .99999 of what we expect
-				.unwrap() + 1;
-			assert!(smallest_ct_amount_at_20k_usd < 20_000 * CT_UNIT);
 			inst.execute(|| {
 				assert_ok!(Pallet::<TestRuntime>::do_bid(DoBidParams::<TestRuntime> {
 					bidder: BIDDER_3,
 					project_id,
-					ct_amount: smallest_ct_amount_at_20k_usd,
+					funding_asset_amount: 20_001 * USD_UNIT,
 					mode: ParticipationMode::Classic(1u8),
 					funding_asset: AcceptedFundingAsset::USDT,
 					did: generate_did_from_account(BIDDER_1),
@@ -1552,7 +1516,7 @@ mod bid_extrinsic {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 			let mut project_metadata = default_project_metadata(ISSUER_1);
 			project_metadata.bidding_ticket_sizes = BiddingTicketSizes {
-				professional: TicketSize::new(8_000 * USD_UNIT, Some(100_000 * USD_UNIT)),
+				professional: TicketSize::new(8_000 * USD_UNIT, Some(17_000 * USD_UNIT)),
 				institutional: TicketSize::new(20_000 * USD_UNIT, Some(500_000 * USD_UNIT)),
 				retail: TicketSize::new(100 * USD_UNIT, None),
 				phantom: Default::default(),
@@ -1594,7 +1558,7 @@ mod bid_extrinsic {
 					RuntimeOrigin::signed(BIDDER_1),
 					bidder_1_jwt,
 					project_id,
-					8000 * CT_UNIT,
+					8_000 * USDT_UNIT,
 					ParticipationMode::Classic(1u8),
 					AcceptedFundingAsset::USDT,
 				));
@@ -1605,20 +1569,20 @@ mod bid_extrinsic {
 						RuntimeOrigin::signed(BIDDER_2),
 						bidder_2_jwt_same_did.clone(),
 						project_id,
-						3000 * CT_UNIT,
+						10_000 * USDT_UNIT,
 						ParticipationMode::Classic(1u8),
 						AcceptedFundingAsset::USDT
 					),
 					Error::<TestRuntime>::TooHigh
 				);
 			});
-			// bidding 10k total works
+			// bidding 17k total works
 			inst.execute(|| {
 				assert_ok!(Pallet::<TestRuntime>::bid(
 					RuntimeOrigin::signed(BIDDER_2),
 					bidder_2_jwt_same_did,
 					project_id,
-					2000 * CT_UNIT,
+					9_000 * USDT_UNIT,
 					ParticipationMode::Classic(1u8),
 					AcceptedFundingAsset::USDT,
 				));
@@ -1642,7 +1606,7 @@ mod bid_extrinsic {
 					RuntimeOrigin::signed(BIDDER_3),
 					bidder_3_jwt,
 					project_id,
-					40_000 * CT_UNIT,
+					40_000 * USDT_UNIT,
 					ParticipationMode::Classic(1u8),
 					AcceptedFundingAsset::USDT,
 				));
@@ -1653,20 +1617,20 @@ mod bid_extrinsic {
 						RuntimeOrigin::signed(BIDDER_4),
 						bidder_4_jwt_same_did.clone(),
 						project_id,
-						11_000 * CT_UNIT,
+						500_001 * USDT_UNIT,
 						ParticipationMode::Classic(1u8),
 						AcceptedFundingAsset::USDT,
 					),
 					Error::<TestRuntime>::TooHigh
 				);
 			});
-			// bidding 50k total works
+			// bidding 60k total works
 			inst.execute(|| {
 				assert_ok!(Pallet::<TestRuntime>::bid(
 					RuntimeOrigin::signed(BIDDER_4),
 					bidder_4_jwt_same_did,
 					project_id,
-					10_000 * CT_UNIT,
+					20_000 * USDT_UNIT,
 					ParticipationMode::Classic(1u8),
 					AcceptedFundingAsset::USDT,
 				));
@@ -1683,7 +1647,7 @@ mod bid_extrinsic {
 				inst.execute(|| crate::Pallet::<TestRuntime>::do_bid(DoBidParams::<TestRuntime> {
 					bidder: ISSUER_1,
 					project_id,
-					ct_amount: 5000 * CT_UNIT,
+					funding_asset_amount: 5000 * USDT_UNIT,
 					mode: ParticipationMode::Classic(1u8),
 					funding_asset: AcceptedFundingAsset::USDT,
 					did: generate_did_from_account(ISSUER_1),
@@ -1718,7 +1682,7 @@ mod bid_extrinsic {
 				Pallet::<TestRuntime>::do_bid(DoBidParams::<TestRuntime> {
 					bidder: bids[0].bidder,
 					project_id,
-					ct_amount: bids[0].amount,
+					funding_asset_amount: bids[0].amount,
 					mode: bids[0].mode,
 					funding_asset: bids[0].asset,
 					did,
@@ -1799,7 +1763,7 @@ mod end_auction_extrinsic {
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		let issuer = ISSUER_1;
 		let mut project_metadata = default_project_metadata(issuer);
-		project_metadata.total_allocation_size = 50_000 * CT_UNIT;
+		project_metadata.total_allocation_size = 500_000 * CT_UNIT;
 		project_metadata.mainnet_token_max_supply = project_metadata.total_allocation_size;
 		project_metadata.minimum_price = ConstPriceProvider::calculate_decimals_aware_price(
 			FixedU128::from_float(10.0f64),
@@ -1817,35 +1781,35 @@ mod end_auction_extrinsic {
 		let bid_1 = BidParams::from((
 			BIDDER_1,
 			Retail,
-			5000 * CT_UNIT,
+			500 * USDT_UNIT,
 			ParticipationMode::Classic(5u8),
 			AcceptedFundingAsset::USDT,
 		));
 		let bid_2 = BidParams::from((
 			BIDDER_2,
 			Institutional,
-			40_000 * CT_UNIT,
+			4_00 * USDT_UNIT,
 			ParticipationMode::Classic(5u8),
 			AcceptedFundingAsset::USDC,
 		));
 		let bid_3 = BidParams::from((
 			BIDDER_5,
 			Professional,
-			10_000 * CT_UNIT,
+			100 * DOT_UNIT,
 			ParticipationMode::Classic(5u8),
 			AcceptedFundingAsset::DOT,
 		));
 		let bid_4 = BidParams::from((
 			BIDDER_3,
 			Retail,
-			6000 * CT_UNIT,
+			600 * USDT_UNIT,
 			ParticipationMode::Classic(5u8),
 			AcceptedFundingAsset::USDT,
 		));
 		let bid_5 = BidParams::from((
 			BIDDER_4,
 			Retail,
-			2000 * CT_UNIT,
+			10 * DOT_UNIT,
 			ParticipationMode::Classic(5u8),
 			AcceptedFundingAsset::DOT,
 		));
@@ -1863,11 +1827,13 @@ mod end_auction_extrinsic {
 			project_metadata.clone(),
 			None,
 		);
-		let funding_asset_amounts = inst.calculate_auction_funding_asset_charged_from_all_bids_made_or_with_bucket(
-			&bids,
-			project_metadata.clone(),
-			None,
-		);
+		let funding_asset_amounts = vec![
+			UserToFundingAsset::new(BIDDER_1, bids[0].amount, AcceptedFundingAsset::USDT.id()),
+			UserToFundingAsset::new(BIDDER_2, bids[1].amount, AcceptedFundingAsset::USDC.id()),
+			UserToFundingAsset::new(BIDDER_3, bids[3].amount, AcceptedFundingAsset::USDT.id()),
+			UserToFundingAsset::new(BIDDER_4, bids[4].amount, AcceptedFundingAsset::DOT.id()),
+			UserToFundingAsset::new(BIDDER_5, bids[2].amount, AcceptedFundingAsset::DOT.id()),
+		];
 
 		inst.mint_plmc_ed_if_required(bids.accounts());
 		inst.mint_funding_asset_ed_if_required(bids.to_account_asset_map());

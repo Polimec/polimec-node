@@ -128,10 +128,8 @@ impl<T: Config> Pallet<T> {
 		NextEvaluationId::<T>::set(evaluation_id.saturating_add(One::one()));
 		ProjectsDetails::<T>::mutate(project_id, |details| {
 			if let Some(details) = details {
-				details.evaluation_round_info.total_bonded_usd =
-					details.evaluation_round_info.total_bonded_usd.saturating_add(usd_amount);
-				details.evaluation_round_info.total_bonded_plmc =
-					details.evaluation_round_info.total_bonded_plmc.saturating_add(plmc_bond);
+				details.evaluation_round_info.total_bonded_usd.saturating_accrue(usd_amount);
+				details.evaluation_round_info.total_bonded_plmc.saturating_accrue(plmc_bond);
 			}
 		});
 
