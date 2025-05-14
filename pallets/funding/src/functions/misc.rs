@@ -90,32 +90,41 @@ impl<T: Config> Pallet<T> {
 		}
 	}
 
-	pub fn try_plmc_participation_lock(who: &T::AccountId, project_id: ProjectId, amount: Balance) -> DispatchResult {
-		// Check if the user has already locked tokens in the evaluation period
+	pub fn try_plmc_participation_lock(
+		who: &T::AccountId,
+		project_id: ProjectId,
+		mut amount: Balance,
+	) -> DispatchResult {
+		if amount.is_zero() {
+			return Ok(());
+		}
+
 		let user_evaluations = Evaluations::<T>::iter_prefix((project_id, who));
 
-		let mut to_convert = amount;
 		for (evaluation_id, mut evaluation) in user_evaluations {
-			if to_convert == Zero::zero() {
+			if amount.is_zero() {
 				break;
 			}
 			let slashable_deposit = <T as Config>::EvaluatorSlash::get() * evaluation.original_plmc_bond;
 			let available_to_convert = evaluation.current_plmc_bond.saturating_sub(slashable_deposit);
-			let converted = to_convert.min(available_to_convert);
+			let converted = amount.min(available_to_convert);
+
+			if converted.is_zero() {
+				continue;
+			}
+
 			evaluation.current_plmc_bond = evaluation.current_plmc_bond.saturating_sub(converted);
 			Evaluations::<T>::insert((project_id, who, evaluation_id), evaluation);
 
 			// Release the held funds and apply the new hold reason.
-			T::NativeCurrency::release(&HoldReason::Evaluation.into(), who, converted, Precision::Exact)
-				.map_err(|_| Error::<T>::ImpossibleState)?;
-			T::NativeCurrency::hold(&HoldReason::Participation.into(), who, converted)
-				.map_err(|_| Error::<T>::ImpossibleState)?;
-			to_convert = to_convert.saturating_sub(converted)
+			T::NativeCurrency::release(&HoldReason::Evaluation.into(), who, converted, Precision::Exact)?;
+			T::NativeCurrency::hold(&HoldReason::Participation.into(), who, converted)?;
+			amount = amount.saturating_sub(converted);
 		}
 
-		T::NativeCurrency::hold(&HoldReason::Participation.into(), who, to_convert)
-			.map_err(|_| Error::<T>::ParticipantNotEnoughFunds)?;
-
+		if !amount.is_zero() {
+			T::NativeCurrency::hold(&HoldReason::Participation.into(), who, amount)?;
+		}
 		Ok(())
 	}
 
@@ -128,8 +137,7 @@ impl<T: Config> Pallet<T> {
 	) -> DispatchResult {
 		let fund_account = Self::fund_account_id(project_id);
 
-		T::FundingCurrency::transfer(asset_id, who, &fund_account, amount, Preservation::Preserve)
-			.map_err(|_| Error::<T>::ParticipantNotEnoughFunds)?;
+		T::FundingCurrency::transfer(asset_id, who, &fund_account, amount, Preservation::Preserve)?;
 
 		Ok(())
 	}

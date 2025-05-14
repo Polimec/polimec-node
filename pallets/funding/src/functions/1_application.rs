@@ -78,8 +78,7 @@ impl<T: Config> Pallet<T> {
 			&escrow_account,
 			<T as pallet_balances::Config>::ExistentialDeposit::get(),
 			Preservation::Preserve,
-		)
-		.map_err(|_| Error::<T>::IssuerNotEnoughFunds)?;
+		)?;
 
 		// * Update storage *
 		ProjectsMetadata::<T>::insert(project_id, project_metadata.clone());

@@ -71,7 +71,7 @@ mod round_flow {
 				BidParams::from((
 					BIDDER_1,
 					Retail,
-					120_000 * CT_UNIT,
+					120_000 * USDT_UNIT,
 					ParticipationMode::Classic(3u8),
 					AcceptedFundingAsset::USDT,
 					Junction::AccountKey20 { network: Some(Ethereum { chain_id: 1 }), key: [3u8; 20] },
@@ -79,7 +79,7 @@ mod round_flow {
 				BidParams::from((
 					BIDDER_2,
 					Retail,
-					420_000 * CT_UNIT,
+					420_000 * USDT_UNIT,
 					ParticipationMode::Classic(5u8),
 					AcceptedFundingAsset::USDT,
 					Junction::AccountKey20 { network: Some(Ethereum { chain_id: 1 }), key: [4u8; 20] },
@@ -128,15 +128,15 @@ mod round_flow {
 				BidParams::from((
 					BIDDER_1,
 					Retail,
-					120_000 * CT_UNIT,
-					ParticipationMode::Classic(3u8),
+					120_000 * USDT_UNIT,
+					ParticipationMode::Classic(5u8),
 					AcceptedFundingAsset::USDT,
 					polkadot_junction!([3u8; 32]),
 				)),
 				BidParams::from((
 					BIDDER_2,
 					Retail,
-					420_000 * CT_UNIT,
+					420_000 * USDT_UNIT,
 					ParticipationMode::Classic(5u8),
 					AcceptedFundingAsset::USDT,
 					polkadot_junction!([4u8; 32]),
@@ -503,17 +503,25 @@ mod settle_bid_extrinsic {
 			project_metadata.participation_currencies =
 				bounded_vec![AcceptedFundingAsset::USDT, AcceptedFundingAsset::DOT];
 			let auction_allocation = project_metadata.total_allocation_size;
+			let usdt_price = PriceProviderOf::<TestRuntime>::get_decimals_aware_price(
+				&AcceptedFundingAsset::USDT.id(),
+				AcceptedFundingAsset::USDT.decimals(),
+			)
+			.unwrap();
+			let total_usd_needed = decimal_aware_price.saturating_mul_int(auction_allocation);
+			let usdt_needed_to_fill_auction = usdt_price.reciprocal().unwrap().saturating_mul_int(total_usd_needed);
+			println!("usdt_needed_to_fill_auction: {:?}", usdt_needed_to_fill_auction);
 			let partial_amount_bid_params = BidParams::from((
 				BIDDER_1,
 				Retail,
-				auction_allocation,
+				usdt_needed_to_fill_auction,
 				ParticipationMode::Classic(3u8),
 				AcceptedFundingAsset::USDT,
 			));
 			let accepted_bid_params = BidParams::from((
 				BIDDER_2,
 				Retail,
-				2000 * CT_UNIT,
+				122 * DOT_UNIT,
 				ParticipationMode::Classic(5u8),
 				AcceptedFundingAsset::DOT,
 			));
@@ -598,13 +606,27 @@ mod settle_bid_extrinsic {
 			project_metadata.participation_currencies =
 				bounded_vec![AcceptedFundingAsset::USDT, AcceptedFundingAsset::DOT];
 			let auction_allocation = project_metadata.total_allocation_size;
+			let ct_amount = auction_allocation / 2;
+			let ct_price = project_metadata.minimum_price; // or the current bucket price
+
+			let usdt_price = PriceProviderOf::<TestRuntime>::get_decimals_aware_price(
+				&AcceptedFundingAsset::USDT.id(),
+				AcceptedFundingAsset::USDT.decimals(),
+			)
+			.unwrap();
+
+			let usd_needed = ct_price.saturating_mul_int(ct_amount);
+			// let usdt_needed = ((usd_needed + usdt_price - 1u128) / usdt_price).try_into().unwrap();
+			let usdt_needed = usdt_price.reciprocal().unwrap().saturating_mul_int(usd_needed);
+
 			let no_refund_bid_params = BidParams::from((
 				BIDDER_1,
 				Institutional,
-				auction_allocation / 2,
+				usdt_needed,
 				ParticipationMode::Classic(16u8),
 				AcceptedFundingAsset::USDT,
 			));
+
 			let evaluations = inst.generate_successful_evaluations(project_metadata.clone(), 5);
 			let project_id = inst.create_finished_project(
 				project_metadata.clone(),
@@ -676,7 +698,7 @@ mod settle_bid_extrinsic {
 			let no_refund_bid_params = BidParams::from((
 				BIDDER_1,
 				Institutional,
-				500 * CT_UNIT,
+				500 * USDT_UNIT,
 				ParticipationMode::Classic(16u8),
 				AcceptedFundingAsset::USDT,
 			));
@@ -747,14 +769,14 @@ mod settle_bid_extrinsic {
 			let rejected_bid_params = BidParams::from((
 				BIDDER_1,
 				Retail,
-				auction_allocation,
+				auction_allocation, // TODO: This should be the amount (in USDT) needed to fill the auction (so giveen the total allocation size and the price)
 				ParticipationMode::Classic(4u8),
 				AcceptedFundingAsset::USDT,
 			));
 			let accepted_bid_params = BidParams::from((
 				BIDDER_2,
 				Retail,
-				auction_allocation,
+				auction_allocation, // TODO: This should be the amount (in USDT) needed to fill the auction (so giveen the total allocation size and the price)
 				ParticipationMode::Classic(1u8),
 				AcceptedFundingAsset::DOT,
 			));

@@ -14,7 +14,7 @@ use frame_support::{
 	assert_err, assert_noop, assert_ok,
 	traits::{
 		fungible::{InspectFreeze, MutateFreeze, MutateHold},
-		fungibles::{metadata::Inspect as MetadataInspect, Inspect, Mutate},
+		fungibles::{Inspect, Mutate},
 	},
 };
 use itertools::Itertools;
@@ -52,6 +52,7 @@ pub type MockInstantiator =
 pub const CT_DECIMALS: u8 = 15;
 pub const CT_UNIT: u128 = 10_u128.pow(CT_DECIMALS as u32);
 pub const USDT_UNIT: u128 = USD_UNIT;
+pub const DOT_UNIT: u128 = 10_u128.pow(10);
 
 const IPFS_CID: &str = "QmeuJ24ffwLAZppQcgcggJs3n689bewednYkuc8Bx5Gngz";
 const ISSUER_1: AccountId = 11;

@@ -1,4 +1,3 @@
-#[allow(clippy::wildcard_imports)]
 use super::*;
 
 impl<T: Config> Pallet<T> {
@@ -9,7 +8,7 @@ impl<T: Config> Pallet<T> {
 		let DoBidParams {
 			bidder,
 			project_id,
-			ct_amount,
+			funding_asset_amount,
 			mode,
 			funding_asset,
 			investor_type,
@@ -22,7 +21,19 @@ impl<T: Config> Pallet<T> {
 
 		// Fetch current bucket details and other required info
 		let mut current_bucket = Buckets::<T>::get(project_id).ok_or(Error::<T>::BucketNotFound)?;
-		let now = <T as Config>::BlockNumberProvider::current_block_number();
+		let now = BlockProviderFor::<T>::current_block_number();
+		let funding_asset_price =
+			PriceProviderOf::<T>::get_decimals_aware_price(&funding_asset.id(), funding_asset.decimals())
+				.ok_or(Error::<T>::BadMath)?;
+		let ct_price = current_bucket.current_price;
+
+		let funding_asset_value =
+			funding_asset_price.checked_mul_int(funding_asset_amount).ok_or(Error::<T>::BadMath)?;
+		let ct_amount = ct_price
+			.reciprocal()
+			.ok_or(Error::<T>::BadMath)?
+			.checked_mul_int(funding_asset_value)
+			.ok_or(Error::<T>::BadMath)?;
 		let mut amount_to_bid = ct_amount;
 		let project_policy = project_metadata.policy_ipfs_cid.ok_or(Error::<T>::ImpossibleState)?;
 
@@ -69,6 +80,9 @@ impl<T: Config> Pallet<T> {
 		);
 
 		let mut perform_bid_calls = 0u8;
+		let total_ct_amount = ct_amount;
+		let mut remaining_funding_asset = funding_asset_amount;
+		let mut remaining_ct = ct_amount;
 
 		// While there's a remaining amount to bid for
 		while !amount_to_bid.is_zero() {
@@ -83,6 +97,15 @@ impl<T: Config> Pallet<T> {
 			};
 			let bid_id = NextBidId::<T>::get();
 			let auction_oversubscribed = current_bucket.current_price > current_bucket.initial_price;
+			// For the last bucket, assign all remaining funding asset to avoid dust
+			let funding_asset_amount_for_this_bucket = if remaining_ct == ct_amount {
+				remaining_funding_asset
+			} else {
+				funding_asset_amount
+					.saturating_mul(ct_amount)
+					.checked_div(total_ct_amount)
+					.ok_or(Error::<T>::BadMath)?
+			};
 
 			let perform_params = DoPerformBidParams {
 				bidder: bidder.clone(),
@@ -91,6 +114,7 @@ impl<T: Config> Pallet<T> {
 				ct_usd_price: current_bucket.current_price,
 				mode,
 				funding_asset,
+				funding_asset_amount: funding_asset_amount_for_this_bucket,
 				bid_id,
 				now,
 				did: did.clone(),
@@ -110,10 +134,12 @@ impl<T: Config> Pallet<T> {
 			Self::do_perform_bid(perform_params)?;
 
 			perform_bid_calls = perform_bid_calls.saturating_add(1);
+			remaining_funding_asset = remaining_funding_asset.saturating_sub(funding_asset_amount_for_this_bucket);
+			remaining_ct = remaining_ct.saturating_sub(ct_amount);
 
 			// Update the current bucket and reduce the amount to bid by the amount we just bid
+			amount_to_bid = amount_to_bid.saturating_sub(ct_amount);
 			current_bucket.update(ct_amount);
-			amount_to_bid.saturating_reduce(ct_amount);
 		}
 
 		// Note: If the bucket has been exhausted, the 'update' function has already made the 'current_bucket' point to the next one.
@@ -136,6 +162,7 @@ impl<T: Config> Pallet<T> {
 			ct_usd_price,
 			mode,
 			funding_asset,
+			funding_asset_amount,
 			bid_id,
 			now,
 			did,
@@ -156,7 +183,8 @@ impl<T: Config> Pallet<T> {
 
 		// * Calculate new variables *
 		let plmc_bond = Self::calculate_plmc_bond(usd_ticket_size, multiplier).map_err(|_| Error::<T>::BadMath)?;
-		let funding_asset_amount_locked = Self::calculate_funding_asset_amount(usd_ticket_size, funding_asset)?;
+		// OLD Logic: let funding_asset_amount_locked = Self::calculate_funding_asset_amount(usd_ticket_size, funding_asset)?;
+		let funding_asset_amount_locked = funding_asset_amount;
 
 		let new_bid = BidInfoOf::<T> {
 			id: bid_id,

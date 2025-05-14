@@ -813,7 +813,7 @@ pub mod extrinsic {
 	pub struct DoBidParams<T: Config> {
 		pub bidder: AccountIdOf<T>,
 		pub project_id: ProjectId,
-		pub ct_amount: Balance,
+		pub funding_asset_amount: Balance,
 		pub mode: ParticipationMode,
 		pub funding_asset: AcceptedFundingAsset,
 		pub did: Did,
@@ -829,6 +829,7 @@ pub mod extrinsic {
 		pub ct_usd_price: PriceOf<T>,
 		pub mode: ParticipationMode,
 		pub funding_asset: AcceptedFundingAsset,
+		pub funding_asset_amount: Balance,
 		pub bid_id: u32,
 		pub now: BlockNumberFor<T>,
 		pub did: Did,

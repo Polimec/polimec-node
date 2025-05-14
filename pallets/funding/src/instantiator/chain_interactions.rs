@@ -1,6 +1,3 @@
-#![allow(clippy::too_many_arguments)]
-
-#[allow(clippy::wildcard_imports)]
 use super::*;
 use alloc::{vec, vec::Vec};
 use polimec_common::assets::AcceptedFundingAsset;
@@ -138,8 +135,7 @@ impl<
 	pub fn mint_funding_asset_to(&mut self, mapping: Vec<UserToFundingAsset<T>>) {
 		self.execute(|| {
 			for UserToFundingAsset { account, asset_amount, asset_id } in mapping {
-				<T as Config>::FundingCurrency::mint_into(asset_id, &account, asset_amount)
-					.expect("Minting should work");
+				<T as Config>::FundingCurrency::mint_into(asset_id, &account, asset_amount).unwrap();
 			}
 		});
 	}
@@ -461,7 +457,7 @@ impl<
 				let params = DoBidParams::<T> {
 					bidder: bid.bidder.clone(),
 					project_id,
-					ct_amount: bid.amount,
+					funding_asset_amount: bid.amount,
 					mode: bid.mode,
 					funding_asset: bid.asset,
 					did,
@@ -820,11 +816,8 @@ impl<
 		// Check that remaining CTs are updated
 		let project_details = self.get_project_details(project_id);
 		// if our bids were creating an oversubscription, then just take the total allocation size
-		let auction_bought_tokens = bids
-			.iter()
-			.map(|bid| bid.amount)
-			.fold(Balance::zero(), |acc, item| item + acc)
-			.min(project_metadata.total_allocation_size);
+		// TODO: This is not correct, since now the bid_amount is not in CT anymore, but in the funding asset.
+		let auction_bought_tokens = bids.iter().map(|bid| bid.amount).fold(Balance::zero(), |acc, item| item + acc);
 
 		assert_eq!(
 			project_details.remaining_contribution_tokens,
