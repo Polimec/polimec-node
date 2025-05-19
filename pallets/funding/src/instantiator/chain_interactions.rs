@@ -144,6 +144,26 @@ impl<
 		self.execute(|| <T as Config>::BlockNumberProvider::current_block_number())
 	}
 
+	pub fn advance_relay_time(&mut self, amount: BlockNumberFor<T>) {
+		use cumulus_pallet_parachain_system::ValidationData;
+		use cumulus_primitives_core::PersistedValidationData;
+
+		self.execute(|| {
+			for _block in 0u32..amount.saturated_into() {
+				let mut validation_data = ValidationData::<T>::get().unwrap_or_else(||
+    		// PersistedValidationData does not impl default in non-std
+    		PersistedValidationData {
+    			parent_head: vec![].into(),
+    			relay_parent_number: Default::default(),
+    			max_pov_size: Default::default(),
+    			relay_parent_storage_root: Default::default(),
+    		});
+				validation_data.relay_parent_number = validation_data.relay_parent_number + 1;
+				ValidationData::<T>::put(validation_data);
+			}
+		});
+	}
+
 	pub fn advance_time(&mut self, amount: BlockNumberFor<T>) {
 		self.execute(|| {
 			for _block in 0u32..amount.saturated_into() {
@@ -162,10 +182,6 @@ impl<
 				<AllPalletsWithoutSystem as OnInitialize<BlockNumberFor<T>>>::on_initialize(current_block);
 			}
 		});
-
-		let current_block = self.current_block();
-		// in case we are relying on parachain system
-		self.set_relay_chain_block_number(current_block + amount);
 	}
 
 	pub fn jump_to_block(&mut self, block: BlockNumberFor<T>) {
@@ -174,9 +190,14 @@ impl<
 			self.execute(|| {
 				frame_system::Pallet::<T>::set_block_number(block - One::one());
 			});
-			self.set_relay_chain_block_number(block - One::one());
+
+			for _ in 1_u32..block.saturated_into() {
+				// Relay block should be monotonically increasing
+				self.advance_relay_time(One::one());
+			}
 
 			self.advance_time(One::one());
+			self.advance_relay_time(One::one());
 		} else {
 			// panic!("Cannot jump to a block in the present or past")
 		}
@@ -226,30 +247,6 @@ impl<
 				}
 			});
 		}
-	}
-
-	/// NOTE: this is a workaround function to advance relaychain's block number, since
-	/// `<T as Config>::BlockNumberProvider::set_block_number` is not working in tests
-	///
-	/// It is cloned version of the above trait function implementation in [`cumulus_pallet_parachain_system::RelaychainDataProvider`]
-	///
-	/// TODO: remove this function once the issue is fixed
-	pub fn set_relay_chain_block_number(&mut self, to: BlockNumberFor<T>) {
-		use cumulus_pallet_parachain_system::ValidationData;
-		use cumulus_primitives_core::PersistedValidationData;
-
-		self.execute(|| {
-			let mut validation_data = ValidationData::<T>::get().unwrap_or_else(||
-				// PersistedValidationData does not impl default in non-std
-				PersistedValidationData {
-					parent_head: vec![].into(),
-					relay_parent_number: Default::default(),
-					max_pov_size: Default::default(),
-					relay_parent_storage_root: Default::default(),
-				});
-			validation_data.relay_parent_number = to.saturated_into();
-			ValidationData::<T>::put(validation_data)
-		});
 	}
 }
 
@@ -606,9 +603,10 @@ impl<
 		for bid in bids {
 			// Determine if the bid is outbid
 			let bid_is_outbid = match maybe_outbid_bids_cutoff {
-				Some(OutbidBidsCutoff { bid_price, bid_index }) =>
-					bid_price > bid.original_ct_usd_price ||
-						(bid_price == bid.original_ct_usd_price && bid_index <= bid.id),
+				Some(OutbidBidsCutoff { bid_price, bid_index }) => {
+					bid_price > bid.original_ct_usd_price
+						|| (bid_price == bid.original_ct_usd_price && bid_index <= bid.id)
+				},
 				None => false, // If there's no cutoff, the bid is not outbid
 			};
 
@@ -656,8 +654,8 @@ impl<
 		let expected_migration_origin = MigrationOrigin { user: receiving_account, participation_type };
 
 		let is_migration_found = user_migrations.into_iter().any(|migration| {
-			migration.origin == expected_migration_origin &&
-				is_close_enough!(
+			migration.origin == expected_migration_origin
+				&& is_close_enough!(
 					migration.info.contribution_token_amount,
 					amount,
 					Perquintill::from_rational(999u64, 1000u64)

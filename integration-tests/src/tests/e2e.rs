@@ -107,7 +107,7 @@ pub fn usdt_price() -> FixedU128 {
 	FixedU128::from_float(1f64)
 }
 
-fn evaluations() -> Vec<([u8; 32], InvestorType, u64, f64)> {
+pub(crate) fn evaluations() -> Vec<([u8; 32], InvestorType, u64, f64)> {
 	// (User, Investor type, USD specified in extrinsic, PLMC bonded as a consequence)
 	vec![
 		(ALMA, Institutional, 40_000, 219_538.97),
