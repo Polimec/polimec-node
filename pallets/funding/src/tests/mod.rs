@@ -73,8 +73,9 @@ const BIDDER_3: AccountId = 33;
 const BIDDER_4: AccountId = 34;
 const BIDDER_5: AccountId = 35;
 const BIDDER_6: AccountId = 36;
+const POLIMEC_BIDDER_ACCOUNT: AccountId = 10000;
 
-const fn default_accounts() -> [AccountId; 18] {
+const fn default_accounts() -> [AccountId; 19] {
 	[
 		ISSUER_1,
 		ISSUER_2,
@@ -94,6 +95,7 @@ const fn default_accounts() -> [AccountId; 18] {
 		BIDDER_4,
 		BIDDER_5,
 		BIDDER_6,
+		POLIMEC_BIDDER_ACCOUNT,
 	]
 }
 
