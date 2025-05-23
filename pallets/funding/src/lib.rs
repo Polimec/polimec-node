@@ -275,7 +275,7 @@ pub mod pallet {
 		type PalletId: Get<PalletId>;
 
 		/// Type that represents the value of something in USD
-		type Price: FixedPointNumber + Parameter + Copy + MaxEncodedLen + MaybeSerializeDeserialize;
+		type Price: FixedPointNumber<Inner = u128> + Parameter + Copy + MaxEncodedLen + MaybeSerializeDeserialize;
 
 		/// Method to get the price of an asset like USDT or PLMC. Likely to come from an oracle
 		type PriceProvider: ProvideAssetPrice<AssetId = AssetIdOf<Self>, Price = Self::Price>;
@@ -872,38 +872,34 @@ pub mod pallet {
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
 		fn on_idle(_n: BlockNumberFor<T>, available_weight: Weight) -> Weight {
-			// Early return if no projects in auction round
-			if ProjectsInAuctionRound::<T>::iter_keys().next().is_none() {
-				return <T as frame_system::Config>::DbWeight::get().reads(1);
-			}
-
-			let mut weight_consumed = <T as frame_system::Config>::DbWeight::get().reads(1);
-			let read_weight = <T as frame_system::Config>::DbWeight::get().reads(1);
+			let db_weight = <T as frame_system::Config>::DbWeight::get();
 			let process_weight = <T as Config>::WeightInfo::process_next_oversubscribed_bid();
 
-			// Iterate over all projects in auction round
+			// Early return if no projects in auction round
+			if ProjectsInAuctionRound::<T>::iter_keys().next().is_none() {
+				return db_weight.reads(1);
+			}
+
+			let mut weight_consumed = db_weight.reads(1);
+
+			// Process projects in auction round
 			for (project_id, _) in ProjectsInAuctionRound::<T>::iter() {
 				// Add weight for reading the storage item
-				weight_consumed.saturating_accrue(read_weight);
+				weight_consumed = weight_consumed.saturating_add(db_weight.reads(1));
 
-				// Check if we have enough weight to continue
-				if weight_consumed.saturating_add(process_weight).all_gt(available_weight) {
-					return weight_consumed;
+				// Process all oversubscribed bids for this project
+				while weight_consumed.saturating_add(process_weight).all_lte(available_weight) {
+					weight_consumed = weight_consumed.saturating_add(process_weight);
+
+					// Break if no more bids to process for this project
+					if Self::do_process_next_oversubscribed_bid(project_id).is_err() {
+						break;
+					}
 				}
 
-				loop {
-					// Check weight before processing each bid
-					if weight_consumed.saturating_add(process_weight).all_gt(available_weight) {
-						return weight_consumed;
-					}
-
-					weight_consumed.saturating_accrue(process_weight);
-					match Self::do_process_next_oversubscribed_bid(project_id) {
-						// Returns Ok if a bid was processed successfully
-						Ok(_) => continue,
-						// Returns Err if there are no more bids to process, so we go to next project
-						Err(_) => break,
-					}
+				// If we can't process another bid, return current weight
+				if weight_consumed.saturating_add(process_weight).all_gt(available_weight) {
+					return weight_consumed;
 				}
 			}
 

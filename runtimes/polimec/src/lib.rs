@@ -1124,8 +1124,8 @@ impl ConversionToAssetBalance<Balance, Location, Balance> for HereToForeignAsset
 			<PriceProviderOf<Runtime>>::get_price(&Location::here()).ok_or(InvalidTransaction::Payment)?;
 
 		// 2. Get nominal price of the target asset in USD (e.g., USD per 1 TargetAsset).
-		let nominal_target_asset_price_usd = <PriceProviderOf<Runtime>>::get_price(&asset_id)
-			.ok_or(InvalidTransaction::Payment)?;
+		let nominal_target_asset_price_usd =
+			<PriceProviderOf<Runtime>>::get_price(&asset_id).ok_or(InvalidTransaction::Payment)?;
 
 		// 3. Calculate nominal price of PLMC in terms of the target asset.
 		//    Result is in "units of target_asset per unit of PLMC".

@@ -222,7 +222,7 @@ sc-basic-authorship = { version = "0.49.0" }
 sc-client-api = { version = "39.0.0" }
 sc-consensus = { version = "0.48.0" }
 sc-consensus-aura = { version = "0.49.0" }
-sc-network = { version = "0.49.1" }
+sc-network = { version = "0.49.2" }
 sc-offchain = { version = "44.0.0" }
 sc-network-sync = { version = "0.48.0" }
 sc-cli = { version = "0.51.0" }

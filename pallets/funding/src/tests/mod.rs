@@ -101,9 +101,6 @@ pub mod defaults {
 	use super::*;
 	use polimec_common::assets::AcceptedFundingAsset::{DOT, ETH, USDC, USDT};
 
-	pub fn default_token_information() -> CurrencyMetadata<BoundedVec<u8, StringLimitOf<TestRuntime>>> {
-		CurrencyMetadata { name: bounded_name(), symbol: bounded_symbol(), decimals: CT_DECIMALS }
-	}
 	pub fn default_project_metadata(issuer: AccountId) -> ProjectMetadataOf<TestRuntime> {
 		let bounded_name = bounded_name();
 		let bounded_symbol = bounded_symbol();
@@ -168,7 +165,7 @@ pub mod defaults {
 
 	pub fn default_bids_from_ct_percent(percent: u8) -> Vec<BidParams<TestRuntime>> {
 		// Used only to generate values, not for chain interactions
-		let inst = MockInstantiator::new(None);
+		let mut inst = MockInstantiator::new(None);
 		let project_metadata = default_project_metadata(ISSUER_1);
 		inst.generate_bids_from_total_ct_percent(project_metadata, percent, 10)
 	}

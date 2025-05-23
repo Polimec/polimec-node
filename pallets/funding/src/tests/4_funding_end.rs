@@ -93,10 +93,10 @@ mod end_funding_extrinsic {
 					));
 				}
 			};
-			for i in 1..=32u8 {
+			for i in 1..=33u8 {
 				try_for_percentage(i, true);
 			}
-			for i in 33..130u8 {
+			for i in 34..130u8 {
 				try_for_percentage(i, false);
 			}
 		}

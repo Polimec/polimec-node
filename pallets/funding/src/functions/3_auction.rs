@@ -1,14 +1,12 @@
 use super::*;
 
 impl<T: Config> Pallet<T> {
-	/// Place a bid on a project in the auction round
 	#[transactional]
 	pub fn do_bid(params: DoBidParams<T>) -> DispatchResultWithPostInfo {
-		// * Get variables *
 		let DoBidParams {
 			bidder,
 			project_id,
-			funding_asset_amount,
+			funding_asset_amount, // Total funding asset provided by the bidder
 			mode,
 			funding_asset,
 			investor_type,
@@ -16,30 +14,31 @@ impl<T: Config> Pallet<T> {
 			whitelisted_policy,
 			receiving_account,
 		} = params;
+
 		let project_metadata = ProjectsMetadata::<T>::get(project_id).ok_or(Error::<T>::ProjectMetadataNotFound)?;
 		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
-
-		// Fetch current bucket details and other required info
 		let mut current_bucket = Buckets::<T>::get(project_id).ok_or(Error::<T>::BucketNotFound)?;
 		let now = BlockProviderFor::<T>::current_block_number();
+
 		let funding_asset_price =
 			PriceProviderOf::<T>::get_decimals_aware_price(&funding_asset.id(), funding_asset.decimals())
 				.ok_or(Error::<T>::BadMath)?;
-		let ct_price = current_bucket.current_price;
 
-		let funding_asset_value =
-			funding_asset_price.checked_mul_int(funding_asset_amount).ok_or(Error::<T>::BadMath)?;
-		let ct_amount = ct_price
-			.reciprocal()
-			.ok_or(Error::<T>::BadMath)?
-			.checked_mul_int(funding_asset_value)
-			.ok_or(Error::<T>::BadMath)?;
-		let mut amount_to_bid = ct_amount;
-		let project_policy = project_metadata.policy_ipfs_cid.ok_or(Error::<T>::ImpossibleState)?;
+		// Calculate the total Contribution Tokens (CT) the user aims to get for their funding_asset_amount
+		// based on the current bucket's price. This is the initial total CT for the entire bid operation.
+		let total_ct_amount = {
+			let funding_asset_value_usd =
+				funding_asset_price.checked_mul_int(funding_asset_amount).ok_or(Error::<T>::BadMath)?;
+			current_bucket
+				.current_price
+				.reciprocal()
+				.ok_or(Error::<T>::BadMath)?
+				.checked_mul_int(funding_asset_value_usd)
+				.ok_or(Error::<T>::BadMath)?
+		};
 
-		// User will spend at least this amount of USD for his bid(s). More if the bid gets split into different buckets
-		let min_total_ticket_size =
-			current_bucket.current_price.checked_mul_int(ct_amount).ok_or(Error::<T>::BadMath)?;
+		let min_total_ticket_size_usd =
+			current_bucket.current_price.checked_mul_int(total_ct_amount).ok_or(Error::<T>::BadMath)?;
 
 		let metadata_ticket_size_bounds = match investor_type {
 			InvestorType::Institutional => project_metadata.bidding_ticket_sizes.institutional,
@@ -52,9 +51,9 @@ impl<T: Config> Pallet<T> {
 			InvestorType::Retail => RETAIL_MAX_MULTIPLIER,
 		};
 
-		// * Validity checks *
-		ensure!(project_policy == whitelisted_policy, Error::<T>::PolicyMismatch);
-		ensure!(ct_amount > Zero::zero(), Error::<T>::TooLow);
+		let project_policy_cid = project_metadata.policy_ipfs_cid.ok_or(Error::<T>::ImpossibleState)?;
+		ensure!(project_policy_cid == whitelisted_policy, Error::<T>::PolicyMismatch);
+		ensure!(total_ct_amount > Zero::zero(), Error::<T>::TooLow);
 		ensure!(did != project_details.issuer_did, Error::<T>::ParticipationToOwnProject);
 		ensure!(matches!(project_details.status, ProjectStatus::AuctionRound), Error::<T>::IncorrectRound);
 		ensure!(
@@ -65,56 +64,60 @@ impl<T: Config> Pallet<T> {
 			project_metadata.participation_currencies.contains(&funding_asset),
 			Error::<T>::FundingAssetNotAccepted
 		);
-
 		ensure!(
-			metadata_ticket_size_bounds.usd_ticket_above_minimum_per_participation(min_total_ticket_size),
+			metadata_ticket_size_bounds.usd_ticket_above_minimum_per_participation(min_total_ticket_size_usd),
 			Error::<T>::TooLow
 		);
 		ensure!(mode.multiplier() <= max_multiplier && mode.multiplier() > 0u8, Error::<T>::ForbiddenMultiplier);
-
-		// Note: We limit the CT Amount to the auction allocation size, to avoid long-running loops.
-		ensure!(ct_amount <= project_metadata.total_allocation_size, Error::<T>::TooHigh);
 		ensure!(
 			project_metadata.participants_account_type.junction_is_supported(&receiving_account),
 			Error::<T>::UnsupportedReceiverAccountJunction
 		);
 
 		let mut perform_bid_calls = 0u8;
-		let total_ct_amount = ct_amount;
-		let mut remaining_funding_asset = funding_asset_amount;
-		let mut remaining_ct = ct_amount;
+		let mut remaining_funding_asset_for_bid = funding_asset_amount;
+		let mut amount_to_bid_total = total_ct_amount;
 
-		// While there's a remaining amount to bid for
-		while !amount_to_bid.is_zero() {
+		while !amount_to_bid_total.is_zero() {
 			perform_bid_calls.saturating_accrue(1);
 
-			let ct_amount = if amount_to_bid <= current_bucket.amount_left {
-				// Simple case, the bucket has enough to cover the bid
-				amount_to_bid
-			} else {
-				// The bucket doesn't have enough to cover the bid, so we bid the remaining amount of the current bucket
-				current_bucket.amount_left
-			};
+			let ct_for_this_bucket = amount_to_bid_total.min(current_bucket.amount_left);
 			let bid_id = NextBidId::<T>::get();
 			let auction_oversubscribed = current_bucket.current_price > current_bucket.initial_price;
-			// For the last bucket, assign all remaining funding asset to avoid dust
-			let funding_asset_amount_for_this_bucket = if remaining_ct == ct_amount {
-				remaining_funding_asset
-			} else {
-				funding_asset_amount
-					.saturating_mul(ct_amount)
-					.checked_div(total_ct_amount)
-					.ok_or(Error::<T>::BadMath)?
-			};
+
+			// Calculate the funding asset amount required for ct_for_this_bucket at the current bucket's price.
+			let funding_asset_needed_for_chunk_at_current_price =
+				if amount_to_bid_total == ct_for_this_bucket && remaining_funding_asset_for_bid > Zero::zero() {
+					remaining_funding_asset_for_bid
+				} else {
+					// Otherwise, calculate proportionally based on current bucket's price.
+					let usd_cost_for_this_bucket =
+						current_bucket.current_price.checked_mul_int(ct_for_this_bucket).ok_or(Error::<T>::BadMath)?;
+					funding_asset_price
+						.reciprocal()
+						.ok_or(Error::<T>::BadMath)?
+						.checked_mul_int(usd_cost_for_this_bucket)
+						.ok_or(Error::<T>::BadMath)?
+				};
+
+			let funding_asset_for_this_bucket =
+				funding_asset_needed_for_chunk_at_current_price.min(remaining_funding_asset_for_bid);
+
+			// If the calculated funding for this bucket chunk is zero:
+			if funding_asset_for_this_bucket.is_zero() {
+				if amount_to_bid_total > ct_for_this_bucket {
+					break;
+				}
+			}
 
 			let perform_params = DoPerformBidParams {
 				bidder: bidder.clone(),
 				project_id,
-				ct_amount,
+				ct_amount: ct_for_this_bucket,
 				ct_usd_price: current_bucket.current_price,
 				mode,
 				funding_asset,
-				funding_asset_amount: funding_asset_amount_for_this_bucket,
+				funding_asset_amount: funding_asset_for_this_bucket,
 				bid_id,
 				now,
 				did: did.clone(),
@@ -123,26 +126,23 @@ impl<T: Config> Pallet<T> {
 				auction_oversubscribed,
 			};
 
-			BidsBucketBounds::<T>::mutate(project_id, current_bucket.current_price, |maybe_indexes| {
-				if let Some(bucket_bounds) = maybe_indexes {
+			BidsBucketBounds::<T>::mutate(project_id, current_bucket.current_price, |maybe_bounds| {
+				if let Some(bucket_bounds) = maybe_bounds {
 					bucket_bounds.last_bid_index = bid_id;
 				} else {
-					*maybe_indexes = Some(BidBucketBounds { first_bid_index: bid_id, last_bid_index: bid_id });
+					*maybe_bounds = Some(BidBucketBounds { first_bid_index: bid_id, last_bid_index: bid_id });
 				}
 			});
 
 			Self::do_perform_bid(perform_params)?;
 
-			perform_bid_calls = perform_bid_calls.saturating_add(1);
-			remaining_funding_asset = remaining_funding_asset.saturating_sub(funding_asset_amount_for_this_bucket);
-			remaining_ct = remaining_ct.saturating_sub(ct_amount);
+			remaining_funding_asset_for_bid =
+				remaining_funding_asset_for_bid.saturating_sub(funding_asset_for_this_bucket);
+			amount_to_bid_total = amount_to_bid_total.saturating_sub(ct_for_this_bucket);
 
-			// Update the current bucket and reduce the amount to bid by the amount we just bid
-			amount_to_bid = amount_to_bid.saturating_sub(ct_amount);
-			current_bucket.update(ct_amount);
+			current_bucket.update(ct_for_this_bucket);
 		}
-
-		// Note: If the bucket has been exhausted, the 'update' function has already made the 'current_bucket' point to the next one.
+		// If the bucket was exhausted, current_bucket.update() already advanced it to the next one.
 		Buckets::<T>::insert(project_id, current_bucket);
 
 		Ok(PostDispatchInfo {
@@ -181,9 +181,7 @@ impl<T: Config> Pallet<T> {
 			Error::<T>::TooHigh
 		);
 
-		// * Calculate new variables *
 		let plmc_bond = Self::calculate_plmc_bond(usd_ticket_size, multiplier).map_err(|_| Error::<T>::BadMath)?;
-		// OLD Logic: let funding_asset_amount_locked = Self::calculate_funding_asset_amount(usd_ticket_size, funding_asset)?;
 		let funding_asset_amount_locked = funding_asset_amount;
 
 		let new_bid = BidInfoOf::<T> {
@@ -202,9 +200,8 @@ impl<T: Config> Pallet<T> {
 			receiving_account,
 		};
 
-		Self::bond_plmc_with_mode(&bidder, project_id, plmc_bond, mode, funding_asset)?;
+		Self::bond_plmc_with_mode(&bidder, project_id, new_bid.plmc_bond, mode, funding_asset)?;
 		Self::try_funding_asset_hold(&bidder, project_id, funding_asset_amount_locked, funding_asset.id())?;
-
 		Bids::<T>::insert(project_id, bid_id, &new_bid);
 		NextBidId::<T>::set(bid_id.saturating_add(One::one()));
 		AuctionBoughtUSD::<T>::mutate((project_id, did), |amount| *amount = amount.saturating_add(usd_ticket_size));
@@ -246,32 +243,39 @@ impl<T: Config> Pallet<T> {
 				} else {
 					let (new_price, new_index) =
 						Self::get_next_cutoff(project_id, bucket.delta_price, bid_price, bid_index)?;
-					OutbidBidsCutoff { bid_price: new_price, bid_index: new_index }
+					let new_cutoff = OutbidBidsCutoff { bid_price: new_price, bid_index: new_index };
+					OutbidBidsCutoffs::<T>::set(project_id, Some(new_cutoff));
+					new_cutoff
 				}
 			},
 			None => {
 				let first_price = project_metadata.minimum_price;
 				let first_bounds =
 					BidsBucketBounds::<T>::get(project_id, first_price).ok_or(Error::<T>::ImpossibleState)?;
-				OutbidBidsCutoff { bid_price: first_price, bid_index: first_bounds.last_bid_index }
+				let initial_cutoff =
+					OutbidBidsCutoff { bid_price: first_price, bid_index: first_bounds.last_bid_index };
+				OutbidBidsCutoffs::<T>::set(project_id, Some(initial_cutoff));
+				initial_cutoff
 			},
 		};
 
 		// Process the bid at the cutoff
 		let mut bid = Bids::<T>::get(project_id, current_cutoff.bid_index).ok_or(Error::<T>::ImpossibleState)?;
 
-		let bid_amount = match bid.status {
-			BidStatus::PartiallyAccepted(amount) => amount,
+		let ct_amount = match bid.status {
+			BidStatus::PartiallyAccepted(ct_amount) => ct_amount,
 			_ => bid.original_ct_amount,
 		};
 
 		// Update bid status and oversubscribed amount
-		if bid_amount > ct_amount_oversubscribed {
-			bid.status = BidStatus::PartiallyAccepted(bid_amount.saturating_sub(ct_amount_oversubscribed));
+		// TODO: Use safe math operations to avoid underflows
+		// TODO: Sync this with the buffer amount in the bucket.update() method
+		if ct_amount - 1 > ct_amount_oversubscribed {
+			bid.status = BidStatus::PartiallyAccepted(ct_amount.saturating_sub(ct_amount_oversubscribed));
 			ct_amount_oversubscribed = Zero::zero();
 		} else {
 			bid.status = BidStatus::Rejected;
-			ct_amount_oversubscribed = ct_amount_oversubscribed.saturating_sub(bid_amount);
+			ct_amount_oversubscribed = ct_amount_oversubscribed.saturating_sub(ct_amount);
 		}
 
 		// Save state changes

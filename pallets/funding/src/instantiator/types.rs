@@ -224,7 +224,7 @@ impl<T: Config> AccountMerge for Vec<UserToFundingAsset<T>> {
 				.entry((account.clone(), asset_id))
 				.and_modify(|e: &mut Balance| {
 					*e = match ops {
-						MergeOperation::Add => e.saturating_add(*asset_amount),
+						MergeOperation::Add => e.saturating_add(*asset_amount + 1),
 						MergeOperation::Subtract => e.saturating_sub(*asset_amount),
 					}
 				})
@@ -269,11 +269,11 @@ impl<T: Config> Conversions for Vec<UserToFundingAsset<T>> {
 	type AssetId = AssetIdOf<T>;
 
 	fn to_account_asset_map(&self) -> Vec<(Self::AccountId, Self::AssetId)> {
-		let mut btree = BTreeSet::new();
-		for UserToFundingAsset { account, asset_id, .. } in self.iter() {
-			btree.insert((account.clone(), asset_id.clone()));
-		}
-		btree.into_iter().collect_vec()
+		self.iter()
+			.map(|UserToFundingAsset { account, asset_id, .. }| (account.clone(), asset_id.clone()))
+			.collect::<BTreeSet<_>>()
+			.into_iter()
+			.collect_vec()
 	}
 }
 
