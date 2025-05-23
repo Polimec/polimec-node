@@ -122,9 +122,7 @@ impl<T: Config> Pallet<T> {
 			amount = amount.saturating_sub(converted);
 		}
 
-		if !amount.is_zero() {
-			T::NativeCurrency::hold(&HoldReason::Participation.into(), who, amount)?;
-		}
+		T::NativeCurrency::hold(&HoldReason::Participation.into(), who, amount)?;
 		Ok(())
 	}
 
@@ -136,14 +134,13 @@ impl<T: Config> Pallet<T> {
 		asset_id: AssetIdOf<T>,
 	) -> DispatchResult {
 		let fund_account = Self::fund_account_id(project_id);
-
 		T::FundingCurrency::transfer(asset_id, who, &fund_account, amount, Preservation::Preserve)?;
 
 		Ok(())
 	}
 
 	// Calculate the total fee allocation for a project, based on the funding reached.
-	fn calculate_fee_allocation(project_id: ProjectId) -> Result<Balance, DispatchError> {
+	pub fn calculate_fee_allocation(project_id: ProjectId) -> Result<Balance, DispatchError> {
 		let project_metadata = ProjectsMetadata::<T>::get(project_id).ok_or(Error::<T>::ProjectMetadataNotFound)?;
 		let bucket = Buckets::<T>::get(project_id).ok_or(Error::<T>::BucketNotFound)?;
 		// Fetching the necessary data for a specific project.
@@ -166,24 +163,14 @@ impl<T: Config> Pallet<T> {
 
 	/// Computes the total fee from all defined fee brackets.
 	fn compute_total_fee_from_brackets(funding_reached: Balance) -> Balance {
-		let mut remaining_for_fee = funding_reached;
-
 		T::FeeBrackets::get()
 			.into_iter()
-			.map(|(fee, limit)| Self::compute_fee_for_bracket(&mut remaining_for_fee, fee, limit))
-			.fold(Balance::zero(), |acc, fee| acc.saturating_add(fee))
-	}
-
-	/// Calculate the fee for a particular bracket.
-	fn compute_fee_for_bracket(remaining_for_fee: &mut Balance, fee: Percent, limit: Balance) -> Balance {
-		if let Some(amount_to_bid) = remaining_for_fee.checked_sub(limit) {
-			*remaining_for_fee = amount_to_bid;
-			fee * limit
-		} else {
-			let fee_for_this_bracket = fee * *remaining_for_fee;
-			*remaining_for_fee = Balance::zero();
-			fee_for_this_bracket
-		}
+			.scan(funding_reached, |remaining, (fee, limit)| {
+				let consumed = (*remaining).min(limit);
+				*remaining = remaining.saturating_sub(consumed);
+				Some(fee * consumed)
+			})
+			.fold(Balance::zero(), |acc, bracket_fee| acc.saturating_add(bracket_fee))
 	}
 
 	/// Generate and return evaluator rewards based on a project's funding status.

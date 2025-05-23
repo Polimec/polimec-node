@@ -38,11 +38,11 @@ fn top_evaluations() {
 fn top_bids() {
 	let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 	let bids = vec![
-		(BIDDER_1, 8000 * USDT_UNIT).into(),
-		(BIDDER_2, 501 * USDT_UNIT).into(),
-		(BIDDER_3, 1200 * USDT_UNIT).into(),
-		(BIDDER_4, 10400 * USDT_UNIT).into(),
-		(BIDDER_1, 500 * USDT_UNIT).into(),
+		(BIDDER_1, 120 * USDT_UNIT).into(),
+		(BIDDER_2, 510 * USDT_UNIT).into(),
+		(BIDDER_3, 130 * USDT_UNIT).into(),
+		(BIDDER_4, 1040 * USDT_UNIT).into(),
+		(BIDDER_1, 200 * USDT_UNIT).into(),
 	];
 	let project_metadata = default_project_metadata(ISSUER_1);
 	let evaluations = inst.generate_successful_evaluations(project_metadata.clone(), 5);
@@ -59,14 +59,14 @@ fn top_bids() {
 			.into_iter()
 			.map(|evaluation| evaluation.bidder)
 			.collect_vec();
-		assert_eq!(top_4_bidders, vec![BIDDER_4, BIDDER_1, BIDDER_3, BIDDER_2]);
+		assert_eq!(top_4_bidders, vec![BIDDER_4, BIDDER_2, BIDDER_1, BIDDER_3]);
 
 		let top_6_bidders = TestRuntime::top_bids(&TestRuntime, block_hash, project_id, 6)
 			.unwrap()
 			.into_iter()
 			.map(|evaluation| evaluation.bidder)
 			.collect_vec();
-		assert_eq!(top_6_bidders, vec![BIDDER_4, BIDDER_1, BIDDER_3, BIDDER_2, BIDDER_1]);
+		assert_eq!(top_6_bidders, vec![BIDDER_4, BIDDER_2, BIDDER_1, BIDDER_3, BIDDER_1]);
 	});
 }
 
@@ -166,19 +166,6 @@ fn top_projects_by_usd_target_percent_reached() {
 #[test]
 fn contribution_tokens() {
 	let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
-	let project_metadata = default_project_metadata(ISSUER_1);
-	let bob_amount_1 = 450_000 * CT_UNIT;
-	let bids_with_bob_1 = inst.generate_bids_from_total_ct_amount(1, bob_amount_1, &project_metadata);
-	let bob = bids_with_bob_1[0].bidder;
-
-	let bob_amount_2 = 490_000 * CT_UNIT;
-	let bids_with_bob_2 = inst.generate_bids_from_total_ct_amount(1, bob_amount_2, &project_metadata);
-
-	let bob_amount_3 = 300_020 * CT_UNIT;
-	let bids_with_bob_3 = inst.generate_bids_from_total_ct_amount(1, bob_amount_3, &project_metadata);
-
-	let bob_amount_4 = 250_100 * CT_UNIT;
-	let bids_with_bob_4 = inst.generate_bids_from_total_ct_amount(1, bob_amount_4, &project_metadata);
 
 	let get_project = |issuer| {
 		let mut project_metadata = default_project_metadata(issuer);
@@ -193,6 +180,19 @@ fn contribution_tokens() {
 		project_metadata
 	};
 
+	let bob_amount_1 = 420_000 * CT_UNIT;
+	let bids_with_bob_1 = inst.generate_bids_from_total_ct_amount(1, bob_amount_1, &get_project(ISSUER_1));
+	let bob = bids_with_bob_1[0].bidder;
+
+	let bob_amount_2 = 500_000 * CT_UNIT;
+	let bids_with_bob_2 = inst.generate_bids_from_total_ct_amount(1, bob_amount_2, &get_project(ISSUER_2));
+
+	let bob_amount_3 = 300_020 * CT_UNIT;
+	let bids_with_bob_3 = inst.generate_bids_from_total_ct_amount(1, bob_amount_3, &get_project(ISSUER_3));
+
+	let bob_amount_4 = 500_000 * CT_UNIT;
+	let bids_with_bob_4 = inst.generate_bids_from_total_ct_amount(1, bob_amount_4, &get_project(ISSUER_4));
+
 	let evaluations = inst.generate_successful_evaluations(get_project(ISSUER_1), 5);
 	let project_id_1 =
 		inst.create_settled_project(get_project(ISSUER_1), ISSUER_1, None, evaluations.clone(), bids_with_bob_1, true);
@@ -205,9 +205,9 @@ fn contribution_tokens() {
 
 	let expected_items = vec![
 		(project_id_2, bob_amount_2),
+		(project_id_4, bob_amount_4),
 		(project_id_1, bob_amount_1),
 		(project_id_3, bob_amount_3),
-		(project_id_4, bob_amount_4),
 	];
 
 	inst.execute(|| {
@@ -385,28 +385,28 @@ fn get_next_vesting_schedule_merge_candidates() {
 		BidParams::from((
 			BIDDER_1,
 			Professional,
-			50_000 * CT_UNIT,
+			50_000 * USDT_UNIT,
 			ParticipationMode::Classic(4u8),
 			AcceptedFundingAsset::USDT,
 		)),
 		BidParams::from((
 			BIDDER_1,
 			Institutional,
-			50_000 * CT_UNIT,
+			50_000 * USDT_UNIT,
 			ParticipationMode::Classic(3u8),
 			AcceptedFundingAsset::USDT,
 		)),
 		BidParams::from((
 			BIDDER_1,
 			Retail,
-			50_000 * CT_UNIT,
+			50_000 * USDT_UNIT,
 			ParticipationMode::Classic(2u8),
 			AcceptedFundingAsset::USDT,
 		)),
 		BidParams::from((
 			BIDDER_2,
 			Retail,
-			350_000 * CT_UNIT,
+			350_000 * USDT_UNIT,
 			ParticipationMode::Classic(2u8),
 			AcceptedFundingAsset::USDT,
 		)),

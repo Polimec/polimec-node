@@ -121,9 +121,6 @@ mod create_project_extrinsic {
 				vec![(BIDDER_1, Professional, 100 * USDT_UNIT).into(), (BIDDER_2, Retail, 100 * USDT_UNIT).into()];
 			let successful_evaluations = inst.generate_successful_evaluations(project_metadata.clone(), 5);
 			let successful_bids = inst.generate_bids_from_total_ct_percent(project_metadata.clone(), 90, 10);
-
-			println!("Successful bids: {:?}", successful_bids);
-
 			let accounts = vec![
 				vec![ISSUER_1],
 				successful_evaluations.accounts(),

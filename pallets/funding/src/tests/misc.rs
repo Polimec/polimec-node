@@ -139,14 +139,9 @@ mod inner_functions {
 fn project_state_transition_event() {
 	let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 	let project_metadata = default_project_metadata(ISSUER_1);
-	let project_id = inst.create_settled_project(
-		project_metadata.clone(),
-		ISSUER_1,
-		None,
-		inst.generate_successful_evaluations(project_metadata.clone(), 10),
-		inst.generate_bids_from_total_ct_percent(project_metadata.clone(), 90, 30),
-		true,
-	);
+	let evaluations = inst.generate_successful_evaluations(project_metadata.clone(), 10);
+	let bids = inst.generate_bids_from_total_ct_percent(project_metadata.clone(), 90, 30);
+	let project_id = inst.create_settled_project(project_metadata.clone(), ISSUER_1, None, evaluations, bids, true);
 
 	let events = inst.execute(System::events);
 	let transition_events = events

@@ -14,7 +14,7 @@ use macros::generate_accounts;
 use pallet_funding::PriceProviderOf;
 use pallet_transaction_payment::FeeDetails;
 use parity_scale_codec::Encode;
-use polimec_common::{assets::AcceptedFundingAsset, ProvideAssetPrice, PLMC_DECIMALS, USD_DECIMALS};
+use polimec_common::{assets::AcceptedFundingAsset, ProvideAssetPrice, PLMC_DECIMALS};
 use polimec_runtime::Header;
 use sp_arithmetic::{FixedPointNumber, FixedU128};
 use sp_core::H256;

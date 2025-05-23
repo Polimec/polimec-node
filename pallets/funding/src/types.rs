@@ -320,9 +320,7 @@ pub mod storage {
 
 	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
 	pub struct BidInfo<ProjectId, Did, Price: FixedPointNumber, AccountId, BlockNumber> {
-		// Check
 		pub id: u32,
-		// Check
 		pub project_id: ProjectId,
 		pub bidder: AccountId,
 		pub did: Did,
@@ -387,7 +385,8 @@ pub mod storage {
 		/// Update the bucket, return the new price.
 		pub fn update(&mut self, removed_amount: Balance) -> Price {
 			self.amount_left.saturating_reduce(removed_amount);
-			if self.amount_left.is_zero() {
+			if self.amount_left.is_zero() || self.amount_left == 1 {
+				// TODO: Improve this condition, the minimum should be 1 UNIT, not 1
 				self.next();
 			}
 			self.current_price
@@ -398,7 +397,7 @@ pub mod storage {
 		/// - recalculating the price based on the current price and the price increments defined by the `delta_price`.
 		fn next(&mut self) {
 			self.amount_left = self.delta_amount;
-			self.current_price = self.current_price.saturating_add(self.delta_price);
+			self.current_price.saturating_accrue(self.delta_price);
 		}
 
 		pub fn calculate_usd_raised(self, allocation_size: Balance) -> Balance {

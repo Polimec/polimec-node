@@ -12,6 +12,7 @@ use polimec_common::{
 use polimec_common_test_utils::{generate_did_from_account, get_mock_jwt_with_cid};
 use sp_arithmetic::{FixedPointNumber, FixedU128};
 use sp_core::bounded_vec;
+use sp_runtime::TokenError;
 
 generate_accounts!(ISSUER, BOBERT);
 
@@ -101,11 +102,6 @@ fn after_otm_fee_user_goes_under_ed_reverts() {
 		let usdt_contribution = usdt_price.reciprocal().unwrap().saturating_mul_int(usd_contribution);
 		let usdt_otm_fee = usdt_price.reciprocal().unwrap().saturating_mul_int(usd_otm_fee);
 
-		let ct_for_contribution = PolimecFunding::funding_asset_to_ct_amount_classic(
-			project_id,
-			AcceptedFundingAsset::USDT,
-			usdt_contribution,
-		);
 		let jwt = get_mock_jwt_with_cid(
 			bobert.clone(),
 			InvestorType::Retail,
@@ -125,11 +121,11 @@ fn after_otm_fee_user_goes_under_ed_reverts() {
 				PolimecOrigin::signed(bobert.clone()),
 				jwt.clone(),
 				project_id,
-				ct_for_contribution,
+				usdt_contribution,
 				ParticipationMode::OTM,
 				AcceptedFundingAsset::USDT,
 			),
-			pallet_funding::Error::<PolimecRuntime>::ParticipantNotEnoughFunds
+			TokenError::NotExpendable
 		);
 
 		inst.mint_funding_asset_to(vec![(bobert.clone(), usdt_ed, AcceptedFundingAsset::USDT.id()).into()]);
@@ -138,7 +134,7 @@ fn after_otm_fee_user_goes_under_ed_reverts() {
 			PolimecOrigin::signed(bobert.clone()),
 			jwt.clone(),
 			project_id,
-			ct_for_contribution,
+			usdt_contribution,
 			ParticipationMode::OTM,
 			AcceptedFundingAsset::USDT,
 		));
