@@ -109,13 +109,13 @@ variant_count = "1.1.0"
 parking_lot = { version = "0.12.1", default-features = false }
 
 # Emulations
-xcm-emulator = { version = "0.17.1", default-features = false }
+xcm-emulator = { version = "0.17.2", default-features = false }
 
 # Substrate (with default disabled)
 impl-trait-for-tuples = { version = "0.2.2", default-features = false }
-frame-benchmarking = { version = "39.0.0", default-features = false }
-frame-benchmarking-cli = { version = "46.1.0" }
-frame-executive = { version = "39.1.0", default-features = false }
+frame-benchmarking = { version = "39.1.0", default-features = false }
+frame-benchmarking-cli = { version = "46.2.0" }
+frame-executive = { version = "39.1.1", default-features = false }
 frame-support = { version = "39.1.0", default-features = false }
 frame-system = { version = "39.1.0", default-features = false }
 frame-system-rpc-runtime-api = { version = "35.0.0", default-features = false }
@@ -142,7 +142,7 @@ sp-transaction-pool = { version = "35.0.0", default-features = false }
 sp-trie = { version = "38.0.0", default-features = false }
 sp-version = { version = "38.0.0", default-features = false }
 sp-consensus-grandpa = { version = "22.0.0", default-features = false }
-sp-npos-elections = { version = "35.0.0", default-features = false }
+sp-npos-elections = { version = "35.1.0", default-features = false }
 sp-tracing = { version = "17.0.1", default-features = false }
 pallet-im-online = { version = "38.1.0", default-features = false }
 sp-authority-discovery = { version = "35.0.0", default-features = false }
@@ -160,7 +160,7 @@ pallet-authorship = { version = "39.0.0", default-features = false }
 pallet-session = { version = "39.0.0", default-features = false }
 pallet-timestamp = { version = "38.0.0", default-features = false }
 pallet-collective = { version = "39.1.0", default-features = false }
-pallet-scheduler = { version = "40.1.0", default-features = false }
+pallet-scheduler = { version = "40.2.0", default-features = false }
 pallet-sudo = { version = "39.0.0", default-features = false }
 pallet-transaction-payment = { version = "39.1.0", default-features = false }
 pallet-transaction-payment-rpc-runtime-api = { version = "39.0.0", default-features = false }
@@ -178,17 +178,17 @@ pallet-asset-tx-payment = { version = "39.1.0", default-features = false }
 pallet-skip-feeless-payment = { version = "14.1.0", default-features = false }
 
 # Polkadot (with default disabled)
-pallet-xcm = { version = "18.1.0", default-features = false }
+pallet-xcm = { version = "18.1.1", default-features = false }
 pallet-collator-selection = { version = "20.1.0", default-features = false }
 polkadot-parachain-primitives = { version = "15.0.0", default-features = false }
 polkadot-runtime-parachains = { version = "18.1.0", default-features = false }
 polkadot-core-primitives = { version = "16.0.0", default-features = false }
-xcm = { version = "15.0.3", package = 'staging-xcm', default-features = false }
-xcm-builder = { version = "18.2.0", package = 'staging-xcm-builder', default-features = false }
-xcm-executor = { version = "18.0.2", package = 'staging-xcm-executor', default-features = false }
+xcm = { version = "15.1.0", package = 'staging-xcm', default-features = false }
+xcm-builder = { version = "18.2.1", package = 'staging-xcm-builder', default-features = false }
+xcm-executor = { version = "18.0.3", package = 'staging-xcm-executor', default-features = false }
 polkadot-runtime-common = { version = "18.1.0", default-features = false }
 polkadot-primitives = { version = "17.1.0", default-features = false }
-xcm-runtime-apis = { version = "0.5.2", default-features = false }
+xcm-runtime-apis = { version = "0.5.3", default-features = false }
 
 # Cumulus (with default disabled)
 cumulus-pallet-aura-ext = { version = "0.18.0", default-features = false }
@@ -220,7 +220,7 @@ sc-basic-authorship = { version = "0.48.0" }
 sc-client-api = { version = "38.0.0" }
 sc-consensus = { version = "0.47.0" }
 sc-consensus-aura = { version = "0.48.0" }
-sc-network = { version = "0.48.3" }
+sc-network = { version = "0.48.4" }
 sc-offchain = { version = "43.0.0" }
 sc-network-sync = { version = "0.47.0" }
 sc-cli = { version = "0.50.1" }
@@ -248,8 +248,8 @@ cumulus-pallet-session-benchmarking = { version = "20.0.0", default-features = f
 # Runtimes
 polimec-runtime = { path = "runtimes/polimec" }
 westend-runtime-constants = { version = "18.0.0" }
-westend-runtime = { version = "21.1.0" }
-asset-hub-westend-runtime = { version = "0.27.2" }
+westend-runtime = { version = "21.2.0" }
+asset-hub-westend-runtime = { version = "0.27.4" }
 
 # tests
-emulated-integration-tests-common = { version = "19.0.2" }
+emulated-integration-tests-common = { version = "19.1.0" }
