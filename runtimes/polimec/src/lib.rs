@@ -179,23 +179,13 @@ pub type Migrations = migrations::Unreleased;
 /// The runtime migrations per release.
 #[allow(missing_docs)]
 pub mod migrations {
-	use crate::{parameter_types, Runtime, RuntimeDbWeight};
-	use frame_support::migrations::RemovePallet;
-
-	parameter_types! {
-		/// The name of the Identity pallet.
-		pub const IdentityPalletName: &'static str = "Identity";
-	}
+	use crate::Runtime;
 
 	/// Unreleased migrations. Add new ones here:
 	pub type Unreleased = (
 		// permanent
 		pallet_xcm::migration::MigrateToLatestXcmVersion<Runtime>,
 		// temporary
-		RemovePallet<IdentityPalletName, RuntimeDbWeight>,
-		pallet_funding::migrations::vesting_info::v7::MigrationToV8<Runtime>,
-		pallet_linear_release::migrations::LinearReleaseVestingMigrationV1<Runtime>,
-		super::custom_migrations::vesting::v1::UncheckedMigrationToAsyncBacking<Runtime>,
 	);
 }
 
@@ -242,10 +232,10 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: Cow::Borrowed("polimec-mainnet"),
 	impl_name: Cow::Borrowed("polimec-mainnet"),
 	authoring_version: 1,
-	spec_version: 1_001_000,
+	spec_version: 1_001_001,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
-	transaction_version: 8,
+	transaction_version: 9,
 	system_version: 1,
 };
 
