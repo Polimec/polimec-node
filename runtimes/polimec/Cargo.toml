@@ -41,6 +41,13 @@ pallet-proxy-bonding.workspace = true
 hex-literal.workspace = true
 itertools.workspace = true
 
+# Virto
+pallet-pass.workspace = true
+fc-traits-authn.workspace = true
+pass-webauthn ={ workspace = true, features = [
+	"runtime",
+] }
+
 # Substrate
 assets-common.workspace = true
 frame-benchmarking = { workspace = true, optional = true }
@@ -124,6 +131,7 @@ std = [
 	"cumulus-primitives-aura/std",
 	"cumulus-primitives-core/std",
 	"cumulus-primitives-utility/std",
+	"fc-traits-authn/std",
 	"frame-benchmarking?/std",
 	"frame-executive/std",
 	"frame-metadata-hash-extension/std",
@@ -150,6 +158,7 @@ std = [
 	"pallet-multisig/std",
 	"pallet-oracle-ocw/std",
 	"pallet-parachain-staking/std",
+	"pallet-pass/std",
 	"pallet-preimage/std",
 	"pallet-proxy-bonding/std",
 	"pallet-proxy/std",
@@ -166,6 +175,7 @@ std = [
 	"parachain-info/std",
 	"parachains-common/std",
 	"parity-scale-codec/std",
+	"pass-webauthn/std",
 	"polimec-common-test-utils?/std",
 	"polimec-common/std",
 	"polkadot-parachain-primitives/std",
@@ -218,6 +228,7 @@ runtime-benchmarks = [
 	"pallet-multisig/runtime-benchmarks",
 	"pallet-oracle-ocw/runtime-benchmarks",
 	"pallet-parachain-staking/runtime-benchmarks",
+	"pallet-pass/runtime-benchmarks",
 	"pallet-preimage/runtime-benchmarks",
 	"pallet-proxy-bonding/runtime-benchmarks",
 	"pallet-proxy/runtime-benchmarks",
@@ -230,6 +241,7 @@ runtime-benchmarks = [
 	"pallet-vesting/runtime-benchmarks",
 	"pallet-xcm/runtime-benchmarks",
 	"parachains-common/runtime-benchmarks",
+	"pass-webauthn/runtime-benchmarks",
 	"polimec-common-test-utils",
 	"polimec-common-test-utils?/runtime-benchmarks",
 	"polimec-common/runtime-benchmarks",
@@ -269,6 +281,7 @@ try-runtime = [
 	"pallet-multisig/try-runtime",
 	"pallet-oracle-ocw/try-runtime",
 	"pallet-parachain-staking/try-runtime",
+	"pallet-pass/try-runtime",
 	"pallet-preimage/try-runtime",
 	"pallet-proxy-bonding/try-runtime",
 	"pallet-proxy/try-runtime",
@@ -282,6 +295,7 @@ try-runtime = [
 	"pallet-vesting/try-runtime",
 	"pallet-xcm/try-runtime",
 	"parachain-info/try-runtime",
+	"pass-webauthn/try-runtime",
 	"polimec-common-test-utils?/try-runtime",
 	"polimec-common/try-runtime",
 	"polkadot-runtime-common/try-runtime",

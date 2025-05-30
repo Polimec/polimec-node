@@ -27,6 +27,9 @@ use assets_common::fungible_conversion::{convert, convert_balance};
 use core::cmp::Ordering;
 use cumulus_pallet_parachain_system::{RelayNumberMonotonicallyIncreases, RelaychainDataProvider};
 use cumulus_primitives_core::{AggregateMessageOrigin, ParaId};
+use fc_traits_authn::{
+	composite_authenticator, util::AuthorityFromPalletId, Authenticator, Challenge, Challenger, ExtrinsicContext,
+};
 use frame_support::{
 	construct_runtime,
 	genesis_builder_helper::{build_state, get_preset},
@@ -56,12 +59,12 @@ use parity_scale_codec::Encode;
 use polimec_common::{
 	assets::AcceptedFundingAsset,
 	credentials::{Did, EnsureInvestor, InvestorType},
-	ProvideAssetPrice, DAYS, PLMC_DECIMALS, SLOT_DURATION, USD_DECIMALS, USD_UNIT,
+	ProvideAssetPrice, DAYS, MINUTES, PLMC_DECIMALS, SLOT_DURATION, USD_DECIMALS, USD_UNIT,
 };
 use polkadot_runtime_common::{BlockHashCount, CurrencyToVote, SlowAdjustingFeeUpdate};
 use shared_configuration::proxy;
 use sp_api::impl_runtime_apis;
-use sp_core::{crypto::KeyTypeId, ConstU64, ConstU8, OpaqueMetadata};
+use sp_core::{blake2_256, crypto::KeyTypeId, ConstU128, ConstU64, ConstU8, OpaqueMetadata};
 use sp_runtime::{
 	generic, impl_opaque_keys,
 	traits::{
@@ -1166,6 +1169,89 @@ impl pallet_asset_tx_payment::BenchmarkHelperTrait<AccountId, Location, xcm::v3:
 impl pallet_skip_feeless_payment::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 }
+// pub type Pass
+parameter_types! {
+	pub PassPalletId: PalletId = PalletId(*b"polipass");
+}
+
+/// A [`Challenger`][`frame_contrib_traits::authn::Challenger`] which verifies
+/// the block hash of a block of a given block that's within the last
+/// `PAST_BLOCKS`.
+pub struct BlockHashChallenger<const PAST_BLOCKS: BlockNumber>;
+
+impl<const PAST_BLOCKS: BlockNumber> Challenger for BlockHashChallenger<PAST_BLOCKS> {
+	type Context = BlockNumber;
+
+	fn generate(cx: &Self::Context, xtc: &impl ExtrinsicContext) -> Challenge {
+		blake2_256(&[&System::block_hash(cx).0, xtc.as_ref()].concat())
+	}
+
+	fn check_challenge(cx: &Self::Context, xtc: &impl ExtrinsicContext, challenge: &[u8]) -> Option<()> {
+		(*cx >= System::block_number().saturating_sub(PAST_BLOCKS)).then_some(())?;
+		Self::generate(cx, xtc).eq(challenge).then_some(())
+	}
+}
+
+pub type WebAuthn =
+	pass_webauthn::Authenticator<BlockHashChallenger<{ 30 * MINUTES }>, AuthorityFromPalletId<PassPalletId>>;
+
+composite_authenticator!(
+	pub Pass<AuthorityFromPalletId<PassPalletId>> {
+		WebAuthn,
+	}
+);
+
+parameter_types! {
+	pub AccountRegistrationReason: RuntimeHoldReason = RuntimeHoldReason::Pass(pallet_pass::HoldReason::AccountRegistration);
+	pub AccountDevicesReason: RuntimeHoldReason = RuntimeHoldReason::Pass(pallet_pass::HoldReason::AccountDevices);
+	pub SessionKeysReason: RuntimeHoldReason = RuntimeHoldReason::Pass(pallet_pass::HoldReason::SessionKeys);
+}
+
+impl pallet_pass::Config for Runtime {
+	type AddressGenerator = ();
+	#[cfg(not(feature = "runtime-benchmarks"))]
+	type Authenticator = PassAuthenticator;
+	#[cfg(feature = "runtime-benchmarks")]
+	type Authenticator = benchmarks::PassAuthenticator;
+	type Balances = Balances;
+	#[cfg(feature = "runtime-benchmarks")]
+	type BenchmarkHelper = benchmarks::PassBenchmarkHelper;
+	type BlockNumberProvider = RelaychainDataProvider<Runtime>;
+	type DeviceConsideration = pallet_pass::FirstItemIsFree<
+		HoldConsideration<
+			AccountId,
+			Balances,
+			AccountDevicesReason,
+			LinearStoragePrice<sp_core::ConstU128<MILLI_PLMC>, ConstU128<{ MILLI_PLMC / 10 }>, Balance>,
+		>,
+	>;
+	type MaxSessionDuration = ConstU32<{ 15 * MINUTES }>;
+	type PalletId = PassPalletId;
+	type PalletsOrigin = OriginCaller;
+	type RegisterOrigin = frame_support::traits::EitherOf<
+		// Root can create pass accounts.
+		EnsureRootWithSuccess<Self::AccountId, TreasuryAccount>,
+		AsEnsureOriginWithArg<EnsureSigned<Self::AccountId>>,
+	>;
+	type RegistrarConsideration = HoldConsideration<
+		AccountId,
+		Balances,
+		AccountRegistrationReason,
+		LinearStoragePrice<ConstU128<EXISTENTIAL_DEPOSIT>, ConstU128<MILLI_PLMC>, Balance>,
+	>;
+	type RuntimeCall = RuntimeCall;
+	type RuntimeEvent = RuntimeEvent;
+	type Scheduler = Scheduler;
+	type SessionKeyConsideration = pallet_pass::FirstItemIsFree<
+		HoldConsideration<
+			AccountId,
+			Balances,
+			SessionKeysReason,
+			LinearStoragePrice<ConstU128<MILLI_PLMC>, ConstU128<{ MILLI_PLMC / 10 }>, Balance>,
+		>,
+	>;
+	type WeightInfo = ();
+}
 
 // Create the runtime by composing the FRAME pallets that were previously configured.
 construct_runtime!(
@@ -1181,6 +1267,7 @@ construct_runtime!(
 		Multisig: pallet_multisig::{Pallet, Call, Storage, Event<T>} = 6,
 		Proxy: pallet_proxy::{Pallet, Call, Storage, Event<T>} = 7,
 		// Index 8 was used for `Identity` which is now removed.
+		Pass: pallet_pass = 8,
 		SkipFeelessPayment: pallet_skip_feeless_payment = 9,
 
 		// Monetary stuff.

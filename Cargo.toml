@@ -74,6 +74,9 @@ macros-tests = { path = "macros/tests" }
 orml-oracle = { version = "1.4.0", default-features = false }
 orml-traits = { version = "1.4.0", default-features = false }
 jwt-compact = { git = "https://github.com/lrazovic/jwt-compact", package = "jwt-compact-frame", default-features = false }
+pallet-pass = { git = "https://github.com/virto-network/frame-contrib", package = "fc-pallet-pass", default-features = false }
+pass-webauthn = { git = "https://github.com/virto-network/webauthn", default-features = false }
+fc-traits-authn = { git = "https://github.com/virto-network/frame-contrib", default-features = false }
 
 # Internal support (with default disabled)
 shared-configuration = { path = "runtimes/shared-configuration", default-features = false }
