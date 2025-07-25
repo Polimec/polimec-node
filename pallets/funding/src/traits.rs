@@ -14,9 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use crate::{Balance, BlockNumberFor, Config, ProjectId};
-use frame_support::weights::Weight;
-use sp_runtime::DispatchError;
+use crate::{Balance, BlockNumberFor, Config};
 
 pub trait BondingRequirementCalculation {
 	fn calculate_usd_bonding_requirement<T: Config>(&self, ticket_size: Balance) -> Option<Balance>;
@@ -24,12 +22,6 @@ pub trait BondingRequirementCalculation {
 
 pub trait VestingDurationCalculation {
 	fn calculate_vesting_duration<T: Config>(&self) -> BlockNumberFor<T>;
-}
-
-pub trait DoRemainingOperation<T: Config> {
-	fn has_remaining_operations(&self) -> bool;
-
-	fn do_one_operation(&mut self, project_id: ProjectId) -> Result<Weight, DispatchError>;
 }
 
 #[cfg(any(feature = "runtime-benchmarks", feature = "std"))]

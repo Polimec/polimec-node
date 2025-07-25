@@ -36,7 +36,6 @@ polimec-common.workspace = true
 sp-core.workspace = true
 pallet-balances.workspace = true
 xcm.workspace = true
-xcm-executor.workspace = true
 polkadot-parachain-primitives.workspace = true
 sp-api.workspace = true
 polimec-common-test-utils = { workspace = true, optional = true }
@@ -55,7 +54,6 @@ cumulus-primitives-core.workspace = true
 [dev-dependencies]
 pallet-timestamp.workspace = true
 pallet-assets.workspace = true
-pallet-linear-release.workspace = true
 polimec-common-test-utils.workspace = true
 xcm-builder.workspace = true
 xcm-executor.workspace = true

@@ -2,7 +2,7 @@ use super::*;
 
 #[test]
 fn top_evaluations() {
-	let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+	let mut inst = MockInstantiator::default();
 	let evaluations = vec![
 		EvaluationParams::from((EVALUATOR_1, 500_000 * PLMC_UNIT)),
 		EvaluationParams::from((EVALUATOR_2, 250_000 * PLMC_UNIT)),
@@ -36,7 +36,7 @@ fn top_evaluations() {
 
 #[test]
 fn top_bids() {
-	let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+	let mut inst = MockInstantiator::default();
 	let bids = vec![
 		(BIDDER_1, 120 * USDT_UNIT).into(),
 		(BIDDER_2, 510 * USDT_UNIT).into(),
@@ -72,7 +72,7 @@ fn top_bids() {
 
 #[test]
 fn top_projects_by_usd_raised() {
-	let inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+	let inst = MockInstantiator::default();
 
 	let (inst, project_id_1) = create_finished_project_with_usd_raised(inst, 400_000 * USD_UNIT, 1_000_000 * USD_UNIT);
 	let (inst, project_id_2) =
@@ -120,7 +120,7 @@ fn top_projects_by_usd_raised() {
 
 #[test]
 fn top_projects_by_usd_target_percent_reached() {
-	let inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+	let inst = MockInstantiator::default();
 	let (inst, project_id_1) =
 		create_finished_project_with_usd_raised(inst, 2_000_000 * USD_UNIT, 1_000_000 * USD_UNIT);
 	let (inst, project_id_2) = create_finished_project_with_usd_raised(inst, 945_000 * USD_UNIT, 1_000_000 * USD_UNIT);
@@ -165,7 +165,7 @@ fn top_projects_by_usd_target_percent_reached() {
 
 #[test]
 fn contribution_tokens() {
-	let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+	let mut inst = MockInstantiator::default();
 
 	let get_project = |issuer| {
 		let mut project_metadata = default_project_metadata(issuer);
@@ -219,7 +219,7 @@ fn contribution_tokens() {
 
 #[test]
 fn funding_asset_to_ct_amount_classic() {
-	let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+	let mut inst = MockInstantiator::default();
 
 	// Medium case, a bid goes over part of a bucket (bucket after the first one)
 	let project_metadata_3 = default_project_metadata(ISSUER_3);
@@ -284,7 +284,7 @@ fn funding_asset_to_ct_amount_classic() {
 
 #[test]
 fn funding_asset_to_ct_amount_otm() {
-	let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+	let mut inst = MockInstantiator::default();
 
 	// We want to use a funding asset that is not equal to 1 USD
 	// Sanity check
@@ -360,7 +360,7 @@ fn funding_asset_to_ct_amount_otm() {
 
 #[test]
 fn get_message_to_sign_by_receiving_account() {
-	let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+	let mut inst = MockInstantiator::default();
 	let _project_id_0 = inst.create_new_project(default_project_metadata(ISSUER_1), ISSUER_1, None);
 	let _project_id_1 = inst.create_new_project(default_project_metadata(ISSUER_2), ISSUER_2, None);
 	let project_id_2 = inst.create_new_project(default_project_metadata(ISSUER_3), ISSUER_3, None);
@@ -379,7 +379,7 @@ fn get_message_to_sign_by_receiving_account() {
 
 #[test]
 fn get_next_vesting_schedule_merge_candidates() {
-	let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+	let mut inst = MockInstantiator::default();
 	let evaluations = vec![EvaluationParams::from((EVALUATOR_1, 500_000 * PLMC_UNIT))];
 	let bids = vec![
 		BidParams::from((
@@ -457,7 +457,7 @@ fn get_next_vesting_schedule_merge_candidates() {
 
 #[test]
 fn calculate_otm_fee() {
-	let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+	let mut inst = MockInstantiator::default();
 	let mut project_metadata = default_project_metadata(ISSUER_1);
 	let base_price = PriceOf::<TestRuntime>::from_float(1.0);
 	let decimal_aware_price =
@@ -545,7 +545,7 @@ fn get_funding_asset_min_max_amounts() {
 	const BIDDER_RETAIL_ETH_MIN: u128 = 1 * ETH_UNIT;
 	const BIDDER_RETAIL_ETH_MAX: u128 = 250 * ETH_UNIT;
 
-	let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+	let mut inst = MockInstantiator::default();
 
 	let evaluations = inst.generate_successful_evaluations(project_metadata.clone(), 5);
 	let project_id = inst.create_auctioning_project(project_metadata, ISSUER_1, None, evaluations);
@@ -603,7 +603,7 @@ fn get_funding_asset_min_max_amounts() {
 
 #[test]
 fn all_project_participations_by_did() {
-	let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+	let mut inst = MockInstantiator::default();
 
 	let did_user = generate_did_from_account(420);
 	let mut project_metadata = default_project_metadata(ISSUER_1);
@@ -685,7 +685,7 @@ fn all_project_participations_by_did() {
 
 #[test]
 fn usd_target_percent_reached() {
-	let inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+	let inst = MockInstantiator::default();
 	let (inst, project_id_1) =
 		create_finished_project_with_usd_raised(inst, 2_000_000 * USD_UNIT, 1_000_000 * USD_UNIT);
 	let (inst, project_id_2) = create_finished_project_with_usd_raised(inst, 945_000 * USD_UNIT, 1_000_000 * USD_UNIT);
@@ -731,7 +731,7 @@ fn usd_target_percent_reached() {
 
 #[test]
 fn projects_by_did() {
-	let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+	let mut inst = MockInstantiator::default();
 	let did_user = generate_did_from_account(420);
 
 	let evaluations = inst.generate_successful_evaluations(default_project_metadata(ISSUER_1), 5);

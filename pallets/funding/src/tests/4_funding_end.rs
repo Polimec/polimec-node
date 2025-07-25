@@ -122,7 +122,7 @@ mod end_funding_extrinsic {
 
 		#[test]
 		fn called_too_early() {
-			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+			let mut inst = MockInstantiator::default();
 			let project_metadata = default_project_metadata(ISSUER_1);
 			let project_id = inst.create_auctioning_project(
 				project_metadata.clone(),

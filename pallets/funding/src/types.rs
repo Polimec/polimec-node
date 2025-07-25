@@ -17,26 +17,24 @@
 // If you feel like getting in touch with us, you can do so at info@polimec.org
 
 //! Types for Funding pallet.
-use crate::traits::BondingRequirementCalculation;
+use crate::{
+	traits::{BondingRequirementCalculation, VestingDurationCalculation},
+	Config,
+};
 use alloc::{vec, vec::Vec};
 pub use config::*;
 use core::cmp::Eq;
 pub use extrinsic::*;
 use frame_support::pallet_prelude::*;
 pub use inner::*;
-use polimec_common::{DAYS, USD_DECIMALS};
+use polimec_common::{assets::AcceptedFundingAsset, DAYS, USD_DECIMALS};
 use serde::{Deserialize, Serialize};
 use sp_arithmetic::{traits::Saturating, FixedPointNumber, FixedU128};
 use sp_runtime::{
-	traits::{Convert, One},
+	traits::{Convert, One, Zero},
 	Percent,
 };
 pub use storage::*;
-
-use crate::{traits::VestingDurationCalculation, Config};
-
-use polimec_common::assets::AcceptedFundingAsset;
-use sp_runtime::traits::Zero;
 
 pub mod config {
 	use super::*;
@@ -385,7 +383,9 @@ pub mod storage {
 		/// Update the bucket, return the new price.
 		pub fn update(&mut self, removed_amount: Balance) -> Price {
 			self.amount_left.saturating_reduce(removed_amount);
-			if self.amount_left.is_zero() || self.amount_left == 1 {
+			// TODO: Improve this condition, the minimum should be 1 UNIT, not 1
+			// Or, even better, we should always saturate to zero.
+			if self.amount_left.is_zero() {
 				// TODO: Improve this condition, the minimum should be 1 UNIT, not 1
 				self.next();
 			}

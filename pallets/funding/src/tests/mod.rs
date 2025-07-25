@@ -8,7 +8,6 @@ use crate::{
 	ParticipationMode::*,
 	ProjectMetadata, TicketSize,
 };
-use core::cell::RefCell;
 use defaults::*;
 use frame_support::{
 	assert_err, assert_noop, assert_ok,
@@ -156,13 +155,7 @@ pub mod defaults {
 	}
 
 	pub fn project_from_funding_reached(instantiator: &mut MockInstantiator, percent: u64) -> ProjectId {
-		let project_metadata = default_project_metadata(ISSUER_1);
-		let usd_to_reach = Perquintill::from_percent(percent) *
-			(project_metadata.minimum_price.checked_mul_int(project_metadata.total_allocation_size).unwrap());
-		let evaluations = instantiator.generate_successful_evaluations(project_metadata.clone(), 5);
-		let bids = instantiator.generate_bids_from_total_usd(project_metadata.clone(), usd_to_reach, 5);
-
-		instantiator.create_finished_project(project_metadata, ISSUER_1, None, evaluations, bids)
+		instantiator.create_completed_project(ISSUER_1, 5, 10, percent as u8)
 	}
 
 	pub fn default_bids_from_ct_percent(percent: u8) -> Vec<BidParams<TestRuntime>> {
@@ -174,16 +167,11 @@ pub mod defaults {
 }
 
 pub fn create_project_with_funding_percentage(percentage: u8, start_settlement: bool) -> (MockInstantiator, ProjectId) {
-	let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
-	let mut project_metadata = default_project_metadata(ISSUER_1);
-	project_metadata.total_allocation_size = 1_000_000 * CT_UNIT;
-	let evaluations = inst.generate_successful_evaluations(project_metadata.clone(), 5);
-	let bids = inst.generate_bids_from_total_ct_percent(project_metadata.clone(), percentage, 30);
-
-	let project_id = inst.create_finished_project(project_metadata, ISSUER_1, None, evaluations, bids);
+	let mut inst = MockInstantiator::default();
+	let project_id = inst.create_completed_project(ISSUER_1, 5, 30, percentage);
 
 	if start_settlement {
-		assert!(matches!(inst.go_to_next_state(project_id), ProjectStatus::SettlementStarted(_)));
+		inst.start_settlement_with_pallet(project_id).unwrap();
 	}
 
 	(inst, project_id)
@@ -194,27 +182,16 @@ pub fn create_finished_project_with_usd_raised(
 	usd_raised: Balance,
 	usd_target: Balance,
 ) -> (MockInstantiator, ProjectId) {
-	let mut test_inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 	let issuer = inst.get_new_nonce();
 	let mut project_metadata = default_project_metadata(issuer);
 	project_metadata.total_allocation_size =
 		project_metadata.minimum_price.reciprocal().unwrap().saturating_mul_int(usd_target);
 
-	let evaluations = inst.generate_successful_evaluations(project_metadata.clone(), 5);
-
-	let bids;
-	if usd_raised <= usd_target {
-		bids = inst.generate_bids_from_total_usd(project_metadata.clone(), usd_raised, 5);
-	} else {
-		// This function generates new projects, so we need to use the test instance
-		bids = test_inst.generate_bids_from_higher_usd_than_target(project_metadata.clone(), usd_raised);
-	}
-
-	let project_id = inst.create_finished_project(project_metadata, issuer, None, evaluations, bids);
+	let funding_percentage =
+		Perquintill::from_rational(usd_raised, usd_target).deconstruct() / (Perquintill::ACCURACY / 100);
+	let project_id = inst.create_completed_project(issuer, 5, 10, funding_percentage as u8);
 
 	let project_details = inst.get_project_details(project_id);
-
-	// We are happy if the amount raised is 99.999% of what we wanted
 	assert_close_enough!(project_details.funding_amount_reached_usd, usd_raised, Perquintill::from_float(0.999));
 	assert_eq!(project_details.fundraising_target_usd, usd_target);
 
