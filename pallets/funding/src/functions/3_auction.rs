@@ -24,18 +24,19 @@ impl<T: Config> Pallet<T> {
 			PriceProviderOf::<T>::get_decimals_aware_price(&funding_asset.id(), funding_asset.decimals())
 				.ok_or(Error::<T>::BadMath)?;
 
-		// Calculate the total Contribution Tokens (CT) the user aims to get for their funding_asset_amount
-		// based on the current bucket's price. This is the initial total CT for the entire bid operation.
-		let total_ct_amount = {
-			let funding_asset_value_usd =
-				funding_asset_price.checked_mul_int(funding_asset_amount).ok_or(Error::<T>::BadMath)?;
-			current_bucket
-				.current_price
-				.reciprocal()
-				.ok_or(Error::<T>::BadMath)?
-				.checked_mul_int(funding_asset_value_usd)
-				.ok_or(Error::<T>::BadMath)?
-		};
+		let price_ratio = funding_asset_price.checked_div(&current_bucket.current_price).ok_or(Error::<T>::BadMath)?;
+
+		let raw_ct_amount = price_ratio.checked_mul_int(funding_asset_amount).ok_or(Error::<T>::BadMath)?;
+
+		let rounding_step = 10u128
+			.checked_pow(project_metadata.token_information.decimals as u32 - USD_DECIMALS as u32)
+			.ok_or(Error::<T>::BadMath)?;
+
+		// Now, round the raw amount to the nearest UNIT number.
+		let total_ct_amount =
+			polimec_common::round_to_nearest(raw_ct_amount, rounding_step).ok_or(Error::<T>::BadMath)?;
+
+		// println!("Rounded CT Amount: {:?}", total_ct_amount);
 
 		let min_total_ticket_size_usd =
 			current_bucket.current_price.checked_mul_int(total_ct_amount).ok_or(Error::<T>::BadMath)?;
@@ -268,7 +269,6 @@ impl<T: Config> Pallet<T> {
 		};
 
 		// Update bid status and oversubscribed amount
-		// TODO: Use safe math operations to avoid underflows
 		// TODO: Sync this with the buffer amount in the bucket.update() method
 		if ct_amount - 1 > ct_amount_oversubscribed {
 			bid.status = BidStatus::PartiallyAccepted(ct_amount.saturating_sub(ct_amount_oversubscribed));

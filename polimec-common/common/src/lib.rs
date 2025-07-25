@@ -398,3 +398,43 @@ pub trait ProvideAssetPrice {
 		Self::calculate_decimals_aware_price(original_price, USD_DECIMALS, asset_decimals)
 	}
 }
+
+/// Rounds a given `u128` number to the nearest multiple of a `step`.
+///
+/// This is useful for rounding to a specific level of precision, e.g.,
+/// rounding a token amount to the nearest 0.01 tokens.
+///
+/// Returns `None` if the `step` is zero or if any calculation results in an overflow.
+///
+/// # Arguments
+///
+/// * `number`: The number to round.
+/// * `step`: The granularity to round to. The final result will be a multiple of this.
+///
+/// # Example
+///
+/// // Round 147 to the nearest 10 -> 150
+/// assert_eq!(round_to_nearest(147, 10), Some(150));
+/// // Round 142 to the nearest 10 -> 140
+/// assert_eq!(round_to_nearest(142, 10), Some(140));
+/// // Round 145 to the nearest 10 -> 150 (rounds half up)
+/// assert_eq!(round_to_nearest(145, 10), Some(150));
+pub fn round_to_nearest(number: u128, step: u128) -> Option<u128> {
+	if step == 0 {
+		return None;
+	}
+
+	let half_step = step.checked_div(2)?;
+
+	let quotient = number.checked_div(step)?;
+	let remainder = number.checked_rem(step)?;
+
+	if remainder >= half_step {
+		// Round up
+		let next_quotient = quotient.checked_add(1)?;
+		next_quotient.checked_mul(step)
+	} else {
+		// Round down
+		quotient.checked_mul(step)
+	}
+}

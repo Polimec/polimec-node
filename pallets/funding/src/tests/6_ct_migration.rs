@@ -5,7 +5,7 @@ mod offchain_migration {
 
 	#[test]
 	fn start_offchain_migration() {
-		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+		let mut inst = MockInstantiator::default();
 		let evaluations = inst.generate_successful_evaluations(default_project_metadata(ISSUER_1), 5);
 		let bids = inst.generate_bids_from_total_ct_percent(default_project_metadata(ISSUER_1), 90, 10);
 		// Create migrations for 2 projects, to check the `remaining_participants` is unaffected by other projects
@@ -53,7 +53,7 @@ mod offchain_migration {
 
 	#[test]
 	fn confirm_offchain_migration() {
-		let inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+		let inst = MockInstantiator::default();
 		let (project_id, mut inst) = create_offchain_migration_project(inst);
 		let bidder_1 = inst.account_from_u32(0, "BIDDER");
 
@@ -70,7 +70,7 @@ mod offchain_migration {
 
 	#[test]
 	fn mark_project_migration_as_finished() {
-		let inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+		let inst = MockInstantiator::default();
 		let (project_id, mut inst) = create_offchain_migration_project(inst);
 
 		let participants = inst.execute(|| UserMigrations::<TestRuntime>::iter_key_prefix((project_id,)).collect_vec());

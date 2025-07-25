@@ -39,12 +39,12 @@ use sp_arithmetic::{
 	traits::{SaturatedConversion, Saturating, Zero},
 	FixedPointNumber, Percent, Perquintill,
 };
-use sp_runtime::traits::{Convert, Member, One};
+use sp_runtime::{traits::{Convert, Member, One}};
 
-#[cfg(any(test, feature = "std", feature = "runtime-benchmarks"))]
+#[cfg(test)]
 use polimec_common_test_utils::generate_did_from_account;
 
-#[cfg(any(feature = "std", feature = "runtime-benchmarks"))]
+#[cfg(test)]
 pub mod macros;
 
 pub mod types;
@@ -53,11 +53,23 @@ pub use types::*;
 pub mod traits;
 pub use traits::*;
 
-#[cfg(any(feature = "std", feature = "runtime-benchmarks"))]
+#[cfg(test)]
 pub mod calculations;
 
-#[cfg(any(feature = "std", feature = "runtime-benchmarks"))]
+#[cfg(test)]
 pub mod chain_interactions;
+
+#[cfg(test)]
+pub mod pallet_integration;
+
+#[cfg(test)]
+pub mod improved_flow;
+
+#[cfg(test)]
+pub mod validation;
+
+#[cfg(test)]
+pub mod test_helpers;
 
 #[cfg(test)]
 mod tests;

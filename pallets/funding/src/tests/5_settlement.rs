@@ -37,7 +37,7 @@ mod round_flow {
 
 		#[test]
 		fn ethereum_project_can_be_settled() {
-			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+			let mut inst = MockInstantiator::default();
 			let mut project_metadata = default_project_metadata(ISSUER_1);
 			let base_price = PriceOf::<TestRuntime>::from_float(1.0);
 			let decimal_aware_price = <TestRuntime as Config>::PriceProvider::calculate_decimals_aware_price(
@@ -112,7 +112,7 @@ mod round_flow {
 			expected = "Actual percentage (0%) is less than the required minimum (99.9%) for values 0 and 12"
 		)]
 		fn polkadot_project_with_different_receiving_accounts_can_be_settled() {
-			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+			let mut inst = MockInstantiator::default();
 			let mut project_metadata = default_project_metadata(ISSUER_1);
 			let base_price = PriceOf::<TestRuntime>::from_float(1.0);
 			let decimal_aware_price = <TestRuntime as Config>::PriceProvider::calculate_decimals_aware_price(
@@ -220,7 +220,7 @@ mod start_settlement_extrinsic {
 
 		#[test]
 		fn called_too_early() {
-			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+			let mut inst = MockInstantiator::default();
 			let project_metadata = default_project_metadata(ISSUER_1);
 			let evaluations = inst.generate_successful_evaluations(project_metadata.clone(), 5);
 			let project_id =
@@ -256,7 +256,7 @@ mod settle_evaluation_extrinsic {
 
 		#[test]
 		fn evaluation_rewarded() {
-			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+			let mut inst = MockInstantiator::default();
 			let mut project_metadata = default_project_metadata(ISSUER_1);
 			project_metadata.total_allocation_size = 1_000_000 * CT_UNIT;
 			let plmc_usd_price =
@@ -396,7 +396,7 @@ mod settle_evaluation_extrinsic {
 
 		#[test]
 		fn evaluation_round_failed() {
-			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+			let mut inst = MockInstantiator::default();
 			let project_metadata = default_project_metadata(ISSUER_1);
 			let evaluation = EvaluationParams::from((EVALUATOR_1, 1_000 * PLMC_UNIT));
 			let project_id = inst.create_evaluating_project(project_metadata.clone(), ISSUER_1, None);
@@ -488,7 +488,7 @@ mod settle_bid_extrinsic {
 
 		#[test]
 		fn accepted_bid_with_refund_on_project_success() {
-			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+			let mut inst = MockInstantiator::default();
 			let ed = inst.get_ed();
 			let usdt_ed = inst.get_funding_asset_ed(AcceptedFundingAsset::USDT.id());
 			let mut project_metadata = default_project_metadata(ISSUER_1);
@@ -544,17 +544,17 @@ mod settle_bid_extrinsic {
 				expected_final_usdt_paid, partial_amount_bid_stored.funding_asset_amount_locked
 			);
 
-			let expected_plmc_refund = partial_amount_bid_stored.plmc_bond - expected_final_plmc_bonded;
-			let expected_usdt_refund = partial_amount_bid_stored.funding_asset_amount_locked - expected_final_usdt_paid;
+			let _expected_plmc_refund = partial_amount_bid_stored.plmc_bond - expected_final_plmc_bonded;
+			let _expected_usdt_refund = partial_amount_bid_stored.funding_asset_amount_locked - expected_final_usdt_paid;
 
-			let pre_issuer_usdt_balance = inst.get_free_funding_asset_balance_for(
+			let _pre_issuer_usdt_balance = inst.get_free_funding_asset_balance_for(
 				AcceptedFundingAsset::USDT.id(),
 				project_metadata.funding_destination_account,
 			);
 
 			inst.settle_project(project_id, true);
 
-			let post_issuer_usdt_balance = inst.get_free_funding_asset_balance_for(
+			let _post_issuer_usdt_balance = inst.get_free_funding_asset_balance_for(
 				AcceptedFundingAsset::USDT.id(),
 				project_metadata.funding_destination_account,
 			);
@@ -589,7 +589,7 @@ mod settle_bid_extrinsic {
 
 		#[test]
 		fn accepted_bid_without_refund_on_project_success() {
-			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+			let mut inst = MockInstantiator::default();
 			let ed = inst.get_ed();
 			let usdt_ed = inst.get_funding_asset_ed(AcceptedFundingAsset::USDT.id());
 
@@ -688,7 +688,7 @@ mod settle_bid_extrinsic {
 
 		#[test]
 		fn accepted_bid_without_refund_on_project_failure() {
-			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+			let mut inst = MockInstantiator::default();
 			let ed = inst.get_ed();
 			let usdt_ed = inst.get_funding_asset_ed(AcceptedFundingAsset::USDT.id());
 			let mut project_metadata = default_project_metadata(ISSUER_1);
@@ -750,7 +750,7 @@ mod settle_bid_extrinsic {
 
 		#[test]
 		fn rejected_bid_on_project_success() {
-			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+			let mut inst = MockInstantiator::default();
 			let ed = inst.get_ed();
 			let usdt_ed = inst.get_funding_asset_ed(AcceptedFundingAsset::USDT.id());
 			let mut project_metadata = default_project_metadata(ISSUER_1);
