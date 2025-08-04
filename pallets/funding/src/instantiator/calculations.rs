@@ -2,10 +2,11 @@ use super::*;
 use crate::{MultiplierOf, ParticipationMode};
 use alloc::{vec, vec::Vec};
 use itertools::{izip, GroupBy};
-#[allow(clippy::wildcard_imports)]
-use polimec_common::assets::AcceptedFundingAsset;
 use polimec_common::{
-	assets::AcceptedFundingAsset::{DOT, ETH, USDC, USDT},
+	assets::{
+		AcceptedFundingAsset,
+		AcceptedFundingAsset::{DOT, ETH, USDC, USDT},
+	},
 	ProvideAssetPrice,
 };
 use sp_core::{blake2_256, ecdsa, hexdisplay::AsBytesRef, keccak_256, sr25519, Pair};
@@ -33,29 +34,63 @@ impl<
 		evaluations.into_iter().map(|eval| UserToPLMCBalance::new(eval.account, eval.plmc_amount)).collect()
 	}
 
-	// A single bid can be split into multiple buckets. This function splits the bid into multiple ones at different prices.
 	pub fn get_actual_price_charged_for_bucketed_bids(
 		&self,
 		bids: &Vec<BidParams<T>>,
 		project_metadata: ProjectMetadataOf<T>,
 		maybe_bucket: Option<BucketOf<T>>,
-	) -> Vec<(BidParams<T>, PriceOf<T>)> {
+		// ) -> Vec<(BidParams<T>, PriceOf<T>)> {
+	) -> Vec<(BidParams<T>, PriceOf<T>, Balance /* funding asset spent */, Balance /* CTs bought */)> {
 		let mut output = Vec::new();
 		let mut bucket = if let Some(bucket) = maybe_bucket {
 			bucket
 		} else {
 			Pallet::<T>::create_bucket_from_metadata(&project_metadata)
 		};
+
 		for bid in bids {
-			let mut amount_to_bid = bid.amount;
-			while !amount_to_bid.is_zero() {
-				let bid_amount = if amount_to_bid <= bucket.amount_left { amount_to_bid } else { bucket.amount_left };
+			let mut funding_asset_left = bid.amount;
+			let funding_asset = bid.asset;
+			let funding_asset_price =
+				PriceProviderOf::<T>::get_decimals_aware_price(&funding_asset.id(), funding_asset.decimals()).unwrap();
+			let mut i = 0;
+			while !funding_asset_left.is_zero() {
+				// 1. How many CTs can we buy with the remaining funding asset at this bucket's price?
+				let funding_asset_value = funding_asset_price.checked_mul_int(funding_asset_left).unwrap();
+				let ct_price = bucket.current_price;
+				let ct_can_buy = ct_price.reciprocal().unwrap().checked_mul_int(funding_asset_value).unwrap();
+
+				// 2. The bucket may not have enough CTs left
+				let ct_to_buy = ct_can_buy.min(bucket.amount_left);
+
+				if ct_to_buy.is_zero() {
+					break; // nothing more to buy in this bucket
+				}
+
+				// 3. How much funding asset is actually needed for ct_to_buy at this price?
+				// funding_asset_needed = (ct_to_buy * ct_price) / funding_asset_price
+				let usd_needed = ct_price.checked_mul_int(ct_to_buy).unwrap();
+				// let funding_asset_needed = usd_needed.checked_div(&funding_asset_price).unwrap().try_into().unwrap();
+				let funding_asset_needed =
+					funding_asset_price.reciprocal().unwrap().checked_mul_int(usd_needed).unwrap();
+
+				// 4. Clamp to what we have left (in case of rounding)
+				let funding_asset_spent = funding_asset_needed.min(funding_asset_left);
+
 				output.push((
-					BidParams::from((bid.bidder.clone(), bid.investor_type, bid_amount, bid.mode, bid.asset)),
+					BidParams::from((bid.bidder.clone(), bid.investor_type, funding_asset_spent, bid.mode, bid.asset)),
 					bucket.current_price,
+					funding_asset_spent,
+					ct_to_buy,
 				));
-				bucket.update(bid_amount);
-				amount_to_bid.saturating_reduce(bid_amount);
+
+				bucket.update(ct_to_buy);
+				funding_asset_left = funding_asset_left.saturating_sub(funding_asset_spent);
+				i += 1;
+				if i > 3 {
+					// Prevent infinite loop in case of rounding errors
+					break;
+				}
 			}
 		}
 		output
@@ -68,7 +103,9 @@ impl<
 	) -> Vec<UserToPLMCBalance<T>> {
 		let mut output = Vec::new();
 		for bid in bids {
-			let usd_ticket_size = ct_price.saturating_mul_int(bid.amount);
+			let funding_asset_price =
+				PriceProviderOf::<T>::get_decimals_aware_price(&bid.asset.id(), bid.asset.decimals()).unwrap();
+			let usd_ticket_size = funding_asset_price.saturating_mul_int(bid.amount);
 			let mut plmc_required = Balance::zero();
 			if let ParticipationMode::Classic(multiplier) = bid.mode {
 				self.add_required_plmc_to(&mut plmc_required, usd_ticket_size, multiplier)
@@ -88,8 +125,14 @@ impl<
 	) -> Vec<UserToPLMCBalance<T>> {
 		let mut output = Vec::new();
 
-		for (bid, price) in self.get_actual_price_charged_for_bucketed_bids(bids, project_metadata, maybe_bucket) {
-			let usd_ticket_size = price.saturating_mul_int(bid.amount);
+		for (bid, _price, _funding_asset_spent, _ct_bought) in
+			self.get_actual_price_charged_for_bucketed_bids(bids, project_metadata, maybe_bucket)
+		{
+			// FIX: Compute USD value from funding asset amount
+			let funding_asset_price =
+				PriceProviderOf::<T>::get_decimals_aware_price(&bid.asset.id(), bid.asset.decimals()).unwrap();
+			let usd_ticket_size = funding_asset_price.saturating_mul_int(bid.amount);
+
 			let mut plmc_required = Balance::zero();
 			if let ParticipationMode::Classic(multiplier) = bid.mode {
 				self.add_required_plmc_to(&mut plmc_required, usd_ticket_size, multiplier)
@@ -109,10 +152,10 @@ impl<
 	) -> Vec<UserToPLMCBalance<T>> {
 		let mut output = Vec::new();
 		let charged_bids = self.get_actual_price_charged_for_bucketed_bids(bids, project_metadata.clone(), None);
-		let grouped_by_price_bids = charged_bids.into_iter().group_by(|&(_, price)| price);
+		let grouped_by_price_bids = charged_bids.into_iter().group_by(|&(_, price, _, _)| price);
 		let mut grouped_by_price_bids: Vec<(PriceOf<T>, Vec<BidParams<T>>)> = grouped_by_price_bids
 			.into_iter()
-			.map(|(key, group)| (key, group.map(|(bid, _price_)| bid).collect()))
+			.map(|(key, group)| (key, group.map(|(bid, _price_, _, _)| bid).collect()))
 			.collect();
 		grouped_by_price_bids.reverse();
 
@@ -156,7 +199,10 @@ impl<
 	) -> Vec<UserToFundingAsset<T>> {
 		let mut output = Vec::new();
 		for bid in bids {
-			let usd_ticket_size = ct_price.saturating_mul_int(bid.amount);
+			let funding_asset_price =
+				PriceProviderOf::<T>::get_decimals_aware_price(&bid.asset.id(), bid.asset.decimals()).unwrap();
+			let usd_ticket_size = funding_asset_price.saturating_mul_int(bid.amount);
+
 			let mut funding_asset_spent = Balance::zero();
 			self.add_required_funding_asset_to(&mut funding_asset_spent, usd_ticket_size, bid.asset);
 			if bid.mode == ParticipationMode::OTM {
@@ -176,15 +222,23 @@ impl<
 	) -> Vec<UserToFundingAsset<T>> {
 		let mut output = Vec::new();
 
-		for (bid, price) in self.get_actual_price_charged_for_bucketed_bids(bids, project_metadata, maybe_bucket) {
-			let usd_ticket_size = price.saturating_mul_int(bid.amount);
-			let mut funding_asset_spent = Balance::zero();
-			self.add_required_funding_asset_to(&mut funding_asset_spent, usd_ticket_size, bid.asset);
+		// Use the updated version that returns (bid, price, funding_asset_spent, ct_bought)
+		for (bid, _price, funding_asset_spent, _ct_bought) in
+			self.get_actual_price_charged_for_bucketed_bids(bids, project_metadata, maybe_bucket)
+		{
+			let mut total_funding_asset_spent = funding_asset_spent;
+
+			// For OTM, add the OTM fee (which is a % of the USD value of the funding asset spent)d
 			if bid.mode == ParticipationMode::OTM {
-				self.add_otm_fee_to(&mut funding_asset_spent, usd_ticket_size, bid.asset);
+				// Convert funding_asset_spent to USD using decimals-aware price
+				let funding_asset_price =
+					PriceProviderOf::<T>::get_decimals_aware_price(&bid.asset.id(), bid.asset.decimals()).unwrap();
+				let usd_ticket_size = funding_asset_price.saturating_mul_int(funding_asset_spent);
+
+				self.add_otm_fee_to(&mut total_funding_asset_spent, usd_ticket_size, bid.asset);
 			}
 
-			output.push(UserToFundingAsset::<T>::new(bid.bidder.clone(), funding_asset_spent, bid.asset.id()));
+			output.push(UserToFundingAsset::<T>::new(bid.bidder.clone(), total_funding_asset_spent, bid.asset.id()));
 		}
 
 		output.merge_accounts(MergeOperation::Add)
@@ -192,52 +246,38 @@ impl<
 
 	pub fn calculate_auction_funding_asset_returned_from_all_bids_made(
 		&mut self,
-		// bids in the order they were made
 		bids: &Vec<BidParams<T>>,
 		project_metadata: ProjectMetadataOf<T>,
 	) -> Vec<UserToFundingAsset<T>> {
-		let mut output = Vec::new();
-		let charged_bids = self.get_actual_price_charged_for_bucketed_bids(bids, project_metadata.clone(), None);
-		let grouped_by_price_bids = charged_bids.into_iter().group_by(|&(_, price)| price);
-		let mut grouped_by_price_bids: Vec<(PriceOf<T>, Vec<BidParams<T>>)> = grouped_by_price_bids
-			.into_iter()
-			.map(|(key, group)| (key, group.map(|(bid, _price)| bid).collect()))
-			.collect();
-		grouped_by_price_bids.reverse();
+		use std::collections::BTreeMap;
 
-		let mut remaining_cts = project_metadata.total_allocation_size;
+		// Map: (bidder, asset_id) -> (total_provided, total_spent)
+		let mut provided: BTreeMap<(AccountIdOf<T>, AssetIdOf<T>), Balance> = BTreeMap::new();
+		let mut spent: BTreeMap<(AccountIdOf<T>, AssetIdOf<T>), Balance> = BTreeMap::new();
 
-		for (price_charged, bids) in grouped_by_price_bids {
-			for bid in bids {
-				let mut charged_usd_ticket_size = price_charged.saturating_mul_int(bid.amount);
-				let mut charged_funding_asset = Balance::zero();
-				self.add_required_funding_asset_to(&mut charged_funding_asset, charged_usd_ticket_size, bid.asset);
-				if bid.mode == ParticipationMode::OTM {
-					self.add_otm_fee_to(&mut charged_usd_ticket_size, bid.amount, bid.asset);
-				}
-
-				if remaining_cts <= Zero::zero() {
-					output.push(UserToFundingAsset::new(bid.bidder, charged_funding_asset, bid.asset.id()));
-					continue
-				}
-
-				let bought_cts = if remaining_cts < bid.amount { remaining_cts } else { bid.amount };
-				remaining_cts = remaining_cts.saturating_sub(bought_cts);
-
-				let actual_usd_ticket_size = price_charged.saturating_mul_int(bought_cts);
-				let mut actual_funding_asset_spent = Balance::zero();
-				self.add_required_funding_asset_to(&mut actual_funding_asset_spent, actual_usd_ticket_size, bid.asset);
-				if bid.mode == ParticipationMode::OTM {
-					self.add_otm_fee_to(&mut actual_funding_asset_spent, actual_usd_ticket_size, bid.asset);
-				}
-
-				let returned_foreign_asset = charged_funding_asset - actual_funding_asset_spent;
-
-				output.push(UserToFundingAsset::<T>::new(bid.bidder, returned_foreign_asset, bid.asset.id()));
-			}
+		// 1. Record total provided per user/asset
+		for bid in bids {
+			let key = (bid.bidder.clone(), bid.asset.id());
+			*provided.entry(key).or_default() += bid.amount;
 		}
 
-		output.merge_accounts(MergeOperation::Add)
+		// 2. Record total spent per user/asset from bucketed bids
+		for (bid, _price, funding_asset_spent, _ct_bought) in
+			self.get_actual_price_charged_for_bucketed_bids(bids, project_metadata, None)
+		{
+			let key = (bid.bidder.clone(), bid.asset.id());
+			*spent.entry(key).or_default() += funding_asset_spent;
+		}
+
+		// 3. Calculate returned = provided - spent
+		let mut output = Vec::new();
+		for ((bidder, asset_id), provided_amount) in provided {
+			let spent_amount = spent.get(&(bidder.clone(), asset_id.clone())).copied().unwrap_or(0);
+			let returned = provided_amount.saturating_sub(spent_amount);
+			output.push(UserToFundingAsset::<T>::new(bidder, returned, asset_id));
+		}
+
+		output
 	}
 
 	pub fn add_otm_fee_to(
@@ -414,8 +454,12 @@ impl<
 		self.generate_evaluations_from_total_plmc(total_plmc_for_failure, evaluations_count)
 	}
 
-	pub fn generate_bids_from_total_ct_amount(&self, bids_count: u32, total_ct_bid: Balance) -> Vec<BidParams<T>> {
-		// Use u128 for multipliers to allow for larger values
+	pub fn generate_bids_from_total_ct_amount(
+		&self,
+		bids_count: u32,
+		total_ct_bid: Balance,
+		project_metadata: &ProjectMetadataOf<T>,
+	) -> Vec<BidParams<T>> {
 		let mut multipliers = (1u8..=5u8).cycle();
 
 		let modes = (0..bids_count)
@@ -433,33 +477,42 @@ impl<
 		let funding_assets =
 			vec![USDT, USDC, DOT, ETH, USDT].into_iter().cycle().take(bids_count as usize).collect_vec();
 
-		// Use Perquintill for precise weight distribution
 		let weights = {
 			if bids_count == 0 {
 				return vec![];
 			}
-			// Convert to Perquintill for higher precision division
 			let one = Perquintill::from_percent(100);
 			let per_bid = one / bids_count;
 			let mut remaining = one;
 			let mut result = Vec::with_capacity(bids_count as usize);
 
-			// Distribute weights evenly with maximum precision
 			for _ in 0..bids_count - 1 {
 				result.push(per_bid);
 				remaining = remaining - per_bid;
 			}
-			// Add remaining weight to the last bid to ensure total is exactly 100%
 			result.push(remaining);
 			result
 		};
 
 		let bidders = (0..bids_count).map(|i| self.account_from_u32(i, "BIDDER")).collect_vec();
 
+		// Use the current bucket price for the project
+		let bucket = Pallet::<T>::create_bucket_from_metadata(project_metadata);
+		let ct_price = bucket.current_price;
+
 		izip!(weights, bidders, modes, investor_types, funding_assets)
 			.map(|(weight, bidder, mode, investor_type, funding_asset)| {
-				let token_amount = weight * total_ct_bid;
-				BidParams::from((bidder, investor_type, token_amount, mode, funding_asset))
+				let ct_amount = weight * total_ct_bid;
+
+				// Convert ct_amount to funding asset amount
+				let funding_asset_price =
+					PriceProviderOf::<T>::get_decimals_aware_price(&funding_asset.id(), funding_asset.decimals())
+						.unwrap();
+				// funding_asset_needed = (ct_amount * ct_price) / funding_asset_price
+				let usd_needed = ct_price.saturating_mul_int(ct_amount);
+				let funding_asset_needed =
+					funding_asset_price.reciprocal().unwrap().checked_mul_int(usd_needed).unwrap();
+				BidParams::from((bidder, investor_type, funding_asset_needed, mode, funding_asset))
 			})
 			.collect()
 	}
@@ -476,7 +529,7 @@ impl<
 		if total_ct_bid > total_allocation_size {
 			panic!("This function should be used for filling only the first bucket. usd_amount given was too high!")
 		}
-		self.generate_bids_from_total_ct_amount(bids_count, total_ct_bid)
+		self.generate_bids_from_total_ct_amount(bids_count, total_ct_bid, &project_metadata)
 	}
 
 	pub fn generate_bids_from_higher_usd_than_target(
@@ -499,13 +552,47 @@ impl<
 		bucket.amount_left = bucket.delta_amount;
 
 		// Start buying the min amount of tokens in this bucket until we reach or surpass the usd amount
-		while bucket.calculate_usd_raised(project_metadata.total_allocation_size) < usd_target {
-			let min_ticket = project_metadata.bidding_ticket_sizes.retail.usd_minimum_per_participation;
-			let ct_min_ticket = bucket.current_price.reciprocal().unwrap().saturating_mul_int(min_ticket);
-			bucket.update(ct_min_ticket);
+		let mut bids = Vec::new();
+		let mut starting_account = self.account_from_u32(0, "BIDDER");
+		let increment_account = |acc: AccountIdOf<T>| -> AccountIdOf<T> {
+			let acc_bytes = acc.encode();
+			let account_string = String::from_utf8_lossy(&acc_bytes);
+			let entropy = (0, account_string).using_encoded(blake2_256);
+			Decode::decode(&mut TrailingZeroInput::new(entropy.as_ref()))
+				.expect("infinite length input; no invalid inputs for type; qed")
+		};
+
+		let min_ticket = project_metadata.bidding_ticket_sizes.retail.usd_minimum_per_participation;
+		let funding_asset_price = PriceProviderOf::<T>::get_decimals_aware_price(
+			&AcceptedFundingAsset::USDT.id(),
+			AcceptedFundingAsset::USDT.decimals(),
+		)
+		.expect("Price must exist in test");
+
+		let mut current_usd_raised = bucket.calculate_usd_raised(project_metadata.total_allocation_size);
+
+		while current_usd_raised < usd_target {
+			let funding_asset_needed =
+				funding_asset_price.checked_mul_int(min_ticket).unwrap().saturating_add(1u128).try_into().unwrap();
+
+			// How many CTs will this buy at the current bucket price?
+			let usd_value = funding_asset_price.saturating_mul_int(funding_asset_needed);
+			let ct_amount = bucket.current_price.reciprocal().unwrap().saturating_mul_int(usd_value);
+
+			let bid = BidParams::<T>::from((
+				starting_account.clone(),
+				Retail,
+				funding_asset_needed,
+				AcceptedFundingAsset::USDT,
+			));
+			bids.push(bid);
+			starting_account = increment_account(starting_account.clone());
+			bucket.update(ct_amount);
+
+			current_usd_raised = bucket.calculate_usd_raised(project_metadata.total_allocation_size);
 		}
 
-		self.generate_bids_from_bucket(project_metadata, bucket, AcceptedFundingAsset::USDT)
+		bids
 	}
 
 	pub fn generate_bids_from_total_ct_percent(
@@ -517,7 +604,7 @@ impl<
 		let total_allocation_size = project_metadata.total_allocation_size;
 		let total_ct_bid = Percent::from_percent(percent_funding) * total_allocation_size;
 
-		self.generate_bids_from_total_ct_amount(bids_count, total_ct_bid)
+		self.generate_bids_from_total_ct_amount(bids_count, total_ct_bid, &project_metadata)
 	}
 
 	pub fn slash_evaluator_balances(&self, mut balances: Vec<UserToPLMCBalance<T>>) -> Vec<UserToPLMCBalance<T>> {
@@ -529,6 +616,7 @@ impl<
 	}
 
 	// We assume a single bid can cover the whole first bucket. Make sure the ticket sizes allow this.
+	// TODO: This function probably is the most problematic.
 	pub fn generate_bids_from_bucket(
 		&self,
 		project_metadata: ProjectMetadataOf<T>,
@@ -551,8 +639,19 @@ impl<
 				.expect("infinite length input; no invalid inputs for type; qed")
 		};
 
-		let mut generate_bid = |ct_amount| -> BidParams<T> {
-			let bid = BidParams::<T>::from((starting_account.clone(), Retail, ct_amount, funding_asset));
+		// Helper: convert CT amount to funding asset amount at a given price
+		let ct_to_funding_asset = |ct_amount: Balance, price: PriceOf<T>| -> Balance {
+			let funding_asset_price =
+				PriceProviderOf::<T>::get_decimals_aware_price(&funding_asset.id(), funding_asset.decimals()).unwrap();
+			let usd_needed = price.saturating_mul_int(ct_amount);
+			// let funding_asset_needed = usd_needed.checked_div(&funding_asset_price).unwrap().try_into().unwrap();
+			let funding_asset_needed = funding_asset_price.reciprocal().unwrap().checked_mul_int(usd_needed).unwrap();
+			funding_asset_needed
+		};
+
+		let mut generate_bid = |ct_amount, price| -> BidParams<T> {
+			let funding_asset_amount = ct_to_funding_asset(ct_amount, price);
+			let bid = BidParams::<T>::from((starting_account.clone(), Retail, funding_asset_amount, funding_asset));
 			starting_account = increment_account(starting_account.clone());
 			bid
 		};
@@ -560,13 +659,13 @@ impl<
 		let mut bids = Vec::new();
 
 		if bucket.current_price > bucket.initial_price {
-			let allocation_bid = generate_bid(auction_allocation);
+			let allocation_bid = generate_bid(auction_allocation, bucket.current_price);
 			bids.push(allocation_bid);
 			new_bucket.update(auction_allocation);
 		}
 
 		while bucket.current_price > new_bucket.current_price {
-			let bucket_bid = generate_bid(bucket.delta_amount);
+			let bucket_bid = generate_bid(bucket.delta_amount, new_bucket.current_price);
 			bids.push(bucket_bid);
 			new_bucket.update(bucket.delta_amount);
 		}
@@ -574,7 +673,7 @@ impl<
 		let last_bid_amount = bucket.delta_amount - bucket.amount_left;
 		let last_usd_amount = bucket.current_price.saturating_mul_int(last_bid_amount);
 		if last_usd_amount >= project_metadata.bidding_ticket_sizes.retail.usd_minimum_per_participation {
-			let last_bid = generate_bid(last_bid_amount);
+			let last_bid = generate_bid(last_bid_amount, bucket.current_price);
 			bids.push(last_bid);
 			new_bucket.update(last_bid_amount);
 		}

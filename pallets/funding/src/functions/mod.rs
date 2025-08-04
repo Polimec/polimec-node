@@ -14,7 +14,10 @@ use frame_support::{
 	},
 	transactional,
 };
-use polimec_common::credentials::{Did, InvestorType};
+use polimec_common::{
+	credentials::{Did, InvestorType},
+	ProvideAssetPrice,
+};
 use sp_arithmetic::{traits::Zero, Percent, Perquintill};
 use sp_runtime::traits::Convert;
 

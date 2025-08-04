@@ -38,11 +38,11 @@ fn top_evaluations() {
 fn top_bids() {
 	let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 	let bids = vec![
-		(BIDDER_1, 8000 * CT_UNIT).into(),
-		(BIDDER_2, 501 * CT_UNIT).into(),
-		(BIDDER_3, 1200 * CT_UNIT).into(),
-		(BIDDER_4, 10400 * CT_UNIT).into(),
-		(BIDDER_1, 500 * CT_UNIT).into(),
+		(BIDDER_1, 8000 * USDT_UNIT).into(),
+		(BIDDER_2, 501 * USDT_UNIT).into(),
+		(BIDDER_3, 1200 * USDT_UNIT).into(),
+		(BIDDER_4, 10400 * USDT_UNIT).into(),
+		(BIDDER_1, 500 * USDT_UNIT).into(),
 	];
 	let project_metadata = default_project_metadata(ISSUER_1);
 	let evaluations = inst.generate_successful_evaluations(project_metadata.clone(), 5);
@@ -166,19 +166,19 @@ fn top_projects_by_usd_target_percent_reached() {
 #[test]
 fn contribution_tokens() {
 	let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
-
+	let project_metadata = default_project_metadata(ISSUER_1);
 	let bob_amount_1 = 450_000 * CT_UNIT;
-	let bids_with_bob_1 = inst.generate_bids_from_total_ct_amount(1, bob_amount_1);
+	let bids_with_bob_1 = inst.generate_bids_from_total_ct_amount(1, bob_amount_1, &project_metadata);
 	let bob = bids_with_bob_1[0].bidder;
 
 	let bob_amount_2 = 490_000 * CT_UNIT;
-	let bids_with_bob_2 = inst.generate_bids_from_total_ct_amount(1, bob_amount_2);
+	let bids_with_bob_2 = inst.generate_bids_from_total_ct_amount(1, bob_amount_2, &project_metadata);
 
 	let bob_amount_3 = 300_020 * CT_UNIT;
-	let bids_with_bob_3 = inst.generate_bids_from_total_ct_amount(1, bob_amount_3);
+	let bids_with_bob_3 = inst.generate_bids_from_total_ct_amount(1, bob_amount_3, &project_metadata);
 
 	let bob_amount_4 = 250_100 * CT_UNIT;
-	let bids_with_bob_4 = inst.generate_bids_from_total_ct_amount(1, bob_amount_4);
+	let bids_with_bob_4 = inst.generate_bids_from_total_ct_amount(1, bob_amount_4, &project_metadata);
 
 	let get_project = |issuer| {
 		let mut project_metadata = default_project_metadata(issuer);
@@ -467,9 +467,7 @@ fn calculate_otm_fee() {
 	project_metadata.participation_currencies = bounded_vec![AcceptedFundingAsset::DOT];
 
 	let dot_id = AcceptedFundingAsset::DOT.id();
-	let dot_decimals = inst.execute(|| ForeignAssets::decimals(dot_id.clone()));
-	let dot_unit = 10u128.pow(dot_decimals as u32);
-	let dot_ticket = 1000 * dot_unit;
+	let dot_ticket = 100 * DOT_UNIT;
 	let dot_ed = inst.get_funding_asset_ed(dot_id.clone());
 
 	let block_hash = inst.execute(|| System::block_hash(System::block_number()));
@@ -481,18 +479,6 @@ fn calculate_otm_fee() {
 
 	let evaluations = inst.generate_successful_evaluations(project_metadata.clone(), 5);
 	let project_id = inst.create_auctioning_project(project_metadata, ISSUER_1, None, evaluations);
-
-	let ct_amount = inst
-		.execute(|| {
-			TestRuntime::funding_asset_to_ct_amount_classic(
-				&TestRuntime,
-				block_hash,
-				project_id,
-				AcceptedFundingAsset::DOT,
-				dot_ticket,
-			)
-		})
-		.unwrap();
 
 	inst.execute(|| ForeignAssets::set_balance(dot_id.clone(), &BIDDER_1, dot_ticket + calculated_fee + dot_ed));
 
@@ -508,7 +494,7 @@ fn calculate_otm_fee() {
 			RuntimeOrigin::signed(BIDDER_1),
 			jwt,
 			project_id,
-			ct_amount,
+			dot_ticket,
 			ParticipationMode::OTM,
 			AcceptedFundingAsset::DOT,
 		)
@@ -639,14 +625,14 @@ fn all_project_participations_by_did() {
 		BidParams::from((
 			BIDDER_1,
 			Retail,
-			400_000 * CT_UNIT,
+			400_000 * USDT_UNIT,
 			ParticipationMode::Classic(1u8),
 			AcceptedFundingAsset::USDT,
 		)),
 		BidParams::from((
 			BIDDER_2,
 			Retail,
-			50_000 * CT_UNIT,
+			50_000 * USDT_UNIT,
 			ParticipationMode::Classic(1u8),
 			AcceptedFundingAsset::USDT,
 		)),

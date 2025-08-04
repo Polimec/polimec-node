@@ -1,17 +1,11 @@
 #[allow(clippy::wildcard_imports)]
 use super::*;
 use crate::ParticipationMode;
-use alloc::{boxed::Box, vec::Vec};
+use alloc::vec::Vec;
 use frame_support::{Deserialize, Serialize};
 use polimec_common::assets::AcceptedFundingAsset;
 
 pub type RuntimeOriginOf<T> = <T as frame_system::Config>::RuntimeOrigin;
-pub struct BoxToFunction(pub Box<dyn FnOnce()>);
-impl Default for BoxToFunction {
-	fn default() -> Self {
-		BoxToFunction(Box::new(|| ()))
-	}
-}
 
 #[cfg(feature = "std")]
 pub type OptionalExternalities = Option<RefCell<sp_io::TestExternalities>>;
@@ -20,9 +14,9 @@ pub type OptionalExternalities = Option<RefCell<sp_io::TestExternalities>>;
 pub type OptionalExternalities = Option<()>;
 
 pub struct Instantiator<
-	T: Config + pallet_balances::Config<Balance = Balance> + cumulus_pallet_parachain_system::Config,
+	T: Config + pallet_balances::Config + cumulus_pallet_parachain_system::Config,
 	AllPalletsWithoutSystem: OnFinalize<BlockNumberFor<T>> + OnIdle<BlockNumberFor<T>> + OnInitialize<BlockNumberFor<T>>,
-	RuntimeEvent: From<Event<T>> + TryInto<Event<T>> + Parameter + Member + IsType<<T as frame_system::Config>::RuntimeEvent>,
+	RuntimeEvent: From<Event<T>> + TryInto<Event<T>> + Parameter + Member,
 > {
 	pub ext: OptionalExternalities,
 	pub nonce: RefCell<u64>,
@@ -284,7 +278,6 @@ impl<T: Config> Conversions for Vec<UserToFundingAsset<T>> {
 }
 
 #[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase", deny_unknown_fields, bound(serialize = ""), bound(deserialize = ""))]
 pub struct BidParams<T: Config> {
 	pub bidder: AccountIdOf<T>,
 	pub investor_type: InvestorType,
@@ -443,10 +436,10 @@ impl<T: Config> Conversions for Vec<BidParams<T>> {
 	type AssetId = AssetIdOf<T>;
 
 	fn to_account_asset_map(&self) -> Vec<(Self::AccountId, Self::AssetId)> {
-		let mut btree = BTreeSet::new();
-		for BidParams { bidder, asset, .. } in self.iter() {
-			btree.insert((bidder.clone(), asset.id()));
-		}
-		btree.into_iter().collect_vec()
+		self.iter()
+			.map(|BidParams { bidder, asset, .. }| (bidder.clone(), asset.id()))
+			.collect::<BTreeSet<_>>()
+			.into_iter()
+			.collect_vec()
 	}
 }

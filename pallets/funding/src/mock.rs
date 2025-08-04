@@ -352,8 +352,8 @@ impl ConvertBack<AccountId, [u8; 32]> for DummyConverter {
 	}
 }
 thread_local! {
-	pub static PRICE_MAP: RefCell<BTreeMap<Location, FixedU128>> = RefCell::new(BTreeMap::from_iter(vec![
-		(AcceptedFundingAsset::DOT.id(), FixedU128::from_float(69f64)), // DOT
+	pub static PRICE_MAP: RefCell<BTreeMap<Location, FixedU128>> = RefCell::new(BTreeMap::from([
+		(AcceptedFundingAsset::DOT.id(), FixedU128::from_float(69.0f64)), // DOT
 		(AcceptedFundingAsset::USDC.id(), FixedU128::from_float(0.97f64)), // USDC
 		(AcceptedFundingAsset::USDT.id(), FixedU128::from_float(1.0f64)), // USDT
 		(AcceptedFundingAsset::ETH.id(), FixedU128::from_float(3619.451f64)), // ETH
@@ -366,7 +366,15 @@ impl ProvideAssetPrice for ConstPriceProvider {
 	type Price = Price;
 
 	fn get_price(asset_id: &Location) -> Option<Price> {
-		PRICE_MAP.with(|price_map| price_map.borrow().get(asset_id).cloned())
+		PRICE_MAP.with_borrow(|price_map_ref| price_map_ref.get(asset_id).copied())
+	}
+}
+
+impl ConstPriceProvider {
+	pub fn set_price(asset_id: Location, price: Price) {
+		PRICE_MAP.with_borrow_mut(|price_map_btree| {
+			price_map_btree.insert(asset_id, price);
+		});
 	}
 }
 
@@ -379,13 +387,6 @@ impl Convert<AccountId, String> for SS58Converter {
 	}
 }
 
-impl ConstPriceProvider {
-	pub fn set_price(asset_id: Location, price: Price) {
-		PRICE_MAP.with(|price_map| {
-			price_map.borrow_mut().insert(asset_id, price);
-		});
-	}
-}
 impl Config for TestRuntime {
 	type AccountId32Conversion = DummyConverter;
 	type AllPalletsWithoutSystem = (Balances, ContributionTokens, ForeignAssets, PolimecFunding, LinearRelease);
