@@ -162,7 +162,7 @@ pub mod pallet {
 	#[pallet::extra_constants]
 	impl<T: Config> Pallet<T> {
 		#[pallet::constant_name(MaxVestingSchedules)]
-		fn max_vesting_schedules() -> u32 {
+		const fn max_vesting_schedules() -> u32 {
 			T::MAX_VESTING_SCHEDULES
 		}
 	}

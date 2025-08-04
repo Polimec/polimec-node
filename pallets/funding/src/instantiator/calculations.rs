@@ -119,7 +119,7 @@ impl<
 	) -> Vec<UserToPLMCBalance<T>> {
 		let mut output = Vec::new();
 		let charged_bids = self.get_actual_price_charged_for_bucketed_bids(bids, project_metadata.clone(), None);
-		let grouped_by_price_bids = charged_bids.clone().into_iter().group_by(|&(_, price)| price);
+		let grouped_by_price_bids = charged_bids.into_iter().group_by(|&(_, price)| price);
 		let mut grouped_by_price_bids: Vec<(PriceOf<T>, Vec<BidParams<T>>)> = grouped_by_price_bids
 			.into_iter()
 			.map(|(key, group)| (key, group.map(|(bid, _price_)| bid).collect()))
@@ -208,7 +208,7 @@ impl<
 	) -> Vec<UserToFundingAsset<T>> {
 		let mut output = Vec::new();
 		let charged_bids = self.get_actual_price_charged_for_bucketed_bids(bids, project_metadata.clone(), None);
-		let grouped_by_price_bids = charged_bids.clone().into_iter().group_by(|&(_, price)| price);
+		let grouped_by_price_bids = charged_bids.into_iter().group_by(|&(_, price)| price);
 		let mut grouped_by_price_bids: Vec<(PriceOf<T>, Vec<BidParams<T>>)> = grouped_by_price_bids
 			.into_iter()
 			.map(|(key, group)| (key, group.map(|(bid, _price)| bid).collect()))
@@ -499,7 +499,7 @@ impl<
 			bucket.update(ct_min_ticket);
 		}
 
-		self.generate_bids_from_bucket(project_metadata.clone(), bucket, AcceptedFundingAsset::USDT)
+		self.generate_bids_from_bucket(project_metadata, bucket, AcceptedFundingAsset::USDT)
 	}
 
 	pub fn generate_bids_from_total_ct_percent(
