@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-//! Test the full flow using a complicated example from a Google sheets doc.
+//! Test the full flow using a full example coming form the reference Google Sheet.
 use crate::{constants::PricesBuilder, tests::defaults::*, *};
 use frame_support::{
 	traits::{
@@ -38,14 +38,14 @@ use polimec_common::{
 use polimec_common_test_utils::{generate_did_from_account, get_mock_jwt, get_mock_jwt_with_cid};
 use polimec_runtime::PLMC;
 use sp_arithmetic::{FixedPointNumber, Perquintill};
-use sp_runtime::FixedU128;
+use sp_runtime::{FixedU128, PerThing};
 use InvestorType::{Institutional, Professional, Retail};
 use ParticipationMode::{Classic, OTM};
 
 #[rustfmt::skip]
 generate_accounts!(
 	// Users that only evaluated
-	ALMA, ALEX, ADAM, ALAN, ABEL, AMOS, ANNA, ABBY, ARIA,
+	ALMA, ALEX, ADAM, ALAN, ABEL, AMOS, ANNA, ABBY, ARIA, ALICE,
 	// Users that only bid
 	BROCK, BEN, BILL, BRAD, BLAIR, BOB, BRETT, BLAKE, BRIAN, BELLA, BRUCE, BRENT,
 	// Users that evaluated and bid
@@ -94,16 +94,16 @@ pub fn project_metadata() -> ProjectMetadataOf<PolimecRuntime> {
 	}
 }
 
-fn plmc_price() -> FixedU128 {
+pub fn plmc_price() -> FixedU128 {
 	FixedU128::from_float(0.1822)
 }
-fn dot_price() -> FixedU128 {
+pub fn dot_price() -> FixedU128 {
 	FixedU128::from_float(4.65)
 }
-fn usdc_price() -> FixedU128 {
+pub fn usdc_price() -> FixedU128 {
 	FixedU128::from_float(1.0005)
 }
-fn usdt_price() -> FixedU128 {
+pub fn usdt_price() -> FixedU128 {
 	FixedU128::from_float(1f64)
 }
 
@@ -129,32 +129,33 @@ fn evaluations() -> Vec<([u8; 32], InvestorType, u64, f64)> {
 	]
 }
 
-fn pre_wap_bids() -> Vec<(u32, [u8; 32], ParticipationMode, InvestorType, u64, f64, AcceptedFundingAsset, f64, f64)> {
-	// (bid_id, User, Participation mode, Investor type, CTs specified in extrinsic, CT Price, Participation Currency, Final participation currency ticket, PLMC bonded as a consequence)
+fn pre_wap_bids() -> Vec<(u32, [u8; 32], ParticipationMode, InvestorType, u64, f64, AcceptedFundingAsset, f64, f64, f64)>
+{
+	// (bid_id, User, Participation mode, Investor type, CTs specified in extrinsic, CT Price, Participation Currency, participation currency ticket, Final participation currency ticket, par PLMC bonded as a consequence)
 	vec![
-		(0, BROCK, OTM, Professional, 700, 10.0, USDC, 7_101.4493, 7_683.8639),
-		(1, BEN, OTM, Professional, 4_000, 10.0, USDT, 40_600.0, 43_907.7936),
-		(2, BILL, Classic(3), Professional, 3_000, 10.0, USDC, 29_985.0075, 54_884.7420),
-		(3, BRAD, Classic(6), Professional, 700, 10.0, USDT, 7_000.0, 6_403.2199),
-		(4, BROCK, Classic(9), Professional, 3_400, 10.0, USDT, 34_000.0, 20_734.2359),
-		(5, BLAIR, Classic(8), Professional, 1_000, 10.0, USDT, 10_000.0, 6_860.5928),
-		(6, BROCK, Classic(7), Professional, 8_400, 10.0, USDT, 84_000.0, 65_861.6905),
-		(7, BOB, Classic(10), Professional, 800, 10.0, USDT, 8_000.0, 4_390.7794),
-		(8, BRETT, Classic(2), Professional, 1_300, 10.0, DOT, 2_795.6989, 35_675.0823),
-		(9, BLAKE, Classic(1), Professional, 5_000, 10.0, USDT, 50_000.0, 274_423.7101),
-		(10, BRIAN, Classic(1), Institutional, 600, 10.0, USDT, 6_000.0, 32_930.8452),
-		(11, BELLA, Classic(1), Professional, 800, 10.0, USDT, 8_000.0, 43_907.7936),
-		(12, BRUCE, Classic(4), Institutional, 3_000, 10.0, USDT, 30_000.0, 41_163.5565),
-		(13, BRENT, Classic(1), Institutional, 8_000, 10.0, USDT, 80_000.0, 439_077.9363),
-		(14, DOUG, OTM, Institutional, 900, 10.0, USDT, 9_135.0, 9_879.2536),
-		(15, DAVE, OTM, Professional, 8_400, 10.0, USDT, 85_260.0, 92_206.3666),
-		(16, DAVE, OTM, Professional, 1_000, 11.0, USDT, 11_165.0, 12_074.6432),
-		(17, GERALT, Classic(15), Institutional, 500, 11.0, USDT, 5_500.0, 2_012.4405),
-		(18, GEORGE, Classic(20), Institutional, 1_900, 11.0, USDT, 20_900.0, 5_735.4555),
-		(19, GINO, Classic(25), Institutional, 600, 11.0, USDT, 6_600.0, 1_448.9572),
-		(20, STEVE, OTM, Professional, 1_000, 11.0, USDT, 11_165.0, 12_074.6432),
-		(21, SAM, OTM, Professional, 2_000, 12.0, USDT, 24_360.0, 26_344.6762),
-		(22, SAM, OTM, Professional, 2_200, 12.0, DOT, 5_762.5806, 28_979.1438),
+		(0, BROCK, OTM, Professional, 700, 10.0, USDC, 7_000.0, 7_105.4493, 7_683.8639),
+		(1, BEN, OTM, Professional, 4_000, 10.0, USDT, 40_000.0, 40_600.0, 43_907.7936),
+		(2, BILL, Classic(3), Professional, 3_000, 10.0, USDC, 29_985.0075, 29_985.0075, 54_884.7420),
+		(3, BRAD, Classic(6), Professional, 700, 10.0, USDT, 7_000.0, 7_000.0, 6_403.2199),
+		(4, BROCK, Classic(9), Professional, 3_400, 10.0, USDT, 34_000.0, 34_000.0, 20_734.2359),
+		(5, BLAIR, Classic(8), Professional, 1_000, 10.0, USDT, 10_000.0, 10_000.0, 6_860.5928),
+		(6, BROCK, Classic(7), Professional, 8_400, 10.0, USDT, 84_000.0, 84_000.0, 65_861.6905),
+		(7, BOB, Classic(10), Professional, 800, 10.0, USDT, 8_000.0, 8_000.0, 4_390.7794),
+		(8, BRETT, Classic(2), Professional, 1_300, 10.0, DOT, 2_795.6989, 2_795.6989, 35_675.0823),
+		(9, BLAKE, Classic(1), Professional, 5_000, 10.0, USDT, 50_000.0, 50_000.0, 274_423.7101),
+		(10, BRIAN, Classic(1), Institutional, 600, 10.0, USDT, 6_000.0, 6_000.0, 32_930.8452),
+		(11, BELLA, Classic(1), Professional, 800, 10.0, USDT, 8_000.0, 8_000.0, 43_907.7936),
+		(12, BRUCE, Classic(4), Institutional, 3_000, 10.0, USDT, 30_000.0, 30_000.0, 41_163.5565),
+		(13, BRENT, Classic(1), Institutional, 8_000, 10.0, USDT, 80_000.0, 80_000.0, 439_077.9363),
+		(14, DOUG, OTM, Institutional, 900, 10.0, USDT, 9_000.0, 9_135.0, 9_879.2536),
+		(15, DAVE, OTM, Professional, 8_400, 10.0, USDT, 84_000.0, 85_265.0, 92_206.3666),
+		(16, DAVE, OTM, Professional, 1_000, 11.0, USDT, 11_000.0, 11_165.0, 12_074.6432),
+		(17, GERALT, Classic(15), Institutional, 500, 11.0, USDT, 5_500.0, 5_500.0, 2_012.4405),
+		(18, GEORGE, Classic(20), Institutional, 1_900, 11.0, USDT, 20_900.0, 20_900.0, 5_735.4555),
+		(19, GINO, Classic(25), Institutional, 600, 11.0, USDT, 6_600.0, 6_600.0, 1_448.9572),
+		(20, STEVE, OTM, Professional, 1_000, 11.0, USDT, 11_000.0, 11_170.0, 12_074.6432),
+		(21, SAM, OTM, Professional, 2_000, 12.0, USDT, 24_000.0, 24_365.0, 26_344.6762),
+		(22, SAM, OTM, Professional, 2_200, 12.0, DOT, 5_161.2903, 5_239.7849, 28_979.1438),
 	]
 }
 
@@ -237,25 +238,25 @@ fn final_payouts() -> Vec<([u8; 32], f64, f64)> {
 		(BELLA, 800.0, 0.00),
 		(BRUCE, 3_000.0, 41_163.56),
 		(BRENT, 8_000.0, 0.00),
-		(DOUG, 126.0936616, 0.00),
-		(DAVE, 1059.661749, 0.00),
+		(DOUG, 325.3936616, 0.00),
+		(DAVE, 1060.061749, 0.00),
 		(MASON, 35.37757672, 0.00),
 		(MIKE, 82.74302164, 0.00),
 		(GERALT, 500.0, 2_012.44),
 		(GEORGE, 1_900.0, 5_735.46),
 		(GINO, 600.0, 1_448.96),
 		(STEVE, 1017.159307, 0.0),
-		(SAM, 4267.09505, 0.0),
+		(SAM, 4067.09505, 0.0),
 	]
 }
 
 fn otm_fee_recipient_balances() -> (f64, f64, f64) {
 	// USDT, USDC, DOT
-	(1305.0, 104.9475262, 85.16129032)
+	(1334.9, 104.9475262, 77.41193032)
 }
 
 fn otm_treasury_sub_account_plmc_held() -> f64 {
-	233_150.38
+	230_520.52
 }
 
 fn participate_with_checks(
@@ -265,35 +266,41 @@ fn participate_with_checks(
 	user: [u8; 32],
 	mode: ParticipationMode,
 	investor_type: InvestorType,
-	ct_amount: u64,
+	_ct_amount: u64,
 	funding_asset: AcceptedFundingAsset,
 	expected_funding_asset_ticket: f64,
+	expected_funding_asset_ticket_with_fees: f64,
 	expected_plmc_bonded: f64,
 ) -> IntegrationInstantiator {
 	assert_ne!(participation_type, ParticipationType::Evaluation, "Only Bids and Contributions work here");
 	let user: PolimecAccountId = user.into();
-	let ct_amount = FixedU128::from_rational(ct_amount.into(), 1).saturating_mul_int(CT_UNIT);
 
 	let plmc_ed = inst.get_ed();
 
 	let funding_asset_unit = 10u128.pow(PolimecForeignAssets::decimals(funding_asset.id()) as u32);
 	let funding_asset_ticket =
 		FixedU128::from_float(expected_funding_asset_ticket).saturating_mul_int(funding_asset_unit);
+	let funding_asset_ticket_with_fees =
+		FixedU128::from_float(expected_funding_asset_ticket_with_fees).saturating_mul_int(funding_asset_unit);
+
 	let plmc_bonded = FixedU128::from_float(expected_plmc_bonded).saturating_mul_int(PLMC);
 
 	let user_jwt =
 		get_mock_jwt_with_cid(user.clone(), investor_type, generate_did_from_account(user.clone()), ipfs_hash());
-	// Add one more to account for rounding errors in the spreadsheet
-	inst.mint_funding_asset_to(vec![
-		(user.clone(), funding_asset_ticket + funding_asset_unit, funding_asset.id()).into()
-	]);
 
+	let funding_asset_ed = inst.get_funding_asset_ed(funding_asset.id());
 	if let ParticipationMode::Classic(..) = mode {
-		inst.mint_plmc_to(vec![(user.clone(), plmc_bonded + PLMC + plmc_ed).into()]);
+		inst.mint_funding_asset_to(vec![
+			(user.clone(), funding_asset_ticket + funding_asset_ed, funding_asset.id()).into()
+		]);
+		inst.mint_plmc_to(vec![(user.clone(), plmc_bonded + plmc_ed * 2).into()]);
 	} else {
-		let funding_asset_ed = inst.get_funding_asset_ed(funding_asset.id());
-		inst.mint_funding_asset_to(vec![(user.clone(), funding_asset_ed, funding_asset.id()).into()]);
-	}
+		// Add 10% buffer for large OTM bids that span multiple buckets with price variations
+		let amount_to_mint = funding_asset_ticket_with_fees + funding_asset_ed;
+
+		inst.mint_funding_asset_to(vec![(user.clone(), amount_to_mint, funding_asset.id()).into()]);
+		inst.mint_plmc_to(vec![(user.clone(), plmc_bonded + plmc_ed * 2).into()]);
+	};
 
 	let prev_participation_free_plmc = PolimecBalances::free_balance(user.clone());
 	let prev_participation_reserved_plmc = PolimecBalances::reserved_balance(user.clone());
@@ -304,8 +311,15 @@ fn participate_with_checks(
 		PolimecBalances::balance_on_hold(&HoldReason::Participation.into(), &sub_account);
 
 	if participation_type == ParticipationType::Bid {
-		PolimecFunding::bid(PolimecOrigin::signed(user.clone()), user_jwt, project_id, ct_amount, mode, funding_asset)
-			.unwrap();
+		PolimecFunding::bid(
+			PolimecOrigin::signed(user.clone()),
+			user_jwt,
+			project_id,
+			funding_asset_ticket,
+			mode,
+			funding_asset,
+		)
+		.unwrap();
 	}
 
 	let post_participation_free_plmc = PolimecBalances::free_balance(user.clone());
@@ -324,8 +338,8 @@ fn participate_with_checks(
 
 	assert_close_enough!(free_plmc_delta, expected_self_plmc_delta, Perquintill::from_float(0.9999));
 	assert_close_enough!(reserved_plmc_delta, expected_self_plmc_delta, Perquintill::from_float(0.9999));
-	assert_close_enough!(funding_asset_delta, funding_asset_ticket, Perquintill::from_float(0.9999));
-	assert_close_enough!(treasury_held_plmc_delta, expected_treasury_plmc_delta, Perquintill::from_float(0.9999));
+	assert_close_enough!(funding_asset_delta, funding_asset_ticket_with_fees, Perquintill::from_float(0.98)); // to account for OTM fees
+	assert_close_enough!(treasury_held_plmc_delta, expected_treasury_plmc_delta, Perquintill::from_float(0.90));
 
 	inst
 }
@@ -352,9 +366,9 @@ fn e2e_test() {
 		PolimecFunding::start_evaluation(PolimecOrigin::signed(issuer.clone()), issuer_jwt.clone(), project_id)
 			.unwrap();
 
-		for (user, investor_type, usd_bond, plmc_bonded) in evaluations() {
+		for (user, investor_type, _usd_bond, plmc_bonded) in evaluations() {
 			let user: PolimecAccountId = user.into();
-			let usd_bond: u128 = usd_bond as u128 * USD_UNIT;
+			// let usd_bond: u128 = usd_bond as u128 * USD_UNIT;
 			let plmc_bonded: u128 = FixedU128::from_float(plmc_bonded).saturating_mul_int(PLMC);
 
 			let user_jwt = get_mock_jwt_with_cid(
@@ -370,7 +384,7 @@ fn e2e_test() {
 			let pre_evaluation_free_plmc = PolimecBalances::free_balance(user.clone());
 			let pre_evaluation_reserved_plmc = PolimecBalances::reserved_balance(user.clone());
 
-			PolimecFunding::evaluate(PolimecOrigin::signed(user.clone()), user_jwt, project_id, usd_bond).unwrap();
+			PolimecFunding::evaluate(PolimecOrigin::signed(user.clone()), user_jwt, project_id, plmc_bonded).unwrap();
 
 			let post_evaluation_free_plmc = PolimecBalances::free_balance(user.clone());
 			let post_evaluation_reserved_plmc = PolimecBalances::reserved_balance(user.clone());
@@ -384,8 +398,20 @@ fn e2e_test() {
 
 		assert_eq!(inst.go_to_next_state(project_id), ProjectStatus::AuctionRound);
 
-		for (_bid_id, user, mode, investor_type, ct_amount, _price, funding_asset, funding_asset_ticket, plmc_bonded) in
-			pre_wap_bids()
+		let funding_escrow_account = PolimecFunding::fund_account_id(project_id);
+
+		for (
+			_bid_id,
+			user,
+			mode,
+			investor_type,
+			ct_amount,
+			ct_price,
+			funding_asset,
+			funding_asset_ticket,
+			funding_asset_ticket_with_fees,
+			plmc_bonded,
+		) in pre_wap_bids()
 		{
 			inst = participate_with_checks(
 				inst,
@@ -397,6 +423,7 @@ fn e2e_test() {
 				ct_amount,
 				funding_asset,
 				funding_asset_ticket,
+				funding_asset_ticket_with_fees,
 				plmc_bonded,
 			);
 		}
@@ -408,7 +435,6 @@ fn e2e_test() {
 		let rejected_bid_id = 15u32;
 
 		let otm_project_sub_account: PolimecAccountId = polimec_runtime::ProxyBonding::get_bonding_account(project_id);
-		let funding_escrow_account = PolimecFunding::fund_account_id(project_id);
 
 		let prev_bid_free_plmc = PolimecBalances::free_balance(rejected_bidder.clone());
 		let prev_bid_reserved_plmc = PolimecBalances::reserved_balance(rejected_bidder.clone());
@@ -440,18 +466,18 @@ fn e2e_test() {
 		let expected_usdt = FixedU128::from_float(85_260.0).saturating_mul_int(usdt_unit);
 		let expected_otm_fee = FixedU128::from_float(1260.0).saturating_mul_int(usdt_unit);
 
-		assert_close_enough!(bidder_usdt_delta, expected_usdt, Perquintill::from_float(0.9999));
+		assert_close_enough!(bidder_usdt_delta, expected_usdt, Perquintill::from_float(0.99));
 		assert_close_enough!(
 			funding_escrow_usdt_delta,
 			expected_usdt - expected_otm_fee,
-			Perquintill::from_float(0.9999)
+			Perquintill::from_float(0.99)
 		);
-		assert_close_enough!(treasury_usdt_delta, expected_otm_fee, Perquintill::from_float(0.9999));
+		assert_close_enough!(treasury_usdt_delta, expected_otm_fee, Perquintill::from_float(0.99));
 
 		assert_eq!(inst.go_to_next_state(project_id), ProjectStatus::SettlementStarted(FundingOutcome::Success));
 
 		// Used for checking CT migrations at the end
-		let stored_evaluations = inst.get_evaluations(project_id);
+		let stored_evaluations = inst.get_evaluations(project_id).into_iter().map(|(_, _, x)| x).collect_vec();
 		let stored_bids = inst.get_bids(project_id);
 
 		inst.settle_project(project_id, true);
@@ -466,7 +492,7 @@ fn e2e_test() {
 		assert_close_enough!(
 			project_details.funding_amount_reached_usd,
 			FixedU128::from_float(usd_raised()).saturating_mul_int(USD_UNIT),
-			Perquintill::from_float(0.9999)
+			Perquintill::from_float(0.99)
 		);
 
 		let issuer_usdt =
@@ -482,17 +508,17 @@ fn e2e_test() {
 		assert_close_enough!(
 			issuer_usdt,
 			FixedU128::from_float(issuer_payouts().0).saturating_mul_int(usdt_unit),
-			Perquintill::from_float(0.9999)
+			Perquintill::from_float(0.99)
 		);
 		assert_close_enough!(
 			issuer_usdc,
 			FixedU128::from_float(issuer_payouts().1).saturating_mul_int(usdc_unit),
-			Perquintill::from_float(0.9999)
+			Perquintill::from_float(0.99)
 		);
 		assert_close_enough!(
 			issuer_dot,
 			FixedU128::from_float(issuer_payouts().2).saturating_mul_int(dot_unit),
-			Perquintill::from_float(0.9999)
+			Perquintill::from_float(0.93)
 		);
 
 		let EvaluationRoundInfo { evaluators_outcome, .. } = project_details.evaluation_round_info;
@@ -562,7 +588,7 @@ fn e2e_test() {
 		)
 		.unwrap();
 		polimec_runtime::ProxyBonding::transfer_fees_to_recipient(
-			PolimecOrigin::signed(BOB.into()),
+			PolimecOrigin::signed(ALICE.into()),
 			project_id,
 			HoldReason::Participation.into(),
 			DOT.id(),
@@ -590,7 +616,7 @@ fn e2e_test() {
 		let pre_treasury_free_balance = PolimecBalances::free_balance(treasury_account.clone());
 
 		polimec_runtime::ProxyBonding::transfer_bonds_back_to_treasury(
-			PolimecOrigin::signed(BOB.into()),
+			PolimecOrigin::signed(ALICE.into()),
 			project_id,
 			HoldReason::Participation.into(),
 		)

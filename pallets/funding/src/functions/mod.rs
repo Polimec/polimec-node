@@ -18,7 +18,7 @@ use polimec_common::{
 	credentials::{Did, InvestorType},
 	ProvideAssetPrice,
 };
-use sp_arithmetic::{traits::Zero, Percent, Perquintill};
+use sp_arithmetic::{traits::Zero, Perquintill};
 use sp_runtime::traits::Convert;
 
 #[path = "1_application.rs"]

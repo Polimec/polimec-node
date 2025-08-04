@@ -22,12 +22,16 @@ impl<T: Config> Pallet<T> {
 			<PriceProviderOf<T>>::get_decimals_aware_price(&T::BondingTokenId::get(), T::BondingTokenDecimals::get())
 				.ok_or(Error::<T>::PriceNotAvailable)?;
 
+		log::info!("Bonding token price: {:?}", bonding_token_price.clone());
 		let fee_asset_decimals =
 			<T::FeeToken as fungibles::metadata::Inspect<AccountIdOf<T>>>::decimals(fee_asset.clone());
 		let fee_token_price = <PriceProviderOf<T>>::get_decimals_aware_price(&fee_asset, fee_asset_decimals)
 			.ok_or(Error::<T>::PriceNotAvailable)?;
 
+		log::info!("Fee asset price: {:?}", fee_token_price.clone());
+
 		let bonded_in_usd = bonding_token_price.saturating_mul_int(bond_amount);
+		log::info!("Bonded in USD: {:?}", bonded_in_usd.clone());
 		let fee_in_usd = T::FeePercentage::get() * bonded_in_usd;
 		let fee_in_fee_asset =
 			fee_token_price.reciprocal().ok_or(Error::<T>::PriceNotAvailable)?.saturating_mul_int(fee_in_usd);
@@ -54,6 +58,7 @@ impl<T: Config> Pallet<T> {
 		let existential_deposit = <T::BondingToken as fungible::Inspect<T::AccountId>>::minimum_balance();
 
 		let fee_in_fee_asset = Self::calculate_fee(bond_amount, fee_asset.clone())?;
+		log::info!("Paid fee of {:?} {:?}", fee_in_fee_asset.clone(), fee_asset.clone());
 
 		// Pay the fee from the user to the bonding account. It awaits either a full transfer to the T::FeeRecipient, or a refund to each user
 		T::FeeToken::transfer(fee_asset, &account, &bonding_account, fee_in_fee_asset, Preservation::Preserve)?;

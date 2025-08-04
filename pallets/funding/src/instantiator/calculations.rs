@@ -3,10 +3,7 @@ use crate::{MultiplierOf, ParticipationMode};
 use alloc::{vec, vec::Vec};
 use itertools::{izip, GroupBy};
 use polimec_common::{
-	assets::{
-		AcceptedFundingAsset,
-		AcceptedFundingAsset::{DOT, ETH, USDC, USDT},
-	},
+	assets::{AcceptedFundingAsset, AcceptedFundingAsset::USDT},
 	ProvideAssetPrice,
 };
 use sp_core::{blake2_256, ecdsa, hexdisplay::AsBytesRef, keccak_256, sr25519, Pair};
@@ -34,63 +31,116 @@ impl<
 		evaluations.into_iter().map(|eval| UserToPLMCBalance::new(eval.account, eval.plmc_amount)).collect()
 	}
 
+	// Use the pallet's runtime API function for accurate CT calculations
+	pub fn calculate_ct_to_buy_and_funding_spent(
+		remaining_funding_asset: Balance,
+		funding_asset_price: PriceOf<T>,
+		ct_price: PriceOf<T>,
+		bucket_amount_left: Balance,
+	) -> (Balance /* ct_to_buy */, Balance /* funding_asset_spent */) {
+		// Convert funding asset to USD value
+		let funding_asset_value = funding_asset_price.checked_mul_int(remaining_funding_asset).unwrap();
+		// Calculate max CTs that can be bought with the funding asset
+		let ct_can_buy = ct_price.reciprocal().unwrap_or(Zero::zero()).checked_mul_int(funding_asset_value).unwrap();
+
+		// Limit by bucket's remaining amount
+		let ct_to_buy = ct_can_buy.min(bucket_amount_left);
+
+		if ct_to_buy.is_zero() {
+			return (Zero::zero(), Zero::zero());
+		}
+
+		// When buying exactly ct_can_buy (no bucket limit), use the original funding_asset amount
+		// to avoid rounding errors from double conversion
+		if ct_to_buy == ct_can_buy {
+			return (ct_to_buy, remaining_funding_asset);
+		}
+
+		// Only do the double conversion when we need to buy less than ct_can_buy
+		// Calculate USD needed for ct_to_buy
+		let usd_needed = ct_price.checked_mul_int(ct_to_buy).unwrap();
+
+		// Convert back to funding asset amount
+		let funding_asset_needed = funding_asset_price.reciprocal().unwrap().checked_mul_int(usd_needed).unwrap();
+
+		// Clamp to remaining funding asset (handles rounding)
+		let funding_asset_spent = funding_asset_needed.min(remaining_funding_asset);
+
+		(ct_to_buy, funding_asset_spent)
+	}
+
 	pub fn get_actual_price_charged_for_bucketed_bids(
-		&self,
+		&mut self,
 		bids: &Vec<BidParams<T>>,
 		project_metadata: ProjectMetadataOf<T>,
 		maybe_bucket: Option<BucketOf<T>>,
-		// ) -> Vec<(BidParams<T>, PriceOf<T>)> {
 	) -> Vec<(BidParams<T>, PriceOf<T>, Balance /* funding asset spent */, Balance /* CTs bought */)> {
 		let mut output = Vec::new();
-		let mut bucket = if let Some(bucket) = maybe_bucket {
-			bucket
-		} else {
-			Pallet::<T>::create_bucket_from_metadata(&project_metadata)
-		};
+		let mut bucket = maybe_bucket.unwrap_or_else(|| Pallet::<T>::create_bucket_from_metadata(&project_metadata));
 
 		for bid in bids {
-			let mut funding_asset_left = bid.amount;
+			let funding_asset_amount = bid.amount;
 			let funding_asset = bid.asset;
-			let funding_asset_price =
-				PriceProviderOf::<T>::get_decimals_aware_price(&funding_asset.id(), funding_asset.decimals()).unwrap();
-			let mut i = 0;
-			while !funding_asset_left.is_zero() {
-				// 1. How many CTs can we buy with the remaining funding asset at this bucket's price?
-				let funding_asset_value = funding_asset_price.checked_mul_int(funding_asset_left).unwrap();
-				let ct_price = bucket.current_price;
-				let ct_can_buy = ct_price.reciprocal().unwrap().checked_mul_int(funding_asset_value).unwrap();
+			let funding_asset_price = self.execute(|| {
+				<PriceProviderOf<T>>::get_decimals_aware_price(&funding_asset.id(), funding_asset.decimals()).unwrap()
+			});
 
-				// 2. The bucket may not have enough CTs left
-				let ct_to_buy = ct_can_buy.min(bucket.amount_left);
+			let funding_asset_value = funding_asset_price.checked_mul_int(funding_asset_amount).unwrap();
 
+			let initial_ct_price_for_bid = bucket.current_price;
+
+			let total_ct_amount = initial_ct_price_for_bid
+				.reciprocal()
+				.unwrap_or(Zero::zero())
+				.checked_mul_int(funding_asset_value)
+				.unwrap_or(Zero::zero());
+			let mut remaining_ct = total_ct_amount;
+			let mut remaining_funding_asset = funding_asset_amount;
+
+			while !bucket.amount_left.is_zero() {
+				let ct_to_buy = remaining_ct.min(bucket.amount_left);
 				if ct_to_buy.is_zero() {
-					break; // nothing more to buy in this bucket
+					break;
 				}
 
-				// 3. How much funding asset is actually needed for ct_to_buy at this price?
-				// funding_asset_needed = (ct_to_buy * ct_price) / funding_asset_price
-				let usd_needed = ct_price.checked_mul_int(ct_to_buy).unwrap();
-				// let funding_asset_needed = usd_needed.checked_div(&funding_asset_price).unwrap().try_into().unwrap();
-				let funding_asset_needed =
-					funding_asset_price.reciprocal().unwrap().checked_mul_int(usd_needed).unwrap();
+				let pro_rata_funding_asset_spent = if remaining_ct == ct_to_buy {
+					// Use all remaining funding asset to avoid rounding
+					remaining_funding_asset
+				} else {
+					// Use proportional calculation but ensure we don't exceed remaining funding asset
+					let calculated = funding_asset_amount
+						.saturating_mul(ct_to_buy)
+						.checked_div(total_ct_amount) // total_ct_amount already checked for non-zero
+						.unwrap_or(Zero::zero());
+					calculated.min(remaining_funding_asset)
+				};
 
-				// 4. Clamp to what we have left (in case of rounding)
-				let funding_asset_spent = funding_asset_needed.min(funding_asset_left);
+				let mut funding_asset_spent_for_chunk = pro_rata_funding_asset_spent;
 
+				if funding_asset_spent_for_chunk.is_zero() && !ct_to_buy.is_zero() && !remaining_funding_asset.is_zero()
+				{
+					funding_asset_spent_for_chunk = Balance::one().min(remaining_funding_asset);
+				}
+
+				if funding_asset_spent_for_chunk.is_zero() && !ct_to_buy.is_zero() {
+					break;
+				}
 				output.push((
-					BidParams::from((bid.bidder.clone(), bid.investor_type, funding_asset_spent, bid.mode, bid.asset)),
+					BidParams::from((
+						bid.bidder.clone(),
+						bid.investor_type,
+						funding_asset_spent_for_chunk,
+						bid.mode,
+						bid.asset,
+					)),
 					bucket.current_price,
-					funding_asset_spent,
+					funding_asset_spent_for_chunk,
 					ct_to_buy,
 				));
 
+				remaining_ct = remaining_ct.saturating_sub(ct_to_buy);
+				remaining_funding_asset = remaining_funding_asset.saturating_sub(funding_asset_spent_for_chunk);
 				bucket.update(ct_to_buy);
-				funding_asset_left = funding_asset_left.saturating_sub(funding_asset_spent);
-				i += 1;
-				if i > 3 {
-					// Prevent infinite loop in case of rounding errors
-					break;
-				}
 			}
 		}
 		output
@@ -99,12 +149,12 @@ impl<
 	pub fn calculate_auction_plmc_charged_with_given_price(
 		&mut self,
 		bids: &Vec<BidParams<T>>,
-		ct_price: PriceOf<T>,
 	) -> Vec<UserToPLMCBalance<T>> {
 		let mut output = Vec::new();
 		for bid in bids {
-			let funding_asset_price =
-				PriceProviderOf::<T>::get_decimals_aware_price(&bid.asset.id(), bid.asset.decimals()).unwrap();
+			let funding_asset_price = self.execute(|| {
+				<PriceProviderOf<T>>::get_decimals_aware_price(&bid.asset.id(), bid.asset.decimals()).unwrap()
+			});
 			let usd_ticket_size = funding_asset_price.saturating_mul_int(bid.amount);
 			let mut plmc_required = Balance::zero();
 			if let ParticipationMode::Classic(multiplier) = bid.mode {
@@ -125,13 +175,10 @@ impl<
 	) -> Vec<UserToPLMCBalance<T>> {
 		let mut output = Vec::new();
 
-		for (bid, _price, _funding_asset_spent, _ct_bought) in
+		for (bid, price, _funding_asset_spent, ct_bought) in
 			self.get_actual_price_charged_for_bucketed_bids(bids, project_metadata, maybe_bucket)
 		{
-			// FIX: Compute USD value from funding asset amount
-			let funding_asset_price =
-				PriceProviderOf::<T>::get_decimals_aware_price(&bid.asset.id(), bid.asset.decimals()).unwrap();
-			let usd_ticket_size = funding_asset_price.saturating_mul_int(bid.amount);
+			let usd_ticket_size = price.checked_mul_int(ct_bought).unwrap();
 
 			let mut plmc_required = Balance::zero();
 			if let ParticipationMode::Classic(multiplier) = bid.mode {
@@ -153,17 +200,21 @@ impl<
 		let mut output = Vec::new();
 		let charged_bids = self.get_actual_price_charged_for_bucketed_bids(bids, project_metadata.clone(), None);
 		let grouped_by_price_bids = charged_bids.into_iter().group_by(|&(_, price, _, _)| price);
-		let mut grouped_by_price_bids: Vec<(PriceOf<T>, Vec<BidParams<T>>)> = grouped_by_price_bids
+		let mut grouped_by_price_bids: Vec<(PriceOf<T>, Vec<(BidParams<T>, Balance)>)> = grouped_by_price_bids
 			.into_iter()
-			.map(|(key, group)| (key, group.map(|(bid, _price_, _, _)| bid).collect()))
+			.map(|(key, group)| {
+				let bids_with_ct: Vec<(BidParams<T>, Balance)> =
+					group.map(|(bid, _price, _funding_asset_spent, ct_amount)| (bid, ct_amount)).collect();
+				(key, bids_with_ct)
+			})
 			.collect();
 		grouped_by_price_bids.reverse();
 
 		let mut remaining_cts = project_metadata.total_allocation_size;
 
-		for (price_charged, bids) in grouped_by_price_bids {
-			for bid in bids {
-				let charged_usd_ticket_size = price_charged.saturating_mul_int(bid.amount);
+		for (price_charged, bids_with_ct) in grouped_by_price_bids {
+			for (bid, ct_amount_from_bid) in bids_with_ct {
+				let charged_usd_ticket_size = price_charged.saturating_mul_int(ct_amount_from_bid);
 				let mut charged_plmc_bond = Balance::zero();
 				if let ParticipationMode::Classic(multiplier) = bid.mode {
 					self.add_required_plmc_to(&mut charged_plmc_bond, charged_usd_ticket_size, multiplier);
@@ -171,10 +222,11 @@ impl<
 
 				if remaining_cts <= Zero::zero() {
 					output.push(UserToPLMCBalance::new(bid.bidder, charged_plmc_bond));
-					continue
+					continue;
 				}
 
-				let bought_cts = if remaining_cts < bid.amount { remaining_cts } else { bid.amount };
+				// Use the actual CT amount from the bucketed bid calculation
+				let bought_cts = if remaining_cts < ct_amount_from_bid { remaining_cts } else { ct_amount_from_bid };
 				remaining_cts = remaining_cts.saturating_sub(bought_cts);
 
 				let actual_usd_ticket_size = price_charged.saturating_mul_int(bought_cts);
@@ -183,7 +235,7 @@ impl<
 					self.add_required_plmc_to(&mut actual_plmc_bond, actual_usd_ticket_size, multiplier);
 				}
 
-				let returned_plmc_bond = charged_plmc_bond - actual_plmc_bond;
+				let returned_plmc_bond = charged_plmc_bond.saturating_sub(actual_plmc_bond);
 
 				output.push(UserToPLMCBalance::<T>::new(bid.bidder, returned_plmc_bond));
 			}
@@ -195,12 +247,12 @@ impl<
 	pub fn calculate_auction_funding_asset_charged_with_given_price(
 		&mut self,
 		bids: &Vec<BidParams<T>>,
-		ct_price: PriceOf<T>,
 	) -> Vec<UserToFundingAsset<T>> {
 		let mut output = Vec::new();
 		for bid in bids {
-			let funding_asset_price =
-				PriceProviderOf::<T>::get_decimals_aware_price(&bid.asset.id(), bid.asset.decimals()).unwrap();
+			let funding_asset_price = self.execute(|| {
+				<PriceProviderOf<T>>::get_decimals_aware_price(&bid.asset.id(), bid.asset.decimals()).unwrap()
+			});
 			let usd_ticket_size = funding_asset_price.saturating_mul_int(bid.amount);
 
 			let mut funding_asset_spent = Balance::zero();
@@ -232,7 +284,7 @@ impl<
 			if bid.mode == ParticipationMode::OTM {
 				// Convert funding_asset_spent to USD using decimals-aware price
 				let funding_asset_price =
-					PriceProviderOf::<T>::get_decimals_aware_price(&bid.asset.id(), bid.asset.decimals()).unwrap();
+					self.execute(|| Pallet::<T>::get_decimals_aware_funding_asset_price(&bid.asset).unwrap());
 				let usd_ticket_size = funding_asset_price.saturating_mul_int(funding_asset_spent);
 
 				self.add_otm_fee_to(&mut total_funding_asset_spent, usd_ticket_size, bid.asset);
@@ -249,35 +301,52 @@ impl<
 		bids: &Vec<BidParams<T>>,
 		project_metadata: ProjectMetadataOf<T>,
 	) -> Vec<UserToFundingAsset<T>> {
-		use std::collections::BTreeMap;
-
-		// Map: (bidder, asset_id) -> (total_provided, total_spent)
-		let mut provided: BTreeMap<(AccountIdOf<T>, AssetIdOf<T>), Balance> = BTreeMap::new();
-		let mut spent: BTreeMap<(AccountIdOf<T>, AssetIdOf<T>), Balance> = BTreeMap::new();
-
-		// 1. Record total provided per user/asset
-		for bid in bids {
-			let key = (bid.bidder.clone(), bid.asset.id());
-			*provided.entry(key).or_default() += bid.amount;
-		}
-
-		// 2. Record total spent per user/asset from bucketed bids
-		for (bid, _price, funding_asset_spent, _ct_bought) in
-			self.get_actual_price_charged_for_bucketed_bids(bids, project_metadata, None)
-		{
-			let key = (bid.bidder.clone(), bid.asset.id());
-			*spent.entry(key).or_default() += funding_asset_spent;
-		}
-
-		// 3. Calculate returned = provided - spent
 		let mut output = Vec::new();
-		for ((bidder, asset_id), provided_amount) in provided {
-			let spent_amount = spent.get(&(bidder.clone(), asset_id.clone())).copied().unwrap_or(0);
-			let returned = provided_amount.saturating_sub(spent_amount);
-			output.push(UserToFundingAsset::<T>::new(bidder, returned, asset_id));
+		let charged_bids = self.get_actual_price_charged_for_bucketed_bids(bids, project_metadata.clone(), None);
+		let grouped_by_price_bids = charged_bids.into_iter().group_by(|&(_, price, _, _)| price);
+		let mut grouped_by_price_bids: Vec<(PriceOf<T>, Vec<(BidParams<T>, Balance, Balance)>)> = grouped_by_price_bids
+			.into_iter()
+			.map(|(key, group)| {
+				let bids_with_data: Vec<(BidParams<T>, Balance, Balance)> = group
+					.map(|(bid, _price, funding_asset_spent, ct_amount)| (bid, funding_asset_spent, ct_amount))
+					.collect();
+				(key, bids_with_data)
+			})
+			.collect();
+		grouped_by_price_bids.reverse();
+
+		let mut remaining_cts = project_metadata.total_allocation_size;
+
+		for (_price_charged, bids_with_data) in grouped_by_price_bids {
+			for (bid, funding_asset_spent, ct_amount_from_bid) in bids_with_data {
+				if remaining_cts <= Zero::zero() {
+					// Bid is fully rejected → full refund
+					output.push(UserToFundingAsset::new(bid.bidder, funding_asset_spent, bid.asset.id()));
+					continue;
+				}
+
+				// Calculate actual CTs bought (same logic as PLMC calculation)
+				let bought_cts = if remaining_cts < ct_amount_from_bid { remaining_cts } else { ct_amount_from_bid };
+				remaining_cts = remaining_cts.saturating_sub(bought_cts);
+
+				if bought_cts == ct_amount_from_bid {
+					// Bid is fully accepted → no refund
+					output.push(UserToFundingAsset::new(bid.bidder, Zero::zero(), bid.asset.id()));
+				} else {
+					// Bid is partially accepted → partial refund
+					// Use precise calculation to avoid rounding errors
+					let actual_funding_asset_spent = if ct_amount_from_bid == Zero::zero() {
+						Zero::zero()
+					} else {
+						funding_asset_spent.saturating_mul(bought_cts) / ct_amount_from_bid
+					};
+					let refunded_funding_asset = funding_asset_spent.saturating_sub(actual_funding_asset_spent);
+					output.push(UserToFundingAsset::new(bid.bidder, refunded_funding_asset, bid.asset.id()));
+				}
+			}
 		}
 
-		output
+		output.merge_accounts(MergeOperation::Add)
 	}
 
 	pub fn add_otm_fee_to(
@@ -297,11 +366,8 @@ impl<
 	}
 
 	pub fn add_required_plmc_to(&mut self, balance: &mut Balance, usd_ticket_size: Balance, multiplier: u8) {
-		let multiplier: MultiplierOf<T> = multiplier.try_into().ok().unwrap();
-		let usd_bond = multiplier.calculate_usd_bonding_requirement::<T>(usd_ticket_size).unwrap();
-		let plmc_usd_price =
-			self.execute(|| <PriceProviderOf<T>>::get_decimals_aware_price(&Location::here(), PLMC_DECIMALS).unwrap());
-		let plmc_bond = plmc_usd_price.reciprocal().unwrap().saturating_mul_int(usd_bond);
+		let runtime_multiplier: MultiplierOf<T> = MultiplierOf::<T>::try_from(multiplier).ok().unwrap();
+		let plmc_bond = self.execute(|| <Pallet<T>>::calculate_plmc_bond(usd_ticket_size, runtime_multiplier).unwrap());
 		*balance += plmc_bond;
 	}
 
@@ -311,9 +377,8 @@ impl<
 		usd_ticket_size: Balance,
 		funding_asset: AcceptedFundingAsset,
 	) {
-		let funding_asset_usd_price =
-			self.execute(|| Pallet::<T>::get_decimals_aware_funding_asset_price(&funding_asset).unwrap());
-		let funding_asset_bond = funding_asset_usd_price.reciprocal().unwrap().saturating_mul_int(usd_ticket_size);
+		let funding_asset_bond =
+			self.execute(|| <Pallet<T>>::calculate_funding_asset_amount(usd_ticket_size, funding_asset).unwrap());
 		*balance += funding_asset_bond;
 	}
 
@@ -455,11 +520,15 @@ impl<
 	}
 
 	pub fn generate_bids_from_total_ct_amount(
-		&self,
+		&mut self,
 		bids_count: u32,
 		total_ct_bid: Balance,
 		project_metadata: &ProjectMetadataOf<T>,
 	) -> Vec<BidParams<T>> {
+		if bids_count == 0 {
+			return vec![];
+		}
+
 		let mut multipliers = (1u8..=5u8).cycle();
 
 		let modes = (0..bids_count)
@@ -474,13 +543,9 @@ impl<
 
 		let investor_types =
 			vec![Retail, Professional, Institutional].into_iter().cycle().take(bids_count as usize).collect_vec();
-		let funding_assets =
-			vec![USDT, USDC, DOT, ETH, USDT].into_iter().cycle().take(bids_count as usize).collect_vec();
+		let funding_assets = vec![USDT].into_iter().cycle().take(bids_count as usize).collect_vec();
 
 		let weights = {
-			if bids_count == 0 {
-				return vec![];
-			}
 			let one = Perquintill::from_percent(100);
 			let per_bid = one / bids_count;
 			let mut remaining = one;
@@ -498,17 +563,16 @@ impl<
 
 		// Use the current bucket price for the project
 		let bucket = Pallet::<T>::create_bucket_from_metadata(project_metadata);
-		let ct_price = bucket.current_price;
-
 		izip!(weights, bidders, modes, investor_types, funding_assets)
 			.map(|(weight, bidder, mode, investor_type, funding_asset)| {
 				let ct_amount = weight * total_ct_bid;
+				let ct_price = bucket.current_price;
 
 				// Convert ct_amount to funding asset amount
-				let funding_asset_price =
-					PriceProviderOf::<T>::get_decimals_aware_price(&funding_asset.id(), funding_asset.decimals())
-						.unwrap();
-				// funding_asset_needed = (ct_amount * ct_price) / funding_asset_price
+				let funding_asset_price = self.execute(|| {
+					<PriceProviderOf<T>>::get_decimals_aware_price(&funding_asset.id(), funding_asset.decimals())
+						.unwrap()
+				});
 				let usd_needed = ct_price.saturating_mul_int(ct_amount);
 				let funding_asset_needed =
 					funding_asset_price.reciprocal().unwrap().checked_mul_int(usd_needed).unwrap();
@@ -518,7 +582,7 @@ impl<
 	}
 
 	pub fn generate_bids_from_total_usd(
-		&self,
+		&mut self,
 		project_metadata: ProjectMetadataOf<T>,
 		usd_amount: Balance,
 		bids_count: u32,
@@ -552,51 +616,17 @@ impl<
 		bucket.amount_left = bucket.delta_amount;
 
 		// Start buying the min amount of tokens in this bucket until we reach or surpass the usd amount
-		let mut bids = Vec::new();
-		let mut starting_account = self.account_from_u32(0, "BIDDER");
-		let increment_account = |acc: AccountIdOf<T>| -> AccountIdOf<T> {
-			let acc_bytes = acc.encode();
-			let account_string = String::from_utf8_lossy(&acc_bytes);
-			let entropy = (0, account_string).using_encoded(blake2_256);
-			Decode::decode(&mut TrailingZeroInput::new(entropy.as_ref()))
-				.expect("infinite length input; no invalid inputs for type; qed")
-		};
-
-		let min_ticket = project_metadata.bidding_ticket_sizes.retail.usd_minimum_per_participation;
-		let funding_asset_price = PriceProviderOf::<T>::get_decimals_aware_price(
-			&AcceptedFundingAsset::USDT.id(),
-			AcceptedFundingAsset::USDT.decimals(),
-		)
-		.expect("Price must exist in test");
-
-		let mut current_usd_raised = bucket.calculate_usd_raised(project_metadata.total_allocation_size);
-
-		while current_usd_raised < usd_target {
-			let funding_asset_needed =
-				funding_asset_price.checked_mul_int(min_ticket).unwrap().saturating_add(1u128).try_into().unwrap();
-
-			// How many CTs will this buy at the current bucket price?
-			let usd_value = funding_asset_price.saturating_mul_int(funding_asset_needed);
-			let ct_amount = bucket.current_price.reciprocal().unwrap().saturating_mul_int(usd_value);
-
-			let bid = BidParams::<T>::from((
-				starting_account.clone(),
-				Retail,
-				funding_asset_needed,
-				AcceptedFundingAsset::USDT,
-			));
-			bids.push(bid);
-			starting_account = increment_account(starting_account.clone());
-			bucket.update(ct_amount);
-
-			current_usd_raised = bucket.calculate_usd_raised(project_metadata.total_allocation_size);
+		while bucket.calculate_usd_raised(project_metadata.total_allocation_size) < usd_target {
+			let min_ticket = project_metadata.bidding_ticket_sizes.retail.usd_minimum_per_participation;
+			let ct_min_ticket = bucket.current_price.reciprocal().unwrap().saturating_mul_int(min_ticket);
+			bucket.update(ct_min_ticket);
 		}
 
-		bids
+		self.generate_bids_from_bucket(project_metadata.clone(), bucket, AcceptedFundingAsset::USDT)
 	}
 
 	pub fn generate_bids_from_total_ct_percent(
-		&self,
+		&mut self,
 		project_metadata: ProjectMetadataOf<T>,
 		percent_funding: u8,
 		bids_count: u32,
@@ -616,11 +646,10 @@ impl<
 	}
 
 	// We assume a single bid can cover the whole first bucket. Make sure the ticket sizes allow this.
-	// TODO: This function probably is the most problematic.
 	pub fn generate_bids_from_bucket(
-		&self,
+		&mut self,
 		project_metadata: ProjectMetadataOf<T>,
-		bucket: BucketOf<T>,
+		bucket: BucketOf<T>, // This is the target state
 		funding_asset: AcceptedFundingAsset,
 	) -> Vec<BidParams<T>> {
 		let mut new_bucket = Pallet::<T>::create_bucket_from_metadata(&project_metadata);
@@ -628,54 +657,50 @@ impl<
 		assert_eq!(new_bucket.delta_price, bucket.delta_price, "Buckets must have the same delta price");
 		assert_eq!(new_bucket.initial_price, bucket.initial_price, "Buckets must have the same initial price");
 
-		let auction_allocation = project_metadata.total_allocation_size;
+		// Get the funding asset price once to avoid multiple mutable borrows
+		let funding_asset_price = self.execute(|| {
+			<PriceProviderOf<T>>::get_decimals_aware_price(&funding_asset.id(), funding_asset.decimals()).unwrap()
+		});
 
-		let mut starting_account = self.account_from_u32(0, "BIDDER");
-		let increment_account = |acc: AccountIdOf<T>| -> AccountIdOf<T> {
-			let acc_bytes = acc.encode();
-			let account_string = String::from_utf8_lossy(&acc_bytes);
-			let entropy = (0, account_string).using_encoded(blake2_256);
-			Decode::decode(&mut TrailingZeroInput::new(entropy.as_ref()))
-				.expect("infinite length input; no invalid inputs for type; qed")
-		};
-
-		// Helper: convert CT amount to funding asset amount at a given price
-		let ct_to_funding_asset = |ct_amount: Balance, price: PriceOf<T>| -> Balance {
-			let funding_asset_price =
-				PriceProviderOf::<T>::get_decimals_aware_price(&funding_asset.id(), funding_asset.decimals()).unwrap();
-			let usd_needed = price.saturating_mul_int(ct_amount);
-			// let funding_asset_needed = usd_needed.checked_div(&funding_asset_price).unwrap().try_into().unwrap();
-			let funding_asset_needed = funding_asset_price.reciprocal().unwrap().checked_mul_int(usd_needed).unwrap();
-			funding_asset_needed
-		};
-
-		let mut generate_bid = |ct_amount, price| -> BidParams<T> {
-			let funding_asset_amount = ct_to_funding_asset(ct_amount, price);
-			let bid = BidParams::<T>::from((starting_account.clone(), Retail, funding_asset_amount, funding_asset));
-			starting_account = increment_account(starting_account.clone());
-			bid
-		};
-
+		let mut account_counter = 0u32;
 		let mut bids = Vec::new();
 
-		if bucket.current_price > bucket.initial_price {
-			let allocation_bid = generate_bid(auction_allocation, bucket.current_price);
-			bids.push(allocation_bid);
-			new_bucket.update(auction_allocation);
-		}
+		// Helper function to convert CT amount to funding asset amount
+		let ct_to_funding_asset = |ct_amount: Balance, ct_price: PriceOf<T>| -> Balance {
+			let usd_needed = ct_price.saturating_mul_int(ct_amount);
+			funding_asset_price.reciprocal().unwrap().checked_mul_int(usd_needed).unwrap()
+		};
 
+		// Loop to fill full buckets until new_bucket's price tier matches bucket's price tier
 		while bucket.current_price > new_bucket.current_price {
-			let bucket_bid = generate_bid(bucket.delta_amount, new_bucket.current_price);
+			let ct_amount = new_bucket.amount_left;
+			let ct_price = new_bucket.current_price;
+			let funding_asset_amount = ct_to_funding_asset(ct_amount, ct_price);
+			let account = self.account_from_u32(account_counter, "BIDDER");
+			account_counter += 1;
+
+			let bucket_bid = BidParams::<T>::from((account, Retail, funding_asset_amount, funding_asset));
 			bids.push(bucket_bid);
-			new_bucket.update(bucket.delta_amount);
+			new_bucket.update(new_bucket.amount_left); // Consumes full amount_left, calls .next()
 		}
 
-		let last_bid_amount = bucket.delta_amount - bucket.amount_left;
-		let last_usd_amount = bucket.current_price.saturating_mul_int(last_bid_amount);
-		if last_usd_amount >= project_metadata.bidding_ticket_sizes.retail.usd_minimum_per_participation {
-			let last_bid = generate_bid(last_bid_amount, bucket.current_price);
-			bids.push(last_bid);
-			new_bucket.update(last_bid_amount);
+		// Handle the final (potentially partially filled) bucket
+		if new_bucket.current_price == bucket.current_price {
+			if new_bucket.amount_left > bucket.amount_left {
+				let amount_to_consume_in_final_tier = new_bucket.amount_left.saturating_sub(bucket.amount_left);
+
+				// Ensure we are actually consuming a positive amount
+				if amount_to_consume_in_final_tier > Balance::zero() {
+					let ct_amount = amount_to_consume_in_final_tier;
+					let ct_price = new_bucket.current_price;
+					let funding_asset_amount = ct_to_funding_asset(ct_amount, ct_price);
+					let account = self.account_from_u32(account_counter, "BIDDER");
+
+					let partial_bid = BidParams::<T>::from((account, Retail, funding_asset_amount, funding_asset));
+					bids.push(partial_bid);
+					new_bucket.update(amount_to_consume_in_final_tier);
+				}
+			}
 		}
 
 		assert_eq!(new_bucket, bucket, "Buckets must match after generating bids");

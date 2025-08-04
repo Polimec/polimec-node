@@ -21,8 +21,8 @@ fn generate_bids_from_bucket() {
 	necessary_bucket.current_price = desired_bucket_price_aware;
 	necessary_bucket.amount_left = necessary_bucket.delta_amount;
 
-	let bids = inst.generate_bids_from_bucket(project_metadata.clone(), necessary_bucket, AcceptedFundingAsset::USDT);
 	let evaluations = inst.generate_successful_evaluations(project_metadata.clone(), 5);
+	let bids = inst.generate_bids_from_bucket(project_metadata.clone(), necessary_bucket, AcceptedFundingAsset::USDT);
 	let project_id = inst.create_finished_project(project_metadata.clone(), 0, None, evaluations, bids);
 	let current_bucket = inst.execute(|| Buckets::<TestRuntime>::get(project_id).unwrap());
 	assert_eq!(current_bucket.current_price, desired_bucket_price_aware);

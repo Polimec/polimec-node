@@ -48,7 +48,6 @@ mod jwt_utils {
 			did,
 			cid
 		);
-		println!("URL: {}", url);
 
 		// TODO: This should be a POST with everything in the body.
 		let jwt = reqwest::blocking::get(url)
