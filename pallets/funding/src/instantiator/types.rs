@@ -97,37 +97,33 @@ impl<T: Config> Total for Vec<UserToPLMCBalance<T>> {
 #[serde(rename_all = "camelCase", deny_unknown_fields, bound(serialize = ""), bound(deserialize = ""))]
 pub struct EvaluationParams<T: Config> {
 	pub account: AccountIdOf<T>,
-	pub usd_amount: Balance,
+	pub plmc_amount: Balance,
 	pub receiving_account: Junction,
 }
 impl<T: Config> EvaluationParams<T> {
-	pub const fn new(account: AccountIdOf<T>, usd_amount: Balance, receiving_account: Junction) -> Self {
-		EvaluationParams::<T> { account, usd_amount, receiving_account }
+	pub const fn new(account: AccountIdOf<T>, plmc_amount: Balance, receiving_account: Junction) -> Self {
+		EvaluationParams::<T> { account, plmc_amount, receiving_account }
 	}
 }
 impl<T: Config> From<(AccountIdOf<T>, Balance, Junction)> for EvaluationParams<T> {
-	fn from((account, usd_amount, receiving_account): (AccountIdOf<T>, Balance, Junction)) -> Self {
-		EvaluationParams::<T>::new(account, usd_amount, receiving_account)
+	fn from((account, plmc_amount, receiving_account): (AccountIdOf<T>, Balance, Junction)) -> Self {
+		EvaluationParams::<T>::new(account, plmc_amount, receiving_account)
 	}
 }
 impl<T: Config> From<(AccountIdOf<T>, Balance)> for EvaluationParams<T> {
-	fn from((account, usd_amount): (AccountIdOf<T>, Balance)) -> Self {
+	fn from((account, plmc_amount): (AccountIdOf<T>, Balance)) -> Self {
 		let receiving_account = Junction::AccountId32 {
 			network: Some(NetworkId::Polkadot),
 			id: T::AccountId32Conversion::convert(account.clone()),
 		};
-		EvaluationParams::<T>::new(account, usd_amount, receiving_account)
+		EvaluationParams::<T>::new(account, plmc_amount, receiving_account)
 	}
 }
 impl<T: Config> Accounts for Vec<EvaluationParams<T>> {
 	type Account = AccountIdOf<T>;
 
 	fn accounts(&self) -> Vec<Self::Account> {
-		let mut btree = BTreeSet::new();
-		for EvaluationParams { account, usd_amount: _, receiving_account: _ } in self {
-			btree.insert(account.clone());
-		}
-		btree.into_iter().collect_vec()
+		self.iter().map(|params| params.account.clone()).collect::<BTreeSet<_>>().into_iter().collect_vec()
 	}
 }
 

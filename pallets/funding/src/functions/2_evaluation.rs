@@ -76,23 +76,22 @@ impl<T: Config> Pallet<T> {
 	pub fn do_evaluate(
 		evaluator: &AccountIdOf<T>,
 		project_id: ProjectId,
-		usd_amount: Balance,
+		plmc_bond: Balance,
 		did: Did,
 		whitelisted_policy: Cid,
 		receiving_account: Junction,
 	) -> DispatchResult {
 		// * Get variables *
 		let project_metadata = ProjectsMetadata::<T>::get(project_id).ok_or(Error::<T>::ProjectMetadataNotFound)?;
-		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
-		let now = <T as Config>::BlockNumberProvider::current_block_number();
+		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
+		let now = BlockProviderFor::<T>::current_block_number();
 		let evaluation_id = NextEvaluationId::<T>::get();
-		let plmc_usd_price = <PriceProviderOf<T>>::get_decimals_aware_price(&Location::here(), PLMC_DECIMALS)
+		let plmc_usd_price = PriceProviderOf::<T>::get_decimals_aware_price(&Location::here(), PLMC_DECIMALS)
 			.ok_or(Error::<T>::PriceNotFound)?;
 		let early_evaluation_reward_threshold_usd =
 			T::EvaluationSuccessThreshold::get() * project_details.fundraising_target_usd;
-		let evaluation_round_info = &mut project_details.evaluation_round_info;
 		let project_policy = project_metadata.policy_ipfs_cid.ok_or(Error::<T>::ImpossibleState)?;
-		let project_metadata = ProjectsMetadata::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
+		let usd_amount = plmc_usd_price.checked_mul_int(plmc_bond).ok_or(Error::<T>::BadMath)?;
 
 		// * Validity Checks *
 		ensure!(project_policy == whitelisted_policy, Error::<T>::PolicyMismatch);
@@ -108,24 +107,11 @@ impl<T: Config> Pallet<T> {
 			Error::<T>::UnsupportedReceiverAccountJunction
 		);
 
-		let plmc_bond = plmc_usd_price
-			.reciprocal()
-			.ok_or(Error::<T>::BadMath)?
-			.checked_mul_int(usd_amount)
-			.ok_or(Error::<T>::BadMath)?;
-		let previous_total_evaluation_bonded_usd = evaluation_round_info.total_bonded_usd;
-
-		let remaining_bond_to_reach_threshold =
-			early_evaluation_reward_threshold_usd.saturating_sub(previous_total_evaluation_bonded_usd);
-
-		let early_usd_amount = if usd_amount <= remaining_bond_to_reach_threshold {
-			usd_amount
-		} else {
-			remaining_bond_to_reach_threshold
-		};
-
+		let previously_bonded_usd = project_details.evaluation_round_info.total_bonded_usd;
+		let remaining_for_early_reward_usd =
+			early_evaluation_reward_threshold_usd.saturating_sub(previously_bonded_usd);
+		let early_usd_amount = usd_amount.min(remaining_for_early_reward_usd);
 		let late_usd_amount = usd_amount.checked_sub(early_usd_amount).ok_or(Error::<T>::BadMath)?;
-
 		let new_evaluation = EvaluationInfoOf::<T> {
 			id: evaluation_id,
 			did: did.clone(),
@@ -142,9 +128,14 @@ impl<T: Config> Pallet<T> {
 		T::NativeCurrency::hold(&HoldReason::Evaluation.into(), evaluator, plmc_bond)?;
 		Evaluations::<T>::insert((project_id, evaluator, evaluation_id), new_evaluation);
 		NextEvaluationId::<T>::set(evaluation_id.saturating_add(One::one()));
-		evaluation_round_info.total_bonded_usd = evaluation_round_info.total_bonded_usd.saturating_add(usd_amount);
-		evaluation_round_info.total_bonded_plmc = evaluation_round_info.total_bonded_plmc.saturating_add(plmc_bond);
-		ProjectsDetails::<T>::insert(project_id, project_details);
+		ProjectsDetails::<T>::mutate(project_id, |details| {
+			if let Some(details) = details {
+				details.evaluation_round_info.total_bonded_usd =
+					details.evaluation_round_info.total_bonded_usd.saturating_add(usd_amount);
+				details.evaluation_round_info.total_bonded_plmc =
+					details.evaluation_round_info.total_bonded_plmc.saturating_add(plmc_bond);
+			}
+		});
 
 		// * Emit events *
 		Self::deposit_event(Event::Evaluation {

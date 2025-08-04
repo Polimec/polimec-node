@@ -4,11 +4,11 @@ use super::*;
 fn top_evaluations() {
 	let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 	let evaluations = vec![
-		EvaluationParams::from((EVALUATOR_1, 500_000 * USD_UNIT)),
-		EvaluationParams::from((EVALUATOR_2, 250_000 * USD_UNIT)),
-		EvaluationParams::from((EVALUATOR_3, 320_000 * USD_UNIT)),
-		EvaluationParams::from((EVALUATOR_4, 1_000_000 * USD_UNIT)),
-		EvaluationParams::from((EVALUATOR_1, 1_000 * USD_UNIT)),
+		EvaluationParams::from((EVALUATOR_1, 500_000 * PLMC_UNIT)),
+		EvaluationParams::from((EVALUATOR_2, 250_000 * PLMC_UNIT)),
+		EvaluationParams::from((EVALUATOR_3, 320_000 * PLMC_UNIT)),
+		EvaluationParams::from((EVALUATOR_4, 1_000_000 * PLMC_UNIT)),
+		EvaluationParams::from((EVALUATOR_1, 1_000 * PLMC_UNIT)),
 	];
 	let project_id = inst.create_auctioning_project(default_project_metadata(ISSUER_1), ISSUER_1, None, evaluations);
 
@@ -380,7 +380,7 @@ fn get_message_to_sign_by_receiving_account() {
 #[test]
 fn get_next_vesting_schedule_merge_candidates() {
 	let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
-	let evaluations = vec![EvaluationParams::from((EVALUATOR_1, 500_000 * USD_UNIT))];
+	let evaluations = vec![EvaluationParams::from((EVALUATOR_1, 500_000 * PLMC_UNIT))];
 	let bids = vec![
 		BidParams::from((
 			BIDDER_1,
@@ -631,9 +631,9 @@ fn all_project_participations_by_did() {
 	let project_id = inst.create_evaluating_project(project_metadata.clone(), ISSUER_1, None);
 
 	let evaluations = vec![
-		EvaluationParams::from((EVALUATOR_1, 500_000 * USD_UNIT)),
+		EvaluationParams::from((EVALUATOR_1, 500_000 * PLMC_UNIT)),
 		EvaluationParams::from((EVALUATOR_2, 250_000 * USD_UNIT)),
-		EvaluationParams::from((EVALUATOR_3, 320_000 * USD_UNIT)),
+		EvaluationParams::from((EVALUATOR_3, 320_000 * PLMC_UNIT)),
 	];
 	let bids = vec![
 		BidParams::from((
@@ -674,8 +674,13 @@ fn all_project_participations_by_did() {
 	for evaluation in evaluations[1..].to_vec() {
 		let jwt = get_mock_jwt_with_cid(evaluation.account, InvestorType::Retail, did_user.clone(), cid.clone());
 		inst.execute(|| {
-			PolimecFunding::evaluate(RuntimeOrigin::signed(evaluation.account), jwt, project_id, evaluation.usd_amount)
-				.unwrap();
+			PolimecFunding::evaluate(
+				RuntimeOrigin::signed(evaluation.account),
+				jwt,
+				project_id,
+				evaluation.plmc_amount,
+			)
+			.unwrap();
 		});
 	}
 
