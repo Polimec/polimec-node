@@ -30,7 +30,9 @@ use cumulus_primitives_core::{AggregateMessageOrigin, ParaId};
 use frame_support::{
 	construct_runtime,
 	genesis_builder_helper::{build_state, get_preset},
-	ord_parameter_types, parameter_types,
+	ord_parameter_types,
+	pallet_prelude::*,
+	parameter_types,
 	traits::{
 		fungible::{Credit, HoldConsideration, Inspect},
 		fungibles,
@@ -1108,8 +1110,8 @@ impl pallet_dispenser::Config for Runtime {
 	type WeightInfo = weights::pallet_dispenser::WeightInfo<Runtime>;
 	type WhitelistedPolicy = DispenserWhitelistedPolicy;
 }
-pub struct PLMCToAssetBalance;
-impl ConversionToAssetBalance<Balance, Location, Balance> for PLMCToAssetBalance {
+pub struct HereToForeignAsset;
+impl ConversionToAssetBalance<Balance, Location, Balance> for HereToForeignAsset {
 	type Error = InvalidTransaction;
 
 	fn to_asset_balance(plmc_balance: Balance, asset_id: Location) -> Result<Balance, Self::Error> {
@@ -1117,21 +1119,39 @@ impl ConversionToAssetBalance<Balance, Location, Balance> for PLMCToAssetBalance
 			return Ok(plmc_balance);
 		}
 
-		let plmc_price =
-			<PriceProviderOf<Runtime>>::get_decimals_aware_price(Location::here(), USD_DECIMALS, PLMC_DECIMALS)
-				.ok_or(InvalidTransaction::Payment)?;
+		// 1. Get nominal price of PLMC in USD (e.g., USD per 1 PLMC).
+		let nominal_plmc_price_usd =
+			<PriceProviderOf<Runtime>>::get_price(&Location::here()).ok_or(InvalidTransaction::Payment)?;
 
-		let funding_asset_decimals =
-			<ForeignAssets as fungibles::metadata::Inspect<AccountId>>::decimals(asset_id.clone());
+		// 2. Get nominal price of the target asset in USD (e.g., USD per 1 TargetAsset).
+		let nominal_target_asset_price_usd = <PriceProviderOf<Runtime>>::get_price(&asset_id)
+			.ok_or(InvalidTransaction::Payment)?;
 
-		let funding_asset_price =
-			<PriceProviderOf<Runtime>>::get_decimals_aware_price(asset_id, USD_DECIMALS, funding_asset_decimals)
-				.ok_or(InvalidTransaction::Payment)?;
+		// 3. Calculate nominal price of PLMC in terms of the target asset.
+		//    Result is in "units of target_asset per unit of PLMC".
+		//    TargetAsset/PLMC = (USD/PLMC) / (USD/TargetAsset)
+		let price_plmc_in_target_asset_nominal =
+			nominal_plmc_price_usd.checked_div(&nominal_target_asset_price_usd).ok_or(InvalidTransaction::Payment)?;
 
-		let usd_balance = plmc_price.saturating_mul_int(plmc_balance);
+		// 4. Get decimals for the target asset.
+		let target_asset_decimals = <ForeignAssets as fungibles::metadata::Inspect<AccountId>>::decimals(asset_id);
 
-		let funding_asset_balance =
-			funding_asset_price.reciprocal().ok_or(InvalidTransaction::Payment)?.saturating_mul_int(usd_balance);
+		// 5. Calculate the decimals-aware price for converting PLMC amounts (smallest units)
+		//    to target asset amounts (smallest units).
+		//    The `original_price` is `price_plmc_in_target_asset_nominal` (TargetAsset units per PLMC unit).
+		//    The first decimal parameter to `calculate_decimals_aware_price` corresponds to the
+		//    decimals of the "numerator" of the `original_price` (TargetAsset).
+		//    The second decimal parameter corresponds to the "denominator" (PLMC).
+		//    The result is a factor: (Smallest TargetAsset Units / Smallest PLMC Units).
+		let aware_direct_conversion_rate = <PriceProviderOf<Runtime>>::calculate_decimals_aware_price(
+			price_plmc_in_target_asset_nominal,
+			target_asset_decimals, // Decimals of the target asset (numerator of the rate)
+			PLMC_DECIMALS,         // Decimals of PLMC (denominator of the rate)
+		)
+		.ok_or(InvalidTransaction::Payment)?;
+
+		// 6. Convert plmc_balance to target_asset_balance using the direct aware rate.
+		let funding_asset_balance = aware_direct_conversion_rate.saturating_mul_int(plmc_balance);
 
 		Ok(funding_asset_balance)
 	}
@@ -1141,7 +1161,7 @@ impl pallet_asset_tx_payment::Config for Runtime {
 	type BenchmarkHelper = AssetTxHelper;
 	type Fungibles = ForeignAssets;
 	type OnChargeAssetTransaction = TxFeeFungiblesAdapter<
-		PLMCToAssetBalance,
+		HereToForeignAsset,
 		CreditFungiblesToAccount<AccountId, ForeignAssets, BlockchainOperationTreasury>,
 		AssetsToBlockAuthor<Runtime, ForeignAssetsInstance>,
 	>;
@@ -1153,8 +1173,8 @@ impl pallet_asset_tx_payment::Config for Runtime {
 pub struct AssetTxHelper;
 
 #[cfg(feature = "runtime-benchmarks")]
-impl pallet_asset_tx_payment::BenchmarkHelperTrait<AccountId, Location, xcm::v3::MultiLocation> for AssetTxHelper {
-	fn create_asset_id_parameter(_id: u32) -> (Location, xcm::v3::MultiLocation) {
+impl pallet_asset_tx_payment::BenchmarkHelperTrait<AccountId, Location, xcm::v4::Location> for AssetTxHelper {
+	fn create_asset_id_parameter(_id: u32) -> (Location, xcm::v4::Location) {
 		unimplemented!("Penpal uses default weights");
 	}
 
@@ -1660,8 +1680,7 @@ impl_runtime_apis! {
 
 	impl xcm_runtime_apis::fees::XcmPaymentApi<Block> for Runtime {
 		fn query_acceptable_payment_assets(xcm_version: xcm::Version) -> Result<Vec<VersionedAssetId>, XcmPaymentApiError> {
-			let mut acceptable_assets = AcceptedFundingAsset::all_ids();
-			acceptable_assets.push(xcm::v4::Location::here());
+			let acceptable_assets = AcceptedFundingAsset::all_ids_and_plmc();
 
 			let acceptable_assets_v5 = acceptable_assets
 				.iter()
@@ -1679,7 +1698,7 @@ impl_runtime_apis! {
 				log::info!("Native fee in XcmPaymentApi: {:?}", native_fee);
 				return Ok(native_fee)
 			}
-			PLMCToAssetBalance::to_asset_balance(native_fee, location).map_err(|_| XcmPaymentApiError::AssetNotFound)
+			HereToForeignAsset::to_asset_balance(native_fee, location).map_err(|_| XcmPaymentApiError::AssetNotFound)
 
 		}
 

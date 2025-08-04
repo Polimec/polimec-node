@@ -37,9 +37,8 @@ impl<T: Config> Pallet<T> {
 	}
 
 	pub fn calculate_plmc_bond(ticket_size: Balance, multiplier: MultiplierOf<T>) -> Result<Balance, DispatchError> {
-		let plmc_usd_price =
-			<PriceProviderOf<T>>::get_decimals_aware_price(Location::here(), USD_DECIMALS, PLMC_DECIMALS)
-				.ok_or(Error::<T>::PriceNotFound)?;
+		let plmc_usd_price = <PriceProviderOf<T>>::get_decimals_aware_price(&Location::here(), PLMC_DECIMALS)
+			.ok_or(Error::<T>::PriceNotFound)?;
 		let usd_bond = multiplier.calculate_usd_bonding_requirement::<T>(ticket_size).ok_or(Error::<T>::BadMath)?;
 		plmc_usd_price
 			.reciprocal()
@@ -50,11 +49,10 @@ impl<T: Config> Pallet<T> {
 
 	pub fn calculate_funding_asset_amount(
 		ticket_size: Balance,
-		asset_id: AcceptedFundingAsset,
+		asset: AcceptedFundingAsset,
 	) -> Result<Balance, DispatchError> {
-		let asset_id = asset_id.id();
-		let asset_decimals = T::FundingCurrency::decimals(asset_id.clone());
-		let asset_usd_price = <PriceProviderOf<T>>::get_decimals_aware_price(asset_id, USD_DECIMALS, asset_decimals)
+		let asset_id = asset.id();
+		let asset_usd_price = <PriceProviderOf<T>>::get_decimals_aware_price(&asset_id, asset.decimals())
 			.ok_or(Error::<T>::PriceNotFound)?;
 		asset_usd_price
 			.reciprocal()
@@ -376,8 +374,7 @@ impl<T: Config> Pallet<T> {
 
 	pub fn get_decimals_aware_funding_asset_price(funding_asset: &AcceptedFundingAsset) -> Option<PriceOf<T>> {
 		let funding_asset_id = funding_asset.id();
-		let funding_asset_decimals = T::FundingCurrency::decimals(funding_asset_id.clone());
-		<PriceProviderOf<T>>::get_decimals_aware_price(funding_asset_id, USD_DECIMALS, funding_asset_decimals)
+		<PriceProviderOf<T>>::get_decimals_aware_price(&funding_asset_id, funding_asset.decimals())
 	}
 }
 

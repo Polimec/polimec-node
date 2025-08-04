@@ -136,8 +136,8 @@ impl ProvideAssetPrice for ConstPriceProvider {
 	type AssetId = Location;
 	type Price = FixedU128;
 
-	fn get_price(asset_id: Location) -> Option<FixedU128> {
-		PRICE_MAP.with(|price_map| price_map.borrow().get(&asset_id).cloned())
+	fn get_price(asset_id: &Location) -> Option<FixedU128> {
+		PRICE_MAP.with(|price_map| price_map.borrow().get(asset_id).cloned())
 	}
 }
 

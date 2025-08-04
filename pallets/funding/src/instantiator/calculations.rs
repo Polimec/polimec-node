@@ -6,7 +6,7 @@ use itertools::{izip, GroupBy};
 use polimec_common::assets::AcceptedFundingAsset;
 use polimec_common::{
 	assets::AcceptedFundingAsset::{DOT, ETH, USDC, USDT},
-	ProvideAssetPrice, USD_DECIMALS,
+	ProvideAssetPrice,
 };
 use sp_core::{blake2_256, ecdsa, hexdisplay::AsBytesRef, keccak_256, sr25519, Pair};
 use sp_runtime::traits::TrailingZeroInput;
@@ -30,9 +30,8 @@ impl<
 		&mut self,
 		evaluations: Vec<EvaluationParams<T>>,
 	) -> Vec<UserToPLMCBalance<T>> {
-		let plmc_usd_price = self.execute(|| {
-			<PriceProviderOf<T>>::get_decimals_aware_price(Location::here(), USD_DECIMALS, PLMC_DECIMALS).unwrap()
-		});
+		let plmc_usd_price =
+			self.execute(|| <PriceProviderOf<T>>::get_decimals_aware_price(&Location::here(), PLMC_DECIMALS).unwrap());
 
 		let mut output = Vec::new();
 		for eval in evaluations {
@@ -258,9 +257,8 @@ impl<
 		funding_asset: AcceptedFundingAsset,
 	) {
 		let multiplier: MultiplierOf<T> = ParticipationMode::OTM.multiplier().try_into().ok().unwrap();
-		let plmc_usd_price = self.execute(|| {
-			<PriceProviderOf<T>>::get_decimals_aware_price(Location::here(), USD_DECIMALS, PLMC_DECIMALS).unwrap()
-		});
+		let plmc_usd_price =
+			self.execute(|| <PriceProviderOf<T>>::get_decimals_aware_price(&Location::here(), PLMC_DECIMALS).unwrap());
 		let usd_bond = multiplier.calculate_usd_bonding_requirement::<T>(usd_ticket_size).unwrap();
 		let plmc_bond = plmc_usd_price.reciprocal().unwrap().saturating_mul_int(usd_bond);
 		let otm_fee =
@@ -271,9 +269,8 @@ impl<
 	pub fn add_required_plmc_to(&mut self, balance: &mut Balance, usd_ticket_size: Balance, multiplier: u8) {
 		let multiplier: MultiplierOf<T> = multiplier.try_into().ok().unwrap();
 		let usd_bond = multiplier.calculate_usd_bonding_requirement::<T>(usd_ticket_size).unwrap();
-		let plmc_usd_price = self.execute(|| {
-			<PriceProviderOf<T>>::get_decimals_aware_price(Location::here(), USD_DECIMALS, PLMC_DECIMALS).unwrap()
-		});
+		let plmc_usd_price =
+			self.execute(|| <PriceProviderOf<T>>::get_decimals_aware_price(&Location::here(), PLMC_DECIMALS).unwrap());
 		let plmc_bond = plmc_usd_price.reciprocal().unwrap().saturating_mul_int(usd_bond);
 		*balance += plmc_bond;
 	}

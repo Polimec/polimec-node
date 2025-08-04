@@ -54,12 +54,7 @@ mod round_flow {
 		)
 		.unwrap();
 		let usable_plmc_price = inst.execute(|| {
-			<TestRuntime as Config>::PriceProvider::get_decimals_aware_price(
-				Location::here(),
-				USD_DECIMALS,
-				PLMC_DECIMALS,
-			)
-			.unwrap()
+			<TestRuntime as Config>::PriceProvider::get_decimals_aware_price(&Location::here(), PLMC_DECIMALS).unwrap()
 		});
 		let usdt_price = inst
 			.execute(|| PolimecFunding::get_decimals_aware_funding_asset_price(&AcceptedFundingAsset::USDT).unwrap());

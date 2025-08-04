@@ -8,19 +8,13 @@ use frame_support::{
 	pallet_prelude::*,
 	traits::{
 		fungible::{Mutate, MutateHold as FungibleMutateHold},
-		fungibles::{
-			metadata::{Inspect as MetadataInspect, Mutate as MetadataMutate},
-			Create, Mutate as FungiblesMutate,
-		},
+		fungibles::{metadata::Mutate as MetadataMutate, Create, Mutate as FungiblesMutate},
 		tokens::{Precision, Preservation},
 		Get,
 	},
 	transactional,
 };
-use polimec_common::{
-	credentials::{Did, InvestorType},
-	USD_DECIMALS,
-};
+use polimec_common::credentials::{Did, InvestorType};
 use sp_arithmetic::{traits::Zero, Percent, Perquintill};
 use sp_runtime::traits::Convert;
 

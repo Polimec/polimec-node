@@ -45,8 +45,8 @@ where
 	type AssetId = AssetId;
 	type Price = Price;
 
-	fn get_price(asset_id: AssetId) -> Option<Price> {
-		Oracle::get(&asset_id)
+	fn get_price(asset_id: &AssetId) -> Option<Price> {
+		Oracle::get(asset_id)
 	}
 }
 

@@ -35,15 +35,13 @@ fn otm_fee_below_min_amount_impossible() {
 			bounded_vec![AcceptedFundingAsset::USDT, AcceptedFundingAsset::USDC, AcceptedFundingAsset::DOT,];
 
 		let usdt_price = <PolimecRuntime as pallet_funding::Config>::PriceProvider::get_decimals_aware_price(
-			AcceptedFundingAsset::USDT.id(),
-			6,
+			&AcceptedFundingAsset::USDT.id(),
 			6,
 		)
 		.unwrap();
 
 		let plmc_price = <PolimecRuntime as pallet_funding::Config>::PriceProvider::get_decimals_aware_price(
-			Location::here(),
-			6,
+			&Location::here(),
 			PLMC_DECIMALS,
 		)
 		.unwrap();
@@ -82,14 +80,12 @@ fn after_otm_fee_user_goes_under_ed_reverts() {
 		let project_id = inst.create_auctioning_project(project_metadata.clone(), issuer.clone(), None, evaluations);
 
 		let plmc_price = <PolimecRuntime as pallet_funding::Config>::PriceProvider::get_decimals_aware_price(
-			Location::here(),
-			6,
+			&Location::here(),
 			PLMC_DECIMALS,
 		)
 		.unwrap();
 		let usdt_price = <PolimecRuntime as pallet_funding::Config>::PriceProvider::get_decimals_aware_price(
-			AcceptedFundingAsset::USDT.id(),
-			6,
+			&AcceptedFundingAsset::USDT.id(),
 			6,
 		)
 		.unwrap();
