@@ -24,5 +24,6 @@ mod oracle;
 mod otm_edge_cases;
 mod runtime_apis;
 mod transact;
+mod transact_bid_with_receiving_account_from_ah;
 mod transaction_payment;
 mod vest;

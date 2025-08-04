@@ -413,6 +413,10 @@ pub mod pallet {
 	#[pallet::storage]
 	pub type DidWithActiveProjects<T: Config> = StorageMap<_, Blake2_128Concat, Did, ProjectId, OptionQuery>;
 
+	/// Bidder address that can bid on behalf of the receiving account
+	#[pallet::storage]
+	pub type PolimecBidderAccountId<T: Config> = StorageValue<_, T::AccountId, OptionQuery>;
+
 	#[pallet::event]
 	#[pallet::generate_deposit(pub (super) fn deposit_event)]
 	pub enum Event<T: Config> {
@@ -768,7 +772,12 @@ pub mod pallet {
 			let (bidder, did, investor_type, whitelisted_policy) =
 				T::InvestorOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get())?;
 
-			Self::verify_receiving_account_signature(&bidder, project_id, &receiving_account, signature_bytes)?;
+			// Transact instruction with `bid_with_receiving_account` from AH to Polimec.
+			// It's assumed that the receiving account is already verified and this instruction is dispatched
+			// by the Polimec bidder account.
+			if PolimecBidderAccountId::<T>::get() != Some(bidder.clone()) {
+				Self::verify_receiving_account_signature(&bidder, project_id, &receiving_account, signature_bytes)?;
+			}
 
 			let params = DoBidParams::<T> {
 				bidder,
@@ -866,6 +875,15 @@ pub mod pallet {
 			let _caller = ensure_signed(origin)?;
 
 			Self::do_mark_project_ct_migration_as_finished(project_id)
+		}
+
+		#[pallet::call_index(18)]
+		#[pallet::weight(T::DbWeight::get().writes(1))]
+		pub fn set_polimec_bidder_account(origin: OriginFor<T>, bidder_account: T::AccountId) -> DispatchResult {
+			ensure_root(origin)?;
+			PolimecBidderAccountId::<T>::put(bidder_account);
+
+			Ok(())
 		}
 	}
 

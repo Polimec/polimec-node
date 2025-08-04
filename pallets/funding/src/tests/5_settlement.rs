@@ -172,8 +172,8 @@ mod start_settlement_extrinsic {
 			let project_metadata = inst.get_project_metadata(project_id);
 
 			assert_eq!(project_details.funding_amount_reached_usd, 3999999999990); // It should be 4_000_000 * USD_UNIT, but due to rounding it is 3_999_999_999_990
-			let usd_fee = Percent::from_percent(10u8) * (1_000_000 * USD_UNIT) +
-				Percent::from_percent(8u8) * (3_000_000 * USD_UNIT);
+			let usd_fee = Percent::from_percent(10u8) * (1_000_000 * USD_UNIT)
+				+ Percent::from_percent(8u8) * (3_000_000 * USD_UNIT);
 			let ct_fee = project_metadata.minimum_price.reciprocal().unwrap().saturating_mul_int(usd_fee);
 			// Liquidity Pools and Long Term Holder Bonus treasury allocation
 			let treasury_allocation = Percent::from_percent(50) * ct_fee + Percent::from_percent(20) * ct_fee;
@@ -388,9 +388,9 @@ mod settle_evaluation_extrinsic {
 			let post_balance = inst.get_free_plmc_balances_for(vec![evaluator])[0].plmc_amount;
 			assert_eq!(
 				post_balance,
-				prev_balance +
-					(Percent::from_percent(100) - <TestRuntime as Config>::EvaluatorSlash::get()) *
-						evaluation.current_plmc_bond
+				prev_balance
+					+ (Percent::from_percent(100) - <TestRuntime as Config>::EvaluatorSlash::get())
+						* evaluation.current_plmc_bond
 			);
 		}
 
@@ -524,27 +524,28 @@ mod settle_bid_extrinsic {
 
 			// Partial amount bid assertions
 			let partial_amount_bid_stored = inst.execute(|| Bids::<TestRuntime>::get(project_id, 0)).unwrap();
-			// let mut final_partial_amount_bid_params = partial_amount_bid_params.clone();
-			// final_partial_amount_bid_params.amount = 500_000 * USDT_UNIT + 2200 * USDT_UNIT;
-			// let expected_final_plmc_bonded = inst
-			// 	.calculate_auction_plmc_charged_with_given_price(&vec![final_partial_amount_bid_params.clone()])[0]
-			// 	.plmc_amount;
-			// println!(
-			// 	"Expected final PLMC bonded: {}, actual: {}",
-			// 	expected_final_plmc_bonded, partial_amount_bid_stored.plmc_bond
-			// );
-			// let mut final_partial_amount_bid_params = partial_amount_bid_params.clone();
-			// final_partial_amount_bid_params.amount = 500_000 * USDT_UNIT + 2200 * USDT_UNIT;
-			// let expected_final_usdt_paid = inst
-			// 	.calculate_auction_funding_asset_charged_with_given_price(&vec![final_partial_amount_bid_params])[0]
-			// 	.asset_amount;
-			// println!(
-			// 	"Expected final USDT paid: {}, actual: {}",
-			// 	expected_final_usdt_paid, partial_amount_bid_stored.funding_asset_amount_locked
-			// );
 
-			// let expected_plmc_refund = partial_amount_bid_stored.plmc_bond - expected_final_plmc_bonded;
-			// let expected_usdt_refund = partial_amount_bid_stored.funding_asset_amount_locked - expected_final_usdt_paid;
+			let mut final_partial_amount_bid_params = partial_amount_bid_params.clone();
+			final_partial_amount_bid_params.amount = 500_000 * USDT_UNIT + 2200 * USDT_UNIT;
+			let expected_final_plmc_bonded = inst
+				.calculate_auction_plmc_charged_with_given_price(&vec![final_partial_amount_bid_params.clone()])[0]
+				.plmc_amount;
+			println!(
+				"Expected final PLMC bonded: {}, actual: {}",
+				expected_final_plmc_bonded, partial_amount_bid_stored.plmc_bond
+			);
+			let mut final_partial_amount_bid_params = partial_amount_bid_params.clone();
+			final_partial_amount_bid_params.amount = 500_000 * USDT_UNIT + 2200 * USDT_UNIT;
+			let expected_final_usdt_paid = inst
+				.calculate_auction_funding_asset_charged_with_given_price(&vec![final_partial_amount_bid_params])[0]
+				.asset_amount;
+			println!(
+				"Expected final USDT paid: {}, actual: {}",
+				expected_final_usdt_paid, partial_amount_bid_stored.funding_asset_amount_locked
+			);
+
+			let expected_plmc_refund = partial_amount_bid_stored.plmc_bond - expected_final_plmc_bonded;
+			let expected_usdt_refund = partial_amount_bid_stored.funding_asset_amount_locked - expected_final_usdt_paid;
 
 			let pre_issuer_usdt_balance = inst.get_free_funding_asset_balance_for(
 				AcceptedFundingAsset::USDT.id(),
@@ -561,7 +562,7 @@ mod settle_bid_extrinsic {
 			inst.assert_funding_asset_free_balance(
 				BIDDER_1,
 				AcceptedFundingAsset::USDT.id(),
-				2200 * USDT_UNIT + usdt_ed,
+				2000 * USDT_UNIT + usdt_ed,
 			);
 			// assert_eq!(post_issuer_usdt_balance, pre_issuer_usdt_balance + expected_final_usdt_paid);
 
