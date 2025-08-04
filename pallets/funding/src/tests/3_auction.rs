@@ -171,7 +171,7 @@ mod round_flow {
 	fn auction_oversubscription() {
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		let project_metadata = default_project_metadata(ISSUER_1);
-		let mut bucket = Pallet::<TestRuntime>::create_bucket_from_metadata(&project_metadata).unwrap();
+		let mut bucket = Pallet::<TestRuntime>::create_bucket_from_metadata(&project_metadata);
 		bucket.current_price =
 			bucket.initial_price + (bucket.delta_price.mul(PriceOf::<TestRuntime>::from_float(10.0)));
 		bucket.amount_left = bucket.delta_amount;

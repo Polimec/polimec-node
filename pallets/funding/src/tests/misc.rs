@@ -108,7 +108,7 @@ mod inner_functions {
 	pub fn calculate_usd_sold_from_bucket() {
 		let project_metadata = default_project_metadata(ISSUER_1);
 
-		let mut bucket = Pallet::<TestRuntime>::create_bucket_from_metadata(&project_metadata).unwrap();
+		let mut bucket = Pallet::<TestRuntime>::create_bucket_from_metadata(&project_metadata);
 		bucket.update(10_000 * CT_UNIT);
 
 		// We bought 10k CTs at a price of 10USD, meaning we should get 100k USD
@@ -116,7 +116,7 @@ mod inner_functions {
 		assert_eq!(usd_sold, 100_000 * USD_UNIT);
 
 		// This bucket has 2 buckets sold out on top of the first one
-		let mut bucket = Pallet::<TestRuntime>::create_bucket_from_metadata(&project_metadata).unwrap();
+		let mut bucket = Pallet::<TestRuntime>::create_bucket_from_metadata(&project_metadata);
 
 		let usd_raised_first_bucket = bucket.current_price.saturating_mul_int(400_000 * CT_UNIT);
 		bucket.update(project_metadata.total_allocation_size);

@@ -998,7 +998,7 @@ mod edit_project_extrinsic {
 			// Project details reflect changes
 			assert_eq!(inst.get_project_details(project_id).fundraising_target_usd, 100_000 * USD_UNIT);
 			// Bucket reflects changes
-			let new_bucket = Pallet::<TestRuntime>::create_bucket_from_metadata(&new_metadata).unwrap();
+			let new_bucket = Pallet::<TestRuntime>::create_bucket_from_metadata(&new_metadata);
 			let stored_bucket = inst.execute(|| Buckets::<TestRuntime>::get(project_id).unwrap());
 			assert_eq!(stored_bucket, new_bucket);
 			// Event emitted
