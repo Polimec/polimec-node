@@ -21,7 +21,7 @@ parity-scale-codec = { workspace = true, features = ["derive"] }
 scale-info = { workspace = true, features = ["derive"] }
 serde = { workspace = true, features = ["derive"] }
 serde-json-core.workspace = true
-heapless = {workspace = true, features = ["serde"] }
+heapless = { workspace = true, features = ["serde"] }
 log.workspace = true
 frame-support.workspace = true
 frame-system.workspace = true
@@ -29,7 +29,7 @@ orml-oracle.workspace = true
 sp-core.workspace = true
 sp-io.workspace = true
 sp-runtime.workspace = true
-substrate-fixed = {workspace = true}
+substrate-fixed = { workspace = true }
 
 [dev-dependencies]
 pallet-balances = { workspace = true, features = ["std"] }

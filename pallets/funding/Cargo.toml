@@ -16,10 +16,10 @@ workspace = true
 [dependencies]
 serde = { workspace = true }
 parity-scale-codec = { workspace = true, features = [
-	"derive",
+  "derive",
 ], default-features = false }
 scale-info = { workspace = true, default-features = false, features = [
-	"derive",
+  "derive",
 ] }
 log.workspace = true
 
@@ -115,11 +115,13 @@ runtime-benchmarks = [
 	"sp-runtime/runtime-benchmarks",
 	"xcm-builder/runtime-benchmarks",
 	"xcm-executor/runtime-benchmarks",
+	"xcm/runtime-benchmarks",
 ]
 try-runtime = [
 	"cumulus-pallet-parachain-system/try-runtime",
 	"frame-support/try-runtime",
 	"frame-system/try-runtime",
+	"on-slash-vesting/try-runtime",
 	"pallet-assets/try-runtime",
 	"pallet-balances/try-runtime",
 	"pallet-linear-release/try-runtime",
@@ -128,6 +130,5 @@ try-runtime = [
 	"polimec-common-test-utils?/try-runtime",
 	"polimec-common/try-runtime",
 	"sp-runtime/try-runtime",
-	"on-slash-vesting/try-runtime"
 ]
 on-chain-release-build = []

@@ -186,6 +186,11 @@ pub mod migrations {
 		// permanent
 		pallet_xcm::migration::MigrateToLatestXcmVersion<Runtime>,
 		// temporary
+		pallet_session::migrations::v1::MigrateV0ToV1<
+			Runtime,
+			pallet_session::migrations::v1::InitOffenceSeverity<Runtime>,
+		>,
+		cumulus_pallet_aura_ext::migration::MigrateV0ToV1<Runtime>,
 	);
 }
 
@@ -435,6 +440,8 @@ impl pallet_assets::Config<ForeignAssetsInstance> for Runtime {
 	type Extra = ();
 	type ForceOrigin = EnsureRoot<AccountId>;
 	type Freezer = ();
+	// Note: We can use this to avoid moving the Assets to an escrow account.
+	type Holder = ();
 	type MetadataDepositBase = MetadataDepositBase;
 	type MetadataDepositPerByte = MetadataDepositPerByte;
 	type RemoveItemsLimit = frame_support::traits::ConstU32<1000>;
@@ -512,6 +519,8 @@ impl pallet_message_queue::Config for Runtime {
 }
 
 impl pallet_session::Config for Runtime {
+	// TODO: Check if this is correct
+	type DisablingStrategy = ();
 	type Keys = SessionKeys;
 	type NextSessionRotation = ParachainStaking;
 	type RuntimeEvent = RuntimeEvent;
@@ -720,6 +729,8 @@ impl PrivilegeCmp<OriginCaller> for EqualOrGreatestRootCmp {
 }
 
 impl pallet_scheduler::Config for Runtime {
+	// TODO: Check if this is ok, changing it to `RelaychainDataProvider<Runtime>` will require a fix on the emulated tests.
+	type BlockNumberProvider = System;
 	type MaxScheduledPerBlock = MaxScheduledPerBlock;
 	type MaximumWeight = MaximumSchedulerWeight;
 	type OriginPrivilegeCmp = EqualOrGreatestRootCmp;
@@ -922,6 +933,7 @@ impl pallet_utility::Config for Runtime {
 }
 
 impl pallet_multisig::Config for Runtime {
+	type BlockNumberProvider = RelaychainDataProvider<Runtime>;
 	type Currency = Balances;
 	type DepositBase = DepositBase;
 	type DepositFactor = DepositFactor;
@@ -934,6 +946,7 @@ impl pallet_multisig::Config for Runtime {
 impl pallet_proxy::Config for Runtime {
 	type AnnouncementDepositBase = AnnouncementDepositBase;
 	type AnnouncementDepositFactor = AnnouncementDepositFactor;
+	type BlockNumberProvider = RelaychainDataProvider<Runtime>;
 	type CallHasher = BlakeTwo256;
 	type Currency = Balances;
 	type MaxPending = MaxPending;
@@ -962,6 +975,7 @@ impl pallet_assets::Config<ContributionTokensInstance> for Runtime {
 	type Extra = ();
 	type ForceOrigin = EnsureRoot<AccountId>;
 	type Freezer = ();
+	type Holder = ();
 	type MetadataDepositBase = ZeroDeposit;
 	type MetadataDepositPerByte = ZeroDeposit;
 	type RemoveItemsLimit = frame_support::traits::ConstU32<1000>;
@@ -1180,7 +1194,7 @@ construct_runtime!(
 
 		// Collator support. the order of these 5 are important and shall not change.
 		Authorship: pallet_authorship::{Pallet, Storage} = 20,
-		Session: pallet_session::{Pallet, Call, Storage, Event, Config<T>} = 22,
+		Session: pallet_session::{Pallet, Call, Storage, Event<T>, Config<T>} = 22,
 		Aura: pallet_aura::{Pallet, Storage, Config<T>} = 23,
 		AuraExt: cumulus_pallet_aura_ext::{Pallet, Storage, Config<T>} = 24,
 		ParachainStaking: pallet_parachain_staking::{Pallet, Call, Storage, Event<T>, Config<T>, HoldReason} = 25,

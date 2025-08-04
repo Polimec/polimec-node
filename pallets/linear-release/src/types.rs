@@ -18,7 +18,7 @@ use frame_support::pallet_prelude::*;
 use sp_runtime::traits::{AtLeast32BitUnsigned, Bounded, Convert, One, Zero};
 
 /// Struct to encode the vesting schedule of an individual account.
-#[derive(Encode, Decode, Copy, Clone, PartialEq, Eq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
+#[derive(Encode, Decode, Copy, Clone, PartialEq, Eq, RuntimeDebug, MaxEncodedLen, TypeInfo, DecodeWithMemTracking)]
 pub struct VestingInfo<Balance, BlockNumber> {
 	/// Locked amount at genesis.
 	pub locked: Balance,

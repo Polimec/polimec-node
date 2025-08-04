@@ -98,7 +98,7 @@ extern crate alloc;
 
 use alloc::{vec, vec::Vec};
 use frame_support::{
-	pallet_prelude::DispatchResult,
+	pallet_prelude::{DecodeWithMemTracking, DispatchResult},
 	traits::{
 		defensive_prelude::*,
 		fungible::{hold::Balanced, Credit, Inspect, InspectHold, Mutate, MutateFreeze, MutateHold},
@@ -131,7 +131,7 @@ type CreditOf<T> = Credit<<T as frame_system::Config>::AccountId, <T as Config>:
 type AccountIdLookupOf<T> = <<T as frame_system::Config>::Lookup as StaticLookup>::Source;
 
 /// An indication that the renouncing account currently has which of the below roles.
-#[derive(Encode, Decode, Clone, PartialEq, RuntimeDebug, TypeInfo)]
+#[derive(Encode, Decode, Clone, PartialEq, RuntimeDebug, TypeInfo, DecodeWithMemTracking)]
 pub enum Renouncing {
 	/// A member is renouncing.
 	Member,
@@ -1390,6 +1390,7 @@ mod tests {
 						(5, 50 * self.balance_factor),
 						(6, 60 * self.balance_factor),
 					],
+					dev_accounts: None,
 				},
 				elections: elections_phragmen::GenesisConfig::<Test> { members: self.genesis_members },
 			}

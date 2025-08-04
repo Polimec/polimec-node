@@ -57,6 +57,7 @@ pub mod config {
 		RuntimeDebug,
 		Serialize,
 		Deserialize,
+		DecodeWithMemTracking,
 	)]
 	pub struct Multiplier(u8);
 
@@ -162,7 +163,19 @@ pub mod storage {
 	use crate::Balance;
 	use xcm::v4::Junction;
 
-	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo, Serialize, Deserialize)]
+	#[derive(
+		Clone,
+		Encode,
+		Decode,
+		Eq,
+		PartialEq,
+		RuntimeDebug,
+		MaxEncodedLen,
+		TypeInfo,
+		Serialize,
+		Deserialize,
+		DecodeWithMemTracking,
+	)]
 	pub struct ProjectMetadata<BoundedString, Price: FixedPointNumber, AccountId, Cid> {
 		/// Token Metadata
 		pub token_information: CurrencyMetadata<BoundedString>,
@@ -471,7 +484,18 @@ pub mod inner {
 	}
 
 	#[derive(
-		Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo, Serialize, Deserialize,
+		Default,
+		Clone,
+		Encode,
+		Decode,
+		Eq,
+		PartialEq,
+		RuntimeDebug,
+		MaxEncodedLen,
+		TypeInfo,
+		Serialize,
+		Deserialize,
+		DecodeWithMemTracking,
 	)]
 	pub struct CurrencyMetadata<BoundedString> {
 		/// The user-friendly name of this asset. Limited in length by `StringLimit`.
@@ -483,7 +507,18 @@ pub mod inner {
 	}
 
 	#[derive(
-		Clone, Copy, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo, Serialize, Deserialize,
+		Clone,
+		Copy,
+		Encode,
+		Decode,
+		Eq,
+		PartialEq,
+		RuntimeDebug,
+		MaxEncodedLen,
+		TypeInfo,
+		Serialize,
+		Deserialize,
+		DecodeWithMemTracking,
 	)]
 	pub struct TicketSize {
 		pub usd_minimum_per_participation: Balance,
@@ -527,7 +562,18 @@ pub mod inner {
 	}
 
 	#[derive(
-		Clone, Copy, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo, Serialize, Deserialize,
+		Clone,
+		Copy,
+		Encode,
+		Decode,
+		Eq,
+		PartialEq,
+		RuntimeDebug,
+		MaxEncodedLen,
+		TypeInfo,
+		Serialize,
+		Deserialize,
+		DecodeWithMemTracking,
 	)]
 	pub struct BiddingTicketSizes<Price: FixedPointNumber> {
 		pub professional: TicketSize,
@@ -558,7 +604,18 @@ pub mod inner {
 	}
 
 	#[derive(
-		Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen, Serialize, Deserialize,
+		Default,
+		Clone,
+		Encode,
+		Decode,
+		Eq,
+		PartialEq,
+		RuntimeDebug,
+		TypeInfo,
+		MaxEncodedLen,
+		Serialize,
+		Deserialize,
+		DecodeWithMemTracking,
 	)]
 	pub enum ProjectStatus {
 		#[default]
@@ -573,7 +630,19 @@ pub mod inner {
 		CTMigrationFinished,
 	}
 
-	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen, Serialize, Deserialize)]
+	#[derive(
+		Clone,
+		Encode,
+		Decode,
+		Eq,
+		PartialEq,
+		RuntimeDebug,
+		TypeInfo,
+		MaxEncodedLen,
+		Serialize,
+		Deserialize,
+		DecodeWithMemTracking,
+	)]
 	pub enum FundingOutcome {
 		Success,
 		Failure,
@@ -607,7 +676,19 @@ pub mod inner {
 		}
 	}
 
-	#[derive(Default, Clone, Copy, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+	#[derive(
+		Default,
+		Clone,
+		Copy,
+		Encode,
+		Decode,
+		Eq,
+		PartialEq,
+		RuntimeDebug,
+		TypeInfo,
+		MaxEncodedLen,
+		DecodeWithMemTracking,
+	)]
 	pub enum BidStatus {
 		/// The bid is not yet accepted or rejected
 		#[default]
@@ -665,7 +746,18 @@ pub mod inner {
 	}
 
 	#[derive(
-		Clone, Copy, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen, Serialize, Deserialize,
+		Clone,
+		Copy,
+		Encode,
+		Decode,
+		Eq,
+		PartialEq,
+		RuntimeDebug,
+		TypeInfo,
+		MaxEncodedLen,
+		Serialize,
+		Deserialize,
+		DecodeWithMemTracking,
 	)]
 	pub enum ParticipationMode {
 		/// One Token Model. User only needs funding assets, and pays a fee to bond treasury PLMC.
@@ -684,7 +776,18 @@ pub mod inner {
 	}
 
 	#[derive(
-		Clone, Copy, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen, Serialize, Deserialize,
+		Clone,
+		Copy,
+		Encode,
+		Decode,
+		Eq,
+		PartialEq,
+		RuntimeDebug,
+		TypeInfo,
+		MaxEncodedLen,
+		Serialize,
+		Deserialize,
+		DecodeWithMemTracking,
 	)]
 	pub enum ParticipantsAccountType {
 		Polkadot,
@@ -733,18 +836,6 @@ pub mod extrinsic {
 		pub metadata_ticket_size_bounds: TicketSize,
 		pub receiving_account: Junction,
 		pub auction_oversubscribed: bool,
-	}
-
-	pub struct DoContributeParams<T: Config> {
-		pub contributor: AccountIdOf<T>,
-		pub project_id: ProjectId,
-		pub ct_amount: Balance,
-		pub mode: ParticipationMode,
-		pub funding_asset: AcceptedFundingAsset,
-		pub did: Did,
-		pub investor_type: InvestorType,
-		pub whitelisted_policy: Cid,
-		pub receiving_account: Junction,
 	}
 
 	pub struct BidRefund {

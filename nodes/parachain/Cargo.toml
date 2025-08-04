@@ -95,6 +95,7 @@ runtime-benchmarks = [
 	"polkadot-primitives/runtime-benchmarks",
 	"sc-service/runtime-benchmarks",
 	"sp-runtime/runtime-benchmarks",
+	"xcm/runtime-benchmarks",
 ]
 try-runtime = [
 	"pallet-funding/try-runtime",

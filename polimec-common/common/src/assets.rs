@@ -1,4 +1,4 @@
-use parity_scale_codec::{Decode, Encode, MaxEncodedLen};
+use parity_scale_codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 use scale_info::TypeInfo;
 use serde::{Deserialize, Serialize};
 use sp_runtime::RuntimeDebug;
@@ -22,6 +22,7 @@ use alloc::{vec, vec::Vec};
 	MaxEncodedLen,
 	Serialize,
 	Deserialize,
+	DecodeWithMemTracking,
 )]
 pub enum AcceptedFundingAsset {
 	#[codec(index = 0)]

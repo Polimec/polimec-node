@@ -68,4 +68,5 @@ runtime-benchmarks = [
 	"pallet-linear-release/runtime-benchmarks",
 	"polimec-common/runtime-benchmarks",
 	"sp-runtime/runtime-benchmarks",
+	"xcm/runtime-benchmarks",
 ]

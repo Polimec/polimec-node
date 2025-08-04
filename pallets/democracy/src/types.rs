@@ -12,7 +12,7 @@
 //! Miscellaneous additional datatypes.
 
 use crate::{AccountVote, Conviction, Vote, VoteThreshold};
-use parity_scale_codec::{Decode, Encode, MaxEncodedLen};
+use parity_scale_codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 use scale_info::TypeInfo;
 use sp_runtime::{
 	traits::{Bounded, CheckedAdd, CheckedDiv, CheckedMul, CheckedSub, Saturating, Zero},
@@ -183,7 +183,7 @@ pub enum UnvoteScope {
 }
 
 /// Identifies an owner of a metadata.
-#[derive(Encode, Decode, Clone, PartialEq, Eq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+#[derive(Encode, Decode, Clone, PartialEq, Eq, RuntimeDebug, TypeInfo, MaxEncodedLen, DecodeWithMemTracking)]
 pub enum MetadataOwner {
 	/// External proposal.
 	External,

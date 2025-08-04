@@ -18,26 +18,26 @@ pub mod constants;
 #[cfg(test)]
 mod tests;
 
-pub use constants::{accounts::*, asset_hub, polimec, polkadot};
+pub use constants::{accounts::*, asset_hub, polimec, westend};
 use emulated_integration_tests_common::{
 	impl_accounts_helpers_for_parachain, impl_assert_events_helpers_for_parachain, impl_assets_helpers_for_parachain,
 	impl_foreign_assets_helpers_for_parachain, impl_xcm_helpers_for_parachain,
 };
-pub use frame_support::{assert_noop, assert_ok, pallet_prelude::Weight, parameter_types, traits::Hooks};
+pub use frame_support::{assert_noop, assert_ok, pallet_prelude::Weight, parameter_types};
 pub use parachains_common::{AccountId, AssetHubPolkadotAuraId, AuraId, Balance, BlockNumber};
-use polkadot_primitives::runtime_api::runtime_decl_for_parachain_host::ParachainHostV12;
+use polkadot_primitives::runtime_api::runtime_decl_for_parachain_host::ParachainHostV13;
 pub use sp_core::{sr25519, storage::Storage, Encode, Get};
 pub use xcm::v4::*;
 pub use xcm_emulator::{
 	assert_expected_events, bx, decl_test_networks, decl_test_parachains, decl_test_relay_chains,
 	helpers::{weight_within_threshold, within_threshold},
-	BridgeMessageHandler, Chain, Network, ParaId, Parachain, RelayChain, TestExt,
+	BridgeMessageHandler, Chain, Network, OnInitialize, ParaId, Parachain, RelayChain, TestExt,
 };
 
 decl_test_relay_chains! {
-	#[api_version(11)]
+	#[api_version(12)]
 	pub struct PolkadotRelay {
-			genesis = polkadot::genesis(),
+			genesis = westend::genesis(),
 			on_init = {
 				westend_runtime::System::set_block_number(1);
 			},
@@ -170,4 +170,5 @@ pub mod shortcuts {
 
 	pub type PolimecParachainSystem = <PolimecNet as PolimecParaPallet>::ParachainSystem;
 }
+
 pub use shortcuts::*;

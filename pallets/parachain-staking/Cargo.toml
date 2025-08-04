@@ -18,9 +18,7 @@ clippy.pedantic = "allow"
 serde = { workspace = true }
 log = { workspace = true }
 
-parity-scale-codec = { workspace = true, features = [
-	"derive",
-] }
+parity-scale-codec = { workspace = true, features = ["derive"] }
 scale-info = { workspace = true, features = ["derive"] }
 
 # FRAME

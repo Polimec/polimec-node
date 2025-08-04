@@ -13,14 +13,17 @@
 
 use crate::Tally;
 use core::ops::{Add, Div, Mul, Rem};
-use parity_scale_codec::{Decode, Encode, MaxEncodedLen};
+use parity_scale_codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 use scale_info::TypeInfo;
 #[cfg(feature = "std")]
 use serde::{Deserialize, Serialize};
-use sp_runtime::traits::{IntegerSquareRoot, Zero};
+use sp_runtime::{
+	traits::{IntegerSquareRoot, Zero},
+	RuntimeDebug,
+};
 
 /// A means of determining if a vote is past pass threshold.
-#[derive(Clone, Copy, PartialEq, Eq, Encode, MaxEncodedLen, Decode, sp_runtime::RuntimeDebug, TypeInfo)]
+#[derive(Clone, Copy, PartialEq, Eq, Encode, MaxEncodedLen, Decode, RuntimeDebug, TypeInfo, DecodeWithMemTracking)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub enum VoteThreshold {
 	/// A supermajority of approvals is needed to pass this vote.

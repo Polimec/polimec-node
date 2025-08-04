@@ -17,11 +17,11 @@ workspace = true
 
 [dependencies]
 smallvec.workspace = true
-parity-scale-codec = { workspace = true , default-features = false, features = [
-	"derive",
+parity-scale-codec = { workspace = true, default-features = false, features = [
+  "derive",
 ] }
-scale-info = { workspace = true , default-features = false, features = [
-	"derive",
+scale-info = { workspace = true, default-features = false, features = [
+  "derive",
 ] }
 polimec-common.workspace = true
 
@@ -38,7 +38,7 @@ pallet-balances.workspace = true
 pallet-authorship.workspace = true
 pallet-parachain-staking.workspace = true
 pallet-oracle-ocw.workspace = true
-pallet-treasury = {workspace = true, optional = true}
+pallet-treasury = { workspace = true, optional = true }
 pallet-asset-tx-payment.workspace = true
 xcm.workspace = true
 cumulus-primitives-core.workspace = true
@@ -82,6 +82,7 @@ runtime-benchmarks = [
 	"parachains-common/runtime-benchmarks",
 	"polimec-common/runtime-benchmarks",
 	"sp-runtime/runtime-benchmarks",
+	"xcm/runtime-benchmarks",
 ]
 try-runtime = [
 	"frame-support/try-runtime",

@@ -19,7 +19,7 @@ targets = ["x86_64-unknown-linux-gnu"]
 [dependencies]
 parity-scale-codec = { workspace = true, features = ["derive"] }
 scale-info = { workspace = true, features = ["derive"] }
-serde = {workspace = true, features = ["derive"], optional = true}
+serde = { workspace = true, features = ["derive"], optional = true }
 frame-benchmarking = { workspace = true, optional = true }
 frame-support.workspace = true
 frame-system.workspace = true

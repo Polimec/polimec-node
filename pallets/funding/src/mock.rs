@@ -169,6 +169,7 @@ impl pallet_assets::Config<ContributionTokensInstance> for TestRuntime {
 	type Extra = ();
 	type ForceOrigin = EnsureRoot<AccountId>;
 	type Freezer = ();
+	type Holder = ();
 	type MetadataDepositBase = MetadataDepositBase;
 	type MetadataDepositPerByte = MetadataDepositPerByte;
 	type RemoveItemsLimit = ConstU32<1000>;
@@ -202,6 +203,7 @@ impl pallet_assets::Config<ForeignAssetsInstance> for TestRuntime {
 	type Extra = ();
 	type ForceOrigin = EnsureRoot<AccountId>;
 	type Freezer = ();
+	type Holder = ();
 	type MetadataDepositBase = MetadataDepositBase;
 	type MetadataDepositPerByte = MetadataDepositPerByte;
 	type RemoveItemsLimit = ConstU32<1000>;
@@ -476,6 +478,7 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
 				(ProxyBondingTreasuryAccount::get(), 1_000_000 * PLMC),
 				(FeeRecipient::get(), ed),
 			],
+			dev_accounts: None,
 		},
 		foreign_assets: ForeignAssetsConfig {
 			assets: vec![
