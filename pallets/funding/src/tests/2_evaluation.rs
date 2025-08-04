@@ -552,9 +552,7 @@ mod evaluate_extrinsic {
 				assert_eq!(evaluations.len(), 1);
 				let stored_evaluation = &evaluations[0];
 				let expected_evaluation_item = EvaluationInfoOf::<TestRuntime> {
-					id: 0,
 					did,
-					project_id: 0,
 					evaluator: EVALUATOR_1,
 					original_plmc_bond: necessary_plmc[0].plmc_amount,
 					current_plmc_bond: necessary_plmc[0].plmc_amount,

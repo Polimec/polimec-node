@@ -99,18 +99,20 @@ impl<T: Config> Pallet<T> {
 
 	pub fn try_plmc_participation_lock(who: &T::AccountId, project_id: ProjectId, amount: Balance) -> DispatchResult {
 		// Check if the user has already locked tokens in the evaluation period
-		let user_evaluations = Evaluations::<T>::iter_prefix_values((project_id, who));
+		let user_evaluations = Evaluations::<T>::iter_prefix((project_id, who));
 
 		let mut to_convert = amount;
-		for mut evaluation in user_evaluations {
+		for (evaluation_id, mut evaluation) in user_evaluations {
 			if to_convert == Zero::zero() {
 				break;
 			}
-			let slash_deposit = <T as Config>::EvaluatorSlash::get() * evaluation.original_plmc_bond;
-			let available_to_convert = evaluation.current_plmc_bond.saturating_sub(slash_deposit);
+			let slashable_deposit = <T as Config>::EvaluatorSlash::get() * evaluation.original_plmc_bond;
+			let available_to_convert = evaluation.current_plmc_bond.saturating_sub(slashable_deposit);
 			let converted = to_convert.min(available_to_convert);
 			evaluation.current_plmc_bond = evaluation.current_plmc_bond.saturating_sub(converted);
-			Evaluations::<T>::insert((project_id, who, evaluation.id), evaluation);
+			Evaluations::<T>::insert((project_id, who, evaluation_id), evaluation);
+
+			// Release the held funds and apply the new hold reason.
 			T::NativeCurrency::release(&HoldReason::Evaluation.into(), who, converted, Precision::Exact)
 				.map_err(|_| Error::<T>::ImpossibleState)?;
 			T::NativeCurrency::hold(&HoldReason::Participation.into(), who, converted)
