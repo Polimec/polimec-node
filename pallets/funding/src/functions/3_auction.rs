@@ -1,8 +1,28 @@
+//! # Auction Phase
+//!
+//! Functions for placing bids, and processing oversubscribed bids.
+
 #[allow(clippy::wildcard_imports)]
 use super::*;
 
 impl<T: Config> Pallet<T> {
-	/// Place a bid on a project in the auction round
+	/// Place a bid on a project in the auction round.
+	///
+	/// The bid is split into buckets if it's larger than the current bucket.
+	///
+	/// ## Errors
+	/// - `ProjectMetadataNotFound` if the project metadata is not found.
+	/// - `ProjectDetailsNotFound` if the project details are not found.
+	/// - `BucketNotFound` if the bucket is not found.
+	/// - `ImpossibleState` if the project policy is not set.
+	/// - `PolicyMismatch` if the JWT policy does not match the project policy.
+	/// - `TooLow` if the bid amount is too low.
+	/// - `TooHigh` if the bid amount is too high.
+	/// - `ParticipationToOwnProject` if the bidder is the issuer of the project.
+	/// - `IncorrectRound` if the project is not in the auction round.
+	/// - `FundingAssetNotAccepted` if the funding asset is not accepted.
+	/// - `ForbiddenMultiplier` if the multiplier is not allowed for the investor type.
+	/// - `UnsupportedReceiverAccountJunction` if the receiving account junction is not supported.
 	#[transactional]
 	pub fn do_bid(params: DoBidParams<T>) -> DispatchResultWithPostInfo {
 		// * Get variables *
@@ -201,6 +221,12 @@ impl<T: Config> Pallet<T> {
 	}
 
 	/// Process a bid that was outbid by a new bid. This will set it to Rejected so the user can get their funds back with `settle_bid` and bid again.
+	///
+	/// ## Errors
+	/// - `ProjectMetadataNotFound` if the project metadata is not found.
+	/// - `BucketNotFound` if the bucket is not found.
+	/// - `NoBidsOversubscribed` if there are no oversubscribed bids to process.
+	/// - `ImpossibleState` if the bid or bucket bounds are not found.
 	pub fn do_process_next_oversubscribed_bid(project_id: ProjectId) -> DispatchResult {
 		// Load and validate initial state
 		let project_metadata = ProjectsMetadata::<T>::get(project_id).ok_or(Error::<T>::ProjectMetadataNotFound)?;
@@ -256,7 +282,10 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
-	/// Get the next bid that should be processed by do_process_next_oversubscribed_bid
+	/// Get the next bid that should be processed by do_process_next_oversubscribed_bid.
+	///
+	/// ## Errors
+	/// - `ImpossibleState` if the bucket bounds are not found.
 	pub fn get_next_cutoff(
 		project_id: ProjectId,
 		delta_price: PriceOf<T>,
@@ -272,4 +301,4 @@ impl<T: Config> Pallet<T> {
 			Ok((current_price, current_index.saturating_sub(1)))
 		}
 	}
-}
+}'''

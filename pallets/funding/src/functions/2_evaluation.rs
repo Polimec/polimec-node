@@ -1,3 +1,4 @@
+//! Functions for evaluation phase of a project.
 #[allow(clippy::wildcard_imports)]
 use super::*;
 use polimec_common::ProvideAssetPrice;
@@ -31,6 +32,18 @@ impl<T: Config> Pallet<T> {
 	}
 
 	/// End the evaluation round of a project, and start the auction round.
+	///
+	/// This function is called by the project issuer to end the evaluation round of a project.
+	/// It checks if the total amount bonded is greater than or equal to the evaluation target USD.
+	/// If it is, the project is moved to the auction round. Otherwise, it is moved to the failed round.
+	///
+	/// # Arguments
+	///
+	/// * `project_id` - The ID of the project to end the evaluation round of.
+	///
+	/// # Returns
+	///
+	/// * `DispatchResult` - The result of the operation.
 	#[transactional]
 	pub fn do_end_evaluation(project_id: ProjectId) -> DispatchResult {
 		// * Get variables *
@@ -68,10 +81,24 @@ impl<T: Config> Pallet<T> {
 				None,
 				false,
 			)
-		}
+		};
 	}
-
 	/// Place an evaluation on a project
+	///
+	/// This function allows an evaluator to place an evaluation on a project.
+	/// It checks if the project is in the evaluation round, if the evaluator is not the issuer,
+	/// if the evaluation amount is above the minimum threshold,
+	/// and if the project policy matches the whitelisted policy.
+	///
+	///  # Arguments
+	/// * `evaluator` - The account ID of the evaluator placing the evaluation.
+	/// * `project_id` - The ID of the project being evaluated.
+	/// * `usd_amount` - The amount in USD being evaluated.
+	/// * `did` - The DID of the evaluator.
+	/// * `whitelisted_policy` - The Cid of the whitelisted policy.
+	/// # Returns
+	///
+	/// * `DispatchResult` - The result of the operation.
 	#[transactional]
 	pub fn do_evaluate(
 		evaluator: &AccountIdOf<T>,

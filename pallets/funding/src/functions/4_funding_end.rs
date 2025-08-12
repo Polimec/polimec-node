@@ -1,8 +1,22 @@
+'''//! # Funding End
+//!
+//! Functions for ending the funding round.
+
 #[allow(clippy::wildcard_imports)]
 use super::*;
 
 impl<T: Config> Pallet<T> {
 	/// End the auction round and the fundraise. Check if the raise was successful or not.
+	///
+	/// If the funding is successful, the project status is transitioned to `FundingSuccessful`.
+	/// Otherwise, it's transitioned to `FundingFailed`.
+	///
+	/// ## Errors
+	/// - `ProjectMetadataNotFound` if the project metadata is not found.
+	/// - `ProjectDetailsNotFound` if the project details are not found.
+	/// - `BucketNotFound` if the bucket is not found.
+	/// - `TooEarlyForRound` if the auction round has not ended yet.
+	/// - `OversubscribedBidsRemaining` if there are still oversubscribed bids to be processed.
 	#[transactional]
 	pub fn do_end_funding(project_id: ProjectId) -> DispatchResult {
 		// * Get variables *

@@ -23,6 +23,8 @@ use sp_runtime::{traits::Zero, Perquintill};
 impl<T: Config> Pallet<T> {
 	/// Start the settlement round. Now users can mint their contribution tokens or get their funds back, and the issuer
 	/// will get the funds in their funding account.
+	///
+	/// NOTE: this function is transactional, meaning it will rollback all changes if any of the operations fail.
 	#[transactional]
 	pub fn do_start_settlement(project_id: ProjectId) -> DispatchResult {
 		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
@@ -107,6 +109,9 @@ impl<T: Config> Pallet<T> {
 	}
 
 	/// Settle an evaluation, by maybe minting CTs, and releasing the PLMC bond.
+	///
+	/// If the evaluation was slashed, the PLMC bond is transferred to the treasury.
+	/// If the evaluation was rewarded, the CTs are minted and vested to the evaluator.
 	pub fn do_settle_evaluation(evaluation: EvaluationInfoOf<T>, project_id: ProjectId) -> DispatchResult {
 		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 
@@ -159,6 +164,14 @@ impl<T: Config> Pallet<T> {
 	/// Settle a bid. If bid was successful mint the CTs and release the PLMC bond (if multiplier > 1 and mode is Classic).
 	/// If was unsuccessful, release the PLMC bond and refund the funds.
 	/// If the project was successful, the issuer will get the funds.
+	///
+	/// Possible bid statuses:
+	///
+	///  - `Accepted` - the bid was fully accepted, CTs minted, PL
+	/// bond released, funding asset released to the issuer.
+	/// - `PartiallyAccepted` - the bid was partially accepted, CTs minted for the accepted amount,
+	/// PLMC bond released for the remaining amount, funding asset released to the issuer.
+	/// - `Rejected` - the bid was rejected, PLMC bond released, funding asset refunded to the bidder.
 	pub fn do_settle_bid(project_id: ProjectId, bid_id: u32) -> DispatchResult {
 		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 		let project_metadata = ProjectsMetadata::<T>::get(project_id).ok_or(Error::<T>::ProjectMetadataNotFound)?;
@@ -266,6 +279,8 @@ impl<T: Config> Pallet<T> {
 	}
 
 	/// Mark a project as fully settled. Only once this is done we can mark migrations as completed.
+	///
+	/// This function checks if there are any evaluations or bids remaining, and if so, it returns an error.
 	pub fn do_mark_project_as_settled(project_id: ProjectId) -> DispatchResult {
 		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 		let outcome = match project_details.status {
@@ -341,8 +356,9 @@ impl<T: Config> Pallet<T> {
 		let multiplier: MultiplierOf<T> = mode.multiplier().try_into().map_err(|_| Error::<T>::ImpossibleState)?;
 		match mode {
 			ParticipationMode::OTM => Ok(multiplier.calculate_vesting_duration::<T>()),
-			ParticipationMode::Classic(_) =>
-				Self::set_release_schedule_for(&participant, plmc_amount, multiplier, funding_end_block),
+			ParticipationMode::Classic(_) => {
+				Self::set_release_schedule_for(&participant, plmc_amount, multiplier, funding_end_block)
+			},
 		}
 	}
 

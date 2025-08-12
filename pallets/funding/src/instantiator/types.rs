@@ -19,6 +19,11 @@ pub type OptionalExternalities = Option<RefCell<sp_io::TestExternalities>>;
 #[cfg(not(feature = "std"))]
 pub type OptionalExternalities = Option<()>;
 
+/// The helper struct that is used to mimic the runtime state for specifically funding pallet's purposes.
+///
+/// It is used to instantiate the pallet with a specific configuration and externalities, allowing for testing and development without needing a full runtime environment.
+///
+/// It contains a nonce to track the number of operations performed.
 pub struct Instantiator<
 	T: Config + pallet_balances::Config<Balance = Balance> + cumulus_pallet_parachain_system::Config,
 	AllPalletsWithoutSystem: OnFinalize<BlockNumberFor<T>> + OnIdle<BlockNumberFor<T>> + OnInitialize<BlockNumberFor<T>>,

@@ -2,19 +2,25 @@ use super::{Config, UserToPLMCBalance};
 use crate::Balance;
 use alloc::vec::Vec;
 
+/// The trait for existential deposits in the system.
 pub trait Deposits<T: Config> {
 	fn existential_deposits(&self) -> Vec<UserToPLMCBalance<T>>;
 }
+
+/// The trait for accounts that can be iterated over and merged.
 pub trait Accounts {
 	type Account;
 
 	fn accounts(&self) -> Vec<Self::Account>;
 }
 
+/// A type of operation for merging accounts.
 pub enum MergeOperation {
 	Add,
 	Subtract,
 }
+
+/// A trait for merging accounts, allowing for operations like addition and subtraction of balances.
 pub trait AccountMerge:
 	Clone + Accounts<Account: Clone + PartialEq> + Sized + IntoIterator<Item = Self::Inner> + FromIterator<Self::Inner>
 {
@@ -45,15 +51,18 @@ pub trait AccountMerge:
 	}
 }
 
+/// A trait for total balances, providing a method to retrieve the total balance.
 pub trait Total {
 	fn total(&self) -> Balance;
 }
 
+/// A trait for retrieving totals of assets, providing a method to get a vector of asset IDs and their corresponding balances.
 pub trait Totals {
 	type AssetId;
 	fn totals(&self) -> Vec<(Self::AssetId, Balance)>;
 }
 
+/// A trait for converting data structures into a vector of tuples containing account IDs and asset IDs.
 pub trait Conversions {
 	type AccountId;
 	type AssetId;

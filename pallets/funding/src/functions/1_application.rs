@@ -1,3 +1,7 @@
+//! # Application Phase
+//!
+//! Functions for creating, editing, and removing projects before the evaluation round starts.
+
 #![allow(clippy::wildcard_imports)]
 #![allow(clippy::type_complexity)]
 
@@ -54,6 +58,12 @@ impl<T: Config> Pallet<T> {
 	}
 
 	/// Create a new project.
+	///
+	/// The `issuer` is charged for the escrow account creation.
+	///
+	/// ## Errors
+	/// - `HasActiveProject` if the issuer already has an active project.
+	/// - `IssuerNotEnoughFunds` if the issuer has not enough funds to cover the escrow account costs.
 	#[transactional]
 	pub fn do_create_project(
 		issuer: &AccountIdOf<T>,
@@ -94,7 +104,12 @@ impl<T: Config> Pallet<T> {
 		Ok(PostDispatchInfo { actual_weight: None, pays_fee: Pays::No })
 	}
 
-	/// Edit the project information before starting the raise
+	/// Edit the project information before starting the raise.
+	///
+	/// ## Errors
+	/// - `ProjectDetailsNotFound` if the project does not exist.
+	/// - `NotIssuer` if the caller is not the issuer of the project.
+	/// - `ProjectIsFrozen` if the project is already frozen.
 	#[transactional]
 	pub fn do_edit_project(
 		issuer: AccountIdOf<T>,
@@ -124,6 +139,11 @@ impl<T: Config> Pallet<T> {
 	}
 
 	/// Remove the project before the raise started.
+	///
+	/// ## Errors
+	/// - `ProjectDetailsNotFound` if the project does not exist.
+	/// - `NotIssuer` if the caller is not the issuer of the project.
+	/// - `ProjectIsFrozen` if the project is already frozen.
 	#[transactional]
 	pub fn do_remove_project(issuer: AccountIdOf<T>, project_id: ProjectId, did: Did) -> DispatchResultWithPostInfo {
 		// * Get variables *
